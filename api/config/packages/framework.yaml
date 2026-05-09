@@ -1,0 +1,13 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+    secret: '%env(APP_SECRET)%'
+
+    # API is stateless (JWT httpOnly cookies) - PHP sessions disabled.
+    session: false
+
+    #esi: true
+    #fragments: true
+
+when@test:
+    framework:
+        test: true

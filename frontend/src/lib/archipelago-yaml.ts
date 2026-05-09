@@ -1,0 +1,505 @@
+import * as yaml from "js-yaml";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+export const RANDOM_ALIASES = [
+  { key: "random", label: "Aléatoire (uniforme)" },
+  { key: "random-low", label: "Aléatoire bas" },
+  { key: "random-middle", label: "Aléatoire milieu" },
+  { key: "random-high", label: "Aléatoire haut" },
+] as const;
+
+export type RandomAliasKey = (typeof RANDOM_ALIASES)[number]["key"];
+
+const FIXED_ALIAS_KEYS = new Set<string>(RANDOM_ALIASES.map((r) => r.key));
+
+// random-range[-low|-middle|-high]-<min>-<max>
+const RANGE_ALIAS_RE = /^random-range(-low|-middle|-high)?-(-?\d+)-(-?\d+)$/;
+
+function isRandomAlias(k: string): boolean {
+  return FIXED_ALIAS_KEYS.has(k) || RANGE_ALIAS_RE.test(k);
+}
+
+// Keys always rendered as freeform dicts regardless of value shape
+const FREEFORM_DICT_KEYS = new Set(["start_inventory", "start_inventory_from_pool"]);
+
+// Top-level scalar options that are range options - value alone doesn't reveal the type
+const KNOWN_SCALAR_RANGES = new Map<string, { min: number; max: number }>([
+  ["progression_balancing", { min: 0, max: 99 }],
+]);
+
+// Top-level keys that are never shown to the player
+const METADATA_KEYS = new Set(["name", "description", "game", "requires"]);
+
+// All known top-level keys - used to identify the game block by exclusion
+const STANDARD_KEYS = new Set([
+  "name", "description", "game", "requires",
+  "accessibility", "progression_balancing",
+  "local_items", "non_local_items", "start_inventory",
+  "exclude_locations", "include_locations",
+  "start_hints", "start_location_hints", "exclude_item_groups",
+]);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type TextOption = {
+  type: "text";
+  key: string;
+  label: string;
+  value: string;
+  description?: string;
+  category?: string;
+};
+
+export type ToggleOption = {
+  type: "toggle";
+  key: string;
+  label: string;
+  weightFalse: number;
+  weightTrue: number;
+  description?: string;
+  category?: string;
+};
+
+export type WeightedChoice = { value: string; weight: number; description?: string };
+
+export type ChoiceOption = {
+  type: "choice";
+  key: string;
+  label: string;
+  choices: WeightedChoice[];
+  description?: string;
+  category?: string;
+};
+
+export type RangeEntry = {
+  id: string;
+  key: string;
+  weight: number;
+  isCustom: boolean;
+  description?: string;
+};
+
+export type RangeOption = {
+  type: "range";
+  key: string;
+  label: string;
+  min: number;
+  max: number;
+  entries: RangeEntry[];
+  description?: string;
+  category?: string;
+};
+
+export type FreeformListOption = {
+  type: "freeform";
+  kind: "list";
+  key: string;
+  label: string;
+  items: string[];
+  description?: string;
+  category?: string;
+};
+
+export type FreeformDictEntry = { id: string; k: string; v: string };
+
+export type FreeformDictOption = {
+  type: "freeform";
+  kind: "dict";
+  key: string;
+  label: string;
+  entries: FreeformDictEntry[];
+  description?: string;
+  category?: string;
+};
+
+export type FreeformOption = FreeformListOption | FreeformDictOption;
+
+export type GameOption = TextOption | ToggleOption | ChoiceOption | RangeOption | FreeformOption;
+
+export type ParsedYaml = {
+  rawDoc: Record<string, unknown>;
+  playerName: string;
+  playerNameDescription?: string;
+  gameName: string;
+  options: GameOption[];
+  /** Keys of options that live at the top level of the YAML (not under the game block) */
+  topLevelOptionKeys: ReadonlySet<string>;
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function labelFromKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function labelFromAlias(key: string): string | null {
+  const fixed = RANDOM_ALIASES.find((r) => r.key === key);
+  if (fixed) return fixed.label;
+  const m = RANGE_ALIAS_RE.exec(key);
+  if (!m) return null;
+  const bias = m[1] === "-low" ? " bas" : m[1] === "-middle" ? " milieu" : m[1] === "-high" ? " haut" : "";
+  return `Aléatoire${bias} [${m[2]}–${m[3]}]`;
+}
+
+function clampWeight(val: unknown): number {
+  return typeof val === "number" ? Math.max(0, Math.min(100, Math.round(val))) : 0;
+}
+
+let _uid = 0;
+function uid(): string {
+  return `ap-entry-${++_uid}`;
+}
+
+// Returns the raw comment block (lines starting with #) adjacent to a key.
+// Checks after the key first (game-block style), then before (top-level style).
+function extractCommentBlock(yamlStr: string, key: string): string | null {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const after = yamlStr.match(new RegExp(`${escaped}:[^\n]*\n((?:[ \t]*#[^\n]*\n)+)`));
+  if (after) return after[1];
+  const before = yamlStr.match(new RegExp(`((?:[ \t]*#[^\n]*\n)+)[ \t]*${escaped}:`));
+  if (before) return before[1];
+  return null;
+}
+
+function extractDescription(yamlStr: string, key: string): string | undefined {
+  const block = extractCommentBlock(yamlStr, key);
+  if (!block) return undefined;
+  const lines = block
+    .split("\n")
+    .map((l) => l.replace(/^\s*#\s?/, ""))
+    .filter((l) => l.trim() !== "" && !/^#+$/.test(l.trim()));
+  return lines.join("\n").trim() || undefined;
+}
+
+function extractRange(yamlStr: string, key: string): { min: number; max: number } | null {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Wide block after the key covers inline comment blocks (game-block style)
+  const wideAfter = yamlStr.match(new RegExp(`${escaped}:[\\s\\S]{0,600}`));
+  const commentBlock = extractCommentBlock(yamlStr, key);
+
+  for (const block of [wideAfter?.[0] ?? "", commentBlock ?? ""]) {
+    if (!block) continue;
+    const rangeM = block.match(/#\s*Range:\s*(-?\d+)\s*-\s*(-?\d+)/);
+    if (rangeM) return { min: parseInt(rangeM[1], 10), max: parseInt(rangeM[2], 10) };
+    const minM = block.match(/#\s*[Mm]inimum value is\s*(-?\d+)/);
+    const maxM = block.match(/#\s*[Mm]aximum value is\s*(-?\d+)/);
+    if (minM && maxM) return { min: parseInt(minM[1], 10), max: parseInt(maxM[1], 10) };
+  }
+  return null;
+}
+
+// Returns inline comments for each value under an option key, e.g.
+//   random-low: 0 # random value weighted towards lower values
+// → Map { "random-low" → "random value weighted towards lower values" }
+function extractValueComments(yamlStr: string, key: string): Map<string, string> {
+  const result = new Map<string, string>();
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const keyLineMatch = yamlStr.match(new RegExp(`^([ \\t]*)${escaped}:[ \\t]*$`, "m"));
+  if (!keyLineMatch || keyLineMatch.index === undefined) return result;
+
+  const keyIndent = keyLineMatch[1].length;
+  const afterKey = yamlStr.slice(keyLineMatch.index + keyLineMatch[0].length);
+
+  for (const line of afterKey.split("\n").slice(1)) {
+    if (line.trim() === "") continue;
+    const lineIndent = (line.match(/^([ \t]*)/) ?? ["", ""])[1].length;
+    if (lineIndent <= keyIndent) break;
+
+    const m = line.match(/^[ \t]+('.*?'|".*?"|[^\s:#][^\s:]*):\s*[^\n#]*#\s*(.+)$/);
+    if (m) result.set(m[1].replace(/^['"]|['"]$/g, ""), m[2].trim());
+  }
+
+  return result;
+}
+
+// ─── Category extraction ─────────────────────────────────────────────────────
+
+function parseCategories(yamlStr: string, gameName: string): Map<string, string> {
+  const result = new Map<string, string>();
+  const escaped = gameName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const gameLineMatch = yamlStr.match(new RegExp(`^${escaped}:\\s*$`, "m"));
+  if (!gameLineMatch || gameLineMatch.index === undefined) return result;
+
+  const lines = yamlStr.slice(gameLineMatch.index + gameLineMatch[0].length).split("\n");
+  let pendingCategory: string | null = null;
+  let pendingLines: string[] = [];
+
+  for (const line of lines) {
+    if (/^[^\s]/.test(line) && line.trim() !== "") break;
+
+    const optionMatch = line.match(/^  ([a-zA-Z_][a-zA-Z0-9_]*):\s*$/);
+    if (optionMatch) {
+      if (pendingLines.length > 0) {
+        const text = pendingLines
+          .map((l) => l.replace(/^\s*#+\s*/, "").replace(/\s*#+\s*$/, "").trim())
+          .filter((l) => l !== "" && !/^[=\-*~^_]+$/.test(l))
+          .join(" ")
+          .trim();
+        if (text) pendingCategory = text;
+        pendingLines = [];
+      }
+      if (pendingCategory) result.set(optionMatch[1], pendingCategory);
+      continue;
+    }
+
+    if (/^  #/.test(line)) { pendingLines.push(line); continue; }
+    if (/^    /.test(line)) pendingLines = [];
+  }
+
+  return result;
+}
+
+// ─── Option type detection ────────────────────────────────────────────────────
+
+function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
+  const label = labelFromKey(key);
+  const description = extractDescription(yamlStr, key);
+
+  // Scalar value
+  if (typeof value !== "object" || value === null) {
+    const knownRange = KNOWN_SCALAR_RANGES.get(key);
+    if (knownRange && !isNaN(Number(value))) {
+      const bounds = extractRange(yamlStr, key) ?? knownRange;
+      return {
+        type: "range", key, label,
+        min: bounds.min, max: bounds.max,
+        entries: [createRangeEntry(String(Math.round(Number(value))), 50, false)],
+        description,
+      };
+    }
+    return { type: "text", key, label, value: String(value ?? ""), description };
+  }
+
+  // Array → freeform list
+  if (Array.isArray(value)) {
+    return {
+      type: "freeform", kind: "list", key, label,
+      items: value.map((i) => (typeof i === "string" ? i : String(i ?? ""))),
+      description,
+    };
+  }
+
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj);
+
+  // Known dict keys or empty object → freeform dict
+  if (FREEFORM_DICT_KEYS.has(key) || keys.length === 0) {
+    return {
+      type: "freeform", kind: "dict", key, label,
+      entries: keys.map((k) => ({ id: uid(), k, v: String(obj[k] ?? "") })),
+      description,
+    };
+  }
+
+  // Toggle: keys are a subset of { "true", "false" }
+  if (keys.every((k) => k === "true" || k === "false")) {
+    return {
+      type: "toggle", key, label,
+      weightFalse: clampWeight(obj["false"]),
+      weightTrue: clampWeight(obj["true"]),
+      description,
+    };
+  }
+
+  // Range: all keys are numeric or random aliases
+  if (keys.every((k) => !isNaN(Number(k)) || isRandomAlias(k))) {
+    const bounds = extractRange(yamlStr, key) ?? { min: 0, max: 100 };
+    const valueComments = extractValueComments(yamlStr, key);
+    const fixedAliasEntries: RangeEntry[] = RANDOM_ALIASES.filter((r) => r.key in obj).map((r) => ({
+      id: uid(), key: r.key, weight: clampWeight(obj[r.key]), isCustom: false,
+      description: valueComments.get(r.key),
+    }));
+    const paramAliasEntries: RangeEntry[] = keys
+      .filter((k) => RANGE_ALIAS_RE.test(k))
+      .sort()
+      .map((k) => ({ id: uid(), key: k, weight: clampWeight(obj[k]), isCustom: false, description: valueComments.get(k) }));
+    const numericEntries: RangeEntry[] = keys
+      .filter((k) => !isNaN(Number(k)))
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => ({ id: uid(), key: k, weight: clampWeight(obj[k]), isCustom: false, description: valueComments.get(k) }));
+    return {
+      type: "range", key, label,
+      min: bounds.min, max: bounds.max,
+      entries: [...fixedAliasEntries, ...paramAliasEntries, ...numericEntries],
+      description,
+    };
+  }
+
+  // Choice: string keys with weights
+  const valueComments = extractValueComments(yamlStr, key);
+  return {
+    type: "choice", key, label,
+    choices: keys.map((k) => ({ value: k, weight: clampWeight(obj[k]), description: valueComments.get(k) })),
+    description,
+  };
+}
+
+// ─── Player value merge ───────────────────────────────────────────────────────
+
+/**
+ * Merges player-saved option weights onto the default YAML structure.
+ * The base (from defaultYaml) provides all type/category/description info.
+ * The player provides weights/values.
+ */
+export function mergePlayerValues(base: ParsedYaml, player: ParsedYaml): ParsedYaml {
+  const playerByKey = new Map(player.options.map((o) => [o.key, o]));
+
+  const mergedOptions = base.options.map((baseOpt): GameOption => {
+    const playerOpt = playerByKey.get(baseOpt.key);
+    if (!playerOpt || baseOpt.type !== playerOpt.type) return baseOpt;
+
+    if (baseOpt.type === "text" && playerOpt.type === "text") {
+      return { ...baseOpt, value: playerOpt.value };
+    }
+
+    if (baseOpt.type === "toggle" && playerOpt.type === "toggle") {
+      return { ...baseOpt, weightFalse: playerOpt.weightFalse, weightTrue: playerOpt.weightTrue };
+    }
+
+    if (baseOpt.type === "choice" && playerOpt.type === "choice") {
+      const playerWeights = new Map(playerOpt.choices.map((c) => [c.value, c.weight]));
+      return {
+        ...baseOpt,
+        choices: baseOpt.choices.map((c) => ({
+          ...c,
+          weight: playerWeights.has(c.value) ? (playerWeights.get(c.value) ?? 0) : 0,
+        })),
+      };
+    }
+
+    if (baseOpt.type === "range" && playerOpt.type === "range") {
+      const playerWeights = new Map(playerOpt.entries.map((e) => [e.key, e.weight]));
+      const baseKeys = new Set(baseOpt.entries.map((e) => e.key));
+      const mergedEntries = baseOpt.entries.map((e) => ({
+        ...e,
+        weight: playerWeights.has(e.key) ? (playerWeights.get(e.key) ?? 0) : 0,
+      }));
+      const customEntries = playerOpt.entries.filter((e) => e.isCustom && !baseKeys.has(e.key));
+      return { ...baseOpt, entries: [...mergedEntries, ...customEntries] };
+    }
+
+    if (
+      baseOpt.type === "freeform" &&
+      playerOpt.type === "freeform" &&
+      baseOpt.kind === playerOpt.kind
+    ) {
+      if (baseOpt.kind === "list" && playerOpt.kind === "list") {
+        return { ...baseOpt, items: playerOpt.items };
+      }
+      if (baseOpt.kind === "dict" && playerOpt.kind === "dict") {
+        return { ...baseOpt, entries: playerOpt.entries };
+      }
+    }
+
+    return baseOpt;
+  });
+
+  return { ...base, playerName: player.playerName, options: mergedOptions };
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export function parseDefaultYaml(yamlStr: string): ParsedYaml | null {
+  try {
+    const rawDoc = yaml.load(yamlStr, { schema: yaml.CORE_SCHEMA }) as Record<string, unknown>;
+    if (!rawDoc || typeof rawDoc !== "object") return null;
+
+    const playerName = typeof rawDoc["name"] === "string" ? rawDoc["name"] : "Player{number}";
+    const playerNameDescription = extractDescription(yamlStr, "name");
+    const gameName = Object.keys(rawDoc).find((k) => !STANDARD_KEYS.has(k) && k !== "name");
+    if (!gameName) return null;
+
+    const gameBlock = rawDoc[gameName];
+    if (!gameBlock || typeof gameBlock !== "object") return null;
+
+    const categories = parseCategories(yamlStr, gameName);
+
+    const gameOptions: GameOption[] = Object.entries(gameBlock as Record<string, unknown>).map(
+      ([k, v]) => ({ ...buildOption(k, v, yamlStr), category: categories.get(k) }),
+    );
+    const gameOptionKeys = new Set(gameOptions.map((o) => o.key));
+
+    // Top-level configurable options not already covered by the game block
+    const topLevelOptions: GameOption[] = Object.entries(rawDoc)
+      .filter(([k]) => STANDARD_KEYS.has(k) && !METADATA_KEYS.has(k) && !gameOptionKeys.has(k))
+      .map(([k, v]) => buildOption(k, v, yamlStr));
+    const topLevelOptionKeys = new Set(topLevelOptions.map((o) => o.key));
+
+    return {
+      rawDoc,
+      playerName,
+      playerNameDescription,
+      gameName,
+      options: [...topLevelOptions, ...gameOptions],
+      topLevelOptionKeys,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function createRangeEntry(key: string, weight: number, isCustom: boolean): RangeEntry {
+  return { id: uid(), key, weight, isCustom };
+}
+
+export function addCustomRangeEntry(option: RangeOption, key: string, weight: number): RangeOption {
+  if (option.entries.some((e) => e.key === key)) return option;
+  return { ...option, entries: [...option.entries, { id: uid(), key, weight, isCustom: true }] };
+}
+
+// ─── Serializer ───────────────────────────────────────────────────────────────
+
+export function serializeToYaml(parsed: ParsedYaml): string {
+  const doc: Record<string, unknown> = { ...parsed.rawDoc };
+  doc["name"] = parsed.playerName;
+
+  const gameBlock: Record<string, unknown> = {};
+  for (const opt of parsed.options) {
+    const serialized = serializeOption(opt);
+    if (parsed.topLevelOptionKeys.has(opt.key)) {
+      doc[opt.key] = serialized;
+    } else {
+      gameBlock[opt.key] = serialized;
+    }
+  }
+  doc[parsed.gameName] = gameBlock;
+
+  return yaml.dump(doc, { lineWidth: -1, noRefs: true, schema: yaml.CORE_SCHEMA });
+}
+
+function serializeOption(opt: GameOption): unknown {
+  if (opt.type === "freeform") {
+    if (opt.kind === "list") return opt.items.filter((item) => item.trim() !== "");
+    const result: Record<string, unknown> = {};
+    for (const { k, v } of opt.entries) {
+      if (!k.trim()) continue;
+      try {
+        result[k.trim()] = yaml.load(v.trim(), { schema: yaml.CORE_SCHEMA }) ?? v.trim();
+      } catch {
+        result[k.trim()] = v.trim();
+      }
+    }
+    return result;
+  }
+
+  if (opt.type === "text") return opt.value;
+
+  if (opt.type === "toggle") {
+    return { false: opt.weightFalse, true: opt.weightTrue };
+  }
+
+  if (opt.type === "choice") {
+    if (opt.choices.length === 0) return {};
+    const w: Record<string, number> = {};
+    for (const c of opt.choices) w[c.value] = c.weight;
+    return w;
+  }
+
+  // Range - always use dict so re-parsing recovers the range type
+  if (opt.entries.length === 0) return opt.min;
+  const w: Record<string, number> = {};
+  for (const e of opt.entries) w[e.key] = e.weight;
+  return w;
+}

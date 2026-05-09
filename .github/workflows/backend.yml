@@ -1,0 +1,63 @@
+name: Backend Quality
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - '.github/workflows/backend.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: ctype, iconv
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate Composer
+        run: composer validate
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: PHPStan
+        run: composer phpstan
+
+      - name: PHP CS Fixer
+        run: composer cs-fixer
+
+      - name: PHPUnit
+        run: composer test

@@ -1,0 +1,117 @@
+name: archilan
+
+services:
+    postgres:
+        image: postgres:17-alpine
+        container_name: archilan-postgres
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB:-archilan}
+            POSTGRES_USER: ${POSTGRES_USER:-archilan}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-archilan_dev_password}
+        ports:
+            - "${POSTGRES_PORT:-5432}:5432"
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-archilan} -d ${POSTGRES_DB:-archilan}" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    mercure:
+        image: dunglas/mercure:v0.15
+        container_name: archilan-mercure
+        restart: unless-stopped
+        environment:
+            SERVER_NAME: ":3001"
+            MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_PUBLISHER_JWT_KEY:-dev_mercure_jwt_secret_change_in_production}
+            MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_SUBSCRIBER_JWT_KEY:-dev_mercure_jwt_secret_change_in_production}
+            MERCURE_EXTRA_DIRECTIVES: |
+                cors_origins http://localhost:3000
+                # anonymous: allows unauthenticated subscribers - dev only, never expose publicly
+                anonymous
+        ports:
+            - "3001:3001"
+
+    archipelago:
+        build:
+            context: .
+            dockerfile: archipelago/Dockerfile
+        image: archipelago-server:latest
+        container_name: archilan-archipelago
+        restart: unless-stopped
+        command: ["tail", "-f", "/dev/null"]
+        volumes:
+            - workspace:/workspace
+
+    runner:
+        build:
+            context: ./runner
+        container_name: archilan-runner
+        restart: unless-stopped
+        depends_on:
+            - archipelago
+        environment:
+            RUNNER_API_KEY: ${RUNNER_API_KEY:-dev_runner_key_change_me}
+            PORT_RANGE_START: ${PORT_RANGE_START:-25000}
+            PORT_RANGE_END: ${PORT_RANGE_END:-25099}
+            WORKSPACE_ROOT: /workspace
+            ARCHIPELAGO_GENERATE_CMD: ${ARCHIPELAGO_GENERATE_CMD:-docker exec archilan-archipelago ArchipelagoGenerate}
+            ARCHIPELAGO_TEMPLATE_CMD: ${ARCHIPELAGO_TEMPLATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_template.py}
+            ARCHIPELAGO_SERVER_IMAGE: archipelago-server:latest
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - workspace:/workspace
+        ports:
+            - "${RUNNER_PORT:-8001}:8000"
+
+    rabbitmq:
+        image: rabbitmq:4-management-alpine
+        container_name: archilan-rabbitmq
+        restart: unless-stopped
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-archilan}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-archilan_dev_password}
+        ports:
+            - "${RABBITMQ_PORT:-5672}:5672"
+            - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+        volumes:
+            - rabbitmq-data:/var/lib/rabbitmq
+        healthcheck:
+            test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+
+#    worker:
+#        build:
+#            context: ./api
+#        container_name: archilan-worker
+#        restart: unless-stopped
+#        command: >
+#            php bin/console messenger:consume async scheduler_default
+#            --time-limit=3600 --memory-limit=128M -vv
+#        depends_on:
+#            postgres:
+#                condition: service_healthy
+#            rabbitmq:
+#                condition: service_healthy
+#        volumes:
+#            - /var/run/docker.sock:/var/run/docker.sock
+#            - workspace:/workspace
+#        environment:
+#            APP_ENV: prod
+#            APP_DEBUG: 'false'
+#            APP_SECRET: ${APP_SECRET:-changeme}
+#            DATABASE_URL: postgresql://${POSTGRES_USER:-archilan}:${POSTGRES_PASSWORD:-archilan_dev_password}@postgres:5432/${POSTGRES_DB:-archilan}
+#            MESSENGER_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD:-archilan_dev_password}@rabbitmq:5672/%2f
+#            MESSENGER_FAILED_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD:-archilan_dev_password}@rabbitmq:5672/%2f
+#            DOCKER_HOST: unix:///var/run/docker.sock
+#            WORKSPACE_DIR: /workspace
+#            ARCHIPELAGO_WORKSPACE_VOLUME: ''
+
+volumes:
+    postgres-data:
+    rabbitmq-data:
+    workspace:

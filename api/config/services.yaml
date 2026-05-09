@@ -1,0 +1,163 @@
+# yaml-language-server: $schema=../vendor/symfony/dependency-injection/Loader/schema/services.schema.json
+
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+# See also https://symfony.com/doc/current/service_container/import.html
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+services:
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            string $appSecret: '%kernel.secret%'
+            string $emailHashSecret: '%env(EMAIL_HASH_SECRET)%'
+            string $mailerSender: '%env(MAILER_SENDER)%'
+            string $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/Shared/Domain/'
+            - '../src/Identity/Domain/'
+            - '../src/Events/Domain/'
+            - '../src/Registrations/Domain/'
+            - '../src/GameSelection/Domain/'
+            - '../src/Content/Domain/'
+            - '../src/Payments/Domain/'
+            - '../src/Realtime/Domain/'
+            - '../src/Communications/Domain/'
+            - '../src/Legal/Domain/'
+            - '../src/Streaming/Domain/'
+            - '../src/Sessions/Domain/'
+
+    App\Sessions\Infrastructure\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
+
+    App\Sessions\Infrastructure\RunnerGateway:
+        arguments:
+            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $runnerApiKey: '%env(RUNNER_API_KEY)%'
+
+    App\Sessions\Infrastructure\DockerPortScannerInterface: '@App\Sessions\Infrastructure\DockerPortScanner'
+
+    App\Sessions\Infrastructure\PortPool:
+        arguments:
+            $start: '%env(int:PORT_RANGE_START)%'
+            $end: '%env(int:PORT_RANGE_END)%'
+
+    App\Sessions\Infrastructure\RunnerCallbackClient:
+        arguments:
+            $centralApiUrl: '%env(CENTRAL_API_URL)%'
+            $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
+            $runnerId: '%env(RUNNER_ID)%'
+
+    App\Sessions\Presentation\SessionOrchestrationController:
+        arguments:
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+
+    App\Sessions\Presentation\PlayerPatchController:
+        arguments:
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+
+    App\Sessions\Application\TraefikConfigBuilder:
+        arguments:
+            $wsDomain: '%env(WS_DOMAIN)%'
+
+    App\Sessions\Presentation\TraefikConfigController:
+        arguments:
+            $traefikToken: '%env(TRAEFIK_TOKEN)%'
+
+    App\Sessions\Infrastructure\DockerSocketClient:
+        arguments:
+            $dockerHost: '%env(DOCKER_HOST)%'
+        autowire: false
+
+    App\Sessions\Application\Handler\GenerateRunJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+            $generateImage: '%env(ARCHIPELAGO_GENERATE_IMAGE)%'
+            $apworldVolumeName: '%env(ARCHIPELAGO_WORKSPACE_VOLUME)%'
+
+    App\Sessions\Application\Handler\StartRunJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+            $runnerHost: '%env(RUNNER_HOST)%'
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+            $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
+            $symfonyInternalUrl: '%env(SYMFONY_INTERNAL_URL)%'
+            $mercureHubUrl: '%env(MERCURE_HUB_URL)%'
+            $serverImage: '%env(ARCHIPELAGO_SERVER_IMAGE)%'
+
+    App\Sessions\Application\Handler\RunHealthCheckJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+
+    App\Sessions\Application\Handler\StopRunJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+
+    App\Sessions\Application\Handler\RestartRunJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+            $runnerHost: '%env(RUNNER_HOST)%'
+
+    App\Sessions\Application\Handler\FetchLogsJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+
+    App\Sessions\Application\Handler\ArchiveRunJobHandler:
+        arguments:
+            $runnerId: '%env(RUNNER_ID)%'
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+            $archiveDir: '%env(ARCHIVE_DIR)%'
+
+    App\Streaming\Infrastructure\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
+
+    App\Streaming\Infrastructure\TwitchApiClient:
+        arguments:
+            $clientId: '%env(TWITCH_CLIENT_ID)%'
+            $clientSecret: '%env(TWITCH_CLIENT_SECRET)%'
+            $channelLogin: '%env(TWITCH_CHANNEL_LOGIN)%'
+
+    App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
+
+    App\GameSelection\Infrastructure\IgdbHttpClient:
+        arguments:
+            $clientId: '%env(TWITCH_CLIENT_ID)%'
+            $clientSecret: '%env(TWITCH_CLIENT_SECRET)%'
+
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones
+
+when@test:
+    services:
+        App\Realtime\Infrastructure\SpyHub:
+            public: true
+
+        Symfony\Component\Mercure\HubInterface: '@App\Realtime\Infrastructure\SpyHub'
+
+        Symfony\Component\HttpClient\MockHttpClient:
+            public: true
+
+        Symfony\Contracts\HttpClient\HttpClientInterface: '@Symfony\Component\HttpClient\MockHttpClient'
+
+        App\Sessions\Infrastructure\RunnerGatewayInterface:
+            class: App\Sessions\Infrastructure\NullRunnerGateway
+
+        App\Sessions\Infrastructure\DockerPortScannerInterface:
+            class: App\Sessions\Infrastructure\NullDockerPortScanner
+
+        App\Streaming\Infrastructure\TwitchApiClientInterface:
+            class: App\Streaming\Infrastructure\NullTwitchApiClient
+
+        App\GameSelection\Infrastructure\IgdbHttpClientInterface:
+            class: App\GameSelection\Infrastructure\StubIgdbHttpClient
+
+        App\GameSelection\Infrastructure\StubIgdbHttpClient:
+            public: true

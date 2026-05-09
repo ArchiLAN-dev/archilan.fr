@@ -1,0 +1,82 @@
+doctrine:
+    dbal:
+        url: '%env(resolve:DATABASE_URL)%'
+
+        # IMPORTANT: You MUST configure your server version,
+        # either here or in the DATABASE_URL env var (see .env file)
+        server_version: '17'
+
+        profiling_collect_backtrace: '%kernel.debug%'
+    orm:
+        validate_xml_mapping: true
+        naming_strategy: doctrine.orm.naming_strategy.underscore
+        identity_generation_preferences:
+            Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+        auto_mapping: true
+        mappings:
+            Identity:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Identity/Domain'
+                prefix: 'App\Identity\Domain'
+                alias: Identity
+            Events:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Events/Domain'
+                prefix: 'App\Events\Domain'
+                alias: Events
+            GameSelection:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/GameSelection/Domain'
+                prefix: 'App\GameSelection\Domain'
+                alias: GameSelection
+            Registrations:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Registrations/Domain'
+                prefix: 'App\Registrations\Domain'
+                alias: Registrations
+            Payments:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Payments/Domain'
+                prefix: 'App\Payments\Domain'
+                alias: Payments
+            Sessions:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Sessions/Domain'
+                prefix: 'App\Sessions\Domain'
+                alias: Sessions
+            Content:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Content/Domain'
+                prefix: 'App\Content\Domain'
+                alias: Content
+
+when@test:
+    doctrine:
+        dbal:
+            # "TEST_TOKEN" is typically set by ParaTest
+            dbname_suffix: '_test%env(default::TEST_TOKEN)%'
+
+when@prod:
+    doctrine:
+        orm:
+            query_cache_driver:
+                type: pool
+                pool: doctrine.system_cache_pool
+            result_cache_driver:
+                type: pool
+                pool: doctrine.result_cache_pool
+
+    framework:
+        cache:
+            pools:
+                doctrine.result_cache_pool:
+                    adapter: cache.app
+                doctrine.system_cache_pool:
+                    adapter: cache.system

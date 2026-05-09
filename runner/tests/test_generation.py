@@ -1,0 +1,293 @@
+from __future__ import annotations
+
+import asyncio
+import io
+import pathlib
+import zipfile
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.generator import run_generation
+from app.session_store import SessionStore
+
+API_KEY = "test-secret"
+HEADERS = {"X-Api-Key": API_KEY}
+
+
+# ─── run_generation coroutine tests ──────────────────────────────────────────
+
+def _make_proc(returncode: int, stdout: bytes = b"", stderr: bytes = b"") -> AsyncMock:
+    proc = AsyncMock()
+    proc.returncode = returncode
+    proc.communicate = AsyncMock(return_value=(stdout, stderr))
+    proc.kill = MagicMock()
+    return proc
+
+
+async def test_success_sets_generated_status(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-1")
+
+    output_dir = tmp_path / "sess-1" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc):
+        await run_generation("sess-1", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=10)
+
+    session = store.get("sess-1")
+    assert session is not None
+    assert session["status"] == "generated"
+    assert session["outputFile"] is not None
+    assert session["outputFile"].endswith(".archipelago")
+
+
+async def test_generation_invokes_archipelago_generate_with_yaml_and_output_dirs(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-1")
+
+    output_dir = tmp_path / "sess-1" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        await run_generation("sess-1", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=10)
+
+    mock_exec.assert_called_once_with(
+        "FakeGenerate",
+        "--player_files_path", str(tmp_path / "sess-1" / "yamls"),
+        "--outputpath", str(output_dir),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+
+async def test_nonzero_exit_sets_failed_with_stderr(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-1")
+
+    proc = _make_proc(returncode=1, stderr=b"fatal error in generator")
+    with patch("asyncio.create_subprocess_exec", return_value=proc):
+        await run_generation("sess-1", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=10)
+
+    session = store.get("sess-1")
+    assert session is not None
+    assert session["status"] == "failed"
+    assert "fatal error in generator" in session["error"]
+
+
+async def test_timeout_sets_failed_with_timeout_message(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-1")
+
+    proc = AsyncMock()
+    proc.kill = MagicMock()
+    proc.communicate = AsyncMock(return_value=(b"", b""))
+
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc),
+        patch("app.generator.asyncio.wait_for", side_effect=asyncio.TimeoutError()),
+    ):
+        await run_generation("sess-1", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=300)
+
+    session = store.get("sess-1")
+    assert session is not None
+    assert session["status"] == "failed"
+    assert "timed out" in session["error"].lower() or "timeout" in session["error"].lower()
+    proc.kill.assert_called_once()
+
+
+async def test_command_not_found_sets_failed(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-1")
+
+    with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError("command not found")):
+        await run_generation("sess-1", str(tmp_path), store, generate_cmd="NoSuchCommand", timeout=10)
+
+    session = store.get("sess-1")
+    assert session is not None
+    assert session["status"] == "failed"
+    assert session["error"] is not None
+
+
+async def test_success_without_archipelago_file_sets_failed(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-1")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc):
+        await run_generation("sess-1", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=10)
+
+    session = store.get("sess-1")
+    assert session["status"] == "failed"
+    assert session["outputFile"] is None
+    assert ".archipelago" in session["error"]
+
+
+# ─── HTTP endpoint tests ──────────────────────────────────────────────────────
+
+def test_generate_returns_202_and_generating_status(client: TestClient, monkeypatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    with patch("app.main.asyncio.create_task"):
+        res = client.post("/sessions/sess-http-1/generate", headers=HEADERS)
+
+    assert res.status_code == 202
+    body = res.json()
+    assert body["sessionId"] == "sess-http-1"
+    assert body["status"] == "generating"
+
+
+def test_generate_returns_409_when_already_generating(client: TestClient, monkeypatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+    fresh_store.create("sess-conflict")
+
+    with patch("app.generator.asyncio.create_subprocess_exec") as mock_exec:
+        mock_exec.return_value = _make_proc(0)
+        res = client.post("/sessions/sess-conflict/generate", headers=HEADERS)
+
+    assert res.status_code == 409
+
+
+def test_get_session_returns_404_for_unknown(client: TestClient) -> None:
+    res = client.get("/sessions/nonexistent", headers=HEADERS)
+    assert res.status_code == 404
+
+
+def test_get_session_returns_state_after_trigger(client: TestClient, monkeypatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+    monkeypatch.setattr(main_module, "ARCHIPELAGO_GENERATE_CMD", "FakeGenerate")
+
+    with patch("asyncio.create_task"):
+        client.post("/sessions/sess-get-1/generate", headers=HEADERS)
+
+    res = client.get("/sessions/sess-get-1", headers=HEADERS)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["sessionId"] == "sess-get-1"
+    assert body["status"] in {"generating", "generated", "failed"}
+
+
+def test_generate_returns_401_without_key(client: TestClient) -> None:
+    res = client.post("/sessions/sess-1/generate", json={})
+    assert res.status_code == 401
+
+
+def test_get_session_returns_401_without_key(client: TestClient) -> None:
+    res = client.get("/sessions/sess-1")
+    assert res.status_code == 401
+
+
+# ─── Apworld pipeline ─────────────────────────────────────────────────────────
+
+async def test_generation_with_apworld_slots_copies_files_and_appends_flag(
+    tmp_path: pathlib.Path,
+) -> None:
+    store = SessionStore()
+    store.create("sess-aw")
+
+    output_dir = tmp_path / "sess-aw" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    apworlds_src = tmp_path / "apworlds"
+    apworlds_src.mkdir()
+    (apworlds_src / "abc123.apworld").write_bytes(b"fake-apworld-content")
+
+    manifest = tmp_path / "sess-aw" / "apworld_keys.json"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text('["abc123.apworld"]', encoding="utf-8")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        await run_generation(
+            "sess-aw", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+            world_dir_flag="--world_directory",
+        )
+
+    call_args = mock_exec.call_args
+    cmd_list = list(call_args.args)
+    assert "--world_directory" in cmd_list
+    world_dir_idx = cmd_list.index("--world_directory")
+    world_dir = pathlib.Path(cmd_list[world_dir_idx + 1])
+    assert (world_dir / "abc123.apworld").exists()
+
+    session = store.get("sess-aw")
+    assert session is not None
+    assert session["status"] == "generated"
+
+
+async def test_apworld_renamed_to_package_name(tmp_path: pathlib.Path) -> None:
+    """Files stored as {sha256}.apworld must be renamed to {pkg_name}.apworld."""
+    store = SessionStore()
+    store.create("sess-rename")
+
+    output_dir = tmp_path / "sess-rename" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    apworlds_src = tmp_path / "apworlds"
+    apworlds_src.mkdir()
+
+    # Build a minimal apworld zip whose root package is "luigismansion"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("luigismansion/__init__.py", "# stub")
+    (apworlds_src / "abcdef1234567890.apworld").write_bytes(buf.getvalue())
+
+    manifest = tmp_path / "sess-rename" / "apworld_keys.json"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text('["abcdef1234567890.apworld"]', encoding="utf-8")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        await run_generation(
+            "sess-rename", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+            world_dir_flag="--world_directory",
+        )
+
+    world_dir_idx = list(mock_exec.call_args.args).index("--world_directory")
+    world_dir = pathlib.Path(list(mock_exec.call_args.args)[world_dir_idx + 1])
+    assert (world_dir / "luigismansion.apworld").exists(), "file should be renamed to pkg name"
+    assert not (world_dir / "abcdef1234567890.apworld").exists(), "hash-named file should not remain"
+
+
+async def test_generation_without_apworld_slots_does_not_append_flag(
+    tmp_path: pathlib.Path,
+) -> None:
+    store = SessionStore()
+    store.create("sess-legacy")
+
+    output_dir = tmp_path / "sess-legacy" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        await run_generation(
+            "sess-legacy", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+        )
+
+    call_args = mock_exec.call_args
+    cmd_list = list(call_args.args)
+    assert "--world_directory" not in cmd_list
+
+    session = store.get("sess-legacy")
+    assert session is not None
+    assert session["status"] == "generated"

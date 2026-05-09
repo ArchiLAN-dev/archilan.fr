@@ -1,0 +1,7 @@
+# ignoredBuiltDependencies is a pnpm 10 feature that should live in the workspace root
+# pnpm-workspace.yaml. It is placed here temporarily because the monorepo root workspace
+# does not exist yet (created in a later Epic 0 story). Migrate this file to the repo root
+# and remove frontend/pnpm-workspace.yaml when the root workspace is initialized.
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

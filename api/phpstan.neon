@@ -1,0 +1,13 @@
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - tests/bootstrap.php
+    # TODO (DDD stories): add phpstan-doctrine and phpstan-symfony extensions when
+    # the first entities and injected services are implemented to avoid false positives
+    # at level max. Install with:
+    #   composer require --dev phpstan/extension-installer
+    #   composer require --dev phpstan/phpstan-doctrine
+    #   composer require --dev phpstan/phpstan-symfony

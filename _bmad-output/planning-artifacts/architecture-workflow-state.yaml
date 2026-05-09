@@ -1,0 +1,37 @@
+workflow: architecture
+project: archilan.fr
+owner: Jean
+last_updated: 2026-04-24
+current_step: complete
+completed_steps:
+  - step-01-init
+  - step-02-context
+  - step-03-starter
+  - step-04-decisions
+  - step-05-patterns
+  - step-06-structure
+  - step-07-validation
+  - step-08-complete
+active_document: _bmad-output/planning-artifacts/architecture.md
+method: bmad-create-architecture
+communication_language: French
+document_output_language: English
+handoff_notes:
+  - Claude completed and saved step-03-starter.
+  - Step-04-decisions was saved after user selected C.
+  - Step-05-patterns was saved after user selected C.
+  - Step-06-structure was saved after user selected C.
+  - Step-07-validation was saved after user selected C.
+  - Step-08-complete finalized the architecture workflow.
+  - Next recommended action is Epic 0 setup, likely via bmad-create-epics-and-stories or bmad-quick-dev depending whether Jean wants story planning first or immediate scaffold implementation.
+  - BMAD workflow requires presenting A/P/C and saving only after the user selects C.
+  - Technology versions were rechecked on 2026-04-24 before drafting step 4.
+verified_sources:
+  - https://nextjs.org/docs/app/api-reference/cli/create-next-app
+  - https://nextjs.org/docs/app/getting-started/installation
+  - https://symfony.com/releases
+  - https://symfony.com/releases/7.4
+  - https://www.postgresql.org/about/news/postgresql-18-released-3142/
+  - https://symfony.com/doc/current/mercure.html
+  - https://symfony.com/bundles/LexikJWTAuthenticationBundle
+pending_decisions: []
