@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+import glob
+import logging
+import os
+import pickle
+import sys
+import zlib
+from datetime import datetime, timezone
+from typing import Any
+
+from domain import PlayerState
+
+
+def _save_slot_map(mapping: dict[Any, Any]) -> dict[int, Any]:
+    """Normalize AP save keys: (team, slot[, ...]) tuples → slot int (team 0 only).
+
+    received_items uses 3-element keys (team, slot, remote_flag) — values for the
+    same slot are merged so the total count is correct.
+    """
+    result: dict[int, Any] = {}
+    for key, val in mapping.items():
+        if isinstance(key, tuple) and len(key) >= 2 and key[0] == 0:
+            slot = int(key[1])
+            if slot in result:
+                existing = result[slot]
+                if isinstance(existing, list) and isinstance(val, list):
+                    result[slot] = existing + val
+                elif isinstance(existing, (set, frozenset)) and isinstance(val, (set, frozenset)):
+                    result[slot] = existing | val
+            else:
+                result[slot] = val
+        elif isinstance(key, int):
+            result[key] = val
+    return result
+
+
+def load_save_state(save_dir: str) -> dict[int, PlayerState]:
+    """Read latest .apsave file and return initial PlayerState per slot index."""
+    _ap_src = "/app/ArchipelagoSrc"
+    if os.path.isdir(_ap_src) and _ap_src not in sys.path:
+        sys.path.insert(0, _ap_src)
+
+    log = logging.getLogger(__name__)
+    try:
+        files = glob.glob(f"{save_dir}/*.apsave")
+        if not files:
+            return {}
+        latest = max(files, key=os.path.getmtime)
+        with open(latest, "rb") as fh:
+            raw = fh.read()
+        data: dict[str, Any] = pickle.loads(zlib.decompress(raw))  # noqa: S301
+
+        log.info("save keys: %s", list(data.keys()))
+        raw_cgs = data.get("client_game_state", {})
+        log.info("client_game_state raw (first 10): %s", dict(list(raw_cgs.items())[:10]))
+
+        location_checks = _save_slot_map(data.get("location_checks", {}))
+        client_game_state = _save_slot_map(raw_cgs)
+        received_items = _save_slot_map(data.get("received_items", {}))
+
+        log.info("client_game_state after slot_map: %s", client_game_state)
+
+        all_slots = set(location_checks) | set(client_game_state) | set(received_items)
+        states: dict[int, PlayerState] = {}
+        for slot in all_slots:
+            checked: set[int] = set(location_checks.get(slot, set()))
+            ps = PlayerState(slot_index=slot)
+            ps._checked_locations = checked
+            ps.checks_done = len(checked)
+            ps.client_status = int(client_game_state.get(slot, 0))
+            if ps.client_status == 30:
+                ps.goal_reached_at = datetime.now(timezone.utc).isoformat()
+            raw_items = received_items.get(slot, [])
+            ps._received_items = [
+                (
+                    int(ni.item if hasattr(ni, "item") else ni[0]),
+                    int(ni.player if hasattr(ni, "player") else (ni[2] if len(ni) > 2 else 0)),
+                    int(ni.location if hasattr(ni, "location") else (ni[1] if len(ni) > 1 else 0)),
+                )
+                for ni in raw_items
+            ]
+            ps.items_received = len(ps._received_items)
+            states[slot] = ps
+
+        log.info(
+            "save state loaded: %d slot(s) - statuses: %s",
+            len(states),
+            {s: p.client_status for s, p in states.items()},
+        )
+        return states
+    except Exception as exc:
+        log.warning("failed to load save state: %s", exc)
+        return {}

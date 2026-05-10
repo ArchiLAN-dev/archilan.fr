@@ -28,16 +28,17 @@ RUN wget -qO /tmp/archipelago_src.tar.gz \
     && rm /tmp/archipelago_src.tar.gz
 
 # Python dependencies used by the Archipelago framework, worlds, and Bridge.py
+# AP source requirements - filter out GUI (kivy), git-hosted, and native-only packages
+# that cannot install in a headless Linux container
+RUN grep -vE '^\s*(kivy|cython|cymem|pyshortcuts|Pymem|.* @ git\+)' \
+        /app/ArchipelagoSrc/requirements.txt \
+    | pip install --no-cache-dir -r /dev/stdin
+
+# Additional packages required by bridge.py and reachable.py
 RUN pip install --no-cache-dir \
-    bsdiff4 \
-    PyYAML \
-    schema \
-    typing_extensions \
-    pathspec \
+    aiohttp \
     websockets \
-    colorama \
-    jinja2 \
-    aiohttp
+    setuptools
 
 COPY archipelago/generate_template.py /usr/local/bin/generate_template.py
 RUN chmod +x /usr/local/bin/generate_template.py
@@ -45,8 +46,11 @@ RUN chmod +x /usr/local/bin/generate_template.py
 COPY archipelago/generate_multiworld.py /usr/local/bin/generate_multiworld.py
 RUN chmod +x /usr/local/bin/generate_multiworld.py
 
-# Bridge.py - real-time observer service (copied from bridge/ at repo root)
-COPY bridge/bridge.py /bridge/bridge.py
+# Bridge - real-time observer service (copied from bridge/ at repo root)
+COPY bridge/ /bridge/
+
+# Headless reachability checker script
+COPY archipelago/reachable.py /reachable/reachable.py
 
 # Entrypoint: starts ArchipelagoServer + Bridge.py when run as a server container
 COPY archipelago/entrypoint.sh /entrypoint.sh

@@ -9,24 +9,19 @@ if [ -z "$GAME_FILE" ]; then
     exit 1
 fi
 
-mkdir -p /archipelago/saves
-
 # Start Archipelago server in background
-SAVE_FILE="/archipelago/saves/$(basename "$GAME_FILE" .archipelago).apsave"
-
 ArchipelagoServer "$GAME_FILE" \
     --host 0.0.0.0 \
     --port 38281 \
     --password "${PASSWORD:-}" \
     --server_password "${SERVER_PASSWORD:-}" \
-    --savefile "$SAVE_FILE" \
     &
 
 # Wait briefly for the server to initialize before Bridge.py connects
 sleep 3
 
-# Start Bridge.py in background, stdout+stderr vers fichier de log
-python -u /bridge/bridge.py > /tmp/bridge.log 2>&1 &
+# Start Bridge.py — stdout+stderr go to container logs (docker logs)
+python -u /bridge/bridge.py &
 
 # Wait for any child to exit (restart policy handled by Docker)
 wait

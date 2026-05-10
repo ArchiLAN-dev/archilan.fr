@@ -145,7 +145,12 @@
       "Bash(curl -s http://localhost:38284/state)",
       "Bash(curl -s http://localhost:38282/health)",
       "Bash(curl -s http://localhost:38284/health)",
-      "Bash(docker-compose build *)"
+      "Bash(docker-compose build *)",
+      "PowerShell(docker stop archipelago-run-f16b5c8cac74e262e16e24c4a1266e88; docker rm archipelago-run-f16b5c8cac74e262e16e24c4a1266e88)",
+      "Bash(docker inspect archipelago-run-8577e28e34c218ece44a4b5cb9b9b182 *)",
+      "Bash(curl -s \"http://localhost:38282/reachable/1\")",
+      "Bash(docker restart archipelago-run-8577e28e34c218ece44a4b5cb9b9b182 *)",
+      "Bash(del C:\\\\Users\\\\maste\\\\Documents\\\\archilan.fr\\\\archipelago\\\\diag.py C:\\\\Users\\\\maste\\\\Documents\\\\archilan.fr\\\\archipelago\\\\diag2.py C:\\\\Users\\\\maste\\\\Documents\\\\archilan.fr\\\\archipelago\\\\diag_verify.py)"
     ]
   }
 }

@@ -26,6 +26,11 @@ final readonly class ApiAccessGuard
         return $user;
     }
 
+    public function optionalUser(Request $request): ?User
+    {
+        return $this->currentUserProvider->userFromRequest($request);
+    }
+
     public function requireAdmin(Request $request): User|JsonResponse
     {
         $user = $this->requireUser($request);

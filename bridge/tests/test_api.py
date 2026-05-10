@@ -1,6 +1,7 @@
-"""Tests for REST API endpoints (AC #11, #13)."""
+"""Tests for REST API endpoints (AC #11)."""
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,22 +17,31 @@ from bridge.bridge import (
 )
 
 
-def _make_app() -> tuple[object, StateManager, ArchipelagoClient]:
-    config = Config(
+def _make_config() -> Config:
+    return Config(
         mercure_hub_url="http://hub.test",
         central_api_secret="s",
         symfony_internal_url="http://api.test",
         run_id="run-1",
     )
+
+
+def _make_app() -> tuple[object, StateManager, ArchipelagoClient]:
+    config = _make_config()
     state = StateManager()
     token_mgr = MagicMock(spec=TokenManager)
     token_mgr.token = "fake-token"
     publisher = MagicMock(spec=MercurePublisher)
     publisher.publish = AsyncMock()
+    # recompute_event and reachable_semaphore are optional
     ap_client = ArchipelagoClient(config, state, publisher)
     app = create_app(state, ap_client)
     return app, state, ap_client
 
+
+# ---------------------------------------------------------------------------
+# GET /health
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_health_ok() -> None:
@@ -53,6 +63,10 @@ async def test_health_reflects_ws_connected() -> None:
         data = await resp.json()
         assert data["ws_connected"] is True
 
+
+# ---------------------------------------------------------------------------
+# GET /state
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_get_state_empty() -> None:
@@ -83,6 +97,10 @@ async def test_get_state_with_players() -> None:
         assert slot["items_received"] == 5
         assert slot["client_status"] == 20
 
+
+# ---------------------------------------------------------------------------
+# POST /commands
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_post_command_valid() -> None:
@@ -127,7 +145,19 @@ async def test_post_command_invalid_json() -> None:
 
 
 @pytest.mark.asyncio
+async def test_post_command_ws_disconnected() -> None:
+    app, state, ap_client = _make_app()
+    ap_client.ws_connected = False
+
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post("/commands", json={"command": "/release Alice"})
+        assert resp.status == 503
+
+
+@pytest.mark.asyncio
 async def test_post_command_forwards_to_ws() -> None:
+    import json
+
     app, state, ap_client = _make_app()
     ap_client.ws_connected = True
     ap_client._ws = AsyncMock()
@@ -136,7 +166,6 @@ async def test_post_command_forwards_to_ws() -> None:
     async with TestClient(TestServer(app)) as client:
         await client.post("/commands", json={"command": "/release Alice"})
 
-    import json
     call_args = ap_client._ws.send.call_args[0][0]
     packets = json.loads(call_args)
     assert len(packets) == 1

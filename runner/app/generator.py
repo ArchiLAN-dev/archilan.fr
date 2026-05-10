@@ -21,7 +21,7 @@ def _apworld_dest_name(src: pathlib.Path, fallback: str) -> str:
     """Return '{pkg_name}.apworld' by reading the package name from the zip root.
 
     ArchipelagoGenerate derives the world name from the file stem, so the file
-    must be named '{pkg_name}.apworld' — not the SHA-256 storage key name.
+    must be named '{pkg_name}.apworld' - not the SHA-256 storage key name.
     Falls back to *fallback* (the original storage key) if the zip can't be read.
     """
     try:

@@ -30,6 +30,7 @@ final readonly class StartRunJobHandler
         private string $symfonyInternalUrl,
         private string $mercureHubUrl,
         private string $serverImage = 'archipelago-server',
+        private string $apworldVolumeName = '',
     ) {
     }
 
@@ -55,7 +56,7 @@ final readonly class StartRunJobHandler
         }
 
         if ($reusingCredentials) {
-            // Reuse existing ports — mark them allocated so the pool doesn't hand them out again.
+            // Reuse existing ports - mark them allocated so the pool doesn't hand them out again.
             $this->portPool->markAllocated(array_filter([$job->existingPort, $job->existingBridgePort]));
             $port = $job->existingPort;
             $bridgePort = $job->existingBridgePort ?? $this->portPool->allocate() ?? 0;
@@ -91,6 +92,8 @@ final readonly class StartRunJobHandler
 
         $seedDir = dirname($seedFile);
         $saveDir = $this->workspaceDir.'/'.$job->sessionId.'/saves';
+        $yamlsDir = $this->workspaceDir.'/'.$job->sessionId.'/yamls';
+        $apworldsDir = $this->workspaceDir.'/'.$job->sessionId.'/apworlds';
         $containerName = 'archipelago-run-'.$job->sessionId;
 
         try {
@@ -98,13 +101,24 @@ final readonly class StartRunJobHandler
                 mkdir($saveDir, 0755, true);
             }
 
+            $binds = [
+                $seedDir.':/archipelago/output',
+                $saveDir.':/archipelago/saves',
+                $yamlsDir.':/archipelago/yamls:ro',
+            ];
+
+            if ('' !== $this->apworldVolumeName) {
+                // Dev mode: workspace volume already has all apworlds at /arch_workspace/apworlds
+                $binds[] = $this->apworldVolumeName.':/arch_workspace:ro';
+            } elseif (is_dir($apworldsDir)) {
+                // Prod mode: session-specific apworlds copied by generate handler
+                $binds[] = $apworldsDir.':/apworlds:ro';
+            }
+
             $containerId = $this->dockerClient->startPersistent(
                 name: $containerName,
                 image: $this->serverImage,
-                binds: [
-                    $seedDir.':/archipelago/output',
-                    $saveDir.':/archipelago/saves',
-                ],
+                binds: $binds,
                 env: [
                     'SEED_FILE' => '/archipelago/output/'.basename($seedFile),
                     'PASSWORD' => $password,
@@ -142,7 +156,7 @@ final readonly class StartRunJobHandler
                     }
                     // Fall through to send the callback below with reused credentials.
                 } else {
-                    // Duplicate message delivery — first dispatch already handled it.
+                    // Duplicate message delivery - first dispatch already handled it.
                     $this->logger->warning('runner.start_job.container_already_exists', ['session_id' => $job->sessionId]);
 
                     return;

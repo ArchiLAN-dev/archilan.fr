@@ -22,7 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch } from "@/lib/apiFetch";
@@ -225,7 +225,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
   }, [loadSessions, eventId]);
 
   async function startWizard() {
-    const sessions = state.kind !== "loading" && state.kind !== "error" ? (state as { sessions: Session[] }).sessions : [];
+    const sessions = "sessions" in state ? state.sessions : [];
     setState({ kind: "wizard_builder", sessions, registrations: null, builderLoading: true, slots: [] });
 
     try {
@@ -248,7 +248,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
   }
 
   async function createSession(slots: WizardSlot[], autoChain?: "generate-and-launch") {
-    const sessions = state.kind !== "loading" && state.kind !== "error" ? (state as { sessions: Session[] }).sessions : [];
+    const sessions = "sessions" in state ? state.sessions : [];
 
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/sessions`, {
@@ -304,7 +304,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
           registrations={state.registrations}
           slots={state.slots}
           onBack={() => {
-            const sessions = state.kind !== "loading" && state.kind !== "error" ? (state as { sessions: Session[] }).sessions : [];
+            const sessions = "sessions" in state ? state.sessions : [];
             setState({ kind: "sessions", sessions });
           }}
           onSlotsChange={(slots) =>
@@ -445,6 +445,7 @@ export function AdminSessionDetailPage({
     <PageShell eventId={eventId} eventTitle={eventTitle} sessionId={sessionId}>
       <SessionDetail
         autoStart={autoStart}
+        eventId={eventId}
         onSessionUpdate={setSession}
         session={session}
         slots={slots}
@@ -704,13 +705,19 @@ function SessionDetail({
   session,
   slots,
   onSessionUpdate,
+  eventId,
   autoStart = null,
 }: {
   session: Session;
   slots: SessionSlot[];
   onSessionUpdate: (session: Session) => void;
+  eventId: string;
   autoStart?: "generate-and-launch" | null;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [pendingChain, setPendingChain] = useState<"generate" | "generate-and-launch" | null>(autoStart);
   const [copied, setCopied] = useState<string | null>(null);
@@ -815,16 +822,32 @@ function SessionDetail({
     });
   }
 
-  const [activeTab, setActiveTab] = useState<"overview" | "slots" | "terminal" | "container">("overview");
+  type TabId = "overview" | "slots" | "terminal" | "container";
+  const TABS: { id: TabId; label: string }[] = [
+    { id: "overview", label: "Vue d'ensemble" },
+    { id: "slots", label: "Progression" },
+    { id: "terminal", label: "Terminal" },
+    { id: "container", label: "Container" },
+  ];
+  const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
+  const rawTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<TabId>(
+    VALID_TABS.has(rawTab ?? "") ? (rawTab as TabId) : "overview"
+  );
+
+  function switchTab(tab: TabId) {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   const isProcessing = ["validating", "generating", "launching"].includes(session.status);
-
-  const TABS = [
-    { id: "overview" as const, label: "Vue d'ensemble" },
-    { id: "slots" as const, label: "Progression" },
-    { id: "terminal" as const, label: "Terminal" },
-    { id: "container" as const, label: "Container" },
-  ];
 
   return (
     <div className="grid gap-0">
@@ -930,7 +953,7 @@ function SessionDetail({
             </>
           ) : null}
 
-          {/* failed — retry generation */}
+          {/* failed - retry generation */}
           {session.status === "failed" ? (
             <>
               <ActionButton
@@ -976,7 +999,7 @@ function SessionDetail({
                 : "text-muted-foreground hover:text-foreground"
             }`}
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id); }}
+            onClick={() => { switchTab(tab.id); }}
             type="button"
           >
             {tab.label}
@@ -1090,7 +1113,7 @@ function SessionDetail({
 
         {/* ── Joueurs ── */}
         {activeTab === "slots" ? (
-          <PlayerProgressGrid runId={session.id} />
+          <PlayerProgressGrid eventId={eventId} runId={session.id} />
         ) : null}
 
         {/* ── Terminal ── */}
@@ -1913,7 +1936,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
       {actionOutput ? (
         <div className={`rounded border p-2 font-mono text-xs ${actionOutput.success ? "border-success/30 bg-success/5 text-success/80" : "border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 text-[var(--color-danger)]/80"}`}>
           <div className="mb-1 flex items-center justify-between">
-            <span className="font-semibold">{actionOutput.action} — {actionOutput.success ? "OK" : "Erreur"}</span>
+            <span className="font-semibold">{actionOutput.action} - {actionOutput.success ? "OK" : "Erreur"}</span>
             <button
               aria-label="Fermer"
               className="text-muted-foreground hover:text-foreground"

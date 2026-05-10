@@ -21,7 +21,7 @@ ARCH_SRC = "/app/ArchipelagoSrc"
 # ─── Specific pre-stubs ───────────────────────────────────────────────────────
 # Placed into sys.modules BEFORE sys.path is modified so these stubs always win.
 
-# ModuleUpdate: Archipelago's own auto-updater — no-op in ephemeral containers.
+# ModuleUpdate: Archipelago's own auto-updater - no-op in ephemeral containers.
 _mu = types.ModuleType("ModuleUpdate")
 _mu.update = lambda *a, **kw: None  # type: ignore[attr-defined]
 sys.modules["ModuleUpdate"] = _mu

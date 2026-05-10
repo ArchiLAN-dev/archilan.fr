@@ -93,6 +93,7 @@ services:
             $symfonyInternalUrl: '%env(SYMFONY_INTERNAL_URL)%'
             $mercureHubUrl: '%env(MERCURE_HUB_URL)%'
             $serverImage: '%env(ARCHIPELAGO_SERVER_IMAGE)%'
+            $apworldVolumeName: '%env(ARCHIPELAGO_WORKSPACE_VOLUME)%'
 
     App\Sessions\Application\Handler\RunHealthCheckJobHandler:
         arguments:

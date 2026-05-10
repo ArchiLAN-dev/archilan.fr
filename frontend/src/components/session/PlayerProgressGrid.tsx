@@ -1,6 +1,7 @@
 "use client";
 
-import { Trophy, WifiOff } from "lucide-react";
+import { AlertTriangle, ChevronRight, Trophy, WifiOff } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { apiFetch } from "@/lib/apiFetch";
@@ -15,6 +16,7 @@ type SlotData = {
   items_received: number;
   client_status: number;
   goal_reached_at: string | null;
+  reachable_now: number | null;
 };
 
 type SlotsMap = Record<string, SlotData>;
@@ -72,8 +74,10 @@ function clampPercent(value: number): number {
 
 export function PlayerProgressGrid({
   runId,
+  eventId,
 }: {
   runId: string;
+  eventId?: string;
 }) {
   const [state, setState] = useState<GridState>({ kind: "loading" });
   const [showReconnect, setShowReconnect] = useState(false);
@@ -261,7 +265,11 @@ export function PlayerProgressGrid({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {entries.map(([slotIndex, slot]) => (
-            <SlotCard key={slotIndex} slot={slot} />
+            <SlotCard
+              key={slotIndex}
+              href={eventId ? `/admin/evenements/${eventId}/session/${runId}/slots/${slotIndex}` : undefined}
+              slot={slot}
+            />
           ))}
         </div>
       )}
@@ -271,9 +279,14 @@ export function PlayerProgressGrid({
 
 // ─── SlotCard ────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot }: { slot: SlotData }) {
+function SlotCard({ slot, href }: { slot: SlotData; href?: string }) {
   const isGoal = slot.client_status === 30;
   const isPlaying = slot.client_status === 20;
+  const isBK =
+    !isGoal &&
+    slot.reachable_now !== null &&
+    slot.reachable_now === 0 &&
+    slot.checks_done < slot.checks_total;
   const statusLabel = STATUS_LABELS[slot.client_status] ?? String(slot.client_status);
   const statusCls = STATUS_CLASSES[slot.client_status] ?? "bg-muted text-muted-foreground";
   const progressPct =
@@ -285,14 +298,18 @@ function SlotCard({ slot }: { slot: SlotData }) {
     ? new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(slot.goal_reached_at))
     : null;
 
-  return (
-    <div
-      className={`grid gap-3 rounded border p-4 ${
-        isGoal
-          ? "border-success bg-success/5 ring-2 ring-success/30"
-          : "border-border bg-surface"
-      }`}
-    >
+  const cardCls = `grid gap-3 rounded border p-4 ${
+    href ? "transition-colors hover:border-accent-text/50" : ""
+  } ${
+    isGoal
+      ? "border-success bg-success/5 ring-2 ring-success/30"
+      : isBK
+        ? "border-danger/50 bg-danger/5 ring-2 ring-danger/20"
+        : "border-border bg-surface"
+  }`;
+
+  const inner = (
+    <>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -303,20 +320,29 @@ function SlotCard({ slot }: { slot: SlotData }) {
             <time className="mt-0.5 block text-xs text-muted-foreground">{goalTime}</time>
           ) : null}
         </div>
-        {isGoal ? (
-          <Trophy aria-hidden="true" className="size-5 shrink-0 text-success" />
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {isGoal ? <Trophy aria-hidden="true" className="size-5 text-success" /> : null}
+          {isBK ? <AlertTriangle aria-hidden="true" className="size-4 text-danger" /> : null}
+          {href ? <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground/50" /> : null}
+        </div>
       </div>
 
-      {/* Status badge */}
-      <span
-        className={`inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${statusCls}`}
-      >
-        {isPlaying ? (
-          <span className="size-2 animate-pulse rounded-full bg-blue-500 shrink-0" aria-hidden="true" />
+      {/* Status badge + BK badge */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          className={`inline-flex w-fit items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${statusCls}`}
+        >
+          {isPlaying ? (
+            <span className="size-2 animate-pulse rounded-full bg-blue-500 shrink-0" aria-hidden="true" />
+          ) : null}
+          {statusLabel}
+        </span>
+        {isBK ? (
+          <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-2 py-0.5 text-xs font-bold text-danger">
+            BK
+          </span>
         ) : null}
-        {statusLabel}
-      </span>
+      </div>
 
       {/* Progress bar */}
       <div className="grid gap-1">
@@ -328,17 +354,35 @@ function SlotCard({ slot }: { slot: SlotData }) {
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className={`h-full rounded-full transition-[width] duration-500 ease-in-out ${isGoal ? "bg-success" : "bg-accent"}`}
+            className={`h-full rounded-full transition-[width] duration-500 ease-in-out ${isGoal ? "bg-success" : isBK ? "bg-danger/60" : "bg-accent"}`}
             style={{ width: `${progressPct}%` }}
           />
         </div>
       </div>
 
-      {/* Items received */}
-      <p className="text-xs text-muted-foreground">
-        Items reçus :{" "}
-        <span className="font-semibold text-foreground">{slot.items_received}</span>
-      </p>
-    </div>
+      {/* Footer: items reçus + checks accessibles */}
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>
+          Items reçus :{" "}
+          <span className="font-semibold text-foreground">{slot.items_received}</span>
+        </span>
+        {typeof slot.reachable_now === "number" ? (
+          <span
+            className={`font-semibold ${
+              isBK ? "text-danger" : slot.reachable_now > 0 ? "text-success" : "text-muted-foreground"
+            }`}
+          >
+            {slot.reachable_now} check{slot.reachable_now !== 1 ? "s" : ""} accessibles
+          </span>
+        ) : (
+          <span className="text-muted-foreground/50">-</span>
+        )}
+      </div>
+    </>
   );
+
+  if (href) {
+    return <Link className={cardCls} href={href}>{inner}</Link>;
+  }
+  return <div className={cardCls}>{inner}</div>;
 }

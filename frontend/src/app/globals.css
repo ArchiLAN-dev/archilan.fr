@@ -229,6 +229,23 @@ html {
   }
 }
 
+@keyframes item-toast-slide {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-130%); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  78%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-130%); }
+}
+
+@keyframes item-toast-shimmer {
+  from { transform: translateX(-100%) skewX(-20deg); }
+  to   { transform: translateX(350%) skewX(-20deg); }
+}
+
+@keyframes confetti-burst {
+  0%   { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  100% { opacity: 0; transform: translate(var(--cx, 0px), var(--cy, 0px)) rotate(var(--cr, 360deg)) scale(0); }
+}
+
 @keyframes registration-feed-highlight {
   0% {
     background-color: color-mix(in oklab, var(--color-accent) 24%, transparent);
