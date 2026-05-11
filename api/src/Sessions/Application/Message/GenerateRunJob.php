@@ -8,7 +8,7 @@ final readonly class GenerateRunJob
 {
     /**
      * @param list<array{slotName: string, playerName: string, archipelagoGameName: string, playerYaml: string}> $slots
-     * @param list<string> $apworldKeys  Storage keys of the apworld files needed for generation
+     * @param list<string>                                                                                       $apworldKeys Storage keys of the apworld files needed for generation
      */
     public function __construct(
         public string $sessionId,

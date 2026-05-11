@@ -45,7 +45,7 @@ export function AdminEventCreatePage() {
           </h1>
         </div>
         <p className="mt-3 max-w-2xl text-muted-foreground">
-          Crée un brouillon. Il restera invisible jusqu'à publication.
+          Crée un brouillon. Il restera invisible jusqu&apos;à publication.
         </p>
       </header>
 

@@ -1,4 +1,4 @@
-"""Tests for StateManager — RoomInfo, StatusUpdate, LocationChecks, ReceivedItems, GOAL (AC #4, #6, #7)."""
+"""Tests for StateManager - RoomInfo, StatusUpdate, LocationChecks, ReceivedItems, GOAL (AC #4, #6, #7)."""
 from __future__ import annotations
 
 import pytest

@@ -6,16 +6,11 @@ import { useId, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useAuth } from "./auth-context";
-
-type AuthenticatedUser = {
-  id: string;
-  email: string;
-  roles: string[];
-};
+import type { AuthUser } from "./auth-context";
 
 type AuthResponse =
   | {
-      data: AuthenticatedUser;
+      data: AuthUser;
       meta: {
         message?: string;
       };

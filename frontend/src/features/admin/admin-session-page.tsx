@@ -1721,6 +1721,14 @@ const CONTAINER_STATUS_STYLE: Record<string, { dot: string; badge: string; label
 };
 
 function ContainerStateCard({ state, loading }: { state: ContainerState | null; loading: boolean }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!state?.running) return;
+    const id = setInterval(() => { setNow(Date.now()); }, 1000);
+    return () => { clearInterval(id); };
+  }, [state?.running]);
+
   if (loading && !state) {
     return (
       <div className="flex items-center gap-3 rounded border border-border bg-surface p-4">
@@ -1739,7 +1747,7 @@ function ContainerStateCard({ state, loading }: { state: ContainerState | null; 
   let uptime = "";
   if (state.running && state.started_at) {
     try {
-      const secs = Math.floor((Date.now() - new Date(state.started_at).getTime()) / 1000);
+      const secs = Math.floor((now - new Date(state.started_at).getTime()) / 1000);
       if (secs < 60) uptime = `${secs}s`;
       else if (secs < 3600) uptime = `${Math.floor(secs / 60)}min`;
       else uptime = `${Math.floor(secs / 3600)}h${Math.floor((secs % 3600) / 60)}min`;

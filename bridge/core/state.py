@@ -7,8 +7,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from domain import PlayerState
-from save_parser import load_save_state
+from domain import HintInfo, PlayerState
+from save_parser import _extract_hints, load_save_state
 
 
 class StateManager:
@@ -25,6 +25,10 @@ class StateManager:
         self._save_dir = save_dir
         self._save_mtime: float = 0.0
         self._log = logging.getLogger(__name__)
+        # hint_cost_pct: the raw percentage from RoomInfo (e.g. 10 = 10%)
+        # actual cost per hint = max(1, int(pct * 0.01 * total_locations_for_slot))
+        self._hint_cost_pct: int = 0
+        self._location_check_points: int = 1
         if goals_file:
             self._load_persisted_goals(goals_file)
 
@@ -64,8 +68,25 @@ class StateManager:
 
     def ensure_slot(self, slot_index: int) -> PlayerState:
         if slot_index not in self._states:
-            self._states[slot_index] = PlayerState(slot_index=slot_index)
+            ps = PlayerState(slot_index=slot_index)
+            ps.hint_points_per_check = self._location_check_points
+            self._states[slot_index] = ps
         return self._states[slot_index]
+
+    def compute_hint_cost(self, total_locations: int) -> int:
+        """Compute the actual hint cost in points given a slot's total location count."""
+        if not self._hint_cost_pct or not total_locations:
+            return 0
+        return max(1, int(self._hint_cost_pct * 0.01 * total_locations))
+
+    def apply_hint_cost_for_slot(self, slot_index: int, total_locations: int) -> None:
+        """Set the correct hint cost for a slot once its total location count is known."""
+        cost = self.compute_hint_cost(total_locations)
+        if cost:
+            ps = self.ensure_slot(slot_index)
+            ps.hint_cost = cost
+            self._log.info("hint cost for slot %d: %d pts/hint (%d locs × %d%%)",
+                           slot_index, cost, total_locations, self._hint_cost_pct)
 
     def set_slot_name(self, slot_index: int, name: str) -> None:
         self.ensure_slot(slot_index).slot_name = name
@@ -95,13 +116,30 @@ class StateManager:
             self._persist_goal(slot_index, ps.goal_reached_at)
 
     def handle_room_info(self, packet: dict[str, Any]) -> None:
-        """AC #4 - extract checks_total per slot; also set names from slot_info if present."""
+        """AC #4 - extract checks_total per slot; also set names from slot_info if present.
+
+        RoomInfo carries the session-level hint economy already computed by AP:
+          hint_cost            - actual points required per hint (NOT a percentage)
+          location_check_points - points earned per location check
+        """
         locations: list[int] = packet.get("locations", [])
         for idx, total in enumerate(locations):
             self.set_checks_total(idx, total)
         for slot_str, info in packet.get("slot_info", {}).items():
             if isinstance(info, dict):
                 self.set_slot_name(int(slot_str), info.get("name", ""))
+
+        hint_cost_pct = int(packet.get("hint_cost", 0))
+        location_check_points = int(packet.get("location_check_points", 1))
+        if hint_cost_pct > 0:
+            self._hint_cost_pct = hint_cost_pct
+            self._location_check_points = location_check_points
+            for ps in self._states.values():
+                ps.hint_points_per_check = location_check_points
+            self._log.info(
+                "hint economy from RoomInfo: cost_pct=%d%%, earn=%d pts/check",
+                hint_cost_pct, location_check_points,
+            )
 
     def handle_status_update(self, packet: dict[str, Any]) -> None:
         """AC #6, #7 - update client_status; record goal_reached_at on GOAL."""
@@ -120,6 +158,28 @@ class StateManager:
         slot: int = int(packet.get("slot", 0))
         items: list[Any] = packet.get("items", [])
         self.add_received_items(slot, len(items))
+
+    def add_hint(self, slot_index: int, hint: HintInfo) -> bool:
+        """Add or update a hint for a slot. Returns True if state changed.
+
+        hints_used is intentionally NOT updated here - it is loaded from the
+        apsave (AP's authoritative paid-hint counter) and incremented by the
+        REST handler only when a paid hint request is explicitly made.
+        Free (admin) hints must not affect the budget counter.
+        """
+        ps = self.ensure_slot(slot_index)
+        for i, existing in enumerate(ps._hints):
+            if existing.location_id == hint.location_id and existing.item_id == hint.item_id:
+                if existing != hint:
+                    ps._hints[i] = hint
+                    return True
+                return False
+        ps._hints.append(hint)
+        return True
+
+    def get_hints(self, slot_index: int) -> list[HintInfo]:
+        ps = self._states.get(slot_index)
+        return list(ps._hints) if ps else []
 
     def merge_state_from_save(self) -> None:
         """Sync checks_done, items_received and client_status from the .apsave if it changed."""
@@ -149,6 +209,13 @@ class StateManager:
                     ps.client_status = saved_ps.client_status
                     if saved_ps.client_status == 30 and ps.goal_reached_at is None:
                         ps.goal_reached_at = saved_ps.goal_reached_at
+                # Hints: apsave is authoritative (includes status updates set by other clients)
+                # hint_cost intentionally NOT overwritten - it's set by apply_hint_cost_for_slot
+                # from the RoomInfo WS packet; the apsave only stores the default (0).
+                if saved_ps._hints:
+                    ps._hints = saved_ps._hints
+                    ps.hints_used = saved_ps.hints_used
+                    ps.hint_points_per_check = saved_ps.hint_points_per_check
             self._log.info(
                 "merge_state_from_save: done - statuses=%s",
                 {s: p.client_status for s, p in self._states.items()},

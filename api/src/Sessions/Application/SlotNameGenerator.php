@@ -24,7 +24,7 @@ final class SlotNameGenerator
         foreach ($slots as $slot) {
             $abbr = $this->abbreviate($slot['archipelagoGameName']);
             $player = $this->sanitize($slot['playerName']);
-            $base = $player . '_' . $abbr;
+            $base = $player.'_'.$abbr;
             if (mb_strlen($base) > 16) {
                 $base = mb_substr($base, 0, 16);
             }
@@ -44,7 +44,7 @@ final class SlotNameGenerator
                 $counters[$base] = ($counters[$base] ?? 0) + 1;
                 $suffix = (string) $counters[$base];
                 $maxLen = 16 - mb_strlen($suffix);
-                $result[] = mb_substr($base, 0, $maxLen) . $suffix;
+                $result[] = mb_substr($base, 0, $maxLen).$suffix;
             }
         }
 

@@ -178,6 +178,50 @@ final readonly class SessionOrchestrationController
         return new JsonResponse(['data' => $result['session']]);
     }
 
+    #[Route('/api/v1/admin/sessions/{sessionId}/yamls.zip', methods: ['GET'])]
+    public function downloadYamls(Request $request, string $sessionId): Response
+    {
+        $guard = $this->apiAccessGuard->requireAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $yamlsDir = $this->workspaceDir.'/'.$sessionId.'/yamls';
+
+        if (!is_dir($yamlsDir)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier YAML trouvé.', 404);
+        }
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'yamls_');
+        if (false === $tmpFile) {
+            return $this->apiAccessGuard->errorResponse('server_error', 'Impossible de créer le fichier temporaire.', 500);
+        }
+
+        $zip = new \ZipArchive();
+        $zip->open($tmpFile, \ZipArchive::OVERWRITE);
+
+        $added = 0;
+        foreach (glob($yamlsDir.'/*.yaml') ?: [] as $file) {
+            $zip->addFile($file, basename($file));
+            ++$added;
+        }
+
+        $zip->close();
+
+        if (0 === $added) {
+            unlink($tmpFile);
+
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier YAML trouvé.', 404);
+        }
+
+        $response = new BinaryFileResponse($tmpFile);
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $sessionId.'-yamls.zip');
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
     #[Route('/api/v1/admin/sessions/{sessionId}/generation.zip', methods: ['GET'])]
     public function downloadGeneration(Request $request, string $sessionId): Response
     {

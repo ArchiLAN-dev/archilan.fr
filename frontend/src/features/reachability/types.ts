@@ -20,6 +20,12 @@ export type ItemEntry = {
   count: number;
 };
 
+export type ItemLocation = {
+  locationName: string;
+  gameName: string | null;
+  checkStatus: "reachable" | "blocked" | "checked" | null;
+};
+
 export type ReachabilityData = {
   game: string;
   player: string;
@@ -35,3 +41,27 @@ export type ReachabilityData = {
 };
 
 export type ToastItem = { id: number; name: string; flags: number };
+
+export type HintEntry = {
+  receiving_player: number;
+  receiving_player_name: string;
+  finding_player: number;
+  finding_player_name: string;
+  location_id: number;
+  location_name: string;
+  item_id: number;
+  item_name: string;
+  item_flags: number;
+  entrance: string;
+  found: boolean;
+  status: number;
+  status_name: string;
+};
+
+export type HintsData = {
+  slot: number;
+  hints: HintEntry[];
+  hints_used: number;
+  hint_points_available: number;
+  hint_cost: number;
+};

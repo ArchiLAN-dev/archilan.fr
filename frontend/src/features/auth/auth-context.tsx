@@ -8,6 +8,7 @@ import { apiFetch, registerUnauthenticatedHandler } from "@/lib/apiFetch";
 export type AuthUser = {
   id: string;
   email: string;
+  displayName: string | null;
   roles: string[];
 };
 

@@ -57,7 +57,7 @@ final readonly class StartRunJobHandler
 
         if ($reusingCredentials) {
             // Reuse existing ports - mark them allocated so the pool doesn't hand them out again.
-            $this->portPool->markAllocated(array_filter([$job->existingPort, $job->existingBridgePort]));
+            $this->portPool->markAllocated(array_values(array_filter([$job->existingPort, $job->existingBridgePort])));
             $port = $job->existingPort;
             $bridgePort = $job->existingBridgePort ?? $this->portPool->allocate() ?? 0;
             $password = $job->existingPassword;
@@ -95,6 +95,7 @@ final readonly class StartRunJobHandler
         $yamlsDir = $this->workspaceDir.'/'.$job->sessionId.'/yamls';
         $apworldsDir = $this->workspaceDir.'/'.$job->sessionId.'/apworlds';
         $containerName = 'archipelago-run-'.$job->sessionId;
+        $containerId = '';
 
         try {
             if (!is_dir($saveDir)) {
@@ -154,7 +155,7 @@ final readonly class StartRunJobHandler
 
                         return;
                     }
-                    // Fall through to send the callback below with reused credentials.
+                // Fall through to send the callback below with reused credentials.
                 } else {
                     // Duplicate message delivery - first dispatch already handled it.
                     $this->logger->warning('runner.start_job.container_already_exists', ['session_id' => $job->sessionId]);
@@ -233,7 +234,7 @@ final readonly class StartRunJobHandler
 
         usort($slots, static fn (array $a, array $b) => strcmp($a['name'], $b['name']));
 
-        return array_values($slots);
+        return $slots;
     }
 
     /**

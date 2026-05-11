@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Search, Trash2, X, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
@@ -86,7 +86,7 @@ export function GameSelectionGate({
     return () => { timers.forEach(([t1, t2]) => { clearTimeout(t1); clearTimeout(t2); }); };
   }, []);
 
-  function handleAddGame(gameId: string) {
+  const handleAddGame = useCallback((gameId: string) => {
     setWorkingGameIds((prev) => [...prev, gameId]);
     setSaveState({ kind: "idle" });
 
@@ -107,7 +107,7 @@ export function GameSelectionGate({
     }, 1400);
 
     addTimers.current.set(gameId, [t1, t2]);
-  }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -468,6 +468,7 @@ export function GameSelectionGate({
           ) : (
             <>
               <ul className="divide-y divide-border rounded-lg border border-border" role="list">
+                {/* eslint-disable-next-line react-hooks/refs -- addTimers.current accessed only on click, not during render */}
                 {pageGames.map((game) => (
                   <li
                     key={game.id}

@@ -303,7 +303,7 @@ def build_multiworld(game: str, player_name: str, yaml_path: str, slot_data: dic
     # generation time and are NOT sent via the AP received_items protocol, so they
     # would be absent from our in-memory state if we cleared them.
     # CollectionState(mw) auto-collects them with event=False (updates reachable_regions).
-    # received_items are then collected on top — double-collecting a progression item
+    # received_items are then collected on top - double-collecting a progression item
     # is harmless for boolean has() checks.
 
     return mw, 1
@@ -349,7 +349,7 @@ def main() -> None:
     slot_names: dict[int, str] = {s: ns.name for s, ns in slot_info.items()}
     arch_locs: dict[int, tuple] = arch.get("locations", {}).get(slot, {})
 
-    # Items expected for this slot — static, computed once from seed
+    # Items expected for this slot - static, computed once from seed
     expected_counter: Counter = Counter()
     for _slot_locs in arch.get("locations", {}).values():
         for _item_id, _recv_slot, _flags in _slot_locs.values():

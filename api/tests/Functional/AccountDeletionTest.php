@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RegisterLambdaUser;
 use App\Identity\Domain\AccountDeletionAudit;
+use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -30,6 +31,7 @@ final class AccountDeletionTest extends WebTestCase
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(AccountDeletionAudit::class),
+            $this->entityManager->getClassMetadata(RefreshToken::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

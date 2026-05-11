@@ -9,13 +9,13 @@ import zlib
 from datetime import datetime, timezone
 from typing import Any
 
-from domain import PlayerState
+from domain import HintInfo, PlayerState
 
 
 def _save_slot_map(mapping: dict[Any, Any]) -> dict[int, Any]:
     """Normalize AP save keys: (team, slot[, ...]) tuples → slot int (team 0 only).
 
-    received_items uses 3-element keys (team, slot, remote_flag) — values for the
+    received_items uses 3-element keys (team, slot, remote_flag) - values for the
     same slot are merged so the total count is correct.
     """
     result: dict[int, Any] = {}
@@ -32,6 +32,31 @@ def _save_slot_map(mapping: dict[Any, Any]) -> dict[int, Any]:
                 result[slot] = val
         elif isinstance(key, int):
             result[key] = val
+    return result
+
+
+def _extract_hints(raw_hints: set) -> list[HintInfo]:
+    """Convert a set of AP Hint namedtuples to a list of HintInfo."""
+    result = []
+    for h in raw_hints:
+        try:
+            status_raw = getattr(h, "status", 0)
+            # HintStatus may be an enum (AP source loaded) or a plain int
+            status_val = status_raw.value if hasattr(status_raw, "value") else int(status_raw)
+            # Older AP versions have no status field but have found=True/False → map to 40
+            if status_val == 0 and getattr(h, "found", False):
+                status_val = 40
+            result.append(HintInfo(
+                receiving_player=int(getattr(h, "receiving_player", 0)),
+                finding_player=int(getattr(h, "finding_player", 0)),
+                location_id=int(getattr(h, "location", 0)),
+                item_id=int(getattr(h, "item", 0)),
+                entrance=str(getattr(h, "entrance", "")),
+                item_flags=int(getattr(h, "item_flags", 0)),
+                status=status_val,
+            ))
+        except Exception:
+            pass
     return result
 
 
@@ -58,6 +83,15 @@ def load_save_state(save_dir: str) -> dict[int, PlayerState]:
         location_checks = _save_slot_map(data.get("location_checks", {}))
         client_game_state = _save_slot_map(raw_cgs)
         received_items = _save_slot_map(data.get("received_items", {}))
+        hints_map = _save_slot_map(data.get("hints", {}))
+        hints_used_map = _save_slot_map(data.get("hints_used", {}))
+
+        # NOTE: game_options.hint_cost is a PERCENTAGE (e.g. 10), not a point cost.
+        # The actual point cost per hint is provided by the AP server in the RoomInfo
+        # WebSocket packet and applied by StateManager.handle_room_info().
+        # We only read location_check_points here (it IS already in points).
+        opts = data.get("game_options", {})
+        location_check_points = int(opts.get("location_check_points", 1))
 
         log.info("client_game_state after slot_map: %s", client_game_state)
 
@@ -81,6 +115,10 @@ def load_save_state(save_dir: str) -> dict[int, PlayerState]:
                 for ni in raw_items
             ]
             ps.items_received = len(ps._received_items)
+            ps.hints_used = int(hints_used_map.get(slot, 0))
+            ps.hint_points_per_check = location_check_points
+            # ps.hint_cost intentionally left at default 0 - updated by handle_room_info()
+            ps._hints = _extract_hints(hints_map.get(slot, set()))
             states[slot] = ps
 
         log.info(

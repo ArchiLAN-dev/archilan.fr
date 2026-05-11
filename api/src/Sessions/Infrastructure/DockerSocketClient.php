@@ -7,7 +7,7 @@ namespace App\Sessions\Infrastructure;
 final readonly class DockerSocketClient
 {
     /**
-     * @param string $dockerHost  unix:///var/run/docker.sock  or  tcp://localhost:2375
+     * @param string $dockerHost unix:///var/run/docker.sock  or  tcp://localhost:2375
      */
     public function __construct(
         private string $dockerHost = 'unix:///var/run/docker.sock',
@@ -18,7 +18,7 @@ final readonly class DockerSocketClient
      * Run an ephemeral container and return its exit code + combined output.
      *
      * @param list<string> $cmd
-     * @param list<string> $binds  e.g. ['/host/path:/container/path']
+     * @param list<string> $binds e.g. ['/host/path:/container/path']
      *
      * @return array{exitCode: int, output: string}
      */
@@ -42,7 +42,7 @@ final readonly class DockerSocketClient
         return ['exitCode' => $exitCode, 'output' => $output];
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<mixed> */
     public function inspect(string $nameOrId): array
     {
         return $this->jsonRequest('GET', '/containers/'.urlencode($nameOrId).'/json');
@@ -79,9 +79,9 @@ final readonly class DockerSocketClient
     /**
      * Start a named persistent container and return its ID.
      *
-     * @param list<string>            $binds   e.g. ['/host/path:/container/path:ro']
-     * @param array<string, string>   $env     e.g. ['KEY' => 'value']
-     * @param array<string, int>      $ports   e.g. ['38281/tcp' => 25000]
+     * @param list<string>          $binds e.g. ['/host/path:/container/path:ro']
+     * @param array<string, string> $env   e.g. ['KEY' => 'value']
+     * @param array<string, int>    $ports e.g. ['38281/tcp' => 25000]
      */
     public function startPersistent(
         string $name,
@@ -167,14 +167,14 @@ final readonly class DockerSocketClient
      * @param non-empty-string          $method
      * @param array<string, mixed>|null $body
      *
-     * @return array<string, mixed>
+     * @return array<mixed>
      */
     private function jsonRequest(string $method, string $path, ?array $body = null, int $timeout = 30): array
     {
         $raw = $this->rawRequest($method, $path, $body, $timeout);
         $decoded = json_decode($raw, true);
 
-        /** @var array<string, mixed> */
+        /* @var array<mixed> */
         return is_array($decoded) ? $decoded : [];
     }
 

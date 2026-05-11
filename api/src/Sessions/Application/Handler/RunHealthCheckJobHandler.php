@@ -8,8 +8,8 @@ use App\Sessions\Application\Message\RunHealthCheckJob;
 use App\Sessions\Infrastructure\PortPool;
 use App\Sessions\Infrastructure\RunnerCallbackClient;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 #[AsMessageHandler]

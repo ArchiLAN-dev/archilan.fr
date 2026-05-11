@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventPrivateAccessLog;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Payments\Domain\HelloAssoOrder;
@@ -39,6 +40,7 @@ final class AdminPaymentStatusTest extends WebTestCase
             $this->entityManager->getClassMetadata(Event::class),
             $this->entityManager->getClassMetadata(Registration::class),
             $this->entityManager->getClassMetadata(HelloAssoOrder::class),
+            $this->entityManager->getClassMetadata(EventPrivateAccessLog::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

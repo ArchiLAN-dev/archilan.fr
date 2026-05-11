@@ -46,24 +46,24 @@ final readonly class ContainerController
             return new JsonResponse([
                 'data' => [
                     'container' => $containerName,
-                    'found'     => true,
-                    'status'    => is_string($st['Status'] ?? null) ? $st['Status'] : 'unknown',
-                    'running'   => (bool) ($st['Running'] ?? false),
-                    'paused'    => (bool) ($st['Paused'] ?? false),
-                    'restarting'=> (bool) ($st['Restarting'] ?? false),
+                    'found' => true,
+                    'status' => is_string($st['Status'] ?? null) ? $st['Status'] : 'unknown',
+                    'running' => (bool) ($st['Running'] ?? false),
+                    'paused' => (bool) ($st['Paused'] ?? false),
+                    'restarting' => (bool) ($st['Restarting'] ?? false),
                     'exit_code' => is_int($st['ExitCode'] ?? null) ? $st['ExitCode'] : null,
-                    'error'     => is_string($st['Error'] ?? null) ? $st['Error'] : '',
-                    'started_at'=> is_string($st['StartedAt'] ?? null) ? $st['StartedAt'] : null,
-                    'finished_at'=> is_string($st['FinishedAt'] ?? null) ? $st['FinishedAt'] : null,
+                    'error' => is_string($st['Error'] ?? null) ? $st['Error'] : '',
+                    'started_at' => is_string($st['StartedAt'] ?? null) ? $st['StartedAt'] : null,
+                    'finished_at' => is_string($st['FinishedAt'] ?? null) ? $st['FinishedAt'] : null,
                 ],
             ]);
         } catch (\Throwable) {
             return new JsonResponse([
                 'data' => [
                     'container' => $containerName,
-                    'found'     => false,
-                    'status'    => 'not_found',
-                    'running'   => false,
+                    'found' => false,
+                    'status' => 'not_found',
+                    'running' => false,
                 ],
             ]);
         }
@@ -92,29 +92,33 @@ final readonly class ContainerController
         $containerName = 'archipelago-run-'.$sessionId;
 
         try {
-            $output = match ($action) {
-                'start'   => $this->docker->start($containerName) ?? '',
-                'stop'    => $this->docker->stop($containerName) ?? '',
-                'restart' => $this->docker->restart($containerName) ?? '',
-                'rm'      => $this->docker->remove($containerName, force: true) ?? '',
-                'logs'    => $this->docker->tailLogs($containerName),
-            };
+            if ('logs' === $action) {
+                $output = $this->docker->tailLogs($containerName);
+            } else {
+                match ($action) {
+                    'start' => $this->docker->start($containerName),
+                    'stop' => $this->docker->stop($containerName),
+                    'restart' => $this->docker->restart($containerName),
+                    'rm' => $this->docker->remove($containerName, force: true),
+                };
+                $output = '';
+            }
 
             return new JsonResponse([
                 'data' => [
-                    'action'    => $action,
+                    'action' => $action,
                     'container' => $containerName,
-                    'success'   => true,
-                    'output'    => is_string($output) ? $output : '',
+                    'success' => true,
+                    'output' => $output,
                 ],
             ]);
         } catch (\Throwable $e) {
             return new JsonResponse([
                 'data' => [
-                    'action'    => $action,
+                    'action' => $action,
                     'container' => $containerName,
-                    'success'   => false,
-                    'output'    => $e->getMessage(),
+                    'success' => false,
+                    'output' => $e->getMessage(),
                 ],
             ]);
         }

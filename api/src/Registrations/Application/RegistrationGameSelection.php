@@ -247,8 +247,8 @@ final readonly class RegistrationGameSelection
      */
     /**
      * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
-     * @param list<string> $gameIds
-     * @param array<string, ArchipelagoGame> $gamesById
+     * @param list<string>                                                                                                     $gameIds
+     * @param array<string, ArchipelagoGame>                                                                                   $gamesById
      *
      * @return list<array{slotId: string, gameId: string, playerYaml?: string|null, apworldHash?: string|null}>
      */
@@ -271,8 +271,8 @@ final readonly class RegistrationGameSelection
                 $result[] = [
                     'slotId' => $matched['slotId'],
                     'gameId' => $gameId,
-                    'playerYaml' => $matched['playerYaml'],
-                    'apworldHash' => $matched['apworldHash'],
+                    'playerYaml' => $matched['playerYaml'] ?? null,
+                    'apworldHash' => $matched['apworldHash'] ?? null,
                 ];
             } else {
                 $game = $gamesById[$gameId] ?? null;

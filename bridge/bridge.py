@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bridge.py — entry point and public API re-exporter for the bridge package."""
+"""Bridge.py - entry point and public API re-exporter for the bridge package."""
 from __future__ import annotations
 
 import asyncio
@@ -18,7 +18,7 @@ if _core not in sys.path:
 
 # Re-export all public symbols so tests using `from bridge.bridge import X` keep working.
 from config import Config  # noqa: E402
-from domain import PlayerState  # noqa: E402
+from domain import HintInfo, PlayerState  # noqa: E402
 from save_parser import load_save_state  # noqa: E402
 from state import StateManager  # noqa: E402
 from mercure import MercurePublisher, TokenManager  # noqa: E402
@@ -46,6 +46,7 @@ from loops import (  # noqa: E402
 
 __all__ = [
     "Config",
+    "HintInfo",
     "PlayerState",
     "load_save_state",
     "StateManager",

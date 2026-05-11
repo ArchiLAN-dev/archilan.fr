@@ -47,7 +47,11 @@ final readonly class PlayerPatchController
             $connection['slots'],
         );
 
-        $files = $this->findPatchFiles((string) $session['id'], $slotNames);
+        $sessionId = $session['id'];
+        if (!is_string($sessionId)) {
+            return new JsonResponse(['data' => ['files' => []]]);
+        }
+        $files = $this->findPatchFiles($sessionId, $slotNames);
 
         return new JsonResponse(['data' => ['files' => $files]]);
     }
@@ -92,7 +96,11 @@ final readonly class PlayerPatchController
         }
 
         // Resolve path and prevent traversal
-        $outputDir = realpath($this->workspaceDir.'/'.$session['id'].'/output');
+        $sessionId = $session['id'];
+        if (!is_string($sessionId)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
+        }
+        $outputDir = realpath($this->workspaceDir.'/'.$sessionId.'/output');
         if (false === $outputDir) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
         }

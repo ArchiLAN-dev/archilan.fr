@@ -24,6 +24,7 @@ def test_to_dict_keys() -> None:
     assert set(d.keys()) == {
         "slot_name", "checks_done", "checks_total",
         "items_received", "client_status", "goal_reached_at", "reachable_now",
+        "hints_used", "hint_points_available",
     }
     # slot_index is internal, not exposed
     assert "slot_index" not in d

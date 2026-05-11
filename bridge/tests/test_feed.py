@@ -1,4 +1,4 @@
-"""Tests for _build_feed_event — PrintJSON packet → Mercure feed event."""
+"""Tests for _build_feed_event - PrintJSON packet → Mercure feed event."""
 from __future__ import annotations
 
 import pytest

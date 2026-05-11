@@ -8,7 +8,6 @@ use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RegisterLambdaUser;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
-use App\Identity\Presentation\CleanupRefreshTokensCommand;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Console\Application;

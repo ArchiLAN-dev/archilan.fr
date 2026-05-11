@@ -1,4 +1,4 @@
-"""Tests for DataPackageStore — ID resolution and alias lookup."""
+"""Tests for DataPackageStore - ID resolution and alias lookup."""
 from __future__ import annotations
 
 import pytest
@@ -112,7 +112,7 @@ def test_slot_by_alias_not_found_returns_zero() -> None:
 
 
 # ---------------------------------------------------------------------------
-# handle_data_package — non-dict game data is skipped
+# handle_data_package - non-dict game data is skipped
 # ---------------------------------------------------------------------------
 
 def test_handle_data_package_skips_non_dict_games() -> None:

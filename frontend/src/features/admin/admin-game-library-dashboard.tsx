@@ -113,7 +113,7 @@ export function AdminGameLibraryDashboard() {
               Bibliothèque de jeux
             </h1>
             <p className="mt-3 max-w-2xl text-muted-foreground">
-              Maintiens les jeux Archipelago disponibles pour les futures configurations d'événements.
+              Maintiens les jeux Archipelago disponibles pour les futures configurations d&apos;événements.
             </p>
           </div>
           <Link

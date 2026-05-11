@@ -20,7 +20,7 @@ ArchipelagoServer "$GAME_FILE" \
 # Wait briefly for the server to initialize before Bridge.py connects
 sleep 3
 
-# Start Bridge.py — stdout+stderr go to container logs (docker logs)
+# Start Bridge.py - stdout+stderr go to container logs (docker logs)
 python -u /bridge/bridge.py &
 
 # Wait for any child to exit (restart policy handled by Docker)

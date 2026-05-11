@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import Link from "next/link";
 import { env } from "@/lib/env";
@@ -82,19 +82,21 @@ export function TwitchPersistentPlayer() {
 
     useEffect(() => {
         hostnameRef.current = window.location.hostname;
-        setHostnameReady(true);
+        startTransition(() => { setHostnameReady(true); });
     }, []);
 
     useEffect(() => {
         if (mainPlayerMounted) {
-            setMiniState(null);
-            setPlaceholderInView(true); // IntersectionObserver recalibrera immédiatement
+            startTransition(() => {
+                setMiniState(null);
+                setPlaceholderInView(true);
+            });
         }
     }, [mainPlayerMounted]);
 
     useLayoutEffect(() => {
         if (!mainPlayerMounted || !placeholderEl) {
-            setInlineRect(null);
+            // isInline already guards against stale inlineRect when conditions aren't met
             return;
         }
         function sync() {

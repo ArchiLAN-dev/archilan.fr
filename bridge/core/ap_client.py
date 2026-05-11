@@ -10,6 +10,7 @@ from typing import Any
 import websockets
 
 from config import Config
+from domain import HintInfo
 from mercure import MercurePublisher
 from state import StateManager
 
@@ -74,6 +75,23 @@ class DataPackageStore:
                 return slot
         return 0
 
+    def resolve_hint_names(self, hint: "HintInfo") -> "HintInfo":
+        """Return a copy of the hint with all name fields resolved."""
+        from domain import HintInfo as _HintInfo
+        return _HintInfo(
+            receiving_player=hint.receiving_player,
+            finding_player=hint.finding_player,
+            location_id=hint.location_id,
+            item_id=hint.item_id,
+            entrance=hint.entrance,
+            item_flags=hint.item_flags,
+            status=hint.status,
+            receiving_player_name=self.resolve_player(hint.receiving_player),
+            finding_player_name=self.resolve_player(hint.finding_player),
+            item_name=self.resolve_item(hint.item_id, hint.receiving_player),
+            location_name=self.resolve_location(hint.location_id, hint.finding_player),
+        )
+
 
 def _build_feed_event(packet: dict[str, Any], store: DataPackageStore) -> dict[str, Any]:
     """Build a Mercure feed event dict from a PrintJSON packet."""
@@ -130,6 +148,12 @@ class ArchipelagoClient:
     async def send_command(self, command: str) -> None:
         if self._ws is not None and self.ws_connected:
             await self._ws.send(json.dumps([{"cmd": "Say", "text": command}]))
+
+    async def send_packet(self, packet: dict[str, Any]) -> None:
+        """Send an arbitrary AP protocol packet. Raises RuntimeError if not connected."""
+        if self._ws is None or not self.ws_connected:
+            raise RuntimeError("WebSocket not connected")
+        await self._ws.send(json.dumps([packet]))
 
     async def _connect_and_run(self) -> None:
         async with websockets.connect(self._config.archipelago_ws_url) as ws:
@@ -207,6 +231,14 @@ class ArchipelagoClient:
             self._store.handle_data_package(packet)
             games_loaded = list(packet.get("data", {}).get("games", {}).keys())
             self._log.info("DataPackage received - games: %s", games_loaded)
+            self._resolve_all_hint_names()
+            # Apply hint cost for slots we already know about (from DataPackage location counts)
+            for slot_id, game in self._store._slot_games.items():
+                if slot_id == self._my_slot:
+                    continue  # Connected gives exact count - don't overwrite with DataPackage
+                dp_total = len(self._store._location_names.get(game, {}))
+                if dp_total > 0:
+                    self._state.apply_hint_cost_for_slot(slot_id, dp_total)
 
         elif cmd == "Connected":
             players: list[dict[str, Any]] = packet.get("players", [])
@@ -216,7 +248,7 @@ class ArchipelagoClient:
             self._store.handle_connected(packet)
 
             if self._config.admin_password and self._ws is not None:
-                await self._ws.send(json.dumps([{"cmd": "Say", "text": f"!admin {self._config.admin_password}"}]))
+                await self._ws.send(json.dumps([{"cmd": "Say", "text": f"!admin login {self._config.admin_password}"}]))
                 self._log.info("admin auth sent")
 
             for slot_str, info in slot_info.items():
@@ -234,6 +266,8 @@ class ArchipelagoClient:
                 total = len(checked_locs) + len(missing_locs)
                 if total > 0:
                     self._state.set_checks_total(self._my_slot, total)
+                    # Connected gives us exact total for this slot - use it for hint cost
+                    self._state.apply_hint_cost_for_slot(self._my_slot, total)
                 if checked_locs:
                     self._state.add_location_checks(self._my_slot, checked_locs)
 
@@ -243,6 +277,7 @@ class ArchipelagoClient:
                 dp_total = len(self._store._location_names.get(game, {}))
                 if dp_total > 0:
                     self._state.set_checks_total(slot_id, dp_total)
+                    self._state.apply_hint_cost_for_slot(slot_id, dp_total)
 
             for slot_id, ps in self._state.get_all().items():
                 if ps.client_status == 0 and ps.checks_done > 0:
@@ -259,6 +294,9 @@ class ArchipelagoClient:
                 state_changed = True
             elif msg_type == "Goal":
                 self._track_goal(packet)
+                state_changed = True
+            elif msg_type == "Hint":
+                await self._track_hint(packet)
                 state_changed = True
             event = _build_feed_event(packet, self._store)
             await self._publisher.publish(f"runs/{self._config.run_id}/feed", event)
@@ -361,6 +399,84 @@ class ArchipelagoClient:
             if slot:
                 self._state.update_client_status(slot, 30)
                 return
+
+    def _resolve_all_hint_names(self) -> None:
+        """Backfill resolved names on all hints loaded from apsave (called after DataPackage)."""
+        for slot_id, ps in self._state._states.items():
+            if not ps._hints:
+                continue
+            resolved = [self._store.resolve_hint_names(h) for h in ps._hints]
+            ps._hints = resolved
+            self._log.info("resolved names for %d hint(s) on slot %d", len(resolved), slot_id)
+
+    def resolve_slot_hint_names(self, slot_id: int) -> None:
+        """Resolve item/location names for one slot's hints (called after merge_state_from_save)."""
+        ps = self._state._states.get(slot_id)
+        if not ps or not ps._hints:
+            return
+        ps._hints = [self._store.resolve_hint_names(h) for h in ps._hints]
+
+    async def _track_hint(self, packet: dict[str, Any]) -> None:
+        """Extract hint from a PrintJSON Hint packet.
+
+        AP sends top-level fields on the packet itself:
+          receiving (int)  - slot of the player who needs the item
+          item (dict)      - NetworkItem: {item, location, player=finding_slot, flags}
+          found (bool)     - deprecated but still present in older AP versions
+        These are more reliable than parsing text data parts.
+        """
+        receiving_player = int(packet.get("receiving", 0))
+        net_item = packet.get("item", {})
+        if not isinstance(net_item, dict):
+            self._log.debug("_track_hint: no item dict in packet, skipping")
+            return
+
+        item_id = int(net_item.get("item", 0))
+        location_id = int(net_item.get("location", 0))
+        finding_player = int(net_item.get("player", 0))
+        item_flags = int(net_item.get("flags", 0))
+
+        if not (item_id and location_id and receiving_player):
+            self._log.debug("_track_hint: incomplete hint packet, skipping")
+            return
+
+        # status: newer AP sends it directly; older only has found bool
+        status_raw = packet.get("status", None)
+        if status_raw is not None:
+            status = int(status_raw)
+        elif packet.get("found", False):
+            status = 40  # HINT_FOUND
+        else:
+            status = 0
+
+        hint = HintInfo(
+            receiving_player=receiving_player,
+            finding_player=finding_player,
+            location_id=location_id,
+            item_id=item_id,
+            entrance=str(packet.get("entrance", "")),
+            item_flags=item_flags,
+            status=status,
+            receiving_player_name=self._store.resolve_player(receiving_player),
+            finding_player_name=self._store.resolve_player(finding_player),
+            item_name=self._store.resolve_item(item_id, receiving_player),
+            location_name=self._store.resolve_location(location_id, finding_player),
+        )
+        changed = self._state.add_hint(receiving_player, hint)
+        if changed:
+            await self._publish_hints(receiving_player)
+
+    async def _publish_hints(self, slot: int) -> None:
+        hints = self._state.get_hints(slot)
+        ps = self._state._states.get(slot)
+        payload = {
+            "slot": slot,
+            "hints": [h.to_dict() for h in hints],
+            "hints_used": ps.hints_used if ps else 0,
+            "hint_points_available": ps.hint_points_available if ps else 0,
+            "hint_cost": ps.hint_cost if ps else 0,
+        }
+        await self._publisher.publish(f"runs/{self._config.run_id}/slots/{slot}/hints", payload)
 
     async def _publish_players(self) -> None:
         await self._publisher.publish(

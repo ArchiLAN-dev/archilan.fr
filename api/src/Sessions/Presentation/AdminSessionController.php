@@ -155,7 +155,7 @@ final readonly class AdminSessionController
 
         $result = $this->sessionLifecycleManager->forceReset($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 

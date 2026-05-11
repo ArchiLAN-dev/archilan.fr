@@ -227,7 +227,9 @@ final class TraefikAndPublisherTokenTest extends WebTestCase
         );
 
         self::assertResponseIsSuccessful();
-        $data = $this->decodedJsonResponse();
+        $response = $this->decodedJsonResponse();
+        self::assertIsArray($response['data']);
+        $data = $response['data'];
         self::assertArrayHasKey('token', $data);
         self::assertArrayHasKey('expires_at', $data);
         self::assertIsString($data['token']);

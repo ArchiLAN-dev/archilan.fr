@@ -347,10 +347,10 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['Impossible de lancer le container depuis l\'état "'.$session->getStatus().'".']];
         }
 
-        $existingPort         = $session->getPort();
-        $existingBridgePort   = $session->getBridgePort();
-        $existingPassword     = $session->getPassword();
-        $existingServerPwd    = $session->getServerPassword();
+        $existingPort = $session->getPort();
+        $existingBridgePort = $session->getBridgePort();
+        $existingPassword = $session->getPassword();
+        $existingServerPwd = $session->getServerPassword();
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {

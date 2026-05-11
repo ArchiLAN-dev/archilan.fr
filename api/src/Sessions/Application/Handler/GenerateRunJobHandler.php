@@ -180,7 +180,7 @@ final readonly class GenerateRunJobHandler
         if (0 !== $result['exitCode']) {
             $this->callbackClient->sendCallback($job->sessionId, [
                 'status' => 'failed',
-                'logs' => $result['output'] !== '' ? $result['output'] : 'La génération a échoué sans message d\'erreur.',
+                'logs' => '' !== $result['output'] ? $result['output'] : 'La génération a échoué sans message d\'erreur.',
             ]);
             $this->logger->error('runner.generate_job.failed', [
                 'session_id' => $job->sessionId,

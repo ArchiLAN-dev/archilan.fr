@@ -94,7 +94,7 @@ async def _compute_reachable(
                          slot, result.get("counts", {}).get("reachable_now", 0))
                 return result, ""
             except Exception as exc:
-                log.warning("reachable: daemon failed slot=%d %s — subprocess fallback", slot, exc)
+                log.warning("reachable: daemon failed slot=%d %s - subprocess fallback", slot, exc)
                 _daemon_ready_events.pop(slot, None)
 
         existing = _reachable_daemons.get(slot)

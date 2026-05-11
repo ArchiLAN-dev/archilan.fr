@@ -102,7 +102,7 @@ async def _apsave_reconcile_loop(
                 if before.get(slot) != counts
             ]
             if changed_slots:
-                log.info("apsave reconcile: state updated for slots %s — triggering recompute", changed_slots)
+                log.info("apsave reconcile: state updated for slots %s - triggering recompute", changed_slots)
                 recompute_event.set()
                 await publisher.publish(f"runs/{config.run_id}/players", state.to_api_dict())
         except Exception as exc:

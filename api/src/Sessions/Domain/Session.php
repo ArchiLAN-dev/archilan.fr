@@ -32,9 +32,9 @@ class Session
         self::STATUS_LAUNCHING => [self::STATUS_RUNNING, self::STATUS_FAILED],
         self::STATUS_RUNNING => [self::STATUS_STOPPED, self::STATUS_CRASHED, self::STATUS_FINISHED, self::STATUS_LAUNCHING],
         self::STATUS_CRASHED => [self::STATUS_LAUNCHING, self::STATUS_STOPPED],
-        self::STATUS_STOPPED   => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
-        self::STATUS_FAILED    => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
-        self::STATUS_FINISHED  => [self::STATUS_LAUNCHING],
+        self::STATUS_STOPPED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
+        self::STATUS_FAILED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
+        self::STATUS_FINISHED => [self::STATUS_LAUNCHING],
     ];
 
     /** Sessions actives susceptibles d'être orphelines si le runner s'arrête. */
@@ -47,8 +47,8 @@ class Session
     /** Seuils (en secondes) d'inactivité au-delà desquels une session est considérée orpheline. */
     public const STALE_THRESHOLDS = [
         self::STATUS_GENERATING => 1200, // 20 min
-        self::STATUS_LAUNCHING  => 600,  // 10 min
-        self::STATUS_RUNNING    => 300,  // 5 min (heartbeat bridge toutes les 30s)
+        self::STATUS_LAUNCHING => 600,  // 10 min
+        self::STATUS_RUNNING => 300,  // 5 min (heartbeat bridge toutes les 30s)
     ];
 
     public function __construct(
@@ -259,35 +259,106 @@ class Session
 
     // ─── Getters ──────────────────────────────────────────────────────────────
 
-    public function getId(): string { return $this->id; }
-    public function getEventId(): string { return $this->eventId; }
-    public function getStatus(): string { return $this->status; }
-    public function getHost(): ?string { return $this->host; }
-    public function getPort(): ?int { return $this->port; }
-    public function getPassword(): ?string { return $this->password; }
-    public function getServerPassword(): ?string { return $this->serverPassword; }
-    public function getBridgePort(): ?int { return $this->bridgePort; }
-    public function getFinishedAt(): ?\DateTimeImmutable { return $this->finishedAt; }
-    public function getLastLogs(): ?string { return $this->lastLogs; }
-    public function getRunnerId(): ?string { return $this->runnerId; }
-    public function getLastHeartbeatAt(): ?\DateTimeImmutable { return $this->lastHeartbeatAt; }
-    public function getLastActivityAt(): ?\DateTimeImmutable { return $this->lastActivityAt; }
+    public function getId(): string
+    {
+        return $this->id;
+    }
 
-    public function setLastLogs(?string $logs): void { $this->lastLogs = $logs; }
+    public function getEventId(): string
+    {
+        return $this->eventId;
+    }
 
-    public function getArchivedSavePath(): ?string { return $this->archivedSavePath; }
-    public function setArchivedSavePath(?string $path): void { $this->archivedSavePath = $path; }
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
 
-    public function getArchivedSpoilerPath(): ?string { return $this->archivedSpoilerPath; }
-    public function setArchivedSpoilerPath(?string $path): void { $this->archivedSpoilerPath = $path; }
+    public function getHost(): ?string
+    {
+        return $this->host;
+    }
+
+    public function getPort(): ?int
+    {
+        return $this->port;
+    }
+
+    public function getPassword(): ?string
+    {
+        return $this->password;
+    }
+
+    public function getServerPassword(): ?string
+    {
+        return $this->serverPassword;
+    }
+
+    public function getBridgePort(): ?int
+    {
+        return $this->bridgePort;
+    }
+
+    public function getFinishedAt(): ?\DateTimeImmutable
+    {
+        return $this->finishedAt;
+    }
+
+    public function getLastLogs(): ?string
+    {
+        return $this->lastLogs;
+    }
+
+    public function getRunnerId(): ?string
+    {
+        return $this->runnerId;
+    }
+
+    public function getLastHeartbeatAt(): ?\DateTimeImmutable
+    {
+        return $this->lastHeartbeatAt;
+    }
+
+    public function getLastActivityAt(): ?\DateTimeImmutable
+    {
+        return $this->lastActivityAt;
+    }
+
+    public function setLastLogs(?string $logs): void
+    {
+        $this->lastLogs = $logs;
+    }
+
+    public function getArchivedSavePath(): ?string
+    {
+        return $this->archivedSavePath;
+    }
+
+    public function setArchivedSavePath(?string $path): void
+    {
+        $this->archivedSavePath = $path;
+    }
+
+    public function getArchivedSpoilerPath(): ?string
+    {
+        return $this->archivedSpoilerPath;
+    }
+
+    public function setArchivedSpoilerPath(?string $path): void
+    {
+        $this->archivedSpoilerPath = $path;
+    }
 
     /** @param list<array{slotName: string, errors: list<string>}>|null $errors */
-    public function setValidationErrors(?array $errors): void { $this->validationErrors = $errors; }
+    public function setValidationErrors(?array $errors): void
+    {
+        $this->validationErrors = $errors;
+    }
 
     /** @return list<array{slotName: string, errors: list<string>}>|null */
     public function getValidationErrors(): ?array
     {
-        /** @var list<array{slotName: string, errors: list<string>}>|null */
+        /* @var list<array{slotName: string, errors: list<string>}>|null */
         return $this->validationErrors;
     }
 
