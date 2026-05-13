@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ["step-01-validate-prerequisites", "step-02-design-epics", "step-03-create-stories", "step-04-final-validation", "step-01-validate-prerequisites-archipelago-run", "step-02-design-epics-archipelago-run", "step-03-create-stories-archipelago-run", "step-04-final-validation-archipelago-run", "step-01-validate-prerequisites-ux-sessions", "step-02-design-epics-ux-sessions", "step-03-create-stories-ux-sessions", "step-04-final-validation-ux-sessions"]
+stepsCompleted: ["step-01-validate-prerequisites", "step-02-design-epics", "step-03-create-stories", "step-04-final-validation", "step-01-validate-prerequisites-archipelago-run", "step-02-design-epics-archipelago-run", "step-03-create-stories-archipelago-run", "step-04-final-validation-archipelago-run", "step-01-validate-prerequisites-ux-sessions", "step-02-design-epics-ux-sessions", "step-03-create-stories-ux-sessions", "step-04-final-validation-ux-sessions", "step-01-validate-prerequisites-personal-runs", "step-02-design-epics-personal-runs", "step-03-create-stories-personal-runs", "step-04-final-validation-personal-runs", "step-amendment-wake-on-connect"]
 inputDocuments:
   - "_bmad-output/planning-artifacts/prd.md"
   - "_bmad-output/planning-artifacts/architecture.md"
@@ -23,6 +23,27 @@ uxSessionsPass:
   newRequirements:
     - FR-UX1 through FR-UX17
     - NFR-UX1 through NFR-UX5
+personalRunsPass:
+  date: "2026-05-12"
+  scope: "Epic 16 - User personal runs (private Archipelago games outside events, invite link) + Epic 17 - Session lifecycle (inactivity timeout, graceful stop, restart from save)"
+  newRequirements:
+    - FR-PR1 through FR-PR7
+    - NFR-PR1 through NFR-PR3
+    - FR-IT1 through FR-IT5
+    - NFR-IT1 through NFR-IT3
+wakeOnConnectAmendment:
+  date: "2026-05-13"
+  scope: "Amend Epic 17 - Option A architecture: kill AP process (not container), bridge TCP listener wake-on-connect. Stories 17.2, 17.3, 17.4 revised; Story 17.5 added."
+  newRequirements:
+    - FR-IT6 (added)
+    - NFR-IT4 (added)
+    - FR-IT2, FR-IT4, FR-IT5 revised
+historyLeaderboardsPass:
+  date: "2026-05-13"
+  scope: "Epic 18 - Run history, player profiles, community leaderboards + slot invalidation rule for released/forfeited players"
+  newRequirements:
+    - FR-HC1 through FR-HC9
+    - NFR-HC1 through NFR-HC4
 ---
 
 # archilan.fr - Epic Breakdown
@@ -248,6 +269,28 @@ FR51: Epic 8 - CGV before transactional actions.
 FR52: Epic 8 - CGU during account creation.
 FR53: Epic 8 - Cookie consent banner.
 FR54: Epic 8 - Cookie consent withdrawal/update.
+FR-PR1: Epic 16 - Personal run creation by authenticated user.
+FR-PR2: Epic 16 - Private invite link generation (opaque token).
+FR-PR3: Epic 16 - Invite link sharing (copy-to-clipboard).
+FR-PR4: Epic 16 - Join personal run via invite link.
+FR-PR5: Epic 16 - Personal run management (list, detail, cancel).
+FR-PR6: Epic 16 - Connection details displayed to participants once run is active.
+FR-PR7: Epic 16 - Owner-triggered server start for personal run.
+FR-IT1: Epic 17 - Last-activity timestamp tracked per session.
+FR-IT2: Epic 17 - On inactivity timeout, the Archipelago process is killed inside the container; the container and bridge remain alive.
+FR-IT3: Epic 17 - Idle session status distinct from completed.
+FR-IT4: Epic 17 - Idle session restarts automatically when the first TCP connection arrives on the AP port (wake-on-connect).
+FR-IT5: Epic 17 - Explicit owner-triggered restart via UI also supported as secondary trigger.
+FR-IT6: Epic 17 - On restart, the Archipelago server reloads from the last save file available in the container (MinIO backup as safety net).
+FR-HC1: Epic 18 - Visitors can view a public run results page showing per-slot stats grouped by outcome (goal reached / incomplete / invalidated).
+FR-HC2: Epic 18 - A slot's stats are invalidated when an admin or personal-run owner triggers release/collect on a slot without a reached goal. A completed slot can never be invalidated.
+FR-HC3: Epic 18 - A `was_released` boolean column on `session_slots` is set atomically within the release/collect transaction.
+FR-HC4: Epic 18 - Invalidated slots display a "Forfait" badge, are excluded from all leaderboard aggregations, but are still counted in `runsParticipated`.
+FR-HC5: Epic 18 - Any visitor can view a public player profile. A new unique `slug` field is introduced on the `User` entity in this epic.
+FR-HC6: Epic 18 - The player profile displays aggregated personal stats excluding invalidated slots from performance numerators.
+FR-HC7: Epic 18 - A public community leaderboard with three axes (goal completions, checks done, fastest completion) and optional event filter.
+FR-HC8: Epic 18 - A public global stats widget showing figures from sessions with status `finished`.
+FR-HC9: Epic 18 - Stats and leaderboards use only sessions with status `finished`; all other statuses expose no public stats.
 
 ## Epic List
 
@@ -298,6 +341,18 @@ Admins experience a streamlined session pipeline - fewer manual steps, animated 
 ### Epic 13: Secure Token Lifecycle - Refresh Token
 The authentication system is upgraded from a single long-lived JWT cookie to a short-lived access token + long-lived refresh token pair, both httpOnly Secure SameSite cookies. The API handles token rotation with reuse detection; the frontend silently refreshes expired sessions without user action.
 **FRs covered:** NFR9 (strengthened), NFR18 (stateless refresh). New security scope.
+
+### Epic 16: Personal Runs - Private User-Created Archipelago Games
+Authenticated users can create private Archipelago runs outside of any ArchiLAN event, configure game worlds, invite friends via an opaque shareable link, and start the server - reusing the runner infrastructure from Epic 9.
+**FRs covered:** FR-PR1, FR-PR2, FR-PR3, FR-PR4, FR-PR5, FR-PR6, FR-PR7, NFR-PR1, NFR-PR2, NFR-PR3.
+
+### Epic 17: Session Lifecycle - Inactivity Timeout & Restart
+Sessions (event-based and personal) auto-stop after 1 hour of inactivity, with graceful state save to MinIO, a distinct `idle` status, and a one-click restart that resumes from the saved state.
+**FRs covered:** FR-IT1, FR-IT2, FR-IT3, FR-IT4, FR-IT5, NFR-IT1, NFR-IT2, NFR-IT3.
+
+### Epic 18: Run History, Player Profiles & Community Leaderboards
+Players and visitors can explore completed run results, personal history across all runs, and community-wide leaderboards. Slot stats are automatically invalidated when a player forfeits and their slot is released/collected, ensuring leaderboard integrity.
+**FRs covered:** FR-HC1, FR-HC2, FR-HC3, FR-HC4, FR-HC5, FR-HC6, FR-HC7, FR-HC8, FR-HC9, NFR-HC1, NFR-HC2, NFR-HC3, NFR-HC4.
 
 ## Epic 0: Project Foundation & Quality Gates
 
@@ -2054,6 +2109,34 @@ Admins experience a streamlined session pipeline - fewer manual steps, animated 
 - NFR-UX4: Accessibility attributes (aria-label, aria-hidden, role) maintained throughout
 - NFR-UX5: Only existing design tokens and CSS variables used (no hardcoded colors)
 
+### Personal Runs Requirements (2026-05-12)
+
+FR-PR1: Authenticated users can create a personal Archipelago run (title, game configuration) independently of any event.
+FR-PR2: The system generates a private invitation link with an opaque token for each personal run.
+FR-PR3: The run owner can share the invite link (copy-to-clipboard).
+FR-PR4: An authenticated user can join a personal run via the invite link.
+FR-PR5: The run owner can view and manage their personal runs (list, detail, cancel/delete).
+FR-PR6: Once the run is active, participants see server connection details.
+FR-PR7: The run owner can trigger the Archipelago server start for their personal run.
+
+NFR-PR1: Invite token must be non-guessable (32+ random bytes, hex-encoded).
+NFR-PR2: Personal runs must not appear in any public listing - accessible only via link or direct invite.
+NFR-PR3: Personal run containers must be isolated from event-based session containers.
+
+### Session Lifecycle Requirements (2026-05-12)
+
+FR-IT1: The system tracks a last_activity_at timestamp per session, updated by the bridge on each check or item event.
+FR-IT2: On inactivity timeout, the bridge kills the Archipelago process inside the container; the container itself and the bridge process remain alive.
+FR-IT3: When the AP process is killed due to inactivity, the session transitions to status `idle` (not `completed` - the run is paused, not finished).
+FR-IT4: After entering idle mode, the bridge opens a TCP listener on the AP port. The first incoming TCP connection triggers an automatic AP process restart (wake-on-connect). The connecting client receives a connection error, waits, and reconnects once the server is ready.
+FR-IT5: Explicit owner-triggered restart via UI ("Reprendre") is also supported as a secondary trigger. It calls a bridge internal endpoint to launch the AP process directly.
+FR-IT6: On restart (wake-on-connect or explicit), the Archipelago server reloads from the most recent save file available on disk in the container. The bridge also uploads a `.apsave` snapshot to MinIO as a safety net before stopping the AP process (used if the container is ever fully stopped or crashes).
+
+NFR-IT1: Inactivity detection must run as a background Messenger worker or scheduled task - not on the HTTP request path.
+NFR-IT2: Before killing the AP process on inactivity, the bridge must trigger an Archipelago `/save` command and wait for confirmation (or timeout) - ensuring the last game state is preserved.
+NFR-IT3: The inactivity threshold must be configurable per-environment via ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS.
+NFR-IT4: The TCP listener used for wake-on-connect must be lightweight (single-threaded accept loop) and must not interfere with bridge heartbeat or REST API loops.
+
 ---
 
 ### Story 11.1: Merge Admin Validation + Generation Steps
@@ -2376,3 +2459,702 @@ So that the run activity is visually distinct and easy to follow.
 **Given** the feed is loading before the first message arrives
 **When** the EventSource is connecting
 **Then** 5 skeleton message rows render with a ghost type-badge pill and a ghost text line (Story 11.3)
+
+## Epic 16: Personal Runs - Private User-Created Archipelago Games
+
+Authenticated users can create private Archipelago runs outside of any ArchiLAN event, configure game worlds, invite friends via an opaque shareable link, and start the server - reusing the runner infrastructure from Epic 9.
+
+**FRs covered:** FR-PR1, FR-PR2, FR-PR3, FR-PR4, FR-PR5, FR-PR6, FR-PR7, NFR-PR1, NFR-PR2, NFR-PR3.
+
+### Story 16.1: Personal Run Domain Model and API
+
+As an authenticated user,
+I want to create and manage personal Archipelago runs via the API,
+So that I can start private games independently of association events.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated user calls `POST /api/v1/runs` with a valid title
+**When** the request is processed
+**Then** a new `PersonalRun` record is created with status `draft`, a unique 32-hex-char id, and the caller set as owner
+**And** the response is `201 Created` with `{ "data": { "id", "title", "status", "inviteToken", "ownerId", "createdAt", "updatedAt" } }`
+**And** the `invite_token` is a 32-byte random hex string (64 chars), unique and non-sequential
+
+**Given** an authenticated user calls `GET /api/v1/runs/mine`
+**When** the request is processed
+**Then** the response lists all PersonalRuns owned by the caller, ordered by `created_at` descending
+**And** runs belonging to other owners are not included
+
+**Given** an authenticated user calls `GET /api/v1/runs/{runId}`
+**When** the run exists and the caller is the owner or a participant
+**Then** the response includes full run details including game config, status, and participants list
+**And** a caller who is neither owner nor participant receives 403
+
+**Given** an authenticated user calls `DELETE /api/v1/runs/{runId}`
+**When** the run exists, the caller is the owner, and the run status is `draft` or `idle`
+**Then** the run is soft-deleted (status `cancelled`) and the response is 204
+**And** attempting to delete a run with status `active` returns 422 with code `run_active` - the run must be stopped first
+
+**And** unauthenticated requests to all `/runs` endpoints return 401
+**And** the `PersonalRun` entity lives in a new bounded context `App\PersonalRuns\Domain`
+**And** a Doctrine migration creates table `personal_runs` (id, owner_id FK users, title, status, invite_token UNIQUE, game_selection_config JSON, created_at, updated_at)
+**And** functional tests cover: create, list mine, get as owner, get as participant (403), delete draft, delete active (422)
+
+### Story 16.2: Invite Link Generation and Join Flow
+
+As a run owner,
+I want to share a private invite link,
+So that friends can join my personal run without it being publicly discoverable.
+
+**Acceptance Criteria:**
+
+**Given** a run owner calls `POST /api/v1/runs/{runId}/invite/regenerate`
+**When** the run exists and the caller is the owner
+**Then** a new `invite_token` is generated (old token invalidated) and the response returns the new token and the full invite URL
+
+**Given** an authenticated user follows `GET /api/v1/runs/join/{inviteToken}`
+**When** the token matches a non-cancelled run and the caller is not already a participant
+**Then** a `PersonalRunParticipant` record is created (`personal_run_id`, `user_id`, `joined_at`)
+**And** the response is `200 OK` with the run payload (same shape as Story 16.1 GET)
+**And** the user is now visible in the participants list of the run
+
+**Given** an authenticated user follows the same invite link a second time
+**When** the caller is already a participant
+**Then** the response is `200 OK` (idempotent - no duplicate participant created)
+
+**Given** an unauthenticated visitor follows `GET /api/v1/runs/join/{inviteToken}`
+**When** the token is valid
+**Then** the response is 401 with code `auth_required` - an account is required to join
+
+**Given** a token does not match any run, or the matched run is `cancelled`
+**When** the join endpoint is called
+**Then** the response is 404
+
+**And** a Doctrine migration creates table `personal_run_participants` (personal_run_id FK, user_id FK, joined_at; PK: personal_run_id + user_id)
+**And** functional tests cover: join as new participant, join idempotent, join unauthenticated (401), invalid token (404), cancelled run (404), regenerate token
+
+### Story 16.3: Game Configuration for Personal Run
+
+As a run owner,
+I want to configure which Archipelago games are included in my run,
+So that the multiworld generation has the correct game list when I start the server.
+
+**Acceptance Criteria:**
+
+**Given** a run owner calls `PATCH /api/v1/runs/{runId}/games` with `{ "games": [{ "gameId": "..." }, ...] }`
+**When** the run is in `draft` or `idle` status and the caller is the owner
+**Then** the `game_selection_config` JSON column is updated with the provided game list
+**And** each `gameId` must match an existing game in the Archipelago game library (`App\GameSelection` domain)
+**And** unknown `gameId` values return 422 with code `unknown_game` listing the invalid IDs
+
+**Given** the owner updates games on an `active` run
+**When** the request is processed
+**Then** the response is 422 with code `run_active` - configuration changes require stopping the run first
+
+**Given** a non-owner authenticated user calls the game config endpoint
+**When** the request is processed
+**Then** the response is 403
+
+**And** a minimum of 1 game is required; an empty `games` array returns 422 with code `games_required`
+**And** functional tests cover: valid config update (draft/idle), update on active run (422), unknown gameId (422), non-owner (403), empty games (422)
+
+### Story 16.4: Server Launch and Connection Details
+
+As a run owner,
+I want to start the Archipelago server for my personal run and see connection details,
+So that participants can connect and the game can begin.
+
+**Acceptance Criteria:**
+
+**Given** a run owner calls `POST /api/v1/runs/{runId}/start`
+**When** the run is in `draft` status, has at least one game configured, and the owner has a runner available
+**Then** the API dispatches a `LaunchPersonalRunJob` via Symfony Messenger (same runner infrastructure as Epic 9)
+**And** the run status transitions to `active` once the container is running
+**And** connection details (host, port) are stored on the run record once the server reports ready
+
+**Given** the run is active and the caller is the owner or a participant
+**When** `GET /api/v1/runs/{runId}` is called
+**Then** the response includes `connectionHost`, `connectionPort`, and `connectionPassword` fields (null until active)
+
+**Given** a run owner calls `POST /api/v1/runs/{runId}/start` when the run is already `active`
+**When** the request is processed
+**Then** the response is 422 with code `run_already_active`
+
+**Given** a run owner calls `POST /api/v1/runs/{runId}/stop`
+**When** the run is `active`
+**Then** the API dispatches a `StopPersonalRunJob`, the container is stopped gracefully, the run transitions to `idle`, and connection details are cleared
+**And** the response is 200 with the updated run payload
+
+**And** a Doctrine migration adds `session_id` (nullable FK to sessions), `connection_host`, `connection_port`, `connection_password` columns to `personal_runs`
+**And** functional tests cover: start (draft → active dispatch), start already active (422), stop (active → idle), get connection details when active, get connection details when idle (null)
+
+### Story 16.5: Frontend - Run Creation and Dashboard
+
+As an authenticated user,
+I want a dashboard to create and manage my personal runs,
+So that I can organize my private games from the site.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated user navigates to `/runs`
+**When** the page loads
+**Then** they see a list of their personal runs with status badge, title, date created, and action buttons (View, Delete for draft/idle)
+**And** a prominent "Créer une partie" button is visible
+**And** runs are grouped: active first, then idle, then draft, then cancelled (collapsed by default)
+**And** unauthenticated visitors are redirected to `/login?redirect=/runs`
+
+**Given** the user clicks "Créer une partie"
+**When** the creation form is shown
+**Then** the form asks for a title (required, max 80 chars) and submits to `POST /api/v1/runs`
+**And** on success, the user is redirected to `/runs/{runId}`
+
+**Given** the user navigates to `/runs/{runId}` as the owner
+**When** the page loads
+**Then** they see the run title, status, list of participants, and game configuration section
+**And** they see a "Copier le lien d'invitation" button that copies `{siteUrl}/runs/join/{inviteToken}` to clipboard with a toast confirmation
+**And** if status is `draft`, a "Configurer les jeux" section and "Démarrer la partie" button are visible
+**And** if status is `active`, connection details (host:port, password) are displayed prominently for all participants
+**And** if status is `idle`, a "Reprendre" button is visible (links to Epic 17 restart flow)
+
+**And** frontend lives in `src/features/personal-runs/`
+**And** routes: `src/app/runs/page.tsx` (list), `src/app/runs/[runId]/page.tsx` (detail)
+
+### Story 16.6: Frontend - Join via Invite Link and Participant View
+
+As an invited user,
+I want to join a personal run by following the invite link,
+So that I can participate in the game and see connection details.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated user navigates to `/runs/join/{inviteToken}`
+**When** the page loads
+**Then** the frontend calls `GET /api/v1/runs/join/{inviteToken}` which registers the user as a participant
+**And** on success, the user is redirected to `/runs/{runId}` (participant view)
+**And** if the token is invalid or the run is cancelled, a clear error message is shown with a link back to the homepage
+
+**Given** an unauthenticated visitor navigates to `/runs/join/{inviteToken}`
+**When** the page loads
+**Then** they see a "Rejoindre la partie" page with the run title, a brief description, and a "Se connecter / créer un compte" CTA
+**And** after authentication they are automatically redirected back to `/runs/join/{inviteToken}` to complete the join
+
+**Given** the user is now a participant and the run is `active`
+**When** they view `/runs/{runId}`
+**Then** they see connection details (host, port, password) and the participant list (owner highlighted)
+**And** they do NOT see configuration controls or the start/stop buttons (owner-only)
+
+**And** `src/app/runs/join/[inviteToken]/page.tsx` handles the join route
+**And** the join API call is triggered client-side on page load (not server-side, to avoid join on crawler visits)
+
+---
+
+## Epic 17: Session Lifecycle - Inactivity Timeout & Wake-on-Connect
+
+Sessions (event-based and personal) auto-stop their Archipelago process after 1 hour of inactivity. The container stays alive; the bridge enters a wake-on-connect mode (TCP listener on the AP port). The first player connection attempt automatically restarts the AP process - no admin action required. An explicit "Reprendre" UI trigger is also supported. MinIO backup provides a safety net if the container is ever fully stopped.
+
+**FRs covered:** FR-IT1, FR-IT2, FR-IT3, FR-IT4, FR-IT5, FR-IT6, NFR-IT1, NFR-IT2, NFR-IT3, NFR-IT4.
+
+### Story 17.1: Activity Tracking on Sessions
+
+As a system operator,
+I want sessions to track when they last had Archipelago activity,
+So that the inactivity watchdog has a reliable signal for when to pause a run.
+
+**Acceptance Criteria:**
+
+**Given** the Bridge.py service receives an Archipelago event (ItemSent, LocationChecked, or any game-state event)
+**When** the event is processed
+**Then** Bridge.py calls `PATCH /api/v1/sessions/{sessionId}/activity` (internal endpoint, bearer-token protected) with `{ "activityType": "check"|"item"|"hint", "occurredAt": "<ISO8601>" }`
+**And** the Symfony API updates `sessions.last_activity_at` to the provided `occurredAt` timestamp (or server time if not provided)
+
+**Given** a session is created (status `running`)
+**When** no activity event has been received yet
+**Then** `last_activity_at` defaults to the session `started_at` timestamp
+
+**Given** the activity endpoint is called with an invalid or unknown `sessionId`
+**When** the request is processed
+**Then** the response is 404
+
+**And** a Doctrine migration adds column `last_activity_at datetimetz_immutable DEFAULT NULL` to the `sessions` table
+**And** the endpoint requires a machine-to-machine bearer token configured via `BRIDGE_INTERNAL_TOKEN` env var (not a user JWT)
+**And** functional tests cover: activity update on existing session, default value equals started_at, unknown session (404), unauthenticated request (401)
+
+### Story 17.2: Inactivity Watchdog - AP Process Stop & Wake-on-Connect Activation
+
+As a system operator,
+I want idle sessions to have their Archipelago process stopped automatically after 1 hour without activity,
+So that CPU and game-server RAM are freed while the container stays alive for instant wake-on-connect.
+
+**Acceptance Criteria:**
+
+**Given** a Symfony Messenger scheduled message fires every 5 minutes
+**When** the `InactivityWatchdogMessage` handler runs
+**Then** it queries all sessions with status `running` where `last_activity_at < NOW() - INTERVAL ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS`
+**And** for each such session, it dispatches a `PauseRunJob` to the owning runner
+
+**Given** the runner receives a `PauseRunJob`
+**When** the job executes
+**Then** it calls Bridge.py's internal `POST /pause` endpoint
+**And** Bridge.py triggers an Archipelago `/save` command and waits for the `.apsave` file to be written (timeout: 30s)
+**And** Bridge.py uploads the `.apsave` file to MinIO at key `sessions/{sessionId}/saves/{timestamp}.apsave` as a safety-net backup
+**And** Bridge.py kills the Archipelago process (SIGTERM, then SIGKILL after 5s if still alive)
+**And** Bridge.py starts a TCP listener on the AP port (wake-on-connect mode)
+**And** Bridge.py calls `POST /api/v1/sessions/{sessionId}/paused` (internal, bearer-token protected) with `{ "lastSaveKey": "<minio-key>", "pausedWithoutSave": false }`
+**And** the Symfony API transitions the session status from `running` to `idle` and stores `last_save_key`
+**And** the container is NOT stopped - it remains running with only the bridge alive
+
+**Given** `ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS` is not set
+**When** the watchdog evaluates sessions
+**Then** it defaults to 3600 seconds (1 hour)
+
+**Given** Bridge.py's `/save` call times out (AP process unresponsive)
+**When** the PauseRunJob handles the timeout
+**Then** Bridge.py kills the AP process anyway, enters wake-on-connect mode, and calls the paused callback with `{ "pausedWithoutSave": true }`
+**And** the session is marked `idle` with `paused_without_save = true`
+**And** an admin notification is dispatched via Messenger
+
+**And** a Doctrine migration adds columns `last_save_key VARCHAR(500) DEFAULT NULL` and `paused_without_save BOOLEAN NOT NULL DEFAULT FALSE` to `sessions`
+**And** the `InactivityWatchdogMessage` is configured as a Symfony Scheduler recurring message (every 5 minutes)
+**And** functional tests cover: session below threshold (not paused), session above threshold (PauseRunJob dispatched), save timeout path (paused_without_save=true), default timeout value
+
+### Story 17.3: Explicit Session Restart from UI ("Reprendre")
+
+As a run owner or admin,
+I want to explicitly restart a paused session from the UI,
+So that I can resume a game without waiting for a player connection.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated user calls `POST /api/v1/sessions/{sessionId}/restart`
+**When** the session exists with status `idle`, and the caller is either an admin or the owner of the personal run
+**Then** the API calls Bridge.py's internal `POST /resume` endpoint (bearer-token protected) directly on the container
+**And** the Symfony API transitions the session status to `restarting`
+**And** the response is 202 with `{ "data": { "sessionId", "status": "restarting" } }`
+
+**Given** Bridge.py receives `POST /resume`
+**When** the bridge is in wake-on-connect mode (TCP listener active)
+**Then** the bridge closes the TCP listener
+**And** launches the Archipelago process using the most recent `.apsave` file on disk in the container (falling back to MinIO `last_save_key` if no local file exists)
+**And** once the AP server reports ready (health check), Bridge.py calls `POST /api/v1/sessions/{sessionId}/restarted` (internal)
+**And** the Symfony API transitions the session status from `restarting` to `running` and resets `last_activity_at` to NOW()
+
+**Given** the session has `paused_without_save = true` and no local `.apsave` file exists
+**When** the restart is attempted
+**Then** the response is 422 with code `no_save_available`
+
+**Given** a session with status `running` or `completed` is targeted
+**When** the restart endpoint is called
+**Then** the response is 422 with code `invalid_session_status`
+
+**Given** a non-admin, non-owner authenticated user calls the restart endpoint
+**When** the request is processed
+**Then** the response is 403
+
+**And** functional tests cover: successful restart dispatch (idle → restarting), bridge callback (restarting → running), no save available (422), already running (422), non-owner non-admin (403)
+
+### Story 17.4: Frontend - Idle Session Status and Restart UI
+
+As a run owner or admin,
+I want to see clearly when a session is paused and have the option to restart it from the UI,
+So that I can resume a game without waiting for a player connection.
+
+**Acceptance Criteria:**
+
+**Given** a personal run or event session has status `idle`
+**When** the owner views `/runs/{runId}` or the admin views the session management page
+**Then** the run card displays an "En pause" amber status badge
+**And** a subtitle shows the time since last activity (e.g. "Inactif depuis 1h 23min")
+**And** an info callout explains: "La partie redémarre automatiquement dès qu'un joueur tente de se connecter. Vous pouvez aussi la relancer manuellement."
+**And** a "Reprendre manuellement" secondary button is visible
+**And** if `paused_without_save` is true, the button is disabled with tooltip "Reprise impossible : aucune sauvegarde disponible"
+
+**Given** the user clicks "Reprendre manuellement"
+**When** the `POST .../restart` request is in flight
+**Then** the button shows a loading spinner and is disabled to prevent double-submit
+**And** the status badge updates to "Redémarrage en cours..."
+
+**Given** the session transitions to `restarting` (triggered either by UI or by wake-on-connect)
+**When** the frontend detects the status change (polling `GET .../` every 5s while restarting)
+**Then** the status badge shows "Redémarrage en cours..." with a spinner
+
+**Given** the session transitions back to `running`
+**When** the frontend detects the status change
+**Then** the "En pause" badge is replaced by the "En cours" active badge
+**And** connection details are shown again
+**And** a success toast "Partie reprise avec succès" appears
+
+**Given** an admin views the backoffice session list
+**When** one or more sessions have status `idle`
+**Then** idle sessions appear in a dedicated "Sessions en pause" section above completed sessions
+**And** the "Reprendre" action is available inline in the admin list
+
+**And** all status polling uses TanStack Query with 5-second refetch interval while status is `restarting`
+**And** polling stops once status returns to `running` or reaches a terminal state
+
+### Story 17.5: Bridge - Wake-on-Connect TCP Listener
+
+As a player,
+I want the Archipelago server to restart automatically when I attempt to connect to a paused game,
+So that I can resume playing without having to ask anyone to restart it.
+
+**Acceptance Criteria:**
+
+**Given** Bridge.py has killed the AP process due to inactivity (Story 17.2)
+**When** the bridge enters idle mode
+**Then** it opens a TCP server socket on `config.ap_port` (same port the AP server normally uses)
+**And** the socket accepts one connection at a time in a non-blocking loop (does not block the bridge's main heartbeat or REST loops - runs in a dedicated thread or asyncio task)
+
+**Given** the TCP listener is active and a client connects on the AP port
+**When** the connection is accepted
+**Then** Bridge.py immediately closes the accepted socket (the client receives a connection reset or empty response - this is expected and acceptable UX)
+**And** Bridge.py closes the TCP listener socket (no longer listening)
+**And** Bridge.py calls `POST /api/v1/sessions/{sessionId}/restarting` (internal, bearer-token protected) to notify Symfony
+**And** Symfony transitions the session status from `idle` to `restarting`
+**And** Bridge.py launches the AP process using the most recent `.apsave` file on disk (falling back to MinIO download if none found)
+**And** once the AP server passes a health check (TCP connect succeeds on port), Bridge.py calls `POST /api/v1/sessions/{sessionId}/restarted`
+**And** Symfony transitions the session status from `restarting` to `running` and resets `last_activity_at`
+
+**Given** the AP process fails to start (crash at launch)
+**When** the restart attempt fails
+**Then** Bridge.py calls `POST /api/v1/sessions/{sessionId}/restart-failed` (internal)
+**And** Symfony transitions the session to `idle` again and sets an error flag
+**And** an admin notification is dispatched
+
+**Given** Bridge.py itself crashes while in wake-on-connect mode (unexpected)
+**When** the container is still alive but the bridge process is dead
+**Then** the runner's health check detects a dead bridge (no heartbeat) and marks the session as `idle` with a `bridge_crashed` flag; no automatic recovery attempted - admin action required
+
+**And** unit tests for the TCP listener: listener starts on correct port, connection triggers restart sequence, failed AP launch triggers error callback
+**And** the TCP listener port is derived from `config.ap_port` (no new config required)
+
+## Epic 18: Run History, Player Profiles & Community Leaderboards
+
+Players and visitors can explore completed run results, personal history across all runs, and community-wide leaderboards. Slot stats are automatically invalidated when a player forfeits and their slot is released/collected, ensuring leaderboard integrity. The data layer already exists (`checksDone`, `itemsReceived`, `goalReachedAt` on `SessionSlot`, timestamps on `Session`) — this epic exposes it engagingly.
+
+### New Requirements
+
+#### Functional Requirements
+
+FR-HC1: Visitors can view a public run results page (`/runs/{id}/resultats`) showing per-slot stats (checks done, items received, goal reached, playtime), grouped by slot outcome: "Objectif atteint" / "Incomplet" / "Forfait".
+FR-HC2: A slot is invalidated when an admin (backoffice) or the personal-run owner triggers the release/collect action AND the slot has no `goal_reached_at`. Slots where `goal_reached_at IS NOT NULL` are immune — a completed player can never be invalidated.
+FR-HC3: A `was_released` boolean column is added to `session_slots` and set to `true` atomically within the same transaction as the release/collect action.
+FR-HC4: Invalidated slots display a distinct "Forfait" badge on the results page and are excluded from all leaderboard aggregations (goal count, checks count, completion rate). Their run attendance is counted in `runsParticipated` — showing up counts regardless of outcome.
+FR-HC5: Any visitor (no login required) can view a public player profile page at `/joueurs/{slug}`. A new unique `slug` column is introduced on `identity_users` as part of this epic and generated from the player's `displayName`.
+FR-HC6: The player profile page displays aggregated personal stats: total runs participated in, total checks done, total items received, goal completion rate, and number of goals reached — all metrics excluding invalidated slots from numerators; `runsParticipated` counts all slots.
+FR-HC7: A public community leaderboard at `/classements` ranks players on three axes: most goal completions, most checks done (all-time), and fastest single-run completion (goal reached, shortest elapsed time). Each axis is paginated, limit clamped to [1, 100], secondary tie-breaker is `displayName ASC`. Optional filter by event.
+FR-HC8: A global community stats widget (embeddable on the landing page) shows: total sessions with status `finished`, total checks done across all non-invalidated slots, and total goals reached.
+FR-HC9: Run results and leaderboards are only computed from sessions with status `finished`. Sessions in any other status (generating, running, idle, stopped, failed, crashed) expose no stats publicly.
+
+#### Non-Functional Requirements
+
+NFR-HC1: All API endpoints under this epic (`GET /api/v1/runs/{id}/results`, `GET /api/v1/players/{slug}`, `GET /api/v1/community/stats`, `GET /api/v1/leaderboard`) require no authentication. Frontend routes (`/runs/{id}/resultats`, `/joueurs/{slug}`, `/classements`) are public Next.js pages accessible without login.
+NFR-HC2: Leaderboard queries must use indexed columns (`goal_reached_at`, `checks_done`, `session_id`, `was_released`) and paginate; a full table scan on `session_slots` is not acceptable at scale.
+NFR-HC3: Setting `was_released = true` must be atomic with the parent release/collect transaction — no separate async job, no eventual consistency gap.
+NFR-HC4: Leaderboard and global-stats endpoints must be cacheable; a 60-second server-side cache is acceptable (ETag or `Cache-Control: max-age=60`).
+
+#### FR Coverage Map Additions
+
+FR-HC1: Epic 18 - Public run results page (grouped by outcome).
+FR-HC2: Epic 18 - Slot invalidation rule (release/collect + no goal reached).
+FR-HC3: Epic 18 - `was_released` column on `session_slots`.
+FR-HC4: Epic 18 - Forfait badge + leaderboard exclusion + participation still counted.
+FR-HC5: Epic 18 - Public player profile page + `slug` column on `identity_users`.
+FR-HC6: Epic 18 - Aggregated personal stats on profile (excluding invalidated from numerators).
+FR-HC7: Epic 18 - Community leaderboard page (3 axes, deterministic tie-breaker).
+FR-HC8: Epic 18 - Global stats widget (`finished` sessions only).
+FR-HC9: Epic 18 - Stats gated on `finished` status only.
+
+---
+
+### Story 18.1: Domain & Migration — `was_released` Flag on SessionSlot
+
+As a developer,
+I want a `was_released` flag on `SessionSlot` that is set when an admin releases/collects a forfeiting player's slot,
+So that the system can distinguish intentionally invalidated participation from normal activity when computing stats.
+
+**Acceptance Criteria:**
+
+**Given** the existing `session_slots` table
+**When** the migration is applied
+**Then** a `was_released BOOLEAN NOT NULL DEFAULT FALSE` column is added to `session_slots`
+**And** all existing rows default to `false` (no back-fill needed)
+
+**Given** a `SessionSlot` domain entity
+**When** `SessionSlot::markAsReleased()` is called
+**Then** `wasReleased` is set to `true` only if `goalReachedAt` is `null`; the call is silently ignored for a slot where the goal was already reached (a completed player cannot be forfeited)
+
+**Given** the release/collect action in `SessionOrchestrator` (or the handler that currently processes the slot release command for event sessions, or the personal-run owner triggering the equivalent action for a personal run)
+**When** the action targets a slot whose registration is in a cancelled/abandoned state (or the personal-run participant has left)
+**Then** `SessionSlot::markAsReleased()` is called inside the same DB transaction that persists the release action
+**And** the transaction commits both changes atomically
+**And** if the slot has `goalReachedAt` set, `markAsReleased()` is a silent no-op — the transaction still commits, the flag stays `false`
+
+**Given** a slot with `was_released = true`
+**When** it is serialized to the API response
+**Then** the `wasReleased` boolean is included in the slot DTO (camelCase, as per project conventions)
+
+**And** unit tests cover: `markAsReleased()` sets flag when goal not reached, `markAsReleased()` is a no-op when goal already reached
+**And** a Doctrine migration file is generated under `api/migrations/`
+
+---
+
+### Story 18.2: API — Public Run Results Endpoint
+
+As a visitor or player,
+I want to fetch the results of a completed run via a public API endpoint,
+So that the frontend can display per-slot stats without requiring authentication.
+
+**Acceptance Criteria:**
+
+**Prerequisite:** Story 18.1 (adds `was_released` column and `markAsReleased()`)
+
+**Given** a `GET /api/v1/runs/{id}/results` request for a session with status `finished`
+**When** the request is received (no authentication required)
+**Then** the response is 200 with:
+```json
+{
+  "data": {
+    "sessionId": "uuid",
+    "eventName": "ArchiLAN #12",
+    "startedAt": "ISO8601",
+    "finishedAt": "ISO8601",
+    "durationSeconds": 14400,
+    "slots": [
+      {
+        "slotId": "uuid",
+        "playerName": "string",
+        "game": "Hollow Knight",
+        "checksDone": 42,
+        "itemsReceived": 35,
+        "goalReachedAt": "ISO8601 | null",
+        "completionSeconds": 3600,
+        "wasReleased": false,
+        "isInvalidated": false
+      }
+    ]
+  }
+}
+```
+**And** `isInvalidated` is `true` when `wasReleased = true` and `goalReachedAt IS NULL`
+**And** `completionSeconds` is `goalReachedAt - session.startedAt` in seconds, or `null` if goal not reached
+**And** slots are ordered: goal-reached first (by `completionSeconds` asc), then incomplete (no goal, not released), then invalidated (was_released = true)
+
+**Given** a `GET /api/v1/runs/{id}/results` request for a session that does not have status `finished` (e.g. status: `generating`, `running`, `idle`, `stopped`, etc.)
+**When** the request is received
+**Then** the response is 404 with code `run_not_found_or_not_finished`
+
+**Given** a non-existent session ID
+**When** the request is received
+**Then** the response is 404
+
+**And** a new `RunResultsController` (or equivalent) is created in the `Sessions` bounded context
+**And** no authentication guard is applied to this endpoint
+**And** functional tests cover: `finished` session (200 + correct payload + correct slot ordering), non-finished session (404 with `run_not_found_or_not_finished`), non-existent session (404), invalidated slot appears with `isInvalidated: true`
+
+---
+
+### Story 18.3: API — Player Profile and History Endpoints
+
+As a visitor,
+I want to fetch a player's public profile and run history,
+So that the frontend can render their page without requiring authentication.
+
+**Prerequisite:** Story 18.1 (adds `was_released` column)
+
+**Acceptance Criteria:**
+
+**Given** the existing `identity_users` table
+**When** the Story 18.3 migration is applied
+**Then** a `slug VARCHAR(80) NOT NULL UNIQUE` column is added to `identity_users`
+**And** existing rows are back-filled: slug generated by lowercasing `display_name`, stripping accents, replacing spaces and special chars with hyphens, and appending a numeric suffix (`-2`, `-3`, …) to resolve collisions; if `display_name` is null, use the local part of `email_canonical`
+**And** new user creation (`User::registerLambda`) sets `slug` at registration time using the same normalization logic (a `SlugGenerator` service handles both the normalization and collision check)
+
+**Given** a `GET /api/v1/players/{slug}` request
+**When** the player exists
+**Then** the response is 200 with:
+```json
+{
+  "data": {
+    "slug": "jean",
+    "displayName": "Jean",
+    "joinedAt": "ISO8601",
+    "stats": {
+      "runsParticipated": 8,
+      "goalCompletions": 5,
+      "goalCompletionRate": 0.625,
+      "totalChecksDone": 312,
+      "totalItemsReceived": 287
+    }
+  }
+}
+```
+**And** `runsParticipated` counts distinct `finished` sessions the player has a slot in, regardless of invalidation
+**And** all other stats (`goalCompletions`, `goalCompletionRate`, `totalChecksDone`, `totalItemsReceived`) exclude slots where `was_released = true` AND `goal_reached_at IS NULL`
+
+**Given** a `GET /api/v1/players/{slug}/history?page=1&limit=10` request
+**When** the player exists
+**Then** the response is 200 with a paginated list of runs, each containing:
+  - `sessionId`, `eventName`, `finishedAt`, `game`, `checksDone`, `itemsReceived`, `goalReachedAt`, `wasReleased`, `isInvalidated`
+**And** only runs from sessions with status `finished` are returned
+**And** the list is ordered by `finishedAt` descending (most recent first)
+
+**Given** a slug that matches no user
+**When** either endpoint is called
+**Then** the response is 404
+
+**And** no authentication guard is applied to either endpoint
+**And** functional tests cover: existing player with stats (200 + correct stat computation), player with no finished runs (200 + empty history), invalidated slot excluded from goal rate, non-existent slug (404)
+**And** unit tests for `SlugGenerator`: normalization, accent stripping, collision suffix
+
+---
+
+### Story 18.4: API — Community Leaderboard and Global Stats Endpoints
+
+As a visitor,
+I want to query community leaderboards and aggregate stats,
+So that the frontend can render the `/classements` page and the landing-page stats widget.
+
+**Acceptance Criteria:**
+
+**Prerequisite:** Story 18.1 (adds `was_released` column)
+
+**Given** a `GET /api/v1/community/stats` request
+**When** the request is received (no auth)
+**Then** the response is 200 with:
+```json
+{
+  "data": {
+    "totalFinishedSessions": 42,
+    "totalChecksDone": 18432,
+    "totalGoalsReached": 156
+  }
+}
+```
+**And** `totalFinishedSessions` counts sessions with status `finished`
+**And** `totalChecksDone` and `totalGoalsReached` exclude invalidated slots (`was_released = true` AND `goal_reached_at IS NULL`)
+**And** the response includes `Cache-Control: public, max-age=60` header
+
+**Given** a `GET /api/v1/leaderboard?axis=goals&page=1&limit=20` request (axis: `goals` | `checks` | `speed`)
+**When** the request is received (no auth)
+**Then** the response is 200 with a paginated ranking:
+```json
+{
+  "data": [
+    { "rank": 1, "slug": "jean", "displayName": "Jean", "value": 12, "unit": "goals" }
+  ],
+  "meta": { "axis": "goals", "page": 1, "total": 34 }
+}
+```
+**And** for `axis=goals`: `value` = count of `goal_reached_at IS NOT NULL` across non-invalidated slots from `finished` sessions
+**And** for `axis=checks`: `value` = sum of `checks_done` across non-invalidated slots from `finished` sessions
+**And** for `axis=speed`: `value` = minimum `(goal_reached_at - session.started_at)` in seconds across the player's non-invalidated slots from `finished` sessions; players with no goal completion are excluded entirely
+**And** `limit` is clamped server-side to [1, 100]; values outside this range are normalized without error
+**And** an empty page (no results for the given page offset) returns `{ "data": [], "meta": { … "total": N } }` with status 200
+**And** primary sort is by `value DESC`; secondary tie-breaker is `displayName ASC` (deterministic, case-insensitive)
+**And** an optional `eventId` query param filters all three axes to sessions associated with that event
+**And** the response includes `Cache-Control: public, max-age=60`
+
+**Given** an invalid `axis` value
+**When** the request is received
+**Then** the response is 422 with a descriptive error
+
+**And** database indexes are added on `session_slots(was_released, goal_reached_at)` and `session_slots(session_id)` if not already present
+**And** functional tests cover: all three axes return correct ranking with correct tie-breaker order, eventId filter narrows results, empty page returns 200 + empty array, limit clamping, invalid axis → 422
+
+---
+
+### Story 18.5: Frontend — Public Run Results Page (`/runs/{id}/resultats`)
+
+As a visitor or player,
+I want to view a richly formatted results page for a finished run,
+So that I can celebrate achievements, identify who completed what, and understand the run's outcome.
+
+**Prerequisite:** Story 18.2 (run results API endpoint)
+
+**Acceptance Criteria:**
+
+**Given** the user navigates to `/runs/{id}/resultats`
+**When** the API returns a session with status `finished`
+**Then** the page renders a header with: event name, run date, total duration (formatted as `Xh Ym`)
+**And** a results grid displays one card per slot with: player name, game, checks done, items received, goal status badge ("Objectif atteint" or "Incomplet"), and completion time if goal was reached
+**And** slots are grouped in three labelled sections: "Objectifs atteints" (sorted by completion time asc), "Incomplets" (no goal, not invalidated), "Forfaits" (invalidated — `isInvalidated: true`)
+**And** "Forfait" slot cards display an amber "Forfait" badge, checks and items are shown in muted style, and a tooltip explains "Statistiques exclues des classements (slot relâché)"
+**And** the page is publicly accessible with no login requirement
+**And** the page has proper `<title>` and `og:title` meta for social sharing (e.g. "Résultats de la run ArchiLAN #12")
+
+**Given** the API returns 404 (session not finished or not found)
+**When** the user navigates to `/runs/{id}/resultats`
+**Then** a "Résultats non disponibles" placeholder is shown with a back link to the run page
+
+**Given** the results page is loaded on mobile
+**When** the viewport is below 768px
+**Then** the grid collapses to a single-column list of cards with no horizontal scroll
+
+**And** the page uses Next.js SSR (`getServerSideProps` or equivalent) to render results data on the server for SEO
+**And** a "Voir le classement communautaire" link points to `/classements`
+
+---
+
+### Story 18.6: Frontend — Public Player Profile Page (`/joueurs/{slug}`)
+
+As a visitor,
+I want to view a player's profile with their run history and personal stats,
+So that I can understand their involvement in ArchiLAN runs.
+
+**Prerequisite:** Story 18.3 (player profile API endpoints)
+
+**Acceptance Criteria:**
+
+**Given** the user navigates to `/joueurs/{slug}` for an existing player
+**When** the page loads
+**Then** a profile header shows: display name, join date ("Membre depuis…"), and aggregated stats row: total runs, total checks done, goal completions, goal completion rate (as a percentage)
+**And** below the stats, a "Historique des runs" section lists the player's finished runs in reverse-chronological order, each showing: event name, date, game played, checks done, items received, and a "Objectif atteint" or "Forfait" or "Incomplet" status badge
+**And** each run row links to `/runs/{id}/resultats`
+**And** invalidated (`isInvalidated: true`) runs display a "Forfait" amber badge and muted stats
+
+**Given** there is no player matching the slug
+**When** the page loads
+**Then** a 404 page is rendered
+
+**Given** the player has no finished run history
+**When** the page loads
+**Then** an empty state is shown: "Aucune run terminée pour l'instant"
+
+**And** the page uses Next.js SSR for SEO
+**And** `og:title` is set to the player's display name (e.g. "Jean - Profil ArchiLAN")
+
+---
+
+### Story 18.7: Frontend — Community Leaderboard Page (`/classements`) and Stats Widget
+
+As a visitor,
+I want to browse community leaderboards and discover top players,
+So that I feel part of a competitive and engaged community.
+
+**Prerequisite:** Story 18.4 (leaderboard and community stats API endpoints)
+
+**Acceptance Criteria:**
+
+**Given** the user navigates to `/classements`
+**When** the page loads
+**Then** three leaderboard tabs are displayed: "Objectifs", "Checks", "Vitesse"
+**And** the active tab shows a ranked list of up to 20 players with: rank number, avatar placeholder (initials), display name (linking to their profile), and their value (e.g. "12 objectifs", "3 412 checks", "1h 23min")
+**And** an "Événement" dropdown allows filtering all three leaderboards to a specific event (fetched from the events list)
+**And** a "Voir plus" pagination link or button loads the next 20 entries within the current tab
+
+**Given** the user lands on the tab for axis `speed`
+**When** there are players with no goal completion
+**Then** those players do not appear in the speed leaderboard (only players who reached at least one goal appear)
+
+**Given** the community stats widget is embedded on the landing page
+**When** the page loads
+**Then** the widget shows three counters with animated number transitions on first viewport entry: "X runs terminées", "X checks complétés", "X objectifs atteints"
+**And** the counters use data from `GET /api/v1/community/stats` fetched client-side (not blocking SSR)
+**And** the widget degrades gracefully if the API call fails (counters show "-")
+
+**Given** the user views the leaderboard on mobile
+**When** the viewport is below 768px
+**Then** the tabs are horizontally scrollable, the table collapses to a stacked card format, and rank numbers and values remain legible
+
+**And** the leaderboard page uses Next.js SSR for initial data (axis=goals, no event filter) for SEO
+**And** tab switching and event filter changes use client-side fetches (TanStack Query) without full page reload
