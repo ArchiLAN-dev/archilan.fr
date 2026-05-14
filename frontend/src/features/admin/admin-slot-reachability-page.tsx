@@ -75,6 +75,7 @@ export function AdminSlotReachabilityPage({
   const [goalReached, setGoalReached] = useState(false);
   const goalShownRef = useRef(false);
   const stateRef = useRef(state);
+  // eslint-disable-next-line react-hooks/refs
   stateRef.current = state;
 
   const refreshingRef = useRef(false);
@@ -350,7 +351,7 @@ export function AdminSlotReachabilityPage({
     }
 
     async function initPlayers(): Promise<void> {
-      // Check current state first — goal may have been reached before this page was opened
+      // Check current state first - goal may have been reached before this page was opened
       const stateRes = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players`).catch(() => null);
       if (stateRes?.ok && !cancelled) {
         const stateJson = (await stateRes.json()) as { data: { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> } };

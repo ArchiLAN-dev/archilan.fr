@@ -10,7 +10,6 @@ import { externalLinks } from "@/lib/external-links";
 import { LiveTwitchBadge } from "@/features/streaming/live-twitch-badge";
 import { TwitchPlayerProvider } from "@/features/streaming/twitch-player-context";
 import { TwitchPersistentPlayer } from "@/features/streaming/twitch-mini-player";
-import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
@@ -294,8 +293,6 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
       <main className="w-full flex-1 px-6 py-16 md:px-12 lg:px-20" id="main-content">
         {children}
       </main>
-
-      <CookieConsentBanner />
 
       <footer className="border-t border-border bg-background/92 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:gap-6 md:px-12 lg:px-20">

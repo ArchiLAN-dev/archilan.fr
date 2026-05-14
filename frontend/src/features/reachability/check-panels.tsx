@@ -102,6 +102,7 @@ export function ItemListPanel({
   hintFree = false,
   hintCost = 0,
   itemLocations,
+  hideSpoilers = false,
 }: {
   title: string;
   items: ItemEntry[];
@@ -111,6 +112,7 @@ export function ItemListPanel({
   hintFree?: boolean;
   hintCost?: number;
   itemLocations?: Record<number, ItemLocation[]>;
+  hideSpoilers?: boolean;
 }) {
   const [filter, setFilter] = useState("");
   const [modalItem, setModalItem] = useState<{ id: number; name: string } | null>(null);
@@ -163,7 +165,7 @@ export function ItemListPanel({
                 <li className="flex items-center justify-between gap-3 px-4 py-2.5" key={item.id}>
                   <span className={`text-sm ${variant === "received" ? "text-foreground" : "text-muted-foreground"}`}>{item.name}</span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {locs && locs.length > 0 ? (
+                    {!hideSpoilers && locs && locs.length > 0 ? (
                       <button
                         aria-label="Voir les locations"
                         className="inline-flex items-center rounded border border-border p-1 text-muted-foreground transition-colors hover:border-accent-text/40 hover:text-foreground"
@@ -203,6 +205,7 @@ export function CheckListPanel({
   onHintRequest,
   hintFree = false,
   hintCost = 0,
+  hideSpoilers = false,
 }: {
   title: string;
   checks: CheckEntry[];
@@ -212,6 +215,7 @@ export function CheckListPanel({
   onHintRequest?: (locationId: number) => Promise<void>;
   hintFree?: boolean;
   hintCost?: number;
+  hideSpoilers?: boolean;
 }) {
   const [filter, setFilter] = useState("");
   const q = filter.trim().toLowerCase();
@@ -253,7 +257,7 @@ export function CheckListPanel({
       ) : (
         <ul className="max-h-96 divide-y divide-border overflow-y-auto">
           {filtered.map((check) => (
-            <CheckRow check={check} currentSlot={currentSlot} hintCost={hintCost} hintFree={hintFree} key={check.id} onHintRequest={onHintRequest} variant={variant} />
+            <CheckRow check={check} currentSlot={currentSlot} hideSpoilers={hideSpoilers} hintCost={hintCost} hintFree={hintFree} key={check.id} onHintRequest={onHintRequest} variant={variant} />
           ))}
         </ul>
       )}

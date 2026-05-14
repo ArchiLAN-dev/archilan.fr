@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LegalField } from "@/components/legal-placeholder";
 
 export const metadata: Metadata = {
   title: "Politique de confidentialité",
@@ -22,7 +21,7 @@ export default function ConfidentialitePage() {
           et Libertés.
         </p>
         <p className="text-xs text-muted-foreground">
-          <LegalField label="Date de dernière mise à jour." />
+          Dernière mise à jour : 13 mai 2026
         </p>
       </header>
 
@@ -38,10 +37,15 @@ export default function ConfidentialitePage() {
         <dl className="divide-y divide-border card-glow rounded-lg border border-border">
           <LegalRow label="Nom">ArchiLAN - Association loi 1901 à but non lucratif</LegalRow>
           <LegalRow label="Adresse">
-            <LegalField label="Adresse du siège social." />
+            26 rue de la Gantière, 63000 Clermont-Ferrand
           </LegalRow>
           <LegalRow label="Contact RGPD">
-            <LegalField label="Adresse e-mail dédiée aux demandes RGPD." />
+            <a
+              className="text-accent-text hover:text-accent-text-hover"
+              href="mailto:rgpd@archilan.fr"
+            >
+              rgpd@archilan.fr
+            </a>
           </LegalRow>
         </dl>
       </section>
@@ -143,10 +147,10 @@ export default function ConfidentialitePage() {
             Conservées tant que le compte est actif ou jusqu&apos;à demande de suppression.
           </LegalRow>
           <LegalRow label="Après suppression du compte">
-            <LegalField label="Délai d'anonymisation ou d'effacement effectif (ex. 30 jours)." />
+            30 jours
           </LegalRow>
           <LegalRow label="Historique d'inscriptions">
-            <LegalField label="Durée de conservation à des fins d'archivage associatif (ex. 3 ans)." />
+            3 ans à des fins d&apos;archivage associatif
           </LegalRow>
           <LegalRow label="Journaux techniques">
             12 mois conformément aux recommandations de la CNIL.
@@ -155,7 +159,7 @@ export default function ConfidentialitePage() {
             10 ans conformément à l&apos;obligation comptable légale (gérées par HelloAsso).
           </LegalRow>
           <LegalRow label="Demandes RGPD">
-            <LegalField label="Durée de conservation des demandes traitées (ex. 5 ans)." />
+            5 ans
           </LegalRow>
         </dl>
       </section>
@@ -181,7 +185,7 @@ export default function ConfidentialitePage() {
             HelloAsso applique sa propre politique de confidentialité.
           </LegalRow>
           <LegalRow label="Hébergeur de l'infrastructure">
-            <LegalField label="Nom de l'hébergeur - serveurs de l'API et du site." />
+            OVH SAS - serveurs situés en France
           </LegalRow>
           <LegalRow label="Twitch Interactive, Inc.">
             Uniquement si vous avez consenti à l&apos;intégration du lecteur Twitch. Données
@@ -234,7 +238,12 @@ export default function ConfidentialitePage() {
               espace personnel
             </Link>{" "}
             (section « Données et confidentialité »), ou contactez-nous à{" "}
-            <LegalField label="e-mail RGPD de l'association." />
+            <a
+              className="font-semibold text-accent-text hover:text-accent-text-hover"
+              href="mailto:rgpd@archilan.fr"
+            >
+              rgpd@archilan.fr
+            </a>
           </p>
           <p className="mt-2">
             Nous nous engageons à répondre dans un délai de{" "}

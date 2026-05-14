@@ -28,6 +28,15 @@ type AdminGame = {
   apworldHash: string | null;
   apworldUploadedAt: string | null;
   defaultYaml: string | null;
+  catalogSheetName: string | null;
+  apworldSourceUrl: string | null;
+  apworldDeployedVersion: string | null;
+  apworldLatestVersion: string | null;
+  apworldCheckedAt: string | null;
+  apworldReleaseUrl: string | null;
+  availabilityLocked: boolean;
+  igdbId: number | null;
+  updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
 };
 
 type LoadState =
@@ -116,6 +125,8 @@ export function AdminGameEditor({ gameId }: { gameId: string }) {
 
       <div className="grid gap-6">
         <BasicInfoSection game={game} onUpdate={refreshGame} />
+
+        <CatalogSyncSection game={game} onUpdate={refreshGame} />
 
         <ApworldSection game={game} onUpdate={refreshGame} />
       </div>
@@ -304,13 +315,208 @@ function BasicInfoSection({ game, onUpdate }: { game: AdminGame; onUpdate: (g: A
   );
 }
 
-// ─── Section 2: Fichier .apworld ───────────────────────────────────────────────
+// ─── Section 2: Catalogue sync ────────────────────────────────────────────────
+
+type CatalogSyncErrors = Partial<Record<"catalogSheetName" | "apworldSourceUrl", string>>;
+
+function CatalogSyncSection({ game, onUpdate }: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errors, setErrors] = useState<CatalogSyncErrors>({});
+  const [fields, setFields] = useState({
+    catalogSheetName: game.catalogSheetName ?? "",
+    apworldSourceUrl: game.apworldSourceUrl ?? "",
+    availabilityLocked: game.availabilityLocked,
+  });
+
+  function setField<K extends keyof typeof fields>(key: K, value: (typeof fields)[K]) {
+    setFields((f) => ({ ...f, [key]: value }));
+  }
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErrors({});
+    setSuccess(false);
+    setSubmitting(true);
+    try {
+      const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: game.name,
+          slug: game.slug,
+          description: game.description,
+          coverImageUrl: game.coverImageUrl,
+          coverImageAlt: game.coverImageAlt,
+          coverImageCredit: game.coverImageCredit,
+          availability: game.availability,
+          catalog_sheet_name: fields.catalogSheetName || null,
+          apworld_source_url: fields.apworldSourceUrl || null,
+          availability_locked: fields.availabilityLocked,
+        }),
+      });
+      const payload: unknown = await res.json();
+      if (!res.ok) {
+        const details = (payload as { error?: { details?: Record<string, string[]> } })?.error?.details ?? {};
+        setErrors({
+          catalogSheetName: details.catalogSheetName?.[0],
+          apworldSourceUrl: details.apworldSourceUrl?.[0],
+        });
+        return;
+      }
+      if (isGamePayload(payload)) {
+        onUpdate(payload.data);
+        setSuccess(true);
+      }
+    } catch {
+      setErrors({ catalogSheetName: "Impossible de contacter le serveur." });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const statusLabel: Record<string, string> = {
+    up_to_date: "À jour",
+    update_available: "Mise à jour disponible",
+    unknown: "Version inconnue",
+    not_tracked: "Non suivi",
+  };
+
+  const statusColor: Record<string, string> = {
+    up_to_date: "text-success",
+    update_available: "text-warning",
+    unknown: "text-muted-foreground",
+    not_tracked: "text-muted-foreground",
+  };
+
+  return (
+    <Section title="Catalogue & APWorld source">
+      {game.updateStatus !== "not_tracked" && (
+        <div className="mb-5 flex flex-wrap gap-4 rounded border border-border bg-surface-2 px-4 py-3 text-sm">
+          <span className={`font-semibold ${statusColor[game.updateStatus] ?? "text-muted-foreground"}`}>
+            {statusLabel[game.updateStatus] ?? game.updateStatus}
+          </span>
+          {game.apworldDeployedVersion && (
+            <span className="text-muted-foreground">Déployé : <span className="font-mono">{game.apworldDeployedVersion}</span></span>
+          )}
+          {game.apworldLatestVersion && (
+            <span className="text-muted-foreground">Dernier : <span className="font-mono">{game.apworldLatestVersion}</span></span>
+          )}
+          {game.apworldReleaseUrl && (
+            <a
+              className="inline-flex items-center gap-1 text-accent-text hover:underline"
+              href={game.apworldReleaseUrl}
+              rel="noopener"
+              target="_blank"
+            >
+              Release GitHub
+            </a>
+          )}
+          {game.apworldCheckedAt && (
+            <span className="text-xs text-muted-foreground">
+              Vérifié le {new Date(game.apworldCheckedAt).toLocaleString("fr-FR")}
+            </span>
+          )}
+        </div>
+      )}
+
+      <form className="grid gap-4" onSubmit={submit}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <TextField
+            error={errors.catalogSheetName}
+            hint="Doit correspondre exactement au nom dans le Google Sheet pour la synchronisation automatique."
+            label="Nom dans le sheet (catalog_sheet_name)"
+            name="catalogSheetName"
+            value={fields.catalogSheetName}
+            onChange={(v) => setField("catalogSheetName", v)}
+          />
+          <TextField
+            error={errors.apworldSourceUrl}
+            hint="https://github.com/{owner}/{repo} - utilisé pour vérifier les mises à jour."
+            label="URL source APWorld (GitHub)"
+            name="apworldSourceUrl"
+            placeholder="https://github.com/owner/repo"
+            value={fields.apworldSourceUrl}
+            onChange={(v) => setField("apworldSourceUrl", v)}
+          />
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+          <input
+            checked={fields.availabilityLocked}
+            className="size-4 rounded border-border accent-accent"
+            type="checkbox"
+            onChange={(e) => setField("availabilityLocked", e.target.checked)}
+          />
+          Disponibilité verrouillée (ne pas écraser depuis le sheet)
+        </label>
+        <SectionFooter label="Enregistrer" submitting={submitting} success={success} />
+      </form>
+    </Section>
+  );
+}
+
+// ─── Section 3: Fichier .apworld ───────────────────────────────────────────────
 
 function ApworldSection({ game, onUpdate }: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+  type GithubAsset = { name: string; downloadUrl: string; size: number };
+
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  const [importingGithub, setImportingGithub] = useState(false);
+  const [githubAssets, setGithubAssets] = useState<GithubAsset[] | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleOpenGithubPicker() {
+    setUploadError(null);
+    setGithubAssets(null);
+    setLoadingAssets(true);
+    try {
+      const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/github-assets`);
+      const payload: unknown = await res.json();
+      if (!res.ok) {
+        const msg = (payload as { error?: { message?: string } })?.error?.message ?? "Erreur lors de la récupération des assets.";
+        setUploadError(msg);
+        return;
+      }
+      const assets = ((payload as { data?: unknown }).data ?? []) as GithubAsset[];
+      if (assets.length === 1) {
+        // Only one asset - import directly without showing picker
+        await doImport(assets[0].downloadUrl, assets[0].name);
+      } else {
+        setGithubAssets(assets);
+      }
+    } catch {
+      setUploadError("Impossible de contacter le serveur.");
+    } finally {
+      setLoadingAssets(false);
+    }
+  }
+
+  async function doImport(downloadUrl: string, assetName: string) {
+    setUploadError(null);
+    setImportingGithub(true);
+    setGithubAssets(null);
+    try {
+      const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/apworld-from-github`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetDownloadUrl: downloadUrl, assetName }),
+      });
+      const payload: unknown = await res.json();
+      if (!res.ok) {
+        const msg = (payload as { error?: { message?: string } })?.error?.message ?? "Erreur lors de l'import.";
+        setUploadError(msg);
+        return;
+      }
+      if (isGamePayload(payload)) onUpdate(payload.data);
+    } catch {
+      setUploadError("Impossible de contacter le serveur.");
+    } finally {
+      setImportingGithub(false);
+    }
+  }
 
   async function handleUpload() {
     if (!selectedFile) return;
@@ -355,18 +561,76 @@ function ApworldSection({ game, onUpdate }: { game: AdminGame; onUpdate: (g: Adm
       title="Fichier .apworld"
     >
       {game.isApworldReady ? (
-        <p className="text-sm text-success">
-          Configuré le{" "}
-          {game.apworldUploadedAt
-            ? new Date(game.apworldUploadedAt).toLocaleDateString("fr-FR", {
-                day: "numeric", month: "long", year: "numeric",
-                hour: "2-digit", minute: "2-digit",
-              })
-            : "-"}{" "}
-          - SHA-256 : {game.apworldHash ? `${game.apworldHash.slice(0, 8)}…` : "-"}
-        </p>
+        <div className="grid gap-1">
+          <p className="text-sm text-success">
+            Configuré le{" "}
+            {game.apworldUploadedAt
+              ? new Date(game.apworldUploadedAt).toLocaleDateString("fr-FR", {
+                  day: "numeric", month: "long", year: "numeric",
+                  hour: "2-digit", minute: "2-digit",
+                })
+              : "-"}{" "}
+            - SHA-256 : {game.apworldHash ? `${game.apworldHash.slice(0, 8)}…` : "-"}
+          </p>
+          <p className="font-mono text-xs text-muted-foreground">
+            Nom Archipelago :{" "}
+            {game.archipelagoGameName
+              ? <span className="text-foreground">{game.archipelagoGameName}</span>
+              : <span className="text-danger">manquant</span>}
+          </p>
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">Aucun fichier .apworld configuré.</p>
+      )}
+
+      {game.apworldSourceUrl && (
+        <div className="mt-4">
+          <button
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={importingGithub || uploading || loadingAssets}
+            type="button"
+            onClick={handleOpenGithubPicker}
+          >
+            {loadingAssets ? "Chargement…" : importingGithub ? "Import en cours…" : "Importer depuis GitHub"}
+          </button>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">{game.apworldSourceUrl}</p>
+
+          {githubAssets !== null && githubAssets.length === 0 && (
+            <p className="mt-2 text-sm text-danger">Aucun asset .apworld trouvé dans la dernière release.</p>
+          )}
+
+          {githubAssets !== null && githubAssets.length > 1 && (
+            <div className="mt-3 rounded border border-border bg-surface-2 p-3">
+              <p className="mb-2 text-sm font-semibold text-foreground">
+                Plusieurs .apworld disponibles - choisissez :
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {githubAssets.map((asset) => (
+                  <li key={asset.downloadUrl}>
+                    <button
+                      className="flex w-full items-center justify-between gap-3 rounded border border-border bg-surface px-3 py-2 text-left text-sm transition-colors hover:border-accent disabled:opacity-60"
+                      disabled={importingGithub}
+                      type="button"
+                      onClick={() => doImport(asset.downloadUrl, asset.name)}
+                    >
+                      <span className="font-mono text-foreground">{asset.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {(asset.size / 1024).toFixed(0)} Ko
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button
+                className="mt-2 text-xs text-muted-foreground hover:text-foreground"
+                type="button"
+                onClick={() => setGithubAssets(null)}
+              >
+                Annuler
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

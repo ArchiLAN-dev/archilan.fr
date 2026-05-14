@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles, X } from "lucide-react";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { GravWave } from "./grav-wave";
 import { PixelTrophy } from "./pixel-trophy";
 import { useChiptune } from "./use-chiptune";
@@ -53,7 +53,7 @@ function generateShots(n: number): Shot[] {
             len: rand(160, 320),
             delay: rand(0, 9),
             dur: rand(1.5, 3.0),
-            dist: rand(105, 160), // vw — guarantees full-screen crossing
+            dist: rand(105, 160), // vw - guarantees full-screen crossing
             color: SHOT_COLORS[Math.floor(Math.random() * SHOT_COLORS.length)],
         };
     });
@@ -177,18 +177,15 @@ export function GoalCelebration({
     itemsPercent: number;
     onDismiss: () => void;
 }) {
-    const [pieces, setPieces] = useState<Piece[]>([]);
-    const [sparks, setSparks] = useState<Spark[]>([]);
-    const [shots, setShots] = useState<Shot[]>([]);
+    const [pieces] = useState<Piece[]>(() => generatePieces(100));
+    const [sparks] = useState<Spark[]>(() => generateSparks(24));
+    const [shots] = useState<Shot[]>(() => generateShots(12));
     const [mounted, setMounted] = useState(false);
     const [leaving, setLeaving] = useState(false);
 
     useChiptune();
 
     useEffect(() => {
-        setPieces(generatePieces(100));
-        setSparks(generateSparks(24));
-        setShots(generateShots(12));
         const raf = requestAnimationFrame(() => setMounted(true));
         return () => cancelAnimationFrame(raf);
     }, []);
@@ -227,7 +224,7 @@ export function GoalCelebration({
                     }}
                 />
 
-                {/* Gravitational wave — transparent WebGL canvas */}
+                {/* Gravitational wave - transparent WebGL canvas */}
                 <GravWave />
 
                 {/* Screen flash on open */}
@@ -304,7 +301,7 @@ export function GoalCelebration({
                             opacity: mounted ? undefined : 0,
                         }}
                     >
-                        {/* Gradient border frame — overflow:hidden guarantees border is always above inner bg */}
+                        {/* Gradient border frame - overflow:hidden guarantees border is always above inner bg */}
                         <div
                             style={{
                                 padding: "2px",
@@ -333,7 +330,7 @@ export function GoalCelebration({
                                 boxShadow: "0 0 8px #f59e0b80",
                             }} />
 
-                            {/* Inner dark surface — radius = frame_radius(16px) - padding(2px) = 14px */}
+                            {/* Inner dark surface - radius = frame_radius(16px) - padding(2px) = 14px */}
                             <div className="relative bg-[#05030c] px-8 pb-10 pt-8 text-center backdrop-blur-xl" style={{ borderRadius: 14 }}>
                             {/* Scanlines */}
                             <div
@@ -458,7 +455,7 @@ export function GoalCelebration({
                             </div>{/* /inner dark surface */}
                         </div>{/* /gradient border frame */}
 
-                        {/* Orbit ring — after the card in DOM so it's always on top */}
+                        {/* Orbit ring - after the card in DOM so it's always on top */}
                         <div
                             aria-hidden="true"
                             className="pointer-events-none absolute inset-0"
@@ -507,7 +504,7 @@ export function GoalCelebration({
                     <X className="size-4" />
                 </button>
 
-                {/* Confetti — premier plan */}
+                {/* Confetti - premier plan */}
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0">
                     {pieces.map((p) => (
                         <div

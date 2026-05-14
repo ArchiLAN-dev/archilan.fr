@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { FANFARES } from "./fanfares";
+import { FANFARES, FANFARES_MAP } from "./fanfares";
+import { readFanfarePref } from "./use-fanfare-preference";
 
 const MASTER_GAIN = 0.30;
 const ATTACK = 0.006;
@@ -9,7 +10,11 @@ const RELEASE = 0.10;
 
 export function useChiptune(): void {
     useEffect(() => {
-        const fanfare = FANFARES[Math.floor(Math.random() * FANFARES.length)];
+        const pref = readFanfarePref();
+        if (pref === "disabled") return;
+        const fanfare = pref === "random"
+            ? FANFARES[Math.floor(Math.random() * FANFARES.length)]
+            : FANFARES_MAP[pref];
         let ctx: AudioContext | null = null;
 
         try {

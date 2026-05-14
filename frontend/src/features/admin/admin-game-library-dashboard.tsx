@@ -351,6 +351,7 @@ export function ThumbnailPreview({ src }: { src: string }) {
 
   return (
     <div ref={ref} className="inline-block shrink-0" onMouseEnter={show} onMouseLeave={() => setStyle(null)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         alt=""
         className="h-10 w-7 cursor-zoom-in rounded object-cover transition-opacity hover:opacity-80"
@@ -361,6 +362,7 @@ export function ThumbnailPreview({ src }: { src: string }) {
         ? createPortal(
             <div aria-hidden="true" style={style}>
               <div className="overflow-hidden rounded-xl border border-border shadow-[0_16px_48px_rgba(0,0,0,0.7)]" style={{ animation: "thumbnail-pop 120ms ease-out both" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img alt="" className="block h-64 w-auto object-cover" src={src} />
               </div>
             </div>,

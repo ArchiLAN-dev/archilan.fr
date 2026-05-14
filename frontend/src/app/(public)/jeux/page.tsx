@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { GameCard } from "@/features/games/game-card";
 import { getPublicGames } from "@/features/games/public-games-api";
+import { GameRequestSection } from "@/features/games/game-request-section";
 
 export const dynamic = "force-dynamic";
 
@@ -137,6 +138,8 @@ export default async function GamesPage({
           </div>
         )}
       </section>
+
+      <GameRequestSection />
     </div>
   );
 }

@@ -36,7 +36,10 @@ export async function getPublicGames(query = "", page = 1): Promise<GamePage> {
     if (!isGamePagePayload(payload)) return empty;
 
     return {
-      games: payload.data,
+      games: payload.data.map((g) => ({
+        ...g,
+        supportedEventTypes: Array.isArray(g.supportedEventTypes) ? g.supportedEventTypes : [],
+      })),
       total: payload.meta.total,
       page: payload.meta.page,
       perPage: payload.meta.perPage,

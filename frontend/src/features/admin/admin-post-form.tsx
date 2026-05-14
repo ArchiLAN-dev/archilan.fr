@@ -21,6 +21,7 @@ type AdminPost = {
   relatedEventSlug: string | null;
   vodUrl: string | null;
   coverImageUrl: string | null;
+  coverImageKey: string | null;
 };
 
 type FieldErrors = Partial<Record<
@@ -65,6 +66,10 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [genericError, setGenericError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [coverMode, setCoverMode] = useState<"url" | "upload">("url");
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode !== "edit" || !postId) return;
@@ -95,8 +100,12 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
             readingTime: post.readingTime,
             relatedEventSlug: post.relatedEventSlug ?? "",
             vodUrl: post.vodUrl ?? "",
-            coverImageUrl: post.coverImageUrl ?? "",
+            coverImageUrl: post.coverImageKey ? "" : (post.coverImageUrl ?? ""),
           });
+          if (post.coverImageKey) {
+            setCoverMode("upload");
+            setUploadedCoverUrl(post.coverImageUrl ?? null);
+          }
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -130,7 +139,8 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
       readingTime: values.readingTime.trim(),
       relatedEventSlug: values.relatedEventSlug.trim() || null,
       vodUrl: values.vodUrl.trim() || null,
-      coverImageUrl: values.coverImageUrl.trim() || null,
+      coverImageMode: coverMode,
+      coverImageUrl: coverMode === "url" ? values.coverImageUrl.trim() || null : null,
     };
 
     const url =
@@ -141,9 +151,8 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
     const method = mode === "create" ? "POST" : "PATCH";
 
     try {
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         body: JSON.stringify(body),
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         method,
       });
@@ -289,13 +298,83 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
             />
           </div>
 
-          <TextField
-            label="URL de l'image de couverture (optionnel)"
-            onChange={(v) => setValues((prev) => ({ ...prev, coverImageUrl: v }))}
-            placeholder="https://cdn.archilan.fr/..."
-            type="url"
-            value={values.coverImageUrl}
-          />
+          <div className="grid gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground">Image de couverture (optionnel)</span>
+              <div className="flex rounded border border-border text-xs">
+                <button
+                  className={["px-2 py-1 transition-colors", coverMode === "url" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"].join(" ")}
+                  onClick={() => setCoverMode("url")}
+                  type="button"
+                >
+                  URL
+                </button>
+                <button
+                  className={["px-2 py-1 transition-colors", coverMode === "upload" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"].join(" ")}
+                  onClick={() => setCoverMode("upload")}
+                  type="button"
+                >
+                  Upload
+                </button>
+              </div>
+            </div>
+            {coverMode === "url" ? (
+              <input
+                className="min-h-11 border border-border bg-background px-3 outline-none focus:border-accent"
+                onChange={(e) => setValues((prev) => ({ ...prev, coverImageUrl: e.target.value }))}
+                placeholder="https://cdn.archilan.fr/..."
+                type="url"
+                value={values.coverImageUrl}
+              />
+            ) : (
+              <div className="grid gap-2">
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="text-sm text-foreground file:mr-2 file:rounded file:border-0 file:bg-accent file:px-2 file:py-1 file:text-xs file:text-white"
+                  disabled={coverUploading || !postId}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !postId) return;
+                    setCoverUploadError(null);
+                    setCoverUploading(true);
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      const res = await apiFetch(`${env.apiBaseUrl}/admin/posts/${postId}/cover-image`, { method: "POST", body: fd });
+                      if (!res.ok) {
+                        const body = await res.json() as { error?: { code?: string } };
+                        const code = body?.error?.code;
+                        setCoverUploadError(code === "image_invalid_type" ? "Type non supporté (JPEG, PNG ou WebP uniquement)." : code === "image_too_large" ? "Fichier trop volumineux (max 10 Mo)." : "Erreur lors de l'upload.");
+                      } else {
+                        const body = await res.json() as { data?: AdminPost };
+                        setUploadedCoverUrl(body?.data?.coverImageUrl ?? null);
+                        if (body.data) {
+                          setValues((prev) => ({ ...prev, coverImageUrl: "" }));
+                          setCoverMode("upload");
+                        }
+                      }
+                    } catch {
+                      setCoverUploadError("Erreur réseau lors de l'upload.");
+                    } finally {
+                      setCoverUploading(false);
+                    }
+                  }}
+                  type="file"
+                />
+                {coverUploading && <span className="text-xs text-muted-foreground">Upload en cours…</span>}
+                {coverUploadError && <span className="text-xs text-danger">{coverUploadError}</span>}
+                {uploadedCoverUrl && !coverUploadError && (
+                  <div
+                    aria-label="Aperçu cover"
+                    className="h-20 w-20 rounded border border-border bg-contain bg-center bg-no-repeat"
+                    role="img"
+                    style={{ backgroundImage: `url("${uploadedCoverUrl}")` }}
+                  />
+                )}
+                {!postId && <span className="text-xs text-muted-foreground">Enregistrez d&apos;abord l&apos;article avant d&apos;uploader une image.</span>}
+              </div>
+            )}
+          </div>
 
           <div>
             <button

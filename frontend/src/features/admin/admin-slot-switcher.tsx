@@ -40,9 +40,6 @@ export function SlotSwitcher({
 
   return (
     <div className="flex shrink-0 flex-col gap-1.5">
-      <label className="text-xs text-muted-foreground" htmlFor="slot-switcher">
-        Changer de slot
-      </label>
       <div className="flex items-center gap-2">
         {slots.length > 8 ? (
           <input

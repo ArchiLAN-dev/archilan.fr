@@ -98,7 +98,10 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
     return () => { cancelled = true; };
   }, [eventId]);
 
-  const allGames = state.kind === "ready" ? state.config.availableGames : [];
+  const allGames = useMemo(
+    () => (state.kind === "ready" ? state.config.availableGames : []),
+    [state],
+  );
 
   const filteredGames = useMemo(() => {
     const scopeFiltered = allGames.filter((g) =>

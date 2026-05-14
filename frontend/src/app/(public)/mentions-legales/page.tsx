@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { LegalField, LegalPlaceholder } from "@/components/legal-placeholder";
 
 export const metadata: Metadata = {
   title: "Mentions légales",
@@ -17,10 +16,6 @@ export default function MentionsLegalesPage() {
           Conformément à la loi n° 2004-575 du 21 juin 2004 pour la confiance dans
           l&apos;économie numérique (LCEN).
         </p>
-        <LegalPlaceholder>
-          Les champs marques Requis doivent etre completes avec les informations officielles de
-          l&apos;association et de l&apos;hebergeur avant publication definitive.
-        </LegalPlaceholder>
       </header>
 
       {/* ── Éditeur ────────────────────────────────────────────────────────── */}
@@ -47,23 +42,20 @@ export default function MentionsLegalesPage() {
           <LegalRow label="Site web">archilan.fr</LegalRow>
 
           <LegalRow label="Siège social">
-            <LegalField label="Adresse postale complète du siège de l'association." />
+            26 rue de la Gantière, 63000 Clermont-Ferrand
           </LegalRow>
 
-          <LegalRow label="Numéro RNA">
-            <LegalField label="Numéro W… d'enregistrement au répertoire national des associations." />
-          </LegalRow>
+          <LegalRow label="Numéro RNA">W632015225</LegalRow>
 
-          <LegalRow label="Directeur de la publication">
-            <LegalField label="Prénom et nom du responsable légal (ex. président·e en exercice)." />
-          </LegalRow>
+          <LegalRow label="Directeur de la publication">Jean MARIUS</LegalRow>
 
           <LegalRow label="Adresse e-mail">
-            <LegalField label="Adresse e-mail officielle de contact de l'association." />
-          </LegalRow>
-
-          <LegalRow label="Téléphone">
-            <LegalField label="Numéro de téléphone de contact de l'association, si disponible." />
+            <a
+              className="text-accent-text hover:text-accent-text-hover"
+              href="mailto:contact@archilan.fr"
+            >
+              contact@archilan.fr
+            </a>
           </LegalRow>
         </dl>
       </section>
@@ -78,24 +70,26 @@ export default function MentionsLegalesPage() {
         </h2>
 
         <dl className="divide-y divide-border card-glow rounded-lg border border-border">
-          <LegalRow label="Prestataire">
-            <LegalField label="Raison sociale de l'hébergeur du site et de l'API." />
-          </LegalRow>
+          <LegalRow label="Prestataire">OVH SAS</LegalRow>
 
           <LegalRow label="Forme juridique / immatriculation">
-            <LegalField label="Forme juridique, SIREN/SIRET ou identifiant équivalent de l'hébergeur." />
+            SAS au capital de 10 174 560 € - RCS Lille Métropole 424 761 419
           </LegalRow>
 
-          <LegalRow label="Adresse">
-            <LegalField label="Adresse postale complète de l'hébergeur." />
-          </LegalRow>
+          <LegalRow label="Adresse">2 rue Kellermann, 59100 Roubaix, France</LegalRow>
 
-          <LegalRow label="Téléphone">
-            <LegalField label="Numéro de téléphone de l'hébergeur." />
-          </LegalRow>
+          <LegalRow label="Téléphone">+33 9 72 10 10 07</LegalRow>
 
           <LegalRow label="Site web">
-            <LegalField label="URL du site de l'hébergeur." />
+            <a
+              className="text-accent-text hover:text-accent-text-hover"
+              href="https://www.ovhcloud.com"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              www.ovhcloud.com
+              <span className="sr-only"> (nouvel onglet)</span>
+            </a>
           </LegalRow>
         </dl>
       </section>
@@ -119,10 +113,23 @@ export default function MentionsLegalesPage() {
           L.335-2 et suivants du Code de la propriété intellectuelle.
         </p>
 
-        <LegalPlaceholder>
-          Si le site utilise des ressources tierces sous licence ouverte (polices, icônes,
-          illustrations), lister ici les licences et leurs auteurs.
-        </LegalPlaceholder>
+        <p className="text-sm leading-7 text-muted-foreground">
+          Ce site intègre les ressources tierces suivantes, distribuées sous licence libre :
+        </p>
+
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-7 text-muted-foreground">
+          <li>
+            Polices <strong className="text-foreground">Inter</strong> et{" "}
+            <strong className="text-foreground">Space Grotesk</strong> - SIL Open Font License 1.1.
+          </li>
+          <li>
+            Icônes <strong className="text-foreground">Lucide</strong> - ISC License.
+          </li>
+          <li>
+            Composants d&apos;interface <strong className="text-foreground">shadcn/ui</strong>{" "}
+            et <strong className="text-foreground">Radix UI</strong> - MIT License.
+          </li>
+        </ul>
       </section>
 
       {/* ── Liens hypertextes ──────────────────────────────────────────────── */}

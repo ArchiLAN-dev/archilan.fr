@@ -101,6 +101,7 @@ export function CheckRow({
   onHintRequest,
   hintFree = false,
   hintCost = 0,
+  hideSpoilers = false,
 }: {
   check: CheckEntry;
   currentSlot: number;
@@ -108,6 +109,7 @@ export function CheckRow({
   onHintRequest?: (locationId: number) => Promise<void>;
   hintFree?: boolean;
   hintCost?: number;
+  hideSpoilers?: boolean;
 }) {
   const isOwnItem = check.item?.slot === currentSlot;
   return (
@@ -120,7 +122,7 @@ export function CheckRow({
           <HintButton free={hintFree} hintCost={hintCost} onHint={() => onHintRequest(check.id)} />
         ) : null}
       </div>
-      {check.item ? (
+      {!hideSpoilers && check.item ? (
         <span className="flex flex-wrap items-baseline gap-1.5 text-xs text-muted-foreground/70">
           <span>→ {check.item.name}</span>
           {!isOwnItem ? (

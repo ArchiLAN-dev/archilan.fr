@@ -1,6 +1,6 @@
 export type NoteSpec = [freq: number, start: number, duration: number, type: OscillatorType, vol: number];
 
-// Ultimate Bowser Clear (SM64) — full MIDI extraction, ~17s
+// Ultimate Bowser Clear (SM64) - full MIDI extraction, ~17s
 // ch0=square(melody), ch1/3=triangle(bass), ch2=square(harmony), ch5=sine(shimmer), ch12=triangle(kick)
 const FANFARE_BOWSER: NoteSpec[] = [
     [164.81, 0.075, 0.138, "square", 0.44],
@@ -104,7 +104,7 @@ const FANFARE_BOWSER: NoteSpec[] = [
     [73.42, 16.575, 0.080, "triangle", 0.14],
 ];
 
-// Final Fantasy V — Victory Fanfare, full MIDI extraction, ~31s
+// Final Fantasy V - Victory Fanfare, full MIDI extraction, ~31s
 // Single channel: square (C4–B5), triangle (below C4)
 const FANFARE_FF5: NoteSpec[] = [
     [196.00, 0.004, 0.146, "triangle", 0.23],
@@ -328,7 +328,7 @@ const FANFARE_FF5: NoteSpec[] = [
     [155.56, 30.704, 0.225, "triangle", 0.17],
 ];
 
-// Super Mario Galaxy — Grand Star, full MIDI extraction, ~12s
+// Super Mario Galaxy - Grand Star, full MIDI extraction, ~12s
 // Single channel: sine (C6+), square (C4–B5), triangle (below C4)
 const FANFARE_SMG: NoteSpec[] = [
     [493.88, 0.005, 0.756, "square", 0.60],
@@ -428,7 +428,7 @@ const FANFARE_SMG: NoteSpec[] = [
     [123.47, 12.002, 0.279, "triangle", 0.17],
 ];
 
-// A Link to the Past — Victory Fanfare — 226 notes, 10.35s — min dur 0.13s
+// A Link to the Past - Victory Fanfare - 226 notes, 10.35s - min dur 0.13s
 // ch0=square(lead), ch2/3=square(harmony), ch1=triangle(bass), ch6=sine/triangle(harp)
 const FANFARE_ALTTP: NoteSpec[] = [
     [196.0, 0.0, 0.13, "square", 0.276],
@@ -659,7 +659,7 @@ const FANFARE_ALTTP: NoteSpec[] = [
     [155.56, 8.75, 1.6, "triangle", 0.22],
 ];
 
-// Round Clear (Sonic Adventure 2) — 66 notes, 5.08s, min dur 0.13s
+// Round Clear (Sonic Adventure 2) - 66 notes, 5.08s, min dur 0.13s
 // ch0=triangle(bass), ch1=square(brass high), ch2=square(brass mid), ch3=square(brass low)
 // ch4=sine(lead fifths +quinte), ch9→triangle(bass drum/tom), sine(crash)
 const FANFARE_SA2: NoteSpec[] = [
@@ -731,7 +731,7 @@ const FANFARE_SA2: NoteSpec[] = [
     [1800.00, 3.178, 0.130, "sine", 0.06],
 ];
 
-// Victory — Persona 5 [WIP], 357 notes, ~13.3s
+// Victory - Persona 5 [WIP], 357 notes, ~13.3s
 // ch0=triangle(background tremolo A4/A5), ch2=triangle(intro bass run), ch3=square(foreground melody), ch4=triangle(bass pedal A1), ch9=drums
 const FANFARE_P5: NoteSpec[] = [
     [329.63, 0.05, 0.065, "triangle", 0.1],
@@ -1094,10 +1094,32 @@ const FANFARE_P5: NoteSpec[] = [
 ];
 
 export const FANFARES: NoteSpec[][] = [
-    // FANFARE_BOWSER,
-    // FANFARE_FF5,
-    // FANFARE_SMG,
-    // FANFARE_ALTTP,
-    // FANFARE_SA2,
+    FANFARE_BOWSER,
+    FANFARE_FF5,
+    FANFARE_SMG,
+    FANFARE_ALTTP,
+    FANFARE_SA2,
     FANFARE_P5,
 ];
+
+export type FanfareId = "bowser" | "ff5" | "smg" | "alttp" | "sa2" | "p5";
+
+export const FANFARE_IDS: FanfareId[] = ["bowser", "ff5", "smg", "alttp", "sa2", "p5"];
+
+export const FANFARE_NAMES: Record<FanfareId, string> = {
+    bowser: "SM64",
+    ff5: "Final Fantasy V",
+    smg: "Mario Galaxy",
+    alttp: "Zelda ALTTP",
+    sa2: "Sonic SA2",
+    p5: "Persona 5",
+};
+
+export const FANFARES_MAP: Record<FanfareId, NoteSpec[]> = {
+    bowser: FANFARE_BOWSER,
+    ff5: FANFARE_FF5,
+    smg: FANFARE_SMG,
+    alttp: FANFARE_ALTTP,
+    sa2: FANFARE_SA2,
+    p5: FANFARE_P5,
+};

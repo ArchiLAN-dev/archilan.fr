@@ -43,6 +43,7 @@ export function YamlOptionEditor({
   slotId,
   onDirty,
   onSaved,
+  saveUrl,
 }: {
   defaultYaml: string | null;
   playerYaml: string | null;
@@ -51,6 +52,7 @@ export function YamlOptionEditor({
   slotId: string;
   onDirty: (slotId: string) => void;
   onSaved: (slotId: string) => void;
+  saveUrl?: string;
 }) {
   const [parsed, setParsed] = useState<ParsedYaml | null>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "");
@@ -120,7 +122,7 @@ export function YamlOptionEditor({
     setPanelSave({ kind: "saving" });
     try {
       const res = await fetch(
-        `${env.apiBaseUrl}/registrations/${registrationId}/slots/${slotId}/yaml`,
+        saveUrl ?? `${env.apiBaseUrl}/registrations/${registrationId}/slots/${slotId}/yaml`,
         {
           body: JSON.stringify({ playerYaml: yamlToSave }),
           credentials: "include",

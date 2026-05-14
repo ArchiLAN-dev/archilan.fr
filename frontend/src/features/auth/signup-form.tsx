@@ -35,6 +35,7 @@ export function SignupForm() {
   const cguId = useId();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formMessage, setFormMessage] = useState<string | null>(null);
+  const [formMessageType, setFormMessageType] = useState<"error" | "success">("error");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -62,11 +63,13 @@ export function SignupForm() {
 
       if ("error" in payload) {
         setFieldErrors(payload.error.details);
+        setFormMessageType("error");
         setFormMessage(payload.error.message);
         return;
       }
 
       form.reset();
+      setFormMessageType("success");
       setFormMessage("Compte créé. Tu pourras te connecter dès que la session sera activée.");
     } catch {
       setFormMessage("Impossible de créer le compte pour le moment. Réessaie dans quelques instants.");
@@ -77,7 +80,7 @@ export function SignupForm() {
 
   return (
     <form className="grid gap-5 card-glow rounded-lg border border-border p-6" onSubmit={handleSubmit}>
-      <FieldErrorSummary message={formMessage} />
+      <FieldErrorSummary message={formMessage} type={formMessageType} />
 
       <div className="grid gap-2">
         <label className="text-sm font-semibold text-foreground" htmlFor={emailId}>
@@ -149,13 +152,17 @@ export function SignupForm() {
   );
 }
 
-function FieldErrorSummary({ message }: { message: string | null }) {
+function FieldErrorSummary({ message, type = "error" }: { message: string | null; type?: "error" | "success" }) {
   if (!message) {
     return null;
   }
 
+  const className = type === "success"
+    ? "rounded border border-[color:var(--color-success)]/50 bg-background p-3 text-sm text-[color:var(--color-success)]"
+    : "rounded border border-danger/50 bg-background p-3 text-sm text-danger";
+
   return (
-    <p className="rounded border border-danger/50 bg-background p-3 text-sm text-danger" role="alert">
+    <p className={className} role={type === "success" ? "status" : "alert"}>
       {message}
     </p>
   );

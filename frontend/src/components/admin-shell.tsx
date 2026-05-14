@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ArrowLeft, Calendar, Gamepad2, LogOut, Newspaper, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Gamepad2, Library, LogOut, Newspaper, Users } from "lucide-react";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus" },
   { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux" },
   { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users" },
+  { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue" },
 ] as const;
 
 function AdminShellSkeleton() {
@@ -202,7 +203,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         aria-label="Navigation administration"
         className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border bg-surface md:hidden"
       >
-        {navItems.map(({ href, icon: Icon, label, shortLabel }) => {
+        {navItems.map(({ href, icon: Icon, shortLabel }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link

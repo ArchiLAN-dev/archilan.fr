@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Calendar, Gamepad2, Newspaper, Users } from "lucide-react";
+import { Calendar, Gamepad2, Library, Newspaper, Users } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { env } from "@/lib/env";
 
@@ -41,6 +41,13 @@ const sections = [
     icon: Users,
     label: "Utilisateurs",
     description: "Consulter et gérer les comptes membres.",
+    soon: false,
+  },
+  {
+    href: "/admin/catalogue",
+    icon: Library,
+    label: "Catalogue",
+    description: "Synchroniser le catalogue de jeux depuis Google Sheets.",
     soon: false,
   },
 ] as const;

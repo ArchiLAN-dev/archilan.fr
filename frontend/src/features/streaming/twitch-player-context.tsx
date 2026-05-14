@@ -2,52 +2,37 @@
 
 import { createContext, useCallback, useContext, useState } from "react";
 
-type TwitchPlayerContextValue = {
-    placeholderEl: HTMLDivElement | null;
-    mainPlayerMounted: boolean;
-    miniPlayerDismissed: boolean;
+type TwitchPlayerCtx = {
+    placeholder: HTMLDivElement | null;
+    dismissed: boolean;
     setPlaceholder: (el: HTMLDivElement | null) => void;
-    unmountMainPlayer: () => void;
-    dismissMiniPlayer: () => void;
-    resetDismissed: () => void;
+    dismiss: () => void;
+    undismiss: () => void;
 };
 
-const TwitchPlayerContext = createContext<TwitchPlayerContextValue>({
-    placeholderEl: null,
-    mainPlayerMounted: false,
-    miniPlayerDismissed: false,
+const TwitchPlayerContext = createContext<TwitchPlayerCtx>({
+    placeholder: null,
+    dismissed: false,
     setPlaceholder: () => {},
-    unmountMainPlayer: () => {},
-    dismissMiniPlayer: () => {},
-    resetDismissed: () => {},
+    dismiss: () => {},
+    undismiss: () => {},
 });
 
 export function TwitchPlayerProvider({ children }: { children: React.ReactNode }) {
-    const [placeholderEl, setPlaceholderEl] = useState<HTMLDivElement | null>(null);
-    const [mainPlayerMounted, setMainPlayerMounted] = useState(false);
-    const [miniPlayerDismissed, setMiniPlayerDismissed] = useState(false);
+    const [placeholder, setPlaceholderState] = useState<HTMLDivElement | null>(null);
+    const [dismissed, setDismissed] = useState(false);
 
     const setPlaceholder = useCallback((el: HTMLDivElement | null) => {
-        setPlaceholderEl(el);
-        setMainPlayerMounted(el !== null);
-        if (el !== null) setMiniPlayerDismissed(false);
+        setPlaceholderState(el);
+        // Retour sur la home = on réaffiche le mini si le stream reprend
+        if (el !== null) setDismissed(false);
     }, []);
 
-    const unmountMainPlayer = useCallback(() => {
-        setPlaceholderEl(null);
-        setMainPlayerMounted(false);
-    }, []);
-
-    const dismissMiniPlayer = useCallback(() => {
-        setMiniPlayerDismissed(true);
-    }, []);
-
-    const resetDismissed = useCallback(() => {
-        setMiniPlayerDismissed(false);
-    }, []);
+    const dismiss = useCallback(() => setDismissed(true), []);
+    const undismiss = useCallback(() => setDismissed(false), []);
 
     return (
-        <TwitchPlayerContext.Provider value={{ placeholderEl, mainPlayerMounted, miniPlayerDismissed, setPlaceholder, unmountMainPlayer, dismissMiniPlayer, resetDismissed }}>
+        <TwitchPlayerContext.Provider value={{ placeholder, dismissed, setPlaceholder, dismiss, undismiss }}>
             {children}
         </TwitchPlayerContext.Provider>
     );

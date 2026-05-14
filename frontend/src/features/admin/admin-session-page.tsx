@@ -12,6 +12,7 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  RotateCcw,
   Send,
   Server,
   Square,
@@ -41,6 +42,8 @@ type SessionStatus =
   | "generated"
   | "launching"
   | "running"
+  | "idle"
+  | "restarting"
   | "stopped"
   | "failed"
   | "crashed"
@@ -62,6 +65,8 @@ type Session = {
   createdAt: string;
   startedAt: string | null;
   stoppedAt: string | null;
+  lastActivityAt?: string | null;
+  pausedWithoutSave?: boolean;
   error?: string | null;
   lastLogs?: string | null;
   validationErrors?: ValidationError[] | null;
@@ -189,6 +194,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
   const router = useRouter();
   const [state, setState] = useState<PageState>({ kind: "loading" });
   const [eventTitle, setEventTitle] = useState<string | null>(null);
+  const [restartingId, setRestartingId] = useState<string | null>(null);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -276,6 +282,23 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
     }
   }
 
+  async function handleAdminRestart(sessionId: string) {
+    setRestartingId(sessionId);
+    try {
+      const res = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/restart`, { method: "POST" });
+      if (res.ok) {
+        const reloaded = await loadSessions();
+        if (reloaded !== null) {
+          setState({ kind: "sessions", sessions: reloaded });
+        }
+      }
+    } catch {
+      /* ignore - session card stays as-is */
+    } finally {
+      setRestartingId(null);
+    }
+  }
+
   if (state.kind === "loading") {
     return (
       <PageShell eventId={eventId} eventTitle={eventTitle}>
@@ -326,6 +349,9 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
   }
 
   // sessions list
+  const idleSessions = state.sessions.filter((s) => s.status === "idle");
+  const otherSessions = state.sessions.filter((s) => s.status !== "idle");
+
   return (
     <PageShell eventId={eventId} eventTitle={eventTitle}>
       <div className="flex items-center justify-between">
@@ -346,39 +372,100 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
           <p className="text-sm text-muted-foreground">Aucune session pour cet événement.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {state.sessions.map((session) => (
-            <div
-              className="flex flex-wrap items-center gap-3 rounded border border-border bg-surface px-4 py-3"
-              key={session.id}
-            >
-              {/* Info */}
-              <div className="grid min-w-0 flex-1 gap-0.5">
-                <p className="font-mono text-sm text-muted-foreground">{session.id.slice(0, 12)}…</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDate(session.createdAt)} · {formatDuration(session)}
-                </p>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                <StatusBadge status={session.status} />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2">
-                {["running", "stopped", "generated", "failed"].includes(session.status) ? (
-                  <DownloadZipButton sessionId={session.id} compact />
-                ) : null}
-                <Link
-                  className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-sm font-medium text-foreground hover:border-accent"
-                  href={`/admin/evenements/${eventId}/session/${session.id}`}
+        <div className="grid gap-6">
+          {/* ── Sessions en pause ── */}
+          {idleSessions.length > 0 ? (
+            <div className="grid gap-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-accent-warm)]">
+                Sessions en pause
+              </h3>
+              {idleSessions.map((session) => (
+                <div
+                  className="flex flex-wrap items-center gap-3 rounded border border-[var(--color-accent-warm)]/30 bg-[var(--color-accent-warm)]/5 px-4 py-3"
+                  key={session.id}
                 >
-                  Détail
-                </Link>
-              </div>
+                  <div className="grid min-w-0 flex-1 gap-0.5">
+                    <p className="font-mono text-sm text-muted-foreground">{session.id.slice(0, 12)}…</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(session.createdAt)}
+                      {session.lastActivityAt ? ` · inactif depuis ${formatInactivity(session.lastActivityAt)}` : ""}
+                    </p>
+                  </div>
+
+                  <StatusBadge status={session.status} />
+
+                  <div className="flex items-center gap-2">
+                    {session.pausedWithoutSave ? (
+                      <span className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-xs font-medium text-muted-foreground opacity-60 cursor-not-allowed" title="Aucune sauvegarde disponible">
+                        <RotateCcw aria-hidden="true" className="size-3.5" />
+                        Reprendre
+                      </span>
+                    ) : (
+                      <button
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded border border-[var(--color-accent-warm)]/50 bg-[var(--color-accent-warm)]/15 px-3 text-xs font-semibold text-[var(--color-accent-warm)] hover:bg-[var(--color-accent-warm)]/25 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={restartingId !== null}
+                        onClick={() => { void handleAdminRestart(session.id); }}
+                        type="button"
+                      >
+                        {restartingId === session.id ? (
+                          <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw aria-hidden="true" className="size-3.5" />
+                        )}
+                        Reprendre
+                      </button>
+                    )}
+                    <Link
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-sm font-medium text-foreground hover:border-accent"
+                      href={`/admin/evenements/${eventId}/session/${session.id}`}
+                    >
+                      Détail
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : null}
+
+          {/* ── Historique ── */}
+          {otherSessions.length > 0 ? (
+            <div className="grid gap-3">
+              {idleSessions.length > 0 ? (
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Historique
+                </h3>
+              ) : null}
+              {otherSessions.map((session) => (
+                <div
+                  className="flex flex-wrap items-center gap-3 rounded border border-border bg-surface px-4 py-3"
+                  key={session.id}
+                >
+                  <div className="grid min-w-0 flex-1 gap-0.5">
+                    <p className="font-mono text-sm text-muted-foreground">{session.id.slice(0, 12)}…</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(session.createdAt)} · {formatDuration(session)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={session.status} />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {["running", "stopped", "generated", "failed"].includes(session.status) ? (
+                      <DownloadZipButton sessionId={session.id} compact />
+                    ) : null}
+                    <Link
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-3 text-sm font-medium text-foreground hover:border-accent"
+                      href={`/admin/evenements/${eventId}/session/${session.id}`}
+                    >
+                      Détail
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
     </PageShell>
@@ -2073,6 +2160,8 @@ const STATUS_LABELS: Record<SessionStatus, string> = {
   generated: "Généré",
   launching: "Lancement",
   running: "En cours",
+  idle: "En pause",
+  restarting: "Redémarrage…",
   stopped: "Arrêté",
   failed: "Échec",
   crashed: "Planté",
@@ -2087,6 +2176,8 @@ const STATUS_CLASSES: Record<SessionStatus, string> = {
   generated: "border-accent/40 bg-accent/10 text-accent-text",
   launching: "border-accent-warm/40 bg-accent-warm/10 text-accent-warm",
   running: "border-success/40 bg-success/10 text-success",
+  idle: "border-[var(--color-accent-warm)]/40 bg-[var(--color-accent-warm)]/10 text-[var(--color-accent-warm)]",
+  restarting: "border-[var(--color-accent-warm)]/40 bg-[var(--color-accent-warm)]/10 text-[var(--color-accent-warm)]",
   stopped: "border-border bg-background text-muted-foreground",
   failed: "border-danger/40 bg-danger/10 text-danger",
   crashed: "border-danger/40 bg-danger/10 text-danger",
@@ -2103,7 +2194,7 @@ function BouncingDots() {
   );
 }
 
-const PROCESSING_STATUSES = new Set<SessionStatus>(["validating", "generating", "launching"]);
+const PROCESSING_STATUSES = new Set<SessionStatus>(["validating", "generating", "launching", "restarting"]);
 
 function StatusBadge({ status }: { status: SessionStatus }) {
   return (
@@ -2117,6 +2208,14 @@ function StatusBadge({ status }: { status: SessionStatus }) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatInactivity(lastActivityAt: string): string {
+  const delta = Date.now() - new Date(lastActivityAt).getTime();
+  const totalMin = Math.floor(delta / 60_000);
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  return hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {

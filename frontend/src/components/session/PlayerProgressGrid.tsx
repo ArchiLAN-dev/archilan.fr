@@ -75,9 +75,11 @@ function clampPercent(value: number): number {
 export function PlayerProgressGrid({
   runId,
   eventId,
+  personalRunId,
 }: {
   runId: string;
   eventId?: string;
+  personalRunId?: string;
 }) {
   const [state, setState] = useState<GridState>({ kind: "loading" });
   const [showReconnect, setShowReconnect] = useState(false);
@@ -267,7 +269,13 @@ export function PlayerProgressGrid({
           {entries.map(([slotIndex, slot]) => (
             <SlotCard
               key={slotIndex}
-              href={eventId ? `/admin/evenements/${eventId}/session/${runId}/slots/${slotIndex}` : undefined}
+              href={
+                eventId
+                  ? `/admin/evenements/${eventId}/session/${runId}/slots/${slotIndex}`
+                  : personalRunId
+                    ? `/runs/${personalRunId}/progression/${slotIndex}`
+                    : undefined
+              }
               slot={slot}
             />
           ))}

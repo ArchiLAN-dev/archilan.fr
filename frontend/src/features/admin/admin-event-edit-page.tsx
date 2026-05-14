@@ -145,7 +145,12 @@ export function AdminEventEditPage({ eventId }: { eventId: string }) {
       </header>
 
       <div className="rounded-lg border border-border bg-surface p-6">
-        <EventForm event={state.event} mode="edit" onSubmit={handleSubmit} />
+        <EventForm
+          event={state.event}
+          mode="edit"
+          onEventUpdated={(event) => setState({ kind: "ready", event })}
+          onSubmit={handleSubmit}
+        />
       </div>
     </section>
   );

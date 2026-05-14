@@ -122,6 +122,7 @@ export function IgdbGameSearch({ onSelect }: { onSelect: (result: IgdbResult) =>
                   onClick={() => handleSelect(result)}
                 >
                   {result.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       alt=""
                       className="h-14 w-10 shrink-0 rounded object-cover"
