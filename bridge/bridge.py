@@ -78,7 +78,7 @@ async def _main() -> None:
 
         publisher = MercurePublisher(config, token_mgr, http)
         recompute_event = asyncio.Event()
-        ap_client = ArchipelagoClient(config, state, publisher, recompute_event)
+        ap_client = ArchipelagoClient(config, state, publisher, recompute_event, http)
 
         reachable_semaphore = asyncio.Semaphore(1)
         app = create_app(state, ap_client, reachable_semaphore)

@@ -5,9 +5,13 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import aiohttp
 import websockets
+
+if TYPE_CHECKING:
+    pass
 
 from config import Config
 from domain import HintInfo
@@ -134,6 +138,7 @@ class ArchipelagoClient:
         state: StateManager,
         publisher: MercurePublisher,
         recompute_event: asyncio.Event | None = None,
+        http: aiohttp.ClientSession | None = None,
     ) -> None:
         self._config = config
         self._state = state
@@ -144,6 +149,7 @@ class ArchipelagoClient:
         self._ws: Any = None
         self.ws_connected: bool = False
         self._log = logging.getLogger(__name__)
+        self._http = http
 
     async def send_command(self, command: str) -> None:
         if self._ws is not None and self.ws_connected:
@@ -292,12 +298,16 @@ class ArchipelagoClient:
             if msg_type == "ItemSend":
                 self._track_item_send(packet)
                 state_changed = True
+                asyncio.create_task(self._report_activity("item"))
             elif msg_type == "Goal":
                 self._track_goal(packet)
                 state_changed = True
             elif msg_type == "Hint":
                 await self._track_hint(packet)
                 state_changed = True
+                asyncio.create_task(self._report_activity("hint"))
+            elif msg_type == "Chat":
+                asyncio.create_task(self._report_activity("chat"))
             event = _build_feed_event(packet, self._store)
             await self._publisher.publish(f"runs/{self._config.run_id}/feed", event)
             if state_changed:
@@ -308,11 +318,12 @@ class ArchipelagoClient:
             status = int(packet.get("status", 0))
             self._log.info("StatusUpdate: slot=%d status=%d", slot, status)
             self._state.handle_status_update(packet)
+            asyncio.create_task(self._report_activity("status_update"))
             await self._publish_players()
 
         elif cmd == "ReceivedItems":
+            items: list[Any] = packet.get("items", [])
             if self._my_slot:
-                items: list[Any] = packet.get("items", [])
                 if packet.get("index", -1) == 0:
                     ps = self._state.ensure_slot(self._my_slot)
                     ps._received_items = [
@@ -331,11 +342,14 @@ class ArchipelagoClient:
                                 int(it.get("location", 0)),
                             )
                     self._recompute_event.set()
+            if items:
+                asyncio.create_task(self._report_activity("item"))
             await self._publish_players()
 
         elif cmd == "LocationChecks":
             self._state.handle_location_checks(packet)
             self._recompute_event.set()
+            asyncio.create_task(self._report_activity("check"))
             await self._publish_players()
 
     def _slot_from_part(self, part: dict[str, Any]) -> int:
@@ -483,6 +497,26 @@ class ArchipelagoClient:
             f"runs/{self._config.run_id}/players",
             self._state.to_api_dict(),
         )
+
+    async def _report_activity(self, activity_type: str) -> None:
+        """Fire-and-forget: notify the API that Archipelago activity occurred."""
+        if not self._http or not self._config.bridge_internal_token:
+            return
+        url = (
+            f"{self._config.symfony_internal_url}"
+            f"/api/v1/sessions/{self._config.run_id}/activity"
+        )
+        occurred_at = datetime.now(timezone.utc).isoformat()
+        try:
+            async with self._http.patch(
+                url,
+                json={"activityType": activity_type, "occurredAt": occurred_at},
+                headers={"Authorization": f"Bearer {self._config.bridge_internal_token}"},
+            ) as resp:
+                if resp.status >= 400:
+                    self._log.warning("activity report failed %d for %s", resp.status, activity_type)
+        except Exception as exc:
+            self._log.debug("activity report error: %s", exc)
 
     async def run_with_reconnect(self) -> None:
         retry_idx = 0
