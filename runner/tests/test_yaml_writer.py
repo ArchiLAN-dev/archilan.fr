@@ -173,17 +173,14 @@ def test_apworld_slot_does_not_add_options_block(tmp_path: pathlib.Path) -> None
     assert "Celeste" not in data or isinstance(data.get("Celeste"), type(None))
 
 
-def test_apworld_slot_writes_manifest(tmp_path: pathlib.Path) -> None:
-    import json as json_mod
+def test_apworld_slot_without_download_url_does_not_write_manifest(tmp_path: pathlib.Path) -> None:
     write_slot_yamls(
         "sess-manifest",
         [{"slotName": "Alice_HK1", "apworldStorageKey": "abc123.apworld", "playerYaml": "name: x\n"}],
         workspace_root=str(tmp_path),
     )
-    manifest = tmp_path / "sess-manifest" / "apworld_keys.json"
-    assert manifest.exists()
-    keys = json_mod.loads(manifest.read_text())
-    assert "abc123.apworld" in keys
+    assert not (tmp_path / "sess-manifest" / "apworld_keys.json").exists()
+    assert not (tmp_path / "sess-manifest" / "apworld_urls.json").exists()
 
 
 def test_legacy_slot_does_not_write_manifest(tmp_path: pathlib.Path) -> None:
@@ -237,3 +234,42 @@ def test_apworld_endpoint_writes_apworld_slot(client: TestClient, tmp_path: path
     assert res.status_code == 200
     written = pathlib.Path(res.json()["files"][0]).read_text(encoding="utf-8")
     assert written == player_yaml
+
+
+# ─── Apworld download URL support ────────────────────────────────────────────
+
+def test_apworld_slot_with_download_url_writes_urls_manifest(tmp_path: pathlib.Path) -> None:
+    import json as json_mod
+    write_slot_yamls(
+        "sess-urls",
+        [{"slotName": "Alice_HK1", "apworldStorageKey": "abc.apworld", "playerYaml": "name: x\n", "apworldDownloadUrl": "https://minio.example/abc.apworld?sig=1"}],
+        workspace_root=str(tmp_path),
+    )
+    manifest = tmp_path / "sess-urls" / "apworld_urls.json"
+    assert manifest.exists()
+    urls = json_mod.loads(manifest.read_text())
+    assert urls == {"abc.apworld": "https://minio.example/abc.apworld?sig=1"}
+
+
+def test_apworld_slot_with_download_url_does_not_write_keys_manifest(tmp_path: pathlib.Path) -> None:
+    write_slot_yamls(
+        "sess-urls-no-keys",
+        [{"slotName": "Alice_HK1", "apworldStorageKey": "abc.apworld", "playerYaml": "name: x\n", "apworldDownloadUrl": "https://minio.example/abc.apworld?sig=1"}],
+        workspace_root=str(tmp_path),
+    )
+    assert not (tmp_path / "sess-urls-no-keys" / "apworld_keys.json").exists()
+
+
+def test_mixed_url_and_apworld_without_url_writes_only_urls_manifest(tmp_path: pathlib.Path) -> None:
+    import json as json_mod
+    write_slot_yamls(
+        "sess-both",
+        [
+            {"slotName": "Alice_HK1", "apworldStorageKey": "url.apworld", "playerYaml": "name: x\n", "apworldDownloadUrl": "https://minio.example/url.apworld"},
+            {"slotName": "Bob_C1", "apworldStorageKey": "legacy.apworld", "playerYaml": "name: y\n"},
+        ],
+        workspace_root=str(tmp_path),
+    )
+    urls = json_mod.loads((tmp_path / "sess-both" / "apworld_urls.json").read_text())
+    assert "url.apworld" in urls
+    assert not (tmp_path / "sess-both" / "apworld_keys.json").exists()

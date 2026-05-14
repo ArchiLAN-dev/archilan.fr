@@ -39,20 +39,17 @@ def test_upload_valid_apworld_returns_storage_info(
     import app.main as main_module
 
     monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(main_module, "ARCHIPELAGO_TEMPLATE_CMD", "fake_generate_template")
 
     apworld_bytes = _make_apworld_bytes("Hollow Knight")
     expected_hash = hashlib.sha256(apworld_bytes).hexdigest()
 
     template_yaml = "name: PlayerName\ngame: Hollow Knight\n"
-    template_dir = tmp_path / "_tmpl"
-    template_dir.mkdir()
-    (template_dir / "Hollow Knight.yaml").write_text(template_yaml)
 
-    proc = _make_proc(returncode=0, stdout=b"")
+    proc = _make_proc(returncode=0, stdout=template_yaml.encode())
 
     with (
         patch("asyncio.create_subprocess_exec", return_value=proc),
-        patch("tempfile.mkdtemp", return_value=str(template_dir)),
         patch("shutil.rmtree"),
     ):
         res = client.post(
@@ -86,16 +83,17 @@ def test_upload_wrong_extension_returns_422(client: TestClient) -> None:
 
 # ─── Missing archipelago.json ─────────────────────────────────────────────────
 
-def test_upload_apworld_without_archipelago_json_returns_422(
+def test_upload_apworld_without_archipelago_json_nor_init_returns_422(
     client: TestClient, tmp_path: pathlib.Path, monkeypatch
 ) -> None:
+    """A ZIP with no archipelago.json AND no __init__.py is rejected."""
     import app.main as main_module
 
     monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("README.txt", "no archipelago.json here")
+        zf.writestr("README.txt", "no metadata here")
     bad_bytes = buf.getvalue()
 
     res = client.post(
@@ -105,24 +103,52 @@ def test_upload_apworld_without_archipelago_json_returns_422(
     )
     assert res.status_code == 422
     body = res.json()
-    assert "archipelago.json" in body.get("detail", "")
+    assert "introuvable" in body.get("detail", "").lower() or "archipelago.json" in body.get("detail", "")
+
+
+def test_upload_apworld_without_archipelago_json_but_with_init_succeeds(
+    client: TestClient, tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    """Older APWorld format (no archipelago.json) is accepted if __init__.py has game = '...'."""
+    import app.main as main_module
+
+    monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(main_module, "ARCHIPELAGO_TEMPLATE_CMD", "")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr(
+            "my_game/__init__.py",
+            'from worlds.base.world import World\nclass MyWorld(World):\n    game = "My Cool Game"\n',
+        )
+        zf.writestr("my_game/items.py", "")
+    apworld_bytes = buf.getvalue()
+
+    res = client.post(
+        "/apworld/upload",
+        headers=HEADERS,
+        files={"file": ("my_game.apworld", apworld_bytes, "application/octet-stream")},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["archipelagoGameName"] == "My Cool Game"
 
 
 # ─── Subprocess timeout ───────────────────────────────────────────────────────
 
-def test_upload_template_timeout_returns_422(
+def test_upload_template_timeout_succeeds_without_yaml(
     client: TestClient, tmp_path: pathlib.Path, monkeypatch
 ) -> None:
+    """Timeout during template generation is non-fatal: apworld is accepted, defaultYaml is empty."""
     import app.main as main_module
 
     monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(main_module, "ARCHIPELAGO_TEMPLATE_CMD", "fake_generate_template")
     monkeypatch.setattr(main_module, "APWORLD_TEMPLATE_TIMEOUT", 1)
 
     apworld_bytes = _make_apworld_bytes("Celeste")
 
-    proc = AsyncMock()
-    proc.kill = MagicMock()
-    proc.communicate = AsyncMock(return_value=(b"", b""))
+    proc = _make_proc(returncode=0, stdout=b"")
 
     with (
         patch("asyncio.create_subprocess_exec", return_value=proc),
@@ -134,8 +160,9 @@ def test_upload_template_timeout_returns_422(
             files={"file": ("celeste.apworld", apworld_bytes, "application/octet-stream")},
         )
 
-    assert res.status_code == 422
-    assert "timeout" in res.json().get("detail", "").lower() or "expir" in res.json().get("detail", "").lower()
+    assert res.status_code == 200
+    assert res.json()["archipelagoGameName"] == "Celeste"
+    assert res.json()["defaultYaml"] == ""
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────

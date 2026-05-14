@@ -5,7 +5,8 @@ import json
 import logging
 import pathlib
 import shlex
-import shutil
+import urllib.error
+import urllib.request
 import zipfile
 
 from .api_notifier import notify_status
@@ -28,7 +29,7 @@ def _apworld_dest_name(src: pathlib.Path, fallback: str) -> str:
         with zipfile.ZipFile(src) as zf:
             entries = zf.namelist()
             if entries:
-                pkg_name = entries[0].split("/")[0]
+                pkg_name = entries[0].replace("\\", "/").split("/")[0]
                 if pkg_name and pkg_name.isidentifier():
                     return f"{pkg_name}.apworld"
     except Exception:
@@ -48,9 +49,8 @@ async def run_generation(
     """
     Run the Archipelago generator as a subprocess and update session state.
 
-    If {session_id}/apworld_keys.json exists, the referenced .apworld files are
-    copied to {session_id}/apworlds/ before generation and world_dir_flag is
-    appended to the generate command.
+    If {session_id}/apworld_urls.json exists, APWorld files are downloaded via
+    HTTP from the pre-signed URLs before generation.
 
     - On success (returncode 0): status → 'generated', outputFile set to the
       first *.archipelago file found in the output directory.
@@ -69,30 +69,52 @@ async def run_generation(
         "--outputpath", str(output_dir),
     ]
 
-    manifest_path = session_dir / "apworld_keys.json"
-    if manifest_path.exists():
-        try:
-            apworld_keys: list[str] = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except Exception:
-            apworld_keys = []
+    urls_manifest_path = session_dir / "apworld_urls.json"
+    apworlds_dest = session_dir / "apworlds"
+    has_apworlds = False
 
-        if apworld_keys:
-            apworlds_src = pathlib.Path(workspace_root) / "apworlds"
-            apworlds_dest = session_dir / "apworlds"
+    if urls_manifest_path.exists():
+        try:
+            apworld_urls: dict[str, str] = json.loads(urls_manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            apworld_urls = {}
+
+        if apworld_urls:
             apworlds_dest.mkdir(parents=True, exist_ok=True)
 
-            for key in apworld_keys:
-                src = apworlds_src / key
-                if not src.exists():
-                    logger.warning(
-                        "apworld not found",
-                        extra={"request_id": "-", "session_id": session_id, "key": key},
+            for key, url in apworld_urls.items():
+                try:
+                    with urllib.request.urlopen(url) as resp:
+                        data: bytes = resp.read()
+                except urllib.error.HTTPError as e:
+                    msg = f"Failed to download apworld '{key}': HTTP {e.code}"
+                    store.update(session_id, status="failed", error=msg)
+                    logger.error(
+                        "apworld download failed",
+                        extra={"request_id": "-", "session_id": session_id, "key": key, "http_code": e.code},
                     )
-                    continue
-                dest_name = _apworld_dest_name(src, key)
-                shutil.copy2(src, apworlds_dest / dest_name)
+                    await notify_status(session_id, "failed")
+                    return
+                except urllib.error.URLError as e:
+                    msg = f"Failed to download apworld '{key}': {e.reason}"
+                    store.update(session_id, status="failed", error=msg)
+                    logger.error(
+                        "apworld download failed",
+                        extra={"request_id": "-", "session_id": session_id, "key": key, "error": str(e.reason)},
+                    )
+                    await notify_status(session_id, "failed")
+                    return
 
-            cmd.extend([world_dir_flag, str(apworlds_dest)])
+                tmp_path = apworlds_dest / key
+                tmp_path.write_bytes(data)
+                dest_name = _apworld_dest_name(tmp_path, key)
+                if dest_name != key:
+                    tmp_path.rename(apworlds_dest / dest_name)
+
+            has_apworlds = True
+
+    if has_apworlds:
+        cmd.extend([world_dir_flag, str(apworlds_dest)])
 
     logger.info("generation started", extra={"request_id": "-", "session_id": session_id, "cmd": cmd})
 
@@ -122,9 +144,10 @@ async def run_generation(
             return
 
         if proc.returncode == 0:
-            output_files = sorted(output_dir.glob("*.archipelago"))
+            # The binary produces *.archipelago; the Python generator produces AP_*.zip.
+            output_files = sorted(output_dir.glob("*.archipelago")) or sorted(output_dir.glob("*.zip"))
             if not output_files:
-                msg = f"No .archipelago output file was produced in {output_dir}."
+                msg = f"No .archipelago/.zip output file was produced in {output_dir}."
                 store.update(session_id, status="failed", error=msg, outputFile=None)
                 logger.error(
                     "generation succeeded without output file",

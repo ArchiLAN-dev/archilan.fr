@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -248,16 +250,12 @@ def test_preflight_returns_401_without_key(client: TestClient) -> None:
 
 # ─── Apworld slot preflight ───────────────────────────────────────────────────
 
-def test_preflight_apworld_slot_valid_when_file_present_and_yaml_nonempty(
+def test_preflight_apworld_slot_invalid_without_download_url(
     client: TestClient, tmp_path: pathlib.Path, monkeypatch
 ) -> None:
     import app.main as main_module
 
     monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
-
-    apworlds_dir = tmp_path / "apworlds"
-    apworlds_dir.mkdir()
-    (apworlds_dir / "abc123.apworld").write_bytes(b"fake-apworld")
 
     res = client.post(
         "/sessions/sess-aw/preflight",
@@ -275,8 +273,8 @@ def test_preflight_apworld_slot_valid_when_file_present_and_yaml_nonempty(
     )
     assert res.status_code == 200
     body = res.json()
-    assert body["valid"] is True
-    assert body["slots"][0]["errors"] == []
+    assert body["valid"] is False
+    assert any("URL" in e or "abc123.apworld" in e for e in body["slots"][0]["errors"])
 
 
 def test_preflight_apworld_slot_invalid_when_file_missing(
@@ -313,10 +311,6 @@ def test_preflight_apworld_slot_invalid_when_player_yaml_empty(
 
     monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
 
-    apworlds_dir = tmp_path / "apworlds"
-    apworlds_dir.mkdir()
-    (apworlds_dir / "abc123.apworld").write_bytes(b"fake")
-
     res = client.post(
         "/sessions/sess-aw/preflight",
         headers=HEADERS,
@@ -327,6 +321,7 @@ def test_preflight_apworld_slot_invalid_when_player_yaml_empty(
                     "playerName": "Alice",
                     "apworldStorageKey": "abc123.apworld",
                     "playerYaml": "",
+                    "apworldDownloadUrl": "https://minio.example/abc123.apworld?sig=x",
                 }
             ]
         },
@@ -335,3 +330,32 @@ def test_preflight_apworld_slot_invalid_when_player_yaml_empty(
     body = res.json()
     assert body["valid"] is False
     assert any("playerYaml" in e or "vide" in e for e in body["slots"][0]["errors"])
+
+
+def test_preflight_apworld_slot_with_download_url_skips_local_file_check(
+    client: TestClient, tmp_path: pathlib.Path, monkeypatch
+) -> None:
+    import app.main as main_module
+
+    monkeypatch.setattr(main_module, "WORKSPACE_ROOT", str(tmp_path))
+    # Intentionally do NOT create apworlds dir or file - it should be skipped
+
+    res = client.post(
+        "/sessions/sess-aw-url/preflight",
+        headers=HEADERS,
+        json={
+            "slots": [
+                {
+                    "slotId": "s1",
+                    "playerName": "Alice",
+                    "apworldStorageKey": "abc123.apworld",
+                    "playerYaml": "name: Alice_HK1\ngame: Hollow Knight\n",
+                    "apworldDownloadUrl": "https://minio.example/abc123.apworld?sig=x",
+                }
+            ]
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["valid"] is True
+    assert body["slots"][0]["errors"] == []

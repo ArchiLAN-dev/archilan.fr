@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import signal
@@ -102,6 +103,28 @@ async def _require_api_key(request: Request) -> None:
         raise HTTPException(status_code=401, detail={"error": "unauthorized"})
 
 
+def _infer_game_name_from_zip(zf: zipfile.ZipFile, names: list[str]) -> str:
+    """Extract game name from an APWorld that has no archipelago.json.
+
+    Looks for ``game = "..."`` in the top-level package's ``__init__.py``.
+    Falls back to the folder name if the attribute is not found.
+    """
+    folders = sorted({n.split("/")[0] for n in names if "/" in n})
+    if not folders:
+        return ""
+    folder = folders[0]
+    init_path = f"{folder}/__init__.py"
+    if init_path in names:
+        try:
+            content = zf.read(init_path).decode("utf-8", errors="replace")
+            match = re.search(r'\bgame\s*=\s*["\']([^"\']+)["\']', content)
+            if match:
+                return match.group(1)
+        except Exception:
+            pass
+    return folder
+
+
 @app.post("/apworld/upload", dependencies=[Depends(_require_api_key)])
 async def upload_apworld(request: Request, file: UploadFile = File(...)) -> JSONResponse:
     filename = file.filename or ""
@@ -128,21 +151,24 @@ async def upload_apworld(request: Request, file: UploadFile = File(...)) -> JSON
                 (n for n in names if n == "archipelago.json" or n.endswith("/archipelago.json")),
                 None,
             )
-            if json_path is None:
-                return JSONResponse(
-                    {"error": "invalid_apworld", "detail": "archipelago.json manquant dans l'archive."},
-                    status_code=422,
-                )
-            meta = json.loads(zf.read(json_path).decode("utf-8"))
+            if json_path is not None:
+                meta = json.loads(zf.read(json_path).decode("utf-8"))
+                game_name = meta.get("game") or meta.get("name") or ""
+                if not game_name:
+                    return JSONResponse(
+                        {"error": "invalid_apworld", "detail": "Champ 'game' absent de archipelago.json."},
+                        status_code=422,
+                    )
+            else:
+                # Older APWorld format: no archipelago.json — infer game name from __init__.py
+                game_name = _infer_game_name_from_zip(zf, names)
+                if not game_name:
+                    return JSONResponse(
+                        {"error": "invalid_apworld", "detail": "Impossible de détecter le nom du jeu (archipelago.json absent et __init__.py introuvable)."},
+                        status_code=422,
+                    )
     except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as exc:
         return JSONResponse({"error": "invalid_apworld", "detail": str(exc)}, status_code=422)
-
-    game_name = meta.get("game") or meta.get("name") or ""
-    if not game_name:
-        return JSONResponse(
-            {"error": "invalid_apworld", "detail": "Champ 'game' absent de archipelago.json."},
-            status_code=422,
-        )
 
     workspace_tmp = pathlib.Path(WORKSPACE_ROOT) / "tmp"
     workspace_tmp.mkdir(parents=True, exist_ok=True)
@@ -203,6 +229,53 @@ async def upload_apworld(request: Request, file: UploadFile = File(...)) -> JSON
     })
 
 
+@app.post("/apworld/bundled-template", dependencies=[Depends(_require_api_key)])
+async def bundled_template(request: Request) -> JSONResponse:
+    body: dict[str, Any] = await _json_body(request)
+    game_name = (body.get("gameName") or "").strip()
+    if not game_name:
+        return JSONResponse({"error": "game_name_required"}, status_code=422)
+
+    if not ARCHIPELAGO_TEMPLATE_CMD:
+        return JSONResponse({"error": "template_cmd_not_configured"}, status_code=503)
+
+    workspace_tmp = pathlib.Path(WORKSPACE_ROOT) / "tmp"
+    workspace_tmp.mkdir(parents=True, exist_ok=True)
+    tmp_dir = tempfile.mkdtemp(dir=workspace_tmp)
+    try:
+        cmd = [
+            *shlex.split(ARCHIPELAGO_TEMPLATE_CMD),
+            "--game", game_name,
+            "--outputpath", tmp_dir,
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=APWORLD_TEMPLATE_TIMEOUT
+            )
+        except FileNotFoundError:
+            return JSONResponse({"error": "archigenerate_not_found"}, status_code=503)
+        except asyncio.TimeoutError:
+            return JSONResponse({"error": "template_timeout"}, status_code=503)
+
+        if proc.returncode != 0:
+            return JSONResponse({"error": "template_failed"}, status_code=422)
+
+        default_yaml = stdout.decode(errors="replace").strip()
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    logger.info(
+        "bundled template generated",
+        extra={"request_id": getattr(request.state, "request_id", "-"), "game": game_name},
+    )
+    return JSONResponse({"archipelagoGameName": game_name, "defaultYaml": default_yaml})
+
+
 @app.post("/sessions/{session_id}/generate", dependencies=[Depends(_require_api_key)])
 async def generate(request: Request, session_id: str) -> JSONResponse:
     existing = session_store.get(session_id)
@@ -257,12 +330,13 @@ async def preflight(request: Request, session_id: str) -> JSONResponse:
         if "apworldStorageKey" in item:
             storage_key = str(item.get("apworldStorageKey") or "")
             player_yaml = str(item.get("playerYaml") or "")
+            download_url = str(item.get("apworldDownloadUrl") or "")
 
             if not player_yaml.strip():
                 errors.append("playerYaml est requis et ne peut pas être vide.")
 
-            if storage_key and not apworld_storage.exists(storage_key, WORKSPACE_ROOT):
-                errors.append(f"Le fichier apworld '{storage_key}' est introuvable sur le serveur.")
+            if storage_key and not download_url:
+                errors.append(f"L'URL de telechargement de l'apworld '{storage_key}' est manquante.")
 
             naming_game = "Custom"
         else:
@@ -324,11 +398,15 @@ async def generate_yamls(request: Request, session_id: str) -> JSONResponse:
     prepared: list[dict[str, Any]] = []
     for s in slots:
         if "apworldStorageKey" in s:
-            prepared.append({
+            slot_data: dict[str, str] = {
                 "slotName": str(s.get("slotName", "")),
                 "apworldStorageKey": str(s.get("apworldStorageKey", "")),
                 "playerYaml": str(s.get("playerYaml", "")),
-            })
+            }
+            download_url = str(s.get("apworldDownloadUrl") or "")
+            if download_url:
+                slot_data["apworldDownloadUrl"] = download_url
+            prepared.append(slot_data)
         else:
             prepared.append({
                 "slotName": str(s.get("slotName", "")),

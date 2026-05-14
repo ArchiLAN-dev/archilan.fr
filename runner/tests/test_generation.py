@@ -193,7 +193,7 @@ def test_get_session_returns_401_without_key(client: TestClient) -> None:
 
 # ─── Apworld pipeline ─────────────────────────────────────────────────────────
 
-async def test_generation_with_apworld_slots_copies_files_and_appends_flag(
+async def test_generation_ignores_legacy_apworld_keys_manifest(
     tmp_path: pathlib.Path,
 ) -> None:
     store = SessionStore()
@@ -219,12 +219,8 @@ async def test_generation_with_apworld_slots_copies_files_and_appends_flag(
             world_dir_flag="--world_directory",
         )
 
-    call_args = mock_exec.call_args
-    cmd_list = list(call_args.args)
-    assert "--world_directory" in cmd_list
-    world_dir_idx = cmd_list.index("--world_directory")
-    world_dir = pathlib.Path(cmd_list[world_dir_idx + 1])
-    assert (world_dir / "abc123.apworld").exists()
+    cmd_list = list(mock_exec.call_args.args)
+    assert "--world_directory" not in cmd_list
 
     session = store.get("sess-aw")
     assert session is not None
@@ -240,21 +236,26 @@ async def test_apworld_renamed_to_package_name(tmp_path: pathlib.Path) -> None:
     output_dir.mkdir(parents=True)
     (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
 
-    apworlds_src = tmp_path / "apworlds"
-    apworlds_src.mkdir()
-
     # Build a minimal apworld zip whose root package is "luigismansion"
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("luigismansion/__init__.py", "# stub")
-    (apworlds_src / "abcdef1234567890.apworld").write_bytes(buf.getvalue())
 
-    manifest = tmp_path / "sess-rename" / "apworld_keys.json"
-    manifest.parent.mkdir(parents=True, exist_ok=True)
-    manifest.write_text('["abcdef1234567890.apworld"]', encoding="utf-8")
+    import json as json_mod
+    urls_manifest = tmp_path / "sess-rename" / "apworld_urls.json"
+    urls_manifest.parent.mkdir(parents=True, exist_ok=True)
+    urls_manifest.write_text(json_mod.dumps({"abcdef1234567890.apworld": "https://minio.example/hash.apworld"}), encoding="utf-8")
+
+    fake_resp = MagicMock()
+    fake_resp.read.return_value = buf.getvalue()
+    fake_resp.__enter__ = MagicMock(return_value=fake_resp)
+    fake_resp.__exit__ = MagicMock(return_value=False)
 
     proc = _make_proc(returncode=0)
-    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec,
+        patch("urllib.request.urlopen", return_value=fake_resp),
+    ):
         await run_generation(
             "sess-rename", str(tmp_path), store,
             generate_cmd="FakeGenerate", timeout=10,
@@ -291,3 +292,146 @@ async def test_generation_without_apworld_slots_does_not_append_flag(
     session = store.get("sess-legacy")
     assert session is not None
     assert session["status"] == "generated"
+
+
+# ─── APWorld URL download pipeline ────────────────────────────────────────────
+
+async def test_generation_with_apworld_urls_downloads_and_appends_flag(
+    tmp_path: pathlib.Path,
+) -> None:
+    store = SessionStore()
+    store.create("sess-url-dl")
+
+    output_dir = tmp_path / "sess-url-dl" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    fake_apworld_bytes = b"fake-apworld-content"
+    urls_manifest = tmp_path / "sess-url-dl" / "apworld_urls.json"
+    urls_manifest.parent.mkdir(parents=True, exist_ok=True)
+    import json as json_mod
+    urls_manifest.write_text(json_mod.dumps({"abc.apworld": "https://minio.example/abc.apworld"}), encoding="utf-8")
+
+    import urllib.error
+    from unittest.mock import MagicMock
+
+    fake_resp = MagicMock()
+    fake_resp.read.return_value = fake_apworld_bytes
+    fake_resp.__enter__ = MagicMock(return_value=fake_resp)
+    fake_resp.__exit__ = MagicMock(return_value=False)
+
+    proc = _make_proc(returncode=0)
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec,
+        patch("urllib.request.urlopen", return_value=fake_resp),
+    ):
+        await run_generation(
+            "sess-url-dl", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+            world_dir_flag="--world_directory",
+        )
+
+    cmd_list = list(mock_exec.call_args.args)
+    assert "--world_directory" in cmd_list
+    world_dir = pathlib.Path(cmd_list[cmd_list.index("--world_directory") + 1])
+    assert (world_dir / "abc.apworld").exists()
+    assert (world_dir / "abc.apworld").read_bytes() == fake_apworld_bytes
+
+    session = store.get("sess-url-dl")
+    assert session is not None
+    assert session["status"] == "generated"
+
+
+async def test_generation_with_apworld_urls_ignores_legacy_keys_manifest(
+    tmp_path: pathlib.Path,
+) -> None:
+    store = SessionStore()
+    store.create("sess-mixed-aw")
+
+    output_dir = tmp_path / "sess-mixed-aw" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake-multiworld")
+
+    import json as json_mod
+    urls_manifest = tmp_path / "sess-mixed-aw" / "apworld_urls.json"
+    urls_manifest.parent.mkdir(parents=True, exist_ok=True)
+    urls_manifest.write_text(json_mod.dumps({"url.apworld": "https://minio.example/url.apworld"}), encoding="utf-8")
+
+    keys_manifest = tmp_path / "sess-mixed-aw" / "apworld_keys.json"
+    keys_manifest.write_text(json_mod.dumps(["legacy.apworld"]), encoding="utf-8")
+
+    fake_resp = MagicMock()
+    fake_resp.read.return_value = b"url-apworld-content"
+    fake_resp.__enter__ = MagicMock(return_value=fake_resp)
+    fake_resp.__exit__ = MagicMock(return_value=False)
+
+    proc = _make_proc(returncode=0)
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec,
+        patch("urllib.request.urlopen", return_value=fake_resp),
+    ):
+        await run_generation(
+            "sess-mixed-aw", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+            world_dir_flag="--world_directory",
+        )
+
+    cmd_list = list(mock_exec.call_args.args)
+    assert cmd_list.count("--world_directory") == 1
+    world_dir = pathlib.Path(cmd_list[cmd_list.index("--world_directory") + 1])
+    assert (world_dir / "url.apworld").read_bytes() == b"url-apworld-content"
+    assert not (world_dir / "legacy.apworld").exists()
+
+    session = store.get("sess-mixed-aw")
+    assert session is not None
+    assert session["status"] == "generated"
+
+
+async def test_generation_apworld_http_error_sets_failed(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-http-err")
+
+    import json as json_mod
+    import urllib.error
+
+    urls_manifest = tmp_path / "sess-http-err" / "apworld_urls.json"
+    urls_manifest.parent.mkdir(parents=True, exist_ok=True)
+    urls_manifest.write_text(json_mod.dumps({"bad.apworld": "https://minio.example/bad.apworld"}), encoding="utf-8")
+
+    http_error = urllib.error.HTTPError("https://minio.example/bad.apworld", 403, "Forbidden", {}, None)  # type: ignore[arg-type]
+
+    with patch("urllib.request.urlopen", side_effect=http_error):
+        await run_generation(
+            "sess-http-err", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+        )
+
+    session = store.get("sess-http-err")
+    assert session is not None
+    assert session["status"] == "failed"
+    assert "403" in session["error"] or "bad.apworld" in session["error"]
+
+
+async def test_generation_apworld_network_error_sets_failed(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-net-err")
+
+    import json as json_mod
+    import urllib.error
+
+    urls_manifest = tmp_path / "sess-net-err" / "apworld_urls.json"
+    urls_manifest.parent.mkdir(parents=True, exist_ok=True)
+    urls_manifest.write_text(json_mod.dumps({"bad.apworld": "https://minio.example/bad.apworld"}), encoding="utf-8")
+
+    net_error = urllib.error.URLError("Connection refused")
+
+    with patch("urllib.request.urlopen", side_effect=net_error):
+        await run_generation(
+            "sess-net-err", str(tmp_path), store,
+            generate_cmd="FakeGenerate", timeout=10,
+        )
+
+    session = store.get("sess-net-err")
+    assert session is not None
+    assert session["status"] == "failed"
+    assert "bad.apworld" in session["error"] or "Connection refused" in session["error"]
