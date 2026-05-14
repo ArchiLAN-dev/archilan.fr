@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionLifecycleManager;
+use App\Sessions\Application\SessionOrchestrator;
+use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,6 +17,7 @@ final readonly class RunnerCallbackController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
+        private SessionOrchestrator $sessionOrchestrator,
         private string $centralApiSecret,
     ) {
     }
@@ -116,6 +119,10 @@ final readonly class RunnerCallbackController
             $messages = $this->toStringList($transitionErrors);
 
             return $this->apiAccessGuard->errorResponse('invalid_transition', implode(' ', $messages), 409, ['transition' => $messages]);
+        }
+
+        if (in_array($newStatus, [Session::STATUS_READY, Session::STATUS_GENERATED], true)) {
+            $this->sessionOrchestrator->autoAdvancePersonalRun($sessionId);
         }
 
         return new JsonResponse(['data' => $result['session']]);

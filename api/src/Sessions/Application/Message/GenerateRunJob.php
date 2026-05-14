@@ -8,13 +8,13 @@ final readonly class GenerateRunJob
 {
     /**
      * @param list<array{slotName: string, playerName: string, archipelagoGameName: string, playerYaml: string}> $slots
-     * @param list<string>                                                                                       $apworldKeys Storage keys of the apworld files needed for generation
+     * @param array<string, string>                                                                              $apworldDownloadUrls Storage key => pre-signed MinIO URL
      */
     public function __construct(
         public string $sessionId,
         public string $phase, // 'validate' | 'generate'
         public array $slots = [],
-        public array $apworldKeys = [],
+        public array $apworldDownloadUrls = [],
     ) {
     }
 }

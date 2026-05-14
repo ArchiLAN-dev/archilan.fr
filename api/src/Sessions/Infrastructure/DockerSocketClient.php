@@ -218,8 +218,11 @@ final readonly class DockerSocketClient
             throw new \RuntimeException('Docker API request failed: '.$error);
         }
 
-        if (409 === $httpCode) {
-            throw new \RuntimeException('docker_conflict: '.$response);
+        if ($httpCode >= 400) {
+            if (409 === $httpCode) {
+                throw new \RuntimeException('docker_conflict: '.$response);
+            }
+            throw new \RuntimeException('Docker API error (HTTP '.$httpCode.'): '.$response);
         }
 
         return $response;

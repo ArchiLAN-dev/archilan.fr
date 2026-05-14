@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\PersonalRunParticipant;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -114,7 +116,7 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{runId}/slots/{slotIndex}/reachable-token', methods: ['GET'])]
     public function reachableToken(Request $request, string $runId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->apiAccessGuard->requireUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -122,6 +124,10 @@ final readonly class PlayerStateController
         $session = $this->entityManager->find(Session::class, $runId);
         if (!$session instanceof Session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        if (!$this->isAuthorized($user, $session)) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
         $ttl = 3600;
@@ -282,7 +288,7 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/item-locations', methods: ['GET'])]
     public function slotItemLocations(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->apiAccessGuard->requireUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -290,6 +296,10 @@ final readonly class PlayerStateController
         $session = $this->entityManager->find(Session::class, $sessionId);
         if (!$session instanceof Session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        if (!$this->isAuthorized($user, $session)) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
         if (Session::STATUS_RUNNING !== $session->getStatus()) {
@@ -415,6 +425,23 @@ final readonly class PlayerStateController
             ->getQuery()
             ->getSingleScalarResult();
 
-        return $count > 0;
+        if ($count > 0) {
+            return true;
+        }
+
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $session->getId()]);
+        if ($personalRun instanceof PersonalRun) {
+            if ($personalRun->isOwnedBy($user->getId())) {
+                return true;
+            }
+            $participant = $this->entityManager->getRepository(PersonalRunParticipant::class)->findOneBy([
+                'personalRunId' => $personalRun->getId(),
+                'userId' => $user->getId(),
+            ]);
+
+            return null !== $participant;
+        }
+
+        return false;
     }
 }

@@ -82,14 +82,16 @@ final class Event
         private ?string $helloassoFormSlug = null,
         #[ORM\Column(name: 'cover_image_url', type: 'string', length: 2048, nullable: true)]
         private ?string $coverImageUrl = null,
-        /** @var list<string>|null */
+        /** @var list<mixed>|null */
         #[ORM\Column(name: 'photo_gallery', type: Types::JSON, nullable: true)]
         private ?array $photoGallery = null,
+        #[ORM\Column(name: 'cover_image_key', type: 'string', length: 500, nullable: true)]
+        private ?string $coverImageKey = null,
     ) {
     }
 
     /**
-     * @param list<string>|null $photoGallery
+     * @param list<string|array{source: string, url?: string, key?: string}>|null $photoGallery
      */
     public static function draft(
         string $title,
@@ -130,7 +132,7 @@ final class Event
     }
 
     /**
-     * @param list<string>|null $photoGallery
+     * @param list<string|array{source: string, url?: string, key?: string}>|null $photoGallery
      */
     public function updateDetails(
         string $title,
@@ -247,12 +249,84 @@ final class Event
         return $this->coverImageUrl;
     }
 
+    public function getCoverImageKey(): ?string
+    {
+        return $this->coverImageKey;
+    }
+
+    public function setCoverImageKey(string $key, ?\DateTimeImmutable $now = null): void
+    {
+        $this->coverImageKey = $key;
+        if (null !== $now) {
+            $this->updatedAt = $now;
+        }
+    }
+
+    public function clearCoverImageKey(?\DateTimeImmutable $now = null): void
+    {
+        $this->coverImageKey = null;
+        if (null !== $now) {
+            $this->updatedAt = $now;
+        }
+    }
+
     /**
-     * @return list<string>
+     * @return list<array{source: string, url?: string, key?: string}>
      */
     public function getPhotoGallery(): array
     {
-        return $this->photoGallery ?? [];
+        /** @var list<array{source: string, url?: string, key?: string}> $result */
+        $result = [];
+        foreach ($this->photoGallery ?? [] as $rawItem) {
+            if (is_string($rawItem) && '' !== $rawItem) {
+                $result[] = ['source' => 'url', 'url' => $rawItem];
+                continue;
+            }
+            if (!is_array($rawItem)) {
+                continue;
+            }
+            $source = $rawItem['source'] ?? null;
+            if (!is_string($source) || '' === $source) {
+                continue;
+            }
+            /** @var array{source: string, url?: string, key?: string} $entry */
+            $entry = ['source' => $source];
+            $url = $rawItem['url'] ?? null;
+            if (is_string($url) && '' !== $url) {
+                $entry['url'] = $url;
+            }
+            $key = $rawItem['key'] ?? null;
+            if (is_string($key) && '' !== $key) {
+                $entry['key'] = $key;
+            }
+            $result[] = $entry;
+        }
+
+        return $result;
+    }
+
+    public function getPhotoGalleryCount(): int
+    {
+        return count($this->getPhotoGallery());
+    }
+
+    public function appendGalleryUpload(string $key): void
+    {
+        $gallery = $this->getPhotoGallery();
+        $gallery[] = ['source' => 'upload', 'key' => $key];
+        $this->photoGallery = $gallery;
+    }
+
+    public function removeGalleryItem(int $index): bool
+    {
+        $gallery = $this->getPhotoGallery();
+        if ($index < 0 || $index >= count($gallery)) {
+            return false;
+        }
+        array_splice($gallery, $index, 1);
+        $this->photoGallery = [] === $gallery ? null : $gallery;
+
+        return true;
     }
 
     /**
@@ -387,20 +461,33 @@ final class Event
     }
 
     /**
-     * @param array<mixed>|null $urls
+     * @param list<string|array{source: string, url?: string, key?: string}>|null $items
      *
-     * @return list<string>|null
+     * @return list<array{source: string, url?: string, key?: string}>|null
      */
-    private static function normalizePhotoGallery(?array $urls): ?array
+    private static function normalizePhotoGallery(?array $items): ?array
     {
-        if (null === $urls) {
+        if (null === $items) {
             return null;
         }
 
         $normalized = [];
-        foreach ($urls as $url) {
-            if (is_string($url) && '' !== trim($url)) {
-                $normalized[] = trim($url);
+        foreach ($items as $item) {
+            if (is_string($item)) {
+                $trimmed = trim($item);
+                if ('' !== $trimmed) {
+                    $normalized[] = ['source' => 'url', 'url' => $trimmed];
+                }
+                continue;
+            }
+
+            if ('upload' === $item['source'] && isset($item['key']) && '' !== trim($item['key'])) {
+                $normalized[] = ['source' => 'upload', 'key' => trim($item['key'])];
+                continue;
+            }
+
+            if ('url' === $item['source'] && isset($item['url']) && '' !== trim($item['url'])) {
+                $normalized[] = ['source' => 'url', 'url' => trim($item['url'])];
             }
         }
 

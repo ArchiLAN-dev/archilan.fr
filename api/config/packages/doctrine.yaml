@@ -56,6 +56,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/Content/Domain'
                 prefix: 'App\Content\Domain'
                 alias: Content
+            PersonalRuns:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/PersonalRuns/Domain'
+                prefix: 'App\PersonalRuns\Domain'
+                alias: PersonalRuns
 
 when@test:
     doctrine:

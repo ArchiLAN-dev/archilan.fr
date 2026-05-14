@@ -7,6 +7,7 @@ namespace App\Events\Application;
 use App\Events\Domain\Event;
 use App\Payments\Application\HelloAssoConfig;
 use App\Registrations\Application\RegistrationCounter;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicEventCatalog
@@ -15,6 +16,9 @@ final readonly class PublicEventCatalog
         private EntityManagerInterface $entityManager,
         private RegistrationCounter $registrationCounter,
         private HelloAssoConfig $helloAssoConfig,
+        private MinioStorageInterface $minioStorage,
+        private string $minioMediaBucket,
+        private int $minioPresignTtl,
     ) {
     }
 
@@ -78,11 +82,38 @@ final readonly class PublicEventCatalog
             'vodUrl' => $event->getVodUrl(),
             'recapPostSlug' => $event->getRecapPostSlug(),
             'hasRecap' => $event->hasRecap(),
-            'coverImageUrl' => $event->getCoverImageUrl(),
-            'photoGallery' => $event->getPhotoGallery(),
+            'coverImageUrl' => $this->resolveCoverImageUrl($event),
+            'photoGallery' => $this->resolvePhotoGallery($event),
             'checkoutEmbedUrl' => $checkoutEmbedUrl,
             'checkoutUnavailable' => $this->isCheckoutUnavailable($event, $confirmedCount, $checkoutEmbedUrl),
         ];
+    }
+
+    private function resolveCoverImageUrl(Event $event): ?string
+    {
+        $key = $event->getCoverImageKey();
+        if (null !== $key) {
+            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+        }
+
+        return $event->getCoverImageUrl();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolvePhotoGallery(Event $event): array
+    {
+        $result = [];
+        foreach ($event->getPhotoGallery() as $item) {
+            if ('upload' === $item['source']) {
+                $result[] = $this->minioStorage->presignedUrl($this->minioMediaBucket, $item['key'] ?? '', $this->minioPresignTtl);
+            } else {
+                $result[] = $item['url'] ?? '';
+            }
+        }
+
+        return $result;
     }
 
     private function buildCheckoutEmbedUrl(Event $event, int $confirmedCount): ?string

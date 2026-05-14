@@ -6,6 +6,7 @@ namespace App\Sessions\Application;
 
 use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\PersonalRun;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\GenerateRunJob;
 use App\Sessions\Application\Message\RestartRunJob;
@@ -14,6 +15,7 @@ use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -27,6 +29,9 @@ final readonly class SessionOrchestrator
         private MessageBusInterface $messageBus,
         private SlotNameGenerator $slotNameGenerator,
         private LoggerInterface $logger,
+        private MinioStorageInterface $minioStorage,
+        private string $minioApworldsBucket,
+        private int $minioPresignTtl,
     ) {
     }
 
@@ -284,13 +289,47 @@ final readonly class SessionOrchestrator
             return $result;
         }
 
-        $apworldKeys = $this->collectApworldKeys($sessionId);
+        $downloadUrls = $this->collectApworldDownloadUrls($sessionId);
 
-        $this->messageBus->dispatch(new GenerateRunJob($sessionId, 'generate', apworldKeys: $apworldKeys));
+        $this->messageBus->dispatch(new GenerateRunJob(
+            $sessionId,
+            'generate',
+            apworldDownloadUrls: $downloadUrls,
+        ));
 
-        $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId, 'apworldCount' => count($apworldKeys)]);
+        $this->logger->info('session.orchestrate.generate', [
+            'sessionId' => $sessionId,
+            'apworldUrlCount' => count($downloadUrls),
+        ]);
 
         return ['found' => true, 'session' => $result['session']];
+    }
+
+    /**
+     * Auto-advance a personal run session through the pipeline.
+     * - ready     → triggers generate
+     * - generated → triggers launch
+     * No-op if the session doesn't belong to a personal run.
+     */
+    public function autoAdvancePersonalRun(string $sessionId): void
+    {
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+        if (!$personalRun instanceof PersonalRun) {
+            return;
+        }
+
+        $session = $this->entityManager->find(Session::class, $sessionId);
+        if (!$session instanceof Session) {
+            return;
+        }
+
+        if (Session::STATUS_READY === $session->getStatus()) {
+            $this->orchestrateGenerate($sessionId);
+            $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
+        } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
+            $this->orchestrateLaunch($sessionId);
+            $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+        }
     }
 
     /**
@@ -526,8 +565,10 @@ final readonly class SessionOrchestrator
         return $result;
     }
 
-    /** @return list<string> */
-    private function collectApworldKeys(string $sessionId): array
+    /**
+     * @return array<string, string>
+     */
+    private function collectApworldDownloadUrls(string $sessionId): array
     {
         $sessionSlots = $this->entityManager->getRepository(SessionSlot::class)
             ->findBy(['sessionId' => $sessionId]);
@@ -547,15 +588,20 @@ final readonly class SessionOrchestrator
             ->getQuery()
             ->getResult();
 
-        $keys = [];
+        $downloadUrls = [];
+
         foreach ($games as $game) {
-            $key = $game->getApworldStorageKey();
-            if (null !== $key && !in_array($key, $keys, true)) {
-                $keys[] = $key;
+            $minioKey = $game->getApworldMinioKey();
+            if (null !== $minioKey && !array_key_exists($minioKey, $downloadUrls)) {
+                $downloadUrls[$minioKey] = $this->minioStorage->presignedUrl(
+                    $this->minioApworldsBucket,
+                    $minioKey,
+                    $this->minioPresignTtl,
+                );
             }
         }
 
-        return $keys;
+        return $downloadUrls;
     }
 
     /**

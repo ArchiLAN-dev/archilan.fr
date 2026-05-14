@@ -37,7 +37,7 @@ final readonly class PublicGameCatalog
                ->setParameter('query', '%'.mb_strtolower($query).'%');
         }
 
-        $total = (int) (clone $qb)->select('COUNT(game.id)')->getQuery()->getSingleScalarResult();
+        $total = (int) (clone $qb)->select('COUNT(game.id)')->resetDQLPart('orderBy')->getQuery()->getSingleScalarResult();
         $totalPages = max(1, (int) ceil($total / self::PER_PAGE));
         $page = min($page, $totalPages);
 

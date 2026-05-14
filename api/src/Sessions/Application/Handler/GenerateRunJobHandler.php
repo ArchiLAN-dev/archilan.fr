@@ -9,6 +9,7 @@ use App\Sessions\Infrastructure\DockerSocketClient;
 use App\Sessions\Infrastructure\RunnerCallbackClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[AsMessageHandler]
 final readonly class GenerateRunJobHandler
@@ -17,10 +18,10 @@ final readonly class GenerateRunJobHandler
         private RunnerCallbackClient $callbackClient,
         private DockerSocketClient $dockerClient,
         private LoggerInterface $logger,
+        private HttpClientInterface $httpClient,
         private string $runnerId,
         private string $workspaceDir,
         private string $generateImage = 'archipelago-generate',
-        private string $apworldVolumeName = '',
     ) {
     }
 
@@ -60,7 +61,7 @@ final readonly class GenerateRunJobHandler
             $slotName = $slot['slotName'];
 
             if (mb_strlen($slotName) > 16) {
-                $slotErrors[] = sprintf('Le nom de slot "%s" dépasse 16 caractères.', $slotName);
+                $slotErrors[] = sprintf('Le nom de slot "%s" depasse 16 caracteres.', $slotName);
             }
 
             if (in_array($slotName, $seenNames, true)) {
@@ -90,6 +91,7 @@ final readonly class GenerateRunJobHandler
             $this->logger->warning('runner.validate_job.failed', [
                 'session_id' => $job->sessionId,
                 'error_count' => count($errors),
+                'errors' => $errors,
             ]);
 
             return;
@@ -127,34 +129,19 @@ final readonly class GenerateRunJobHandler
         $cmd = ['--player_files_path', '/yamls', '--outputpath', '/output', '--multi', (string) $yamlCount];
         $binds = [$yamlDir.':/yamls', $outputDir.':/output'];
 
-        if ('' !== $this->apworldVolumeName) {
-            // Dev mode: mount the workspace volume so generate_multiworld.py can reach
-            // all uploaded apworlds regardless of whether apworldKeys is populated.
-            $binds[] = $this->apworldVolumeName.':/arch_workspace:ro';
-            $cmd[] = '--world_directory';
-            $cmd[] = '/arch_workspace/apworlds';
-        } elseif ([] !== $job->apworldKeys) {
-            // Docker worker mode: WORKSPACE_DIR=/workspace, copy files locally.
+        if ([] !== $job->apworldDownloadUrls) {
             $sessionApworldsDir = $this->workspaceDir.'/'.$job->sessionId.'/apworlds';
             if (!is_dir($sessionApworldsDir)) {
                 mkdir($sessionApworldsDir, 0755, true);
             }
 
-            $globalApworldsDir = $this->workspaceDir.'/apworlds';
-            foreach ($job->apworldKeys as $key) {
-                $src = $globalApworldsDir.'/'.$key;
-                $dst = $sessionApworldsDir.'/'.$key;
-                if (is_file($src)) {
-                    copy($src, $dst);
-                } else {
-                    $this->logger->warning('runner.generate_job.apworld_missing', [
-                        'session_id' => $job->sessionId,
-                        'key' => $key,
-                    ]);
-                }
+            if (!$this->downloadApworlds($job, $sessionApworldsDir)) {
+                return;
             }
 
             $binds[] = $sessionApworldsDir.':/apworlds';
+            $cmd[] = '--world_directory';
+            $cmd[] = '/apworlds';
         }
 
         try {
@@ -167,7 +154,7 @@ final readonly class GenerateRunJobHandler
         } catch (\Throwable $e) {
             $this->callbackClient->sendCallback($job->sessionId, [
                 'status' => 'failed',
-                'errors' => ['Impossible de démarrer le container de génération : '.$e->getMessage()],
+                'errors' => ['Impossible de demarrer le container de generation : '.$e->getMessage()],
             ]);
             $this->logger->error('runner.generate_job.docker_error', [
                 'session_id' => $job->sessionId,
@@ -180,7 +167,7 @@ final readonly class GenerateRunJobHandler
         if (0 !== $result['exitCode']) {
             $this->callbackClient->sendCallback($job->sessionId, [
                 'status' => 'failed',
-                'logs' => '' !== $result['output'] ? $result['output'] : 'La génération a échoué sans message d\'erreur.',
+                'logs' => '' !== $result['output'] ? $result['output'] : 'La generation a echoue sans message d\'erreur.',
             ]);
             $this->logger->error('runner.generate_job.failed', [
                 'session_id' => $job->sessionId,
@@ -198,7 +185,7 @@ final readonly class GenerateRunJobHandler
         if ([] === $archipelagoFiles) {
             $this->callbackClient->sendCallback($job->sessionId, [
                 'status' => 'failed',
-                'errors' => ['Aucun fichier de seed produit par la génération.'],
+                'errors' => ['Aucun fichier de seed produit par la generation.'],
             ]);
             $this->logger->error('runner.generate_job.no_output', ['session_id' => $job->sessionId]);
 
@@ -210,5 +197,30 @@ final readonly class GenerateRunJobHandler
             'session_id' => $job->sessionId,
             'output_file' => basename($archipelagoFiles[0]),
         ]);
+    }
+
+    private function downloadApworlds(GenerateRunJob $job, string $sessionApworldsDir): bool
+    {
+        foreach ($job->apworldDownloadUrls as $key => $url) {
+            try {
+                $response = $this->httpClient->request('GET', $url);
+                $content = $response->getContent(true);
+                file_put_contents($sessionApworldsDir.'/'.$key, $content);
+            } catch (\Throwable $e) {
+                $this->callbackClient->sendCallback($job->sessionId, [
+                    'status' => 'failed',
+                    'errors' => ['Impossible de telecharger l\'APWorld depuis MinIO : '.$e->getMessage()],
+                ]);
+                $this->logger->error('runner.generate_job.apworld_download_error', [
+                    'session_id' => $job->sessionId,
+                    'key' => $key,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return false;
+            }
+        }
+
+        return true;
     }
 }

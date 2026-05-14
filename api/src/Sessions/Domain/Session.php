@@ -18,6 +18,8 @@ class Session
     public const STATUS_GENERATED = 'generated';
     public const STATUS_LAUNCHING = 'launching';
     public const STATUS_RUNNING = 'running';
+    public const STATUS_IDLE = 'idle';
+    public const STATUS_RESTARTING = 'restarting';
     public const STATUS_STOPPED = 'stopped';
     public const STATUS_FAILED = 'failed';
     public const STATUS_CRASHED = 'crashed';
@@ -30,8 +32,10 @@ class Session
         self::STATUS_GENERATING => [self::STATUS_GENERATED, self::STATUS_FAILED],
         self::STATUS_GENERATED => [self::STATUS_LAUNCHING],
         self::STATUS_LAUNCHING => [self::STATUS_RUNNING, self::STATUS_FAILED],
-        self::STATUS_RUNNING => [self::STATUS_STOPPED, self::STATUS_CRASHED, self::STATUS_FINISHED, self::STATUS_LAUNCHING],
-        self::STATUS_CRASHED => [self::STATUS_LAUNCHING, self::STATUS_STOPPED],
+        self::STATUS_RUNNING => [self::STATUS_STOPPED, self::STATUS_CRASHED, self::STATUS_FINISHED, self::STATUS_LAUNCHING, self::STATUS_IDLE],
+        self::STATUS_IDLE => [self::STATUS_RESTARTING],
+        self::STATUS_RESTARTING => [self::STATUS_RUNNING, self::STATUS_IDLE],
+        self::STATUS_CRASHED => [self::STATUS_LAUNCHING, self::STATUS_STOPPED, self::STATUS_IDLE],
         self::STATUS_STOPPED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
         self::STATUS_FAILED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
         self::STATUS_FINISHED => [self::STATUS_LAUNCHING],
@@ -113,6 +117,15 @@ class Session
 
         #[ORM\Column(type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $lastActivityAt = null,
+
+        #[ORM\Column(type: Types::STRING, length: 500, nullable: true)]
+        private ?string $lastSaveKey = null,
+
+        #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
+        private bool $pausedWithoutSave = false,
+
+        #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
+        private bool $restartFailed = false,
     ) {
     }
 
@@ -224,6 +237,69 @@ class Session
         $this->lastActivityAt = $now;
     }
 
+    public function recordActivity(\DateTimeImmutable $occurredAt): void
+    {
+        $this->lastActivityAt = $occurredAt;
+    }
+
+    public function markRestarting(\DateTimeImmutable $now): void
+    {
+        $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
+
+        if (!in_array(self::STATUS_RESTARTING, $allowed, true)) {
+            throw new \LogicException("Transition de '$this->status' vers 'restarting' non autorisée.");
+        }
+
+        $this->status = self::STATUS_RESTARTING;
+        $this->lastActivityAt = $now;
+        $this->restartFailed = false;
+    }
+
+    public function resumeRunning(string $host, int $port, int $bridgePort, \DateTimeImmutable $now): void
+    {
+        $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
+
+        if (!in_array(self::STATUS_RUNNING, $allowed, true)) {
+            throw new \LogicException("Transition de '$this->status' vers 'running' non autorisée.");
+        }
+
+        $this->status = self::STATUS_RUNNING;
+        $this->host = $host;
+        $this->port = $port;
+        $this->bridgePort = $bridgePort;
+        $this->lastActivityAt = $now;
+        $this->lastHeartbeatAt = $now;
+        // Keep existing startedAt (not reset on resume)
+    }
+
+    public function markIdle(?string $lastSaveKey, bool $pausedWithoutSave, \DateTimeImmutable $now): void
+    {
+        $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
+
+        if (!in_array(self::STATUS_IDLE, $allowed, true)) {
+            throw new \LogicException("Transition de '$this->status' vers 'idle' non autorisée.");
+        }
+
+        $this->status = self::STATUS_IDLE;
+        $this->lastSaveKey = $lastSaveKey;
+        $this->pausedWithoutSave = $pausedWithoutSave;
+        $this->stoppedAt = $now;
+        $this->lastActivityAt = $now;
+    }
+
+    public function markRestartFailed(\DateTimeImmutable $now): void
+    {
+        $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
+
+        if (!in_array(self::STATUS_IDLE, $allowed, true)) {
+            throw new \LogicException("Transition de '$this->status' vers 'idle' non autorisée.");
+        }
+
+        $this->status = self::STATUS_IDLE;
+        $this->lastActivityAt = $now;
+        $this->restartFailed = true;
+    }
+
     /**
      * Retourne true si la session est inactive depuis plus longtemps que son seuil.
      * Pour RUNNING on vérifie lastHeartbeatAt, pour les autres lastActivityAt.
@@ -319,9 +395,29 @@ class Session
         return $this->lastHeartbeatAt;
     }
 
+    public function getStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->startedAt;
+    }
+
     public function getLastActivityAt(): ?\DateTimeImmutable
     {
         return $this->lastActivityAt;
+    }
+
+    public function getLastSaveKey(): ?string
+    {
+        return $this->lastSaveKey;
+    }
+
+    public function isPausedWithoutSave(): bool
+    {
+        return $this->pausedWithoutSave;
+    }
+
+    public function hasRestartFailed(): bool
+    {
+        return $this->restartFailed;
     }
 
     public function setLastLogs(?string $logs): void
@@ -381,6 +477,9 @@ class Session
             'notifiedAt' => $this->notifiedAt?->format(\DateTimeInterface::ATOM),
             'lastHeartbeatAt' => $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
             'lastActivityAt' => $this->lastActivityAt?->format(\DateTimeInterface::ATOM),
+            'lastSaveKey' => $this->lastSaveKey,
+            'pausedWithoutSave' => $this->pausedWithoutSave,
+            'restartFailed' => $this->restartFailed,
             'validationErrors' => $this->validationErrors,
             'finishedAt' => $this->finishedAt?->format(\DateTimeInterface::ATOM),
             'lastLogs' => $this->lastLogs,

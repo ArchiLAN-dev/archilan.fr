@@ -52,8 +52,15 @@ framework:
             'App\Sessions\Application\Message\RunHealthCheckJob': run_server
             'App\Sessions\Application\Message\FetchLogsJob': run_server
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
+            'App\PersonalRuns\Application\Message\LaunchPersonalRunJob': run_server
+            'App\PersonalRuns\Application\Message\StopPersonalRunJob': run_server
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
             'App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask': async
+            'App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage': async
+            'App\Sessions\Application\Message\PauseRunJob': run_server
+            'App\Sessions\Application\Message\ResumeRunJob': run_server
+            'App\Communications\Application\SessionPausedWithoutSaveMessage': async
+            'App\Communications\Application\SessionRestartFailedMessage': async
 
 when@test:
     framework:

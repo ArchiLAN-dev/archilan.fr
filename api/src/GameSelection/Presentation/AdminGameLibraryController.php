@@ -138,6 +138,63 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => '.apworld configuré.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/github-assets', name: 'api_admin_game_github_assets', methods: ['GET'])]
+    public function listGithubAssets(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->apiAccessGuard->requireAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->listGithubAssets($gameId);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            $firstError = array_values($result['errors'])[0][0] ?? 'Erreur.';
+
+            return $this->apiAccessGuard->errorResponse('github_assets_failed', $firstError, 422);
+        }
+
+        return new JsonResponse(['data' => $result['assets'] ?? [], 'meta' => []]);
+    }
+
+    #[Route('/api/v1/admin/games/{gameId}/apworld-from-github', name: 'api_admin_game_apworld_from_github', methods: ['POST'])]
+    public function importApworldFromGithub(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->apiAccessGuard->requireAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $body = $this->jsonPayload($request);
+        $assetDownloadUrl = is_string($body['assetDownloadUrl'] ?? null) && '' !== $body['assetDownloadUrl'] ? $body['assetDownloadUrl'] : null;
+        $assetName = is_string($body['assetName'] ?? null) && '' !== $body['assetName'] ? $body['assetName'] : null;
+
+        $result = $this->adminGameLibrary->importFromGithub($gameId, $assetDownloadUrl, $assetName);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            $firstError = array_values($result['errors'])[0][0] ?? 'Erreur lors de l\'import.';
+
+            return $this->apiAccessGuard->errorResponse('github_import_failed', $firstError, 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('github_import_failed', 'L\'import a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => '.apworld importé depuis GitHub.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}', name: 'api_game_selection_admin_games_delete', methods: ['DELETE'])]
     public function delete(Request $request, string $gameId): JsonResponse
     {

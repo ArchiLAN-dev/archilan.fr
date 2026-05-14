@@ -5,7 +5,18 @@
 # See also https://symfony.com/doc/current/service_container/import.html
 
 # Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+# https://symfony.com/doc/current/best_practices.html#use-parameters
+parameters:
+    default_minio_apworlds_bucket: 'apworlds'
+    default_minio_saves_bucket: 'archipelago-saves'
+    default_minio_media_bucket: 'media'
+    default_minio_presign_ttl: 3600
+    default_minio_endpoint: 'http://localhost:9000'
+    default_minio_access_key: 'minioadmin'
+    default_minio_secret_key: 'minioadmin'
+    default_empty_string: ''
+    default_inactivity_timeout: 3600
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -16,6 +27,15 @@ services:
             string $emailHashSecret: '%env(EMAIL_HASH_SECRET)%'
             string $mailerSender: '%env(MAILER_SENDER)%'
             string $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
+            string $githubToken: '%env(default:default_empty_string:GITHUB_TOKEN)%'
+            string $spreadsheetId: '%env(default:default_empty_string:GOOGLE_SHEETS_SPREADSHEET_ID)%'
+            string $googleApiKey: '%env(default:default_empty_string:GOOGLE_API_KEY)%'
+            string $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
+            string $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
+            string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
+            int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
+            string $siteUrl: '%env(default:default_empty_string:SITE_URL)%'
+            string $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -35,8 +55,17 @@ services:
             - '../src/Legal/Domain/'
             - '../src/Streaming/Domain/'
             - '../src/Sessions/Domain/'
+            - '../src/PersonalRuns/Domain/'
 
     App\Sessions\Infrastructure\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
+
+    App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\S3MinioStorage'
+
+    App\Shared\Infrastructure\S3MinioStorage:
+        arguments:
+            $endpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
+            $accessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
+            $secretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
 
     App\Sessions\Infrastructure\RunnerGateway:
         arguments:
@@ -72,6 +101,10 @@ services:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
 
+    App\Sessions\Application\ScheduledTask\InactivityWatchdogHandler:
+        arguments:
+            $inactivityTimeoutSeconds: '%env(default:default_inactivity_timeout:int:ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS)%'
+
     App\Sessions\Infrastructure\DockerSocketClient:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'
@@ -82,7 +115,6 @@ services:
             $runnerId: '%env(RUNNER_ID)%'
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $generateImage: '%env(ARCHIPELAGO_GENERATE_IMAGE)%'
-            $apworldVolumeName: '%env(ARCHIPELAGO_WORKSPACE_VOLUME)%'
 
     App\Sessions\Application\Handler\StartRunJobHandler:
         arguments:
@@ -92,6 +124,11 @@ services:
             $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
             $symfonyInternalUrl: '%env(SYMFONY_INTERNAL_URL)%'
             $mercureHubUrl: '%env(MERCURE_HUB_URL)%'
+            $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
+            $minioEndpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
+            $minioAccessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
+            $minioSecretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
+            $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
             $serverImage: '%env(ARCHIPELAGO_SERVER_IMAGE)%'
             $apworldVolumeName: '%env(ARCHIPELAGO_WORKSPACE_VOLUME)%'
 
@@ -150,6 +187,11 @@ when@test:
 
         App\Sessions\Infrastructure\RunnerGatewayInterface:
             class: App\Sessions\Infrastructure\NullRunnerGateway
+
+        App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\NullMinioStorage'
+
+        App\Shared\Infrastructure\NullMinioStorage:
+            public: true
 
         App\Sessions\Infrastructure\DockerPortScannerInterface:
             class: App\Sessions\Infrastructure\NullDockerPortScanner

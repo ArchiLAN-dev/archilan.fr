@@ -15,6 +15,14 @@ class ArchipelagoGame
     public const AVAILABILITY_UNAVAILABLE = 'unavailable';
     public const AVAILABILITY_EXPERIMENTAL = 'experimental';
 
+    public const UPDATE_STATUS_NOT_TRACKED = 'not_tracked';
+    public const UPDATE_STATUS_UNKNOWN = 'unknown';
+    public const UPDATE_STATUS_UP_TO_DATE = 'up_to_date';
+    public const UPDATE_STATUS_UPDATE_AVAILABLE = 'update_available';
+
+    #[ORM\OneToOne(mappedBy: 'game', cascade: ['persist', 'remove'])]
+    private ?GameCatalogSync $catalogSync = null;
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -25,7 +33,7 @@ class ArchipelagoGame
         private string $slug,
         #[ORM\Column(type: 'text')]
         private string $description,
-        #[ORM\Column(name: 'cover_image_url', type: 'string', length: 500, nullable: true)]
+        #[ORM\Column(name: 'cover_image_url', type: 'text', nullable: true)]
         private ?string $coverImageUrl,
         #[ORM\Column(name: 'cover_image_alt', type: 'string', length: 160)]
         private string $coverImageAlt,
@@ -47,6 +55,10 @@ class ArchipelagoGame
         private ?\DateTimeImmutable $apworldUploadedAt = null,
         #[ORM\Column(name: 'default_yaml', type: 'text', nullable: true)]
         private ?string $defaultYaml = null,
+        #[ORM\Column(name: 'apworld_minio_key', type: 'string', length: 500, nullable: true)]
+        private ?string $apworldMinioKey = null,
+        #[ORM\Column(name: 'availability_locked', type: 'boolean', options: ['default' => false])]
+        private bool $availabilityLocked = false,
     ) {
     }
 
@@ -103,6 +115,11 @@ class ArchipelagoGame
         $this->defaultYaml = $defaultYaml;
         $this->archipelagoGameName = $archipelagoGameName;
         $this->updatedAt = $now;
+    }
+
+    public function setApworldMinioKey(string $key): void
+    {
+        $this->apworldMinioKey = $key;
     }
 
     public function isApworldReady(): bool
@@ -182,6 +199,11 @@ class ArchipelagoGame
         return $this->apworldStorageKey;
     }
 
+    public function getApworldMinioKey(): ?string
+    {
+        return $this->apworldMinioKey;
+    }
+
     public function getApworldHash(): ?string
     {
         return $this->apworldHash;
@@ -205,5 +227,65 @@ class ArchipelagoGame
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function isAvailabilityLocked(): bool
+    {
+        return $this->availabilityLocked;
+    }
+
+    public function setAvailabilityLocked(bool $locked): void
+    {
+        $this->availabilityLocked = $locked;
+    }
+
+    public function setCatalogSync(GameCatalogSync $sync): void
+    {
+        $this->catalogSync = $sync;
+    }
+
+    public function getCatalogSync(): ?GameCatalogSync
+    {
+        return $this->catalogSync;
+    }
+
+    public function getCatalogSheetName(): ?string
+    {
+        return $this->catalogSync?->getCatalogSheetName();
+    }
+
+    public function getApworldSourceUrl(): ?string
+    {
+        return $this->catalogSync?->getApworldSourceUrl();
+    }
+
+    public function recordApworldCheck(string $latestVersion, \DateTimeImmutable $checkedAt, ?string $releaseUrl = null): void
+    {
+        $this->catalogSync?->recordApworldCheck($latestVersion, $checkedAt, $releaseUrl);
+    }
+
+    public function computeApworldUpdateStatus(): string
+    {
+        return $this->catalogSync?->computeApworldUpdateStatus() ?? self::UPDATE_STATUS_NOT_TRACKED;
+    }
+
+    public function getApworldDeployedVersion(): ?string
+    {
+        return $this->catalogSync?->getApworldDeployedVersion();
+    }
+
+    public function getApworldLatestVersion(): ?string
+    {
+        return $this->catalogSync?->getApworldLatestVersion();
+    }
+
+    public function getApworldReleaseUrl(): ?string
+    {
+        return $this->catalogSync?->getApworldReleaseUrl();
+    }
+
+    public function getApworldCheckedAt(): ?\DateTimeImmutable
+    {
+        return $this->catalogSync?->getApworldCheckedAt();
     }
 }

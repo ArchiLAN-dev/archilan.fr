@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Content\Application;
 
 use App\Content\Domain\Post;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicPostCatalog
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private MinioStorageInterface $minioStorage,
+        private string $minioMediaBucket,
+        private int $minioPresignTtl,
     ) {
     }
 
@@ -66,7 +70,17 @@ final readonly class PublicPostCatalog
             'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM) ?? '',
             'relatedEventSlug' => $post->getRelatedEventSlug(),
             'vodUrl' => $post->getVodUrl(),
-            'coverImageUrl' => $post->getCoverImageUrl(),
+            'coverImageUrl' => $this->resolveCoverImageUrl($post),
         ];
+    }
+
+    private function resolveCoverImageUrl(Post $post): ?string
+    {
+        $key = $post->getCoverImageKey();
+        if (null !== $key) {
+            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+        }
+
+        return $post->getCoverImageUrl();
     }
 }

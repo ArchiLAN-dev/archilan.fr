@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
+use App\Communications\Application\SessionPausedWithoutSaveMessage;
+use App\Communications\Application\SessionRestartFailedMessage;
 use App\Communications\Application\SessionRunningMessage;
 use App\Events\Domain\Event;
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\PersonalRun;
 use App\Registrations\Domain\Registration;
+use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
@@ -132,6 +136,11 @@ final readonly class SessionLifecycleManager
 
         if (Session::STATUS_DRAFT === $newStatus && null !== $validationErrors) {
             $session->setValidationErrors($validationErrors);
+
+            $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+            if ($personalRun instanceof PersonalRun && PersonalRun::STATUS_STARTING === $personalRun->getStatus()) {
+                $personalRun->resetAfterValidationFailure($now);
+            }
         }
 
         if (null !== $lastLogs && in_array($newStatus, [Session::STATUS_FAILED, Session::STATUS_CRASHED], true)) {
@@ -143,10 +152,26 @@ final readonly class SessionLifecycleManager
             $session->markNotified($now);
         }
 
+        if (Session::STATUS_RUNNING === $newStatus) {
+            $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+            if ($personalRun instanceof PersonalRun) {
+                $personalRun->markRunning($session->getHost() ?? '', $session->getPort() ?? 0, $now, $session->getPassword());
+            }
+        }
+
+        if (Session::STATUS_CRASHED === $newStatus) {
+            $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+            if ($personalRun instanceof PersonalRun) {
+                $session->markIdle($session->getLastSaveKey(), true, $now);
+                $personalRun->markStopped($now);
+                $this->logger->info('session.crash_recovered_to_idle', ['sessionId' => $sessionId]);
+            }
+        }
+
         $this->entityManager->flush();
         $this->publish($session);
 
-        $this->logger->info('session.transition', ['sessionId' => $sessionId, 'from' => $fromStatus, 'to' => $newStatus]);
+        $this->logger->info('session.transition', ['sessionId' => $sessionId, 'from' => $fromStatus, 'to' => $session->getStatus()]);
 
         if ($shouldNotify) {
             $this->dispatchRunningNotifications($session);
@@ -334,6 +359,245 @@ final readonly class SessionLifecycleManager
         $this->entityManager->flush();
 
         $this->logger->info('session.archive.stored', ['sessionId' => $sessionId, 'slot_count' => count($slots)]);
+
+        return ['found' => true];
+    }
+
+    /**
+     * @return array{found: bool, error: string|null, sessionId: string|null, status: string|null}
+     */
+    public function initiateRestart(string $sessionId, string $callerId, bool $isAdmin): array
+    {
+        $session = $this->entityManager->find(Session::class, $sessionId);
+
+        if (!$session instanceof Session) {
+            return ['found' => false, 'error' => null, 'sessionId' => null, 'status' => null];
+        }
+
+        if (Session::STATUS_IDLE !== $session->getStatus()) {
+            return ['found' => true, 'error' => 'invalid_session_status', 'sessionId' => null, 'status' => null];
+        }
+
+        if ($session->isPausedWithoutSave() || null === $session->getLastSaveKey()) {
+            return ['found' => true, 'error' => 'no_save_available', 'sessionId' => null, 'status' => null];
+        }
+
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+
+        if (!$isAdmin) {
+            if (!$personalRun instanceof PersonalRun || !$personalRun->isOwnedBy($callerId)) {
+                return ['found' => true, 'error' => 'forbidden', 'sessionId' => null, 'status' => null];
+            }
+        }
+
+        $now = new \DateTimeImmutable();
+        $session->markRestarting($now);
+
+        if ($personalRun instanceof PersonalRun) {
+            $personalRun->markRestarting($now);
+        }
+
+        $this->entityManager->flush();
+        $this->publish($session);
+
+        $saveKey = $session->getLastSaveKey();
+        \assert(null !== $saveKey); // checked above
+
+        $this->messageBus->dispatch(new ResumeRunJob(
+            $sessionId,
+            $saveKey,
+            $session->getPassword() ?? '',
+            $session->getServerPassword() ?? '',
+            $session->getBridgePort() ?? 0,
+        ));
+
+        $this->logger->info('session.restart.initiated', ['sessionId' => $sessionId]);
+
+        return ['found' => true, 'error' => null, 'sessionId' => $sessionId, 'status' => $session->getStatus()];
+    }
+
+    /**
+     * @return array{found: bool, status: string|null}
+     */
+    public function recordRestarted(string $sessionId, string $host, int $port, int $bridgePort): array
+    {
+        $session = $this->entityManager->find(Session::class, $sessionId);
+
+        if (!$session instanceof Session) {
+            return ['found' => false, 'status' => null];
+        }
+
+        if (Session::STATUS_RUNNING === $session->getStatus()) {
+            return ['found' => true, 'status' => 'already_running'];
+        }
+
+        if (Session::STATUS_RESTARTING !== $session->getStatus()) {
+            return ['found' => true, 'status' => 'unexpected_status'];
+        }
+
+        $now = new \DateTimeImmutable();
+
+        // For Option A restarts (container stays alive), the bridge sends empty/0 values
+        // because connection details are unchanged. Fall back to the existing session values.
+        $effectiveHost = '' !== $host ? $host : ($session->getHost() ?? '');
+        $effectivePort = $port > 0 ? $port : ($session->getPort() ?? 0);
+        $effectiveBridgePort = $bridgePort > 0 ? $bridgePort : ($session->getBridgePort() ?? 0);
+
+        $session->resumeRunning($effectiveHost, $effectivePort, $effectiveBridgePort, $now);
+
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof PersonalRun) {
+            $personalRun->markRunning($effectiveHost, $effectivePort, $now, $session->getPassword());
+        }
+
+        $this->entityManager->flush();
+        $this->publish($session);
+
+        $this->logger->info('session.restarted', ['sessionId' => $sessionId, 'host' => $effectiveHost, 'port' => $effectivePort]);
+
+        return ['found' => true, 'status' => 'running'];
+    }
+
+    /**
+     * Transition idle → restarting triggered by the bridge (wake-on-connect).
+     * Unlike initiateRestart(), this is called directly by the bridge without user auth.
+     *
+     * @return array{found: bool, error: string|null, status: string|null}
+     */
+    public function markRestartingBridge(string $sessionId): array
+    {
+        $session = $this->entityManager->find(Session::class, $sessionId);
+
+        if (!$session instanceof Session) {
+            return ['found' => false, 'error' => null, 'status' => null];
+        }
+
+        if (Session::STATUS_RESTARTING === $session->getStatus()) {
+            return ['found' => true, 'error' => null, 'status' => 'already_restarting'];
+        }
+
+        if (Session::STATUS_IDLE !== $session->getStatus()) {
+            return ['found' => true, 'error' => 'invalid_status', 'status' => null];
+        }
+
+        $now = new \DateTimeImmutable();
+
+        try {
+            $session->markRestarting($now);
+        } catch (\LogicException $e) {
+            return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
+        }
+
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof PersonalRun) {
+            $personalRun->markRestarting($now);
+        }
+
+        $this->entityManager->flush();
+        $this->publish($session);
+
+        $this->logger->info('session.restarting.bridge_triggered', ['sessionId' => $sessionId]);
+
+        return ['found' => true, 'error' => null, 'status' => 'restarting'];
+    }
+
+    /**
+     * Transition restarting → idle when the bridge failed to restart the AP process.
+     *
+     * @return array{found: bool, error: string|null, status: string|null}
+     */
+    public function markRestartFailed(string $sessionId): array
+    {
+        $session = $this->entityManager->find(Session::class, $sessionId);
+
+        if (!$session instanceof Session) {
+            return ['found' => false, 'error' => null, 'status' => null];
+        }
+
+        if (Session::STATUS_IDLE === $session->getStatus()) {
+            return ['found' => true, 'error' => null, 'status' => 'already_idle'];
+        }
+
+        if (Session::STATUS_RESTARTING !== $session->getStatus()) {
+            return ['found' => true, 'error' => 'invalid_status', 'status' => null];
+        }
+
+        $now = new \DateTimeImmutable();
+
+        try {
+            $session->markRestartFailed($now);
+        } catch (\LogicException $e) {
+            return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
+        }
+
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof PersonalRun) {
+            $personalRun->markStopped($now);
+        }
+
+        $this->entityManager->flush();
+        $this->publish($session);
+        $this->messageBus->dispatch(new SessionRestartFailedMessage($sessionId));
+
+        $this->logger->warning('session.restart_failed', ['sessionId' => $sessionId]);
+
+        return ['found' => true, 'error' => null, 'status' => 'idle'];
+    }
+
+    /**
+     * @return array{found: bool, status: string|null}
+     */
+    public function recordPaused(string $sessionId, ?string $saveKey, bool $failedSave): array
+    {
+        $session = $this->entityManager->find(Session::class, $sessionId);
+
+        if (!$session instanceof Session) {
+            return ['found' => false, 'status' => null];
+        }
+
+        if (Session::STATUS_IDLE === $session->getStatus()) {
+            return ['found' => true, 'status' => 'already_idle'];
+        }
+
+        if (Session::STATUS_RUNNING !== $session->getStatus()) {
+            return ['found' => true, 'status' => 'unexpected_status'];
+        }
+
+        $now = new \DateTimeImmutable();
+        $session->markIdle($saveKey, $failedSave, $now);
+
+        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof PersonalRun) {
+            $personalRun->markStopped($now);
+        }
+
+        $this->entityManager->flush();
+        $this->publish($session);
+
+        $this->logger->info('session.paused', [
+            'sessionId' => $sessionId,
+            'saveKey' => $saveKey,
+            'failedSave' => $failedSave,
+        ]);
+
+        if ($failedSave) {
+            $this->messageBus->dispatch(new SessionPausedWithoutSaveMessage($sessionId));
+        }
+
+        return ['found' => true, 'status' => 'paused'];
+    }
+
+    /** @return array{found: bool} */
+    public function recordActivity(string $sessionId, \DateTimeImmutable $occurredAt): array
+    {
+        $session = $this->entityManager->find(Session::class, $sessionId);
+
+        if (!$session instanceof Session) {
+            return ['found' => false];
+        }
+
+        $session->recordActivity($occurredAt);
+        $this->entityManager->flush();
 
         return ['found' => true];
     }

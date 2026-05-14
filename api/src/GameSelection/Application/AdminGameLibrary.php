@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application;
 
+use App\CatalogSync\Application\ApworldVersionChecker;
 use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Application\ValidationErrors;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -16,6 +19,9 @@ final readonly class AdminGameLibrary
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
+        private MinioStorageInterface $minioStorage,
+        private string $minioApworldsBucket,
+        private ApworldVersionChecker $apworldVersionChecker,
     ) {
     }
 
@@ -73,11 +79,19 @@ final readonly class AdminGameLibrary
         );
 
         $this->entityManager->persist($game);
+
+        $catalogParsed = $this->parseCatalogSync($input);
+        if ($this->hasCatalogSyncData($catalogParsed)) {
+            $sync = new GameCatalogSync($game);
+            $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
+            $this->entityManager->persist($sync);
+        }
+
         $this->entityManager->flush();
 
         $this->logger->info('game.created', ['gameId' => $game->getId(), 'name' => $game->getName()]);
 
-        return ['game' => $this->payload($game), 'errors' => []];
+        return ['game' => $this->detailPayload($game), 'errors' => []];
     }
 
     /**
@@ -111,11 +125,28 @@ final readonly class AdminGameLibrary
             $parsed['availability'],
             new \DateTimeImmutable(),
         );
+
+        if (null !== $parsed['availabilityLocked']) {
+            $game->setAvailabilityLocked($parsed['availabilityLocked']);
+        }
+
+        $catalogParsed = $this->parseCatalogSync($input);
+        $sync = $game->getCatalogSync();
+        if (null === $sync) {
+            if ($this->hasCatalogSyncData($catalogParsed)) {
+                $sync = new GameCatalogSync($game);
+                $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
+                $this->entityManager->persist($sync);
+            }
+        } else {
+            $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
+        }
+
         $this->entityManager->flush();
 
         $this->logger->info('game.updated', ['gameId' => $gameId]);
 
-        return ['found' => true, 'game' => $this->payload($game), 'errors' => []];
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
 
     /**
@@ -170,12 +201,139 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['file' => ['Le runner est indisponible ou le fichier .apworld est invalide.']]];
         }
 
+        $minioKey = $hash.'.apworld';
+
+        try {
+            if (!$this->minioStorage->exists($this->minioApworldsBucket, $minioKey)) {
+                $this->minioStorage->upload($this->minioApworldsBucket, $minioKey, $fileContents);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('minio.apworld_upload_failed', [
+                'gameId' => $gameId,
+                'hash' => $hash,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return ['found' => true, 'errors' => ['file' => ['storage_unavailable']]];
+        }
+
         $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, new \DateTimeImmutable());
+        $game->setApworldMinioKey($minioKey);
         $this->entityManager->flush();
 
         $this->logger->info('game.apworld_configured', ['gameId' => $gameId, 'hash' => $hash, 'archipelagoGameName' => $archipelagoGameName]);
 
         return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
+     * @return array{found: bool, assets?: list<array{name: string, downloadUrl: string, size: int}>, errors: array<string, list<string>>}
+     */
+    public function listGithubAssets(string $gameId): array
+    {
+        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
+
+        if (!$game instanceof ArchipelagoGame) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        if (null === $game->getCatalogSync()?->getApworldSourceUrl()) {
+            return ['found' => true, 'errors' => ['github' => ['Aucune URL source APWorld configurée pour ce jeu.']]];
+        }
+
+        if (!$this->apworldVersionChecker->isAvailable()) {
+            return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré.']]];
+        }
+
+        try {
+            $assets = $this->apworldVersionChecker->listAssets($game);
+        } catch (\Throwable $e) {
+            return ['found' => true, 'errors' => ['github' => ['Impossible de contacter GitHub : '.$e->getMessage()]]];
+        }
+
+        if (null === $assets) {
+            return ['found' => true, 'errors' => ['github' => ['Aucune release trouvée pour cette URL GitHub.']]];
+        }
+
+        return ['found' => true, 'assets' => $assets, 'errors' => []];
+    }
+
+    /**
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null): array
+    {
+        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
+
+        if (!$game instanceof ArchipelagoGame) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $sourceUrl = $game->getCatalogSync()?->getApworldSourceUrl();
+
+        if (null === $sourceUrl || '' === $sourceUrl) {
+            return ['found' => true, 'errors' => ['github' => ['Aucune URL source APWorld configurée pour ce jeu.']]];
+        }
+
+        if (!$this->apworldVersionChecker->isAvailable()) {
+            return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré - impossible de télécharger depuis GitHub.']]];
+        }
+
+        // If a specific asset was pre-selected by the caller, skip the GitHub check
+        if (null !== $assetDownloadUrl && null !== $assetName) {
+            $resolvedDownloadUrl = $assetDownloadUrl;
+            $resolvedAssetName = $assetName;
+            $latestTag = null;
+        } else {
+            try {
+                $info = $this->apworldVersionChecker->check($game);
+                $this->entityManager->flush();
+            } catch (\Throwable $e) {
+                $this->logger->error('github.check_failed', ['gameId' => $gameId, 'message' => $e->getMessage()]);
+
+                return ['found' => true, 'errors' => ['github' => ['Impossible de contacter GitHub : '.$e->getMessage()]]];
+            }
+
+            if (null === $info) {
+                return ['found' => true, 'errors' => ['github' => ['Aucune release trouvée pour cette URL GitHub.']]];
+            }
+
+            if (null === $info->assetDownloadUrl || null === $info->assetName) {
+                return ['found' => true, 'errors' => ['github' => ['Aucun asset .apworld trouvé dans la dernière release ('.$info->latestTag.').']]];
+            }
+
+            $resolvedDownloadUrl = $info->assetDownloadUrl;
+            $resolvedAssetName = $info->assetName;
+            $latestTag = $info->latestTag;
+        }
+
+        try {
+            $fileContents = $this->apworldVersionChecker->downloadAsset($resolvedDownloadUrl);
+        } catch (\Throwable $e) {
+            $this->logger->error('github.download_failed', ['gameId' => $gameId, 'url' => $resolvedDownloadUrl, 'message' => $e->getMessage()]);
+
+            return ['found' => true, 'errors' => ['github' => ['Échec du téléchargement de l\'asset : '.$e->getMessage()]]];
+        }
+
+        $result = $this->configureApworld($gameId, $fileContents, $resolvedAssetName);
+
+        if ([] !== $result['errors']) {
+            return $result;
+        }
+
+        if (null !== $latestTag) {
+            $game->getCatalogSync()?->setApworldDeployedVersion($latestTag);
+            $this->entityManager->flush();
+        }
+
+        $this->logger->info('game.apworld_imported_from_github', [
+            'gameId' => $gameId,
+            'tag' => $latestTag,
+            'asset' => $resolvedAssetName,
+        ]);
+
+        return $result;
     }
 
     /**
@@ -204,7 +362,7 @@ final readonly class AdminGameLibrary
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{name: string, slug: string, description: string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string}
+     * @return array{name: string, slug: string, description: string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string, availabilityLocked: bool|null}
      */
     private function parse(array $input): array
     {
@@ -218,6 +376,7 @@ final readonly class AdminGameLibrary
             'coverImageAlt' => is_string($input['coverImageAlt'] ?? null) ? trim($input['coverImageAlt']) : '',
             'coverImageCredit' => is_string($input['coverImageCredit'] ?? null) ? trim($input['coverImageCredit']) : '',
             'availability' => is_string($input['availability'] ?? null) ? trim($input['availability']) : '',
+            'availabilityLocked' => isset($input['availability_locked']) ? (bool) $input['availability_locked'] : null,
         ];
     }
 
@@ -299,8 +458,58 @@ final readonly class AdminGameLibrary
      */
     private function detailPayload(ArchipelagoGame $game): array
     {
+        $sync = $game->getCatalogSync();
+
         return array_merge($this->payload($game), [
             'defaultYaml' => $game->getDefaultYaml(),
+            'catalogSheetName' => $sync?->getCatalogSheetName(),
+            'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
+            'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),
+            'apworldLatestVersion' => $sync?->getApworldLatestVersion(),
+            'apworldCheckedAt' => $sync?->getApworldCheckedAt()?->format(\DateTimeInterface::ATOM),
+            'apworldReleaseUrl' => $sync?->getApworldReleaseUrl(),
+            'availabilityLocked' => $game->isAvailabilityLocked(),
+            'igdbId' => $sync?->getIgdbId(),
+            'updateStatus' => $game->computeApworldUpdateStatus(),
         ]);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array{catalogSheetName: ?string, apworldSourceUrl: ?string, apworldDeployedVersion: ?string, igdbId: ?int}
+     */
+    private function parseCatalogSync(array $input): array
+    {
+        $catalogSheetName = is_string($input['catalog_sheet_name'] ?? null) && '' !== trim($input['catalog_sheet_name'])
+            ? trim($input['catalog_sheet_name'])
+            : null;
+
+        $apworldSourceUrl = is_string($input['apworld_source_url'] ?? null) && '' !== trim($input['apworld_source_url'])
+            ? trim($input['apworld_source_url'])
+            : null;
+
+        $apworldDeployedVersion = is_string($input['apworld_deployed_version'] ?? null) && '' !== trim($input['apworld_deployed_version'])
+            ? trim($input['apworld_deployed_version'])
+            : null;
+
+        $igdbId = is_int($input['igdb_id'] ?? null) ? $input['igdb_id'] : null;
+
+        return [
+            'catalogSheetName' => $catalogSheetName,
+            'apworldSourceUrl' => $apworldSourceUrl,
+            'apworldDeployedVersion' => $apworldDeployedVersion,
+            'igdbId' => $igdbId,
+        ];
+    }
+
+    /**
+     * @param array{catalogSheetName: ?string, apworldSourceUrl: ?string, apworldDeployedVersion: ?string, igdbId: ?int} $parsed
+     */
+    private function hasCatalogSyncData(array $parsed): bool
+    {
+        return null !== $parsed['catalogSheetName']
+            || null !== $parsed['apworldSourceUrl']
+            || null !== $parsed['igdbId'];
     }
 }

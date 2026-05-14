@@ -29,6 +29,11 @@ final readonly class StartRunJobHandler
         private string $centralApiSecret,
         private string $symfonyInternalUrl,
         private string $mercureHubUrl,
+        private string $bridgeInternalToken,
+        private string $minioEndpoint,
+        private string $minioAccessKey,
+        private string $minioSecretKey,
+        private string $minioSavesBucket,
         private string $serverImage = 'archipelago-server',
         private string $apworldVolumeName = '',
     ) {
@@ -128,6 +133,13 @@ final readonly class StartRunJobHandler
                     'CENTRAL_API_SECRET' => $this->centralApiSecret,
                     'SYMFONY_INTERNAL_URL' => $this->symfonyInternalUrl,
                     'MERCURE_HUB_URL' => $this->mercureHubUrl,
+                    'BRIDGE_INTERNAL_TOKEN' => $this->bridgeInternalToken,
+                    'AP_PID_FILE' => '/tmp/ap.pid',
+                    'AP_LAUNCH_CMD' => $this->buildApLaunchCommand('/archipelago/output/'.basename($seedFile)),
+                    'MINIO_ENDPOINT' => $this->minioEndpoint,
+                    'MINIO_ACCESS_KEY' => $this->minioAccessKey,
+                    'MINIO_SECRET_KEY' => $this->minioSecretKey,
+                    'MINIO_BUCKET' => $this->minioSavesBucket,
                     'SLOT_NAMES' => json_encode($this->readYamlPlayerNames($job->sessionId), JSON_THROW_ON_ERROR),
                 ],
                 ports: [
@@ -235,6 +247,14 @@ final readonly class StartRunJobHandler
         usort($slots, static fn (array $a, array $b) => strcmp($a['name'], $b['name']));
 
         return $slots;
+    }
+
+    private function buildApLaunchCommand(string $seedPath): string
+    {
+        return sprintf(
+            'ArchipelagoServer %s --host 0.0.0.0 --port 38281 --password "$PASSWORD" --server_password "$SERVER_PASSWORD"',
+            escapeshellarg($seedPath),
+        );
     }
 
     /**

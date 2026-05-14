@@ -7,6 +7,7 @@ namespace App\Events\Application;
 use App\Events\Domain\Event;
 use App\Identity\Application\ValidationErrors;
 use App\Registrations\Application\RegistrationCounter;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -16,6 +17,9 @@ final readonly class AdminEventDrafts
         private EntityManagerInterface $entityManager,
         private RegistrationCounter $registrationCounter,
         private LoggerInterface $logger,
+        private MinioStorageInterface $minioStorage,
+        private string $minioMediaBucket,
+        private int $minioPresignTtl,
     ) {
     }
 
@@ -115,6 +119,8 @@ final readonly class AdminEventDrafts
             return ['found' => true, 'errors' => ['body' => ["L'événement est incomplet."]]];
         }
 
+        $photoGallery = $this->reconcilePhotoGallery($event, $parsed['photoGallery']);
+
         $event->updateDetails(
             $complete['title'],
             $complete['description'],
@@ -127,8 +133,11 @@ final readonly class AdminEventDrafts
             $complete['isPublic'],
             new \DateTimeImmutable(),
             $parsed['coverImageUrl'],
-            $parsed['photoGallery'],
+            $photoGallery,
         );
+        if ('url' === $parsed['coverImageMode']) {
+            $event->clearCoverImageKey(new \DateTimeImmutable());
+        }
         $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], new \DateTimeImmutable());
         $this->entityManager->flush();
 
@@ -196,10 +205,12 @@ final readonly class AdminEventDrafts
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, coverImageUrl: string|null, photoGallery: list<string>}
+     * @return array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>}
      */
     private function parse(array $input): array
     {
+        $coverImageMode = 'upload' === ($input['coverImageMode'] ?? null) ? 'upload' : 'url';
+
         return [
             'title' => is_string($input['title'] ?? null) ? trim($input['title']) : '',
             'description' => is_string($input['description'] ?? null) ? trim($input['description']) : '',
@@ -212,12 +223,13 @@ final readonly class AdminEventDrafts
             'isPublic' => true === ($input['isPublic'] ?? false),
             'helloassoFormSlug' => is_string($input['helloassoFormSlug'] ?? null) && '' !== trim($input['helloassoFormSlug']) ? trim($input['helloassoFormSlug']) : null,
             'coverImageUrl' => is_string($input['coverImageUrl'] ?? null) && '' !== trim($input['coverImageUrl']) ? trim($input['coverImageUrl']) : null,
+            'coverImageMode' => $coverImageMode,
             'photoGallery' => $this->parsePhotoGallery($input['photoGallery'] ?? []),
         ];
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, coverImageUrl: string|null, photoGallery: list<string>} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>} $input
      *
      * @return array{title: string, description: string, startsAt: \DateTimeImmutable, endsAt: \DateTimeImmutable, venue: string, capacity: int, registrationOpensAt: \DateTimeImmutable, registrationClosesAt: \DateTimeImmutable, isPublic: bool}|null
      */
@@ -247,7 +259,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, coverImageUrl: string|null, photoGallery: list<string>} $input
+     * @param array{title: string, description: string, startsAt: \DateTimeImmutable|null, endsAt: \DateTimeImmutable|null, venue: string, capacity: int|null, registrationOpensAt: \DateTimeImmutable|null, registrationClosesAt: \DateTimeImmutable|null, isPublic: bool, helloassoFormSlug: string|null, coverImageUrl: string|null, coverImageMode: 'url'|'upload', photoGallery: list<string>} $input
      *
      * @return array<string, list<string>>
      */
@@ -363,11 +375,72 @@ final readonly class AdminEventDrafts
             'recapPostSlug' => $event->getRecapPostSlug(),
             'hasRecap' => $event->hasRecap(),
             'helloassoFormSlug' => $event->getHelloassoFormSlug(),
-            'coverImageUrl' => $event->getCoverImageUrl(),
-            'photoGallery' => $event->getPhotoGallery(),
+            'coverImageUrl' => $this->resolveCoverImageUrl($event),
+            'coverImageKey' => $event->getCoverImageKey(),
+            'photoGallery' => $this->resolvePhotoGallery($event),
             'createdAt' => $event->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $event->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    private function resolveCoverImageUrl(Event $event): ?string
+    {
+        $key = $event->getCoverImageKey();
+        if (null !== $key) {
+            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+        }
+
+        return $event->getCoverImageUrl();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolvePhotoGallery(Event $event): array
+    {
+        $result = [];
+        foreach ($event->getPhotoGallery() as $item) {
+            if ('upload' === $item['source']) {
+                $result[] = $this->minioStorage->presignedUrl($this->minioMediaBucket, $item['key'] ?? '', $this->minioPresignTtl);
+            } else {
+                $result[] = $item['url'] ?? '';
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param list<string> $submittedUrls
+     *
+     * @return list<string|array{source: string, key: string}>
+     */
+    private function reconcilePhotoGallery(Event $event, array $submittedUrls): array
+    {
+        $currentItems = $event->getPhotoGallery();
+        $currentUrls = $this->resolvePhotoGallery($event);
+        $matchedIndexes = [];
+        $result = [];
+
+        foreach ($submittedUrls as $submittedUrl) {
+            $preservedUpload = null;
+            foreach ($currentUrls as $index => $currentUrl) {
+                if (isset($matchedIndexes[$index]) || $currentUrl !== $submittedUrl) {
+                    continue;
+                }
+
+                $currentItem = $currentItems[$index] ?? null;
+                if ('upload' === ($currentItem['source'] ?? null) && isset($currentItem['key'])) {
+                    $preservedUpload = ['source' => 'upload', 'key' => $currentItem['key']];
+                    $matchedIndexes[$index] = true;
+                    break;
+                }
+            }
+
+            $result[] = $preservedUpload ?? $submittedUrl;
+        }
+
+        return $result;
     }
 
     /**

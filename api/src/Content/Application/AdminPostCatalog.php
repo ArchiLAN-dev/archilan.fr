@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Content\Application;
 
 use App\Content\Domain\Post;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -14,6 +15,9 @@ final readonly class AdminPostCatalog
 
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private MinioStorageInterface $minioStorage,
+        private string $minioMediaBucket,
+        private int $minioPresignTtl,
     ) {
     }
 
@@ -120,6 +124,9 @@ final readonly class AdminPostCatalog
                 : $post->getCoverImageUrl(),
             now: $now,
         );
+        if ('url' === ($input['coverImageMode'] ?? null)) {
+            $post->clearCoverImageKey($now);
+        }
 
         $this->entityManager->flush();
 
@@ -176,11 +183,22 @@ final readonly class AdminPostCatalog
             'readingTime' => $post->getReadingTime(),
             'relatedEventSlug' => $post->getRelatedEventSlug(),
             'vodUrl' => $post->getVodUrl(),
-            'coverImageUrl' => $post->getCoverImageUrl(),
+            'coverImageUrl' => $this->resolveCoverImageUrl($post),
+            'coverImageKey' => $post->getCoverImageKey(),
             'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM),
             'createdAt' => $post->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $post->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];
+    }
+
+    private function resolveCoverImageUrl(Post $post): ?string
+    {
+        $key = $post->getCoverImageKey();
+        if (null !== $key) {
+            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+        }
+
+        return $post->getCoverImageUrl();
     }
 
     /**

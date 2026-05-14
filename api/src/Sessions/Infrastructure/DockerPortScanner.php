@@ -13,7 +13,6 @@ final class DockerPortScanner implements DockerPortScannerInterface
     {
         $process = new Process([
             'docker', 'ps',
-            '--filter', 'name=archipelago-run-',
             '--format', '{{.Ports}}',
         ]);
         $process->run();

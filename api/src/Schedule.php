@@ -6,6 +6,7 @@ namespace App;
 
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
+use App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule as SymfonySchedule;
@@ -30,6 +31,9 @@ final class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),
+            )
+            ->add(
+                RecurringMessage::every('5 minutes', new InactivityWatchdogMessage()),
             );
     }
 }

@@ -6,8 +6,20 @@ namespace App\Sessions\Infrastructure;
 
 final class NullRunnerGateway implements RunnerGatewayInterface
 {
+    /** @var array<string, string>|null */
+    public static ?array $apworldUploadResult = null;
+
+    public static function reset(): void
+    {
+        self::$apworldUploadResult = null;
+    }
+
     public function uploadApworld(string $fileContents, string $filename): array
     {
+        if (null !== self::$apworldUploadResult) {
+            return self::$apworldUploadResult;
+        }
+
         return ['error' => 'runner_unavailable'];
     }
 

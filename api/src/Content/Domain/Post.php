@@ -49,6 +49,8 @@ final class Post
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'updated_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $updatedAt,
+        #[ORM\Column(name: 'cover_image_key', type: 'string', length: 500, nullable: true)]
+        private ?string $coverImageKey = null,
     ) {
     }
 
@@ -182,6 +184,27 @@ final class Post
     public function getCoverImageUrl(): ?string
     {
         return $this->coverImageUrl;
+    }
+
+    public function getCoverImageKey(): ?string
+    {
+        return $this->coverImageKey;
+    }
+
+    public function setCoverImageKey(string $key, ?\DateTimeImmutable $now = null): void
+    {
+        $this->coverImageKey = $key;
+        if (null !== $now) {
+            $this->updatedAt = $now;
+        }
+    }
+
+    public function clearCoverImageKey(?\DateTimeImmutable $now = null): void
+    {
+        $this->coverImageKey = null;
+        if (null !== $now) {
+            $this->updatedAt = $now;
+        }
     }
 
     public function getPublishedAt(): ?\DateTimeImmutable
