@@ -38,6 +38,7 @@ RUN grep -vE '^\s*(kivy|cython|cymem|pyshortcuts|Pymem|.* @ git\+)' \
 RUN pip install --no-cache-dir \
     aiohttp \
     websockets \
+    boto3 \
     setuptools
 
 COPY archipelago/generate_template.py /usr/local/bin/generate_template.py

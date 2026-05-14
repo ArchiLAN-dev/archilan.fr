@@ -16,6 +16,7 @@ ArchipelagoServer "$GAME_FILE" \
     --password "${PASSWORD:-}" \
     --server_password "${SERVER_PASSWORD:-}" \
     &
+echo "$!" > "${AP_PID_FILE:-/tmp/ap.pid}"
 
 # Wait briefly for the server to initialize before Bridge.py connects
 sleep 3
