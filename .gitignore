@@ -1,0 +1,8 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Claude Code local settings
+.claude/settings.local.json
+.claude/worktrees/
