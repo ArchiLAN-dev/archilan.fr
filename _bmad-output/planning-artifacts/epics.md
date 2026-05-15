@@ -3507,6 +3507,7 @@ So that `import bridge.core.config` works correctly and mypy and ruff resolve sy
 **And** `bridge/bridge.py` removes the `sys.path.insert` block entirely
 **And** private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) are removed from both `__all__` **and** the top-level `import` statements in `bridge.py` — removing from `__all__` alone is insufficient because symbols remain importable as long as they exist at module top-level
 **And** `python -m bridge.bridge` and `python bridge/bridge.py` both run from the repo root with no `ImportError` or `ModuleNotFoundError` (both verified as explicit CI steps — no `|| true` masking)
+**And** the global `ignore_missing_imports = true` stopgap added in Story 20.1 is removed from `[tool.mypy]`; per-module `[[tool.mypy.overrides]]` entries replace it for external packages that genuinely lack stubs; any internal module that now fails to resolve indicates a missed relative-import conversion and must be fixed
 **And** `mypy`, `ruff`, and `pytest` all pass
 
 ---
