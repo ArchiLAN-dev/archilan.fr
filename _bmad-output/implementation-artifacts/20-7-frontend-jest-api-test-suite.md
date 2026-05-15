@@ -37,6 +37,11 @@ todo
   - [ ] 3b: Create `frontend/src/tests/constants.ts` exporting `TEST_API_BASE_URL = "http://localhost:8080"` — must contain only literal exports, no imports of any kind (application or infrastructure); this purity is what makes it safe to import before the `process.env` assignment in `setup.ts`
   - [ ] 3c: Create `frontend/src/tests/setup.ts` importing `TEST_API_BASE_URL` from `./constants`; assign to `process.env.NEXT_PUBLIC_API_BASE_URL`; configure MSW server
   - [ ] 3d: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
+- [ ] Task 3e: Audit each `*-api.ts` file for its HTTP client before writing any test:
+  ```bash
+  rg 'fetch\(|apiFetch|axios|createClient|httpClient' frontend/src/features --glob '*-api.ts'
+  ```
+  For each file record whether it uses global `fetch` (→ MSW intercepts automatically) or a custom wrapper/axios (→ `jest.mock` the module instead). Files using global `fetch` follow the MSW pattern in Dev Notes; files using a custom client need a separate mocking strategy and must be noted before proceeding to Task 4.
 - [ ] Task 4: Write test files for each existing `*-api.ts` file — verify inventory with `rg --files frontend/src/features | rg -- '-api\.ts$'` before starting; the list below reflects the repo as of 2026-05-15
   - [ ] `src/features/events/public-events-api.test.ts`
   - [ ] `src/features/content/public-posts-api.test.ts`
