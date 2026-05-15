@@ -48,11 +48,11 @@ and record the exact route table:
 - A success path (correct request → expected JSON response)
 - An error path (missing param, disconnected WS, or unauthorized → expected error JSON + status code)
 
-| Module | Minimum tested handler |
-|---|---|
-| `rest_session.py` | `health` (success) + `post_command` (WS disconnected → 503) |
-| `rest_hints.py` | `request_hint` (success + missing `location_id` → 400) |
-| `rest_reachable.py` | `get_reachable` (success + disconnected slot → appropriate error) |
+| Module | Minimum tested handler (must cover success + error) | Additional coverage |
+|---|---|---|
+| `rest_session.py` | `post_command` (success + WS disconnected → 503) | `health` (success-only, Task 7a) |
+| `rest_hints.py` | `request_hint` (success + missing `location_id` → 400) | — |
+| `rest_reachable.py` | `get_reachable` (success + error path) | — |
 
 A route parity test verifies that `create_app` registers **exactly** the routes in the table from AC1 — no more, no fewer:
 ```python
