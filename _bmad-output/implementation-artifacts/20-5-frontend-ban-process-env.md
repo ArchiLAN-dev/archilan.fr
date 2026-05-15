@@ -37,8 +37,7 @@ todo
   - [ ] Document each occurrence: file, line, pattern form, replacement
 - [ ] Task 3: Replace all violations with `env.*` accessors
   - [ ] Add any missing env variables to `src/lib/env.ts` if the audit reveals accesses not yet covered
-- [ ] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*`
-  - [ ] Add file override to disable the rule in `src/lib/env.ts` itself
+- [ ] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*` using the `ignores` field inside the config block (not a separate override block) to exclude `src/lib/env.ts` and test files — see Dev Notes for the exact config shape
 - [ ] Task 5: Run `pnpm lint` — fix any remaining issues
 - [ ] Task 6: Run `pnpm typecheck` and `pnpm build` — verify clean
 
