@@ -3457,7 +3457,7 @@ So that Python style violations and type errors are caught before merge, mirrori
 **When** story 20.1 is complete
 **Then** `ruff` and `mypy` are added to `bridge/requirements.txt` and both run in CI
 **And** `ruff check bridge/` exits 0 — all existing violations (including `PLW0603` global-statement warnings, `PLC0415` import-not-at-top) are resolved or annotated with a `# noqa:` and an explanation comment
-**And** `mypy` is configured in `pyproject.toml` with at minimum `disallow_untyped_defs = true` and `ignore_missing_imports = true`
+**And** `mypy` is configured in `pyproject.toml` with at minimum `disallow_untyped_defs = true` and `ignore_missing_imports = true` (broad stopgap only — suppresses all unresolved import errors including internal ones; must be narrowed to per-module overrides for external packages once Story 20.3 fixes the package structure)
 **And** `mypy bridge/` exits 0 — all public function and method signatures carry type annotations
 **And** both commands are added to the CI bridge job
 **And** the full existing bridge test suite passes unchanged
@@ -3505,7 +3505,7 @@ So that `import bridge.core.config` works correctly and mypy and ruff resolve sy
 **When** story 20.3 is complete
 **Then** all imports inside `bridge/core/*.py` use relative imports (`from .config import Config`, `from .state import StateManager`)
 **And** `bridge/bridge.py` removes the `sys.path.insert` block entirely
-**And** the `__all__` in `bridge.py` no longer re-exports private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) — only the public API surface is exported
+**And** private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) are removed from both `__all__` **and** the top-level `import` statements in `bridge.py` — removing from `__all__` alone is insufficient because symbols remain importable as long as they exist at module top-level
 **And** `python -m bridge.bridge` and `python bridge/bridge.py` both run from the repo root with no `ImportError` or `ModuleNotFoundError` (both verified as explicit CI steps — no `|| true` masking)
 **And** `mypy`, `ruff`, and `pytest` all pass
 
@@ -3525,7 +3525,7 @@ So that each handler is independently readable, testable in isolation, and fully
 **Given** all route handlers (`health`, `get_state`, `post_command` on `/commands`, `get_hints` on `/hints/{slot}`, `request_hint` on `/hints/{slot}/request`, `get_reachable` on `/reachable/{slot}`, `get_item_locations` on `/item-locations/{slot}`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
 **When** story 20.4 is complete
 **Then** each handler is extracted to a module-level `async def` function receiving its dependencies as parameters or reading them from `request.app`
-**And** if `rest.py` exceeds 300 lines after extraction, handlers are split into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py` with `create_app` kept as the assembly point
+**And** handlers are always split by domain into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py`; `rest.py` is reduced to `create_app` as the assembly point (AppKey constants, route wiring — no handler logic)
 **And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each, plus a route parity test
 **And** `mypy`, `ruff`, and `pytest` (full suite + new tests) all pass
 
@@ -3544,10 +3544,10 @@ So that AC-ENV1 is machine-enforced and cannot be violated silently by future co
 
 **Given** `process.env` may exist in files other than `src/lib/env.ts`
 **When** the audit is complete
-**Then** every `process.env` access outside `src/lib/env.ts` is replaced by the appropriate `env.*` accessor
+**Then** every `process.env` access outside `src/lib/env.ts` in non-test files is replaced by the appropriate `env.*` accessor (test files `**/*.test.ts` and `**/*.test.tsx` are excluded from the audit — they intentionally use `process.env` for MSW base URL setup)
 
 **When** all violations are resolved
-**Then** an ESLint `no-restricted-syntax` rule is added to `eslint.config.*` reporting an error on any `MemberExpression` matching `process.env` outside `**/lib/env.ts`
+**Then** an ESLint `no-restricted-syntax` rule is added to `eslint.config.*` reporting an error on any `MemberExpression` matching `process.env`, scoped to `src/**/*.{ts,tsx}` and excluding `src/lib/env.ts` and test files via the `ignores` field in the config block
 **And** `pnpm lint` exits 0 with 0 warnings
 **And** `pnpm typecheck` and `pnpm build` remain clean
 
