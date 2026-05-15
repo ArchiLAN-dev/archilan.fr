@@ -34,7 +34,7 @@ todo
 - [ ] Task 4: Verify all `*-api.ts` files already follow the `return null` on non-OK response pattern (AC-API2)
 - [ ] Task 5: Add ESLint rules to `eslint.config.*`
   - [ ] 5a: Add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`
-  - [ ] 5b: If `src/lib/type-guards.ts` was created: add `no-restricted-syntax` scoped to that file banning `TSAsExpression:not([typeAnnotation.typeName.name='Record'])` — see Dev Notes for exact config
+  - [ ] 5b: If `src/lib/type-guards.ts` was created: add `"src/lib/type-guards.ts"` to the `files` array of the existing `assertionStyle: "never"` config block — no separate rule needed, since helpers use `Reflect.get` and contain no `as` casts
 - [ ] Task 6: Run `pnpm lint` — resolve any newly surfaced violations
 - [ ] Task 7: Run `pnpm typecheck` and `pnpm build` — verify clean
 
@@ -67,40 +67,40 @@ This pattern uses no `as` cast and is therefore fully compatible with `assertion
 
 ### Shared narrowing utilities
 
-Extract `hasStringProp` / `hasNumberProp` to `src/lib/type-guards.ts` as soon as any primitive check pattern (`"prop" in v && typeof v.prop === "string"`) appears in 2+ guards — across files or within the same file. These helpers are not purely a deduplication aid: they are the canonical cast-free pattern for typed property access, so reaching for them early prevents inline repetition and keeps every guard body readable without `as` casts. Example:
+Extract `hasStringProp` / `hasNumberProp` to `src/lib/type-guards.ts` as soon as any primitive check pattern (`"prop" in v && typeof v.prop === "string"`) appears in 2+ guards — across files or within the same file. These helpers are not purely a deduplication aid: they are the canonical cast-free pattern for typed property access, so reaching for them early prevents inline repetition and keeps every guard body readable without `as` casts.
+
+Use `Reflect.get` to avoid any `as` cast inside the helpers — its return type is `any`, so `typeof` works without narrowing casts. This allows extending `assertionStyle: "never"` to `type-guards.ts` itself, making the ban precise by construction rather than relying on an ESLint selector that cannot distinguish `Record<K, unknown>` from the dangerous `Record<string, PlayerProfile>`:
+
 ```ts
 // src/lib/type-guards.ts
+// No `as` casts — assertionStyle: "never" applies here too (see eslint.config.mjs).
+
 export function hasStringProp<K extends string>(v: object, key: K): v is Record<K, string> {
-  return key in v && typeof (v as Record<K, unknown>)[key] === "string";
+  return key in v && typeof Reflect.get(v, key) === "string";
 }
 export function hasNumberProp<K extends string>(v: object, key: K): v is Record<K, number> {
-  return key in v && typeof (v as Record<K, unknown>)[key] === "number";
+  return key in v && typeof Reflect.get(v, key) === "number";
 }
 ```
 
-`src/lib/type-guards.ts` is NOT under `src/features/**/*-api.ts`, so the `assertionStyle: "never"` scoped rule does not apply. The generic helpers need `as Record<K, unknown>` because TypeScript cannot index a bare `object` by a generic key without a cast — that cast is the only permitted form here.
-
-To machine-enforce this constraint, add a `no-restricted-syntax` rule scoped to `type-guards.ts` that bans any `as` expression whose target type is not `Record<>`:
+`Reflect.get(target, propertyKey)` follows the prototype chain (safe for plain JSON objects) and returns `any` — no cast required. Extend the existing `assertionStyle: "never"` ESLint config block to also cover `type-guards.ts`:
 
 ```js
 // eslint.config.mjs
 {
-  files: ["src/lib/type-guards.ts"],
+  files: [
+    "src/features/**/*-api.ts",
+    "src/lib/type-guards.ts",   // also ban as-casts here
+  ],
   rules: {
-    "no-restricted-syntax": [
-      "error",
-      {
-        selector: "TSAsExpression:not([typeAnnotation.typeName.name='Record'])",
-        message: "type-guards.ts may only use 'as Record<K, unknown>' for internal narrowing. Never cast API response types here — add a type guard instead."
-      }
-    ]
+    "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }]
   }
 }
 ```
 
-This allows `v as Record<K, unknown>` (and any other `Record<>` variant) while banning `v as PlayerProfile`, `v as unknown`, `v as string`, and any future domain-type cast. Add a file-top comment as secondary documentation:
+Add a file-top comment confirming the constraint:
 ```ts
-// Internal narrowing helpers only. ESLint enforces that only as Record<> casts appear here.
+// No `as` casts — assertionStyle: "never" enforced by ESLint (see eslint.config.mjs).
 ```
 
 ### API envelope validation
