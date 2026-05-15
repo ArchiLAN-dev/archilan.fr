@@ -138,7 +138,23 @@ Tests that call fetch functions rely on type guards being in place (Story 20.6).
 Jest runs in Node. `setupFilesAfterEnv` scripts run **before** each test file's module is imported, so setting `process.env.NEXT_PUBLIC_API_BASE_URL` in `setup.ts` is safe.
 
 Constraints for `constants.ts`:
-- **No imports of any kind.** `constants.ts` must be a pure literal-export module. If it ever imports an application module (e.g. `env.ts`), that module executes during the import — before `process.env` is set in `setup.ts` — breaking the guarantee. Future contributors must not add imports to this file.
+- **No imports of any kind.** `constants.ts` must be a pure literal-export module. If it ever imports an application module (e.g. `env.ts`), that module executes during the import — before `process.env` is set in `setup.ts` — breaking the guarantee. Enforce this with an ESLint rule so the constraint is not comment-only:
+
+```js
+// eslint.config.mjs
+{
+  files: ["src/tests/constants.ts"],
+  rules: {
+    "no-restricted-syntax": [
+      "error",
+      {
+        selector: "ImportDeclaration",
+        message: "constants.ts must have no imports — it is evaluated before process.env is set in setup.ts."
+      }
+    ]
+  }
+}
+```
 
 Constraints for `setup.ts`:
 1. **Do not import application modules** (`env`, feature modules, etc.) in `setup.ts`. If an application module is imported in setup, Node's module cache loads it before the env var is set, potentially capturing `""` as `apiBaseUrl`.
@@ -151,6 +167,7 @@ Constraints for `setup.ts`:
 - `frontend/jest.config.ts` — new: Jest configuration
 - `frontend/src/tests/constants.ts` — new: `TEST_API_BASE_URL` constant (single source of truth for test base URL)
 - `frontend/src/tests/setup.ts` — new: MSW server setup; imports `TEST_API_BASE_URL` from `./constants`
+- `frontend/eslint.config.*` — add `no-restricted-syntax` rule banning `ImportDeclaration` in `src/tests/constants.ts`
 - `frontend/package.json` — add `"test": "jest"` script; add jest/msw devDependencies
 - `frontend/src/features/**/*-api.test.ts` — new: one per existing `*-api.ts` file
 - `_bmad-output/implementation-artifacts/20-7-frontend-jest-api-test-suite.md` — this file
