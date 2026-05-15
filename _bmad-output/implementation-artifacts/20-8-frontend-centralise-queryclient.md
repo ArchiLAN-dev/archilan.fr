@@ -62,6 +62,7 @@ export function makeQueryClient(): QueryClient {
   - [ ] `staleTime` mapping: 0–5 000 ms → `REALTIME_STALE_TIME`; ~30 000 ms → `DEFAULT_STALE_TIME`; ~60 000 ms → `SESSION_STALE_TIME`; `Infinity` → `STATIC_STALE_TIME`
   - [ ] `gcTime` mapping: `5 * 60_000` or `300_000` → `DEFAULT_GC_TIME`
   - [ ] Add new named constants for any values that don't map to an existing tier
+- [ ] Task 5b: Verification — re-run the Task 2 audit commands adding `--glob '!**/src/lib/query-client.ts'` to exclude the constants file; confirm zero remaining raw literals across all of `frontend/`
 - [ ] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` — all clean
 
 ## Dev Notes
@@ -117,7 +118,7 @@ Story 20.7 test helpers that create a `QueryClient` for testing purposes must al
 
 - `frontend/src/lib/query-client.ts` — new: `makeQueryClient()` + named staleTime and gcTime constants
 - `frontend/src/lib/query-provider.tsx` — updated: use `makeQueryClient()`
-- Any file found by the Task 2 audit across `frontend/` (including `.storybook/` if present) with `new QueryClient(...)`, raw `staleTime`, or raw `gcTime` literals
+- Any file found by the Task 2 audit across `frontend/` (including `.storybook/` and test setup files outside `src/` if present) with `new QueryClient(...)`, raw `staleTime`, or raw `gcTime` literals
 - `_bmad-output/implementation-artifacts/20-8-frontend-centralise-queryclient.md` — this file
 
 ## Change Log

@@ -3526,7 +3526,7 @@ So that each handler is independently readable, testable in isolation, and fully
 **Given** all route handlers (`health`, `get_state`, `post_command` on `/commands`, `get_hints` on `/hints/{slot}`, `request_hint` on `/hints/{slot}/request`, `get_reachable` on `/reachable/{slot}`, `get_item_locations` on `/item-locations/{slot}`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
 **When** story 20.4 is complete
 **Then** each handler is extracted to a module-level `async def` function receiving its dependencies as parameters or reading them from `request.app`
-**And** `AppKey` constants are extracted to a new `rest_keys.py` (imported by both `rest.py` and handler modules to avoid a circular import); handlers are always split by domain into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py`; `rest.py` is reduced to `create_app` as the assembly point (route wiring only — no handler logic, no key definitions)
+**And** `AppKey` constants are extracted to a new `rest_keys.py` (imported by both `rest.py` and handler modules to avoid a circular import); handlers are always split by domain into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py`; `rest.py` is reduced to `create_app` as the assembly point (assembly only: imports from `rest_keys` and handler modules, wires routes — no handler logic, no key definitions)
 **And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each, plus a route parity test
 **And** `mypy`, `ruff`, and `pytest` (full suite + new tests) all pass
 

@@ -50,7 +50,7 @@ and record the exact route table:
 
 | Module | Minimum tested handler (must cover success + error) | Additional coverage |
 |---|---|---|
-| `rest_session.py` | `post_command` (success + WS disconnected → 503) | `health` (success-only, Task 7a) |
+| `rest_session.py` | `post_command` (success + WS disconnected → 503) | `health` (success-only, Task 7a); `post_pause` (success + unauthorized → 401, Task 7f) |
 | `rest_hints.py` | `request_hint` (success + missing `location_id` → 400) | — |
 | `rest_reachable.py` | `get_reachable` (success → 200 result dict; non-integer `slot` → `{"error": "invalid slot"}` 400) | — |
 
@@ -92,6 +92,7 @@ def test_route_parity():
   - [ ] 7c: `request_hint` (`rest_hints`) on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
   - [ ] 7d: `get_reachable` (`rest_reachable`) on `GET /reachable/{slot}` — success path (mock state + mock `_compute_reachable` returning a result dict → 200) + non-integer `slot` in URL → `{"error": "invalid slot"}` 400 (no mock needed for this path)
   - [ ] 7e: Route parity test verifying all routes from the AC1 audit (filter HEAD)
+  - [ ] 7f: `post_pause` (`rest_session`) — success path (valid token + coordinator pauses → 200) + unauthorized path (missing/invalid token → 401) — covers `_require_internal_auth` and coordinator integration
 - [ ] Task 8: Verify quality gates — ruff (0), mypy (0), full test suite green
 
 ## Dev Notes
@@ -100,15 +101,21 @@ def test_route_parity():
 
 Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string keys. This lets mypy infer the type when retrieving from `request.app`. This is where Story 20.2's `# type: ignore[assignment]` on `app["coordinator"]` is removed — the string key is replaced by a typed `AppKey`.
 
-**Circular import risk**: `rest.py` imports the handler modules (to wire routes); handler modules must import the `AppKey` constants (to read `request.app`). Defining the constants in `rest.py` would create `rest.py → rest_session.py → rest.py`. The fix is a neutral module that never imports `rest.py` or any handler module (`rest_session`, `rest_hints`, `rest_reachable`) — it may import domain types freely:
+**Circular import risk**: `rest.py` imports the handler modules (to wire routes); handler modules must import the `AppKey` constants (to read `request.app`). Defining the constants in `rest.py` would create `rest.py → rest_session.py → rest.py`. The fix is a neutral module that never imports `rest.py` or any handler module (`rest_session`, `rest_hints`, `rest_reachable`).
+
+Domain types (`StateManager`, `ArchipelagoClient`, `PauseResumeCoordinator`) are only needed for the `AppKey[T]` type parameter — `AppKey("state")` at runtime requires no knowledge of `T`. To prevent a future transitive cycle if those modules ever grow to import REST-adjacent code, import them under `if TYPE_CHECKING:` only and enable PEP 563 deferred evaluation so the annotations remain valid:
 
 ```python
 # bridge/core/rest_keys.py
+from __future__ import annotations
 import asyncio
+from typing import TYPE_CHECKING
 from aiohttp.web import AppKey
-from .state import StateManager
-from .ap_client import ArchipelagoClient
-from .coordinator import PauseResumeCoordinator  # defined in Story 20.2
+
+if TYPE_CHECKING:
+    from .state import StateManager
+    from .ap_client import ArchipelagoClient
+    from .coordinator import PauseResumeCoordinator  # defined in Story 20.2
 
 APP_STATE: AppKey[StateManager] = AppKey("state")
 APP_AP_CLIENT: AppKey[ArchipelagoClient] = AppKey("ap_client")
@@ -116,7 +123,7 @@ APP_COORDINATOR: AppKey[PauseResumeCoordinator] = AppKey("coordinator")
 APP_SEMAPHORE: AppKey[asyncio.Semaphore] = AppKey("semaphore")
 ```
 
-Both `rest.py` and all handler modules import from `rest_keys.py`. `rest_keys.py` never imports `rest.py` or any handler module — that is the only constraint that breaks the cycle. Importing domain types (`state`, `ap_client`, `coordinator`) is fine.
+Both `rest.py` and all handler modules import from `rest_keys.py`. `rest_keys.py` never imports `rest.py` or any handler module — that is the only constraint that breaks the direct cycle. The `TYPE_CHECKING` guard on domain imports prevents a future transitive cycle without restricting which domain modules can be referenced.
 
 **Logging**: each handler module uses `log = logging.getLogger("bridge.rest_session")` (or `rest_hints`, `rest_reachable`) at module level. The logger is not stored in `app` — no `APP_LOG` key is needed.
 
