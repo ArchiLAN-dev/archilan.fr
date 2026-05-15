@@ -171,7 +171,7 @@ The CI smoke test must be run from the repo root directory (`working-directory: 
 - `bridge/core/wake_on_connect.py` — relative imports
 - `bridge/pyproject.toml` — remove `mypy_path` stopgap
 - `bridge/tests/*.py` — update private symbol imports to canonical module paths (per AC3 table)
-- `.github/workflows/backend.yml` — add entry point smoke test step
+- `.github/workflows/backend.yml` — add three entry point smoke test steps (module import, py_compile, script process check — per AC4)
 - `_bmad-output/implementation-artifacts/20-3-bridge-fix-syspath-imports.md` — this file
 
 ## Change Log
