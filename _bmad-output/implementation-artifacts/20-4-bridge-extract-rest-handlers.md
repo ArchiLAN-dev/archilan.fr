@@ -52,7 +52,7 @@ and record the exact route table:
 |---|---|---|
 | `rest_session.py` | `post_command` (success + WS disconnected → 503) | `health` (success-only, Task 7a) |
 | `rest_hints.py` | `request_hint` (success + missing `location_id` → 400) | — |
-| `rest_reachable.py` | `get_reachable` (success + error path) | — |
+| `rest_reachable.py` | `get_reachable` (success → 200 result dict; non-integer `slot` → `{"error": "invalid slot"}` 400) | — |
 
 A route parity test verifies that `create_app` registers **exactly** the routes in the table from AC1 — no more, no fewer:
 ```python
@@ -90,7 +90,7 @@ def test_route_parity():
   - [ ] 7a: `health` (`rest_session`) — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
   - [ ] 7b: `post_command` (`rest_session`) — success path + WS disconnected path (503)
   - [ ] 7c: `request_hint` (`rest_hints`) on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
-  - [ ] 7d: `get_reachable` (`rest_reachable`) on `GET /reachable/{slot}` — success path + at least one error path (e.g. unknown slot or disconnected state → appropriate error response)
+  - [ ] 7d: `get_reachable` (`rest_reachable`) on `GET /reachable/{slot}` — success path (mock state + mock `_compute_reachable` returning a result dict → 200) + non-integer `slot` in URL → `{"error": "invalid slot"}` 400 (no mock needed for this path)
   - [ ] 7e: Route parity test verifying all routes from the AC1 audit (filter HEAD)
 - [ ] Task 8: Verify quality gates — ruff (0), mypy (0), full test suite green
 
