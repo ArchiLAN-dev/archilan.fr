@@ -62,6 +62,21 @@ function isPlayerProfile(v: unknown): v is PlayerProfile {
 
 This pattern uses no `as` cast and is therefore fully compatible with `assertionStyle: "never"` scoped to `*-api.ts` files. Next.js 15 requires TypeScript ≥ 5, which supports this narrowing.
 
+### Shared narrowing utilities
+
+If multiple `*-api.ts` files check the same primitive pattern (e.g. `"slug" in v && typeof v.slug === "string"`), extract reusable helpers to `src/lib/type-guards.ts`. Example:
+```ts
+// src/lib/type-guards.ts
+export function hasStringProp<K extends string>(v: object, key: K): v is Record<K, string> {
+  return key in v && typeof (v as Record<K, unknown>)[key] === "string";
+}
+export function hasNumberProp<K extends string>(v: object, key: K): v is Record<K, number> {
+  return key in v && typeof (v as Record<K, unknown>)[key] === "number";
+}
+```
+
+Note: helpers in `src/lib/type-guards.ts` are NOT under `src/features/**/*-api.ts`, so the `assertionStyle: "never"` scoped rule does not apply to them — the `as Record<K, unknown>` cast inside the helper is permitted.
+
 ### API envelope validation
 
 Many API routes return `{ data: {...} }` envelopes. Guards must validate the envelope field as well as the payload shape:

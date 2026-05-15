@@ -122,11 +122,18 @@ Tests that call fetch functions rely on type guards being in place (Story 20.6).
 
 ### env.ts in test context
 
-Jest runs in Node. `setupFilesAfterEnv` scripts run **before** each test file's module is imported, so setting `process.env.NEXT_PUBLIC_API_BASE_URL` in `setup.ts` is safe:
+Jest runs in Node. `setupFilesAfterEnv` scripts run **before** each test file's module is imported, so setting `process.env.NEXT_PUBLIC_API_BASE_URL` in `setup.ts` is safe.
+
+Two constraints for `setup.ts`:
+1. The `process.env` assignment must be the **first statement** — before any `import`.
+2. **Do not import application modules** (`env`, feature modules, etc.) in `setup.ts`. If an application module is imported in setup, Node's module cache loads it before the env var is set, potentially capturing `""` as `apiBaseUrl`. Only infrastructure packages (`msw/node`) are allowed in setup.
+
 ```ts
-// src/tests/setup.ts  (assignment must be the FIRST line — before any imports)
+// src/tests/setup.ts
+// 1. env vars first — before any import
 process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:8080";
 
+// 2. only infrastructure imports
 import { setupServer } from "msw/node";
 export const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -134,7 +141,7 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-**Do not import `env` in tests to build base URLs.** Use `process.env.NEXT_PUBLIC_API_BASE_URL` directly in the test handler URL, or hardcode `"http://localhost:8080"`. This avoids the risk of `env.ts` being cached by Node's module system before the env var assignment propagates:
+**Do not import `env` in tests to build base URLs.** Use `process.env.NEXT_PUBLIC_API_BASE_URL` directly in the test handler URL. Test files (`*.test.ts`) are excluded from Story 20.5's ESLint `no-restricted-syntax` rule (see Story 20.5 `ignores` configuration), so `process.env` access in tests is permitted and intentional:
 ```ts
 // preferred — no env import needed
 server.use(

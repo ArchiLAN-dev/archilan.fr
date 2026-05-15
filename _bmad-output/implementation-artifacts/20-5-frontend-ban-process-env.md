@@ -30,9 +30,18 @@ with a file-level override that disables the rule inside `src/lib/env.ts`.
 ## Tasks / Subtasks
 
 - [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit
-  - [ ] Grep for `process\.env` in `frontend/src` excluding `src/lib/env.ts`
-  - [ ] Document each occurrence: file, line, variable name, replacement
+- [ ] Task 2: Run grep audit for all 4 access patterns:
+  ```bash
+  # Standard dot access (caught by ESLint rule)
+  rg 'process\.env' frontend/src --glob '!src/lib/env.ts'
+  # Computed property (NOT caught — must be found and fixed manually)
+  rg 'process\["env"\]' frontend/src --glob '!src/lib/env.ts'
+  # Destructuring (NOT caught — must be found and fixed manually)
+  rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!src/lib/env.ts'
+  # Optional chaining (NOT caught — must be found and fixed manually)
+  rg 'process\?\.env' frontend/src --glob '!src/lib/env.ts'
+  ```
+  - [ ] Document each occurrence: file, line, pattern form, replacement
 - [ ] Task 3: Replace all violations with `env.*` accessors
   - [ ] Add any missing env variables to `src/lib/env.ts` if the audit reveals accesses not yet covered
 - [ ] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*`
@@ -56,12 +65,15 @@ export const env = {
 ### ESLint config format
 
 The project uses the flat ESLint config format (`eslint.config.mjs` or `.js`). Scope the rule to `src/**` only (next.config.ts and build files legitimately use `process.env`), then override to allow it in `src/lib/env.ts`:
+Use `ignores` inside the config block (not a separate override) to avoid accidentally disabling other `no-restricted-syntax` rules that may be added later:
 ```js
 // eslint.config.mjs
 export default [
   // ... other config blocks ...
   {
     files: ["src/**/*.{ts,tsx}"],
+    // env.ts owns process.env; test files use process.env for MSW base URL setup
+    ignores: ["src/lib/env.ts", "**/*.test.ts", "**/*.test.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -71,13 +83,11 @@ export default [
         }
       ]
     }
-  },
-  {
-    files: ["src/lib/env.ts"],
-    rules: { "no-restricted-syntax": "off" }
   }
 ]
 ```
+
+Using `ignores` within the block (instead of a separate `rules: {"no-restricted-syntax": "off"}` block) means that future restrictions added to `no-restricted-syntax` in other config blocks will still apply to `env.ts` — only this block's rules are excluded.
 
 ### ESLint selector limitations
 

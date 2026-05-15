@@ -15,7 +15,7 @@ todo
 **AC1:** A `PauseResumeCoordinator` dataclass is created in `bridge/core/coordinator.py`:
 ```python
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 @dataclass
 class PauseResumeCoordinator:
@@ -73,7 +73,7 @@ All other test files that do not access these globals pass without modification.
   - [ ] 5c: Pass coordinator from `post_resume` closure
 - [ ] Task 6: Remove module-level variable declarations `_wake_stop_event` and `_wake_task`
 - [ ] Task 7: Remove `# noqa: PLW0603` suppressions added in Story 20.1
-- [ ] Task 8: Verify all existing tests pass without modification
+- [ ] Task 8: Update `bridge/tests/test_wake_on_connect.py` — replace `_rest._wake_stop_event` / `_rest._wake_task` accesses with coordinator reads from the test app; verify full test suite passes
 - [ ] Task 9: Verify quality gates — ruff (0 PLW0603), mypy (0), full test suite green
 
 ## Dev Notes

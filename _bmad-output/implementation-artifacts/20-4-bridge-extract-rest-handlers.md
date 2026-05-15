@@ -51,7 +51,12 @@ A route parity test verifies that `create_app` registers **exactly** the routes 
 ```python
 def test_route_parity():
     app = create_app(MagicMock(), MagicMock())
-    registered = {(r.method, r.resource.canonical) for r in app.router.routes()}
+    # aiohttp auto-generates a HEAD route for every GET route — filter them out
+    registered = {
+        (r.method, r.resource.canonical)
+        for r in app.router.routes()
+        if r.method != "HEAD"
+    }
     expected = {
         ("GET", "/health"), ("GET", "/state"),
         ("POST", "/commands"), ("POST", "/save"), ("POST", "/pause"), ("POST", "/resume"),
@@ -74,10 +79,10 @@ def test_route_parity():
 - [ ] Task 5: Extract auth helper `_require_internal_auth`
 - [ ] Task 6: Split into sub-files if `rest.py` > 300 lines after extraction
 - [ ] Task 7: Write `bridge/tests/test_rest_handlers.py`
-  - [ ] 7a: `health` — success path
-  - [ ] 7b: `post_command` — success path + WS disconnected path
-  - [ ] 7c: `request_hint` — success path + invalid `location_id` path
-  - [ ] 7d: Route parity test verifying all routes from the AC1 audit
+  - [ ] 7a: `health` — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
+  - [ ] 7b: `post_command` — success path + WS disconnected path (503)
+  - [ ] 7c: `request_hint` on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
+  - [ ] 7d: Route parity test verifying all routes from the AC1 audit (filter HEAD)
 - [ ] Task 8: Verify quality gates — ruff (0), mypy (0), full test suite green
 
 ## Dev Notes

@@ -44,30 +44,37 @@ from bridge.core.state import StateManager
 
 Each test file that imports these symbols is updated to use the canonical path.
 
-**AC4:** The two supported entry points are verified by explicit CI steps. `|| true` must NOT be used — it masks import errors. The canonical approach:
+**AC4:** The two supported entry points are verified by explicit CI steps. `|| true` must NOT be used — it masks import errors. Three checks cover the full surface:
 
 ```yaml
-# CI step — module mode (deterministic, no side effects)
+# CI step 1 — module mode import (catches ImportError / ModuleNotFoundError at any depth)
 - name: Bridge module import smoke test
   working-directory: .
   run: python -c "import bridge.bridge; print('import ok')"
 
-# CI step — script mode (start in background, check stderr, kill)
+# CI step 2 — syntax check (catches SyntaxError in bridge.py before runtime)
+- name: Bridge script syntax check
+  working-directory: .
+  run: python -m py_compile bridge/bridge.py && echo "syntax ok"
+
+# CI step 3 — script entry point (verify process starts and keeps running)
 - name: Bridge script entry point smoke test
   working-directory: .
   run: |
     python bridge/bridge.py 2>bridge_stderr.txt &
     BRIDGE_PID=$!
-    sleep 1
-    if grep -qE "ImportError|ModuleNotFoundError" bridge_stderr.txt; then
-      cat bridge_stderr.txt
-      kill $BRIDGE_PID 2>/dev/null; exit 1
+    sleep 2
+    STATUS=0
+    if grep -qE "ImportError|ModuleNotFoundError|SyntaxError" bridge_stderr.txt; then
+      echo "Import/syntax error in script mode:"; cat bridge_stderr.txt; STATUS=1
     fi
-    kill $BRIDGE_PID 2>/dev/null
-    echo "script mode ok"
+    kill $BRIDGE_PID 2>/dev/null || true
+    exit $STATUS
 ```
 
-The requirement is: **no `ImportError` or `ModuleNotFoundError` on either entry point**, verified in CI, not just locally. Both steps must run from the repo root (the parent of `bridge/`).
+Step 1 is the authoritative import check. Step 2 catches syntax errors before runtime. Step 3 provides a defence-in-depth check that the script entry point doesn't crash at startup. Config-driven startup failures (missing env vars) may cause step 3 to exit silently — that is acceptable because config failures are not import failures. Both steps 1 and 2 are deterministic.
+
+All three steps must run from the repo root (the parent of `bridge/`).
 
 **AC5:** All `# noqa: E402  # temporary — removed in story 20.3` comments placed in Story 20.1 are removed from `bridge.py`. The `mypy_path = "bridge/core"` stopgap from Story 20.1's mypy config is also removed.
 
@@ -97,8 +104,9 @@ The requirement is: **no `ImportError` or `ModuleNotFoundError` on either entry 
   - [ ] 5a: Remove `# noqa: E402  # temporary — removed in story 20.3` comments from `bridge.py`
   - [ ] 5b: Remove `mypy_path = "bridge/core"` from `pyproject.toml`
 - [ ] Task 6: Verify both entry points (script mode + module mode) produce no import errors
-- [ ] Task 7: Add entry point smoke test to CI (per AC4)
-- [ ] Task 8: Verify quality gates — ruff, mypy, full test suite
+- [ ] Task 7: Add entry point smoke test to CI (per AC4 — three CI steps)
+- [ ] Task 8: Update bridge launch documentation (README or CLAUDE.md) to specify that the bridge must be launched from the repo root; the previous sys.path hack allowed launching from any CWD — this is no longer supported
+- [ ] Task 9: Verify quality gates — ruff, mypy, full test suite
 
 ## Dev Notes
 
@@ -137,6 +145,7 @@ For each hit, identify which private symbol is imported and replace the import w
 - `bridge/core/mercure.py` — relative imports
 - `bridge/core/reachable.py` — relative imports
 - `bridge/core/rest.py` — relative imports
+- `bridge/core/save_parser.py` — relative imports (`from domain import` → `from .domain import`)
 - `bridge/core/state.py` — relative imports
 - `bridge/core/wake_on_connect.py` — relative imports
 - `bridge/pyproject.toml` — remove `mypy_path` stopgap

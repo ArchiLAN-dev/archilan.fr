@@ -3525,7 +3525,7 @@ So that each handler is independently readable, testable in isolation, and fully
 **Given** all route handlers (`health`, `get_state`, `post_command` on `/commands`, `get_hints` on `/hints/{slot}`, `request_hint` on `/hints/{slot}/request`, `get_reachable` on `/reachable/{slot}`, `get_item_locations` on `/item-locations/{slot}`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
 **When** story 20.4 is complete
 **Then** each handler is extracted to a module-level `async def` function receiving its dependencies as parameters or reading them from `request.app`
-**And** if `rest.py` exceeds 300 lines after extraction, handlers are split into `rest_hints.py` and `rest_session.py` with `create_app` kept as the assembly point
+**And** if `rest.py` exceeds 300 lines after extraction, handlers are split into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py` with `create_app` kept as the assembly point
 **And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each, plus a route parity test
 **And** `mypy`, `ruff`, and `pytest` (full suite + new tests) all pass
 
@@ -3622,7 +3622,7 @@ export const DEFAULT_STALE_TIME = 30_000;    // 30 s — standard catalog data
 export const REALTIME_STALE_TIME = 5_000;    // 5 s — live session state
 export const SESSION_STALE_TIME = 60_000;    // 60 s — session-level polling
 export const STATIC_STALE_TIME = Infinity;   // legal pages, configuration
-export const DEFAULT_GC_TIME = 5 * 60_000;  // 5 min — garbage collection window
+export const DEFAULT_GC_TIME = 300_000;  // 5 min (300 s) — garbage collection window
 
 export function makeQueryClient(): QueryClient { ... }
 ```
