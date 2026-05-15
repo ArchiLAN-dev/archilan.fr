@@ -29,8 +29,8 @@ todo
   rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   # Computed property (caught by ESLint selector 2)
   rg 'process\["env"\]' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
-  # Destructuring (caught by ESLint selector 3)
-  rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
+  # Destructuring — const/let/var (caught by ESLint selector 3)
+  rg '(?:const|let|var)\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   # Optional chaining (NOT caught by ESLint — accepted out-of-scope; fix manually if found)
   rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   ```
@@ -80,7 +80,9 @@ export default [
           message: "Use src/lib/env.ts instead of process[\"env\"] directly (AC-ENV1)."
         },
         {
-          // destructuring: const { FOO } = process.env
+          // destructuring: const/let/var { FOO } = process.env
+          // VariableDeclarator is the same node for all declaration kinds;
+          // "kind" (const/let/var) is on the parent VariableDeclaration, not the declarator
           selector: "VariableDeclarator[init.object.name='process'][init.property.name='env']",
           message: "Use src/lib/env.ts instead of destructuring process.env (AC-ENV1)."
         }
@@ -100,7 +102,7 @@ Three selectors together cover all practical forms of `process.env` access:
 |---------|---------|----------|
 | `process.env.FOO` | Yes | `MemberExpression[object.name='process'][property.name='env']` |
 | `process["env"].FOO` | Yes | `MemberExpression[object.name='process'][computed=true][property.value='env']` |
-| `const { FOO } = process.env` | Yes | `VariableDeclarator[init.object.name='process'][init.property.name='env']` |
+| `const/let/var { FOO } = process.env` | Yes | `VariableDeclarator[init.object.name='process'][init.property.name='env']` — `kind` is on the parent `VariableDeclaration`, not the `VariableDeclarator`; all declaration types are caught |
 | `process?.env?.FOO` | No | Optional chaining — no straightforward single selector; explicitly accepted out-of-scope as this pattern is not realistic in this codebase |
 
 The grep audit in Task 2 still runs all four patterns to clean up any existing optional chaining occurrences at story time.
