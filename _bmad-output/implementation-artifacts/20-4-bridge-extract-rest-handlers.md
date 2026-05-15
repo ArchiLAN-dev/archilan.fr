@@ -44,9 +44,15 @@ and record the exact route table:
 - `bridge/core/rest_reachable.py` — `get_reachable`, `get_item_locations`
 - `bridge/core/rest.py` — `create_app` only (imports from `rest_keys`, imports handlers, wires routes — no handler logic, no key definitions)
 
-**AC4:** At least 3 handlers have dedicated unit tests in `bridge/tests/test_rest_handlers.py`, each covering:
+**AC4:** At least one handler from **each extracted module** has a dedicated behavior test in `bridge/tests/test_rest_handlers.py` — the route parity test verifies route registration only, not handler behaviour. Each behavior test covers:
 - A success path (correct request → expected JSON response)
 - An error path (missing param, disconnected WS, or unauthorized → expected error JSON + status code)
+
+| Module | Minimum tested handler |
+|---|---|
+| `rest_session.py` | `health` (success) + `post_command` (WS disconnected → 503) |
+| `rest_hints.py` | `request_hint` (success + missing `location_id` → 400) |
+| `rest_reachable.py` | `get_reachable` (success + disconnected slot → appropriate error) |
 
 A route parity test verifies that `create_app` registers **exactly** the routes in the table from AC1 — no more, no fewer:
 ```python
@@ -80,11 +86,12 @@ def test_route_parity():
 - [ ] Task 4: Extract all handlers found in the audit (one task per handler)
 - [ ] Task 5: Extract auth helper `_require_internal_auth`
 - [ ] Task 6: Split handlers into `rest_session.py`, `rest_hints.py`, `rest_reachable.py` per AC3 (always — not conditional)
-- [ ] Task 7: Write `bridge/tests/test_rest_handlers.py`
-  - [ ] 7a: `health` — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
-  - [ ] 7b: `post_command` — success path + WS disconnected path (503)
-  - [ ] 7c: `request_hint` on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
-  - [ ] 7d: Route parity test verifying all routes from the AC1 audit (filter HEAD)
+- [ ] Task 7: Write `bridge/tests/test_rest_handlers.py` — at least one behavior test per extracted module
+  - [ ] 7a: `health` (`rest_session`) — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
+  - [ ] 7b: `post_command` (`rest_session`) — success path + WS disconnected path (503)
+  - [ ] 7c: `request_hint` (`rest_hints`) on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
+  - [ ] 7d: `get_reachable` (`rest_reachable`) on `GET /reachable/{slot}` — success path + at least one error path (e.g. unknown slot or disconnected state → appropriate error response)
+  - [ ] 7e: Route parity test verifying all routes from the AC1 audit (filter HEAD)
 - [ ] Task 8: Verify quality gates — ruff (0), mypy (0), full test suite green
 
 ## Dev Notes
