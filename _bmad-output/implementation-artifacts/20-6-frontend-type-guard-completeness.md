@@ -30,7 +30,7 @@ todo
 - [ ] Task 3: For each violation, write the corresponding type guard
   - [ ] Pattern: `function is{TypeName}(v: unknown): v is {TypeName} { return typeof v === "object" && v !== null && "fieldName" in v; }`
   - [ ] Replace `(await res.json()) as TypeName` with `const payload: unknown = await res.json(); if (!isTypeName(payload)) return null; return payload;`
-  - [ ] After all guards are written: grep guard bodies across api files for repeated primitive checks (e.g. `typeof v.slug === "string"`). If 3+ files check the same property type, extract shared helpers to `src/lib/type-guards.ts`; otherwise skip
+  - [ ] After all guards are written: grep guard bodies for repeated `"prop" in v && typeof v.prop === "string/number"` patterns. Extract `hasStringProp` / `hasNumberProp` to `src/lib/type-guards.ts` if any such pattern appears in 2+ guards (even in the same file) — the helpers avoid repetition and keep call sites cast-free; do not wait for a higher duplication count
 - [ ] Task 4: Verify all `*-api.ts` files already follow the `return null` on non-OK response pattern (AC-API2)
 - [ ] Task 5: Add ESLint rules to `eslint.config.*`
   - [ ] 5a: Add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`
@@ -67,7 +67,7 @@ This pattern uses no `as` cast and is therefore fully compatible with `assertion
 
 ### Shared narrowing utilities
 
-If multiple `*-api.ts` files check the same primitive pattern (e.g. `"slug" in v && typeof v.slug === "string"`), extract reusable helpers to `src/lib/type-guards.ts`. Example:
+Extract `hasStringProp` / `hasNumberProp` to `src/lib/type-guards.ts` as soon as any primitive check pattern (`"prop" in v && typeof v.prop === "string"`) appears in 2+ guards — across files or within the same file. These helpers are not purely a deduplication aid: they are the canonical cast-free pattern for typed property access, so reaching for them early prevents inline repetition and keeps every guard body readable without `as` casts. Example:
 ```ts
 // src/lib/type-guards.ts
 export function hasStringProp<K extends string>(v: object, key: K): v is Record<K, string> {
@@ -153,7 +153,7 @@ Note: `assertionStyle: "never"` also bans `as const` and `as unknown` within the
 ## File List
 
 - `frontend/src/features/**/*-api.ts` — type guard functions added; `as` casts removed (scope depends on audit)
-- `frontend/src/lib/type-guards.ts` — new (optional): shared narrowing helpers (`hasStringProp`, `hasNumberProp`) if pattern duplication warrants it; add only if 3+ api files repeat the same check
+- `frontend/src/lib/type-guards.ts` — new (optional): `hasStringProp`, `hasNumberProp` helpers; create if any primitive check pattern appears in 2+ guards (not a strict file-count threshold — the helpers are useful as soon as repetition or readability warrants it)
 - `frontend/eslint.config.*` — add `@typescript-eslint/consistent-type-assertions` scoped rule
 - `_bmad-output/implementation-artifacts/20-6-frontend-type-guard-completeness.md` — this file
 
