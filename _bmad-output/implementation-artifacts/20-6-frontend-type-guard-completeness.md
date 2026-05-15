@@ -32,7 +32,9 @@ todo
   - [ ] Replace `(await res.json()) as TypeName` with `const payload: unknown = await res.json(); if (!isTypeName(payload)) return null; return payload;`
   - [ ] After all guards are written: grep guard bodies across api files for repeated primitive checks (e.g. `typeof v.slug === "string"`). If 3+ files check the same property type, extract shared helpers to `src/lib/type-guards.ts`; otherwise skip
 - [ ] Task 4: Verify all `*-api.ts` files already follow the `return null` on non-OK response pattern (AC-API2)
-- [ ] Task 5: Add `@typescript-eslint/consistent-type-assertions` rule to `eslint.config.*` scoped to `src/features/**/*-api.ts`
+- [ ] Task 5: Add ESLint rules to `eslint.config.*`
+  - [ ] 5a: Add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`
+  - [ ] 5b: If `src/lib/type-guards.ts` was created: add `no-restricted-syntax` scoped to that file banning `TSAsExpression:not([typeAnnotation.typeName.name='Record'])` — see Dev Notes for exact config
 - [ ] Task 6: Run `pnpm lint` — resolve any newly surfaced violations
 - [ ] Task 7: Run `pnpm typecheck` and `pnpm build` — verify clean
 
@@ -76,11 +78,30 @@ export function hasNumberProp<K extends string>(v: object, key: K): v is Record<
 }
 ```
 
-`src/lib/type-guards.ts` is NOT under `src/features/**/*-api.ts`, so the `assertionStyle: "never"` scoped rule does not apply. This file is permitted to use `as Record<K, unknown>` **only for internal narrowing** — never to cast API response values directly. To prevent drift: add a code comment at the top of the file:
-```ts
-// This file contains narrowing helpers only. Do not add casts on raw API response values.
+`src/lib/type-guards.ts` is NOT under `src/features/**/*-api.ts`, so the `assertionStyle: "never"` scoped rule does not apply. The generic helpers need `as Record<K, unknown>` because TypeScript cannot index a bare `object` by a generic key without a cast — that cast is the only permitted form here.
+
+To machine-enforce this constraint, add a `no-restricted-syntax` rule scoped to `type-guards.ts` that bans any `as` expression whose target type is not `Record<>`:
+
+```js
+// eslint.config.mjs
+{
+  files: ["src/lib/type-guards.ts"],
+  rules: {
+    "no-restricted-syntax": [
+      "error",
+      {
+        selector: "TSAsExpression:not([typeAnnotation.typeName.name='Record'])",
+        message: "type-guards.ts may only use 'as Record<K, unknown>' for internal narrowing. Never cast API response types here — add a type guard instead."
+      }
+    ]
+  }
+}
 ```
-Any future `as SomeApiType` added here defeats the purpose of the whole guard pattern.
+
+This allows `v as Record<K, unknown>` (and any other `Record<>` variant) while banning `v as PlayerProfile`, `v as unknown`, `v as string`, and any future domain-type cast. Add a file-top comment as secondary documentation:
+```ts
+// Internal narrowing helpers only. ESLint enforces that only as Record<> casts appear here.
+```
 
 ### API envelope validation
 
