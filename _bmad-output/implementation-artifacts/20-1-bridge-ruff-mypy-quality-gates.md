@@ -65,7 +65,7 @@ The bridge runtime uses Python 3.10 (confirmed via `requirements.txt` and the `p
 
 `ignore_missing_imports = true` **suppresses ALL unresolved import errors**, including internal ones. If `from bridge.core.config import Config` fails to resolve (e.g. due to a typo), mypy will silently pass with this flag set. This flag is therefore a **broad temporary stopgap**, not a surgical fix.
 
-It is accepted in Story 20.1 because sibling imports currently fail mypy resolution due to the `sys.path` bootstrap — Story 20.3 will fix that. **After Story 20.3 is complete**, this flag must be narrowed to known untyped external packages only, using per-module overrides:
+It is accepted in Story 20.1 because sibling imports currently fail mypy resolution due to the `sys.path` bootstrap — Story 20.3 will fix that. **Story 20.3 AC7 and Task 5c own the narrowing** — the global flag is removed there and replaced with per-module overrides for external packages only. After that story, the configuration looks like:
 ```toml
 [tool.mypy]
 python_version = "3.10"

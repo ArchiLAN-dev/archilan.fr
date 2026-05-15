@@ -87,6 +87,21 @@ All three steps must run from the repo root (the parent of `bridge/`).
 
 **AC6:** `mypy bridge/` exits 0, `ruff check bridge/` exits 0, the full existing test suite passes.
 
+**AC7:** The global `ignore_missing_imports = true` flag is removed from `[tool.mypy]` in `bridge/pyproject.toml`. In its place, only external packages that genuinely lack type stubs get per-module overrides:
+
+```toml
+[tool.mypy]
+python_version = "3.10"
+disallow_untyped_defs = true
+# ignore_missing_imports removed — internal resolution now works via proper package structure
+
+[[tool.mypy.overrides]]
+module = ["websockets.*"]   # add any other untyped external packages found during audit
+ignore_missing_imports = true
+```
+
+The list of packages requiring an override is determined by running `mypy bridge/` after removing the global flag and collecting every `Cannot find implementation or library stub` error. External packages (e.g. `websockets`) get an override; internal modules that fail to resolve indicate a missed sibling-import conversion and must be fixed, not suppressed. `aiohttp` ships its own stubs and should not need an override.
+
 ## Tasks / Subtasks
 
 - [ ] Task 1: Create story file (this file)
@@ -117,6 +132,7 @@ All three steps must run from the repo root (the parent of `bridge/`).
 - [ ] Task 5: Remove stopgap artefacts from Story 20.1
   - [ ] 5a: Remove `# noqa: E402  # temporary — removed in story 20.3` comments from `bridge.py`
   - [ ] 5b: Remove `mypy_path = "bridge/core"` from `pyproject.toml`
+  - [ ] 5c: Remove global `ignore_missing_imports = true` from `[tool.mypy]`; run `mypy bridge/` and collect `Cannot find implementation or library stub` errors; add `[[tool.mypy.overrides]]` entries for external packages only (internal failures = missed relative-import conversion, fix them); verify `mypy bridge/` still exits 0
 - [ ] Task 6: Verify both entry points (script mode + module mode) produce no import errors
 - [ ] Task 7: Add entry point smoke test to CI (per AC4 — three CI steps)
 - [ ] Task 8: Update bridge launch documentation (README or CLAUDE.md) to specify that the bridge must be launched from the repo root; the previous sys.path hack allowed launching from any CWD — this is no longer supported
