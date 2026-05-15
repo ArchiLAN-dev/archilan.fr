@@ -154,7 +154,7 @@ Note: `assertionStyle: "never"` also bans `as const` and `as unknown` within the
 
 - `frontend/src/features/**/*-api.ts` — type guard functions added; `as` casts removed (scope depends on audit)
 - `frontend/src/lib/type-guards.ts` — new (optional): `hasStringProp`, `hasNumberProp` helpers; create if any primitive check pattern appears in 2+ guards (not a strict file-count threshold — the helpers are useful as soon as repetition or readability warrants it)
-- `frontend/eslint.config.*` — add `@typescript-eslint/consistent-type-assertions` scoped rule
+- `frontend/eslint.config.*` — add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`; if `type-guards.ts` was created, also add `src/lib/type-guards.ts` to the same `files` array (Task 5b)
 - `_bmad-output/implementation-artifacts/20-6-frontend-type-guard-completeness.md` — this file
 
 ## Change Log
