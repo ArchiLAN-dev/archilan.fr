@@ -38,10 +38,11 @@ and record the exact route table:
 **AC2:** `create_app` is reduced to a registration function: it instantiates shared objects, stores them on `app`, and wires routes. It contains no handler logic.
 
 **AC3:** Handlers are split across files by domain (the split is by responsibility, not by line count — the domain groupings are already clear):
+- `bridge/core/rest_keys.py` — `AppKey` constants (`APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR`); imported by both handler modules and `rest.py` — kept separate to avoid a circular import (`rest.py` imports handlers; handlers must import the keys)
 - `bridge/core/rest_session.py` — `health`, `get_state`, `post_command`, `post_save`, `post_pause`, `post_resume`
 - `bridge/core/rest_hints.py` — `get_hints`, `request_hint`
 - `bridge/core/rest_reachable.py` — `get_reachable`, `get_item_locations`
-- `bridge/core/rest.py` — `create_app` only (imports shared keys, wires routes)
+- `bridge/core/rest.py` — `create_app` only (imports from `rest_keys`, imports handlers, wires routes — no handler logic, no key definitions)
 
 **AC4:** At least 3 handlers have dedicated unit tests in `bridge/tests/test_rest_handlers.py`, each covering:
 - A success path (correct request → expected JSON response)
@@ -73,8 +74,8 @@ def test_route_parity():
 
 - [ ] Task 1: Create story file (this file)
 - [ ] Task 2: Audit actual routes — run `grep -n "router.add_" bridge/core/rest.py` and record the route table
-- [ ] Task 3: Identify app-storage keys needed (set during `create_app`, read in handlers)
-  - [ ] Define constants: `APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR`
+- [ ] Task 3: Create `bridge/core/rest_keys.py` with `AppKey` constants
+  - [ ] Define `APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR` in `rest_keys.py` — not in `rest.py`; handler modules import from `rest_keys`, `rest.py` also imports from `rest_keys`, avoiding a circular import
   - [ ] Note: logging uses `logging.getLogger("bridge.rest_X")` at module level — no `APP_LOG` key needed
 - [ ] Task 4: Extract all handlers found in the audit (one task per handler)
 - [ ] Task 5: Extract auth helper `_require_internal_auth`
@@ -90,21 +91,34 @@ def test_route_parity():
 
 ### App storage keys
 
-Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string keys. This lets mypy infer the type when retrieving from `request.app`. This is where Story 20.2's `# type: ignore[assignment]` on `app["coordinator"]` is removed — the string key is replaced by a typed `AppKey`:
+Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string keys. This lets mypy infer the type when retrieving from `request.app`. This is where Story 20.2's `# type: ignore[assignment]` on `app["coordinator"]` is removed — the string key is replaced by a typed `AppKey`.
+
+**Circular import risk**: `rest.py` imports the handler modules (to wire routes); handler modules must import the `AppKey` constants (to read `request.app`). Defining the constants in `rest.py` would create `rest.py → rest_session.py → rest.py`. The fix is a neutral module with no sibling imports:
+
 ```python
+# bridge/core/rest_keys.py
 from aiohttp.web import AppKey
+from .state import StateManager
+from .ap_client import ArchipelagoClient
+from .rest_session import PauseResumeCoordinator  # or rest_coordinator if extracted
 
 APP_STATE: AppKey[StateManager] = AppKey("state")
 APP_AP_CLIENT: AppKey[ArchipelagoClient] = AppKey("ap_client")
 APP_COORDINATOR: AppKey[PauseResumeCoordinator] = AppKey("coordinator")
+APP_SEMAPHORE: AppKey[asyncio.Semaphore] = AppKey("semaphore")
 ```
+
+Both `rest.py` and all handler modules import from `rest_keys.py`. `rest_keys.py` imports only domain types — it never imports `rest.py` or any handler module, so no cycle is possible.
 
 **Logging**: each handler module uses `log = logging.getLogger("bridge.rest_session")` (or `rest_hints`, `rest_reachable`) at module level. The logger is not stored in `app` — no `APP_LOG` key is needed.
 
 ### Handler signature
 
-All aiohttp handlers have the same signature:
+All aiohttp handlers have the same signature. Handler modules import keys from `rest_keys`, never from `rest`:
 ```python
+# bridge/core/rest_session.py
+from .rest_keys import APP_AP_CLIENT
+
 async def health(request: web.Request) -> web.Response:
     ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
     return web.json_response({"status": "ok", "ws_connected": ap_client.ws_connected})
@@ -146,7 +160,8 @@ Story 20.4 depends on Story 20.2 (coordinator must be injectable) and should be 
 
 ## File List
 
-- `bridge/core/rest.py` — assembly only: AppKey constants, imports, `create_app`, route wiring (no handler logic)
+- `bridge/core/rest_keys.py` — new: `AppKey` constants (`APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR`)
+- `bridge/core/rest.py` — assembly only: imports from `rest_keys` + handler modules, `create_app`, route wiring (no handler logic, no key definitions)
 - `bridge/core/rest_session.py` — new: `health`, `get_state`, `post_command`, `post_save`, `post_pause`, `post_resume`
 - `bridge/core/rest_hints.py` — new: `get_hints`, `request_hint`
 - `bridge/core/rest_reachable.py` — new: `get_reachable`, `get_item_locations`
