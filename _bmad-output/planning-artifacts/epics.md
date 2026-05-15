@@ -3412,3 +3412,219 @@ protected function executeWithLogging(string $context, \Closure $fn): void;
 **Then** PHPStan reports an error - the trait includes a `@property-read LoggerInterface $logger` annotation to make the assumption explicit
 
 **And** CS Fixer reports 0 violations, `phpunit` passes, DDD validator exits 0
+
+---
+
+## Epic 20: Code Quality Enforcement — Frontend & Bridge
+
+Mirror the quality discipline of Epic 19 (API layer) on the two remaining stacks: the Next.js frontend and the Python bridge. Both stacks already have working code and passing basics (typecheck/lint/build for the frontend, 141 pytest tests for the bridge), but neither has the same depth of static analysis, architectural constraints, or structural hygiene enforced by automated gates. Stories 20.1–20.4 address the bridge; stories 20.5–20.8 address the frontend.
+
+### New Requirements
+
+#### Non-Functional Requirements
+
+NFR-FE1: The bridge has `ruff` and `mypy` running as CI quality gates with zero violations.
+NFR-FE2: The bridge has no module-level mutable globals — all runtime state flows through explicit objects injected at construction time.
+NFR-FE3: The bridge uses proper Python package imports — no `sys.path` manipulation at startup.
+NFR-FE4: `rest.py` route handlers are extracted from the single `create_app` closure into named coroutines, each independently testable.
+NFR-FE5: No `process.env` access outside `src/lib/env.ts` in the frontend (enforced by ESLint).
+NFR-FE6: No `as SomeThing` type assertions at API response boundaries in the frontend (enforced by ESLint + type guard audit).
+NFR-FE7: Every `*-api.ts` file has a corresponding Jest unit test file.
+NFR-FE8: The frontend `QueryClient` and its `staleTime` / `gcTime` defaults are defined in a single shared location.
+
+#### NFR Coverage Map
+
+NFR-FE1: Story 20.1 — ruff + mypy as bridge quality gates.
+NFR-FE2: Story 20.2 — eliminate module-level mutable state from rest.py.
+NFR-FE3: Story 20.3 — fix sys.path import hack in bridge.py.
+NFR-FE4: Story 20.4 — extract rest.py route handlers into named coroutines.
+NFR-FE5: Story 20.5 — ESLint rule banning process.env outside env.ts.
+NFR-FE6: Story 20.6 — type-guard completeness audit + ESLint assertion-style enforcement.
+NFR-FE7: Story 20.7 — Jest unit test suite for the API layer.
+NFR-FE8: Story 20.8 — centralise QueryClient configuration.
+
+---
+
+### Story 20.1: Ruff + Mypy as Bridge Quality Gates
+
+As a developer,
+I want `ruff check` and `mypy` to run as mandatory CI quality gates on the bridge,
+So that Python style violations and type errors are caught before merge, mirroring PHPStan + CS Fixer on the API.
+
+**Acceptance Criteria:**
+
+**Given** `ruff` is configured in `pyproject.toml` (rule set already present)
+**When** story 20.1 is complete
+**Then** `ruff` and `mypy` are added to `bridge/requirements.txt` and both run in CI
+**And** `ruff check bridge/` exits 0 — all existing violations (including `PLW0603` global-statement warnings, `PLC0415` import-not-at-top) are resolved or annotated with a `# noqa:` and an explanation comment
+**And** `mypy` is configured in `pyproject.toml` with at minimum `disallow_untyped_defs = true` and `ignore_missing_imports = true`
+**And** `mypy bridge/` exits 0 — all public function and method signatures carry type annotations
+**And** both commands are added to the CI bridge job
+
+**And** `pytest tests/` still passes 141 tests unchanged
+
+---
+
+### Story 20.2: Eliminate Module-Level Mutable State from rest.py
+
+As a developer,
+I want runtime pause/wake coordination state to live in an explicit object rather than module globals,
+So that bridge modules have no hidden shared state and tests can instantiate multiple app instances in isolation.
+
+**Context:**
+`rest.py` currently holds two module-level mutables mutated via `global` statements inside `_pause_flow` and `_cancel_wake_task`:
+```python
+_wake_stop_event: asyncio.Event | None = None
+_wake_task: "asyncio.Task[None] | None" = None
+```
+This is the Python equivalent of the static mutable properties banned in the API CLAUDE.md.
+
+**Acceptance Criteria:**
+
+**Given** the pause/wake coordination state is module-global today
+**When** story 20.2 is complete
+**Then** a `PauseResumeCoordinator` dataclass is introduced in `core/coordinator.py` holding `wake_stop_event` and `wake_task` as instance attributes
+**And** `create_app` receives a `coordinator: PauseResumeCoordinator` parameter (defaulting to a new instance if omitted, for backwards compatibility)
+**And** `_pause_flow` and `_cancel_wake_task` receive the coordinator as a parameter — no `global` statements remain in `rest.py`
+**And** existing tests that call `create_app()` continue to pass without modification
+**And** `ruff check`, `mypy`, and `pytest` all pass
+
+---
+
+### Story 20.3: Fix sys.path Import Hack in bridge.py
+
+As a developer,
+I want bridge modules to be importable via proper Python package paths,
+So that `import bridge.core.config` works correctly and mypy and ruff resolve symbols without path magic.
+
+**Context:**
+`bridge.py` currently inserts `core/` into `sys.path` so internal modules can do `from config import Config`. This breaks mypy's module graph, confuses IDEs, and makes internal imports indistinguishable from stdlib imports. The fix is relative imports inside `bridge/core/` and absolute package imports in `bridge/bridge.py`.
+
+**Acceptance Criteria:**
+
+**Given** all core modules use sibling imports (`from config import Config`, `from state import StateManager`)
+**When** story 20.3 is complete
+**Then** all imports inside `bridge/core/*.py` use relative imports (`from .config import Config`, `from .state import StateManager`)
+**And** `bridge/bridge.py` removes the `sys.path.insert` block entirely
+**And** the `__all__` in `bridge.py` no longer re-exports private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) — only the public API surface is exported
+**And** `python -m bridge.bridge` and `python bridge/bridge.py` both run correctly (Docker entrypoint unchanged)
+**And** `mypy`, `ruff`, and `pytest` all pass
+
+---
+
+### Story 20.4: Extract rest.py Route Handlers into Named Coroutines
+
+As a developer,
+I want each REST route handler in `rest.py` to be a named async function rather than a closure nested inside `create_app`,
+So that each handler is independently readable, testable in isolation, and fully analysable by mypy.
+
+**Context:**
+`create_app` in `rest.py` is ~300 lines with 10 route handlers defined as nested `async def` closures. Closures capture `state`, `ap_client`, `log`, and `reachable_semaphore` by reference, making it impossible to unit-test a single handler without invoking the full factory. The API's controller-per-action pattern is the reference model.
+
+**Acceptance Criteria:**
+
+**Given** 10 handlers (`health`, `get_state`, `post_command`, `get_hints`, `request_hint`, `get_reachable`, `get_item_locations`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
+**When** story 20.4 is complete
+**Then** each handler is extracted to a module-level `async def` function receiving its dependencies as parameters or reading them from `request.app`
+**And** if `rest.py` exceeds 300 lines after extraction, handlers are split into `rest_hints.py` and `rest_session.py` with `create_app` kept as the assembly point
+**And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each
+**And** `mypy`, `ruff`, and `pytest` (141 + new tests) all pass
+
+---
+
+### Story 20.5: ESLint Rule — Ban process.env Outside env.ts
+
+As a developer,
+I want an ESLint rule that rejects any `process.env` access outside `src/lib/env.ts`,
+So that AC-ENV1 is machine-enforced and cannot be violated silently by future code.
+
+**Context:**
+`AGENTS.md` AC-ENV1: "Never access `process.env` directly. Always go through `src/lib/env.ts`." This is currently convention-only. A grep audit verifies the current state; then an ESLint rule locks it permanently.
+
+**Acceptance Criteria:**
+
+**Given** `process.env` may exist in files other than `src/lib/env.ts`
+**When** the audit is complete
+**Then** every `process.env` access outside `src/lib/env.ts` is replaced by the appropriate `env.*` accessor
+
+**When** all violations are resolved
+**Then** an ESLint `no-restricted-syntax` rule is added to `eslint.config.*` reporting an error on any `MemberExpression` matching `process.env` outside `**/lib/env.ts`
+**And** `pnpm lint` exits 0 with 0 warnings
+**And** `pnpm typecheck` and `pnpm build` remain clean
+
+---
+
+### Story 20.6: Type-Guard Completeness Audit + ESLint Assertion Enforcement
+
+As a developer,
+I want all API response parse sites to use type guard functions rather than `as` casts,
+So that AC-TS3 is verified to be fully respected and cannot regress.
+
+**Context:**
+`AGENTS.md` AC-TS3: "Never use `as SomeType` at API boundaries. All API responses are `unknown` until validated by a type guard function (`function isX(v: unknown): v is X`)." Each `*-api.ts` file should expose an `is{TypeName}` guard and return from it.
+
+**Acceptance Criteria:**
+
+**Given** all `src/features/**/*-api.ts` files parse API responses
+**When** the audit is complete
+**Then** every `as SomeType` cast on an API response value is replaced by an `is{TypeName}(payload)` type guard in the same file
+**And** the ESLint rule `@typescript-eslint/consistent-type-assertions` is configured with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`
+**And** `pnpm lint` exits 0 with 0 warnings
+**And** `pnpm typecheck` and `pnpm build` remain clean
+
+---
+
+### Story 20.7: Jest Unit Test Suite for the API Layer
+
+As a developer,
+I want every `*-api.ts` file to have a corresponding Jest unit test file,
+So that fetch logic, type guards, and error handling are verified independently of the browser and the running API.
+
+**Context:**
+The frontend currently has zero automated tests. The `src/features/**/*-api.ts` files are the highest-value first target: they contain fetch logic, type guards, and null-return error handling — all testable as pure functions with `fetch` mocked via MSW or `jest.fn()`.
+
+**Acceptance Criteria:**
+
+**Given** Jest is not yet installed
+**When** story 20.7 begins
+**Then** Jest is configured with the Next.js Jest preset (`@next/jest`) and added to `package.json` as `pnpm test`
+**And** MSW is added for network-level fetch mocking
+
+**When** configuration is complete
+**Then** each `src/features/**/*-api.ts` file has a sibling `*-api.test.ts` covering:
+- Happy path: mock returns valid JSON → type guard passes → typed value returned
+- Network error: fetch rejects → function returns `null`
+- Malformed response: JSON parses but type guard fails → function returns `null`
+
+**And** `pnpm test` runs all suites and exits 0
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` remain clean
+
+---
+
+### Story 20.8: Centralise QueryClient Configuration
+
+As a developer,
+I want `QueryClient` instantiation and default `staleTime` / `gcTime` values defined in a single file,
+So that caching behaviour is consistent across all features and changing a global default is a one-line edit.
+
+**Context:**
+`AGENTS.md` AC-API5 requires `staleTime` to be set explicitly on every `useQuery` call. Without a shared constant file, each call site chooses its own magic number. A `src/lib/query-client.ts` module exports the `QueryClient` factory and named time constants.
+
+**Acceptance Criteria:**
+
+**Given** `QueryClient` may be instantiated in multiple places and `staleTime` is set as a magic number at each `useQuery` call site
+**When** story 20.8 begins
+**Then** a grep audit identifies all `new QueryClient(...)` call sites and all raw `staleTime` / `gcTime` numeric literals
+
+**When** the audit is complete
+**Then** `src/lib/query-client.ts` is created exporting:
+```ts
+export const DEFAULT_STALE_TIME = 30_000;   // 30 s — standard catalog data
+export const REALTIME_STALE_TIME = 5_000;   // 5 s — live session state
+export const STATIC_STALE_TIME = Infinity;  // legal pages, configuration
+
+export function makeQueryClient(): QueryClient { ... }
+```
+**And** all `new QueryClient(...)` call sites use `makeQueryClient()`
+**And** `useQuery` call sites use one of the named constants rather than a magic number
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` remain clean
