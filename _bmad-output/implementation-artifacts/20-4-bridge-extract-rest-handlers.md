@@ -107,7 +107,7 @@ Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string ke
 from aiohttp.web import AppKey
 from .state import StateManager
 from .ap_client import ArchipelagoClient
-from .rest_session import PauseResumeCoordinator  # or rest_coordinator if extracted
+from .coordinator import PauseResumeCoordinator  # defined in Story 20.2
 
 APP_STATE: AppKey[StateManager] = AppKey("state")
 APP_AP_CLIENT: AppKey[ArchipelagoClient] = AppKey("ap_client")
