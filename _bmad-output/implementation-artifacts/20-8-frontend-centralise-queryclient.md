@@ -44,13 +44,14 @@ export function makeQueryClient(): QueryClient {
 ## Tasks / Subtasks
 
 - [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit across all of `frontend/` (run from repo root):
+- [ ] Task 2: Run grep audit across all of `frontend/` **before creating `query-client.ts`** (run from repo root):
   ```bash
   rg 'new QueryClient' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
   rg 'staleTime:' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
   rg 'gcTime:' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
   ```
   - [ ] List each occurrence: file, line, current value (includes `.storybook/` if present)
+  - [ ] Note: if the audit is re-run after Task 3, add `--glob '!**/src/lib/query-client.ts'` to exclude the new constant definitions from results
 - [ ] Task 3: Create `src/lib/query-client.ts`
   - [ ] 3a: Define the five standard constants (`DEFAULT_STALE_TIME`, `REALTIME_STALE_TIME`, `STATIC_STALE_TIME`, `SESSION_STALE_TIME`, `DEFAULT_GC_TIME`)
   - [ ] 3b: Implement `makeQueryClient()` with default options using `DEFAULT_STALE_TIME` and `DEFAULT_GC_TIME`
