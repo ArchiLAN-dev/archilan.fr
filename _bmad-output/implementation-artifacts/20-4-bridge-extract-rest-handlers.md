@@ -100,7 +100,7 @@ def test_route_parity():
 
 Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string keys. This lets mypy infer the type when retrieving from `request.app`. This is where Story 20.2's `# type: ignore[assignment]` on `app["coordinator"]` is removed — the string key is replaced by a typed `AppKey`.
 
-**Circular import risk**: `rest.py` imports the handler modules (to wire routes); handler modules must import the `AppKey` constants (to read `request.app`). Defining the constants in `rest.py` would create `rest.py → rest_session.py → rest.py`. The fix is a neutral module with no sibling imports:
+**Circular import risk**: `rest.py` imports the handler modules (to wire routes); handler modules must import the `AppKey` constants (to read `request.app`). Defining the constants in `rest.py` would create `rest.py → rest_session.py → rest.py`. The fix is a neutral module that never imports `rest.py` or any handler module (`rest_session`, `rest_hints`, `rest_reachable`) — it may import domain types freely:
 
 ```python
 # bridge/core/rest_keys.py
@@ -115,7 +115,7 @@ APP_COORDINATOR: AppKey[PauseResumeCoordinator] = AppKey("coordinator")
 APP_SEMAPHORE: AppKey[asyncio.Semaphore] = AppKey("semaphore")
 ```
 
-Both `rest.py` and all handler modules import from `rest_keys.py`. `rest_keys.py` imports only domain types — it never imports `rest.py` or any handler module, so no cycle is possible.
+Both `rest.py` and all handler modules import from `rest_keys.py`. `rest_keys.py` never imports `rest.py` or any handler module — that is the only constraint that breaks the cycle. Importing domain types (`state`, `ap_client`, `coordinator`) is fine.
 
 **Logging**: each handler module uses `log = logging.getLogger("bridge.rest_session")` (or `rest_hints`, `rest_reachable`) at module level. The logger is not stored in `app` — no `APP_LOG` key is needed.
 
