@@ -118,7 +118,7 @@ The list of packages requiring an override is determined by running `mypy bridge
 - [ ] Task 3: Update `bridge/bridge.py`
   - [ ] 3a: Remove `sys.path.insert` block; remove unused `os` / `sys` imports
   - [ ] 3b: Convert all `from config import X` → `from bridge.core.config import X`
-  - [ ] 3c: Clean up `__all__` per the table in AC3
+  - [ ] 3c: Remove each private symbol in the AC3 table from both `__all__` and its top-level `import` / `from ... import` statement in `bridge.py`
 - [ ] Task 4: Update test imports
   - [ ] 4a: Run two scans to find all affected test lines:
     ```bash
