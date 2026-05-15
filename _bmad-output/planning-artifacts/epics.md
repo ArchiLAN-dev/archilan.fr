@@ -3548,7 +3548,7 @@ So that AC-ENV1 is machine-enforced and cannot be violated silently by future co
 **Then** every `process.env` access outside `src/lib/env.ts` in non-test files is replaced by the appropriate `env.*` accessor (test files `**/*.test.ts` and `**/*.test.tsx` are excluded from the audit — they intentionally use `process.env` for MSW base URL setup)
 
 **When** all violations are resolved
-**Then** an ESLint `no-restricted-syntax` rule is added to `eslint.config.*` reporting an error on any `MemberExpression` matching `process.env`, scoped to `src/**/*.{ts,tsx}` and excluding `src/lib/env.ts` and test files via the `ignores` field in the config block
+**Then** three `no-restricted-syntax` selectors are added to `eslint.config.*`, scoped to `src/**/*.{ts,tsx}` and excluding `src/lib/env.ts` and test files via the `ignores` field: dot-access (`process.env.FOO`), computed access (`process["env"].FOO`), and destructuring (`const/let/var { FOO } = process.env`); optional chaining is the one accepted gap, documented explicitly
 **And** `pnpm lint` exits 0 with 0 warnings
 **And** `pnpm typecheck` and `pnpm build` remain clean
 
