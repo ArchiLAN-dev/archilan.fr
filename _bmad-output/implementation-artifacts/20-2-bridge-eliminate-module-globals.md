@@ -37,12 +37,21 @@ When `coordinator` is `None`, a default `PauseResumeCoordinator()` is instantiat
 
 **AC3:** `_pause_flow` and `_cancel_wake_task` receive the coordinator as an explicit parameter. No `global` statement remains anywhere in `rest.py`. The module-level variable declarations (`_wake_stop_event`, `_wake_task`) are removed entirely.
 
-**AC4:** All existing callers continue to work without modification:
+**AC4:** All existing callers of `create_app()` continue to work without signature changes:
 - `create_app(state, ap_client)` — positional, no semaphore, no coordinator ✓
 - `create_app(state, ap_client, reachable_semaphore)` — positional semaphore ✓
 - `create_app(state, ap_client, coordinator=PauseResumeCoordinator())` — explicit coordinator ✓
 
-Existing tests must pass without any changes.
+`bridge/tests/test_wake_on_connect.py` currently accesses the removed module globals directly (`_rest._wake_stop_event`, `_rest._wake_task`). These test lines **must** be updated as part of this story to read the coordinator from the app instead:
+```python
+# before (module global access)
+assert _rest._wake_task is not None
+
+# after (coordinator via test app instance)
+coordinator = app["coordinator"]
+assert coordinator.wake_task is not None
+```
+All other test files that do not access these globals pass without modification.
 
 **AC5:** The `# noqa: PLW0603` suppressions placed in Story 20.1 are removed — they are no longer needed once the global statements are gone. `ruff check bridge/` exits 0 with no PLW0603 violations. `mypy bridge/` exits 0. The full existing test suite passes.
 
@@ -97,6 +106,7 @@ Before completing this story, grep `rest.py` for `# temporary — removed in sto
 
 - `bridge/core/coordinator.py` — new file: `PauseResumeCoordinator` dataclass
 - `bridge/core/rest.py` — updated: `create_app` signature (keyword-only coordinator), `_pause_flow`, `_cancel_wake_task`; module-level globals removed; PLW0603 noqa comments removed
+- `bridge/tests/test_wake_on_connect.py` — updated: replace `_rest._wake_stop_event` / `_rest._wake_task` accesses with coordinator reads from the app
 - `_bmad-output/implementation-artifacts/20-2-bridge-eliminate-module-globals.md` — this file
 
 ## Change Log

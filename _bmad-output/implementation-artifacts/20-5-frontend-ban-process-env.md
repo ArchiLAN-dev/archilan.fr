@@ -55,17 +55,19 @@ export const env = {
 
 ### ESLint config format
 
-The project uses the flat ESLint config format (`eslint.config.mjs` or `.js`). The `no-restricted-syntax` rule with a selector applies globally. To exclude `env.ts`:
+The project uses the flat ESLint config format (`eslint.config.mjs` or `.js`). Scope the rule to `src/**` only (next.config.ts and build files legitimately use `process.env`), then override to allow it in `src/lib/env.ts`:
 ```js
 // eslint.config.mjs
 export default [
+  // ... other config blocks ...
   {
+    files: ["src/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
         {
           selector: "MemberExpression[object.name='process'][property.name='env']",
-          message: "Use src/lib/env.ts instead of process.env (AC-ENV1)."
+          message: "Use src/lib/env.ts instead of process.env directly (AC-ENV1). Note: process[\"env\"] and destructuring are not caught by this rule — avoid those patterns too."
         }
       ]
     }

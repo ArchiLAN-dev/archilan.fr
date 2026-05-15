@@ -102,9 +102,9 @@ Story 20.7 test helpers that create a `QueryClient` for testing purposes must al
 
 ## File List
 
-- `frontend/src/lib/query-client.ts` — new: `makeQueryClient()` + named staleTime constants
+- `frontend/src/lib/query-client.ts` — new: `makeQueryClient()` + named staleTime and gcTime constants
 - `frontend/src/lib/query-provider.tsx` — updated: use `makeQueryClient()`
-- Any `frontend/src/**/*.{ts,tsx}` files with `new QueryClient(...)` or raw `staleTime` literals (identified by audit)
+- Any `frontend/src/**/*.{ts,tsx}` files with `new QueryClient(...)`, raw `staleTime`, or raw `gcTime` literals (identified by audit)
 - `_bmad-output/implementation-artifacts/20-8-frontend-centralise-queryclient.md` — this file
 
 ## Change Log

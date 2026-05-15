@@ -44,25 +44,30 @@ from bridge.core.state import StateManager
 
 Each test file that imports these symbols is updated to use the canonical path.
 
-**AC4:** The two supported entry points are verified by explicit CI steps:
+**AC4:** The two supported entry points are verified by explicit CI steps. `|| true` must NOT be used — it masks import errors. The canonical approach:
 
 ```yaml
-# CI step — verify script mode (Docker uses this)
-- name: Bridge script entry point
+# CI step — module mode (deterministic, no side effects)
+- name: Bridge module import smoke test
   working-directory: .
-  run: python bridge/bridge.py --help || true  # exits after argparse help, not 0 but not an import error
+  run: python -c "import bridge.bridge; print('import ok')"
 
-# CI step — verify module mode (tests use this)
-- name: Bridge module entry point
-  run: python -m bridge.bridge --help || true
+# CI step — script mode (start in background, check stderr, kill)
+- name: Bridge script entry point smoke test
+  working-directory: .
+  run: |
+    python bridge/bridge.py 2>bridge_stderr.txt &
+    BRIDGE_PID=$!
+    sleep 1
+    if grep -qE "ImportError|ModuleNotFoundError" bridge_stderr.txt; then
+      cat bridge_stderr.txt
+      kill $BRIDGE_PID 2>/dev/null; exit 1
+    fi
+    kill $BRIDGE_PID 2>/dev/null
+    echo "script mode ok"
 ```
 
-If the bridge has no `--help` flag, a simpler smoke test is used:
-```bash
-python -c "import bridge.bridge; print('import ok')"
-python bridge/bridge.py &  # start in background, wait 1s, kill, check no import error in stderr
-```
-The exact command is determined during implementation based on what the bridge exposes. The requirement is: **no `ImportError` or `ModuleNotFoundError` on either entry point**. This must be demonstrated in CI, not just locally.
+The requirement is: **no `ImportError` or `ModuleNotFoundError` on either entry point**, verified in CI, not just locally. Both steps must run from the repo root (the parent of `bridge/`).
 
 **AC5:** All `# noqa: E402  # temporary — removed in story 20.3` comments placed in Story 20.1 are removed from `bridge.py`. The `mypy_path = "bridge/core"` stopgap from Story 20.1's mypy config is also removed.
 
@@ -101,11 +106,15 @@ The exact command is determined during implementation based on what the bridge e
 
 `python bridge/bridge.py` sets `__package__ = None` and `__name__ = "__main__"`. Relative imports like `from .core.config import Config` require `__package__` to be set — they fail in script mode.
 
-The solution is **absolute imports in `bridge.py`** (`from bridge.core.config import Config`) combined with ensuring `bridge/`'s parent directory is on `sys.path`. In Docker, the `WORKDIR` is `/bridge` and the bridge root `/` is typically on `PYTHONPATH` or `sys.path`. Verify this is the case in the Dockerfile before removing the sys.path manipulation.
+The solution is **absolute imports in `bridge.py`** (`from bridge.core.config import Config`) combined with ensuring the repo root (the parent of `bridge/`) is on `sys.path`.
 
-If the Docker WORKDIR is `/bridge` (the bridge package directory itself), then `from bridge.core.config import Config` would fail because `bridge` is not a parent-relative import — the CWD is already inside the package. In that case, set `WORKDIR /` and `CMD ["python", "bridge/bridge.py"]` in Docker, or switch to `python -m bridge.bridge`.
+**There is no `bridge/Dockerfile`.** The bridge is not containerized — `docker-compose.yml` has no bridge service. The bridge runs as a local Python process launched from the repo root. When the process starts from the repo root (CWD = `/path/to/archilan.fr`), Python automatically adds CWD to `sys.path`, so `bridge/` is on the path and `from bridge.core.config import Config` resolves correctly. **No WORKDIR or PYTHONPATH manipulation is needed** — removing the `sys.path.insert` in `bridge.py` is safe as long as the bridge is always started from the repo root.
 
-**The implementer must read the actual Dockerfile** to determine which approach applies before writing code. This is a prerequisite step.
+The CI smoke test must be run from the repo root directory (`working-directory: .`) to replicate this.
+
+### save_parser.py sys.path — out of scope
+
+`bridge/core/save_parser.py` contains a separate `sys.path.insert` that adds the Archipelago server source directory (a runtime dependency, not a sibling module). This is **not a sibling import hack** — it injects an external library path at runtime so AP game definitions can be imported. It is **out of scope for this story**. Do not modify `save_parser.py`'s sys.path logic.
 
 ### Test file inventory for private symbol imports
 
@@ -128,7 +137,6 @@ For each hit, identify which private symbol is imported and replace the import w
 - `bridge/core/mercure.py` — relative imports
 - `bridge/core/reachable.py` — relative imports
 - `bridge/core/rest.py` — relative imports
-- `bridge/core/save_parser.py` — relative imports
 - `bridge/core/state.py` — relative imports
 - `bridge/core/wake_on_connect.py` — relative imports
 - `bridge/pyproject.toml` — remove `mypy_path` stopgap
@@ -142,3 +150,4 @@ For each hit, identify which private symbol is imported and replace the import w
 |------------|---------------------------------------------------------------------------------------------|
 | 2026-05-15 | Story created                                                                               |
 | 2026-05-15 | Revised: CI smoke test required for both entry points; private symbol migration table added; Docker CWD constraint documented |
+| 2026-05-15 | Revised: No bridge/Dockerfile exists — bridge runs as local Python process from repo root; CI smoke uses stderr grep, not `\|\| true`; save_parser.py sys.path explicitly out of scope |

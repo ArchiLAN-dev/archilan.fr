@@ -3417,31 +3417,31 @@ protected function executeWithLogging(string $context, \Closure $fn): void;
 
 ## Epic 20: Code Quality Enforcement — Frontend & Bridge
 
-Mirror the quality discipline of Epic 19 (API layer) on the two remaining stacks: the Next.js frontend and the Python bridge. Both stacks already have working code and passing basics (typecheck/lint/build for the frontend, 141 pytest tests for the bridge), but neither has the same depth of static analysis, architectural constraints, or structural hygiene enforced by automated gates. Stories 20.1–20.4 address the bridge; stories 20.5–20.8 address the frontend.
+Mirror the quality discipline of Epic 19 (API layer) on the two remaining stacks: the Next.js frontend and the Python bridge. Both stacks already have working code and passing basics (typecheck/lint/build for the frontend, a full pytest suite for the bridge), but neither has the same depth of static analysis, architectural constraints, or structural hygiene enforced by automated gates. Stories 20.1–20.4 address the bridge; stories 20.5–20.8 address the frontend.
 
 ### New Requirements
 
 #### Non-Functional Requirements
 
-NFR-FE1: The bridge has `ruff` and `mypy` running as CI quality gates with zero violations.
-NFR-FE2: The bridge has no module-level mutable globals — all runtime state flows through explicit objects injected at construction time.
-NFR-FE3: The bridge uses proper Python package imports — no `sys.path` manipulation at startup.
-NFR-FE4: `rest.py` route handlers are extracted from the single `create_app` closure into named coroutines, each independently testable.
-NFR-FE5: No `process.env` access outside `src/lib/env.ts` in the frontend (enforced by ESLint).
-NFR-FE6: No `as SomeThing` type assertions at API response boundaries in the frontend (enforced by ESLint + type guard audit).
-NFR-FE7: Every `*-api.ts` file has a corresponding Jest unit test file.
-NFR-FE8: The frontend `QueryClient` and its `staleTime` / `gcTime` defaults are defined in a single shared location.
+NFR-BRIDGE1: The bridge has `ruff` and `mypy` running as CI quality gates with zero violations.
+NFR-BRIDGE2: The bridge has no module-level mutable globals — all runtime state flows through explicit objects injected at construction time.
+NFR-BRIDGE3: The bridge uses proper Python package imports — no `sys.path` manipulation at startup (the `sys.path` hack in `bridge.py` is removed; `save_parser.py`'s AP-source injection is a different concern and out of scope).
+NFR-BRIDGE4: `rest.py` route handlers are extracted from the single `create_app` closure into named coroutines, each independently testable.
+NFR-FE1: No `process.env` access outside `src/lib/env.ts` in the frontend (enforced by ESLint).
+NFR-FE2: No `as SomeThing` type assertions at API response boundaries in the frontend (enforced by ESLint + type guard audit).
+NFR-FE3: Every `*-api.ts` file has a corresponding Jest unit test file.
+NFR-FE4: The frontend `QueryClient` and its `staleTime` / `gcTime` defaults are defined in a single shared location.
 
 #### NFR Coverage Map
 
-NFR-FE1: Story 20.1 — ruff + mypy as bridge quality gates.
-NFR-FE2: Story 20.2 — eliminate module-level mutable state from rest.py.
-NFR-FE3: Story 20.3 — fix sys.path import hack in bridge.py.
-NFR-FE4: Story 20.4 — extract rest.py route handlers into named coroutines.
-NFR-FE5: Story 20.5 — ESLint rule banning process.env outside env.ts.
-NFR-FE6: Story 20.6 — type-guard completeness audit + ESLint assertion-style enforcement.
-NFR-FE7: Story 20.7 — Jest unit test suite for the API layer.
-NFR-FE8: Story 20.8 — centralise QueryClient configuration.
+NFR-BRIDGE1: Story 20.1 — ruff + mypy as bridge quality gates.
+NFR-BRIDGE2: Story 20.2 — eliminate module-level mutable state from rest.py.
+NFR-BRIDGE3: Story 20.3 — fix sys.path import hack in bridge.py.
+NFR-BRIDGE4: Story 20.4 — extract rest.py route handlers into named coroutines.
+NFR-FE1: Story 20.5 — ESLint rule banning process.env outside env.ts.
+NFR-FE2: Story 20.6 — type-guard completeness audit + ESLint assertion-style enforcement.
+NFR-FE3: Story 20.7 — Jest unit test suite for the API layer.
+NFR-FE4: Story 20.8 — centralise QueryClient configuration.
 
 ---
 
@@ -3460,8 +3460,7 @@ So that Python style violations and type errors are caught before merge, mirrori
 **And** `mypy` is configured in `pyproject.toml` with at minimum `disallow_untyped_defs = true` and `ignore_missing_imports = true`
 **And** `mypy bridge/` exits 0 — all public function and method signatures carry type annotations
 **And** both commands are added to the CI bridge job
-
-**And** `pytest tests/` still passes 141 tests unchanged
+**And** the full existing bridge test suite passes unchanged
 
 ---
 
@@ -3486,7 +3485,7 @@ This is the Python equivalent of the static mutable properties banned in the API
 **Then** a `PauseResumeCoordinator` dataclass is introduced in `core/coordinator.py` holding `wake_stop_event` and `wake_task` as instance attributes
 **And** `create_app` receives a `coordinator: PauseResumeCoordinator` parameter (defaulting to a new instance if omitted, for backwards compatibility)
 **And** `_pause_flow` and `_cancel_wake_task` receive the coordinator as a parameter — no `global` statements remain in `rest.py`
-**And** existing tests that call `create_app()` continue to pass without modification
+**And** all callers of `create_app()` continue to work without signature changes; tests that previously accessed `_rest._wake_stop_event` / `_rest._wake_task` directly are updated to read the coordinator from the app
 **And** `ruff check`, `mypy`, and `pytest` all pass
 
 ---
@@ -3507,7 +3506,7 @@ So that `import bridge.core.config` works correctly and mypy and ruff resolve sy
 **Then** all imports inside `bridge/core/*.py` use relative imports (`from .config import Config`, `from .state import StateManager`)
 **And** `bridge/bridge.py` removes the `sys.path.insert` block entirely
 **And** the `__all__` in `bridge.py` no longer re-exports private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) — only the public API surface is exported
-**And** `python -m bridge.bridge` and `python bridge/bridge.py` both run correctly (Docker entrypoint unchanged)
+**And** `python -m bridge.bridge` and `python bridge/bridge.py` both run from the repo root with no `ImportError` or `ModuleNotFoundError` (both verified as explicit CI steps — no `|| true` masking)
 **And** `mypy`, `ruff`, and `pytest` all pass
 
 ---
@@ -3523,12 +3522,12 @@ So that each handler is independently readable, testable in isolation, and fully
 
 **Acceptance Criteria:**
 
-**Given** 10 handlers (`health`, `get_state`, `post_command`, `get_hints`, `request_hint`, `get_reachable`, `get_item_locations`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
+**Given** all route handlers (`health`, `get_state`, `post_command` on `/commands`, `get_hints` on `/hints/{slot}`, `request_hint` on `/hints/{slot}/request`, `get_reachable` on `/reachable/{slot}`, `get_item_locations` on `/item-locations/{slot}`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
 **When** story 20.4 is complete
 **Then** each handler is extracted to a module-level `async def` function receiving its dependencies as parameters or reading them from `request.app`
 **And** if `rest.py` exceeds 300 lines after extraction, handlers are split into `rest_hints.py` and `rest_session.py` with `create_app` kept as the assembly point
-**And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each
-**And** `mypy`, `ruff`, and `pytest` (141 + new tests) all pass
+**And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each, plus a route parity test
+**And** `mypy`, `ruff`, and `pytest` (full suite + new tests) all pass
 
 ---
 
@@ -3587,7 +3586,7 @@ The frontend currently has zero automated tests. The `src/features/**/*-api.ts` 
 
 **Given** Jest is not yet installed
 **When** story 20.7 begins
-**Then** Jest is configured with the Next.js Jest preset (`@next/jest`) and added to `package.json` as `pnpm test`
+**Then** Jest is configured with the Next.js Jest preset (`next/jest`) and added to `package.json` as `pnpm test`
 **And** MSW is added for network-level fetch mocking
 
 **When** configuration is complete
@@ -3619,12 +3618,14 @@ So that caching behaviour is consistent across all features and changing a globa
 **When** the audit is complete
 **Then** `src/lib/query-client.ts` is created exporting:
 ```ts
-export const DEFAULT_STALE_TIME = 30_000;   // 30 s — standard catalog data
-export const REALTIME_STALE_TIME = 5_000;   // 5 s — live session state
-export const STATIC_STALE_TIME = Infinity;  // legal pages, configuration
+export const DEFAULT_STALE_TIME = 30_000;    // 30 s — standard catalog data
+export const REALTIME_STALE_TIME = 5_000;    // 5 s — live session state
+export const SESSION_STALE_TIME = 60_000;    // 60 s — session-level polling
+export const STATIC_STALE_TIME = Infinity;   // legal pages, configuration
+export const DEFAULT_GC_TIME = 5 * 60_000;  // 5 min — garbage collection window
 
 export function makeQueryClient(): QueryClient { ... }
 ```
 **And** all `new QueryClient(...)` call sites use `makeQueryClient()`
-**And** `useQuery` call sites use one of the named constants rather than a magic number
+**And** raw `staleTime` and `gcTime` numeric literals in `useQuery` calls are replaced by named constants
 **And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` remain clean

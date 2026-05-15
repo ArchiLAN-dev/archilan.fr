@@ -98,19 +98,16 @@ export async function fetchPlayerProfile(slug: string): Promise<PlayerProfile | 
 
 ### ESLint scoping
 
-The `assertionStyle: "never"` rule is intentionally scoped to `*-api.ts` files only. `as const`, `as unknown`, and internal UI type assertions in component files are acceptable — only API boundary assertions are banned.
+The `assertionStyle: "never"` rule is intentionally scoped to `*-api.ts` files only. Type assertions in component files (`as const`, `ref.current as HTMLInputElement`, etc.) are unaffected — those files are not covered by this rule override.
 
-### What counts as an "API boundary" assertion
+### What counts as an "API boundary" assertion in `*-api.ts` files
 
-Any `as` applied to:
+**Banned (by this rule):** Any `as SomeType` applied to:
 - The result of `response.json()`
 - A value typed as `unknown` or `any` that came from an HTTP call
 - A destructured value from such a response
 
-Does NOT include:
-- `as const` (not a type assertion in the dangerous sense)
-- `as unknown` (widening, safe)
-- Internal UI casts (e.g. `ref.current as HTMLInputElement`)
+Note: `assertionStyle: "never"` also bans `as const` and `as unknown` within the scoped files. In practice, `*-api.ts` files have no legitimate reason to use `as const` (which belongs in type definition or constant files) or `as unknown` (which indicates a wrongly-typed value that a type guard would fix instead). If an API file genuinely needs a const assertion for a request payload shape, extract that constant to a `*-types.ts` file outside the scope of this rule.
 
 ## File List
 

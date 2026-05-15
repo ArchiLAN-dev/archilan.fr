@@ -24,16 +24,16 @@ and record the exact route table:
 |--------|------|--------------|
 | GET | /health | `health` |
 | GET | /state | `get_state` |
-| POST | /command | `post_command` |
-| GET | /hints | `get_hints` |
-| POST | /hints/{location_id} | `request_hint` |
-| GET | /reachable | `get_reachable` |
-| GET | /locations | `get_item_locations` |
+| POST | /commands | `post_command` |
 | POST | /save | `post_save` |
 | POST | /pause | `post_pause` |
 | POST | /resume | `post_resume` |
+| GET | /hints/{slot} | `get_hints` |
+| POST | /hints/{slot}/request | `request_hint` |
+| GET | /reachable/{slot} | `get_reachable` |
+| GET | /item-locations/{slot} | `get_item_locations` |
 
-*(Verify against actual `rest.py` before implementing — the table above is based on the last known state; the router call is authoritative.)*
+*(This table reflects the actual `rest.py` as of 2026-05-15. Always verify with `grep -n "router.add_" bridge/core/rest.py` before implementing — the router call is authoritative.)*
 
 **AC2:** `create_app` is reduced to a registration function: it instantiates shared objects, stores them on `app`, and wires routes. It contains no handler logic.
 
@@ -53,10 +53,10 @@ def test_route_parity():
     app = create_app(MagicMock(), MagicMock())
     registered = {(r.method, r.resource.canonical) for r in app.router.routes()}
     expected = {
-        ("GET", "/health"), ("GET", "/state"), ("POST", "/command"),
-        ("GET", "/hints"), ("POST", "/hints/{location_id}"),
-        ("GET", "/reachable"), ("GET", "/locations"),
-        ("POST", "/save"), ("POST", "/pause"), ("POST", "/resume"),
+        ("GET", "/health"), ("GET", "/state"),
+        ("POST", "/commands"), ("POST", "/save"), ("POST", "/pause"), ("POST", "/resume"),
+        ("GET", "/hints/{slot}"), ("POST", "/hints/{slot}/request"),
+        ("GET", "/reachable/{slot}"), ("GET", "/item-locations/{slot}"),
     }
     assert registered == expected
 ```

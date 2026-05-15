@@ -36,7 +36,7 @@ todo
   - [ ] 3a: `pnpm add -D msw`
   - [ ] 3b: Create `frontend/src/tests/setup.ts` with server setup + `afterEach(server.resetHandlers)` + `process.env.NEXT_PUBLIC_API_BASE_URL` assignment
   - [ ] 3c: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
-- [ ] Task 4: Write test files for each existing `*-api.ts` file (9 files as of Epic 20)
+- [ ] Task 4: Write test files for each existing `*-api.ts` file — verify inventory with `rg --files frontend/src/features | rg -- '-api\.ts$'` before starting; the list below reflects the repo as of 2026-05-15
   - [ ] `src/features/events/public-events-api.test.ts`
   - [ ] `src/features/content/public-posts-api.test.ts`
   - [ ] `src/features/payments/membership-api.test.ts`
@@ -88,9 +88,9 @@ afterAll(() => server.close());
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { fetchPlayerProfile } from "./player-profile-api";
-import { env } from "../../lib/env";
 
-const BASE = env.apiBaseUrl;
+// Use process.env directly — do not import env to avoid module-cache timing issues
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 describe("fetchPlayerProfile", () => {
   it("returns profile on success", async () => {
@@ -122,9 +122,9 @@ Tests that call fetch functions rely on type guards being in place (Story 20.6).
 
 ### env.ts in test context
 
-Jest runs in Node, not the browser. `env.apiBaseUrl` reads from `process.env.NEXT_PUBLIC_API_BASE_URL`. Set this in `src/tests/setup.ts` **before** any imports that read `env`:
+Jest runs in Node. `setupFilesAfterEnv` scripts run **before** each test file's module is imported, so setting `process.env.NEXT_PUBLIC_API_BASE_URL` in `setup.ts` is safe:
 ```ts
-// src/tests/setup.ts
+// src/tests/setup.ts  (assignment must be the FIRST line — before any imports)
 process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:8080";
 
 import { setupServer } from "msw/node";
@@ -134,7 +134,17 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-Do not use `testEnvironmentOptions.env` in `jest.config.ts` — `next/jest` transforms env vars differently and that option has no effect on `NEXT_PUBLIC_*` variables in the `next/jest` pipeline.
+**Do not import `env` in tests to build base URLs.** Use `process.env.NEXT_PUBLIC_API_BASE_URL` directly in the test handler URL, or hardcode `"http://localhost:8080"`. This avoids the risk of `env.ts` being cached by Node's module system before the env var assignment propagates:
+```ts
+// preferred — no env import needed
+server.use(
+  http.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/players/jean`, () =>
+    HttpResponse.json({ slug: "jean", displayName: "Jean", totalGoals: 5 })
+  )
+);
+```
+
+Do not use `testEnvironmentOptions.env` in `jest.config.ts` — that option has no effect on `NEXT_PUBLIC_*` variables in the `next/jest` pipeline.
 
 ## File List
 
