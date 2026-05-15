@@ -34,7 +34,7 @@ todo
   - [ ] 2c: Add `"test": "jest"` to `package.json` scripts
 - [ ] Task 3: Install and configure MSW v2
   - [ ] 3a: `pnpm add -D msw`
-  - [ ] 3b: Create `frontend/src/tests/constants.ts` exporting `TEST_API_BASE_URL = "http://localhost:8080"` — single source of truth for the test base URL
+  - [ ] 3b: Create `frontend/src/tests/constants.ts` exporting `TEST_API_BASE_URL = "http://localhost:8080"` — must contain only literal exports, no imports of any kind (application or infrastructure); this purity is what makes it safe to import before the `process.env` assignment in `setup.ts`
   - [ ] 3c: Create `frontend/src/tests/setup.ts` importing `TEST_API_BASE_URL` from `./constants`; assign to `process.env.NEXT_PUBLIC_API_BASE_URL`; configure MSW server
   - [ ] 3d: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
 - [ ] Task 4: Write test files for each existing `*-api.ts` file — verify inventory with `rg --files frontend/src/features | rg -- '-api\.ts$'` before starting; the list below reflects the repo as of 2026-05-15
@@ -132,9 +132,12 @@ Tests that call fetch functions rely on type guards being in place (Story 20.6).
 
 Jest runs in Node. `setupFilesAfterEnv` scripts run **before** each test file's module is imported, so setting `process.env.NEXT_PUBLIC_API_BASE_URL` in `setup.ts` is safe.
 
+Constraints for `constants.ts`:
+- **No imports of any kind.** `constants.ts` must be a pure literal-export module. If it ever imports an application module (e.g. `env.ts`), that module executes during the import — before `process.env` is set in `setup.ts` — breaking the guarantee. Future contributors must not add imports to this file.
+
 Constraints for `setup.ts`:
 1. **Do not import application modules** (`env`, feature modules, etc.) in `setup.ts`. If an application module is imported in setup, Node's module cache loads it before the env var is set, potentially capturing `""` as `apiBaseUrl`.
-2. Importing test infrastructure like `./constants` (which exports only string literals and never reads `process.env`) is safe and preferred — it avoids duplicating the URL literal.
+2. Importing `./constants` is safe **only because** `constants.ts` has no imports of its own — if that invariant is violated, this import becomes unsafe too.
 
 **Do not import `env` in tests to build base URLs.** Use `TEST_API_BASE_URL` from `src/tests/constants.ts` — it matches what `setup.ts` assigns to `process.env`. This avoids both the module-cache timing risk and the `string | undefined` type of `process.env.NEXT_PUBLIC_API_BASE_URL`. Do not use `testEnvironmentOptions.env` in `jest.config.ts` — that option has no effect on `NEXT_PUBLIC_*` variables in the `next/jest` pipeline.
 
