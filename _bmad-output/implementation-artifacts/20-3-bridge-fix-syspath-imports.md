@@ -65,8 +65,13 @@ Each test file that imports these symbols is updated to use the canonical path.
     BRIDGE_PID=$!
     sleep 2
     STATUS=0
+    # Catch import/syntax errors explicitly
     if grep -qE "ImportError|ModuleNotFoundError|SyntaxError" bridge_stderr.txt; then
       echo "Import/syntax error in script mode:"; cat bridge_stderr.txt; STATUS=1
+    fi
+    # Catch unexpected tracebacks (config errors or any unhandled exception at startup)
+    if grep -q "^Traceback" bridge_stderr.txt; then
+      echo "Unexpected traceback in script mode:"; cat bridge_stderr.txt; STATUS=1
     fi
     kill $BRIDGE_PID 2>/dev/null || true
     exit $STATUS
@@ -98,7 +103,14 @@ All three steps must run from the repo root (the parent of `bridge/`).
   - [ ] 3b: Convert all `from config import X` → `from bridge.core.config import X`
   - [ ] 3c: Clean up `__all__` per the table in AC3
 - [ ] Task 4: Update test imports
-  - [ ] 4a: Grep tests for `from bridge.bridge import _` to find all private symbol imports
+  - [ ] 4a: Run two scans to find all affected test lines:
+    ```bash
+    # Scan 1: any import from bridge.bridge (catches grouped imports)
+    grep -rn "from bridge.bridge import" bridge/tests/
+    grep -rn "from bridge import" bridge/tests/
+    # Scan 2: grep for each private symbol by name (catches multi-line and aliased imports)
+    grep -rn "_build_feed_event\|_PRINT_TYPE_MAP\|_WS_RETRY_DELAYS\|_compute_reachable\|_daemon_ready_events\|_reachable_cache\|_reachable_daemons\|_start_daemon" bridge/tests/
+    ```
   - [ ] 4b: Redirect each to the canonical module per AC3 table
 - [ ] Task 5: Remove stopgap artefacts from Story 20.1
   - [ ] 5a: Remove `# noqa: E402  # temporary — removed in story 20.3` comments from `bridge.py`

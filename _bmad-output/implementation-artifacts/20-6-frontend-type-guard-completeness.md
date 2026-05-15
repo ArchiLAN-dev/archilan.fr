@@ -41,7 +41,7 @@ todo
 
 Type guards in `*-api.ts` files should validate the minimum shape needed to confidently use the data. They are not JSON Schema validators — they exist to narrow `unknown` to a typed value.
 
-Use TypeScript 4.9+ `in`-operator narrowing so no `as` cast is needed inside the guard body. After `typeof v === "object" && v !== null`, TypeScript narrows `v` to `object`. After `"slug" in v`, it narrows to `object & Record<"slug", unknown>`, making `v.slug` accessible as `unknown` — no `as` required:
+Use TypeScript 4.9+ `in`-operator narrowing so no `as` cast is needed inside the guard body. After `typeof v === "object" && v !== null`, TypeScript narrows `v` to `object`. After `"slug" in v`, it narrows to `object & Record<"slug", unknown>`, making `v.slug` accessible as `unknown` — no `as` required. Next.js 16 (used in this project) requires TypeScript ≥ 5, which fully supports this narrowing:
 
 ```ts
 type PlayerProfile = {
@@ -75,7 +75,11 @@ export function hasNumberProp<K extends string>(v: object, key: K): v is Record<
 }
 ```
 
-Note: helpers in `src/lib/type-guards.ts` are NOT under `src/features/**/*-api.ts`, so the `assertionStyle: "never"` scoped rule does not apply to them — the `as Record<K, unknown>` cast inside the helper is permitted.
+`src/lib/type-guards.ts` is NOT under `src/features/**/*-api.ts`, so the `assertionStyle: "never"` scoped rule does not apply. This file is permitted to use `as Record<K, unknown>` **only for internal narrowing** — never to cast API response values directly. To prevent drift: add a code comment at the top of the file:
+```ts
+// This file contains narrowing helpers only. Do not add casts on raw API response values.
+```
+Any future `as SomeApiType` added here defeats the purpose of the whole guard pattern.
 
 ### API envelope validation
 
@@ -127,6 +131,7 @@ Note: `assertionStyle: "never"` also bans `as const` and `as unknown` within the
 ## File List
 
 - `frontend/src/features/**/*-api.ts` — type guard functions added; `as` casts removed (scope depends on audit)
+- `frontend/src/lib/type-guards.ts` — new (optional): shared narrowing helpers (`hasStringProp`, `hasNumberProp`) if pattern duplication warrants it; add only if 3+ api files repeat the same check
 - `frontend/eslint.config.*` — add `@typescript-eslint/consistent-type-assertions` scoped rule
 - `_bmad-output/implementation-artifacts/20-6-frontend-type-guard-completeness.md` — this file
 

@@ -37,11 +37,11 @@ and record the exact route table:
 
 **AC2:** `create_app` is reduced to a registration function: it instantiates shared objects, stores them on `app`, and wires routes. It contains no handler logic.
 
-**AC3:** If `rest.py` exceeds 300 lines after extraction, handlers are split across files by domain:
+**AC3:** Handlers are split across files by domain (the split is by responsibility, not by line count — the domain groupings are already clear):
 - `bridge/core/rest_session.py` — `health`, `get_state`, `post_command`, `post_save`, `post_pause`, `post_resume`
 - `bridge/core/rest_hints.py` — `get_hints`, `request_hint`
 - `bridge/core/rest_reachable.py` — `get_reachable`, `get_item_locations`
-- `bridge/core/rest.py` — `create_app` only (imports and wires the above)
+- `bridge/core/rest.py` — `create_app` only (imports shared keys, wires routes)
 
 **AC4:** At least 3 handlers have dedicated unit tests in `bridge/tests/test_rest_handlers.py`, each covering:
 - A success path (correct request → expected JSON response)
@@ -74,7 +74,8 @@ def test_route_parity():
 - [ ] Task 1: Create story file (this file)
 - [ ] Task 2: Audit actual routes — run `grep -n "router.add_" bridge/core/rest.py` and record the route table
 - [ ] Task 3: Identify app-storage keys needed (set during `create_app`, read in handlers)
-  - [ ] Define constants: `APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR`, `APP_LOG`
+  - [ ] Define constants: `APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR`
+  - [ ] Note: logging uses `logging.getLogger("bridge.rest_X")` at module level — no `APP_LOG` key needed
 - [ ] Task 4: Extract all handlers found in the audit (one task per handler)
 - [ ] Task 5: Extract auth helper `_require_internal_auth`
 - [ ] Task 6: Split into sub-files if `rest.py` > 300 lines after extraction
@@ -89,15 +90,16 @@ def test_route_parity():
 
 ### App storage keys
 
-Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string keys. This lets mypy infer the type when retrieving from `request.app`:
+Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string keys. This lets mypy infer the type when retrieving from `request.app`. This is where Story 20.2's `# type: ignore[assignment]` on `app["coordinator"]` is removed — the string key is replaced by a typed `AppKey`:
 ```python
 from aiohttp.web import AppKey
 
 APP_STATE: AppKey[StateManager] = AppKey("state")
 APP_AP_CLIENT: AppKey[ArchipelagoClient] = AppKey("ap_client")
+APP_COORDINATOR: AppKey[PauseResumeCoordinator] = AppKey("coordinator")
 ```
 
-If `AppKey` is not available (older aiohttp), use plain strings with a cast — still better than closures.
+**Logging**: each handler module uses `log = logging.getLogger("bridge.rest_session")` (or `rest_hints`, `rest_reachable`) at module level. The logger is not stored in `app` — no `APP_LOG` key is needed.
 
 ### Handler signature
 

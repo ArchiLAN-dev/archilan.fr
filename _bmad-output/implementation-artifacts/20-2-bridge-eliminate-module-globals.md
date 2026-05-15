@@ -92,7 +92,17 @@ Story 20.4 will introduce `web.AppKey` typed storage for all app dependencies. I
 ```python
 coordinator: PauseResumeCoordinator = request.app["coordinator"]  # type: ignore[assignment]
 ```
-The `# type: ignore` is accepted here — Story 20.4 removes it when AppKey is introduced.
+The `# type: ignore` is accepted here and is **Story 20.4's explicit responsibility to remove** — 20.4 must migrate the `app["coordinator"]` string key to an `AppKey[PauseResumeCoordinator]` and delete the `# type: ignore`.
+
+### Unit tests that call _pause_flow / _cancel_wake_task directly
+
+Tests that invoke `_pause_flow` or `_cancel_wake_task` directly (not via an HTTP request) cannot retrieve the coordinator from `request.app`. Those tests should construct the coordinator directly:
+```python
+coordinator = PauseResumeCoordinator()
+await _pause_flow(ap_client, coordinator)
+assert coordinator.wake_task is not None
+```
+Only tests that fire actual HTTP requests to `/pause` or `/resume` should retrieve the coordinator via `app["coordinator"]`.
 
 ### Dataclass vs simple class
 

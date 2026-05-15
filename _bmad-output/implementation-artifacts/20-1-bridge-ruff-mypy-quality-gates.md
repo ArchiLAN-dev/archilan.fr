@@ -59,7 +59,11 @@ mypy_path = "bridge/core"  # stopgap until story 20.3 fixes package structure
 
 ### Version alignment
 
-The bridge Dockerfile or runtime uses Python 3.10 (per `requirements.txt` and the Python path `python3.10`). Ruff's `target-version = "py311"` would permit syntax valid only in 3.11+ (e.g. `ExceptionGroup`, `tomllib` in stdlib). Align to `py310` so ruff catches any such accidental usage. Mypy must match for consistent type-checking (3.10 introduced `X | Y` union syntax in annotations — this is the minimum we rely on).
+The bridge runtime uses Python 3.10 (confirmed via `requirements.txt` and the `python3.10` reference — there is no bridge Dockerfile). Ruff's `target-version = "py311"` would permit syntax valid only in 3.11+ (e.g. `ExceptionGroup`, `tomllib` in stdlib). Align to `py310` so ruff catches any such accidental usage. Mypy must match for consistent type-checking (3.10 introduced `X | Y` union syntax in annotations — this is the minimum we rely on).
+
+### ignore_missing_imports scope
+
+`ignore_missing_imports = true` is a **stopgap for untyped third-party libraries** (`aiohttp`, `boto3`, `websockets`). It does **not** excuse missing internal imports — if a bridge module fails to import a sibling, mypy will still report an `Cannot find implementation or library stub` error for the unresolved name, even with this setting. The flag suppresses only "no stub file found for library X" messages. Verify this by running `mypy bridge/` after implementation: internal `ModuleNotFoundError`s appear as `error: Cannot find implementation or library stub for module named "bridge.core.X"` and are not suppressed.
 
 ### Temporary noqa discipline
 

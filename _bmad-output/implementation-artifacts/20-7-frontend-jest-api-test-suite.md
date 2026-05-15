@@ -89,8 +89,8 @@ import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { fetchPlayerProfile } from "./player-profile-api";
 
-// Use process.env directly — do not import env to avoid module-cache timing issues
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
+// Hardcode the test base URL — process.env is string | undefined and would make ${BASE} unsafe
+const BASE = "http://localhost:8080";
 
 describe("fetchPlayerProfile", () => {
   it("returns profile on success", async () => {
@@ -141,11 +141,11 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-**Do not import `env` in tests to build base URLs.** Use `process.env.NEXT_PUBLIC_API_BASE_URL` directly in the test handler URL. Test files (`*.test.ts`) are excluded from Story 20.5's ESLint `no-restricted-syntax` rule (see Story 20.5 `ignores` configuration), so `process.env` access in tests is permitted and intentional:
+**Do not import `env` in tests to build base URLs.** Use the hardcoded `"http://localhost:8080"` string that `setup.ts` sets via `process.env`. This avoids both the module-cache timing risk and the `string | undefined` type of `process.env.NEXT_PUBLIC_API_BASE_URL`. Test files (`*.test.ts`) are excluded from Story 20.5's ESLint `no-restricted-syntax` rule (see Story 20.5 `ignores` configuration), but using a hardcoded constant is cleaner and type-safe:
 ```ts
-// preferred — no env import needed
+const BASE = "http://localhost:8080"; // matches setup.ts assignment
 server.use(
-  http.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/players/jean`, () =>
+  http.get(`${BASE}/api/v1/players/jean`, () =>
     HttpResponse.json({ slug: "jean", displayName: "Jean", totalGoals: 5 })
   )
 );

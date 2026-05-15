@@ -14,7 +14,7 @@ todo
 
 **AC1:** A grep audit of `frontend/src/**/*.{ts,tsx}` (excluding `src/lib/env.ts`) identifies zero or more `process.env` accesses. Every occurrence found is replaced by the appropriate `env.*` accessor from `src/lib/env.ts`.
 
-**AC2:** An ESLint rule is added to `frontend/eslint.config.*` that reports an error on any `MemberExpression` where the object is `process` and the property is `env`, in all files except `src/lib/env.ts`. Suggested form using `no-restricted-syntax`:
+**AC2:** An ESLint rule is added to `frontend/eslint.config.*` that reports an error on any `MemberExpression` where the object is `process` and the property is `env`, in all `src/**/*.{ts,tsx}` files except `src/lib/env.ts` and `**/*.test.ts` / `**/*.test.tsx` (test files intentionally use `process.env` for MSW base URL configuration — see Story 20.7). Suggested form using `no-restricted-syntax`:
 ```js
 {
   selector: "MemberExpression[object.name='process'][property.name='env']",
@@ -30,16 +30,16 @@ with a file-level override that disables the rule inside `src/lib/env.ts`.
 ## Tasks / Subtasks
 
 - [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit for all 4 access patterns:
+- [ ] Task 2: Run grep audit for all 4 access patterns (run from repo root):
   ```bash
   # Standard dot access (caught by ESLint rule)
-  rg 'process\.env' frontend/src --glob '!src/lib/env.ts'
-  # Computed property (NOT caught — must be found and fixed manually)
-  rg 'process\["env"\]' frontend/src --glob '!src/lib/env.ts'
-  # Destructuring (NOT caught — must be found and fixed manually)
-  rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!src/lib/env.ts'
-  # Optional chaining (NOT caught — must be found and fixed manually)
-  rg 'process\?\.env' frontend/src --glob '!src/lib/env.ts'
+  rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts'
+  # Computed property (NOT caught by ESLint — must be found and fixed manually)
+  rg 'process\["env"\]' frontend/src --glob '!frontend/src/lib/env.ts'
+  # Destructuring (NOT caught by ESLint — must be found and fixed manually)
+  rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts'
+  # Optional chaining (NOT caught by ESLint — must be found and fixed manually)
+  rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts'
   ```
   - [ ] Document each occurrence: file, line, pattern form, replacement
 - [ ] Task 3: Replace all violations with `env.*` accessors
