@@ -14,7 +14,7 @@ todo
 
 **AC1:** A grep audit of `frontend/src/**/*.{ts,tsx}` (excluding `src/lib/env.ts` and `**/*.test.{ts,tsx}`) identifies zero or more `process.env` accesses. Every occurrence found in non-test files is replaced by the appropriate `env.*` accessor from `src/lib/env.ts`. Test files intentionally use `process.env` for MSW base URL configuration (Story 20.7) and are excluded from the migration scope.
 
-**AC2:** An ESLint rule is added to `frontend/eslint.config.*` that reports an error on any `MemberExpression` where the object is `process` and the property is `env`, scoped to `src/**/*.{ts,tsx}` and excluding `src/lib/env.ts` and test files (`**/*.test.ts`, `**/*.test.tsx`) via the `ignores` field in the config block (see Dev Notes for exact config). Test files are excluded because they intentionally use `process.env` for MSW configuration (Story 20.7).
+**AC2:** Three `no-restricted-syntax` selectors are added to `frontend/eslint.config.*`, together covering dot-access (`process.env.FOO`), computed access (`process["env"].FOO`), and destructuring (`const { FOO } = process.env`). Optional chaining (`process?.env?.FOO`) is explicitly accepted out-of-scope — it is not a realistic pattern in this codebase and has no straightforward single-selector equivalent. The rule is scoped to `src/**/*.{ts,tsx}` and excludes `src/lib/env.ts` and test files (`**/*.test.ts`, `**/*.test.tsx`) via the `ignores` field in the config block (see Dev Notes for exact config).
 
 **AC3:** `pnpm lint` exits 0 with 0 errors and 0 warnings after the rule is added.
 
@@ -25,13 +25,13 @@ todo
 - [ ] Task 1: Create story file (this file)
 - [ ] Task 2: Run grep audit for all 4 access patterns (run from repo root):
   ```bash
-  # Standard dot access (caught by ESLint rule)
+  # Standard dot access (caught by ESLint selector 1)
   rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
-  # Computed property (NOT caught by ESLint — must be found and fixed manually)
+  # Computed property (caught by ESLint selector 2)
   rg 'process\["env"\]' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
-  # Destructuring (NOT caught by ESLint — must be found and fixed manually)
+  # Destructuring (caught by ESLint selector 3)
   rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
-  # Optional chaining (NOT caught by ESLint — must be found and fixed manually)
+  # Optional chaining (NOT caught by ESLint — accepted out-of-scope; fix manually if found)
   rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   ```
   - [ ] Document each occurrence: file, line, pattern form, replacement
@@ -70,8 +70,19 @@ export default [
       "no-restricted-syntax": [
         "error",
         {
+          // dot access: process.env.FOO
           selector: "MemberExpression[object.name='process'][property.name='env']",
-          message: "Use src/lib/env.ts instead of process.env directly (AC-ENV1). Note: process[\"env\"] and destructuring are not caught by this rule — avoid those patterns too."
+          message: "Use src/lib/env.ts instead of process.env directly (AC-ENV1)."
+        },
+        {
+          // computed access: process["env"].FOO
+          selector: "MemberExpression[object.name='process'][computed=true][property.value='env']",
+          message: "Use src/lib/env.ts instead of process[\"env\"] directly (AC-ENV1)."
+        },
+        {
+          // destructuring: const { FOO } = process.env
+          selector: "VariableDeclarator[init.object.name='process'][init.property.name='env']",
+          message: "Use src/lib/env.ts instead of destructuring process.env (AC-ENV1)."
         }
       ]
     }
@@ -81,18 +92,18 @@ export default [
 
 Using `ignores` within the block (instead of a separate `rules: {"no-restricted-syntax": "off"}` block) means that future restrictions added to `no-restricted-syntax` in other config blocks will still apply to `env.ts` — only this block's rules are excluded.
 
-### ESLint selector limitations
+### ESLint selector coverage
 
-The `MemberExpression[object.name='process'][property.name='env']` selector catches the most common pattern but does **not** catch all forms of `process.env` access. The following patterns are **out of scope** for this rule:
+Three selectors together cover all practical forms of `process.env` access:
 
-| Pattern | Caught? | Notes |
-|---------|---------|-------|
-| `process.env.FOO` | Yes | Standard member access |
-| `process["env"].FOO` | No | Computed property — AST has `computed: true` |
-| `const { FOO } = process.env` | No | Destructuring — `process.env` is the `init`, not a MemberExpression with `property.name='env'` |
-| `process?.env?.FOO` | No | Optional chaining — different AST node type |
+| Pattern | Caught? | Selector |
+|---------|---------|----------|
+| `process.env.FOO` | Yes | `MemberExpression[object.name='process'][property.name='env']` |
+| `process["env"].FOO` | Yes | `MemberExpression[object.name='process'][computed=true][property.value='env']` |
+| `const { FOO } = process.env` | Yes | `VariableDeclarator[init.object.name='process'][init.property.name='env']` |
+| `process?.env?.FOO` | No | Optional chaining — no straightforward single selector; explicitly accepted out-of-scope as this pattern is not realistic in this codebase |
 
-These uncovered patterns are accepted limitations of the rule. The grep audit in Task 2 covers all four forms (`process\.env`, `process\["env"\]`, etc.) so the migration is complete even if the lint rule only enforces the common pattern going forward. Add a note to the rule's `message` string acknowledging this: "Also avoid `process["env"]` and `process.env` destructuring — use src/lib/env.ts."
+The grep audit in Task 2 still runs all four patterns to clean up any existing optional chaining occurrences at story time.
 
 ### Next.js config files
 
