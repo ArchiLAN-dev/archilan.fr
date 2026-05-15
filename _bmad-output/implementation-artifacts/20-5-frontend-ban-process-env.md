@@ -4,7 +4,7 @@
 
 **As a** developer,
 **I want** an ESLint rule that rejects any `process.env` access outside `src/lib/env.ts`,
-**So that** AC-ENV1 from `AGENTS.md` is machine-enforced and cannot be violated silently by future code.
+**So that** AC-ENV1 from `AGENTS.md` is machine-enforced for all common access patterns (dot-access, computed, destructuring); optional chaining (`process?.env?.FOO`) is the one accepted gap, documented explicitly in Dev Notes.
 
 ## Status
 
