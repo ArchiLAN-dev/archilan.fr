@@ -6,12 +6,15 @@ namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\PlayerSessionConnection;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class PlayerSessionController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private PlayerSessionConnection $playerSessionConnection,
@@ -21,7 +24,7 @@ final readonly class PlayerSessionController
     #[Route('/api/v1/registrations/{registrationId}/session-connection', methods: ['GET'])]
     public function getConnection(Request $request, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;

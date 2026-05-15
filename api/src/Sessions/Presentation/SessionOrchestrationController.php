@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionOrchestrator;
-use App\Sessions\Domain\Session;
+use App\Sessions\Application\SessionQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,10 +17,12 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class SessionOrchestrationController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionOrchestrator $sessionOrchestrator,
-        private EntityManagerInterface $entityManager,
+        private SessionQuery $sessionQuery,
         private string $workspaceDir,
     ) {
     }
@@ -28,7 +30,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/validate', methods: ['POST'])]
     public function validate(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -52,7 +54,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/generate', methods: ['POST'])]
     public function generate(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -79,7 +81,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/launch', methods: ['POST'])]
     public function launch(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -106,7 +108,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/force-launch', methods: ['POST'])]
     public function forceLaunch(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -130,7 +132,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/stop', methods: ['POST'])]
     public function stop(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -154,7 +156,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/restart', methods: ['POST'])]
     public function restart(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -181,7 +183,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/yamls.zip', methods: ['GET'])]
     public function downloadYamls(Request $request, string $sessionId): Response
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -225,7 +227,7 @@ final readonly class SessionOrchestrationController
     #[Route('/api/v1/admin/sessions/{sessionId}/generation.zip', methods: ['GET'])]
     public function downloadGeneration(Request $request, string $sessionId): Response
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -261,9 +263,8 @@ final readonly class SessionOrchestrationController
             }
         }
 
-        // Si la save a été archivée vers un emplacement permanent, l'inclure aussi.
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        $archivedSavePath = $session instanceof Session ? $session->getArchivedSavePath() : null;
+        $sessionData = $this->sessionQuery->findById($sessionId);
+        $archivedSavePath = null !== $sessionData ? $sessionData['archivedSavePath'] : null;
         if (is_string($archivedSavePath) && is_file($archivedSavePath)) {
             $zip->addFile($archivedSavePath, 'saves/'.basename($archivedSavePath));
             ++$added;

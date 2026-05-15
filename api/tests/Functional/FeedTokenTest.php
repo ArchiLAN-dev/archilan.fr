@@ -4,34 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class FeedTokenTest extends WebTestCase
+final class FeedTokenTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -65,7 +47,7 @@ final class FeedTokenTest extends WebTestCase
     {
         $session = $this->createSession('run-pending-1', 'evt-001');
         $player = $this->createPlayer('bob@example.org', 'Bob');
-        $this->createRegistration($player->getId(), 'evt-001', confirmed: false);
+        $this->makeRegistration($player->getId(), 'evt-001', confirmed: false);
         $this->loginAs($player);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/feed-token', $session->getId()));
@@ -76,7 +58,7 @@ final class FeedTokenTest extends WebTestCase
     {
         $session = $this->createSession('run-ok-1', 'evt-001');
         $player = $this->createPlayer('charlie@example.org', 'Charlie');
-        $this->createRegistration($player->getId(), 'evt-001', confirmed: true);
+        $this->makeRegistration($player->getId(), 'evt-001', confirmed: true);
         $this->loginAs($player);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/feed-token', $session->getId()));
@@ -125,73 +107,23 @@ final class FeedTokenTest extends WebTestCase
 
     private function createAdmin(): User
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            'admin@example.org',
-            'admin@example.org',
-            'Admin',
-            'test-password-hash',
-            ['ROLE_USER', 'ROLE_ADMIN'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
     private function createPlayer(string $email, string $displayName): User
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            strtolower($email),
-            $displayName,
-            'test-password-hash',
-            ['ROLE_USER'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser($email, ['ROLE_USER'], $displayName);
     }
 
-    private function createRegistration(string $userId, string $eventId, bool $confirmed): Registration
+    private function makeRegistration(string $userId, string $eventId, bool $confirmed): Registration
     {
         $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $registration = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-        );
+        $registration = $this->createRegistration($eventId, $userId);
         if ($confirmed) {
             $registration->confirm($now);
+            $this->entityManager->flush();
         }
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
 
         return $registration;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

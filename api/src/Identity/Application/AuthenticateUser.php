@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\User;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final readonly class AuthenticateUser
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
@@ -37,9 +40,13 @@ final readonly class AuthenticateUser
 
     public function findUserById(string $userId): ?User
     {
-        $user = $this->entityManager->find(User::class, $userId);
+        try {
+            $user = $this->findOrFail(User::class, $userId);
+        } catch (\RuntimeException) {
+            return null;
+        }
 
-        if (!$user instanceof User || $user->isDeleted()) {
+        if ($user->isDeleted()) {
             return null;
         }
 

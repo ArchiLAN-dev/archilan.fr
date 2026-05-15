@@ -8,11 +8,14 @@ use App\Events\Domain\Event;
 use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Application\ValidationErrors;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class RegistrationGameSelection
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
@@ -26,15 +29,19 @@ final readonly class RegistrationGameSelection
      */
     public function getSelection(string $registrationId, string $userId): ?array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
-
-        if (!$registration instanceof Registration || $registration->getUserId() !== $userId || !$registration->isReserved()) {
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
             return null;
         }
 
-        $event = $this->entityManager->find(Event::class, $registration->getEventId());
+        if ($registration->getUserId() !== $userId || !$registration->isReserved()) {
+            return null;
+        }
 
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $registration->getEventId());
+        } catch (\RuntimeException) {
             return null;
         }
 
@@ -113,15 +120,19 @@ final readonly class RegistrationGameSelection
      */
     public function saveSelection(string $registrationId, string $userId, array $input): ?array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
-
-        if (!$registration instanceof Registration || $registration->getUserId() !== $userId || !$registration->isReserved()) {
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
             return null;
         }
 
-        $event = $this->entityManager->find(Event::class, $registration->getEventId());
+        if ($registration->getUserId() !== $userId || !$registration->isReserved()) {
+            return null;
+        }
 
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $registration->getEventId());
+        } catch (\RuntimeException) {
             return null;
         }
 
@@ -181,9 +192,13 @@ final readonly class RegistrationGameSelection
      */
     public function saveSlotYaml(string $registrationId, string $userId, string $slotId, string $playerYaml): ?array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
+            return null;
+        }
 
-        if (!$registration instanceof Registration || $registration->getUserId() !== $userId || !$registration->isReserved()) {
+        if ($registration->getUserId() !== $userId || !$registration->isReserved()) {
             return null;
         }
 
@@ -193,9 +208,9 @@ final readonly class RegistrationGameSelection
             return null;
         }
 
-        $game = $this->entityManager->find(ArchipelagoGame::class, $slot['gameId']);
-
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $slot['gameId']);
+        } catch (\RuntimeException) {
             return null;
         }
 

@@ -9,12 +9,15 @@ use App\GameSelection\Domain\ArchipelagoGame;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Application\ValidationErrors;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Shared\Application\EntityFinderTrait;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminGameLibrary
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
@@ -101,9 +104,9 @@ final readonly class AdminGameLibrary
      */
     public function update(string $gameId, array $input): array
     {
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -154,9 +157,9 @@ final readonly class AdminGameLibrary
      */
     public function configureApworld(string $gameId, string $fileContents, string $filename): array
     {
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -232,9 +235,9 @@ final readonly class AdminGameLibrary
      */
     public function listGithubAssets(string $gameId): array
     {
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -264,9 +267,9 @@ final readonly class AdminGameLibrary
      */
     public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null): array
     {
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -341,9 +344,9 @@ final readonly class AdminGameLibrary
      */
     public function remove(string $gameId): array
     {
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 

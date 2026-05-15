@@ -7,10 +7,7 @@ namespace App\Tests\Functional;
 use App\Communications\Application\SessionRestartFailedMessage;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
@@ -18,19 +15,11 @@ use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
  *   POST /api/v1/internal/sessions/{id}/restarting  (idle → restarting)
  *   POST /api/v1/internal/sessions/{id}/restart-failed  (restarting → idle)
  */
-final class BridgeLifecycleCallbackTest extends WebTestCase
+final class BridgeLifecycleCallbackTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(Session::class),

@@ -10,10 +10,13 @@ use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Domain\User;
 use App\Payments\Application\HelloAssoPaymentLookup;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminRegistrationDashboard
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private HelloAssoPaymentLookup $paymentLookup,
@@ -37,9 +40,9 @@ final readonly class AdminRegistrationDashboard
      */
     public function list(string $eventId, ?string $statusFilter): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return null;
         }
 

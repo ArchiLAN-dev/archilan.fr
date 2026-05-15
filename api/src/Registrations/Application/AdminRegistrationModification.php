@@ -6,11 +6,14 @@ namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationModification
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
@@ -30,10 +33,14 @@ final readonly class AdminRegistrationModification
      */
     public function update(string $eventId, string $registrationId, array $input): array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
-        $event = $this->entityManager->find(Event::class, $eventId);
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
+            return ['outcome' => 'not_found'];
+        }
 
-        if (!$registration instanceof Registration || !$event instanceof Event || $registration->getEventId() !== $eventId) {
+        if ($registration->getEventId() !== $eventId) {
             return ['outcome' => 'not_found'];
         }
 

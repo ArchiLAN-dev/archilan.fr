@@ -5,35 +5,17 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class PlayerSessionConnectionTest extends WebTestCase
+final class PlayerSessionConnectionTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -269,38 +251,11 @@ final class PlayerSessionConnectionTest extends WebTestCase
         self::assertCount(1, $slots);
     }
 
-    private function createUser(string $email): User
-    {
-        $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            strtolower($email),
-            'Test User',
-            'test-password-hash',
-            ['ROLE_USER'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
     private function createConfirmedRegistration(string $userId, string $eventId): Registration
     {
         $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $registration = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-            [],
-            $now,
-        );
-        $this->entityManager->persist($registration);
+        $registration = $this->createRegistration($eventId, $userId);
+        $registration->confirm($now);
         $this->entityManager->flush();
 
         return $registration;
@@ -308,36 +263,12 @@ final class PlayerSessionConnectionTest extends WebTestCase
 
     private function createPendingRegistration(string $userId, string $eventId): Registration
     {
-        $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $registration = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
-
-        return $registration;
+        return $this->createRegistration($eventId, $userId);
     }
 
     private function createCancelledRegistration(string $userId, string $eventId): Registration
     {
-        $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $registration = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_CANCELLED,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
-
-        return $registration;
+        return $this->createRegistration($eventId, $userId, Registration::STATUS_CANCELLED);
     }
 
     private function createDraftSession(string $eventId): Session
@@ -389,30 +320,5 @@ final class PlayerSessionConnectionTest extends WebTestCase
         $this->entityManager->flush();
 
         return $slot;
-    }
-
-    private function createGame(string $name, string $slug): ArchipelagoGame
-    {
-        $game = ArchipelagoGame::create($name, $slug, 'A great game.', null, 'Cover art', '', ArchipelagoGame::AVAILABILITY_AVAILABLE, new \DateTimeImmutable());
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
-
-        return $game;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

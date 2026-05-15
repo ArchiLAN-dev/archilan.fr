@@ -9,10 +9,13 @@ use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\PersonalRuns\Domain\PersonalRunParticipant;
 use App\Sessions\Domain\Session;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PersonalRunDrafts
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private string $siteUrl,
@@ -71,9 +74,9 @@ final readonly class PersonalRunDrafts
      */
     public function get(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'payload' => null];
         }
 
@@ -97,9 +100,9 @@ final readonly class PersonalRunDrafts
      */
     public function cancel(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
@@ -126,9 +129,9 @@ final readonly class PersonalRunDrafts
      */
     public function archive(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
@@ -157,9 +160,9 @@ final readonly class PersonalRunDrafts
      */
     public function unarchive(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
@@ -182,9 +185,9 @@ final readonly class PersonalRunDrafts
      */
     public function hardDelete(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
@@ -208,9 +211,9 @@ final readonly class PersonalRunDrafts
      */
     public function regenerateToken(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'inviteToken' => null, 'inviteUrl' => null];
         }
 

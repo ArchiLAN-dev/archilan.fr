@@ -5,33 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class RegistrationEligibilityTest extends WebTestCase
+final class RegistrationEligibilityTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -63,7 +45,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_PUBLISHED,
             isPublic: false,
             registrationOpensAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
@@ -86,7 +68,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_PUBLISHED,
             isPublic: false,
             registrationOpensAt: new \DateTimeImmutable('2028-01-01T00:00:00+00:00'),
@@ -108,7 +90,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(Event::STATUS_COMPLETED);
+        $event = $this->makeEvent(Event::STATUS_COMPLETED);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/registration-eligibility', $event->getId()));
 
@@ -125,7 +107,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_IN_PROGRESS,
             registrationOpensAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
             registrationClosesAt: new \DateTimeImmutable('2027-01-01T00:00:00+00:00'),
@@ -146,7 +128,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_PUBLISHED,
             registrationOpensAt: new \DateTimeImmutable('2028-01-01T00:00:00+00:00'),
             registrationClosesAt: new \DateTimeImmutable('2028-06-01T00:00:00+00:00'),
@@ -169,7 +151,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_PUBLISHED,
             registrationOpensAt: new \DateTimeImmutable('2024-01-01T00:00:00+00:00'),
             registrationClosesAt: new \DateTimeImmutable('2024-06-01T00:00:00+00:00'),
@@ -191,7 +173,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_PUBLISHED,
             capacity: 1,
             registrationOpensAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
@@ -214,7 +196,7 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(
+        $event = $this->makeEvent(
             Event::STATUS_PUBLISHED,
             registrationOpensAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
             registrationClosesAt: new \DateTimeImmutable('2027-01-01T00:00:00+00:00'),
@@ -240,14 +222,14 @@ final class RegistrationEligibilityTest extends WebTestCase
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
         $this->loginAs($user);
 
-        $event = $this->createEvent(Event::STATUS_DRAFT);
+        $event = $this->makeEvent(Event::STATUS_DRAFT);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/events/%s/registration-eligibility', $event->getId()));
 
         self::assertResponseStatusCodeSame(404);
     }
 
-    private function createEvent(
+    private function makeEvent(
         string $status,
         bool $isPublic = true,
         int $capacity = 48,
@@ -255,82 +237,18 @@ final class RegistrationEligibilityTest extends WebTestCase
         \DateTimeImmutable $registrationClosesAt = new \DateTimeImmutable('2027-05-30T18:00:00+00:00'),
     ): Event {
         $now = new \DateTimeImmutable('2026-04-30T10:00:00+00:00');
-        $event = new Event(
-            bin2hex(random_bytes(16)),
+        $event = $this->createEvent(
             'Spring Sync 2027',
-            'Une session Archipelago de printemps.',
-            $status,
             new \DateTimeImmutable('2027-05-31T10:00:00+00:00'),
             new \DateTimeImmutable('2027-05-31T22:00:00+00:00'),
-            'Clermont-Ferrand',
-            $capacity,
-            $registrationOpensAt,
-            $registrationClosesAt,
-            $isPublic,
-            null,
-            false,
-            [],
-            null,
-            null,
-            $now,
-            $now,
+            capacity: $capacity,
+            isPublic: $isPublic,
+            registrationOpensAt: $registrationOpensAt,
+            registrationClosesAt: $registrationClosesAt,
         );
-
-        $this->entityManager->persist($event);
+        $this->transitionEventTo($event, $status, $now);
         $this->entityManager->flush();
 
         return $event;
-    }
-
-    private function createRegistration(string $eventId, string $userId): Registration
-    {
-        $now = new \DateTimeImmutable('2026-04-30T10:00:00+00:00');
-        $registration = new Registration(bin2hex(random_bytes(16)), $eventId, $userId, Registration::STATUS_RESERVED, $now, $now);
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
-
-        return $registration;
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-30T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /**
-     * @return array<mixed>
-     */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

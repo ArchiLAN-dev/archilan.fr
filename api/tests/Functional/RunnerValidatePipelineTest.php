@@ -5,37 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\GenerateRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class RunnerValidatePipelineTest extends WebTestCase
+final class RunnerValidatePipelineTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -53,7 +35,7 @@ final class RunnerValidatePipelineTest extends WebTestCase
 
     public function testValidateEndpointRequiresAdmin(): void
     {
-        $player = $this->createUser('player@example.org', 'Player', ['ROLE_USER']);
+        $player = $this->createUser('player@example.org', ['ROLE_USER'], 'Player');
         $this->loginAs($player);
         $session = $this->persistSession('evt-001');
 
@@ -79,8 +61,8 @@ final class RunnerValidatePipelineTest extends WebTestCase
         $admin = $this->createAdmin();
         $this->loginAs($admin);
 
-        $player = $this->createUser('alice@example.org', 'Alice', ['ROLE_USER']);
-        $game = $this->createGame('Hollow Knight', 'Hollow Knight');
+        $player = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $game = $this->makeGame('Hollow Knight', 'Hollow Knight');
         $slotId = 'slot-hk-1';
         $reg = $this->createRegistrationWithYaml(
             $player->getId(), 'evt-001', $game->getId(), $slotId,
@@ -116,9 +98,9 @@ final class RunnerValidatePipelineTest extends WebTestCase
         $admin = $this->createAdmin();
         $this->loginAs($admin);
 
-        $alice = $this->createUser('alice@example.org', 'Alice', ['ROLE_USER']);
-        $bob = $this->createUser('bob@example.org', 'Bob', ['ROLE_USER']);
-        $game = $this->createGame('Hollow Knight', 'Hollow Knight');
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob');
+        $game = $this->makeGame('Hollow Knight', 'Hollow Knight');
         $slotA = 'slot-a';
         $slotB = 'slot-b';
         $regAlice = $this->createRegistrationWithYaml($alice->getId(), 'evt-001', $game->getId(), $slotA, 'yaml: a');
@@ -210,8 +192,8 @@ final class RunnerValidatePipelineTest extends WebTestCase
         $admin = $this->createAdmin();
         $this->loginAs($admin);
 
-        $player = $this->createUser('alice@example.org', 'Alice', ['ROLE_USER']);
-        $game = $this->createGame('Hollow Knight', 'Hollow Knight');
+        $player = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $game = $this->makeGame('Hollow Knight', 'Hollow Knight');
         $slotId = 'slot-hk-1';
         $reg = $this->createRegistrationWithYaml($player->getId(), 'evt-001', $game->getId(), $slotId, 'yaml: x');
         $session = $this->persistSession('evt-001');
@@ -256,46 +238,18 @@ final class RunnerValidatePipelineTest extends WebTestCase
 
     private function createAdmin(): User
     {
-        return $this->createUser('admin@example.org', 'Admin', ['ROLE_USER', 'ROLE_ADMIN']);
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
-    /** @param list<string> $roles */
-    private function createUser(string $email, string $displayName, array $roles): User
+    private function makeGame(string $name, ?string $archipelagoGameName): ArchipelagoGame
     {
-        $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            strtolower($email),
-            $displayName,
-            'test-password-hash',
-            $roles,
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createGame(string $name, ?string $archipelagoGameName): ArchipelagoGame
-    {
-        $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
-        $game = ArchipelagoGame::create(
-            $name,
-            strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2)),
-            'Description',
-            null,
-            'Cover',
-            'Credit',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            $now,
-        );
+        $slug = strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2));
+        $game = $this->createGame($name, $slug);
         if (null !== $archipelagoGameName) {
+            $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
             $game->configureApworld('test-key', 'test-hash', $archipelagoGameName, '', $now);
+            $this->entityManager->flush();
         }
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
 
         return $game;
     }
@@ -308,17 +262,9 @@ final class RunnerValidatePipelineTest extends WebTestCase
         string $playerYaml,
     ): Registration {
         $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
-        $reg = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-        );
+        $reg = $this->createRegistration($eventId, $userId);
         $reg->replaceSlots([['slotId' => $slotId, 'gameId' => $gameId]], $now);
         $reg->setSlotPlayerYaml($slotId, $playerYaml, 'test-hash', $now);
-        $this->entityManager->persist($reg);
         $this->entityManager->flush();
 
         return $reg;
@@ -356,13 +302,6 @@ final class RunnerValidatePipelineTest extends WebTestCase
         return $slot;
     }
 
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
     private function patchStatus(string $sessionId, string $status): void
     {
         $body = ['status' => $status];
@@ -385,14 +324,5 @@ final class RunnerValidatePipelineTest extends WebTestCase
             ['HTTP_X_INTERNAL_SECRET' => 'test-runner-secret', 'CONTENT_TYPE' => 'application/json'],
             json_encode($payload, JSON_THROW_ON_ERROR),
         );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

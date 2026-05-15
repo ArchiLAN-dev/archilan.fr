@@ -29,6 +29,10 @@ class GameCatalogSync
         private ?string $apworldReleaseUrl = null,
         #[ORM\Column(name: 'igdb_id', type: 'integer', nullable: true)]
         private ?int $igdbId = null,
+        #[ORM\Column(name: 'adult_content', type: 'boolean', options: ['default' => false])]
+        private bool $adultContent = false,
+        #[ORM\Column(name: 'bundled_with_ap', type: 'boolean', options: ['default' => false])]
+        private bool $bundledWithAp = false,
     ) {
         $game->setCatalogSync($this);
     }
@@ -72,7 +76,7 @@ class GameCatalogSync
         }
 
         if (null === $this->apworldDeployedVersion) {
-            return ArchipelagoGame::UPDATE_STATUS_UPDATE_AVAILABLE;
+            return ArchipelagoGame::UPDATE_STATUS_UNKNOWN;
         }
 
         $latest = ltrim($this->apworldLatestVersion, 'vV');
@@ -121,5 +125,15 @@ class GameCatalogSync
     public function getIgdbId(): ?int
     {
         return $this->igdbId;
+    }
+
+    public function isAdultContent(): bool
+    {
+        return $this->adultContent;
+    }
+
+    public function isBundledWithAp(): bool
+    {
+        return $this->bundledWithAp;
     }
 }

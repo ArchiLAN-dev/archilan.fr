@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
-use App\Registrations\Domain\Registration;
+use App\Sessions\Application\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
@@ -19,9 +17,11 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class PlayerStateController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
+        private SessionQuery $sessionQuery,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
     ) {
@@ -30,30 +30,30 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{runId}/players', methods: ['GET'])]
     public function players(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $runId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($runId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session)) {
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
-        if (Session::STATUS_RUNNING !== $session->getStatus()) {
+        if (Session::STATUS_RUNNING !== $session['status']) {
             return $this->apiAccessGuard->errorResponse(
                 'session_not_running',
-                sprintf('La session est en état "%s", pas encore en cours.', $session->getStatus()),
+                sprintf('La session est en état "%s", pas encore en cours.', $session['status']),
                 409,
             );
         }
 
-        $host = $session->getHost();
-        $bridgePort = $session->getBridgePort();
+        $host = $session['host'];
+        $bridgePort = $session['bridgePort'];
 
         if (null === $host || null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
@@ -76,17 +76,17 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{runId}/players-token', methods: ['GET'])]
     public function playersToken(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $runId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($runId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session)) {
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -116,17 +116,17 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{runId}/slots/{slotIndex}/reachable-token', methods: ['GET'])]
     public function reachableToken(Request $request, string $runId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $runId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($runId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session)) {
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -156,26 +156,26 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/hints', methods: ['GET'])]
     public function slotHints(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session)) {
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
-        if (Session::STATUS_RUNNING !== $session->getStatus()) {
+        if (Session::STATUS_RUNNING !== $session['status']) {
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session->getHost();
-        $bridgePort = $session->getBridgePort();
+        $host = $session['host'];
+        $bridgePort = $session['bridgePort'];
 
         if (null === $host || null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
@@ -197,17 +197,17 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{runId}/slots/{slotIndex}/hints-token', methods: ['GET'])]
     public function hintsToken(Request $request, string $runId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $runId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($runId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session)) {
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -237,22 +237,22 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/hints/request', methods: ['POST'])]
     public function requestHint(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (Session::STATUS_RUNNING !== $session->getStatus()) {
+        if (Session::STATUS_RUNNING !== $session['status']) {
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session->getHost();
-        $bridgePort = $session->getBridgePort();
+        $host = $session['host'];
+        $bridgePort = $session['bridgePort'];
 
         if (null === $host || null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
@@ -288,26 +288,26 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/item-locations', methods: ['GET'])]
     public function slotItemLocations(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session)) {
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
-        if (Session::STATUS_RUNNING !== $session->getStatus()) {
+        if (Session::STATUS_RUNNING !== $session['status']) {
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session->getHost();
-        $bridgePort = $session->getBridgePort();
+        $host = $session['host'];
+        $bridgePort = $session['bridgePort'];
 
         if (null === $host || null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
@@ -329,12 +329,12 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/reachable', methods: ['GET'])]
     public function slotReachable(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (Session::STATUS_RUNNING !== $session->getStatus()) {
+        if (Session::STATUS_RUNNING !== $session['status']) {
             return $this->apiAccessGuard->errorResponse(
                 'session_not_running',
                 'La session n\'est pas en cours.',
@@ -342,8 +342,8 @@ final readonly class PlayerStateController
             );
         }
 
-        $host = $session->getHost();
-        $bridgePort = $session->getBridgePort();
+        $host = $session['host'];
+        $bridgePort = $session['bridgePort'];
 
         if (null === $host || null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
@@ -357,8 +357,8 @@ final readonly class PlayerStateController
             );
             $data = $response->toArray();
 
-            $user = $this->apiAccessGuard->optionalUser($request);
-            $isAdmin = $user instanceof User && in_array('ROLE_ADMIN', $user->getRoles(), true);
+            $optionalUser = $this->apiAccessGuard->optionalUser($request);
+            $isAdmin = $optionalUser instanceof User && in_array('ROLE_ADMIN', $optionalUser->getRoles(), true);
 
             if (!$isAdmin) {
                 $data = $this->stripItemRewards($data);
@@ -409,39 +409,12 @@ final readonly class PlayerStateController
         return $data;
     }
 
-    private function isAuthorized(User $user, Session $session): bool
+    private function isAuthorized(User $user, string $sessionId, string $eventId): bool
     {
         if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
             return true;
         }
 
-        $count = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(r.id)')
-            ->from(Registration::class, 'r')
-            ->where('r.eventId = :eventId AND r.userId = :userId AND r.status = :status AND r.submittedAt IS NOT NULL')
-            ->setParameter('eventId', $session->getEventId())
-            ->setParameter('userId', $user->getId())
-            ->setParameter('status', Registration::STATUS_RESERVED)
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        if ($count > 0) {
-            return true;
-        }
-
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $session->getId()]);
-        if ($personalRun instanceof PersonalRun) {
-            if ($personalRun->isOwnedBy($user->getId())) {
-                return true;
-            }
-            $participant = $this->entityManager->getRepository(PersonalRunParticipant::class)->findOneBy([
-                'personalRunId' => $personalRun->getId(),
-                'userId' => $user->getId(),
-            ]);
-
-            return null !== $participant;
-        }
-
-        return false;
+        return $this->sessionQuery->isUserAuthorizedForSession($user->getId(), $eventId, $sessionId);
     }
 }

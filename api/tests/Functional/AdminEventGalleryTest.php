@@ -5,36 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Shared\Infrastructure\NullMinioStorage;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-final class AdminEventGalleryTest extends WebTestCase
+final class AdminEventGalleryTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
     private NullMinioStorage $minioStorage;
 
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $minioStorage = self::getContainer()->get(NullMinioStorage::class);
         self::assertInstanceOf(NullMinioStorage::class, $minioStorage);
@@ -62,7 +45,7 @@ final class AdminEventGalleryTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $eventId = $this->createEvent();
+        $eventId = $this->createEventViaApi();
 
         $tmpFile = $this->createTempImage('image/jpeg');
         $uploadedFile = new UploadedFile($tmpFile, 'photo.jpg', 'image/jpeg', null, true);
@@ -92,7 +75,7 @@ final class AdminEventGalleryTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $eventId = $this->createEvent();
+        $eventId = $this->createEventViaApi();
 
         $tmpFile = tempnam(sys_get_temp_dir(), 'test_gallery_');
         file_put_contents($tmpFile, 'Not an image');
@@ -111,7 +94,7 @@ final class AdminEventGalleryTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $eventId = $this->createEvent();
+        $eventId = $this->createEventViaApi();
 
         // fill gallery to 12 items
         for ($i = 0; $i < 12; ++$i) {
@@ -137,7 +120,7 @@ final class AdminEventGalleryTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $eventId = $this->createEvent();
+        $eventId = $this->createEventViaApi();
 
         // upload two items
         for ($i = 0; $i < 2; ++$i) {
@@ -161,7 +144,7 @@ final class AdminEventGalleryTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $eventId = $this->createEvent();
+        $eventId = $this->createEventViaApi();
 
         $tmpFile = $this->createTempImage('image/jpeg');
         $uploadedFile = new UploadedFile($tmpFile, 'photo.jpg', 'image/jpeg', null, true);
@@ -207,7 +190,7 @@ final class AdminEventGalleryTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $eventId = $this->createEvent();
+        $eventId = $this->createEventViaApi();
 
         $this->client->request('DELETE', sprintf('/api/v1/admin/events/%s/gallery/99', $eventId));
         self::assertResponseStatusCodeSame(404);
@@ -224,7 +207,7 @@ final class AdminEventGalleryTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    private function createEvent(): string
+    private function createEventViaApi(): string
     {
         $this->client->jsonRequest('POST', '/api/v1/admin/events', [
             'title' => 'Test Event',
@@ -259,39 +242,9 @@ final class AdminEventGalleryTest extends WebTestCase
     }
 
     /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /**
      * @return array<string, mixed>
      */
-    private function decodedJsonResponse(): array
+    protected function decodedJsonResponse(): array
     {
         $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($decoded);

@@ -56,6 +56,115 @@ final class DddArchitectureValidatorTest extends TestCase
         );
     }
 
+    public function testPresentationWithForbiddenConnectionImportIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nuse Doctrine\\DBAL\\Connection;\n\nfinal class AdminEventController {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Presentation layer must not inject DB infrastructure (Doctrine\\DBAL\\Connection): src/Events/Presentation/AdminEventController.php',
+            $report->violations(),
+        );
+    }
+
+    public function testPresentationWithForbiddenEntityManagerImportIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nuse Doctrine\\ORM\\EntityManagerInterface;\n\nfinal class AdminEventController {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Presentation layer must not inject DB infrastructure (Doctrine\\ORM\\EntityManagerInterface): src/Events/Presentation/AdminEventController.php',
+            $report->violations(),
+        );
+    }
+
+    public function testPresentationWithForbiddenSqlMethodIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __invoke(): void { \$this->conn->fetchAllAssociative('SELECT 1'); }\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Presentation layer must not execute queries directly (fetchAllAssociative): src/Events/Presentation/AdminEventController.php',
+            $report->violations(),
+        );
+    }
+
+    public function testCreateQueryBuilderDoesNotTriggerCreateQueryViolation(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __invoke(): void { \$this->em->createQueryBuilder()->select('e')->from('Event', 'e'); }\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violations = $report->violations();
+
+        self::assertContains(
+            'Presentation layer must not execute queries directly (createQueryBuilder): src/Events/Presentation/AdminEventController.php',
+            $violations,
+            'createQueryBuilder must be reported',
+        );
+        self::assertNotContains(
+            'Presentation layer must not execute queries directly (createQuery): src/Events/Presentation/AdminEventController.php',
+            $violations,
+            'createQuery must NOT be reported when only createQueryBuilder is present',
+        );
+    }
+
+    public function testApplicationWithDbInfrastructureIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/EventQuery.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nuse Doctrine\\DBAL\\Connection;\nuse Doctrine\\ORM\\EntityManagerInterface;\n\nfinal class EventQuery {\n    public function __construct(private Connection \$conn, private EntityManagerInterface \$em) {}\n    public function find(): array { return \$this->conn->fetchAllAssociative('SELECT 1'); }\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $cqrsViolationsForApplicationFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventQuery.php') && str_contains($v, 'Presentation layer'),
+        ));
+        self::assertCount(0, $cqrsViolationsForApplicationFile, 'Application layer DB imports must not trigger CQRS violations');
+    }
+
+    public function testCleanPresentationControllerIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __construct(private object \$catalog) {}\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $cqrsViolations = array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'AdminEventController.php'),
+        );
+        self::assertCount(0, array_values($cqrsViolations));
+    }
+
     private function createProjectFixture(): string
     {
         $projectDir = sys_get_temp_dir().'/archilan-ddd-validator-'.bin2hex(random_bytes(6));
@@ -75,6 +184,10 @@ final class DddArchitectureValidatorTest extends TestCase
             'Realtime',
             'Communications',
             'Legal',
+            'Sessions',
+            'PersonalRuns',
+            'CatalogSync',
+            'Streaming',
         ];
         $layers = ['Domain', 'Application', 'Infrastructure', 'Presentation'];
 

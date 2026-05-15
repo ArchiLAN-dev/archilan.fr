@@ -7,12 +7,15 @@ namespace App\Events\Application;
 use App\Events\Domain\Event;
 use App\Identity\Application\ValidationErrors;
 use App\Registrations\Application\RegistrationCounter;
+use App\Shared\Application\EntityFinderTrait;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventDrafts
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RegistrationCounter $registrationCounter,
@@ -45,9 +48,13 @@ final readonly class AdminEventDrafts
      */
     public function get(string $eventId): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
+            return null;
+        }
 
-        return $event instanceof Event ? $this->payload($event) : null;
+        return $this->payload($event);
     }
 
     /**
@@ -100,9 +107,9 @@ final readonly class AdminEventDrafts
      */
     public function update(string $eventId, array $input): array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -151,9 +158,9 @@ final readonly class AdminEventDrafts
      */
     public function transition(string $eventId, mixed $status): array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -179,9 +186,9 @@ final readonly class AdminEventDrafts
      */
     public function configurePrivateAccess(string $eventId, mixed $password): array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 

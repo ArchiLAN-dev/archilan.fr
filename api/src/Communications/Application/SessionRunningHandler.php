@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Communications\Application;
 
+use App\Shared\Application\Handler\LogsHandlerErrors;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -16,6 +16,8 @@ use Symfony\Component\Mime\Email;
 #[AsMessageHandler]
 final readonly class SessionRunningHandler
 {
+    use LogsHandlerErrors;
+
     public function __construct(
         private MailerInterface $mailer,
         private HubInterface $mercureHub,
@@ -48,10 +50,11 @@ final readonly class SessionRunningHandler
                 true,
             ));
         } catch (\Throwable $e) {
+            // Mercure failure must not prevent email delivery — log and continue.
             $this->logger->error('session.running.mercure_failed', [
                 'sessionId' => $message->sessionId,
                 'userId' => $message->userId,
-                'error' => $e->getMessage(),
+                'exception' => $e,
             ]);
         }
     }
@@ -95,19 +98,12 @@ TEXT;
             ->subject("Votre session Archipelago est prête - {$message->eventTitle}")
             ->text($body);
 
-        try {
+        $this->executeWithLogging('session.running.email_failed', function () use ($email, $message): void {
             $this->mailer->send($email);
             $this->logger->info('session.running.email_sent', [
                 'sessionId' => $message->sessionId,
                 'recipient' => $message->userEmail,
             ]);
-        } catch (TransportExceptionInterface $e) {
-            $this->logger->error('session.running.email_failed', [
-                'sessionId' => $message->sessionId,
-                'recipient' => $message->userEmail,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
+        });
     }
 }

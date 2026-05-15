@@ -6,12 +6,15 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\AdminUserDirectory;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminUserDirectoryController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminUserDirectory $adminUserDirectory,
@@ -21,7 +24,7 @@ final readonly class AdminUserDirectoryController
     #[Route('/api/v1/admin/users', name: 'api_identity_admin_users', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

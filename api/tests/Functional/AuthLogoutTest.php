@@ -13,13 +13,10 @@ use App\Identity\Domain\User;
 use App\Identity\Presentation\AuthController;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
 
-final class AuthLogoutTest extends WebTestCase
+final class AuthLogoutTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
     private EntityManagerInterface $em;
     private RefreshTokenFactory $factory;
     private RefreshTokenRepository $repository;
@@ -27,15 +24,11 @@ final class AuthLogoutTest extends WebTestCase
 
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $em = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $this->em = $em;
+        parent::setUp();
+        $this->em = $this->entityManager;
 
         $this->factory = new RefreshTokenFactory();
-        $this->repository = new RefreshTokenRepository($em);
+        $this->repository = new RefreshTokenRepository($this->em);
 
         $metadata = [
             $this->em->getClassMetadata(User::class),

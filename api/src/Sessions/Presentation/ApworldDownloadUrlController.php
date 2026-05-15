@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\Sessions\Application\ApworldQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class ApworldDownloadUrlController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
+        private ApworldQuery $apworldQuery,
         private MinioStorageInterface $minioStorage,
         private string $minioApworldsBucket,
         private int $minioPresignTtl,
@@ -26,15 +28,14 @@ final readonly class ApworldDownloadUrlController
     #[Route('/api/v1/admin/sessions/{sessionId}/apworlds/{sha256}/download-url', methods: ['GET'])]
     public function __invoke(Request $request, string $sessionId, string $sha256): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
 
-        $game = $this->entityManager->getRepository(ArchipelagoGame::class)
-            ->findOneBy(['apworldHash' => $sha256]);
+        $minioKey = $this->apworldQuery->findApworldMinioKey($sha256);
 
-        if (!$game instanceof ArchipelagoGame || null === $game->getApworldMinioKey()) {
+        if (null === $minioKey) {
             return new JsonResponse(
                 ['error' => ['code' => 'apworld_not_in_minio', 'message' => 'APWorld not found in object storage.']],
                 404,
@@ -44,7 +45,7 @@ final readonly class ApworldDownloadUrlController
         try {
             $url = $this->minioStorage->presignedUrl(
                 $this->minioApworldsBucket,
-                $game->getApworldMinioKey(),
+                $minioKey,
                 $this->minioPresignTtl,
             );
         } catch (\Throwable) {

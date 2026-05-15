@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Application\PaginationHelper;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Query\QueryBuilder;
 
 final readonly class PublicGameCatalog
 {
     public const PER_PAGE = 24;
 
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private Connection $connection,
     ) {
     }
 
@@ -23,46 +25,69 @@ final readonly class PublicGameCatalog
     {
         $page = max(1, $page);
 
-        $qb = $this->entityManager->createQueryBuilder()
-            ->from(ArchipelagoGame::class, 'game')
-            ->where('game.availability IN (:availabilities)')
-            ->setParameter('availabilities', [
-                ArchipelagoGame::AVAILABILITY_AVAILABLE,
-                ArchipelagoGame::AVAILABILITY_EXPERIMENTAL,
-            ])
-            ->orderBy('game.name', 'ASC');
+        $countResult = $this->buildBaseQuery($query)->select('COUNT(game.id)')->fetchOne();
+        $total = is_string($countResult) ? (int) $countResult : 0;
 
-        if ('' !== $query) {
-            $qb->andWhere('LOWER(game.name) LIKE :query OR LOWER(game.description) LIKE :query')
-               ->setParameter('query', '%'.mb_strtolower($query).'%');
-        }
-
-        $total = (int) (clone $qb)->select('COUNT(game.id)')->resetDQLPart('orderBy')->getQuery()->getSingleScalarResult();
         $totalPages = max(1, (int) ceil($total / self::PER_PAGE));
         $page = min($page, $totalPages);
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $qb
-            ->select('game')
-            ->setFirstResult(($page - 1) * self::PER_PAGE)
-            ->setMaxResults(self::PER_PAGE)
-            ->getQuery()
-            ->getResult();
+        $qb = $this->buildBaseQuery($query)
+            ->select(
+                'game.id AS id',
+                'game.name AS name',
+                'game.slug AS slug',
+                'game.description AS description',
+                'game.cover_image_url AS cover_image_url',
+                'game.cover_image_alt AS cover_image_alt',
+                'game.availability AS availability',
+            )
+            ->orderBy('game.name', 'ASC');
+
+        PaginationHelper::applyTo($qb, $page, self::PER_PAGE);
+
+        $items = [];
+        foreach ($qb->fetchAllAssociative() as $row) {
+            $id = $row['id'] ?? null;
+            $name = $row['name'] ?? null;
+            $slug = $row['slug'] ?? null;
+            $description = $row['description'] ?? null;
+            $coverImageUrl = $row['cover_image_url'] ?? null;
+            $coverImageAlt = $row['cover_image_alt'] ?? null;
+            $availability = $row['availability'] ?? null;
+
+            $items[] = [
+                'id' => is_string($id) ? $id : '',
+                'name' => is_string($name) ? $name : '',
+                'slug' => is_string($slug) ? $slug : '',
+                'description' => is_string($description) ? $description : '',
+                'coverImageUrl' => is_string($coverImageUrl) ? $coverImageUrl : null,
+                'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
+                'availability' => is_string($availability) ? $availability : '',
+            ];
+        }
 
         return [
-            'items' => array_map(fn (ArchipelagoGame $game): array => [
-                'id' => $game->getId(),
-                'name' => $game->getName(),
-                'slug' => $game->getSlug(),
-                'description' => $game->getDescription(),
-                'coverImageUrl' => $game->getCoverImageUrl(),
-                'coverImageAlt' => $game->getCoverImageAlt(),
-                'availability' => $game->getAvailability(),
-            ], $games),
+            'items' => $items,
             'total' => $total,
             'page' => $page,
             'perPage' => self::PER_PAGE,
             'totalPages' => $totalPages,
         ];
+    }
+
+    private function buildBaseQuery(string $searchQuery): QueryBuilder
+    {
+        $qb = $this->connection->createQueryBuilder()
+            ->from('games', 'game')
+            ->where('game.availability IN (:available, :experimental)')
+            ->setParameter('available', ArchipelagoGame::AVAILABILITY_AVAILABLE)
+            ->setParameter('experimental', ArchipelagoGame::AVAILABILITY_EXPERIMENTAL);
+
+        if ('' !== $searchQuery) {
+            $qb->andWhere('(LOWER(game.name) LIKE :query OR LOWER(game.description) LIKE :query)')
+                ->setParameter('query', '%'.mb_strtolower($searchQuery).'%');
+        }
+
+        return $qb;
     }
 }

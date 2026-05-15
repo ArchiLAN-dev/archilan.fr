@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Events\Presentation;
 
-use App\Events\Application\AdminEventDrafts;
-use App\Events\Domain\Event;
+use App\Events\Application\UploadEventCoverImageCommand;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminEventCoverImageController
 {
+    use RequiresAuthTrait;
     private const array ALLOWED_MIMES = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -26,27 +25,16 @@ final readonly class AdminEventCoverImageController
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
-        private AdminEventDrafts $adminEventDrafts,
-        private MinioStorageInterface $minioStorage,
-        private string $minioMediaBucket,
+        private UploadEventCoverImageCommand $uploadEventCoverImageCommand,
     ) {
     }
 
     #[Route('/api/v1/admin/events/{eventId}/cover-image', methods: ['POST'])]
     public function __invoke(Request $request, string $eventId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
-        }
-
-        $event = $this->entityManager->find(Event::class, $eventId);
-        if (!$event instanceof Event) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Événement introuvable.']],
-                404,
-            );
         }
 
         $file = $request->files->get('file');
@@ -76,18 +64,22 @@ final readonly class AdminEventCoverImageController
         $key = sprintf('events/%s/cover.%s', $eventId, $ext);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
-        try {
-            $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
-        } catch (\Throwable) {
+        $result = $this->uploadEventCoverImageCommand->execute($eventId, $key, $contents);
+
+        if ('not_found' === $result['outcome']) {
+            return new JsonResponse(
+                ['error' => ['code' => 'not_found', 'message' => 'Événement introuvable.']],
+                404,
+            );
+        }
+
+        if ('storage_error' === $result['outcome']) {
             return new JsonResponse(
                 ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
                 503,
             );
         }
 
-        $event->setCoverImageKey($key, new \DateTimeImmutable());
-        $this->entityManager->flush();
-
-        return new JsonResponse(['data' => $this->adminEventDrafts->get($eventId)]);
+        return new JsonResponse(['data' => $result['data']]);
     }
 }

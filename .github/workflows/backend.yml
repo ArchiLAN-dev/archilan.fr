@@ -59,5 +59,8 @@ jobs:
       - name: PHP CS Fixer
         run: composer cs-fixer
 
+      - name: Architecture
+        run: composer arch
+
       - name: PHPUnit
         run: composer test

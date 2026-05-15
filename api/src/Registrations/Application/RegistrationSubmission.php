@@ -9,12 +9,15 @@ use App\Events\Domain\Event;
 use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class RegistrationSubmission
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
@@ -31,15 +34,19 @@ final readonly class RegistrationSubmission
      */
     public function submit(string $registrationId, string $userId): ?array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
-
-        if (!$registration instanceof Registration || $registration->getUserId() !== $userId || !$registration->isReserved()) {
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
             return null;
         }
 
-        $event = $this->entityManager->find(Event::class, $registration->getEventId());
+        if ($registration->getUserId() !== $userId || !$registration->isReserved()) {
+            return null;
+        }
 
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $registration->getEventId());
+        } catch (\RuntimeException) {
             return null;
         }
 

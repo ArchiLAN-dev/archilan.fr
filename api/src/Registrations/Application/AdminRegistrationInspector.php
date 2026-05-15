@@ -10,10 +10,13 @@ use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Domain\User;
 use App\Payments\Application\HelloAssoPaymentLookup;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminRegistrationInspector
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private HelloAssoPaymentLookup $paymentLookup,
@@ -45,15 +48,19 @@ final readonly class AdminRegistrationInspector
      */
     public function inspect(string $eventId, string $registrationId): ?array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
-
-        if (!$registration instanceof Registration || $registration->getEventId() !== $eventId) {
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
             return null;
         }
 
-        $event = $this->entityManager->find(Event::class, $eventId);
+        if ($registration->getEventId() !== $eventId) {
+            return null;
+        }
 
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return null;
         }
 

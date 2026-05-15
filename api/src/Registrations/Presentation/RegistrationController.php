@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace App\Registrations\Presentation;
 
+use App\Registrations\Application\MyRegistrationQuery;
 use App\Registrations\Application\RegistrationCancellation;
 use App\Registrations\Application\RegistrationGameSelection;
 use App\Registrations\Application\RegistrationSubmission;
 use App\Registrations\Application\ReserveRegistration;
-use App\Registrations\Domain\Registration;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class RegistrationController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
+        private MyRegistrationQuery $myRegistrationQuery,
         private RegistrationCancellation $registrationCancellation,
         private RegistrationGameSelection $registrationGameSelection,
         private RegistrationSubmission $registrationSubmission,
@@ -30,23 +32,20 @@ final readonly class RegistrationController
     #[Route('/api/v1/events/{eventId}/my-registration', name: 'api_events_my_registration', methods: ['GET'])]
     public function myRegistration(Request $request, string $eventId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
         }
 
-        $registration = $this->entityManager->getRepository(Registration::class)->findOneBy([
-            'eventId' => $eventId,
-            'userId' => $user->getId(),
-        ]);
+        $registration = $this->myRegistrationQuery->findActiveByEventAndUser($eventId, $user->getId());
 
-        if (!$registration instanceof Registration || Registration::STATUS_CANCELLED === $registration->getStatus()) {
+        if (null === $registration) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Aucune inscription active pour cet événement.', 404);
         }
 
         return new JsonResponse([
-            'data' => ['registrationId' => $registration->getId(), 'status' => $registration->getStatus()],
+            'data' => ['registrationId' => $registration['registrationId'], 'status' => $registration['status']],
             'meta' => [],
         ]);
     }
@@ -54,7 +53,7 @@ final readonly class RegistrationController
     #[Route('/api/v1/events/{eventId}/registrations', name: 'api_events_registrations_reserve', methods: ['POST'])]
     public function reserve(Request $request, string $eventId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -95,7 +94,7 @@ final readonly class RegistrationController
     #[Route('/api/v1/registrations/{registrationId}/game-selection', name: 'api_registrations_game_selection_get', methods: ['GET'])]
     public function getGameSelection(Request $request, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -113,7 +112,7 @@ final readonly class RegistrationController
     #[Route('/api/v1/registrations/{registrationId}/game-selection', name: 'api_registrations_game_selection_put', methods: ['PUT'])]
     public function saveGameSelection(Request $request, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -135,7 +134,7 @@ final readonly class RegistrationController
     #[Route('/api/v1/registrations/{registrationId}/slots/{slotId}/yaml', name: 'api_registrations_slot_yaml_put', methods: ['PUT'])]
     public function saveSlotYaml(Request $request, string $registrationId, string $slotId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -164,7 +163,7 @@ final readonly class RegistrationController
     #[Route('/api/v1/registrations/{registrationId}', name: 'api_registrations_cancel', methods: ['DELETE'])]
     public function cancelRegistration(Request $request, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -186,7 +185,7 @@ final readonly class RegistrationController
     #[Route('/api/v1/registrations/{registrationId}/submit', name: 'api_registrations_submit', methods: ['POST'])]
     public function submitRegistration(Request $request, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;

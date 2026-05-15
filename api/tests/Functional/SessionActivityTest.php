@@ -8,24 +8,13 @@ use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Domain\User;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-final class SessionActivityTest extends WebTestCase
+final class SessionActivityTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -206,14 +195,5 @@ final class SessionActivityTest extends WebTestCase
         $this->entityManager->flush();
 
         return $session;
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

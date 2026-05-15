@@ -7,36 +7,18 @@ namespace App\Tests\Functional;
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\AccountDeletionAudit;
 use App\Identity\Domain\AdminAccountCreationAudit;
 use App\Identity\Domain\RoleChangeAudit;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class RbacEnforcementTest extends WebTestCase
+final class RbacEnforcementTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -301,47 +283,5 @@ final class RbacEnforcementTest extends WebTestCase
         self::assertIsString($response['error']['message']);
         self::assertIsArray($response['error']['details']);
         self::assertArrayNotHasKey('data', $response);
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles, ?string $displayName): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            $displayName,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /**
-     * @return array<mixed>
-     */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

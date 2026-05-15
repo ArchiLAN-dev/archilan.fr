@@ -5,33 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-final class AdminGameApworldTest extends WebTestCase
+final class AdminGameApworldTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -78,7 +60,7 @@ final class AdminGameApworldTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $gameId = $this->createGame();
+        $gameId = $this->createGameViaApi();
 
         $this->client->request('PATCH', sprintf('/api/v1/admin/games/%s/apworld', $gameId));
 
@@ -89,7 +71,7 @@ final class AdminGameApworldTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $gameId = $this->createGame();
+        $gameId = $this->createGameViaApi();
 
         $tmpFile = tempnam(sys_get_temp_dir(), 'test_');
         file_put_contents($tmpFile, 'not an apworld');
@@ -112,7 +94,7 @@ final class AdminGameApworldTest extends WebTestCase
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $this->loginAs($admin);
-        $gameId = $this->createGame();
+        $gameId = $this->createGameViaApi();
 
         $tmpFile = $this->createTempApworld();
         $uploadedFile = new UploadedFile($tmpFile, 'hollow_knight.apworld', 'application/octet-stream', null, true);
@@ -141,38 +123,7 @@ final class AdminGameApworldTest extends WebTestCase
         return $tmpFile;
     }
 
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    private function createGame(): string
+    private function createGameViaApi(): string
     {
         $this->client->jsonRequest('POST', '/api/v1/admin/games', [
             'name' => 'Hollow Knight',
@@ -190,16 +141,5 @@ final class AdminGameApworldTest extends WebTestCase
         self::assertIsString($id);
 
         return $id;
-    }
-
-    /**
-     * @return array<mixed>
-     */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

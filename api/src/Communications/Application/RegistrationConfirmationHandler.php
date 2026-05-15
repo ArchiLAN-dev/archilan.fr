@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Communications\Application;
 
+use App\Shared\Application\Handler\LogsHandlerErrors;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Mime\Address;
@@ -14,6 +14,8 @@ use Symfony\Component\Mime\Email;
 #[AsMessageHandler]
 final readonly class RegistrationConfirmationHandler
 {
+    use LogsHandlerErrors;
+
     public function __construct(
         private MailerInterface $mailer,
         private LoggerInterface $logger,
@@ -55,14 +57,8 @@ TEXT;
             ->subject("Confirmation d'inscription - {$message->eventTitle}")
             ->text($body);
 
-        try {
+        $this->executeWithLogging('Registration confirmation email failed to send.', function () use ($email): void {
             $this->mailer->send($email);
-        } catch (TransportExceptionInterface $e) {
-            $this->logger->error('Registration confirmation email failed to send.', [
-                'recipient' => $message->userEmail,
-                'event' => $message->eventTitle,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        });
     }
 }

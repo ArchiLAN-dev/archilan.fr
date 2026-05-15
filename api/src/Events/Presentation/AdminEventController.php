@@ -14,12 +14,15 @@ use App\Events\Application\VerifyPrivateEventAccess;
 use App\Payments\Application\AdminHelloAssoSyncStatus;
 use App\Payments\Application\TriggerHelloAssoSync;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminEventController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminDashboardStats $adminDashboardStats,
@@ -55,7 +58,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/events/{eventId}/registration-eligibility', name: 'api_events_registration_eligibility', methods: ['GET'])]
     public function registrationEligibility(Request $request, string $eventId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -73,7 +76,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/events/{eventId}/verify-private-access', name: 'api_events_verify_private_access', methods: ['POST'])]
     public function verifyPrivateAccess(Request $request, string $eventId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -92,7 +95,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/dashboard-stats', name: 'api_admin_dashboard_stats', methods: ['GET'])]
     public function dashboardStats(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -104,7 +107,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events', name: 'api_events_admin_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -116,7 +119,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events', name: 'api_events_admin_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -139,7 +142,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}', name: 'api_events_admin_show', methods: ['GET'])]
     public function show(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -157,7 +160,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}', name: 'api_events_admin_update', methods: ['PATCH'])]
     public function update(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -184,7 +187,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/status', name: 'api_events_admin_transition', methods: ['PATCH'])]
     public function transition(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -212,7 +215,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/private-access', name: 'api_events_admin_private_access', methods: ['PATCH'])]
     public function configurePrivateAccess(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -240,7 +243,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/game-selection', name: 'api_events_admin_game_selection_get', methods: ['GET'])]
     public function getGameSelection(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -258,7 +261,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/game-selection', name: 'api_events_admin_game_selection_configure', methods: ['PATCH'])]
     public function configureGameSelection(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -280,7 +283,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/payments/sync', name: 'api_events_admin_payments_sync', methods: ['POST'])]
     public function syncPayments(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -306,7 +309,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/payments/sync/status', name: 'api_events_admin_payments_sync_status', methods: ['GET'])]
     public function syncStatus(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -324,7 +327,7 @@ final readonly class AdminEventController
     #[Route('/api/v1/admin/events/{eventId}/recap', name: 'api_events_admin_recap', methods: ['PATCH'])]
     public function attachRecap(Request $request, string $eventId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

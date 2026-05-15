@@ -5,35 +5,18 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Content\Domain\Post;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Shared\Infrastructure\NullMinioStorage;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-final class AdminPostCoverImageTest extends WebTestCase
+final class AdminPostCoverImageTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
     private NullMinioStorage $minioStorage;
 
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $minioStorage = self::getContainer()->get(NullMinioStorage::class);
         self::assertInstanceOf(NullMinioStorage::class, $minioStorage);
@@ -236,39 +219,9 @@ final class AdminPostCoverImageTest extends WebTestCase
     }
 
     /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /**
      * @return array<string, mixed>
      */
-    private function decodedJsonResponse(): array
+    protected function decodedJsonResponse(): array
     {
         $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($decoded);

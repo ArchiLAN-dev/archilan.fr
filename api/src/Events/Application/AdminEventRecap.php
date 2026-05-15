@@ -6,11 +6,14 @@ namespace App\Events\Application;
 
 use App\Events\Domain\Event;
 use App\Identity\Application\ValidationErrors;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventRecap
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
@@ -24,9 +27,9 @@ final readonly class AdminEventRecap
      */
     public function attach(string $eventId, array $input): array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
 

@@ -8,11 +8,14 @@ use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class PersonalRunLifecycle
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
@@ -24,9 +27,9 @@ final readonly class PersonalRunLifecycle
      */
     public function start(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 
@@ -69,9 +72,9 @@ final readonly class PersonalRunLifecycle
      */
     public function stop(string $runId, string $callerId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 
@@ -96,9 +99,9 @@ final readonly class PersonalRunLifecycle
      */
     public function markRunning(string $runId, string $host, int $port): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 
@@ -117,9 +120,9 @@ final readonly class PersonalRunLifecycle
      */
     public function markStopped(string $runId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 

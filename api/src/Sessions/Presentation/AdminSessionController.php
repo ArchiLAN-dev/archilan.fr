@@ -7,12 +7,15 @@ namespace App\Sessions\Presentation;
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Sessions\Application\SessionOrchestrator;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminSessionController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
@@ -23,7 +26,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/events/{eventId}/sessions', methods: ['GET'])]
     public function list(Request $request, string $eventId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -36,7 +39,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/events/{eventId}/sessions/builder', methods: ['GET'])]
     public function builder(Request $request, string $eventId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -49,7 +52,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/events/{eventId}/sessions/preflight', methods: ['POST'])]
     public function preflight(Request $request, string $eventId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -71,7 +74,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/events/{eventId}/sessions', methods: ['POST'])]
     public function create(Request $request, string $eventId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -98,7 +101,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/sessions/{sessionId}', methods: ['GET'])]
     public function get(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -115,7 +118,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/sessions/{sessionId}/status', methods: ['PATCH'])]
     public function transition(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -148,7 +151,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/sessions/{sessionId}/force-reset', methods: ['POST'])]
     public function forceReset(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
@@ -165,7 +168,7 @@ final readonly class AdminSessionController
     #[Route('/api/v1/admin/sessions/{sessionId}', methods: ['DELETE'])]
     public function stop(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }

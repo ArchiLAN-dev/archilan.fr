@@ -8,12 +8,15 @@ use App\CatalogSync\Application\CheckApworldUpdatesService;
 use App\CatalogSync\Application\IgdbCandidate;
 use App\CatalogSync\Application\IgdbEnrichmentService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminCatalogSyncController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private IgdbEnrichmentService $igdbEnrichmentService,
@@ -24,7 +27,7 @@ final readonly class AdminCatalogSyncController
     #[Route('/api/v1/admin/catalog-sync/igdb-preview', name: 'api_catalog_sync_igdb_preview', methods: ['GET'])]
     public function igdbPreview(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -55,7 +58,7 @@ final readonly class AdminCatalogSyncController
     #[Route('/api/v1/admin/catalog-sync/check-updates', name: 'api_catalog_sync_check_updates', methods: ['POST'])]
     public function checkUpdates(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

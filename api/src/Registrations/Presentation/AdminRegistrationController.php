@@ -11,6 +11,7 @@ use App\Registrations\Application\AdminRegistrationInspector;
 use App\Registrations\Application\AdminRegistrationModification;
 use App\Registrations\Application\SendMessageToRegistrant;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +19,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminRegistrationController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminRegistrationCancellation $adminRegistrationCancellation,
@@ -33,7 +36,7 @@ final readonly class AdminRegistrationController
     #[Route('/api/v1/admin/events/{eventId}/registrations', name: 'api_admin_registrations_list', methods: ['GET'])]
     public function list(Request $request, string $eventId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -52,7 +55,7 @@ final readonly class AdminRegistrationController
     #[Route('/api/v1/admin/events/{eventId}/registrations/export', name: 'api_admin_registrations_export', methods: ['GET'])]
     public function export(Request $request, string $eventId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -83,7 +86,7 @@ final readonly class AdminRegistrationController
     #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}', name: 'api_admin_registrations_show', methods: ['GET'])]
     public function show(Request $request, string $eventId, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -101,7 +104,7 @@ final readonly class AdminRegistrationController
     #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}', name: 'api_admin_registrations_update', methods: ['PATCH'])]
     public function update(Request $request, string $eventId, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -149,7 +152,7 @@ final readonly class AdminRegistrationController
     #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}', name: 'api_admin_registrations_cancel', methods: ['DELETE'])]
     public function cancel(Request $request, string $eventId, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
 
         if ($user instanceof JsonResponse) {
             return $user;
@@ -180,7 +183,7 @@ final readonly class AdminRegistrationController
     #[Route('/api/v1/admin/events/{eventId}/registrations/{registrationId}/messages', name: 'api_admin_registrations_message', methods: ['POST'])]
     public function message(Request $request, string $eventId, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireAdmin($request);
+        $user = $this->requireAuthenticatedAdmin($request);
 
         if ($user instanceof JsonResponse) {
             return $user;

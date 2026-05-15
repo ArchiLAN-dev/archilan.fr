@@ -8,6 +8,7 @@ use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -16,6 +17,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 #[AsMessageHandler]
 final readonly class StopPersonalRunJobHandler
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
@@ -25,9 +28,9 @@ final readonly class StopPersonalRunJobHandler
 
     public function __invoke(StopPersonalRunJob $job): void
     {
-        $run = $this->entityManager->find(PersonalRun::class, $job->personalRunId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $job->personalRunId);
+        } catch (\RuntimeException) {
             $this->logger->error('personal_run.stop.not_found', ['runId' => $job->personalRunId]);
 
             return;
@@ -40,8 +43,9 @@ final readonly class StopPersonalRunJobHandler
             return;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             $this->logger->warning('personal_run.stop.session_not_found', ['runId' => $job->personalRunId, 'sessionId' => $sessionId]);
 
             return;

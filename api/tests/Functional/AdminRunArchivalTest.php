@@ -6,38 +6,20 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class AdminRunArchivalTest extends WebTestCase
+final class AdminRunArchivalTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -79,8 +61,8 @@ final class AdminRunArchivalTest extends WebTestCase
 
     public function testArchiveCallbackStoresStatsOnSlots(): void
     {
-        $user = $this->createUser('player1@example.org', 'player1@example.org');
-        $reg = $this->createRegistration($user->getId(), 'evt-arc-02');
+        $user = $this->createUser('player1@example.org', ['ROLE_USER'], 'player1@example.org');
+        $reg = $this->createRegistration('evt-arc-02', $user->getId());
         $session = $this->createFinishedSession('run-arc-2', 'evt-arc-02');
 
         $slot = SessionSlot::create(
@@ -138,10 +120,10 @@ final class AdminRunArchivalTest extends WebTestCase
 
     public function testPublicResultsRequiresNoAuth(): void
     {
-        $event = $this->createEvent('evt-arc-03');
+        $event = $this->makeEvent();
         $session = $this->createFinishedSession('run-arc-3', $event->getId());
-        $user = $this->createUser('player2@example.org', 'Player2');
-        $reg = $this->createRegistration($user->getId(), $event->getId());
+        $user = $this->createUser('player2@example.org', ['ROLE_USER'], 'Player2');
+        $reg = $this->createRegistration($event->getId(), $user->getId());
 
         $slot = SessionSlot::create(
             bin2hex(random_bytes(16)),
@@ -180,8 +162,8 @@ final class AdminRunArchivalTest extends WebTestCase
         $admin = $this->createAdmin();
         $this->loginAs($admin);
 
-        $user = $this->createUser('player3@example.org', 'PlayerThree');
-        $reg = $this->createRegistration($user->getId(), 'evt-arc-04');
+        $user = $this->createUser('player3@example.org', ['ROLE_USER'], 'PlayerThree');
+        $reg = $this->createRegistration('evt-arc-04', $user->getId());
         $session = $this->createFinishedSession('run-arc-4', 'evt-arc-04');
 
         $slot = SessionSlot::create(
@@ -217,8 +199,8 @@ final class AdminRunArchivalTest extends WebTestCase
         $admin = $this->createAdmin();
         $this->loginAs($admin);
 
-        $user = $this->createUser('player4@example.org', 'PlayerFour');
-        $reg = $this->createRegistration($user->getId(), 'evt-arc-05');
+        $user = $this->createUser('player4@example.org', ['ROLE_USER'], 'PlayerFour');
+        $reg = $this->createRegistration('evt-arc-05', $user->getId());
         $session = $this->createFinishedSession('run-arc-5', 'evt-arc-05');
 
         $slot = SessionSlot::create(
@@ -249,30 +231,18 @@ final class AdminRunArchivalTest extends WebTestCase
 
     // ─── helpers ────────────────────────────────────────────────────────────────
 
-    private function createEvent(string $id): Event
+    private function makeEvent(): Event
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
-        $event = new Event(
-            $id,
+        $event = $this->createEvent(
             'Test Event',
-            'Description',
-            Event::STATUS_COMPLETED,
             $now,
             $now->modify('+2 days'),
-            'Somewhere',
-            30,
-            $now->modify('-30 days'),
-            $now->modify('-1 day'),
-            true,
-            null,
-            false,
-            [],
-            null,
-            null,
-            $now,
-            $now,
+            capacity: 30,
+            registrationOpensAt: $now->modify('-30 days'),
+            registrationClosesAt: $now->modify('-1 day'),
         );
-        $this->entityManager->persist($event);
+        $this->transitionEventTo($event, Event::STATUS_COMPLETED, $now);
         $this->entityManager->flush();
 
         return $event;
@@ -311,65 +281,8 @@ final class AdminRunArchivalTest extends WebTestCase
         return $session;
     }
 
-    private function createUser(string $email, string $displayName): User
-    {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            $displayName,
-            $displayName,
-            'hash',
-            ['ROLE_USER'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createRegistration(string $userId, string $eventId): Registration
-    {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $reg = new Registration(bin2hex(random_bytes(16)), $eventId, $userId, Registration::STATUS_RESERVED, $now, $now);
-        $this->entityManager->persist($reg);
-        $this->entityManager->flush();
-
-        return $reg;
-    }
-
     private function createAdmin(): User
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            'admin@example.org',
-            'admin@example.org',
-            'Admin',
-            'test-password-hash',
-            ['ROLE_USER', 'ROLE_ADMIN'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 }

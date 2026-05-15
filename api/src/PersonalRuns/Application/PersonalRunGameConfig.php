@@ -7,10 +7,13 @@ namespace App\PersonalRuns\Application;
 use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Application\ValidationErrors;
 use App\PersonalRuns\Domain\PersonalRun;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PersonalRunGameConfig
 {
+    use EntityFinderTrait;
+
     public function __construct(private EntityManagerInterface $entityManager)
     {
     }
@@ -22,9 +25,9 @@ final readonly class PersonalRunGameConfig
      */
     public function configure(string $runId, string $callerId, array $input): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 

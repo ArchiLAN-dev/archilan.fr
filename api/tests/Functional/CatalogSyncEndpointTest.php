@@ -5,40 +5,26 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
+use App\GameSelection\Domain\GameCatalogSync;
+use App\GameSelection\Domain\IgnoredCatalogEntry;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-final class CatalogSyncEndpointTest extends WebTestCase
+final class CatalogSyncEndpointTest extends FunctionalTestCase
 {
     private const EMPTY_CSV = "Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes\n";
 
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(GameCatalogSync::class),
+            $this->entityManager->getClassMetadata(IgnoredCatalogEntry::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -67,8 +53,7 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
+        $response = $this->decodedJsonResponse();
         self::assertArrayHasKey('cachedAt', $response);
         self::assertArrayHasKey('googleApiAvailable', $response);
         self::assertArrayHasKey('githubChecksAvailable', $response);
@@ -85,18 +70,8 @@ final class CatalogSyncEndpointTest extends WebTestCase
 
     public function testCatalogSyncApworldUpdatesIncludesAllGames(): void
     {
-        $game = ArchipelagoGame::create(
-            'Hollow Knight',
-            'hollow-knight',
-            'A platformer.',
-            null,
-            'Cover',
-            '',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
-        );
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->updateCatalogueMetadata(sourceUrl: 'https://github.com/nicholasb/hollow-knight');
-        $this->entityManager->persist($game);
         $this->entityManager->flush();
 
         $this->configureEmptySheetMock();
@@ -107,11 +82,13 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertCount(1, $response['apworldUpdates']);
+        $response = $this->decodedJsonResponse();
+        $apworldUpdates = $response['apworldUpdates'];
+        self::assertIsArray($apworldUpdates);
+        self::assertCount(1, $apworldUpdates);
 
-        $update = $response['apworldUpdates'][0];
+        $update = $apworldUpdates[0];
+        self::assertIsArray($update);
         self::assertSame($game->getId(), $update['gameId']);
         self::assertSame('Hollow Knight', $update['gameName']);
         self::assertNull($update['deployedVersion']);
@@ -136,8 +113,10 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseStatusCodeSame(503);
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertSame('sheet_unavailable', $response['error']['code']);
+        $response = $this->decodedJsonResponse();
+        $error = $response['error'];
+        self::assertIsArray($error);
+        self::assertSame('sheet_unavailable', $error['code']);
     }
 
     public function testCatalogSyncForceReturns503WhenSheetUnreachable(): void
@@ -158,19 +137,8 @@ final class CatalogSyncEndpointTest extends WebTestCase
 
     public function testCatalogSyncNotTrackedWhenNoGithubUrl(): void
     {
-        $game = ArchipelagoGame::create(
-            'Bundled Game',
-            'bundled-game',
-            'Bundled.',
-            null,
-            'Cover',
-            '',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
-        );
+        $game = $this->createGame('Bundled Game', 'bundled-game');
         // No sourceUrl set → not_tracked
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
 
         $this->configureEmptySheetMock();
 
@@ -180,8 +148,12 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertSame(ArchipelagoGame::UPDATE_STATUS_NOT_TRACKED, $response['apworldUpdates'][0]['updateStatus']);
+        $response = $this->decodedJsonResponse();
+        $apworldUpdates = $response['apworldUpdates'];
+        self::assertIsArray($apworldUpdates);
+        $firstUpdate = $apworldUpdates[0];
+        self::assertIsArray($firstUpdate);
+        self::assertSame(ArchipelagoGame::UPDATE_STATUS_NOT_TRACKED, $firstUpdate['updateStatus']);
     }
 
     public function testCatalogSyncNewGamesIncludeAdultContentField(): void
@@ -199,28 +171,20 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertCount(1, $response['newGames']);
-        $newGame = $response['newGames'][0];
+        $response = $this->decodedJsonResponse();
+        $newGames = $response['newGames'];
+        self::assertIsArray($newGames);
+        self::assertCount(1, $newGames);
+        $newGame = $newGames[0];
+        self::assertIsArray($newGame);
         self::assertArrayHasKey('adultContent', $newGame);
         self::assertTrue($newGame['adultContent']);
     }
 
     public function testCatalogSyncStabilityChangedIncludesAvailabilityLockedField(): void
     {
-        $game = ArchipelagoGame::create(
-            'Hollow Knight',
-            'hollow-knight',
-            'A platformer.',
-            null,
-            'Cover',
-            '',
-            ArchipelagoGame::AVAILABILITY_EXPERIMENTAL,
-            new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
-        );
+        $game = $this->createGame('Hollow Knight', 'hollow-knight', ArchipelagoGame::AVAILABILITY_EXPERIMENTAL);
         $game->updateCatalogueMetadata(catalogSheetName: 'Hollow Knight');
-        $this->entityManager->persist($game);
         $this->entityManager->flush();
 
         $httpClient = self::getContainer()->get(MockHttpClient::class);
@@ -236,10 +200,12 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertCount(1, $response['stabilityChanged']);
-        $change = $response['stabilityChanged'][0];
+        $response = $this->decodedJsonResponse();
+        $stabilityChanged = $response['stabilityChanged'];
+        self::assertIsArray($stabilityChanged);
+        self::assertCount(1, $stabilityChanged);
+        $change = $stabilityChanged[0];
+        self::assertIsArray($change);
         self::assertArrayHasKey('availabilityLocked', $change);
         self::assertFalse($change['availabilityLocked']);
     }
@@ -259,10 +225,13 @@ final class CatalogSyncEndpointTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertCount(1, $response['newGames']);
-        self::assertSame('Hollow Knight', $response['newGames'][0]['name']);
+        $response = $this->decodedJsonResponse();
+        $newGames = $response['newGames'];
+        self::assertIsArray($newGames);
+        self::assertCount(1, $newGames);
+        $firstGame = $newGames[0];
+        self::assertIsArray($firstGame);
+        self::assertSame('Hollow Knight', $firstGame['name']);
     }
 
     private function configureEmptySheetMock(): void
@@ -273,36 +242,5 @@ final class CatalogSyncEndpointTest extends WebTestCase
             new MockResponse(self::EMPTY_CSV),
             new MockResponse(self::EMPTY_CSV),
         ]);
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 }

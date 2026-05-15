@@ -6,12 +6,15 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\AdminChangeUserRole;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminUserRoleController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminChangeUserRole $adminChangeUserRole,
@@ -21,7 +24,7 @@ final readonly class AdminUserRoleController
     #[Route('/api/v1/admin/users/{userId}/role', name: 'api_identity_admin_user_role_update', methods: ['PATCH'])]
     public function __invoke(Request $request, string $userId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

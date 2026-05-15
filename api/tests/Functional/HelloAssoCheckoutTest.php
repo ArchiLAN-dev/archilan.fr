@@ -5,34 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Payments\Application\HelloAssoConfig;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class HelloAssoCheckoutTest extends WebTestCase
+final class HelloAssoCheckoutTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -216,31 +198,19 @@ final class HelloAssoCheckoutTest extends WebTestCase
         ?\DateTimeImmutable $registrationClosesAt = null,
     ): Event {
         $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $event = new Event(
-            bin2hex(random_bytes(16)),
+        $event = $this->createEvent(
             'Spring Sync 2027',
-            'Une session Archipelago.',
-            $status,
             new \DateTimeImmutable('+30 days'),
             new \DateTimeImmutable('+31 days'),
-            'Clermont-Ferrand',
-            $capacity,
-            $registrationOpensAt ?? new \DateTimeImmutable('-1 day'),
-            $registrationClosesAt ?? new \DateTimeImmutable('+20 days'),
-            $isPublic,
-            null,
-            false,
-            [],
-            null,
-            null,
-            $now,
-            $now,
-            null,
-            null,
-            $helloassoFormSlug,
+            capacity: $capacity,
+            isPublic: $isPublic,
+            registrationOpensAt: $registrationOpensAt ?? new \DateTimeImmutable('-1 day'),
+            registrationClosesAt: $registrationClosesAt ?? new \DateTimeImmutable('+20 days'),
         );
-
-        $this->entityManager->persist($event);
+        $this->transitionEventTo($event, $status, $now);
+        if (null !== $helloassoFormSlug) {
+            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+        }
         $this->entityManager->flush();
 
         return $event;
@@ -264,60 +234,8 @@ final class HelloAssoCheckoutTest extends WebTestCase
         ];
     }
 
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    private function createRegistration(string $eventId, string $userId): Registration
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $registration = new Registration(bin2hex(random_bytes(16)), $eventId, $userId, Registration::STATUS_RESERVED, $now, $now);
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
-
-        return $registration;
-    }
-
     private function configureHelloAsso(): void
     {
         self::getContainer()->set(HelloAssoConfig::class, new HelloAssoConfig('client-id', 'secret', 'archilan', true));
-    }
-
-    /**
-     * @return array<mixed>
-     */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

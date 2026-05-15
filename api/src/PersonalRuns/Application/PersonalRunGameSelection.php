@@ -8,11 +8,14 @@ use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Application\ValidationErrors;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class PersonalRunGameSelection
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
@@ -24,9 +27,9 @@ final readonly class PersonalRunGameSelection
      */
     public function getMySlots(string $runId, string $userId): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 
@@ -89,9 +92,9 @@ final readonly class PersonalRunGameSelection
      */
     public function saveMyGames(string $runId, string $userId, array $input): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->resultWithErrors(found: false);
         }
 
@@ -150,9 +153,9 @@ final readonly class PersonalRunGameSelection
      */
     public function saveSlotYaml(string $runId, string $userId, string $slotId, string $playerYaml): array
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return $this->yamlResult(found: false);
         }
 
@@ -170,8 +173,9 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, errors: ['slotId' => ['Slot introuvable.']]);
         }
 
-        $game = $this->entityManager->find(ArchipelagoGame::class, $slot['gameId']);
-        if (!$game instanceof ArchipelagoGame) {
+        try {
+            $game = $this->findOrFail(ArchipelagoGame::class, $slot['gameId']);
+        } catch (\RuntimeException) {
             return $this->yamlResult(found: true, errors: ['gameId' => ['Jeu introuvable.']]);
         }
 
@@ -190,8 +194,9 @@ final readonly class PersonalRunGameSelection
 
     private function loadParticipant(string $runId, string $userId): ?PersonalRunParticipant
     {
-        $run = $this->entityManager->find(PersonalRun::class, $runId);
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $runId);
+        } catch (\RuntimeException) {
             return null;
         }
 

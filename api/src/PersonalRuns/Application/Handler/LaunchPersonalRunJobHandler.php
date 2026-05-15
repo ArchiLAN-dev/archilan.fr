@@ -13,6 +13,7 @@ use App\Sessions\Application\Message\GenerateRunJob;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -21,6 +22,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 #[AsMessageHandler]
 final readonly class LaunchPersonalRunJobHandler
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messageBus,
@@ -31,9 +34,9 @@ final readonly class LaunchPersonalRunJobHandler
 
     public function __invoke(LaunchPersonalRunJob $job): void
     {
-        $run = $this->entityManager->find(PersonalRun::class, $job->personalRunId);
-
-        if (!$run instanceof PersonalRun) {
+        try {
+            $run = $this->findOrFail(PersonalRun::class, $job->personalRunId);
+        } catch (\RuntimeException) {
             $this->logger->error('personal_run.launch.not_found', ['runId' => $job->personalRunId]);
 
             return;

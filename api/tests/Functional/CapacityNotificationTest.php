@@ -8,34 +8,16 @@ use App\Events\Application\EventCapacityReachedMessage;
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class CapacityNotificationTest extends WebTestCase
+final class CapacityNotificationTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -52,7 +34,7 @@ final class CapacityNotificationTest extends WebTestCase
     public function testNotificationDispatchedWhenLastSeatClaimed(): void
     {
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
-        $event = $this->createEvent(capacity: 1);
+        $event = $this->makeEvent(capacity: 1);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/events/'.$event->getId().'/registrations');
@@ -76,7 +58,7 @@ final class CapacityNotificationTest extends WebTestCase
     public function testNotificationNotDispatchedWhenSeatsRemain(): void
     {
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
-        $event = $this->createEvent(capacity: 10);
+        $event = $this->makeEvent(capacity: 10);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/events/'.$event->getId().'/registrations');
@@ -88,7 +70,7 @@ final class CapacityNotificationTest extends WebTestCase
     public function testNotificationNotDispatchedWhenAlreadySent(): void
     {
         $user = $this->createUser('user@example.org', ['ROLE_USER']);
-        $event = $this->createEvent(capacity: 1, notificationAlreadySent: true);
+        $event = $this->makeEvent(capacity: 1, notificationAlreadySent: true);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/events/'.$event->getId().'/registrations');
@@ -97,69 +79,24 @@ final class CapacityNotificationTest extends WebTestCase
         self::assertCount(0, $this->transport()->getSent());
     }
 
-    private function createEvent(int $capacity = 48, bool $notificationAlreadySent = false): Event
+    private function makeEvent(int $capacity = 48, bool $notificationAlreadySent = false): Event
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
-        $event = new Event(
-            bin2hex(random_bytes(16)),
+        $event = $this->createEvent(
             'Spring Sync 2027',
-            'Une session Archipelago.',
-            Event::STATUS_PUBLISHED,
             new \DateTimeImmutable('2027-05-31T10:00:00+00:00'),
             new \DateTimeImmutable('2027-05-31T22:00:00+00:00'),
-            'Clermont-Ferrand',
-            $capacity,
-            new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
-            new \DateTimeImmutable('2027-05-01T00:00:00+00:00'),
-            true,
-            null,
-            false,
-            [],
-            null,
-            null,
-            $now,
-            $now,
+            capacity: $capacity,
+            published: true,
+            registrationOpensAt: new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
+            registrationClosesAt: new \DateTimeImmutable('2027-05-30T18:00:00+00:00'),
         );
-
         if ($notificationAlreadySent) {
             $event->markCapacityNotificationSent($now);
+            $this->entityManager->flush();
         }
 
-        $this->entityManager->persist($event);
-        $this->entityManager->flush();
-
         return $event;
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 
     private function transport(): InMemoryTransport

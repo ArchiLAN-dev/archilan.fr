@@ -4,37 +4,22 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\PersonalRunParticipant;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-final class PlayerStateTest extends WebTestCase
+final class PlayerStateTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
     private MockHttpClient $httpClient;
 
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $httpClient = self::getContainer()->get(MockHttpClient::class);
         self::assertInstanceOf(MockHttpClient::class, $httpClient);
@@ -44,6 +29,8 @@ final class PlayerStateTest extends WebTestCase
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(Registration::class),
+            $this->entityManager->getClassMetadata(PersonalRun::class),
+            $this->entityManager->getClassMetadata(PersonalRunParticipant::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -54,7 +41,7 @@ final class PlayerStateTest extends WebTestCase
     {
         $session = $this->createRunningSession('run-proxy-1', 'evt-001');
         $player = $this->createPlayer('alice@example.org', 'Alice');
-        $this->createRegistration($player->getId(), 'evt-001', confirmed: true);
+        $this->makeRegistration($player->getId(), 'evt-001', confirmed: true);
         $this->loginAs($player);
 
         $bridgeState = '{"slots":{"1":{"slot_name":"Alice_HK1","checks_done":5,"checks_total":47,"items_received":3,"client_status":20,"goal_reached_at":null}}}';
@@ -109,7 +96,7 @@ final class PlayerStateTest extends WebTestCase
     {
         $session = $this->createSession('run-tok-1', 'evt-001');
         $player = $this->createPlayer('charlie@example.org', 'Charlie');
-        $this->createRegistration($player->getId(), 'evt-001', confirmed: true);
+        $this->makeRegistration($player->getId(), 'evt-001', confirmed: true);
         $this->loginAs($player);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/players-token', $session->getId()));
@@ -174,73 +161,23 @@ final class PlayerStateTest extends WebTestCase
 
     private function createAdmin(): User
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            'admin@example.org',
-            'admin@example.org',
-            'Admin',
-            'test-password-hash',
-            ['ROLE_USER', 'ROLE_ADMIN'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
     private function createPlayer(string $email, string $displayName): User
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            strtolower($email),
-            $displayName,
-            'test-password-hash',
-            ['ROLE_USER'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser($email, ['ROLE_USER'], $displayName);
     }
 
-    private function createRegistration(string $userId, string $eventId, bool $confirmed): Registration
+    private function makeRegistration(string $userId, string $eventId, bool $confirmed): Registration
     {
         $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $registration = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-        );
+        $registration = $this->createRegistration($eventId, $userId);
         if ($confirmed) {
             $registration->confirm($now);
+            $this->entityManager->flush();
         }
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
 
         return $registration;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

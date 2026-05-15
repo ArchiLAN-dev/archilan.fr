@@ -18,6 +18,7 @@ final readonly class AdminCreateAdminAccount
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
         private LoggerInterface $logger,
+        private SlugGenerator $slugGenerator,
     ) {
     }
 
@@ -48,16 +49,22 @@ final readonly class AdminCreateAdminAccount
             },
             $password,
         );
+        $trimmedDisplayName = null === $displayName ? null : trim($displayName);
+        $slugSource = null !== $trimmedDisplayName && '' !== $trimmedDisplayName
+            ? $trimmedDisplayName
+            : ((string) strstr($emailCanonical, '@', true) ?: $emailCanonical);
+        $slug = $this->slugGenerator->generateForUser($slugSource);
         $admin = new User(
             bin2hex(random_bytes(16)),
             $email,
             $emailCanonical,
-            null === $displayName ? null : trim($displayName),
+            $trimmedDisplayName,
             $passwordHash,
             ['ROLE_USER', 'ROLE_ADMIN'],
             $now,
             $now,
             $now,
+            slug: $slug,
         );
 
         try {

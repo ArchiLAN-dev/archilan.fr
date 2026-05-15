@@ -6,10 +6,13 @@ namespace App\Payments\Application;
 
 use App\Events\Domain\Event;
 use App\Payments\Domain\HelloAssoOrder;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class HelloAssoPaymentLookup
 {
+    use EntityFinderTrait;
+
     public function __construct(private EntityManagerInterface $entityManager)
     {
     }
@@ -19,9 +22,9 @@ final readonly class HelloAssoPaymentLookup
      */
     public function findForEventAndEmail(string $eventId, string $payerEmail): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return null;
         }
 

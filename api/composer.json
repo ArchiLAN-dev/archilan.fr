@@ -78,7 +78,8 @@
         ],
         "test": "php bin/phpunit",
         "phpstan": "php vendor/bin/phpstan analyse src tests",
-        "cs-fixer": "php vendor/bin/php-cs-fixer fix --dry-run --diff"
+        "cs-fixer": "php vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "arch": "php bin/console app:architecture:ddd"
     },
     "conflict": {
         "symfony/symfony": "*"

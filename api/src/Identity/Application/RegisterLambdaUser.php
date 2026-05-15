@@ -17,6 +17,7 @@ final readonly class RegisterLambdaUser
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
         private LoggerInterface $logger,
+        private SlugGenerator $slugGenerator,
     ) {
     }
 
@@ -47,7 +48,9 @@ final readonly class RegisterLambdaUser
             },
             $password,
         );
-        $user = User::registerLambda($email, $emailCanonical, $passwordHash, $now);
+        $emailLocalPart = (string) strstr($emailCanonical, '@', true);
+        $slug = $this->slugGenerator->generateForUser('' !== $emailLocalPart ? $emailLocalPart : $emailCanonical);
+        $user = User::registerLambda($email, $emailCanonical, $passwordHash, $now, $slug);
 
         try {
             $this->entityManager->persist($user);

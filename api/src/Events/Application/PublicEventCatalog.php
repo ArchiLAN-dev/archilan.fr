@@ -7,11 +7,14 @@ namespace App\Events\Application;
 use App\Events\Domain\Event;
 use App\Payments\Application\HelloAssoConfig;
 use App\Registrations\Application\RegistrationCounter;
+use App\Shared\Application\EntityFinderTrait;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicEventCatalog
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RegistrationCounter $registrationCounter,
@@ -48,9 +51,13 @@ final readonly class PublicEventCatalog
      */
     public function get(string $eventId): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
+            return null;
+        }
 
-        if (!$event instanceof Event || !$event->isVisiblePublicly()) {
+        if (!$event->isVisiblePublicly()) {
             return null;
         }
 

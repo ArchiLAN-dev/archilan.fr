@@ -6,12 +6,15 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\CreatePrivacyRightsRequest;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class PrivacyRightsRequestController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private CreatePrivacyRightsRequest $createPrivacyRightsRequest,
@@ -21,7 +24,7 @@ final readonly class PrivacyRightsRequestController
     #[Route('/api/v1/account/privacy-requests', name: 'api_identity_privacy_rights_request_create', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;

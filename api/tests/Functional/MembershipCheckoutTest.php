@@ -6,17 +6,12 @@ namespace App\Tests\Functional;
 
 use App\Payments\Application\HelloAssoConfig;
 use App\Payments\Application\MembershipCheckout;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
-final class MembershipCheckoutTest extends WebTestCase
+final class MembershipCheckoutTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
+        parent::setUp();
     }
 
     public function testCheckoutEndpointIsPublic(): void
@@ -67,16 +62,5 @@ final class MembershipCheckoutTest extends WebTestCase
         self::assertArrayHasKey('meta', $response);
         self::assertIsArray($response['data']);
         self::assertArrayHasKey('checkoutEmbedUrl', $response['data']);
-    }
-
-    /**
-     * @return array<mixed>
-     */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

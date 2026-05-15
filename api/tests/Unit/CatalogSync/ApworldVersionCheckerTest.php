@@ -33,7 +33,11 @@ final class ApworldVersionCheckerTest extends TestCase
         return $game;
     }
 
-    /** @return list<MockResponse> */
+    /**
+     * @param array<mixed> $assets
+     *
+     * @return list<MockResponse>
+     */
     private function releaseResponse(string $tag, string $publishedAt, array $assets = [], int $rateLimitRemaining = 50): array
     {
         return [
@@ -111,7 +115,7 @@ final class ApworldVersionCheckerTest extends TestCase
         $game = $this->makeGame('https://github.com/nicholasb/hollow-knight');
         $mock = new MockHttpClient();
 
-        $logger = $this->spyLogger();
+        $logger = new ApworldSpyLogger();
         $checker = new ApworldVersionChecker($mock, $logger, '');
 
         self::assertNull($checker->check($game));
@@ -133,22 +137,17 @@ final class ApworldVersionCheckerTest extends TestCase
             self::assertSame('1.0.0', $game->getApworldLatestVersion());
         }
     }
+}
 
-    /**
-     * @phpstan-ignore-next-line
-     */
-    private function spyLogger(): object
+final class ApworldSpyLogger extends AbstractLogger
+{
+    /** @var list<string> */
+    public array $warnings = [];
+
+    public function log(mixed $level, string|\Stringable $message, array $context = []): void
     {
-        return new class extends AbstractLogger {
-            /** @var list<string> */
-            public array $warnings = [];
-
-            public function log(mixed $level, string|\Stringable $message, array $context = []): void
-            {
-                if ('warning' === $level) {
-                    $this->warnings[] = (string) $message;
-                }
-            }
-        };
+        if ('warning' === $level) {
+            $this->warnings[] = (string) $message;
+        }
     }
 }

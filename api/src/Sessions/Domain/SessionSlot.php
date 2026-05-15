@@ -42,6 +42,9 @@ class SessionSlot
 
         #[ORM\Column(type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $goalReachedAt = null,
+
+        #[ORM\Column(name: 'was_released', type: 'boolean', options: ['default' => false])]
+        private bool $wasReleased = false,
     ) {
     }
 
@@ -55,6 +58,11 @@ class SessionSlot
         ?string $slotId = null,
     ): self {
         return new self($id, $sessionId, $registrationId, $gameId, $slotName, $slotOrder, $slotId);
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
     }
 
     public function getSessionId(): string
@@ -122,6 +130,20 @@ class SessionSlot
         $this->goalReachedAt = $goalReachedAt;
     }
 
+    public function markAsReleased(): void
+    {
+        if (null !== $this->goalReachedAt) {
+            return;
+        }
+
+        $this->wasReleased = true;
+    }
+
+    public function isWasReleased(): bool
+    {
+        return $this->wasReleased;
+    }
+
     /** @return array<string, mixed> */
     public function payload(): array
     {
@@ -136,6 +158,7 @@ class SessionSlot
             'checksDone' => $this->checksDone,
             'itemsReceived' => $this->itemsReceived,
             'goalReachedAt' => $this->goalReachedAt?->format(\DateTimeInterface::ATOM),
+            'wasReleased' => $this->wasReleased,
         ];
     }
 }

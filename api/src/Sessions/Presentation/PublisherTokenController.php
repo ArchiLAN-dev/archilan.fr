@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation;
 
-use App\Sessions\Domain\Session;
+use App\Sessions\Application\SessionQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
@@ -16,7 +15,7 @@ final readonly class PublisherTokenController
 {
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
+        private SessionQuery $sessionQuery,
         private HubInterface $mercureHub,
         private string $centralApiSecret,
     ) {
@@ -31,9 +30,9 @@ final readonly class PublisherTokenController
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
         }
 
-        $session = $this->entityManager->find(Session::class, $runId);
+        $session = $this->sessionQuery->findById($runId);
 
-        if (!$session instanceof Session) {
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 

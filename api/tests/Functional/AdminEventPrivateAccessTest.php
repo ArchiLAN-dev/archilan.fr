@@ -5,32 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class AdminEventPrivateAccessTest extends WebTestCase
+final class AdminEventPrivateAccessTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -44,7 +26,7 @@ final class AdminEventPrivateAccessTest extends WebTestCase
     public function testAdminCanConfigurePrivateEventPasswordWithoutPlainTextExposure(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $event = $this->createEvent(isPublic: false);
+        $event = $this->makeEvent(isPublic: false);
         $this->loginAs($admin);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/private-access', $event->getId()), [
@@ -64,7 +46,7 @@ final class AdminEventPrivateAccessTest extends WebTestCase
     public function testPasswordCanOnlyBeConfiguredForPrivateEvents(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $event = $this->createEvent(isPublic: true);
+        $event = $this->makeEvent(isPublic: true);
         $this->loginAs($admin);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/private-access', $event->getId()), [
@@ -81,7 +63,7 @@ final class AdminEventPrivateAccessTest extends WebTestCase
     public function testPasswordValidationRejectsShortPassword(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $event = $this->createEvent(isPublic: false);
+        $event = $this->makeEvent(isPublic: false);
         $this->loginAs($admin);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/private-access', $event->getId()), [
@@ -98,7 +80,7 @@ final class AdminEventPrivateAccessTest extends WebTestCase
     public function testLambdaCannotConfigurePrivateAccess(): void
     {
         $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $event = $this->createEvent(isPublic: false);
+        $event = $this->makeEvent(isPublic: false);
         $this->loginAs($lambda);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/private-access', $event->getId()), [
@@ -111,7 +93,7 @@ final class AdminEventPrivateAccessTest extends WebTestCase
     public function testPublicListMarksPrivateProtectedEventWithoutExposingPassword(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $event = $this->createEvent(isPublic: false);
+        $event = $this->makeEvent(isPublic: false);
         $this->loginAs($admin);
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/private-access', $event->getId()), [
             'password' => 'private-access-passphrase',
@@ -131,75 +113,15 @@ final class AdminEventPrivateAccessTest extends WebTestCase
         self::assertArrayNotHasKey('privateAccessPasswordHash', $response['data'][0]);
     }
 
-    private function createEvent(bool $isPublic): Event
+    private function makeEvent(bool $isPublic): Event
     {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $event = new Event(
-            bin2hex(random_bytes(16)),
+        return $this->createEvent(
             'Private Seed 2027',
-            'Une session Archipelago privée.',
-            Event::STATUS_PUBLISHED,
             new \DateTimeImmutable('2027-05-31T10:00:00+00:00'),
             new \DateTimeImmutable('2027-05-31T22:00:00+00:00'),
-            'Discord ArchiLAN',
-            24,
-            new \DateTimeImmutable('2027-05-01T10:00:00+00:00'),
-            new \DateTimeImmutable('2027-05-30T18:00:00+00:00'),
-            $isPublic,
-            null,
-            false,
-            [],
-            null,
-            null,
-            $now,
-            $now,
+            capacity: 24,
+            published: true,
+            isPublic: $isPublic,
         );
-
-        $this->entityManager->persist($event);
-        $this->entityManager->flush();
-
-        return $event;
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /**
-     * @return array<mixed>
-     */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

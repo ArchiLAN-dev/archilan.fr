@@ -7,12 +7,15 @@ namespace App\GameSelection\Presentation;
 use App\GameSelection\Infrastructure\IgdbAuthException;
 use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminIgdbController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private IgdbHttpClientInterface $igdbHttpClient,
@@ -22,7 +25,7 @@ final readonly class AdminIgdbController
     #[Route('/api/v1/admin/igdb/search', name: 'api_game_selection_admin_igdb_search', methods: ['GET'])]
     public function search(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

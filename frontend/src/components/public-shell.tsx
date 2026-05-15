@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { QueryProvider } from "@/lib/query-provider";
 
 const legalLinks = [
   { href: "/mentions-legales", label: "Mentions légales" },
@@ -207,6 +208,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
   }, [open]);
 
   return (
+    <QueryProvider>
     <AuthProvider>
     <TwitchStatusProvider>
     <TwitchPlayerProvider>
@@ -324,5 +326,6 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
     </TwitchPlayerProvider>
     </TwitchStatusProvider>
     </AuthProvider>
+    </QueryProvider>
   );
 }

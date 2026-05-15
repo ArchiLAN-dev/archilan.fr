@@ -56,6 +56,7 @@ services:
             - '../src/Streaming/Domain/'
             - '../src/Sessions/Domain/'
             - '../src/PersonalRuns/Domain/'
+            - '../src/CatalogSync/Domain/'
 
     App\Sessions\Infrastructure\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
 

@@ -4,36 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class SessionRestartTest extends WebTestCase
+final class SessionRestartTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -211,42 +193,7 @@ final class SessionRestartTest extends WebTestCase
 
     private function createAdmin(string $email): User
     {
-        $now = new \DateTimeImmutable();
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-hash',
-            ['ROLE_USER', 'ROLE_ADMIN'],
-            $now,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createUser(string $email): User
-    {
-        $now = new \DateTimeImmutable();
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-hash',
-            ['ROLE_USER'],
-            $now,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser($email, ['ROLE_USER', 'ROLE_ADMIN']);
     }
 
     private function createRunningSession(): Session
@@ -317,13 +264,6 @@ final class SessionRestartTest extends WebTestCase
         $this->entityManager->flush();
 
         return $run;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 
     /** @return list<ResumeRunJob> */

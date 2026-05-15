@@ -7,6 +7,7 @@ namespace App\Registrations\Application;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationAdminMessage;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -16,6 +17,8 @@ use Symfony\Component\Mime\Email;
 
 final readonly class SendMessageToRegistrant
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private MailerInterface $mailer,
@@ -29,15 +32,19 @@ final readonly class SendMessageToRegistrant
      */
     public function send(string $eventId, string $registrationId, string $adminId, string $subject, string $body): array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
-
-        if (!$registration instanceof Registration || $registration->getEventId() !== $eventId) {
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
             return ['outcome' => 'not_found'];
         }
 
-        $participant = $this->entityManager->find(User::class, $registration->getUserId());
+        if ($registration->getEventId() !== $eventId) {
+            return ['outcome' => 'not_found'];
+        }
 
-        if (!$participant instanceof User) {
+        try {
+            $participant = $this->findOrFail(User::class, $registration->getUserId());
+        } catch (\RuntimeException) {
             return ['outcome' => 'not_found'];
         }
 

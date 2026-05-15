@@ -9,10 +9,13 @@ use App\Events\Domain\EventPrivateAccessLog;
 use App\GameSelection\Domain\ArchipelagoGame;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminRegistrationExporter
 {
+    use EntityFinderTrait;
+
     public function __construct(private EntityManagerInterface $entityManager)
     {
     }
@@ -59,9 +62,9 @@ final readonly class AdminRegistrationExporter
      */
     public function export(string $eventId, bool $includeCancelled): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return null;
         }
 

@@ -6,10 +6,13 @@ namespace App\Payments\Application;
 
 use App\Events\Domain\Event;
 use App\Payments\Domain\HelloAssoSyncLog;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminHelloAssoSyncStatus
 {
+    use EntityFinderTrait;
+
     public function __construct(private EntityManagerInterface $entityManager)
     {
     }
@@ -21,9 +24,9 @@ final readonly class AdminHelloAssoSyncStatus
      */
     public function getForEvent(string $eventId): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
-
-        if (!$event instanceof Event) {
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
             return null;
         }
 

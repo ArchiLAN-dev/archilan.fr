@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\Message\FetchLogsJob;
+use App\Sessions\Application\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -15,9 +16,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class LogsController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
+        private SessionQuery $sessionQuery,
         private MessageBusInterface $messageBus,
     ) {
     }
@@ -25,17 +28,17 @@ final readonly class LogsController
     #[Route('/api/v1/admin/sessions/{id}/logs', methods: ['GET'])]
     public function logs(Request $request, string $id): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
 
-        $session = $this->entityManager->find(Session::class, $id);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($id);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        $containerExists = in_array($session->getStatus(), [
+        $containerExists = in_array($session['status'], [
             Session::STATUS_RUNNING,
             Session::STATUS_CRASHED,
         ], true);
@@ -46,7 +49,7 @@ final readonly class LogsController
 
         return new JsonResponse([
             'data' => [
-                'logs' => $session->getLastLogs() ?? '',
+                'logs' => $session['lastLogs'] ?? '',
                 'fetched_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
             ],
         ]);

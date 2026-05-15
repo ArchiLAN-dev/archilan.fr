@@ -6,7 +6,6 @@ namespace App\Tests\Functional;
 
 use App\Communications\Application\SessionRunningMessage;
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Realtime\Infrastructure\SpyHub;
 use App\Registrations\Domain\Registration;
@@ -14,33 +13,16 @@ use App\Sessions\Application\Message\RestartRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class SessionLifecycleTest extends WebTestCase
+final class SessionLifecycleTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
         SpyHub::reset();
 
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -517,9 +499,9 @@ final class SessionLifecycleTest extends WebTestCase
         $this->loginAs($admin);
 
         $user = $this->createPlayer('alice@example.org', 'Alice');
-        $game = $this->createGame('Hollow Knight', 'Hollow Knight');
+        $game = $this->makeGame('Hollow Knight', 'Hollow Knight');
 
-        $registration = $this->createRegistration($user->getId(), 'evt-001');
+        $registration = $this->createRegistration('evt-001', $user->getId());
         $registration->replaceSlots([
             ['slotId' => 'slot-1', 'gameId' => $game->getId()],
         ], new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
@@ -571,8 +553,8 @@ final class SessionLifecycleTest extends WebTestCase
         $this->loginAs($admin);
 
         $user = $this->createPlayer('bob@example.org', 'Bob');
-        $game = $this->createGame('Hollow Knight', null);
-        $registration = $this->createRegistration($user->getId(), 'evt-001');
+        $game = $this->makeGame('Hollow Knight', null);
+        $registration = $this->createRegistration('evt-001', $user->getId());
         $registration->replaceSlots([
             ['slotId' => 'slot-1', 'gameId' => $game->getId()],
         ], new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
@@ -756,7 +738,7 @@ final class SessionLifecycleTest extends WebTestCase
         $this->loginAs($admin);
 
         $user = $this->createPlayer('player@example.org', 'Jean');
-        $registration = $this->createRegistration($user->getId(), 'evt-001');
+        $registration = $this->createRegistration('evt-001', $user->getId());
 
         $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', [
             'slots' => [
@@ -798,7 +780,7 @@ final class SessionLifecycleTest extends WebTestCase
         $this->loginAs($admin);
 
         $user = $this->createPlayer('player2@example.org', 'Bob');
-        $registration = $this->createRegistration($user->getId(), 'evt-001');
+        $registration = $this->createRegistration('evt-001', $user->getId());
 
         $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', [
             'slots' => [
@@ -962,86 +944,26 @@ final class SessionLifecycleTest extends WebTestCase
 
     private function createAdmin(): User
     {
-        $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            'admin@example.org',
-            'admin@example.org',
-            'Admin',
-            'test-password-hash',
-            ['ROLE_USER', 'ROLE_ADMIN'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
     private function createPlayer(string $email, string $displayName): User
     {
-        $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            strtolower($email),
-            $displayName,
-            'test-password-hash',
-            ['ROLE_USER'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser($email, ['ROLE_USER'], $displayName);
     }
 
-    private function createRegistration(string $userId, string $eventId): Registration
+    private function makeGame(string $name, ?string $archipelagoGameName): ArchipelagoGame
     {
         $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $registration = new Registration(
-            bin2hex(random_bytes(16)),
-            $eventId,
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($registration);
-        $this->entityManager->flush();
-
-        return $registration;
-    }
-
-    private function createGame(string $name, ?string $archipelagoGameName): ArchipelagoGame
-    {
-        $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
-        $game = ArchipelagoGame::create(
-            $name,
-            strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2)),
-            'Description',
-            null,
-            'Cover',
-            'Credit',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            $now,
-        );
+        $slug = strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2));
+        $game = $this->createGame($name, $slug);
 
         if (null !== $archipelagoGameName) {
             $game->configureApworld('test-key', 'test-hash', $archipelagoGameName, '', $now);
+            $this->entityManager->flush();
         }
 
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
-
         return $game;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 
     private function patchStatus(string $sessionId, string $status): void
@@ -1077,14 +999,5 @@ final class SessionLifecycleTest extends WebTestCase
             ['HTTP_X_INTERNAL_SECRET' => 'test-runner-secret', 'CONTENT_TYPE' => 'application/json'],
             json_encode($body, JSON_THROW_ON_ERROR),
         );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

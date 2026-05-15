@@ -6,12 +6,15 @@ namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class SessionRestartController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
@@ -22,7 +25,7 @@ final readonly class SessionRestartController
     #[Route('/api/v1/sessions/{sessionId}/restart', methods: ['POST'])]
     public function restart(Request $request, string $sessionId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }

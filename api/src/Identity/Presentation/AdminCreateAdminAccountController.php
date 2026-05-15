@@ -6,12 +6,15 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\AdminCreateAdminAccount;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminCreateAdminAccountController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminCreateAdminAccount $adminCreateAdminAccount,
@@ -21,7 +24,7 @@ final readonly class AdminCreateAdminAccountController
     #[Route('/api/v1/admin/users/admins', name: 'api_identity_admin_user_create_admin', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $creator = $this->apiAccessGuard->requireAdmin($request);
+        $creator = $this->requireAuthenticatedAdmin($request);
 
         if ($creator instanceof JsonResponse) {
             return $creator;

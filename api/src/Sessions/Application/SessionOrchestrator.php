@@ -15,6 +15,7 @@ use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Shared\Application\EntityFinderTrait;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -22,6 +23,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class SessionOrchestrator
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RunnerGatewayInterface $runnerGateway,
@@ -207,8 +210,9 @@ final readonly class SessionOrchestrator
      */
     public function orchestrateValidate(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -275,8 +279,9 @@ final readonly class SessionOrchestrator
      */
     public function orchestrateGenerate(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -318,8 +323,9 @@ final readonly class SessionOrchestrator
             return;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return;
         }
 
@@ -339,8 +345,9 @@ final readonly class SessionOrchestrator
      */
     public function orchestrateLaunch(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -368,8 +375,9 @@ final readonly class SessionOrchestrator
      */
     public function orchestrateForceLaunch(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -419,8 +427,9 @@ final readonly class SessionOrchestrator
      */
     public function orchestrateStop(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -446,8 +455,9 @@ final readonly class SessionOrchestrator
      */
     public function orchestrateRestart(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 

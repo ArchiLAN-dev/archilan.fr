@@ -116,7 +116,7 @@ final readonly class ApworldVersionChecker
 
         $deployedVersion = $game->getApworldDeployedVersion();
         if (null === $deployedVersion) {
-            $updateStatus = ArchipelagoGame::UPDATE_STATUS_UPDATE_AVAILABLE;
+            $updateStatus = ArchipelagoGame::UPDATE_STATUS_UNKNOWN;
         } else {
             $normalizedDeployed = ltrim($deployedVersion, 'vV');
             $updateStatus = $normalizedTag === $normalizedDeployed

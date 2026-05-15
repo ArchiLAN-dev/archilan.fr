@@ -6,6 +6,7 @@ namespace App\GameSelection\Presentation;
 
 use App\GameSelection\Application\GameRequests;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,6 +14,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class GameRequestController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private GameRequests $gameRequests,
         private ApiAccessGuard $apiAccessGuard,
@@ -31,7 +34,7 @@ final readonly class GameRequestController
     #[Route('/api/v1/game-requests', name: 'api_game_requests_submit', methods: ['POST'])]
     public function submit(Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -59,7 +62,7 @@ final readonly class GameRequestController
     #[Route('/api/v1/game-requests/{normalizedName}', name: 'api_game_requests_cancel', methods: ['DELETE'])]
     public function cancel(string $normalizedName, Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }

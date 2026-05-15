@@ -6,6 +6,7 @@ namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\PlayerSessionConnection;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,6 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class PlayerPatchController
 {
+    use RequiresAuthTrait;
     private const ALLOWED_STATUSES = ['running', 'stopped', 'finished'];
 
     public function __construct(
@@ -27,7 +29,7 @@ final readonly class PlayerPatchController
     #[Route('/api/v1/registrations/{registrationId}/patches', methods: ['GET'])]
     public function list(Request $request, string $registrationId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -59,7 +61,7 @@ final readonly class PlayerPatchController
     #[Route('/api/v1/registrations/{registrationId}/patches/{filename}', methods: ['GET'])]
     public function download(Request $request, string $registrationId, string $filename): Response
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }

@@ -239,6 +239,72 @@ class ArchipelagoGame
         $this->availabilityLocked = $locked;
     }
 
+    public function updateCatalogueMetadata(
+        ?string $catalogSheetName = null,
+        ?string $sourceUrl = null,
+        ?string $deployedVersion = null,
+        bool $availabilityLocked = false,
+    ): void {
+        $this->availabilityLocked = $availabilityLocked;
+
+        if (null === $this->catalogSync) {
+            new GameCatalogSync($this, $catalogSheetName, $sourceUrl, $deployedVersion);
+        } else {
+            $this->catalogSync->update(
+                $catalogSheetName ?? $this->catalogSync->getCatalogSheetName(),
+                $sourceUrl ?? $this->catalogSync->getApworldSourceUrl(),
+                $deployedVersion ?? $this->catalogSync->getApworldDeployedVersion(),
+                $this->catalogSync->getIgdbId(),
+            );
+        }
+    }
+
+    public static function normalizeApworldSourceUrl(string $url): ?string
+    {
+        if ('' === $url) {
+            return null;
+        }
+
+        $parsed = parse_url($url);
+        if (false === $parsed || 'https' !== ($parsed['scheme'] ?? '') || 'github.com' !== ($parsed['host'] ?? '')) {
+            return null;
+        }
+
+        $path = rtrim($parsed['path'] ?? '/', '/');
+        $query = isset($parsed['query']) ? '?'.$parsed['query'] : '';
+
+        $parts = array_values(array_filter(
+            explode('/', $path),
+            static fn (string $s): bool => '' !== $s,
+        ));
+
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $subParts = array_slice($parts, 2);
+
+        if (0 === count($subParts)) {
+            // /owner/repo — valid
+        } elseif ('releases' === $subParts[0]) {
+            if (1 === count($subParts)) {
+                // /releases — valid
+            } elseif ('latest' === $subParts[1] && 2 === count($subParts)) {
+                // /releases/latest — valid
+            } elseif ('tag' === $subParts[1] && 3 === count($subParts)) {
+                // /releases/tag/{version} — valid
+            } else {
+                return null;
+            }
+        } elseif ('tree' === $subParts[0] && count($subParts) >= 2) {
+            // /tree/{branch} — valid
+        } else {
+            return null;
+        }
+
+        return 'https://github.com'.$path.$query;
+    }
+
     public function setCatalogSync(GameCatalogSync $sync): void
     {
         $this->catalogSync = $sync;
@@ -287,5 +353,20 @@ class ArchipelagoGame
     public function getApworldCheckedAt(): ?\DateTimeImmutable
     {
         return $this->catalogSync?->getApworldCheckedAt();
+    }
+
+    public function getIgdbId(): ?int
+    {
+        return $this->catalogSync?->getIgdbId();
+    }
+
+    public function isAdultContent(): bool
+    {
+        return $this->catalogSync?->isAdultContent() ?? false;
+    }
+
+    public function isBundledWithAp(): bool
+    {
+        return $this->catalogSync?->isBundledWithAp() ?? false;
     }
 }

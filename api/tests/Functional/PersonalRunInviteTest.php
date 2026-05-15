@@ -4,34 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\PersonalRuns\Domain\PersonalRunParticipant;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class PersonalRunInviteTest extends WebTestCase
+final class PersonalRunInviteTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -212,7 +194,7 @@ final class PersonalRunInviteTest extends WebTestCase
 
     public function testPreviewReturns200WithoutAuth(): void
     {
-        $alice = $this->createUser('alice@example.org', 'Alice Dupont');
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice Dupont');
         $run = $this->createRun($alice->getId(), 'Alice Run');
 
         $this->client->jsonRequest('GET', '/api/v1/runs/invite/'.$run->getInviteToken().'/preview');
@@ -290,27 +272,6 @@ final class PersonalRunInviteTest extends WebTestCase
     // Helpers
     // -------------------------------------------------------------------------
 
-    private function createUser(string $email, ?string $displayName = null): User
-    {
-        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            $displayName,
-            'test-hash',
-            ['ROLE_USER'],
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
     private function createRun(string $ownerId, string $title, string $status = PersonalRun::STATUS_DRAFT): PersonalRun
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
@@ -325,13 +286,6 @@ final class PersonalRunInviteTest extends WebTestCase
         $this->entityManager->flush();
 
         return $run;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 
     /**

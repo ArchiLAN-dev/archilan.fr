@@ -6,12 +6,15 @@ namespace App\Content\Presentation;
 
 use App\Content\Application\AdminPostCatalog;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminPostController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminPostCatalog $adminPostCatalog,
@@ -21,7 +24,7 @@ final readonly class AdminPostController
     #[Route('/api/v1/admin/posts', name: 'api_content_admin_posts_list', methods: ['GET'])]
     public function adminList(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -33,7 +36,7 @@ final readonly class AdminPostController
     #[Route('/api/v1/admin/posts', name: 'api_content_admin_posts_create', methods: ['POST'])]
     public function adminCreate(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -58,7 +61,7 @@ final readonly class AdminPostController
     #[Route('/api/v1/admin/posts/{id}', name: 'api_content_admin_posts_show', methods: ['GET'])]
     public function adminShow(Request $request, string $id): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -76,7 +79,7 @@ final readonly class AdminPostController
     #[Route('/api/v1/admin/posts/{id}', name: 'api_content_admin_posts_update', methods: ['PATCH'])]
     public function adminUpdate(Request $request, string $id): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -100,7 +103,7 @@ final readonly class AdminPostController
     #[Route('/api/v1/admin/posts/{id}/publish', name: 'api_content_admin_posts_publish', methods: ['POST'])]
     public function adminPublish(Request $request, string $id): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -120,7 +123,7 @@ final readonly class AdminPostController
     #[Route('/api/v1/admin/posts/{id}/unpublish', name: 'api_content_admin_posts_unpublish', methods: ['POST'])]
     public function adminUnpublish(Request $request, string $id): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

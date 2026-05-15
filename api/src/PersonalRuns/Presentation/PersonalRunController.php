@@ -9,12 +9,15 @@ use App\PersonalRuns\Application\PersonalRunGameConfig;
 use App\PersonalRuns\Application\PersonalRunGameSelection;
 use App\PersonalRuns\Application\PersonalRunLifecycle;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class PersonalRunController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private PersonalRunDrafts $drafts,
@@ -27,7 +30,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs', name: 'api_runs_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -49,7 +52,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/mine', name: 'api_runs_list_mine', methods: ['GET'])]
     public function listMine(Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -72,7 +75,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/join/{inviteToken}', name: 'api_runs_join', methods: ['GET'])]
     public function join(Request $request, string $inviteToken): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $this->apiAccessGuard->errorResponse('auth_required', 'Authentification requise.', 401);
         }
@@ -89,7 +92,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}', name: 'api_runs_get', methods: ['GET'])]
     public function get(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -110,7 +113,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/invite/regenerate', name: 'api_runs_invite_regenerate', methods: ['POST'])]
     public function regenerateInvite(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -134,7 +137,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/start', name: 'api_runs_start', methods: ['POST'])]
     public function start(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -161,7 +164,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/stop', name: 'api_runs_stop', methods: ['POST'])]
     public function stop(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -188,7 +191,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/games', name: 'api_runs_configure_games', methods: ['PATCH'])]
     public function configureGames(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -221,7 +224,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/participants/me/game-selection', name: 'api_runs_game_selection_get', methods: ['GET'])]
     public function getMyGameSelection(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -245,7 +248,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/participants/me/games', name: 'api_runs_game_selection_save', methods: ['PUT'])]
     public function saveMyGames(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -276,7 +279,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/participants/me/slots/{slotId}/yaml', name: 'api_runs_slot_yaml_save', methods: ['PUT'])]
     public function saveSlotYaml(Request $request, string $runId, string $slotId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -314,7 +317,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/unarchive', name: 'api_runs_unarchive', methods: ['POST'])]
     public function unarchive(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -339,7 +342,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}/archive', name: 'api_runs_archive', methods: ['POST'])]
     public function archive(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -364,7 +367,7 @@ final readonly class PersonalRunController
     #[Route('/api/v1/runs/{runId}', name: 'api_runs_delete', methods: ['DELETE'])]
     public function delete(Request $request, string $runId): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }

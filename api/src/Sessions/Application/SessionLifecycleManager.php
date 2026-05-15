@@ -15,6 +15,7 @@ use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
@@ -23,6 +24,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class SessionLifecycleManager
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private HubInterface $mercureHub,
@@ -67,9 +70,9 @@ final readonly class SessionLifecycleManager
      */
     public function getSession(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -101,9 +104,9 @@ final readonly class SessionLifecycleManager
         ?string $lastLogs = null,
         ?string $serverPassword = null,
     ): array {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -183,9 +186,9 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool} */
     public function heartbeat(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -202,9 +205,9 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool, session?: array<string, mixed>} */
     public function forceReset(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -317,9 +320,9 @@ final readonly class SessionLifecycleManager
         ?string $archivedSpoilerPath,
         array $slots,
     ): array {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -368,9 +371,9 @@ final readonly class SessionLifecycleManager
      */
     public function initiateRestart(string $sessionId, string $callerId, bool $isAdmin): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'error' => null, 'sessionId' => null, 'status' => null];
         }
 
@@ -421,9 +424,9 @@ final readonly class SessionLifecycleManager
      */
     public function recordRestarted(string $sessionId, string $host, int $port, int $bridgePort): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'status' => null];
         }
 
@@ -466,9 +469,9 @@ final readonly class SessionLifecycleManager
      */
     public function markRestartingBridge(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'error' => null, 'status' => null];
         }
 
@@ -508,9 +511,9 @@ final readonly class SessionLifecycleManager
      */
     public function markRestartFailed(string $sessionId): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'error' => null, 'status' => null];
         }
 
@@ -549,9 +552,9 @@ final readonly class SessionLifecycleManager
      */
     public function recordPaused(string $sessionId, ?string $saveKey, bool $failedSave): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false, 'status' => null];
         }
 
@@ -590,9 +593,9 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool} */
     public function recordActivity(string $sessionId, \DateTimeImmutable $occurredAt): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 
@@ -605,9 +608,9 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool} */
     public function storeLogs(string $sessionId, string $output): array
     {
-        $session = $this->entityManager->find(Session::class, $sessionId);
-
-        if (!$session instanceof Session) {
+        try {
+            $session = $this->findOrFail(Session::class, $sessionId);
+        } catch (\RuntimeException) {
             return ['found' => false];
         }
 

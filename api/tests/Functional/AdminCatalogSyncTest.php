@@ -5,39 +5,23 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Infrastructure\StubIgdbHttpClient;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
-final class AdminCatalogSyncTest extends WebTestCase
+final class AdminCatalogSyncTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(GameCatalogSync::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -66,9 +50,10 @@ final class AdminCatalogSyncTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview');
         self::assertResponseStatusCodeSame(422);
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertSame('igdb_name_required', $response['error']['code']);
+        $response = $this->decodedJsonResponse();
+        $error = $response['error'];
+        self::assertIsArray($error);
+        self::assertSame('igdb_name_required', $error['code']);
     }
 
     public function testIgdbPreviewReturnsCandidatesFromStub(): void
@@ -79,12 +64,13 @@ final class AdminCatalogSyncTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertIsArray($response['data']);
-        self::assertCount(1, $response['data']); // StubIgdbHttpClient returns 1 result by default
+        $response = $this->decodedJsonResponse();
+        $data = $response['data'];
+        self::assertIsArray($data);
+        self::assertCount(1, $data); // StubIgdbHttpClient returns 1 result by default
 
-        $candidate = $response['data'][0];
+        $candidate = $data[0];
+        self::assertIsArray($candidate);
         self::assertSame(1234, $candidate['igdbId']);
         self::assertSame('Hollow Knight', $candidate['name']);
         self::assertArrayHasKey('summary', $candidate);
@@ -102,8 +88,7 @@ final class AdminCatalogSyncTest extends WebTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
+        $response = $this->decodedJsonResponse();
         self::assertSame([], $response['data']); // graceful no-op
     }
 
@@ -127,26 +112,17 @@ final class AdminCatalogSyncTest extends WebTestCase
         $this->client->jsonRequest('POST', '/api/v1/admin/catalog-sync/check-updates');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertSame(0, $response['data']['checked']);
-        self::assertFalse($response['data']['rateLimitHit']);
+        $response = $this->decodedJsonResponse();
+        $data = $response['data'];
+        self::assertIsArray($data);
+        self::assertSame(0, $data['checked']);
+        self::assertFalse($data['rateLimitHit']);
     }
 
     public function testCheckUpdatesChecksTrackedGameAndPersistsLatestVersion(): void
     {
-        $game = ArchipelagoGame::create(
-            'Hollow Knight',
-            'hollow-knight',
-            'A challenging 2D action adventure.',
-            null,
-            'Hollow Knight cover',
-            '',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            new \DateTimeImmutable('2026-01-01T00:00:00+00:00'),
-        );
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->updateCatalogueMetadata(sourceUrl: 'https://github.com/nicholasb/hollow-knight');
-        $this->entityManager->persist($game);
         $this->entityManager->flush();
 
         $httpClient = self::getContainer()->get(MockHttpClient::class);
@@ -169,44 +145,14 @@ final class AdminCatalogSyncTest extends WebTestCase
         $this->client->jsonRequest('POST', '/api/v1/admin/catalog-sync/check-updates');
         self::assertResponseIsSuccessful();
 
-        $response = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($response);
-        self::assertSame(1, $response['data']['checked']);
-        self::assertFalse($response['data']['rateLimitHit']);
+        $response = $this->decodedJsonResponse();
+        $data = $response['data'];
+        self::assertIsArray($data);
+        self::assertSame(1, $data['checked']);
+        self::assertFalse($data['rateLimitHit']);
 
         $this->entityManager->refresh($game);
         self::assertSame('1.2.0', $game->getApworldLatestVersion());
         self::assertNotNull($game->getApworldCheckedAt());
-    }
-
-    /**
-     * @param list<string> $roles
-     */
-    private function createUser(string $email, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-04-25T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-password-hash',
-            $roles,
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 }

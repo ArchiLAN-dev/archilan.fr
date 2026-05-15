@@ -6,6 +6,7 @@ namespace App\GameSelection\Presentation;
 
 use App\GameSelection\Application\AdminGameLibrary;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,6 +14,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminGameLibraryController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AdminGameLibrary $adminGameLibrary,
@@ -22,7 +25,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games', name: 'api_game_selection_admin_games_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -34,7 +37,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games', name: 'api_game_selection_admin_games_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -57,7 +60,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games/{gameId}', name: 'api_game_selection_admin_games_detail', methods: ['GET'])]
     public function detail(Request $request, string $gameId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -75,7 +78,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games/{gameId}', name: 'api_game_selection_admin_games_update', methods: ['PATCH'])]
     public function update(Request $request, string $gameId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -102,7 +105,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games/{gameId}/apworld', name: 'api_admin_game_configure_apworld', methods: ['PATCH'])]
     public function configureApworld(Request $request, string $gameId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -141,7 +144,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games/{gameId}/github-assets', name: 'api_admin_game_github_assets', methods: ['GET'])]
     public function listGithubAssets(Request $request, string $gameId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -165,7 +168,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games/{gameId}/apworld-from-github', name: 'api_admin_game_apworld_from_github', methods: ['POST'])]
     public function importApworldFromGithub(Request $request, string $gameId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;
@@ -198,7 +201,7 @@ final readonly class AdminGameLibraryController
     #[Route('/api/v1/admin/games/{gameId}', name: 'api_game_selection_admin_games_delete', methods: ['DELETE'])]
     public function delete(Request $request, string $gameId): JsonResponse
     {
-        $admin = $this->apiAccessGuard->requireAdmin($request);
+        $admin = $this->requireAuthenticatedAdmin($request);
 
         if ($admin instanceof JsonResponse) {
             return $admin;

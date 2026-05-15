@@ -7,6 +7,7 @@ namespace App\Payments\Application;
 use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoSyncLog;
 use App\Payments\Infrastructure\HelloAssoHttpClient;
+use App\Shared\Application\Handler\LogsHandlerErrors;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -14,6 +15,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class SyncHelloAssoFormHandler
 {
+    use LogsHandlerErrors;
+
     public function __construct(
         private HelloAssoHttpClient $httpClient,
         private EntityManagerInterface $entityManager,
@@ -58,16 +61,7 @@ final readonly class SyncHelloAssoFormHandler
 
         $this->entityManager->persist(HelloAssoSyncLog::fromSuccess($message->formSlug, $now));
 
-        try {
-            $this->entityManager->flush();
-        } catch (\Throwable $e) {
-            $this->logger->error('helloasso.sync_persist_failed', [
-                'formType' => $message->formType,
-                'formSlug' => $message->formSlug,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
+        $this->executeWithLogging('helloasso.sync_persist_failed', fn () => $this->entityManager->flush());
 
         $this->logger->info('helloasso.sync_completed', [
             'formType' => $message->formType,

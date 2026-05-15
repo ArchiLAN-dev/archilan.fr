@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\PauseRunJob;
+use App\Shared\Application\Handler\LogsHandlerErrors;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -12,6 +13,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 #[AsMessageHandler]
 final readonly class PauseRunJobHandler
 {
+    use LogsHandlerErrors;
+
     public function __construct(
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
@@ -29,7 +32,7 @@ final readonly class PauseRunJobHandler
             return;
         }
 
-        try {
+        $this->executeWithLogging('runner.pause_job.bridge_call_failed', function () use ($job): void {
             $response = $this->httpClient->request(
                 'POST',
                 sprintf('http://localhost:%d/pause', $job->bridgePort),
@@ -50,11 +53,6 @@ final readonly class PauseRunJobHandler
                     'session_id' => $job->sessionId,
                 ]);
             }
-        } catch (\Throwable $e) {
-            $this->logger->error('runner.pause_job.bridge_call_failed', [
-                'session_id' => $job->sessionId,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        });
     }
 }

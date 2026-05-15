@@ -15,26 +15,6 @@ use Psr\Log\NullLogger;
 
 final class IgdbEnrichmentServiceTest extends TestCase
 {
-    /**
-     * Records warning messages for assertion without PHPUnit mock notices.
-     *
-     * @phpstan-ignore-next-line
-     */
-    private function spyLogger(): object
-    {
-        return new class extends AbstractLogger {
-            /** @var list<string> */
-            public array $warnings = [];
-
-            public function log(mixed $level, string|\Stringable $message, array $context = []): void
-            {
-                if ('warning' === $level) {
-                    $this->warnings[] = (string) $message;
-                }
-            }
-        };
-    }
-
     public function testSearchReturnsMappedCandidates(): void
     {
         $client = $this->createMock(IgdbHttpClientInterface::class);
@@ -77,7 +57,7 @@ final class IgdbEnrichmentServiceTest extends TestCase
         $client = $this->createStub(IgdbHttpClientInterface::class);
         $client->method('searchGames')->willThrowException(new IgdbAuthException('No credentials'));
 
-        $logger = $this->spyLogger();
+        $logger = new IgdbEnrichmentSpyLogger();
         $service = new IgdbEnrichmentService($client, $logger);
         $result = $service->search('test');
 
@@ -91,11 +71,24 @@ final class IgdbEnrichmentServiceTest extends TestCase
         $client = $this->createStub(IgdbHttpClientInterface::class);
         $client->method('searchGames')->willThrowException(new IgdbSearchException('Search failed'));
 
-        $logger = $this->spyLogger();
+        $logger = new IgdbEnrichmentSpyLogger();
         $service = new IgdbEnrichmentService($client, $logger);
         $result = $service->search('test');
 
         self::assertSame([], $result);
         self::assertCount(1, $logger->warnings);
+    }
+}
+
+final class IgdbEnrichmentSpyLogger extends AbstractLogger
+{
+    /** @var list<string> */
+    public array $warnings = [];
+
+    public function log(mixed $level, string|\Stringable $message, array $context = []): void
+    {
+        if ('warning' === $level) {
+            $this->warnings[] = (string) $message;
+        }
     }
 }

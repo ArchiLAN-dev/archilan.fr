@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\GenerateRunJob;
@@ -14,31 +13,14 @@ use App\Sessions\Application\Message\StartRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class RunnerGeneratePipelineTest extends WebTestCase
+final class RunnerGeneratePipelineTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -56,7 +38,7 @@ final class RunnerGeneratePipelineTest extends WebTestCase
 
     public function testGenerateEndpointRequiresAdmin(): void
     {
-        $player = $this->createUser('player@example.org', 'Player', ['ROLE_USER']);
+        $player = $this->createUser('player@example.org', ['ROLE_USER'], 'Player');
         $this->loginAs($player);
         $session = $this->persistSession('evt-001', Session::STATUS_READY);
 
@@ -149,7 +131,7 @@ final class RunnerGeneratePipelineTest extends WebTestCase
 
     public function testLaunchEndpointRequiresAdmin(): void
     {
-        $player = $this->createUser('player@example.org', 'Player', ['ROLE_USER']);
+        $player = $this->createUser('player@example.org', ['ROLE_USER'], 'Player');
         $this->loginAs($player);
         $session = $this->persistSession('evt-001', Session::STATUS_GENERATED);
 
@@ -236,7 +218,7 @@ final class RunnerGeneratePipelineTest extends WebTestCase
 
     public function testStopEndpointRequiresAdmin(): void
     {
-        $player = $this->createUser('player@example.org', 'Player', ['ROLE_USER']);
+        $player = $this->createUser('player@example.org', ['ROLE_USER'], 'Player');
         $this->loginAs($player);
         $session = $this->persistRunningSession('evt-001');
 
@@ -273,7 +255,7 @@ final class RunnerGeneratePipelineTest extends WebTestCase
 
     public function testRestartEndpointRequiresAdmin(): void
     {
-        $player = $this->createUser('player@example.org', 'Player', ['ROLE_USER']);
+        $player = $this->createUser('player@example.org', ['ROLE_USER'], 'Player');
         $this->loginAs($player);
         $session = $this->persistCrashedSession('evt-001');
 
@@ -344,26 +326,7 @@ final class RunnerGeneratePipelineTest extends WebTestCase
 
     private function createAdmin(): User
     {
-        return $this->createUser('admin@example.org', 'Admin', ['ROLE_USER', 'ROLE_ADMIN']);
-    }
-
-    /** @param list<string> $roles */
-    private function createUser(string $email, string $displayName, array $roles): User
-    {
-        $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            strtolower($email),
-            $displayName,
-            'test-password-hash',
-            $roles,
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
     private function persistSession(string $eventId, string $status): Session
@@ -424,13 +387,6 @@ final class RunnerGeneratePipelineTest extends WebTestCase
         return $paths[$target] ?? [];
     }
 
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
     private function patchStatus(
         string $sessionId,
         string $status,
@@ -458,14 +414,5 @@ final class RunnerGeneratePipelineTest extends WebTestCase
             ['HTTP_X_INTERNAL_SECRET' => 'test-runner-secret', 'CONTENT_TYPE' => 'application/json'],
             json_encode($payload, JSON_THROW_ON_ERROR),
         );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
     }
 }

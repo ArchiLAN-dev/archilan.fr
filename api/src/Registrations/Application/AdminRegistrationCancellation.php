@@ -7,11 +7,14 @@ namespace App\Registrations\Application;
 use App\Events\Domain\Event;
 use App\Realtime\Application\RealtimePublisher;
 use App\Registrations\Domain\Registration;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationCancellation
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RegistrationCounter $registrationCounter,
@@ -25,9 +28,13 @@ final readonly class AdminRegistrationCancellation
      */
     public function cancel(string $eventId, string $registrationId): array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
+            return ['outcome' => 'not_found'];
+        }
 
-        if (!$registration instanceof Registration || $registration->getEventId() !== $eventId) {
+        if ($registration->getEventId() !== $eventId) {
             return ['outcome' => 'not_found'];
         }
 

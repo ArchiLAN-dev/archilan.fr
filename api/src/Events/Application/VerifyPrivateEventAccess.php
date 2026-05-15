@@ -7,11 +7,14 @@ namespace App\Events\Application;
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
 use App\Registrations\Application\RegistrationCounter;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class VerifyPrivateEventAccess
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private RegistrationCounter $registrationCounter,
@@ -27,9 +30,13 @@ final readonly class VerifyPrivateEventAccess
      */
     public function verify(string $eventId, mixed $password, string $userId): ?array
     {
-        $event = $this->entityManager->find(Event::class, $eventId);
+        try {
+            $event = $this->findOrFail(Event::class, $eventId);
+        } catch (\RuntimeException) {
+            return null;
+        }
 
-        if (!$event instanceof Event || !$event->isVisiblePublicly()) {
+        if (!$event->isVisiblePublicly()) {
             return null;
         }
 

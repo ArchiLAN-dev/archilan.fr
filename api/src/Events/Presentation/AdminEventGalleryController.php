@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Events\Presentation;
 
-use App\Events\Application\AdminEventDrafts;
-use App\Events\Domain\Event;
+use App\Events\Application\ManageEventGalleryCommand;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminEventGalleryController
 {
+    use RequiresAuthTrait;
     private const array ALLOWED_MIMES = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -24,38 +23,19 @@ final readonly class AdminEventGalleryController
     ];
 
     private const int MAX_SIZE_BYTES = 10 * 1024 * 1024;
-    private const int MAX_GALLERY_SIZE = 12;
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
-        private AdminEventDrafts $adminEventDrafts,
-        private MinioStorageInterface $minioStorage,
-        private string $minioMediaBucket,
+        private ManageEventGalleryCommand $manageEventGalleryCommand,
     ) {
     }
 
     #[Route('/api/v1/admin/events/{eventId}/gallery', methods: ['POST'])]
     public function upload(Request $request, string $eventId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
-        }
-
-        $event = $this->entityManager->find(Event::class, $eventId);
-        if (!$event instanceof Event) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Événement introuvable.']],
-                404,
-            );
-        }
-
-        if ($event->getPhotoGalleryCount() >= self::MAX_GALLERY_SIZE) {
-            return new JsonResponse(
-                ['error' => ['code' => 'gallery_full', 'message' => 'La galerie est pleine (max 12 photos).']],
-                422,
-            );
         }
 
         $file = $request->files->get('file');
@@ -86,45 +66,48 @@ final readonly class AdminEventGalleryController
         $key = sprintf('events/%s/gallery/%s.%s', $eventId, $uuid, $ext);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
-        try {
-            $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
-        } catch (\Throwable) {
-            return new JsonResponse(
-                ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
-                503,
-            );
-        }
+        $result = $this->manageEventGalleryCommand->upload($eventId, $key, $contents);
 
-        $event->appendGalleryUpload($key);
-        $this->entityManager->flush();
-
-        return new JsonResponse(['data' => $this->adminEventDrafts->get($eventId)]);
-    }
-
-    #[Route('/api/v1/admin/events/{eventId}/gallery/{index}', methods: ['DELETE'], requirements: ['index' => '\d+'])]
-    public function delete(Request $request, string $eventId, int $index): Response
-    {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
-        if ($guard instanceof JsonResponse) {
-            return $guard;
-        }
-
-        $event = $this->entityManager->find(Event::class, $eventId);
-        if (!$event instanceof Event) {
+        if ('not_found' === $result['outcome']) {
             return new JsonResponse(
                 ['error' => ['code' => 'not_found', 'message' => 'Événement introuvable.']],
                 404,
             );
         }
 
-        if (!$event->removeGalleryItem($index)) {
+        if ('gallery_full' === $result['outcome']) {
             return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Index de galerie invalide.']],
-                404,
+                ['error' => ['code' => 'gallery_full', 'message' => 'La galerie est pleine (max 12 photos).']],
+                422,
             );
         }
 
-        $this->entityManager->flush();
+        if ('storage_error' === $result['outcome']) {
+            return new JsonResponse(
+                ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
+                503,
+            );
+        }
+
+        return new JsonResponse(['data' => $result['data']]);
+    }
+
+    #[Route('/api/v1/admin/events/{eventId}/gallery/{index}', methods: ['DELETE'], requirements: ['index' => '\d+'])]
+    public function delete(Request $request, string $eventId, int $index): Response
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->manageEventGalleryCommand->delete($eventId, $index);
+
+        if ('not_found' === $result['outcome'] || 'invalid_index' === $result['outcome']) {
+            return new JsonResponse(
+                ['error' => ['code' => 'not_found', 'message' => 'invalid_index' === $result['outcome'] ? 'Index de galerie invalide.' : 'Événement introuvable.']],
+                404,
+            );
+        }
 
         return new Response(null, 204);
     }

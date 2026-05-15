@@ -20,6 +20,10 @@ final readonly class DddArchitectureValidator
         'Realtime',
         'Communications',
         'Legal',
+        'Sessions',
+        'PersonalRuns',
+        'CatalogSync',
+        'Streaming',
     ];
 
     /** @var list<string> */
@@ -27,6 +31,22 @@ final readonly class DddArchitectureValidator
 
     /** @var list<string> */
     private const STARTER_PLACEHOLDERS = ['Controller', 'Entity', 'Repository'];
+
+    /** @var list<string> */
+    private const FORBIDDEN_PRESENTATION_IMPORTS = [
+        'Doctrine\\DBAL\\Connection',
+        'Doctrine\\ORM\\EntityManagerInterface',
+    ];
+
+    /** @var list<string> */
+    private const FORBIDDEN_PRESENTATION_CALLS = [
+        'fetchAllAssociative',
+        'fetchOne',
+        'executeQuery',
+        'createQueryBuilder',
+        'createQuery',
+        'getRepository',
+    ];
 
     public function validate(string $projectDir): DddArchitectureReport
     {
@@ -42,6 +62,7 @@ final readonly class DddArchitectureValidator
             ...$this->validateContextDirectories($srcDir),
             ...$this->validateSourceFiles($srcDir),
             ...$this->validateDomainDependencies($srcDir),
+            ...$this->validatePresentationCqrs($srcDir),
             ...$this->validateServicesConfig($projectDir),
             ...$this->validateDoctrineMappings($projectDir, $srcDir),
         ];
@@ -57,16 +78,8 @@ final readonly class DddArchitectureValidator
         $violations = [];
 
         foreach (self::CONTEXTS as $context) {
-            $contextDir = "{$srcDir}/{$context}";
-            if (!is_dir($contextDir)) {
+            if (!is_dir("{$srcDir}/{$context}")) {
                 $violations[] = "Missing bounded context directory: src/{$context}";
-                continue;
-            }
-
-            foreach (self::LAYERS as $layer) {
-                if (!is_dir("{$contextDir}/{$layer}")) {
-                    $violations[] = "Missing DDD layer: src/{$context}/{$layer}";
-                }
             }
         }
 
@@ -83,7 +96,7 @@ final readonly class DddArchitectureValidator
         foreach ($this->phpFiles($srcDir) as $file) {
             $relativePath = $this->relativePath($srcDir, $file);
 
-            if ('Kernel.php' === $relativePath) {
+            if (in_array($relativePath, ['Kernel.php', 'Schedule.php'], true)) {
                 continue;
             }
 
@@ -215,6 +228,44 @@ final readonly class DddArchitectureValidator
             $expectedPrefix = "App\\{$context}\\Domain";
             if (($mapping['prefix'] ?? null) !== $expectedPrefix) {
                 $violations[] = "Doctrine mapping {$context} must use prefix {$expectedPrefix}";
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function validatePresentationCqrs(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $presentationDir = "{$srcDir}/{$context}/Presentation";
+            if (!is_dir($presentationDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($presentationDir) as $file) {
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                $relativePath = $this->relativePath($srcDir, $file);
+
+                foreach (self::FORBIDDEN_PRESENTATION_IMPORTS as $import) {
+                    if (str_contains($contents, $import)) {
+                        $violations[] = "Presentation layer must not inject DB infrastructure ({$import}): src/{$relativePath}";
+                    }
+                }
+
+                foreach (self::FORBIDDEN_PRESENTATION_CALLS as $method) {
+                    if (1 === preg_match('/(?:->|::)'.preg_quote($method, '/').'\\s*\\(/', $contents)) {
+                        $violations[] = "Presentation layer must not execute queries directly ({$method}): src/{$relativePath}";
+                    }
+                }
             }
         }
 

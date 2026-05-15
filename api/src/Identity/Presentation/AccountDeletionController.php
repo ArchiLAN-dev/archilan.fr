@@ -7,6 +7,7 @@ namespace App\Identity\Presentation;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\DeleteAccount;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,6 +15,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AccountDeletionController
 {
+    use RequiresAuthTrait;
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private DeleteAccount $deleteAccount,
@@ -23,7 +26,7 @@ final readonly class AccountDeletionController
     #[Route('/api/v1/account', name: 'api_identity_account_delete', methods: ['DELETE'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $user = $this->apiAccessGuard->requireUser($request);
+        $user = $this->requireAuthenticatedUser($request);
 
         if ($user instanceof JsonResponse) {
             return $user;

@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Content\Presentation;
 
-use App\Content\Application\AdminPostCatalog;
-use App\Content\Domain\Post;
+use App\Content\Application\UploadPostCoverImageCommand;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminPostCoverImageController
 {
+    use RequiresAuthTrait;
     private const array ALLOWED_MIMES = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -26,27 +25,16 @@ final readonly class AdminPostCoverImageController
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
-        private AdminPostCatalog $adminPostCatalog,
-        private MinioStorageInterface $minioStorage,
-        private string $minioMediaBucket,
+        private UploadPostCoverImageCommand $uploadPostCoverImageCommand,
     ) {
     }
 
     #[Route('/api/v1/admin/posts/{postId}/cover-image', methods: ['POST'])]
     public function __invoke(Request $request, string $postId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
-        }
-
-        $post = $this->entityManager->find(Post::class, $postId);
-        if (!$post instanceof Post) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Article introuvable.']],
-                404,
-            );
         }
 
         $file = $request->files->get('file');
@@ -76,18 +64,22 @@ final readonly class AdminPostCoverImageController
         $key = sprintf('posts/%s/cover.%s', $postId, $ext);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
-        try {
-            $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
-        } catch (\Throwable) {
+        $result = $this->uploadPostCoverImageCommand->execute($postId, $key, $contents);
+
+        if ('not_found' === $result['outcome']) {
+            return new JsonResponse(
+                ['error' => ['code' => 'not_found', 'message' => 'Article introuvable.']],
+                404,
+            );
+        }
+
+        if ('storage_error' === $result['outcome']) {
             return new JsonResponse(
                 ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
                 503,
             );
         }
 
-        $post->setCoverImageKey($key, new \DateTimeImmutable());
-        $this->entityManager->flush();
-
-        return new JsonResponse(['data' => $this->adminPostCatalog->get($postId)]);
+        return new JsonResponse(['data' => $result['data']]);
     }
 }

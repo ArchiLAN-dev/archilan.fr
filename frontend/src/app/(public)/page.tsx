@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays, ImageIcon, MessageCircle, Radio } from "lucid
 import { externalLinks } from "@/lib/external-links";
 import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twitch-embed";
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
+import { CommunityStatsWidget } from "@/features/community/community-stats-widget";
 
 export default function Home() {
   return (
@@ -188,6 +189,9 @@ export default function Home() {
 
         </div>
       </section>
+
+      {/* Stats communautaires */}
+      <CommunityStatsWidget />
 
       {/* Actions communautaires */}
       <section aria-labelledby="community-actions" className="grid gap-6 border-t border-border pt-12 md:grid-cols-3">

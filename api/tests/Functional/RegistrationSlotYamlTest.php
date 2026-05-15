@@ -6,33 +6,15 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class RegistrationSlotYamlTest extends WebTestCase
+final class RegistrationSlotYamlTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -60,7 +42,7 @@ final class RegistrationSlotYamlTest extends WebTestCase
         $owner = $this->createUser('owner@example.org');
         $other = $this->createUser('other@example.org');
         $game = $this->createApworldGame('Hollow Knight', 'hollow-knight');
-        $event = $this->createEvent($game);
+        $event = $this->makeEvent($game);
         $reg = $this->createRegistrationWithSlot($event, $owner->getId(), $game);
 
         $slotId = $reg->getGameSlots()[0]['slotId'];
@@ -78,7 +60,7 @@ final class RegistrationSlotYamlTest extends WebTestCase
     {
         $owner = $this->createUser('owner@example.org');
         $game = $this->createGame('Super Metroid', 'super-metroid');
-        $event = $this->createEvent($game);
+        $event = $this->makeEvent($game);
         $reg = $this->createRegistrationWithSlot($event, $owner->getId(), $game);
 
         $slotId = $reg->getGameSlots()[0]['slotId'];
@@ -104,7 +86,7 @@ final class RegistrationSlotYamlTest extends WebTestCase
     {
         $owner = $this->createUser('owner@example.org');
         $game = $this->createApworldGame('Hollow Knight', 'hollow-knight');
-        $event = $this->createEvent($game);
+        $event = $this->makeEvent($game);
         $reg = $this->createRegistrationWithSlot($event, $owner->getId(), $game);
 
         $slotId = $reg->getGameSlots()[0]['slotId'];
@@ -136,7 +118,7 @@ final class RegistrationSlotYamlTest extends WebTestCase
         $defaultYaml = "name: PlayerName\ngame: Hollow Knight\n";
         $owner = $this->createUser('owner@example.org');
         $game = $this->createApworldGame('Hollow Knight', 'hollow-knight', $defaultYaml);
-        $event = $this->createEvent($game);
+        $event = $this->makeEvent($game);
         $reg = $this->createRegistrationWithSlot($event, $owner->getId(), $game);
 
         $slotId = $reg->getGameSlots()[0]['slotId'];
@@ -171,106 +153,35 @@ final class RegistrationSlotYamlTest extends WebTestCase
 
     // ─── helpers ─────────────────────────────────────────────────────────────
 
-    private function createUser(string $email): User
-    {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'hash',
-            ['ROLE_USER'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createGame(string $name, string $slug): ArchipelagoGame
-    {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $game = ArchipelagoGame::create($name, $slug, 'A game.', null, 'Alt', 'Credit', ArchipelagoGame::AVAILABILITY_AVAILABLE, $now);
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
-
-        return $game;
-    }
-
     private function createApworldGame(string $name, string $slug, string $defaultYaml = "name: PlayerName\ngame: Hollow Knight\n"): ArchipelagoGame
     {
         $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $game = ArchipelagoGame::create($name, $slug, 'A game.', null, 'Alt', 'Credit', ArchipelagoGame::AVAILABILITY_AVAILABLE, $now);
+        $game = $this->createGame($name, $slug);
         $game->configureApworld('test-key', 'test-hash', $name, $defaultYaml, $now);
-        $this->entityManager->persist($game);
         $this->entityManager->flush();
 
         return $game;
     }
 
-    private function createEvent(ArchipelagoGame $game): Event
+    private function makeEvent(ArchipelagoGame $game): Event
     {
         $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $event = new Event(
-            bin2hex(random_bytes(16)),
+
+        return $this->createEvent(
             'Test Event',
-            'Description',
-            Event::STATUS_PUBLISHED,
             $now->modify('+30 days'),
             $now->modify('+31 days'),
-            'Somewhere',
-            30,
-            $now->modify('-10 days'),
-            $now->modify('+20 days'),
-            true,
-            null,
-            true,
-            [['gameId' => $game->getId()]],
-            null,
-            null,
-            $now,
-            $now,
+            capacity: 30,
+            published: true,
+            gameSelectionEnabled: true,
+            gameSelectionConfig: [['gameId' => $game->getId()]],
+            registrationOpensAt: $now->modify('-10 days'),
+            registrationClosesAt: $now->modify('+20 days'),
         );
-        $this->entityManager->persist($event);
-        $this->entityManager->flush();
-
-        return $event;
     }
 
     private function createRegistrationWithSlot(Event $event, string $userId, ArchipelagoGame $game): Registration
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $slotId = bin2hex(random_bytes(8));
-        $reg = new Registration(
-            bin2hex(random_bytes(16)),
-            $event->getId(),
-            $userId,
-            Registration::STATUS_RESERVED,
-            $now,
-            $now,
-            [['slotId' => $slotId, 'gameId' => $game->getId(), 'slotOrder' => 1]],
-        );
-        $this->entityManager->persist($reg);
-        $this->entityManager->flush();
-
-        return $reg;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
+        return $this->createRegistration($event->getId(), $userId, selectedGameIds: [$game->getId()]);
     }
 }

@@ -5,34 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\PersonalRuns\Domain\PersonalRunParticipant;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 
-final class PersonalRunGameConfigTest extends WebTestCase
+final class PersonalRunGameConfigTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -48,7 +30,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     public function testConfigureGamesDraftRunReturns204(): void
     {
         $user = $this->createUser('alice@example.org');
-        $game = $this->createGame('Hollow Knight');
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $run = $this->createRunDirectly($user->getId(), 'My Run', PersonalRun::STATUS_DRAFT);
         $this->loginAs($user);
 
@@ -65,7 +47,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     public function testConfigureGamesIdleRunReturns204(): void
     {
         $user = $this->createUser('alice@example.org');
-        $game = $this->createGame('Celeste');
+        $game = $this->createGame('Celeste', 'celeste');
         $run = $this->createRunDirectly($user->getId(), 'Idle Run', PersonalRun::STATUS_IDLE);
         $this->loginAs($user);
 
@@ -82,7 +64,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     public function testConfigureGamesActiveRunReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $game = $this->createGame('Super Metroid');
+        $game = $this->createGame('Super Metroid', 'super-metroid');
         $run = $this->createRunDirectly($user->getId(), 'Active Run', PersonalRun::STATUS_ACTIVE);
         $this->loginAs($user);
 
@@ -97,7 +79,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     public function testConfigureGamesStartingRunReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $game = $this->createGame('Timespinner');
+        $game = $this->createGame('Timespinner', 'timespinner');
         $run = $this->createRunDirectly($user->getId(), 'Starting Run', PersonalRun::STATUS_STARTING);
         $this->loginAs($user);
 
@@ -129,7 +111,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     {
         $alice = $this->createUser('alice@example.org');
         $bob = $this->createUser('bob@example.org');
-        $game = $this->createGame('A Link to the Past');
+        $game = $this->createGame('A Link to the Past', 'a-link-to-the-past');
         $run = $this->createRunDirectly($alice->getId(), 'Alice Run', PersonalRun::STATUS_DRAFT);
         $this->loginAs($bob);
 
@@ -144,7 +126,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     {
         $alice = $this->createUser('alice@example.org');
         $bob = $this->createUser('bob@example.org');
-        $game = $this->createGame('Oracle of Seasons');
+        $game = $this->createGame('Oracle of Seasons', 'oracle-of-seasons');
         $run = $this->createRunDirectly($alice->getId(), 'Alice Run', PersonalRun::STATUS_DRAFT);
         $participant = PersonalRunParticipant::create($run->getId(), $bob->getId(), new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
         $this->entityManager->persist($participant);
@@ -177,7 +159,7 @@ final class PersonalRunGameConfigTest extends WebTestCase
     public function testConfigureGamesMalformedEntryReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $game = $this->createGame('Secret of Evermore');
+        $game = $this->createGame('Secret of Evermore', 'secret-of-evermore');
         $run = $this->createRunDirectly($user->getId(), 'My Run', PersonalRun::STATUS_DRAFT);
         $this->loginAs($user);
 
@@ -215,46 +197,6 @@ final class PersonalRunGameConfigTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    private function createUser(string $email): User
-    {
-        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-hash',
-            ['ROLE_USER'],
-            $now,
-            $now,
-            $now,
-        );
-
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createGame(string $name): ArchipelagoGame
-    {
-        $game = ArchipelagoGame::create(
-            $name,
-            strtolower(str_replace(' ', '-', $name)),
-            'A test game.',
-            null,
-            '',
-            '',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            new \DateTimeImmutable('2026-05-12T10:00:00+00:00'),
-        );
-
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
-
-        return $game;
-    }
-
     private function createRunDirectly(string $ownerId, string $title, string $status): PersonalRun
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
@@ -267,13 +209,6 @@ final class PersonalRunGameConfigTest extends WebTestCase
         $this->entityManager->flush();
 
         return $run;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 
     private function errorCode(): string

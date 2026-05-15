@@ -4,41 +4,25 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Message\FetchLogsJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionSlot;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class AdminServerCommandsTest extends WebTestCase
+final class AdminServerCommandsTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
     private MockHttpClient $httpClient;
 
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $httpClient = self::getContainer()->get(MockHttpClient::class);
         self::assertInstanceOf(MockHttpClient::class, $httpClient);
@@ -47,6 +31,7 @@ final class AdminServerCommandsTest extends WebTestCase
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(Session::class),
+            $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(RunAuditLog::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
@@ -185,6 +170,91 @@ final class AdminServerCommandsTest extends WebTestCase
         self::assertSame('force_end', $log->getAction());
     }
 
+    public function testReleaseCommandMarksSlotAsReleased(): void
+    {
+        $session = $this->createRunningSession('run-release-1', 'evt-001');
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'reg-001', 'game-001', 'Alice', 0);
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $this->httpClient->setResponseFactory(new MockResponse('{"ok":true}', ['http_code' => 200]));
+
+        $this->client->jsonRequest(
+            'POST',
+            sprintf('/api/v1/admin/sessions/%s/commands', $session->getId()),
+            ['command' => '!admin /release Alice'],
+        );
+        self::assertResponseStatusCodeSame(200);
+
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->getRepository(SessionSlot::class)->findOneBy([
+            'sessionId' => $session->getId(),
+            'slotName' => 'Alice',
+        ]);
+        self::assertInstanceOf(SessionSlot::class, $refreshed);
+        self::assertTrue($refreshed->isWasReleased());
+    }
+
+    public function testCollectCommandDoesNotMarkReleasedIfGoalAlreadyReached(): void
+    {
+        $session = $this->createRunningSession('run-release-2', 'evt-001');
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'reg-002', 'game-001', 'Bob', 0);
+        $slot->setGoalReachedAt(new \DateTimeImmutable());
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $this->httpClient->setResponseFactory(new MockResponse('{"ok":true}', ['http_code' => 200]));
+
+        $this->client->jsonRequest(
+            'POST',
+            sprintf('/api/v1/admin/sessions/%s/commands', $session->getId()),
+            ['command' => '!admin /collect Bob'],
+        );
+        self::assertResponseStatusCodeSame(200);
+
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->getRepository(SessionSlot::class)->findOneBy([
+            'sessionId' => $session->getId(),
+            'slotName' => 'Bob',
+        ]);
+        self::assertInstanceOf(SessionSlot::class, $refreshed);
+        self::assertFalse($refreshed->isWasReleased());
+    }
+
+    public function testReleaseCommandDoesNotMarkSlotWhenBridgeReturns4xx(): void
+    {
+        $session = $this->createRunningSession('run-release-3', 'evt-001');
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'reg-003', 'game-001', 'Carol', 0);
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $this->httpClient->setResponseFactory(new MockResponse('', ['http_code' => 404]));
+
+        $this->client->jsonRequest(
+            'POST',
+            sprintf('/api/v1/admin/sessions/%s/commands', $session->getId()),
+            ['command' => '!admin /release Carol'],
+        );
+        self::assertResponseStatusCodeSame(503);
+
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->getRepository(SessionSlot::class)->findOneBy([
+            'sessionId' => $session->getId(),
+            'slotName' => 'Carol',
+        ]);
+        self::assertInstanceOf(SessionSlot::class, $refreshed);
+        self::assertFalse($refreshed->isWasReleased());
+    }
+
     public function testForceEndReturns409WhenNotRunning(): void
     {
         $session = $this->createSession('run-end-2', 'evt-001');
@@ -229,35 +299,6 @@ final class AdminServerCommandsTest extends WebTestCase
 
     private function createAdmin(): User
     {
-        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            'admin@example.org',
-            'admin@example.org',
-            'Admin',
-            'test-password-hash',
-            ['ROLE_USER', 'ROLE_ADMIN'],
-            $now, $now, $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
-    }
-
-    /** @return array<mixed> */
-    private function decodedJsonResponse(): array
-    {
-        $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);
-        self::assertIsArray($decoded);
-
-        return $decoded;
+        return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 }

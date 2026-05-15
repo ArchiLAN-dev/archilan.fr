@@ -4,21 +4,22 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation;
 
-use App\Sessions\Domain\Session;
+use App\Sessions\Application\SessionQuery;
 use App\Sessions\Infrastructure\DockerSocketClient;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class ContainerController
 {
+    use RequiresAuthTrait;
     private const array ALLOWED_ACTIONS = ['start', 'stop', 'rm', 'restart', 'logs'];
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private EntityManagerInterface $entityManager,
+        private SessionQuery $sessionQuery,
         private DockerSocketClient $docker,
     ) {
     }
@@ -26,13 +27,13 @@ final readonly class ContainerController
     #[Route('/api/v1/admin/sessions/{sessionId}/container', methods: ['GET'])]
     public function state(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -72,13 +73,13 @@ final readonly class ContainerController
     #[Route('/api/v1/admin/sessions/{sessionId}/container', methods: ['POST'])]
     public function exec(Request $request, string $sessionId): JsonResponse
     {
-        $guard = $this->apiAccessGuard->requireAdmin($request);
+        $guard = $this->requireAuthenticatedAdmin($request);
         if ($guard instanceof JsonResponse) {
             return $guard;
         }
 
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        if (!$session instanceof Session) {
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 

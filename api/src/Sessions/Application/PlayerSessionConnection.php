@@ -8,10 +8,13 @@ use App\GameSelection\Domain\ArchipelagoGame;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PlayerSessionConnection
 {
+    use EntityFinderTrait;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
     ) {
@@ -28,10 +31,13 @@ final readonly class PlayerSessionConnection
      */
     public function getConnection(string $registrationId, string $userId): ?array
     {
-        $registration = $this->entityManager->find(Registration::class, $registrationId);
+        try {
+            $registration = $this->findOrFail(Registration::class, $registrationId);
+        } catch (\RuntimeException) {
+            return null;
+        }
 
-        if (!$registration instanceof Registration
-            || $registration->getUserId() !== $userId
+        if ($registration->getUserId() !== $userId
             || !$registration->isReserved()
             || null === $registration->getSubmittedAt()
         ) {

@@ -5,37 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\PersonalRun;
 use App\PersonalRuns\Domain\PersonalRunParticipant;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
-final class PersonalRunLifecycleTest extends WebTestCase
+final class PersonalRunLifecycleTest extends FunctionalTestCase
 {
-    private KernelBrowser $client;
-    private EntityManagerInterface $entityManager;
-    private AuthSessionSigner $authSessionSigner;
-
     protected function setUp(): void
     {
-        self::ensureKernelShutdown();
-        $this->client = static::createClient();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $authSessionSigner = self::getContainer()->get(AuthSessionSigner::class);
-        self::assertInstanceOf(AuthSessionSigner::class, $authSessionSigner);
-        $this->authSessionSigner = $authSessionSigner;
+        parent::setUp();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -53,7 +35,7 @@ final class PersonalRunLifecycleTest extends WebTestCase
     public function testStartDraftRunReturns202AndDispatchesJob(): void
     {
         $user = $this->createUser('alice@example.org');
-        $game = $this->createGame('Hollow Knight');
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $run = $this->createRunWithGames($user->getId(), [['gameId' => $game->getId()]]);
         $this->loginAs($user);
 
@@ -311,44 +293,6 @@ final class PersonalRunLifecycleTest extends WebTestCase
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private function createUser(string $email): User
-    {
-        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $user = new User(
-            bin2hex(random_bytes(16)),
-            $email,
-            mb_strtolower($email),
-            null,
-            'test-hash',
-            ['ROLE_USER'],
-            $now,
-            $now,
-            $now,
-        );
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
-    }
-
-    private function createGame(string $name): ArchipelagoGame
-    {
-        $game = ArchipelagoGame::create(
-            $name,
-            strtolower(str_replace(' ', '-', $name)),
-            'A test game.',
-            null,
-            '',
-            '',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            new \DateTimeImmutable('2026-05-12T10:00:00+00:00'),
-        );
-        $this->entityManager->persist($game);
-        $this->entityManager->flush();
-
-        return $game;
-    }
-
     /** @param list<array{gameId: string}> $games */
     private function createRunWithGames(string $ownerId, array $games): PersonalRun
     {
@@ -356,6 +300,15 @@ final class PersonalRunLifecycleTest extends WebTestCase
         $run = PersonalRun::create($ownerId, 'Test Run', $now);
         $run->configureGames($games, $now);
         $this->entityManager->persist($run);
+
+        $participant = PersonalRunParticipant::create($run->getId(), $ownerId, $now);
+        $slots = array_map(
+            static fn (array $g): array => ['slotId' => bin2hex(random_bytes(8)), 'gameId' => $g['gameId']],
+            $games,
+        );
+        $participant->replaceSlots($slots);
+        $this->entityManager->persist($participant);
+
         $this->entityManager->flush();
 
         return $run;
@@ -373,13 +326,6 @@ final class PersonalRunLifecycleTest extends WebTestCase
         $this->entityManager->flush();
 
         return $run;
-    }
-
-    private function loginAs(User $user): void
-    {
-        $this->client->getCookieJar()->set(
-            new Cookie(AuthSessionSigner::COOKIE_NAME, $this->authSessionSigner->sign($user->getId())),
-        );
     }
 
     /** @param array<string, mixed> $payload */

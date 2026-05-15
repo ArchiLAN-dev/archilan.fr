@@ -11,6 +11,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\Entity]
 #[ORM\Table(name: 'identity_users')]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_email_canonical', columns: ['email_canonical'])]
+#[ORM\UniqueConstraint(name: 'uniq_identity_users_slug', columns: ['slug'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     public const CURRENT_CGU_VERSION = '2026-05-02';
@@ -42,6 +43,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private ?\DateTimeImmutable $deletedAt = null,
         #[ORM\Column(name: 'cgu_accepted_version', type: 'string', length: 20)]
         private string $cguAcceptedVersion = self::CURRENT_CGU_VERSION,
+        #[ORM\Column(type: 'string', length: 80, nullable: true)]
+        private ?string $slug = null,
     ) {
     }
 
@@ -50,6 +53,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         string $emailCanonical,
         string $passwordHash,
         \DateTimeImmutable $now,
+        string $slug = '',
     ): self {
         return new self(
             bin2hex(random_bytes(16)),
@@ -61,6 +65,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             $now,
             $now,
             $now,
+            slug: '' !== $slug ? $slug : null,
         );
     }
 
@@ -87,6 +92,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getDisplayName(): ?string
     {
         return $this->displayName;
+    }
+
+    public function getSlug(): ?string
+    {
+        return $this->slug;
     }
 
     public function updateProfile(?string $displayName, \DateTimeImmutable $now): void
