@@ -104,6 +104,7 @@ Use `web.AppKey` (aiohttp 3.9+) for typed app storage instead of plain string ke
 
 ```python
 # bridge/core/rest_keys.py
+import asyncio
 from aiohttp.web import AppKey
 from .state import StateManager
 from .ap_client import ArchipelagoClient
