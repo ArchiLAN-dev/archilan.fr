@@ -12,7 +12,7 @@ todo
 
 ## Acceptance Criteria
 
-**AC1:** A grep audit of `frontend/src` identifies all `new QueryClient(...)` call sites and all raw numeric `staleTime` / `gcTime` literals in `useQuery` / `useInfiniteQuery` calls.
+**AC1:** A grep audit of the entire `frontend/` directory (excluding `node_modules/`, `.next/`, `dist/`, `coverage/`) identifies all `new QueryClient(...)` call sites and all raw numeric `staleTime` / `gcTime` literals in `useQuery` / `useInfiniteQuery` calls. Searching `frontend/` rather than `frontend/src` ensures Storybook (`.storybook/`) and other config directories outside `src/` are covered.
 
 **AC2:** `src/lib/query-client.ts` is created and exports:
 ```ts
@@ -44,11 +44,13 @@ export function makeQueryClient(): QueryClient {
 ## Tasks / Subtasks
 
 - [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit
-  - [ ] Grep for `new QueryClient` across `frontend/src`
-  - [ ] Grep for `staleTime:` across `frontend/src`
-  - [ ] Grep for `gcTime:` across `frontend/src`
-  - [ ] List each occurrence: file, line, current value
+- [ ] Task 2: Run grep audit across all of `frontend/` (run from repo root):
+  ```bash
+  rg 'new QueryClient' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
+  rg 'staleTime:' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
+  rg 'gcTime:' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
+  ```
+  - [ ] List each occurrence: file, line, current value (includes `.storybook/` if present)
 - [ ] Task 3: Create `src/lib/query-client.ts`
   - [ ] 3a: Define the five standard constants (`DEFAULT_STALE_TIME`, `REALTIME_STALE_TIME`, `STATIC_STALE_TIME`, `SESSION_STALE_TIME`, `DEFAULT_GC_TIME`)
   - [ ] 3b: Implement `makeQueryClient()` with default options using `DEFAULT_STALE_TIME` and `DEFAULT_GC_TIME`
@@ -105,6 +107,7 @@ Story 20.7 test helpers that create a `QueryClient` for testing purposes must al
 - `frontend/src/lib/query-client.ts` — new: `makeQueryClient()` + named staleTime and gcTime constants
 - `frontend/src/lib/query-provider.tsx` — updated: use `makeQueryClient()`
 - Any `frontend/src/**/*.{ts,tsx}` files with `new QueryClient(...)`, raw `staleTime`, or raw `gcTime` literals (identified by audit)
+- `frontend/.storybook/*.{ts,tsx}` — updated if present: replace `new QueryClient(...)` with `makeQueryClient()`
 - `_bmad-output/implementation-artifacts/20-8-frontend-centralise-queryclient.md` — this file
 
 ## Change Log
