@@ -12,7 +12,7 @@ todo
 
 ## Acceptance Criteria
 
-**AC1:** `ruff` and `mypy` are added to `bridge/requirements.txt` pinned to a minimum version. The Python target version is aligned to the actual bridge runtime: **Python 3.10**. Both `[tool.ruff]` `target-version` and `[tool.mypy]` `python_version` are set to `"py310"` / `"3.10"` respectively. The existing `target-version = "py311"` in `pyproject.toml` is corrected.
+**AC1:** `ruff` and `mypy` are added to `bridge/requirements.txt` declared with minimum versions (`ruff>=0.4`, `mypy>=1.10`). The Python target version is aligned to the actual bridge runtime: **Python 3.10**. Both `[tool.ruff]` `target-version` and `[tool.mypy]` `python_version` are set to `"py310"` / `"3.10"` respectively. The existing `target-version = "py311"` in `pyproject.toml` is corrected.
 
 **AC2:** `ruff check bridge/` exits 0. All pre-existing violations are resolved:
 - `E402` / `PLC0415` — import-not-at-top caused by the `sys.path` bootstrap: suppressed with `# noqa: E402  # temporary — removed in story 20.3` on each affected import.
