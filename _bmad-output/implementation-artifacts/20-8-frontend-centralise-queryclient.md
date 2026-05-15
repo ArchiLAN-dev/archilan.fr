@@ -80,6 +80,16 @@ If a feature needs a value outside these tiers, add a named constant rather than
 export const HINTS_STALE_TIME = 10_000; // 10 s — hint state updates on each LocationScouts response
 ```
 
+### STATIC_STALE_TIME and JSON serialisation
+
+`JSON.stringify(Infinity)` produces `"null"`, not `"Infinity"`. This is normally harmless because TanStack Query's `dehydrate()` does **not** include `staleTime` in the serialised output — it is a runtime QueryClient configuration, not query state. Dehydrated payloads only carry data, status, `dataUpdatedAt`, etc., so passing a dehydrated state from a server component to the client via props is safe even when `STATIC_STALE_TIME` is in use.
+
+Two things to avoid:
+- Do **not** use `STATIC_STALE_TIME` as a value for `gcTime` — TanStack Query v5 may include `gcTime` in dehydrated state in some configurations, and `Infinity` would become `null` after serialisation.
+- Do **not** put `STATIC_STALE_TIME` (or `Infinity`) into any object that is JSON-serialised and sent over the wire or stored.
+
+If a query genuinely needs indefinite caching on both client and server, use `staleTime: STATIC_STALE_TIME` (safe) combined with a finite `gcTime` (also safe).
+
 ### QueryClient in server components
 
 Next.js App Router server components that use `dehydrate`/`HydrationBoundary` for prefetching create a **new** `QueryClient` per request (to avoid cross-request data sharing). These must also use `makeQueryClient()`:
