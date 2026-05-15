@@ -30,6 +30,7 @@ todo
 - [ ] Task 3: For each violation, write the corresponding type guard
   - [ ] Pattern: `function is{TypeName}(v: unknown): v is {TypeName} { return typeof v === "object" && v !== null && "fieldName" in v; }`
   - [ ] Replace `(await res.json()) as TypeName` with `const payload: unknown = await res.json(); if (!isTypeName(payload)) return null; return payload;`
+  - [ ] After all guards are written: grep guard bodies across api files for repeated primitive checks (e.g. `typeof v.slug === "string"`). If 3+ files check the same property type, extract shared helpers to `src/lib/type-guards.ts`; otherwise skip
 - [ ] Task 4: Verify all `*-api.ts` files already follow the `return null` on non-OK response pattern (AC-API2)
 - [ ] Task 5: Add `@typescript-eslint/consistent-type-assertions` rule to `eslint.config.*` scoped to `src/features/**/*-api.ts`
 - [ ] Task 6: Run `pnpm lint` — resolve any newly surfaced violations
@@ -60,7 +61,7 @@ function isPlayerProfile(v: unknown): v is PlayerProfile {
 }
 ```
 
-This pattern uses no `as` cast and is therefore fully compatible with `assertionStyle: "never"` scoped to `*-api.ts` files. Next.js 15 requires TypeScript ≥ 5, which supports this narrowing.
+This pattern uses no `as` cast and is therefore fully compatible with `assertionStyle: "never"` scoped to `*-api.ts` files.
 
 ### Shared narrowing utilities
 

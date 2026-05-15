@@ -63,7 +63,24 @@ The bridge runtime uses Python 3.10 (confirmed via `requirements.txt` and the `p
 
 ### ignore_missing_imports scope
 
-`ignore_missing_imports = true` is a **stopgap for untyped third-party libraries** (`aiohttp`, `boto3`, `websockets`). It does **not** excuse missing internal imports — if a bridge module fails to import a sibling, mypy will still report an `Cannot find implementation or library stub` error for the unresolved name, even with this setting. The flag suppresses only "no stub file found for library X" messages. Verify this by running `mypy bridge/` after implementation: internal `ModuleNotFoundError`s appear as `error: Cannot find implementation or library stub for module named "bridge.core.X"` and are not suppressed.
+`ignore_missing_imports = true` **suppresses ALL unresolved import errors**, including internal ones. If `from bridge.core.config import Config` fails to resolve (e.g. due to a typo), mypy will silently pass with this flag set. This flag is therefore a **broad temporary stopgap**, not a surgical fix.
+
+It is accepted in Story 20.1 because sibling imports currently fail mypy resolution due to the `sys.path` bootstrap — Story 20.3 will fix that. **After Story 20.3 is complete**, this flag must be narrowed to known untyped external packages only, using per-module overrides:
+```toml
+[tool.mypy]
+python_version = "3.10"
+disallow_untyped_defs = true
+# Do NOT set ignore_missing_imports = true here (too broad — masks internal errors)
+
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*", "websockets.*"]
+ignore_missing_imports = true
+```
+`aiohttp` ships its own stubs and should not need an override. The full list of packages needing overrides is determined during implementation by running mypy and noting which `Cannot find implementation or library stub` messages appear for external packages.
+
+### mypy_path stopgap and removal checkpoint
+
+The `mypy_path = "bridge/core"` setting added in AC3 is a stopgap for Story 20.1. Story 20.3 must explicitly verify its removal by running `mypy bridge/` **without** `mypy_path` after converting all sibling imports to relative imports — if mypy still exits 0, the stopgap is successfully replaced. If mypy fails, there are residual sibling imports that Story 20.3 missed.
 
 ### Temporary noqa discipline
 
@@ -72,10 +89,6 @@ Every suppression must follow the exact format:
 # noqa: RULE_CODE  # temporary — removed in story 20.X
 ```
 This makes tracking and removal unambiguous. The implementation agent for stories 20.2 and 20.3 must search for `# temporary` comments and remove them as part of their definition of done.
-
-### mypy_path stopgap
-
-Until Story 20.3 converts sibling imports to relative imports, mypy cannot resolve `from config import Config` (it sees it as a stdlib lookup). Setting `mypy_path = "bridge/core"` tells mypy to also search `bridge/core/` as a root, making the sibling imports resolve. This setting is removed in Story 20.3.
 
 ## File List
 

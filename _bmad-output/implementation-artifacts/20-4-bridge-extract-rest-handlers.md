@@ -78,7 +78,7 @@ def test_route_parity():
   - [ ] Note: logging uses `logging.getLogger("bridge.rest_X")` at module level — no `APP_LOG` key needed
 - [ ] Task 4: Extract all handlers found in the audit (one task per handler)
 - [ ] Task 5: Extract auth helper `_require_internal_auth`
-- [ ] Task 6: Split into sub-files if `rest.py` > 300 lines after extraction
+- [ ] Task 6: Split handlers into `rest_session.py`, `rest_hints.py`, `rest_reachable.py` per AC3 (always — not conditional)
 - [ ] Task 7: Write `bridge/tests/test_rest_handlers.py`
   - [ ] 7a: `health` — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
   - [ ] 7b: `post_command` — success path + WS disconnected path (503)
@@ -146,10 +146,10 @@ Story 20.4 depends on Story 20.2 (coordinator must be injectable) and should be 
 
 ## File List
 
-- `bridge/core/rest.py` — reduced to `create_app` + app storage keys + route registration
-- `bridge/core/rest_session.py` — new: session-related handlers (if split needed)
-- `bridge/core/rest_hints.py` — new: hint handlers (if split needed)
-- `bridge/core/rest_reachable.py` — new: reachability handlers (if split needed)
+- `bridge/core/rest.py` — assembly only: AppKey constants, imports, `create_app`, route wiring (no handler logic)
+- `bridge/core/rest_session.py` — new: `health`, `get_state`, `post_command`, `post_save`, `post_pause`, `post_resume`
+- `bridge/core/rest_hints.py` — new: `get_hints`, `request_hint`
+- `bridge/core/rest_reachable.py` — new: `get_reachable`, `get_item_locations`
 - `bridge/tests/test_rest_handlers.py` — new: 6+ handler unit tests
 - `_bmad-output/implementation-artifacts/20-4-bridge-extract-rest-handlers.md` — this file
 

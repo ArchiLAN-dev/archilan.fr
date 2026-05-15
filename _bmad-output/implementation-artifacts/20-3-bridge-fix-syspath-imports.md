@@ -29,7 +29,9 @@ from bridge.core.state import StateManager
 # etc.
 ```
 
-**AC3:** The `__all__` list in `bridge/bridge.py` is reduced to the public API surface only. The following private symbols are removed from `__all__` and updated in every test that imports them:
+**AC3:** The following private symbols are removed from `bridge/bridge.py` entirely — both from `__all__` **and** from any top-level `import` or `from ... import` statement. Removing only from `__all__` is insufficient: as long as `bridge.py` imports `_reachable_cache` at the top level, `from bridge.bridge import _reachable_cache` remains possible regardless of `__all__`.
+
+After this story, none of the symbols below are imported in `bridge.py`. Every test that imports them is redirected to the canonical source:
 
 | Private symbol removed from `__all__` | Canonical import after this story |
 |---|---|
@@ -77,7 +79,7 @@ Each test file that imports these symbols is updated to use the canonical path.
     exit $STATUS
 ```
 
-Step 1 is the authoritative import check. Step 2 catches syntax errors before runtime. Step 3 provides a defence-in-depth check that the script entry point doesn't crash at startup. Config-driven startup failures (missing env vars) may cause step 3 to exit silently — that is acceptable because config failures are not import failures. Both steps 1 and 2 are deterministic.
+**Steps 1 and 2 are authoritative** — they deterministically verify no import or syntax errors. Step 3 is **defence-in-depth only**: the bridge process may exit prematurely due to missing env vars or config issues; that is acceptable because this story concerns import correctness, not startup configuration. A green step 3 is a signal, not a guarantee; a red step 3 (Traceback or ImportError in stderr) is always a failure.
 
 All three steps must run from the repo root (the parent of `bridge/`).
 
@@ -135,15 +137,6 @@ The CI smoke test must be run from the repo root directory (`working-directory: 
 ### save_parser.py sys.path — out of scope
 
 `bridge/core/save_parser.py` contains a separate `sys.path.insert` that adds the Archipelago server source directory (a runtime dependency, not a sibling module). This is **not a sibling import hack** — it injects an external library path at runtime so AP game definitions can be imported. It is **out of scope for this story**. Do not modify `save_parser.py`'s sys.path logic.
-
-### Test file inventory for private symbol imports
-
-Before writing any code, grep the test directory:
-```bash
-grep -rn "from bridge.bridge import" bridge/tests/
-grep -rn "from bridge import" bridge/tests/
-```
-For each hit, identify which private symbol is imported and replace the import with the canonical source per AC3's table.
 
 ### `__init__.py` files
 

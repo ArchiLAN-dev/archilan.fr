@@ -3627,5 +3627,5 @@ export const DEFAULT_GC_TIME = 300_000;  // 5 min (300 s) — garbage collection
 export function makeQueryClient(): QueryClient { ... }
 ```
 **And** all `new QueryClient(...)` call sites use `makeQueryClient()`
-**And** raw `staleTime` and `gcTime` numeric literals in `useQuery` calls are replaced by named constants
+**And** raw `staleTime` and `gcTime` numeric literals in `useQuery` and `useInfiniteQuery` calls are replaced by named constants
 **And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` remain clean

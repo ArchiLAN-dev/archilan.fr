@@ -12,16 +12,9 @@ todo
 
 ## Acceptance Criteria
 
-**AC1:** A grep audit of `frontend/src/**/*.{ts,tsx}` (excluding `src/lib/env.ts`) identifies zero or more `process.env` accesses. Every occurrence found is replaced by the appropriate `env.*` accessor from `src/lib/env.ts`.
+**AC1:** A grep audit of `frontend/src/**/*.{ts,tsx}` (excluding `src/lib/env.ts` and `**/*.test.{ts,tsx}`) identifies zero or more `process.env` accesses. Every occurrence found in non-test files is replaced by the appropriate `env.*` accessor from `src/lib/env.ts`. Test files intentionally use `process.env` for MSW base URL configuration (Story 20.7) and are excluded from the migration scope.
 
-**AC2:** An ESLint rule is added to `frontend/eslint.config.*` that reports an error on any `MemberExpression` where the object is `process` and the property is `env`, in all `src/**/*.{ts,tsx}` files except `src/lib/env.ts` and `**/*.test.ts` / `**/*.test.tsx` (test files intentionally use `process.env` for MSW base URL configuration — see Story 20.7). Suggested form using `no-restricted-syntax`:
-```js
-{
-  selector: "MemberExpression[object.name='process'][property.name='env']",
-  message: "Access env vars through src/lib/env.ts, not process.env directly (AC-ENV1)."
-}
-```
-with a file-level override that disables the rule inside `src/lib/env.ts`.
+**AC2:** An ESLint rule is added to `frontend/eslint.config.*` that reports an error on any `MemberExpression` where the object is `process` and the property is `env`, scoped to `src/**/*.{ts,tsx}` and excluding `src/lib/env.ts` and test files (`**/*.test.ts`, `**/*.test.tsx`) via the `ignores` field in the config block (see Dev Notes for exact config). Test files are excluded because they intentionally use `process.env` for MSW configuration (Story 20.7).
 
 **AC3:** `pnpm lint` exits 0 with 0 errors and 0 warnings after the rule is added.
 
@@ -33,13 +26,13 @@ with a file-level override that disables the rule inside `src/lib/env.ts`.
 - [ ] Task 2: Run grep audit for all 4 access patterns (run from repo root):
   ```bash
   # Standard dot access (caught by ESLint rule)
-  rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts'
+  rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   # Computed property (NOT caught by ESLint — must be found and fixed manually)
-  rg 'process\["env"\]' frontend/src --glob '!frontend/src/lib/env.ts'
+  rg 'process\["env"\]' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   # Destructuring (NOT caught by ESLint — must be found and fixed manually)
-  rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts'
+  rg 'const\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   # Optional chaining (NOT caught by ESLint — must be found and fixed manually)
-  rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts'
+  rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   ```
   - [ ] Document each occurrence: file, line, pattern form, replacement
 - [ ] Task 3: Replace all violations with `env.*` accessors

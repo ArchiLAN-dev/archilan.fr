@@ -34,8 +34,9 @@ todo
   - [ ] 2c: Add `"test": "jest"` to `package.json` scripts
 - [ ] Task 3: Install and configure MSW v2
   - [ ] 3a: `pnpm add -D msw`
-  - [ ] 3b: Create `frontend/src/tests/setup.ts` with server setup + `afterEach(server.resetHandlers)` + `process.env.NEXT_PUBLIC_API_BASE_URL` assignment
-  - [ ] 3c: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
+  - [ ] 3b: Create `frontend/src/tests/constants.ts` exporting `TEST_API_BASE_URL = "http://localhost:8080"` — single source of truth for the test base URL
+  - [ ] 3c: Create `frontend/src/tests/setup.ts` importing `TEST_API_BASE_URL` from `./constants`; assign to `process.env.NEXT_PUBLIC_API_BASE_URL`; configure MSW server
+  - [ ] 3d: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
 - [ ] Task 4: Write test files for each existing `*-api.ts` file — verify inventory with `rg --files frontend/src/features | rg -- '-api\.ts$'` before starting; the list below reflects the repo as of 2026-05-15
   - [ ] `src/features/events/public-events-api.test.ts`
   - [ ] `src/features/content/public-posts-api.test.ts`
@@ -74,6 +75,9 @@ export default createJestConfig(config);
 MSW v2 uses `http` instead of `rest` and `HttpResponse` instead of `ctx.json`:
 ```ts
 // src/tests/setup.ts
+import { TEST_API_BASE_URL } from "./constants";
+process.env.NEXT_PUBLIC_API_BASE_URL = TEST_API_BASE_URL;
+
 import { setupServer } from "msw/node";
 export const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -81,21 +85,21 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
+`constants.ts` exports only string literals and reads nothing from `process.env`, so importing it before the env assignment is safe. Application modules (`env.ts`, feature modules) must never be imported in `setup.ts`.
+
 ### Test pattern
 
 ```ts
 // src/features/players/player-profile-api.test.ts
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
+import { TEST_API_BASE_URL } from "../../tests/constants";
 import { fetchPlayerProfile } from "./player-profile-api";
-
-// Hardcode the test base URL — process.env is string | undefined and would make ${BASE} unsafe
-const BASE = "http://localhost:8080";
 
 describe("fetchPlayerProfile", () => {
   it("returns profile on success", async () => {
     server.use(
-      http.get(`${BASE}/api/v1/players/jean`, () =>
+      http.get(`${TEST_API_BASE_URL}/api/v1/players/jean`, () =>
         HttpResponse.json({ slug: "jean", displayName: "Jean", totalGoals: 5 })
       )
     );
@@ -105,16 +109,20 @@ describe("fetchPlayerProfile", () => {
   });
 
   it("returns null on network error", async () => {
-    server.use(http.get(`${BASE}/api/v1/players/jean`, () => HttpResponse.error()));
+    server.use(http.get(`${TEST_API_BASE_URL}/api/v1/players/jean`, () => HttpResponse.error()));
     expect(await fetchPlayerProfile("jean")).toBeNull();
   });
 
   it("returns null when response fails type guard", async () => {
-    server.use(http.get(`${BASE}/api/v1/players/jean`, () => HttpResponse.json({ wrong: true })));
+    server.use(http.get(`${TEST_API_BASE_URL}/api/v1/players/jean`, () => HttpResponse.json({ wrong: true })));
     expect(await fetchPlayerProfile("jean")).toBeNull();
   });
 });
 ```
+
+### MSW intercepts fetch only
+
+MSW v2 in Node mode intercepts the global `fetch`. This test suite assumes every `*-api.ts` file uses the global `fetch` directly. If any file uses a custom HTTP client (e.g. `axios`, a wrapper library), MSW will not intercept its requests — identify such files before writing their tests and adapt the mocking strategy (e.g. mock the client module with `jest.mock`).
 
 ### Dependency on Story 20.6
 
@@ -124,39 +132,17 @@ Tests that call fetch functions rely on type guards being in place (Story 20.6).
 
 Jest runs in Node. `setupFilesAfterEnv` scripts run **before** each test file's module is imported, so setting `process.env.NEXT_PUBLIC_API_BASE_URL` in `setup.ts` is safe.
 
-Two constraints for `setup.ts`:
-1. The `process.env` assignment must be the **first statement** — before any `import`.
-2. **Do not import application modules** (`env`, feature modules, etc.) in `setup.ts`. If an application module is imported in setup, Node's module cache loads it before the env var is set, potentially capturing `""` as `apiBaseUrl`. Only infrastructure packages (`msw/node`) are allowed in setup.
+Constraints for `setup.ts`:
+1. **Do not import application modules** (`env`, feature modules, etc.) in `setup.ts`. If an application module is imported in setup, Node's module cache loads it before the env var is set, potentially capturing `""` as `apiBaseUrl`.
+2. Importing test infrastructure like `./constants` (which exports only string literals and never reads `process.env`) is safe and preferred — it avoids duplicating the URL literal.
 
-```ts
-// src/tests/setup.ts
-// 1. env vars first — before any import
-process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:8080";
-
-// 2. only infrastructure imports
-import { setupServer } from "msw/node";
-export const server = setupServer();
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
-```
-
-**Do not import `env` in tests to build base URLs.** Use the hardcoded `"http://localhost:8080"` string that `setup.ts` sets via `process.env`. This avoids both the module-cache timing risk and the `string | undefined` type of `process.env.NEXT_PUBLIC_API_BASE_URL`. Test files (`*.test.ts`) are excluded from Story 20.5's ESLint `no-restricted-syntax` rule (see Story 20.5 `ignores` configuration), but using a hardcoded constant is cleaner and type-safe:
-```ts
-const BASE = "http://localhost:8080"; // matches setup.ts assignment
-server.use(
-  http.get(`${BASE}/api/v1/players/jean`, () =>
-    HttpResponse.json({ slug: "jean", displayName: "Jean", totalGoals: 5 })
-  )
-);
-```
-
-Do not use `testEnvironmentOptions.env` in `jest.config.ts` — that option has no effect on `NEXT_PUBLIC_*` variables in the `next/jest` pipeline.
+**Do not import `env` in tests to build base URLs.** Use `TEST_API_BASE_URL` from `src/tests/constants.ts` — it matches what `setup.ts` assigns to `process.env`. This avoids both the module-cache timing risk and the `string | undefined` type of `process.env.NEXT_PUBLIC_API_BASE_URL`. Do not use `testEnvironmentOptions.env` in `jest.config.ts` — that option has no effect on `NEXT_PUBLIC_*` variables in the `next/jest` pipeline.
 
 ## File List
 
 - `frontend/jest.config.ts` — new: Jest configuration
-- `frontend/src/tests/setup.ts` — new: MSW server setup
+- `frontend/src/tests/constants.ts` — new: `TEST_API_BASE_URL` constant (single source of truth for test base URL)
+- `frontend/src/tests/setup.ts` — new: MSW server setup; imports `TEST_API_BASE_URL` from `./constants`
 - `frontend/package.json` — add `"test": "jest"` script; add jest/msw devDependencies
 - `frontend/src/features/**/*-api.test.ts` — new: one per existing `*-api.ts` file
 - `_bmad-output/implementation-artifacts/20-7-frontend-jest-api-test-suite.md` — this file
