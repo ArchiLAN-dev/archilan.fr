@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from bridge.bridge import load_save_state, PlayerState
+from bridge.bridge import load_save_state
 
 
 def _write_apsave(tmp_path: Path, data: dict) -> str:

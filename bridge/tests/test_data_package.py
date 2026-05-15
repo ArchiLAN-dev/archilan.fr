@@ -1,8 +1,6 @@
 """Tests for DataPackageStore - ID resolution and alias lookup."""
 from __future__ import annotations
 
-import pytest
-
 from bridge.bridge import DataPackageStore
 
 

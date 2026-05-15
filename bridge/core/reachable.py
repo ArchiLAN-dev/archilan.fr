@@ -5,8 +5,6 @@ import glob
 import json
 import logging
 import sys
-from typing import Any
-
 from state import StateManager
 
 _reachable_cache: dict[int, tuple[tuple, dict]] = {}
@@ -35,6 +33,7 @@ async def _start_daemon(slot: int, arch_file: str, log: logging.Logger) -> None:
         )
         _reachable_daemons[slot] = proc
         log.info("reachable daemon: started slot=%d pid=%d", slot, proc.pid)
+        assert proc.stdout is not None
         line = await asyncio.wait_for(proc.stdout.readline(), timeout=180.0)
         data = json.loads(line.decode())
         if data.get("ready"):
@@ -85,6 +84,7 @@ async def _compute_reachable(
         if (daemon_proc and daemon_proc.returncode is None
                 and daemon_event and daemon_event.is_set()):
             try:
+                assert daemon_proc.stdin is not None and daemon_proc.stdout is not None
                 daemon_proc.stdin.write(state_payload.encode())
                 await daemon_proc.stdin.drain()
                 resp = await asyncio.wait_for(daemon_proc.stdout.readline(), timeout=10.0)

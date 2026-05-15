@@ -81,8 +81,7 @@ class DataPackageStore:
 
     def resolve_hint_names(self, hint: "HintInfo") -> "HintInfo":
         """Return a copy of the hint with all name fields resolved."""
-        from domain import HintInfo as _HintInfo
-        return _HintInfo(
+        return HintInfo(
             receiving_player=hint.receiving_player,
             finding_player=hint.finding_player,
             location_id=hint.location_id,

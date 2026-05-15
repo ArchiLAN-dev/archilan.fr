@@ -1,7 +1,9 @@
 """Tests for POST /pause endpoint and pause flow helpers (Story 17.2)."""
 from __future__ import annotations
 
-import asyncio
+import errno
+import os
+import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -101,8 +103,6 @@ async def test_pause_valid_token_returns_200() -> None:
 
 @pytest.mark.asyncio
 async def test_poll_for_save_returns_most_recent_apsave(tmp_path: object) -> None:
-    import os
-
     save_dir = str(tmp_path)
     save_file = os.path.join(save_dir, "game.apsave")
     with open(save_file, "wb") as fh:
@@ -121,8 +121,6 @@ async def test_poll_for_save_returns_none_when_timeout(tmp_path: object) -> None
     ap_client.ws_connected = False
 
     # Patch asyncio.sleep and the deadline so it times out immediately
-    original_get_event_loop = asyncio.get_event_loop
-
     class _FakeLoop:
         _t = 0.0
 
@@ -138,8 +136,6 @@ async def test_poll_for_save_returns_none_when_timeout(tmp_path: object) -> None
 
 @pytest.mark.asyncio
 async def test_poll_for_save_sends_save_command_when_connected(tmp_path: object) -> None:
-    import os
-
     save_dir = str(tmp_path)
     save_file = os.path.join(save_dir, "game.apsave")
 
@@ -168,8 +164,6 @@ async def test_poll_for_save_sends_save_command_when_connected(tmp_path: object)
 
 @pytest.mark.asyncio
 async def test_kill_ap_sends_sigterm_then_waits(tmp_path: object) -> None:
-    import os
-
     pid_file = str(tmp_path / "ap.pid")
     with open(pid_file, "w") as fh:
         fh.write("12345\n")
@@ -182,14 +176,12 @@ async def test_kill_ap_sends_sigterm_then_waits(tmp_path: object) -> None:
         signals_sent.append(sig)
         kill_count += 1
         if kill_count > 1:
-            import errno
             raise ProcessLookupError(errno.ESRCH, "No such process")
 
     with patch("rest._os.kill", side_effect=_fake_kill):
         with patch("rest.asyncio.sleep", new=AsyncMock()):
             await _rest._kill_ap(pid_file)
 
-    import signal
     assert signal.SIGTERM in signals_sent
 
 
@@ -283,8 +275,6 @@ async def test_pause_flow_failed_save_sets_flag(tmp_path: object) -> None:
 @pytest.mark.asyncio
 async def test_pause_flow_successful_save_uploads_and_kills(tmp_path: object) -> None:
     """When a save is found, MinIO upload is attempted and AP is killed."""
-    import os
-
     save_file = str(tmp_path / "game.apsave")
     with open(save_file, "wb") as fh:
         fh.write(b"save")

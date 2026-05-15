@@ -8,7 +8,6 @@ import os as _os
 import signal as _signal
 import shlex as _shlex
 from datetime import datetime, timezone as _timezone
-from typing import Any
 
 from aiohttp import web
 
@@ -129,7 +128,7 @@ async def _kill_ap(pid_file: str) -> None:
             return
 
     try:
-        _os.kill(pid, _signal.SIGKILL)
+        _os.kill(pid, _signal.SIGKILL)  # type: ignore[attr-defined]
         log.warning("pause: sent SIGKILL to AP pid=%d (SIGTERM ignored)", pid)
     except ProcessLookupError:
         pass
@@ -245,7 +244,7 @@ async def _wake_on_connect_flow(ap_client: ArchipelagoClient) -> None:
 
 async def _pause_flow(ap_client: ArchipelagoClient) -> None:
     """Full pause flow: save, upload, kill AP, start TCP listener, notify Symfony."""
-    global _wake_stop_event, _wake_task  # noqa: PLW0603
+    global _wake_stop_event, _wake_task  # noqa: PLW0603  # temporary — removed in story 20.2
 
     log = logging.getLogger("bridge.pause")
     log.info("pause: flow started run_id=%s", ap_client._config.run_id)
@@ -413,7 +412,7 @@ async def _notify_restarted(ap_client: ArchipelagoClient) -> None:
 
 async def _cancel_wake_task() -> None:
     """Cancel the running wake-on-connect listener, if any."""
-    global _wake_stop_event, _wake_task  # noqa: PLW0603
+    global _wake_stop_event, _wake_task  # noqa: PLW0603  # temporary — removed in story 20.2
 
     log = logging.getLogger("bridge.resume")
     if _wake_stop_event is not None:

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -11,7 +11,6 @@ from bridge.bridge import (
     Config,
     MercurePublisher,
     StateManager,
-    create_app,
 )
 import rest as _rest
 from wake_on_connect import WakeOnConnectServer
@@ -148,13 +147,10 @@ async def test_wake_on_connect_called_only_once_for_multiple_connections() -> No
 @pytest.mark.asyncio
 async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: object) -> None:
     """After _pause_flow completes, _wake_task is set; _resume_flow cancels it."""
-    import os
     save_file = str(tmp_path / "game.apsave")
     with open(save_file, "wb") as f:
         f.write(b"save")
 
-    from unittest.mock import MagicMock
-    from bridge.bridge import MercurePublisher
     cfg = _config(save_dir=str(tmp_path))
     state = StateManager()
     publisher = MagicMock(spec=MercurePublisher)
@@ -197,8 +193,6 @@ async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: objec
 @pytest.mark.asyncio
 async def test_wake_flow_aborts_when_restarting_callback_fails(tmp_path: object) -> None:
     """If Symfony refuses idle -> restarting, AP must not be relaunched."""
-    from unittest.mock import MagicMock
-
     cfg = _config(save_dir=str(tmp_path))
     state = StateManager()
     publisher = MagicMock(spec=MercurePublisher)

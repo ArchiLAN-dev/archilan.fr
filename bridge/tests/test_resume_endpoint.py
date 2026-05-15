@@ -1,7 +1,8 @@
 """Tests for POST /resume endpoint and resume flow helpers (Story 17.3)."""
 from __future__ import annotations
 
-import asyncio
+import os
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -94,8 +95,6 @@ async def test_resume_valid_token_returns_200() -> None:
 
 @pytest.mark.asyncio
 async def test_find_local_save_returns_most_recent(tmp_path: object) -> None:
-    import os
-    import time
     save1 = os.path.join(str(tmp_path), "old.apsave")
     save2 = os.path.join(str(tmp_path), "new.apsave")
     with open(save1, "w") as f:
@@ -182,7 +181,6 @@ async def test_notify_restarted_posts_empty_connection_details() -> None:
 
 @pytest.mark.asyncio
 async def test_resume_flow_uses_local_save_if_available(tmp_path: object) -> None:
-    import os
     save_file = str(tmp_path / "game.apsave")
     with open(save_file, "wb") as f:
         f.write(b"data")
@@ -224,7 +222,6 @@ async def test_resume_flow_falls_back_to_minio_when_no_local_save(tmp_path: obje
 
     async def _mock_download(client: ArchipelagoClient, key: str) -> str:
         downloaded.append(key)
-        import os
         path = str(tmp_path / "downloaded.apsave")
         with open(path, "wb") as f:
             f.write(b"save")
@@ -266,7 +263,6 @@ async def test_resume_flow_stops_if_no_save_available(tmp_path: object) -> None:
 
 @pytest.mark.asyncio
 async def test_resume_flow_kills_ap_on_health_check_failure(tmp_path: object) -> None:
-    import os
     save_file = str(tmp_path / "game.apsave")
     with open(save_file, "wb") as f:
         f.write(b"data")

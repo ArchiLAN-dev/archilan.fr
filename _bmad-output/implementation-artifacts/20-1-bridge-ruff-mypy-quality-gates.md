@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+done
 
 ## Acceptance Criteria
 

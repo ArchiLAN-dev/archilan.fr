@@ -1,7 +1,7 @@
 """Tests for REST API endpoints (AC #11)."""
 from __future__ import annotations
 
-import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,9 +10,11 @@ from aiohttp.test_utils import TestClient, TestServer
 from bridge.bridge import (
     ArchipelagoClient,
     Config,
+    HintInfo,
     MercurePublisher,
     StateManager,
     TokenManager,
+    _reachable_cache,
     create_app,
 )
 
@@ -156,8 +158,6 @@ async def test_post_command_ws_disconnected() -> None:
 
 @pytest.mark.asyncio
 async def test_post_command_forwards_to_ws() -> None:
-    import json
-
     app, state, ap_client = _make_app()
     ap_client.ws_connected = True
     ap_client._ws = AsyncMock()
@@ -219,8 +219,6 @@ async def test_get_hints_empty_when_no_hints() -> None:
 @pytest.mark.asyncio
 async def test_get_hints_resolves_names_after_merge_from_save() -> None:
     """Names stored as IDs in apsave hints must be resolved by get_hints via resolve_slot_hint_names."""
-    from bridge.bridge import HintInfo
-
     app, state, ap_client = _make_app()
     _populate_store(ap_client)
 
@@ -272,8 +270,6 @@ async def test_get_hints_includes_hint_cost_and_budget() -> None:
 @pytest.mark.asyncio
 async def test_add_hint_does_not_modify_hints_used() -> None:
     """hints_used must only be updated by apsave loading or REST paid-hint handler, never by add_hint."""
-    from bridge.bridge import HintInfo
-
     app, state, ap_client = _make_app()
     ps = state.ensure_slot(1)
     ps.hints_used = 5  # set authoritative value
@@ -297,7 +293,6 @@ async def test_add_hint_does_not_modify_hints_used() -> None:
 
 def _seed_reachable_cache(sender_slot: int, checks: list[dict]) -> None:
     """Inject fake reachability data into the module-level cache used by rest.py."""
-    from bridge.bridge import _reachable_cache
     _reachable_cache[sender_slot] = (
         (0, 0),  # cache_key (checks_done, items_received)
         {
@@ -328,7 +323,6 @@ async def test_get_item_locations_invalid_slot() -> None:
 
 @pytest.mark.asyncio
 async def test_get_item_locations_empty_when_cache_is_empty() -> None:
-    from bridge.bridge import _reachable_cache
     _reachable_cache.clear()
 
     app, state, ap_client = _make_app()
@@ -343,7 +337,6 @@ async def test_get_item_locations_empty_when_cache_is_empty() -> None:
 @pytest.mark.asyncio
 async def test_get_item_locations_same_game_item() -> None:
     """Slot 1 has an unchecked location whose item goes to slot 1 (same game)."""
-    from bridge.bridge import _reachable_cache
     _reachable_cache.clear()
 
     app, state, ap_client = _make_app()
@@ -373,7 +366,6 @@ async def test_get_item_locations_same_game_item() -> None:
 @pytest.mark.asyncio
 async def test_get_item_locations_cross_game_item() -> None:
     """Slot 2 (Bob/ALTTP) has a location whose item goes to slot 1 (Alice/HK)."""
-    from bridge.bridge import _reachable_cache
     _reachable_cache.clear()
 
     app, state, ap_client = _make_app()
@@ -403,7 +395,6 @@ async def test_get_item_locations_cross_game_item() -> None:
 @pytest.mark.asyncio
 async def test_get_item_locations_check_status_mapping() -> None:
     """Each source list maps to the correct check_status value."""
-    from bridge.bridge import _reachable_cache
     _reachable_cache.clear()
 
     app, state, ap_client = _make_app()
@@ -428,7 +419,6 @@ async def test_get_item_locations_check_status_mapping() -> None:
 @pytest.mark.asyncio
 async def test_get_item_locations_filters_out_other_slots_items() -> None:
     """Only locations whose item.slot matches the requested slot are returned."""
-    from bridge.bridge import _reachable_cache
     _reachable_cache.clear()
 
     app, state, ap_client = _make_app()
@@ -448,7 +438,6 @@ async def test_get_item_locations_filters_out_other_slots_items() -> None:
 @pytest.mark.asyncio
 async def test_get_item_locations_multiple_copies_across_games() -> None:
     """Same item at two locations in two different games."""
-    from bridge.bridge import _reachable_cache
     _reachable_cache.clear()
 
     app, state, ap_client = _make_app()

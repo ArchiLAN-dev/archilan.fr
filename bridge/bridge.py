@@ -17,27 +17,19 @@ if _core not in sys.path:
     sys.path.insert(0, _core)
 
 # Re-export all public symbols so tests using `from bridge.bridge import X` keep working.
-from config import Config  # noqa: E402
-from domain import HintInfo, PlayerState  # noqa: E402
-from save_parser import load_save_state  # noqa: E402
-from state import StateManager  # noqa: E402
-from mercure import MercurePublisher, TokenManager  # noqa: E402
-from ap_client import (  # noqa: E402
+from config import Config  # noqa: E402  # temporary — removed in story 20.3
+from domain import HintInfo, PlayerState  # noqa: E402  # temporary — removed in story 20.3
+from save_parser import load_save_state  # noqa: E402  # temporary — removed in story 20.3
+from state import StateManager  # noqa: E402  # temporary — removed in story 20.3
+from mercure import MercurePublisher, TokenManager  # noqa: E402  # temporary — removed in story 20.3
+from ap_client import (  # noqa: E402  # temporary — removed in story 20.3
     ArchipelagoClient,
     DataPackageStore,
     _build_feed_event,
-    _PRINT_TYPE_MAP,
-    _WS_RETRY_DELAYS,
 )
-from reachable import (  # noqa: E402
-    _compute_reachable,
-    _daemon_ready_events,
-    _reachable_cache,
-    _reachable_daemons,
-    _start_daemon,
-)
-from rest import create_app  # noqa: E402
-from loops import (  # noqa: E402
+from reachable import _compute_reachable, _reachable_cache  # noqa: E402  # temporary — removed in story 20.3
+from rest import create_app  # noqa: E402  # temporary — removed in story 20.3
+from loops import (  # noqa: E402  # temporary — removed in story 20.3
     _apsave_reconcile_loop,
     _heartbeat_loop,
     _reachable_sweep_loop,
@@ -56,6 +48,7 @@ __all__ = [
     "DataPackageStore",
     "_build_feed_event",
     "_compute_reachable",
+    "_reachable_cache",
     "create_app",
     "setup_logging",
 ]
