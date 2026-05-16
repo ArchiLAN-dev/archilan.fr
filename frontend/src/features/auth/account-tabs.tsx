@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { AccountRegistrations } from "./account-registrations";
 import { DangerSection, PrivacySection, ProfileSection } from "./account-profile";
+import { EmailVerificationBanner } from "./email-verification-banner";
 import { PersonalRunsListPage } from "@/features/personal-runs/personal-runs-list-page";
 import type { Profile } from "./account-profile";
 
@@ -50,6 +51,11 @@ export function AccountTabs() {
 
   return (
     <div className="grid gap-8">
+      {/* ── Email verification banner ────────────────────────────────────── */}
+      {!loadingProfile && profile && !profile.emailVerifiedAt && (
+        <EmailVerificationBanner />
+      )}
+
       {/* ── User header ─────────────────────────────────────────────────── */}
       <div className="card-glow flex items-center gap-4 rounded-xl border border-border p-5">
         <div

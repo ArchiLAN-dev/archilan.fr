@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/features/auth/login-form";
+import { PasswordResetBanner } from "@/features/auth/password-reset-banner";
 
 export const metadata: Metadata = {
   title: "Connexion",
@@ -11,8 +12,9 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { returnTo } = await searchParams;
+  const { returnTo, reset } = await searchParams;
   const safeReturnTo = safeInternalReturnTo(returnTo);
+  const passwordWasReset = reset === "1";
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center">
@@ -29,6 +31,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </p>
         </div>
 
+        {passwordWasReset && <PasswordResetBanner />}
         <LoginForm returnTo={safeReturnTo} />
       </div>
     </div>

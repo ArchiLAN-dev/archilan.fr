@@ -10,6 +10,7 @@ export type AuthUser = {
   email: string;
   displayName: string | null;
   roles: string[];
+  emailVerifiedAt: string | null;
 };
 
 type AuthContextValue = {

@@ -12,6 +12,7 @@ export type Profile = {
   email: string;
   displayName: string | null;
   roles: string[];
+  emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

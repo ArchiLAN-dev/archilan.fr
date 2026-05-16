@@ -25,9 +25,24 @@ type AuthResponse =
 
 const AUTH_PAGES = ["/connexion", "/inscription"];
 
+function hasProp<K extends string>(obj: object, key: K): obj is Record<K, unknown> {
+  return key in obj;
+}
+
+function isAuthResponse(v: unknown): v is AuthResponse {
+  if (typeof v !== "object" || v === null) return false;
+  if (hasProp(v, "error")) {
+    const { error } = v;
+    if (typeof error !== "object" || error === null || !hasProp(error, "message")) return false;
+    return typeof error.message === "string";
+  }
+  return hasProp(v, "data");
+}
+
 export function LoginForm({ returnTo }: { returnTo?: string }) {
   const emailId = useId();
   const passwordId = useId();
+  const rememberMeId = useId();
   const router = useRouter();
   const { setUser } = useAuth();
   const [message, setMessage] = useState<string | null>(null);
@@ -50,9 +65,15 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
         body: JSON.stringify({
           email: formData.get("email"),
           password: formData.get("password"),
+          rememberMe: formData.get("rememberMe") === "on",
         }),
       });
-      const payload = (await response.json()) as AuthResponse;
+      const payload: unknown = await response.json();
+
+      if (!isAuthResponse(payload)) {
+        setMessage("Impossible de se connecter pour le moment. Réessaie dans quelques instants.");
+        return;
+      }
 
       if ("error" in payload) {
         setMessage(payload.error.message);
@@ -93,9 +114,17 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
         </div>
 
         <div className="grid gap-2">
-          <label className="text-sm font-semibold text-foreground" htmlFor={passwordId}>
-            Mot de passe
-          </label>
+          <div className="flex items-baseline justify-between">
+            <label className="text-sm font-semibold text-foreground" htmlFor={passwordId}>
+              Mot de passe
+            </label>
+            <Link
+              className="text-xs text-accent-text hover:text-accent-text-hover"
+              href="/mot-de-passe-oublie"
+            >
+              Mot de passe oublié ?
+            </Link>
+          </div>
           <input
             autoComplete="current-password"
             className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
@@ -104,6 +133,19 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
             required
             type="password"
           />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            className="h-4 w-4 rounded border border-border bg-background accent-accent"
+            defaultChecked
+            id={rememberMeId}
+            name="rememberMe"
+            type="checkbox"
+          />
+          <label className="text-sm text-muted-foreground" htmlFor={rememberMeId}>
+            Se souvenir de moi
+          </label>
         </div>
 
         <button
