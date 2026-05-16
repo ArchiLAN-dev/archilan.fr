@@ -6,7 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\RefreshTokenRepository;
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
@@ -45,9 +45,9 @@ final class RefreshTokenRepositoryTest extends KernelTestCase
             $this->em->getClassMetadata(EmailConfirmationToken::class),
         ]);
 
-        $registerLambdaUser = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $registerLambdaUser);
-        $result = $registerLambdaUser->register('test@example.org', 'correct horse battery staple', true);
+        $registerUser = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $registerUser);
+        $result = $registerUser->register('test@example.org', 'correct horse battery staple', true, 'Jean');
         self::assertSame([], $result['errors']);
         $user = $result['user'] ?? null;
         self::assertInstanceOf(User::class, $user);

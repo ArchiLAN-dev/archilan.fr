@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\DeletionAudit;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
@@ -98,9 +98,9 @@ final class AccountDeletionTest extends FunctionalTestCase
 
     private function createAndLoginUser(): void
     {
-        $registerLambdaUser = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $registerLambdaUser);
-        $result = $registerLambdaUser->register('jean@example.org', 'correct horse battery staple', true);
+        $registerUser = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $registerUser);
+        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
         self::assertSame([], $result['errors']);
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [

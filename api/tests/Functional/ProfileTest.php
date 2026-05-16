@@ -44,7 +44,7 @@ final class ProfileTest extends FunctionalTestCase
         $response = $this->decodedJsonResponse();
         self::assertIsArray($response['data']);
         self::assertSame('jean@example.org', $response['data']['email']);
-        self::assertNull($response['data']['displayName']);
+        self::assertSame('Jean', $response['data']['displayName']);
         self::assertSame(['ROLE_USER'], $response['data']['roles']);
         self::assertIsString($response['data']['createdAt']);
         self::assertIsString($response['data']['updatedAt']);
@@ -54,7 +54,7 @@ final class ProfileTest extends FunctionalTestCase
     {
         $registerUser = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $registerUser);
-        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true);
+        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
         self::assertSame([], $result['errors']);
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [

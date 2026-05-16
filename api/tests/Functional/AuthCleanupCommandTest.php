@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Application\RefreshTokenRepository;
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
@@ -41,9 +41,9 @@ final class AuthCleanupCommandTest extends KernelTestCase
         $schemaTool->dropSchema(array_reverse($metadata));
         $schemaTool->createSchema($metadata);
 
-        $register = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $register);
-        $result = $register->register('user@example.org', 'correct horse battery staple', true);
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $result = $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
         $user = $result['user'] ?? null;
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();

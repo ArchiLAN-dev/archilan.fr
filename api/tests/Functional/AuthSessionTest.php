@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
@@ -30,7 +30,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testLoginSetsTwoCookiesWithoutReturningToken(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
             'email' => 'jean@example.org',
@@ -69,7 +69,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testAccessTokenCookieHas15MinuteTTL(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
 
         $before = time();
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
@@ -96,7 +96,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testRememberMeTrueGivesThirtyDayCookieTtl(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
 
         $before = time();
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
@@ -125,7 +125,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testRememberMeFalseGivesOneDayCookieTtl(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
 
         $before = time();
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
@@ -154,7 +154,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testInvalidCredentialsReturnGenericAuthenticationError(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
             'email' => 'jean@example.org',
@@ -170,7 +170,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testCurrentSessionReadsHttpOnlyCookieServerSide(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
         $this->login();
 
         $this->client->jsonRequest('GET', '/api/v1/auth/me');
@@ -208,7 +208,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     public function testLogoutClearsSessionCookie(): void
     {
-        $this->createLambdaUser();
+        $this->createStandardUser();
         $this->login();
 
         $this->client->jsonRequest('POST', '/api/v1/auth/logout');
@@ -220,11 +220,11 @@ final class AuthSessionTest extends FunctionalTestCase
         self::assertLessThan(time(), $cookie->getExpiresTime());
     }
 
-    private function createLambdaUser(): void
+    private function createStandardUser(): void
     {
-        $registerLambdaUser = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $registerLambdaUser);
-        $result = $registerLambdaUser->register('jean@example.org', 'correct horse battery staple', true);
+        $registerUser = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $registerUser);
+        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
         self::assertSame([], $result['errors']);
     }
 

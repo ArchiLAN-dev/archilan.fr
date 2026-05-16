@@ -98,8 +98,10 @@ final readonly class RegisterUser
             $errors->add('acceptedCgu', 'Tu dois accepter les CGU pour créer un compte.');
         }
 
-        if (null !== $displayName && mb_strlen(trim($displayName)) > 80) {
-            $errors->add('displayName', 'Le nom affiché doit contenir 80 caractères maximum.');
+        if (null === $displayName || '' === trim($displayName)) {
+            $errors->add('displayName', 'Le pseudo est obligatoire.');
+        } elseif (mb_strlen(trim($displayName)) > 80) {
+            $errors->add('displayName', 'Le pseudo doit contenir 80 caractères maximum.');
         }
 
         return $errors->toArray();

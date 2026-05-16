@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\EmailConfirmationMessage;
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
@@ -30,9 +30,9 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     public function testRegisterDispatchesConfirmationMessage(): void
     {
-        $register = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $register);
-        $register->register('newuser@example.org', 'correct horse battery staple', true);
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $register->register('newuser@example.org', 'correct horse battery staple', true, 'Jean');
 
         $sent = $this->asyncTransport()->getSent();
         self::assertCount(1, $sent);
@@ -108,9 +108,9 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     public function testMePayloadHasNullEmailVerifiedAtForUnconfirmedUser(): void
     {
-        $register = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $register);
-        $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true);
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true, 'Jean');
         self::assertInstanceOf(User::class, $result['user'] ?? null);
 
         $user = $result['user'];
@@ -133,9 +133,9 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     public function testResendConfirmationReturns204ForAuthenticatedUser(): void
     {
-        $register = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $register);
-        $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true);
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true, 'Jean');
         self::assertInstanceOf(User::class, $result['user'] ?? null);
 
         $user = $result['user'];
@@ -168,9 +168,9 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     private function registerAndExtractToken(): string
     {
-        $register = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $register);
-        $register->register('newuser@example.org', 'correct horse battery staple', true);
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $register->register('newuser@example.org', 'correct horse battery staple', true, 'Jean');
 
         $sent = $this->asyncTransport()->getSent();
         $message = $sent[array_key_last($sent)]->getMessage();

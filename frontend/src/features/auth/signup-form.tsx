@@ -86,21 +86,19 @@ export function SignupForm() {
 
       <div className="grid gap-2">
         <label className="text-sm font-semibold text-foreground" htmlFor={displayNameId}>
-          Nom affiché <span className="font-normal text-muted-foreground">(optionnel)</span>
+          Pseudo
         </label>
         <input
-          aria-describedby={fieldErrors.displayName ? `${displayNameId}-error` : `${displayNameId}-hint`}
+          aria-describedby={fieldErrors.displayName ? `${displayNameId}-error` : undefined}
           aria-invalid={fieldErrors.displayName ? true : undefined}
           autoComplete="nickname"
           className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
           id={displayNameId}
           maxLength={80}
           name="displayName"
+          required
           type="text"
         />
-        <p className="text-sm text-muted-foreground" id={`${displayNameId}-hint`}>
-          Visible par les autres joueurs. Modifiable uniquement à la création.
-        </p>
         <FieldError errors={fieldErrors.displayName} id={`${displayNameId}-error`} />
       </div>
 

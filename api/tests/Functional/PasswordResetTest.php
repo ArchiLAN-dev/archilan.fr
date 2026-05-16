@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\PasswordResetMessage;
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\PasswordResetToken;
 use App\Identity\Domain\RefreshToken;
@@ -29,9 +29,9 @@ final class PasswordResetTest extends FunctionalTestCase
         $schemaTool->dropSchema(array_reverse($metadata));
         $schemaTool->createSchema($metadata);
 
-        $register = self::getContainer()->get(RegisterLambdaUser::class);
-        self::assertInstanceOf(RegisterLambdaUser::class, $register);
-        $register->register('user@example.org', 'correct horse battery staple', true);
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
 
         // Reset transport — setUp dispatched an EmailConfirmationMessage; each test starts clean.
         $this->asyncTransport()->reset();

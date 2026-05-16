@@ -9,7 +9,7 @@ use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-final class RegisterLambdaUserTest extends FunctionalTestCase
+final class RegisterUserTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
@@ -24,12 +24,13 @@ final class RegisterLambdaUserTest extends FunctionalTestCase
         $schemaTool->createSchema($metadata);
     }
 
-    public function testRegistersLambdaUserWithHashedPasswordAndUserRoleOnly(): void
+    public function testRegistersUserWithHashedPasswordAndUserRoleOnly(): void
     {
         $this->client->jsonRequest('POST', '/api/v1/accounts/register', [
             'email' => 'jean@example.org',
             'password' => 'correct horse battery staple',
             'acceptedCgu' => true,
+            'displayName' => 'Jean',
         ]);
 
         self::assertResponseStatusCodeSame(201);
@@ -59,6 +60,7 @@ final class RegisterLambdaUserTest extends FunctionalTestCase
             'email' => 'jean@example.org',
             'password' => 'correct horse battery staple',
             'acceptedCgu' => true,
+            'displayName' => 'Jean',
         ];
 
         $this->client->jsonRequest('POST', '/api/v1/accounts/register', $payload);
@@ -80,6 +82,7 @@ final class RegisterLambdaUserTest extends FunctionalTestCase
             'email' => 'jean@example.org',
             'password' => 'correct horse battery staple',
             'acceptedCgu' => false,
+            'displayName' => 'Jean',
         ]);
 
         self::assertResponseStatusCodeSame(422);
@@ -95,6 +98,7 @@ final class RegisterLambdaUserTest extends FunctionalTestCase
             'email' => 'pas-un-email',
             'password' => 'correct horse battery staple',
             'acceptedCgu' => true,
+            'displayName' => 'Jean',
         ]);
 
         self::assertResponseStatusCodeSame(422);
@@ -112,6 +116,7 @@ final class RegisterLambdaUserTest extends FunctionalTestCase
             'email' => 'jean@example.org',
             'password' => 'court',
             'acceptedCgu' => true,
+            'displayName' => 'Jean',
         ]);
 
         self::assertResponseStatusCodeSame(422);
