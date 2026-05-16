@@ -48,7 +48,7 @@ final class AccountDeletionTest extends FunctionalTestCase
         self::assertTrue($user->isDeleted());
         self::assertStringStartsWith('deleted-', $user->getEmail());
         self::assertStringEndsWith('@deleted.local', $user->getEmail());
-        self::assertNull($user->getDisplayName());
+        self::assertSame('[supprimé]', $user->getDisplayName());
         self::assertSame(['ROLE_USER'], $user->getRoles());
 
         $audit = $this->entityManager->getRepository(DeletionAudit::class)->findOneBy([

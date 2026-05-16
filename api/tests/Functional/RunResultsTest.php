@@ -10,6 +10,7 @@ use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
+use App\GameSelection\Domain\GameCatalogSync;
 use App\Sessions\Domain\SessionSlot;
 use Doctrine\ORM\Tools\SchemaTool;
 
@@ -26,6 +27,7 @@ final class RunResultsTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Game::class),
+            $this->entityManager->getClassMetadata(GameCatalogSync::class),
             $this->entityManager->getClassMetadata(Run::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
@@ -42,7 +44,7 @@ final class RunResultsTest extends FunctionalTestCase
 
         $userA = $this->createUser('alice@example.org', displayName: 'Alice');
         $userB = $this->createUser('bob@example.org', displayName: 'Bob');
-        $userC = $this->createUser('carol@example.org'); // no displayName → falls back to email
+        $userC = $this->createUser('carol@example.org', displayName: 'Carol');
         $userD = $this->createUser('dave@example.org', displayName: 'Dave');
 
         $regA = $this->createRegistration($event->getId(), $userA->getId());
@@ -121,7 +123,7 @@ final class RunResultsTest extends FunctionalTestCase
         $slot2 = $slots[2];
         self::assertIsArray($slot2);
         self::assertSame('slot-3', $slot2['slotId']);
-        self::assertSame('carol@example.org', $slot2['playerName']);
+        self::assertSame('Carol', $slot2['playerName']);
         self::assertNull($slot2['completionSeconds']);
         self::assertNull($slot2['goalReachedAt']);
         self::assertFalse($slot2['isInvalidated']);

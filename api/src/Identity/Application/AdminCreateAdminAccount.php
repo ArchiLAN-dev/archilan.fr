@@ -25,7 +25,7 @@ final readonly class AdminCreateAdminAccount
     /**
      * @return array{user?: array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null}, errors: array<string, list<string>>}
      */
-    public function create(User $creator, string $email, string $password, ?string $displayName): array
+    public function create(User $creator, string $email, string $password, string $displayName = ''): array
     {
         $errors = $this->validate($email, $password, $displayName);
 
@@ -49,8 +49,8 @@ final readonly class AdminCreateAdminAccount
             },
             $password,
         );
-        $trimmedDisplayName = null === $displayName ? null : trim($displayName);
-        $slugSource = null !== $trimmedDisplayName && '' !== $trimmedDisplayName
+        $trimmedDisplayName = trim($displayName);
+        $slugSource = '' !== $trimmedDisplayName
             ? $trimmedDisplayName
             : ((string) strstr($emailCanonical, '@', true) ?: $emailCanonical);
         $slug = $this->slugGenerator->generateForUser($slugSource);
@@ -90,7 +90,7 @@ final readonly class AdminCreateAdminAccount
     /**
      * @return array<string, list<string>>
      */
-    private function validate(string $email, string $password, ?string $displayName): array
+    private function validate(string $email, string $password, string $displayName): array
     {
         $errors = new ValidationErrors();
 
@@ -102,7 +102,7 @@ final readonly class AdminCreateAdminAccount
             $errors->add('password', 'Le mot de passe doit contenir au moins 12 caractères.');
         }
 
-        if (null === $displayName || '' === trim($displayName)) {
+        if ('' === trim($displayName)) {
             $errors->add('displayName', 'Le nom affiché est requis pour un compte admin.');
         } elseif (mb_strlen(trim($displayName)) > 80) {
             $errors->add('displayName', 'Le nom affiché doit contenir 80 caractères maximum.');

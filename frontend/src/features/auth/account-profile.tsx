@@ -10,7 +10,7 @@ import { env } from "@/lib/env";
 export type Profile = {
   id: string;
   email: string;
-  displayName: string | null;
+  displayName: string;
   roles: string[];
   emailVerifiedAt: string | null;
   createdAt: string;

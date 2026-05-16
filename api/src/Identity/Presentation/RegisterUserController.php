@@ -28,13 +28,13 @@ final readonly class RegisterUserController
             return $this->errorResponse('invalid_json', 'Le corps de la requête doit être un objet JSON.', [], 400);
         }
 
-        $displayName = is_string($payload['displayName'] ?? null) ? trim($payload['displayName']) : null;
+        $displayName = is_string($payload['displayName'] ?? null) ? trim($payload['displayName']) : '';
 
         $result = $this->registerUser->register(
             is_string($payload['email'] ?? null) ? $payload['email'] : '',
             is_string($payload['password'] ?? null) ? $payload['password'] : '',
             ($payload['acceptedCgu'] ?? null) === true,
-            '' !== (string) $displayName ? $displayName : null,
+            $displayName,
         );
 
         if ([] !== $result['errors']) {

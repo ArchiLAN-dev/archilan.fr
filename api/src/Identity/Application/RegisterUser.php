@@ -25,7 +25,7 @@ final readonly class RegisterUser
     /**
      * @return array{user?: User, errors: array<string, list<string>>}
      */
-    public function register(string $email, string $password, bool $acceptedCgu, ?string $displayName = null): array
+    public function register(string $email, string $password, bool $acceptedCgu, string $displayName = ''): array
     {
         $errors = $this->validate($email, $password, $acceptedCgu, $displayName);
         $emailCanonical = self::canonicalizeEmail($email);
@@ -82,7 +82,7 @@ final readonly class RegisterUser
     /**
      * @return array<string, list<string>>
      */
-    private function validate(string $email, string $password, bool $acceptedCgu, ?string $displayName): array
+    private function validate(string $email, string $password, bool $acceptedCgu, string $displayName): array
     {
         $errors = new ValidationErrors();
 
@@ -98,7 +98,7 @@ final readonly class RegisterUser
             $errors->add('acceptedCgu', 'Tu dois accepter les CGU pour créer un compte.');
         }
 
-        if (null === $displayName || '' === trim($displayName)) {
+        if ('' === trim($displayName)) {
             $errors->add('displayName', 'Le pseudo est obligatoire.');
         } elseif (mb_strlen(trim($displayName)) > 80) {
             $errors->add('displayName', 'Le pseudo doit contenir 80 caractères maximum.');

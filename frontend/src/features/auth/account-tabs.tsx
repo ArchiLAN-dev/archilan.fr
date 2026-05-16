@@ -72,7 +72,7 @@ export function AccountTabs() {
           ) : (
             <>
               <p className="truncate font-heading text-lg font-semibold text-foreground">
-                {profile?.displayName ?? profile?.email?.split("@")[0] ?? "-"}
+                {profile?.displayName ?? "-"}
               </p>
               <p className="truncate text-sm text-muted-foreground">{profile?.email ?? ""}</p>
             </>

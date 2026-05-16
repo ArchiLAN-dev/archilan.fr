@@ -35,7 +35,7 @@ final readonly class AdminCreateAdminAccountController
             $creator,
             is_string($payload['email'] ?? null) ? $payload['email'] : '',
             is_string($payload['password'] ?? null) ? $payload['password'] : '',
-            is_string($payload['displayName'] ?? null) ? $payload['displayName'] : null,
+            is_string($payload['displayName'] ?? null) ? $payload['displayName'] : '',
         );
 
         if ([] !== $result['errors']) {

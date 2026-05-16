@@ -27,8 +27,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private string $email,
         #[ORM\Column(name: 'email_canonical', type: 'string', length: 180)]
         private string $emailCanonical,
-        #[ORM\Column(name: 'display_name', type: 'string', length: 80, nullable: true)]
-        private ?string $displayName,
+        #[ORM\Column(name: 'display_name', type: 'string', length: 80)]
+        private string $displayName,
         #[ORM\Column(name: 'password_hash', type: 'string', length: 255)]
         private string $passwordHash,
         #[ORM\Column(type: 'json')]
@@ -56,13 +56,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         string $passwordHash,
         \DateTimeImmutable $now,
         string $slug = '',
-        ?string $displayName = null,
+        string $displayName = '',
     ): self {
         return new self(
             bin2hex(random_bytes(16)),
             $email,
             $emailCanonical,
-            '' !== (string) $displayName ? $displayName : null,
+            $displayName,
             $passwordHash,
             ['ROLE_USER'],
             $now,
@@ -92,7 +92,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return hash_hmac('sha256', $this->emailCanonical, $secret);
     }
 
-    public function getDisplayName(): ?string
+    public function getDisplayName(): string
     {
         return $this->displayName;
     }
@@ -100,13 +100,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getSlug(): ?string
     {
         return $this->slug;
-    }
-
-    public function updateProfile(?string $displayName, \DateTimeImmutable $now): void
-    {
-        $normalizedDisplayName = null === $displayName ? null : trim($displayName);
-        $this->displayName = '' === $normalizedDisplayName ? null : $normalizedDisplayName;
-        $this->updatedAt = $now;
     }
 
     public function getPassword(): ?string
@@ -171,7 +164,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $anonymousEmail = sprintf('deleted-%s@deleted.local', $this->id);
         $this->email = $anonymousEmail;
         $this->emailCanonical = $anonymousEmail;
-        $this->displayName = null;
+        $this->displayName = '[supprimé]';
         $this->passwordHash = 'deleted'; // intentionally invalid - no hasher will match this
         $this->roles = ['ROLE_USER'];
         $this->deletedAt = $now;

@@ -53,7 +53,7 @@ abstract class FunctionalTestCase extends WebTestCase
     protected function createUser(
         string $email,
         array $roles = ['ROLE_USER'],
-        ?string $displayName = null,
+        string $displayName = 'Test User',
         ?string $slug = null,
         ?\DateTimeImmutable $emailVerifiedAt = null,
         bool $emailVerified = true,
