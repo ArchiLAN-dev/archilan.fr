@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
 
 const CGU_VERSION_LABEL = "2 mai 2026";
 
-type SignupField = "email" | "password" | "acceptedCgu";
+type SignupField = "displayName" | "email" | "password" | "acceptedCgu";
 type FieldErrors = Partial<Record<SignupField, string[]>>;
 
 type RegisterResponse =
@@ -30,6 +30,7 @@ type RegisterResponse =
     };
 
 export function SignupForm() {
+  const displayNameId = useId();
   const emailId = useId();
   const passwordId = useId();
   const cguId = useId();
@@ -54,6 +55,7 @@ export function SignupForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          displayName: formData.get("displayName") || null,
           email: formData.get("email"),
           password: formData.get("password"),
           acceptedCgu: formData.get("acceptedCgu") === "on",
@@ -70,7 +72,7 @@ export function SignupForm() {
 
       form.reset();
       setFormMessageType("success");
-      setFormMessage("Compte créé. Tu pourras te connecter dès que la session sera activée.");
+      setFormMessage("Compte créé ! Un email de confirmation t'a été envoyé. Vérifie ta boîte mail pour activer ton compte.");
     } catch {
       setFormMessage("Impossible de créer le compte pour le moment. Réessaie dans quelques instants.");
     } finally {
@@ -81,6 +83,26 @@ export function SignupForm() {
   return (
     <form className="grid gap-5 card-glow rounded-lg border border-border p-6" onSubmit={handleSubmit}>
       <FieldErrorSummary message={formMessage} type={formMessageType} />
+
+      <div className="grid gap-2">
+        <label className="text-sm font-semibold text-foreground" htmlFor={displayNameId}>
+          Nom affiché <span className="font-normal text-muted-foreground">(optionnel)</span>
+        </label>
+        <input
+          aria-describedby={fieldErrors.displayName ? `${displayNameId}-error` : `${displayNameId}-hint`}
+          aria-invalid={fieldErrors.displayName ? true : undefined}
+          autoComplete="nickname"
+          className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+          id={displayNameId}
+          maxLength={80}
+          name="displayName"
+          type="text"
+        />
+        <p className="text-sm text-muted-foreground" id={`${displayNameId}-hint`}>
+          Visible par les autres joueurs. Modifiable uniquement à la création.
+        </p>
+        <FieldError errors={fieldErrors.displayName} id={`${displayNameId}-error`} />
+      </div>
 
       <div className="grid gap-2">
         <label className="text-sm font-semibold text-foreground" htmlFor={emailId}>

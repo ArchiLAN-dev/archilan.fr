@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Application\RegisterUser;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-final readonly class RegisterLambdaUserController
+final readonly class RegisterUserController
 {
-    public function __construct(private RegisterLambdaUser $registerLambdaUser)
+    public function __construct(private RegisterUser $registerUser)
     {
     }
 
-    #[Route('/api/v1/accounts/register', name: 'api_identity_register_lambda_user', methods: ['POST'])]
+    #[Route('/api/v1/accounts/register', name: 'api_identity_register_user', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
         try {
@@ -28,10 +28,13 @@ final readonly class RegisterLambdaUserController
             return $this->errorResponse('invalid_json', 'Le corps de la requête doit être un objet JSON.', [], 400);
         }
 
-        $result = $this->registerLambdaUser->register(
+        $displayName = is_string($payload['displayName'] ?? null) ? trim($payload['displayName']) : null;
+
+        $result = $this->registerUser->register(
             is_string($payload['email'] ?? null) ? $payload['email'] : '',
             is_string($payload['password'] ?? null) ? $payload['password'] : '',
             ($payload['acceptedCgu'] ?? null) === true,
+            '' !== (string) $displayName ? $displayName : null,
         );
 
         if ([] !== $result['errors']) {

@@ -4,19 +4,18 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { AccountRegistrations } from "./account-registrations";
-import { DangerSection, PrivacySection, ProfileSection } from "./account-profile";
+import { DangerSection, PrivacySection } from "./account-profile";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import { PersonalRunsListPage } from "@/features/personal-runs/personal-runs-list-page";
 import type { Profile } from "./account-profile";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "inscriptions" | "parties" | "profil" | "confidentialite" | "compte";
+type Tab = "inscriptions" | "parties" | "confidentialite" | "compte";
 
 const TABS: Array<{ id: Tab; label: string; danger?: true }> = [
   { id: "inscriptions", label: "Inscriptions" },
   { id: "parties", label: "Mes parties" },
-  { id: "profil", label: "Profil" },
   { id: "confidentialite", label: "Confidentialité" },
   { id: "compte", label: "Compte", danger: true },
 ];
@@ -119,13 +118,6 @@ export function AccountTabs() {
         <div role="tabpanel">
           {activeTab === "inscriptions" && <AccountRegistrations />}
           {activeTab === "parties" && <PersonalRunsListPage embedded />}
-          {activeTab === "profil" && (
-            <ProfileSection
-              loading={loadingProfile}
-              profile={profile}
-              onUpdate={setProfile}
-            />
-          )}
           {activeTab === "confidentialite" && <PrivacySection />}
           {activeTab === "compte" && <DangerSection />}
         </div>
@@ -151,5 +143,5 @@ function getInitials(profile: Profile | null): string {
 function formatRole(roles: string[]): string {
   if (roles.includes("ROLE_ADMIN")) return "Admin";
   if (roles.includes("ROLE_MEMBER")) return "Membre";
-  return "Lambda";
+  return "Utilisateur";
 }

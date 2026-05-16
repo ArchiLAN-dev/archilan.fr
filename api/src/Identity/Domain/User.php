@@ -9,6 +9,7 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity]
+#[ORM\Table(name: '`user`')]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_email_canonical', columns: ['email_canonical'])]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_slug', columns: ['slug'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
@@ -49,18 +50,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ) {
     }
 
-    public static function registerLambda(
+    public static function register(
         string $email,
         string $emailCanonical,
         string $passwordHash,
         \DateTimeImmutable $now,
         string $slug = '',
+        ?string $displayName = null,
     ): self {
         return new self(
             bin2hex(random_bytes(16)),
             $email,
             $emailCanonical,
-            null,
+            '' !== (string) $displayName ? $displayName : null,
             $passwordHash,
             ['ROLE_USER'],
             $now,
@@ -130,7 +132,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->updatedAt = $now;
     }
 
-    public function demoteToLambda(\DateTimeImmutable $now): void
+    public function demoteToUser(\DateTimeImmutable $now): void
     {
         if ($this->isDeleted() || in_array('ROLE_ADMIN', $this->getRoles(), true)) {
             throw new \DomainException('This user role cannot be changed here.');

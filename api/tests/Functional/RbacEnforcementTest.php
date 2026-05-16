@@ -46,11 +46,11 @@ final class RbacEnforcementTest extends FunctionalTestCase
         }
     }
 
-    public function testLambdaCanAccessOwnAccountButNotAdminEndpoints(): void
+    public function testStandardCanAccessOwnAccountButNotAdminEndpoints(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
         $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target');
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/account/profile');
         self::assertResponseIsSuccessful();
@@ -109,7 +109,6 @@ final class RbacEnforcementTest extends FunctionalTestCase
     {
         return [
             ['method' => 'GET', 'path' => '/api/v1/account/profile'],
-            ['method' => 'PATCH', 'path' => '/api/v1/account/profile', 'body' => ['displayName' => 'Jean']],
             ['method' => 'POST', 'path' => '/api/v1/account/privacy-requests', 'body' => ['rightType' => 'access']],
             ['method' => 'DELETE', 'path' => '/api/v1/account'],
             ['method' => 'GET', 'path' => '/api/v1/events/nonexistent/registration-eligibility'],

@@ -11,7 +11,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
-final readonly class RegisterLambdaUser
+final readonly class RegisterUser
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -25,9 +25,9 @@ final readonly class RegisterLambdaUser
     /**
      * @return array{user?: User, errors: array<string, list<string>>}
      */
-    public function register(string $email, string $password, bool $acceptedCgu): array
+    public function register(string $email, string $password, bool $acceptedCgu, ?string $displayName = null): array
     {
-        $errors = $this->validate($email, $password, $acceptedCgu);
+        $errors = $this->validate($email, $password, $acceptedCgu, $displayName);
         $emailCanonical = self::canonicalizeEmail($email);
 
         if (!isset($errors['email']) && $this->emailExists($emailCanonical)) {
@@ -51,7 +51,7 @@ final readonly class RegisterLambdaUser
         );
         $emailLocalPart = (string) strstr($emailCanonical, '@', true);
         $slug = $this->slugGenerator->generateForUser('' !== $emailLocalPart ? $emailLocalPart : $emailCanonical);
-        $user = User::registerLambda($email, $emailCanonical, $passwordHash, $now, $slug);
+        $user = User::register($email, $emailCanonical, $passwordHash, $now, $slug, $displayName);
 
         try {
             $this->entityManager->persist($user);
@@ -82,7 +82,7 @@ final readonly class RegisterLambdaUser
     /**
      * @return array<string, list<string>>
      */
-    private function validate(string $email, string $password, bool $acceptedCgu): array
+    private function validate(string $email, string $password, bool $acceptedCgu, ?string $displayName): array
     {
         $errors = new ValidationErrors();
 
@@ -96,6 +96,10 @@ final readonly class RegisterLambdaUser
 
         if (!$acceptedCgu) {
             $errors->add('acceptedCgu', 'Tu dois accepter les CGU pour créer un compte.');
+        }
+
+        if (null !== $displayName && mb_strlen(trim($displayName)) > 80) {
+            $errors->add('displayName', 'Le nom affiché doit contenir 80 caractères maximum.');
         }
 
         return $errors->toArray();
