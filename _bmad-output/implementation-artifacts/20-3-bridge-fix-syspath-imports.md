@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+review
 
 ## Acceptance Criteria
 
@@ -104,39 +104,32 @@ The list of packages requiring an override is determined by running `mypy bridge
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Convert `bridge/core/*.py` to relative imports
-  - [ ] 2a: `core/ap_client.py`
-  - [ ] 2b: `core/loops.py`
-  - [ ] 2c: `core/mercure.py`
-  - [ ] 2d: `core/reachable.py`
-  - [ ] 2e: `core/rest.py`
-  - [ ] 2f: `core/save_parser.py`
-  - [ ] 2g: `core/state.py`
-  - [ ] 2h: `core/wake_on_connect.py`
-  - [ ] 2i: `core/domain.py` (verify — likely no sibling imports)
-- [ ] Task 3: Update `bridge/bridge.py`
-  - [ ] 3a: Remove `sys.path.insert` block; remove unused `os` / `sys` imports
-  - [ ] 3b: Convert all `from config import X` → `from bridge.core.config import X`
-  - [ ] 3c: Remove each private symbol in the AC3 table from both `__all__` and its top-level `import` / `from ... import` statement in `bridge.py`
-- [ ] Task 4: Update test imports
-  - [ ] 4a: Run two scans to find all affected test lines:
-    ```bash
-    # Scan 1: any import from bridge.bridge (catches grouped imports)
-    grep -rn "from bridge.bridge import" bridge/tests/
-    grep -rn "from bridge import" bridge/tests/
-    # Scan 2: grep for each private symbol by name (catches multi-line and aliased imports)
-    grep -rn "_build_feed_event\|_PRINT_TYPE_MAP\|_WS_RETRY_DELAYS\|_compute_reachable\|_daemon_ready_events\|_reachable_cache\|_reachable_daemons\|_start_daemon" bridge/tests/
-    ```
-  - [ ] 4b: Redirect each to the canonical module per AC3 table
-- [ ] Task 5: Remove stopgap artefacts from Story 20.1
-  - [ ] 5a: Remove `# noqa: E402  # temporary — removed in story 20.3` comments from `bridge.py`
-  - [ ] 5b: Remove `mypy_path = "bridge/core"` from `pyproject.toml`
-  - [ ] 5c: Remove global `ignore_missing_imports = true` from `[tool.mypy]`; run `mypy bridge/` and collect `Cannot find implementation or library stub` errors; add `[[tool.mypy.overrides]]` entries for external packages only (internal failures = missed relative-import conversion, fix them); verify `mypy bridge/` still exits 0
-- [ ] Task 6: Verify both entry points (script mode + module mode) produce no import errors
-- [ ] Task 7: Add entry point smoke test to CI (per AC4 — three CI steps)
-- [ ] Task 8: Update bridge launch documentation (README or CLAUDE.md) to specify that the bridge must be launched from the repo root; the previous sys.path hack allowed launching from any CWD — this is no longer supported
-- [ ] Task 9: Verify quality gates — ruff, mypy, full test suite
+- [x] Task 1: Create story file (this file)
+- [x] Task 2: Convert `bridge/core/*.py` to relative imports
+  - [x] 2a: `core/ap_client.py`
+  - [x] 2b: `core/loops.py`
+  - [x] 2c: `core/mercure.py`
+  - [x] 2d: `core/reachable.py`
+  - [x] 2e: `core/rest.py`
+  - [x] 2f: `core/save_parser.py`
+  - [x] 2g: `core/state.py`
+  - [x] 2h: `core/wake_on_connect.py` (no sibling imports — verified)
+  - [x] 2i: `core/domain.py` (no sibling imports — verified)
+- [x] Task 3: Update `bridge/bridge.py`
+  - [x] 3a: Remove `sys.path.insert` block; remove unused `sys` import (`os` retained for `os.path.join` in `_main()`)
+  - [x] 3b: Convert all `from config import X` → `from bridge.core.config import X` (all 8 modules converted)
+  - [x] 3c: Remove each private symbol in the AC3 table from both `__all__` and its top-level `import` / `from ... import` statement in `bridge.py`
+- [x] Task 4: Update test imports
+  - [x] 4a: Scanned all test files for private symbol imports and bare module imports (`import rest`, `from coordinator import`, `from wake_on_connect import`)
+  - [x] 4b: Redirected to canonical modules: `_reachable_cache` → `bridge.core.reachable`, `_build_feed_event`/`DataPackageStore` → `bridge.core.ap_client`, `rest` → `bridge.core.rest`, `coordinator` → `bridge.core.coordinator`, `wake_on_connect` → `bridge.core.wake_on_connect`; updated all `patch("rest.X")` → `patch("bridge.core.rest.X")`
+- [x] Task 5: Remove stopgap artefacts from Story 20.1
+  - [x] 5a: Removed all `# noqa: E402  # temporary — removed in story 20.3` comments (bridge.py rewritten)
+  - [x] 5b: Removed `mypy_path = "bridge/core"` from `pyproject.toml`
+  - [x] 5c: Removed global `ignore_missing_imports = true`; ran `mypy bridge/`; added `[[tool.mypy.overrides]]` for `websockets.*`, `boto3`, `botocore.*`; `mypy bridge/` exits 0
+- [x] Task 6: Verify both entry points (script mode + module mode) produce no import errors
+- [x] Task 7: Add entry point smoke test to CI (per AC4 — three CI steps)
+- [x] Task 8: Update bridge launch documentation (README or CLAUDE.md) to specify that the bridge must be launched from the repo root; the previous sys.path hack allowed launching from any CWD — this is no longer supported
+- [x] Task 9: Verify quality gates — ruff, mypy, full test suite
 
 ## Dev Notes
 
@@ -160,7 +153,7 @@ The CI smoke test must be run from the repo root directory (`working-directory: 
 
 ## File List
 
-- `bridge/bridge.py` — remove sys.path hack; absolute package imports; cleaned `__all__`; E402 noqa removed
+- `bridge/bridge.py` — remove sys.path hack; absolute package imports; cleaned `__all__`; E402 noqa removed; `sys` import removed
 - `bridge/core/ap_client.py` — relative imports
 - `bridge/core/loops.py` — relative imports
 - `bridge/core/mercure.py` — relative imports
@@ -168,11 +161,29 @@ The CI smoke test must be run from the repo root directory (`working-directory: 
 - `bridge/core/rest.py` — relative imports
 - `bridge/core/save_parser.py` — relative imports (`from domain import` → `from .domain import`)
 - `bridge/core/state.py` — relative imports
-- `bridge/core/wake_on_connect.py` — relative imports
-- `bridge/pyproject.toml` — remove `mypy_path` stopgap
-- `bridge/tests/*.py` — update private symbol imports to canonical module paths (per AC3 table)
-- `.github/workflows/backend.yml` — add three entry point smoke test steps (module import, py_compile, script process check — per AC4)
+- `bridge/pyproject.toml` — remove `mypy_path` + global `ignore_missing_imports`; add `pythonpath = [".."]` for pytest; add per-module mypy overrides for external packages; add `exclude = ["bridge/tests/"]`
+- `bridge/tests/test_api.py` — `_reachable_cache` → `bridge.core.reachable`
+- `bridge/tests/test_feed.py` — `DataPackageStore, _build_feed_event` → `bridge.core.ap_client`
+- `bridge/tests/test_pause_endpoint.py` — `import rest` → `bridge.core.rest`; `from coordinator` → `bridge.core.coordinator`; patch strings updated to `bridge.core.rest.X`
+- `bridge/tests/test_resume_endpoint.py` — same as test_pause_endpoint.py
+- `bridge/tests/test_wake_on_connect.py` — `import rest` → `bridge.core.rest`; `from coordinator` → `bridge.core.coordinator`; `from wake_on_connect` → `bridge.core.wake_on_connect`
+- `bridge/CLAUDE.md` — created: documents that bridge must be launched from repo root
+- `.github/workflows/backend.yml` — mypy step updated to run from repo root; add three entry point smoke test steps (module import, py_compile, script process check — per AC4)
 - `_bmad-output/implementation-artifacts/20-3-bridge-fix-syspath-imports.md` — this file
+
+## Dev Agent Record
+
+### Completion Notes
+
+Implemented in one pass. Key decisions:
+- `os` import kept in `bridge.py` (used by `os.path.join` in `_main()`); only `sys` removed.
+- `core/coordinator.py`, `core/domain.py`, `core/wake_on_connect.py` had no sibling imports — no changes needed.
+- `save_parser.py`'s `sys.path.insert` for `/app/ArchipelagoSrc` left intact (out of scope per Dev Notes).
+- `mypy bridge/tests/` excluded — 69 pre-existing type errors in tests were hidden by the old `exclude = ["^tests/"]`. These are out of scope for this story.
+- `pythonpath = [".."]` added to pytest config so tests run correctly from `bridge/` directory while resolving `bridge.*` from the repo root.
+- `boto3` and `botocore.*` added to mypy overrides (imported in rest.py helpers).
+- CI mypy step moved to `working-directory: .` and runs `python -m mypy bridge/ --config-file bridge/pyproject.toml`.
+- All 141 tests pass; ruff 0 errors; mypy 0 errors on 14 source files.
 
 ## Change Log
 
@@ -181,3 +192,4 @@ The CI smoke test must be run from the repo root directory (`working-directory: 
 | 2026-05-15 | Story created                                                                               |
 | 2026-05-15 | Revised: CI smoke test required for both entry points; private symbol migration table added; Docker CWD constraint documented |
 | 2026-05-15 | Revised: No bridge/Dockerfile exists — bridge runs as local Python process from repo root; CI smoke uses stderr grep, not `\|\| true`; save_parser.py sys.path explicitly out of scope |
+| 2026-05-15 | Implemented: all tasks complete; story status → review |

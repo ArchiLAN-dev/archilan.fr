@@ -6,14 +6,19 @@ namespace App\CatalogSync\Application;
 
 use App\CatalogSync\Domain\CatalogEntry;
 use App\GameSelection\Domain\GameCatalogSync;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicCatalogGamesQuery
 {
+    private string $syncTable;
+
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private Connection $connection,
         private CatalogSyncService $catalogSyncService,
+        EntityManagerInterface $em,
     ) {
+        $this->syncTable = $em->getClassMetadata(GameCatalogSync::class)->getTableName();
     }
 
     /**
@@ -29,18 +34,18 @@ final readonly class PublicCatalogGamesQuery
             return null;
         }
 
-        $rows = $this->entityManager
-            ->createQueryBuilder()
-            ->select('cs.catalogSheetName')
-            ->from(GameCatalogSync::class, 'cs')
-            ->where('cs.catalogSheetName IS NOT NULL')
-            ->getQuery()
-            ->getArrayResult();
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select('cs.catalog_sheet_name')
+            ->from($this->syncTable, 'cs')
+            ->where($qb->expr()->isNotNull('cs.catalog_sheet_name'))
+            ->executeQuery()
+            ->fetchAllAssociative();
 
         $importedNames = [];
         foreach ($rows as $row) {
-            if (is_array($row) && is_string($row['catalogSheetName'] ?? null)) {
-                $importedNames[$row['catalogSheetName']] = true;
+            if (is_string($row['catalog_sheet_name'] ?? null)) {
+                $importedNames[$row['catalog_sheet_name']] = true;
             }
         }
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\GenerateRunJob;
@@ -24,7 +24,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -241,7 +241,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
-    private function makeGame(string $name, ?string $archipelagoGameName): ArchipelagoGame
+    private function makeGame(string $name, ?string $archipelagoGameName): Game
     {
         $slug = strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2));
         $game = $this->createGame($name, $slug);

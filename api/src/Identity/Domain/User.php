@@ -9,7 +9,6 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'identity_users')]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_email_canonical', columns: ['email_canonical'])]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_slug', columns: ['slug'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
@@ -45,6 +44,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private string $cguAcceptedVersion = self::CURRENT_CGU_VERSION,
         #[ORM\Column(type: 'string', length: 80, nullable: true)]
         private ?string $slug = null,
+        #[ORM\Column(name: 'email_verified_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $emailVerifiedAt = null,
     ) {
     }
 
@@ -137,6 +138,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         $this->roles = ['ROLE_USER'];
         $this->updatedAt = $now;
+    }
+
+    public function resetPassword(string $passwordHash, \DateTimeImmutable $now): void
+    {
+        $this->passwordHash = $passwordHash;
+        $this->updatedAt = $now;
+    }
+
+    public function confirmEmail(\DateTimeImmutable $now): void
+    {
+        if (null === $this->emailVerifiedAt) {
+            $this->emailVerifiedAt = $now;
+            $this->updatedAt = $now;
+        }
+    }
+
+    public function isEmailVerified(): bool
+    {
+        return null !== $this->emailVerifiedAt;
+    }
+
+    public function getEmailVerifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->emailVerifiedAt;
     }
 
     public function anonymizeForDeletion(\DateTimeImmutable $now): void

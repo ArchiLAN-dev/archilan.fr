@@ -1,12 +1,13 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import type { PublicPost } from "./content-types";
+import { hasStringProp } from "@/lib/type-guards";
+import type { PublicPost, PublicPostType } from "./content-types";
 import { publicPosts, getPublicPostBySlug } from "./mock-posts";
 
 type PostPayload = {
   slug: string;
   title: string;
-  type: string;
+  type: PublicPostType;
   status: string;
   excerpt: string;
   coverImageUrl: string | null;
@@ -16,6 +17,10 @@ type PostPayload = {
   relatedEventSlug: string | null;
   vodUrl: string | null;
 };
+
+function isPublicPostType(v: unknown): v is PublicPostType {
+  return v === "news" || v === "recap" || v === "announcement";
+}
 
 export async function getPublicPosts(): Promise<PublicPost[]> {
   try {
@@ -65,7 +70,7 @@ function toPublicPost(post: PostPayload): PublicPost {
   return {
     slug: post.slug,
     title: post.title,
-    type: post.type as PublicPost["type"],
+    type: post.type,
     status: "published",
     excerpt: post.excerpt,
     coverImageUrl: post.coverImageUrl ?? null,
@@ -79,19 +84,32 @@ function toPublicPost(post: PostPayload): PublicPost {
 }
 
 function isPostListPayload(payload: unknown): payload is { data: PostPayload[] } {
-  return Boolean(
-    payload &&
-    typeof payload === "object" &&
-    "data" in payload &&
-    Array.isArray((payload as { data: unknown }).data),
-  );
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload)) return false;
+  return Array.isArray(payload.data) && payload.data.every(isPostPayloadItem);
 }
 
 function isPostPayload(payload: unknown): payload is { data: PostPayload } {
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data: unknown }).data
-      : null;
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload)) return false;
+  const data = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  return isPostPayloadItem(data);
+}
 
-  return Boolean(data && typeof data === "object" && "slug" in data && "title" in data);
+function isPostPayloadItem(v: unknown): v is PostPayload {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "slug")) return false;
+  if (!hasStringProp(v, "title")) return false;
+  if (!("type" in v) || !isPublicPostType(v.type)) return false;
+  if (!hasStringProp(v, "status")) return false;
+  if (!hasStringProp(v, "excerpt")) return false;
+  if (!("coverImageUrl" in v) || (v.coverImageUrl !== null && typeof v.coverImageUrl !== "string")) return false;
+  if (!("body" in v) || !Array.isArray(v.body) || !v.body.every((item): item is string => typeof item === "string")) {
+    return false;
+  }
+  if (!hasStringProp(v, "readingTime")) return false;
+  if (!hasStringProp(v, "publishedAt")) return false;
+  if (!("relatedEventSlug" in v) || (v.relatedEventSlug !== null && typeof v.relatedEventSlug !== "string")) return false;
+  return "vodUrl" in v && (v.vodUrl === null || typeof v.vodUrl === "string");
 }

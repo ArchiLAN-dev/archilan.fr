@@ -7,7 +7,6 @@ namespace App\Events\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'events_private_access_logs')]
 final class EventPrivateAccessLog
 {
     public function __construct(

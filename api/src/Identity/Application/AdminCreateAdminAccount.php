@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\AdminAccountCreationAudit;
+use App\Identity\Domain\AdminCreationAudit;
 use App\Identity\Domain\User;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -69,7 +69,7 @@ final readonly class AdminCreateAdminAccount
 
         try {
             $this->entityManager->persist($admin);
-            $this->entityManager->persist(AdminAccountCreationAudit::record($admin->getId(), $creator->getId(), $now));
+            $this->entityManager->persist(AdminCreationAudit::record($admin->getId(), $creator->getId(), $now));
             $this->entityManager->flush();
         } catch (UniqueConstraintViolationException) {
             return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];

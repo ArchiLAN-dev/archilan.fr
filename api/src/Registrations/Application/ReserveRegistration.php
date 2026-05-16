@@ -6,6 +6,7 @@ namespace App\Registrations\Application;
 
 use App\Events\Application\EventCapacityReachedMessage;
 use App\Events\Domain\Event;
+use App\Identity\Domain\User;
 use App\Realtime\Application\RealtimePublisher;
 use App\Registrations\Domain\Registration;
 use Doctrine\DBAL\LockMode;
@@ -28,10 +29,16 @@ final readonly class ReserveRegistration
      * Reserves a seat on an event for the given authenticated user.
      * Returns null if the event does not exist or is not publicly visible.
      *
-     * @return array{outcome: 'not_eligible', reason: string}|array{outcome: 'capacity_full'}|array{outcome: 'reserved', registrationId: string}|array{outcome: 'already_registered', registrationId: string}|null
+     * @return array{outcome: 'email_not_verified'}|array{outcome: 'not_eligible', reason: string}|array{outcome: 'capacity_full'}|array{outcome: 'reserved', registrationId: string}|array{outcome: 'already_registered', registrationId: string}|null
      */
     public function reserve(string $eventId, string $userId): ?array
     {
+        $user = $this->entityManager->find(User::class, $userId);
+
+        if (!$user instanceof User || !$user->isEmailVerified()) {
+            return ['outcome' => 'email_not_verified'];
+        }
+
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
 

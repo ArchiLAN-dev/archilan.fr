@@ -70,9 +70,6 @@ jobs:
   bridge:
     name: Bridge
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: bridge
 
     steps:
       - name: Checkout
@@ -86,13 +83,22 @@ jobs:
           cache-dependency-path: bridge/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r bridge/requirements.txt
 
       - name: Ruff
-        run: python -m ruff check .
+        run: python -m ruff check bridge/
 
       - name: Mypy
-        run: python -m mypy . --config-file pyproject.toml
+        run: python -m mypy bridge/ --config-file bridge/pyproject.toml
 
       - name: Pytest
-        run: python -m pytest
+        run: python -m pytest -c bridge/pyproject.toml bridge/tests
+
+      - name: Bridge module import smoke test
+        run: python -c "import bridge.bridge; print('import ok')"
+
+      - name: Bridge script syntax check
+        run: python -m py_compile bridge/bridge.py && echo "syntax ok"
+
+      - name: Bridge script entry point smoke test
+        run: python bridge/bridge.py --check-imports

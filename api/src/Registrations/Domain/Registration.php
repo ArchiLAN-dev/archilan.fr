@@ -8,7 +8,6 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'event_registrations')]
 #[ORM\UniqueConstraint(name: 'uniq_event_registrations_event_user', columns: ['event_id', 'user_id'])]
 final class Registration
 {

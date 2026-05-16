@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
@@ -25,8 +25,8 @@ final class RunResultsTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Registration::class),
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(SessionSlot::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
+            $this->entityManager->getClassMetadata(Game::class),
+            $this->entityManager->getClassMetadata(Run::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -197,12 +197,12 @@ final class RunResultsTest extends FunctionalTestCase
 
         $user = $this->createUser('frank@example.org', displayName: 'Frank');
 
-        // PersonalRun::create() uses bin2hex(random_bytes(16)) for its id
-        $pr = PersonalRun::create($user->getId(), 'Mon run perso', $now);
+        // Run::create() uses bin2hex(random_bytes(16)) for its id
+        $pr = Run::create($user->getId(), 'Mon run perso', $now);
         $this->entityManager->persist($pr);
         $this->entityManager->flush();
 
-        // Session eventId = PersonalRun id (no Event row exists)
+        // Session eventId = Run id (no Event row exists)
         $session = $this->createFinishedSession($pr->getId(), $now);
 
         // For personal runs, registrationId IS the userId

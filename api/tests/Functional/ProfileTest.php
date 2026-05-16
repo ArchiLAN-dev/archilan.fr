@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 
@@ -14,7 +15,10 @@ final class ProfileTest extends FunctionalTestCase
     {
         parent::setUp();
 
-        $metadata = [$this->entityManager->getClassMetadata(User::class)];
+        $metadata = [
+            $this->entityManager->getClassMetadata(User::class),
+            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
+        ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
         $schemaTool->createSchema($metadata);

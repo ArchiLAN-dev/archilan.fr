@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Infrastructure\StubIgdbHttpClient;
 use App\Identity\Domain\User;
@@ -20,7 +20,7 @@ final class AdminCatalogSyncTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
             $this->entityManager->getClassMetadata(GameCatalogSync::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);

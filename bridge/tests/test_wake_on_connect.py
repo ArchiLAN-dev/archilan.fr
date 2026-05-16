@@ -12,8 +12,9 @@ from bridge.bridge import (
     MercurePublisher,
     StateManager,
 )
-import rest as _rest
-from wake_on_connect import WakeOnConnectServer
+from bridge.core import rest_session as _rest
+from bridge.core.coordinator import PauseResumeCoordinator
+from bridge.core.wake_on_connect import WakeOnConnectServer
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +147,7 @@ async def test_wake_on_connect_called_only_once_for_multiple_connections() -> No
 
 @pytest.mark.asyncio
 async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: object) -> None:
-    """After _pause_flow completes, _wake_task is set; _resume_flow cancels it."""
+    """After _pause_flow completes, coordinator.wake_task is set; _resume_flow cancels it."""
     save_file = str(tmp_path / "game.apsave")
     with open(save_file, "wb") as f:
         f.write(b"save")
@@ -158,9 +159,7 @@ async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: objec
     ap_client = ArchipelagoClient(cfg, state, publisher)
     ap_client._http = AsyncMock()
 
-    # Reset module state
-    _rest._wake_stop_event = None
-    _rest._wake_task = None
+    coordinator = PauseResumeCoordinator()
 
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(_rest, "_poll_for_save", AsyncMock(return_value=save_file))
@@ -172,11 +171,11 @@ async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: objec
         port = await _free_port()
         mp.setattr(cfg, "archipelago_ws_url", f"ws://localhost:{port}")
 
-        await _rest._pause_flow(ap_client)
+        await _rest._pause_flow(ap_client, coordinator)
 
     # Wake task should have been created
-    assert _rest._wake_task is not None
-    assert not _rest._wake_task.done()
+    assert coordinator.wake_task is not None
+    assert not coordinator.wake_task.done()
 
     # Now resume should cancel it
     with pytest.MonkeyPatch().context() as mp:
@@ -185,9 +184,9 @@ async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: objec
         mp.setattr(_rest, "_wait_for_ap_health", AsyncMock(return_value=True))
         mp.setattr(_rest, "_notify_restarted", AsyncMock())
 
-        await _rest._resume_flow(ap_client, last_save_key=None)
+        await _rest._resume_flow(ap_client, last_save_key=None, coordinator=coordinator)
 
-    assert _rest._wake_task is None
+    assert coordinator.wake_task is None
 
 
 @pytest.mark.asyncio

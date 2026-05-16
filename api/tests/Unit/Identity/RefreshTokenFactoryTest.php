@@ -47,8 +47,28 @@ final class RefreshTokenFactoryTest extends TestCase
         $now = new \DateTimeImmutable('2026-01-01 00:00:00 UTC');
         ['entity' => $entity] = $this->factory->issue('user-1', $now);
 
-        $expected = $now->modify(sprintf('+%d days', RefreshTokenFactory::TOKEN_TTL_DAYS));
+        $expected = $now->modify(sprintf('+%d days', RefreshTokenFactory::TOKEN_TTL_LONG_DAYS));
         self::assertSame($expected->getTimestamp(), $entity->getExpiresAt()->getTimestamp());
+    }
+
+    public function testRememberMeFalseGivesOneDayTtl(): void
+    {
+        $now = new \DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        ['entity' => $entity] = $this->factory->issue('user-1', $now, null, false);
+
+        $expected = $now->modify(sprintf('+%d days', RefreshTokenFactory::TOKEN_TTL_SHORT_DAYS));
+        self::assertSame($expected->getTimestamp(), $entity->getExpiresAt()->getTimestamp());
+        self::assertFalse($entity->isRememberMe());
+    }
+
+    public function testRememberMeTrueGivesThirtyDayTtl(): void
+    {
+        $now = new \DateTimeImmutable('2026-01-01 00:00:00 UTC');
+        ['entity' => $entity] = $this->factory->issue('user-1', $now, null, true);
+
+        $expected = $now->modify(sprintf('+%d days', RefreshTokenFactory::TOKEN_TTL_LONG_DAYS));
+        self::assertSame($expected->getTimestamp(), $entity->getExpiresAt()->getTimestamp());
+        self::assertTrue($entity->isRememberMe());
     }
 
     public function testUserAgentIsPassedToEntity(): void

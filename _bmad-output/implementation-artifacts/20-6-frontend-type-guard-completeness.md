@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+review
 
 ## Acceptance Criteria
 
@@ -24,19 +24,19 @@ todo
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit for `as ` type assertions in `src/features/**/*-api.ts`
-  - [ ] List each file, line, and the type being cast to
-- [ ] Task 3: For each violation, write the corresponding type guard
-  - [ ] Pattern: `function is{TypeName}(v: unknown): v is {TypeName} { return typeof v === "object" && v !== null && "fieldName" in v; }`
-  - [ ] Replace `(await res.json()) as TypeName` with `const payload: unknown = await res.json(); if (!isTypeName(payload)) return null; return payload;`
-  - [ ] After all guards are written: grep guard bodies for repeated `"prop" in v && typeof v.prop === "string/number"` patterns. Extract `hasStringProp` / `hasNumberProp` to `src/lib/type-guards.ts` if any such pattern appears in 2+ guards (even in the same file) — the helpers avoid repetition and keep call sites cast-free; do not wait for a higher duplication count
-- [ ] Task 4: Verify all `*-api.ts` files already follow the `return null` on non-OK response pattern (AC-API2)
-- [ ] Task 5: Add ESLint rules to `eslint.config.*`
-  - [ ] 5a: Add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`
-  - [ ] 5b: If `src/lib/type-guards.ts` was created: add `"src/lib/type-guards.ts"` to the `files` array of the existing `assertionStyle: "never"` config block — no separate rule needed, since helpers use `Reflect.get` and contain no `as` casts
-- [ ] Task 6: Run `pnpm lint` — resolve any newly surfaced violations
-- [ ] Task 7: Run `pnpm typecheck` and `pnpm build` — verify clean
+- [x] Task 1: Create story file (this file)
+- [x] Task 2: Run grep audit for `as ` type assertions in `src/features/**/*-api.ts`
+  - [x] List each file, line, and the type being cast to
+- [x] Task 3: For each violation, write the corresponding type guard
+  - [x] Pattern: `function is{TypeName}(v: unknown): v is {TypeName} { return typeof v === "object" && v !== null && "fieldName" in v; }`
+  - [x] Replace `(await res.json()) as TypeName` with `const payload: unknown = await res.json(); if (!isTypeName(payload)) return null; return payload;`
+  - [x] After all guards are written: grep guard bodies for repeated `"prop" in v && typeof v.prop === "string/number"` patterns. Extract `hasStringProp` / `hasNumberProp` to `src/lib/type-guards.ts` if any such pattern appears in 2+ guards (even in the same file) — the helpers avoid repetition and keep call sites cast-free; do not wait for a higher duplication count
+- [x] Task 4: Verify all `*-api.ts` files already follow the `return null` on non-OK response pattern (AC-API2)
+- [x] Task 5: Add ESLint rules to `eslint.config.*`
+  - [x] 5a: Add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`
+  - [x] 5b: If `src/lib/type-guards.ts` was created: add `"src/lib/type-guards.ts"` to the `files` array of the existing `assertionStyle: "never"` config block — no separate rule needed, since helpers use `Reflect.get` and contain no `as` casts
+- [x] Task 6: Run `pnpm lint` — resolve any newly surfaced violations
+- [x] Task 7: Run `pnpm typecheck` and `pnpm build` — verify clean
 
 ## Dev Notes
 
@@ -157,8 +157,33 @@ Note: `assertionStyle: "never"` also bans `as const` and `as unknown` within the
 - `frontend/eslint.config.*` — add `@typescript-eslint/consistent-type-assertions` with `assertionStyle: "never"` scoped to `src/features/**/*-api.ts`; if `type-guards.ts` was created, also add `src/lib/type-guards.ts` to the same `files` array (Task 5b)
 - `_bmad-output/implementation-artifacts/20-6-frontend-type-guard-completeness.md` — this file
 
+## Dev Agent Record
+
+### Completion Notes
+
+Implemented 2026-05-15.
+
+**Audit** : 17 casts `as` identifiés dans 9 fichiers `*-api.ts` (patterns : `as Record<string, unknown>`, `as unknown[]`, `as { data: unknown }`, `as PublicPost["type"]`, `as { error?: ... }`).
+
+**Fichier `src/lib/type-guards.ts` créé** avec `hasStringProp`, `hasNumberProp`, `hasBooleanProp` (helpers sans `as`, utilisant `Reflect.get`).
+
+**Migrations** :
+- `community-api.ts` : guards réécrits avec `in`-narrowing + helpers
+- `player-profile-api.ts` : idem, champs nullables (`displayName`, `finishedAt`, `goalReachedAt`) traités inline (`!== null || typeof === "string"`)
+- `run-results-api.ts` : idem, champs nullables + `Array.isArray` narrowing pour `slots`
+- `public-games-api.ts` : `in`-narrowing pour `data` et `meta`
+- `public-posts-api.ts` : ajout de `isPublicPostType`; `PostPayload.type` changé de `string` → `PublicPostType`; `toPublicPost` ne caste plus
+- `public-events-api.ts` : guards refactorisés avec `in`-narrowing
+- `membership-api.ts` / `shop-api.ts` : `in`-narrowing + Reflect-free access pour `checkoutEmbedUrl`
+- `game-request-api.ts` : ajout de `isStringArray` + `isGameRequestItem`; cast `json?.error?.message` supprimé (json est `any`)
+
+**Règle ESLint** : `@typescript-eslint/consistent-type-assertions assertionStyle: "never"` scoped à `src/features/**/*-api.ts` et `src/lib/type-guards.ts`.
+
+**Quality gates** : `pnpm lint` 0 erreurs, `pnpm typecheck` 0 erreurs, `pnpm build` propre.
+
 ## Change Log
 
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
+| 2026-05-15 | Implementation complete — type-guard audit done, ESLint rule added, quality gates green |

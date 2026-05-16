@@ -65,6 +65,14 @@ final readonly class RegistrationController
             return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
         }
 
+        if ('email_not_verified' === $result['outcome']) {
+            return $this->apiAccessGuard->errorResponse(
+                'email_not_verified',
+                'Tu dois confirmer ton adresse email avant de t\'inscrire à un événement.',
+                403,
+            );
+        }
+
         if ('not_eligible' === $result['outcome']) {
             return $this->apiAccessGuard->errorResponse(
                 'not_eligible',

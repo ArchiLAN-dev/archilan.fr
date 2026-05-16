@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\GenerateRunJob;
 use App\Sessions\Application\Message\RestartRunJob;
@@ -44,14 +44,10 @@ final readonly class SessionOrchestrator
     public function listSessions(string $eventId): array
     {
         /** @var list<Session> $sessions */
-        $sessions = $this->entityManager->createQueryBuilder()
-            ->select('s')
-            ->from(Session::class, 's')
-            ->where('s.eventId = :eventId')
-            ->setParameter('eventId', $eventId)
-            ->orderBy('s.createdAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+        $sessions = $this->entityManager->getRepository(Session::class)->findBy(
+            ['eventId' => $eventId],
+            ['createdAt' => 'DESC'],
+        );
 
         return array_map(static fn (Session $s) => $s->payload(), $sessions);
     }
@@ -62,16 +58,10 @@ final readonly class SessionOrchestrator
     public function getBuilder(string $eventId): array
     {
         /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.eventId = :eventId')
-            ->andWhere('r.status = :status')
-            ->setParameter('eventId', $eventId)
-            ->setParameter('status', Registration::STATUS_RESERVED)
-            ->orderBy('r.createdAt', 'ASC')
-            ->getQuery()
-            ->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(
+            ['eventId' => $eventId, 'status' => Registration::STATUS_RESERVED],
+            ['createdAt' => 'ASC'],
+        );
 
         if ([] === $registrations) {
             return ['registrations' => []];
@@ -81,13 +71,7 @@ final readonly class SessionOrchestrator
         $userIds = array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $registrations));
 
         /** @var list<User> $users */
-        $users = $this->entityManager->createQueryBuilder()
-            ->select('u')
-            ->from(User::class, 'u')
-            ->where('u.id IN (:ids)')
-            ->setParameter('ids', $userIds)
-            ->getQuery()
-            ->getResult();
+        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
 
         /** @var array<string, User> $usersById */
         $usersById = [];
@@ -102,17 +86,11 @@ final readonly class SessionOrchestrator
             }
         }
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $allGameIds) {
-            /** @var list<ArchipelagoGame> $games */
-            $games = $this->entityManager->createQueryBuilder()
-                ->select('g')
-                ->from(ArchipelagoGame::class, 'g')
-                ->where('g.id IN (:ids)')
-                ->setParameter('ids', array_keys($allGameIds))
-                ->getQuery()
-                ->getResult();
+            /** @var list<Game> $games */
+            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => array_keys($allGameIds)]);
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
             }
@@ -318,8 +296,8 @@ final readonly class SessionOrchestrator
      */
     public function autoAdvancePersonalRun(string $sessionId): void
     {
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-        if (!$personalRun instanceof PersonalRun) {
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        if (!$personalRun instanceof Run) {
             return;
         }
 
@@ -501,13 +479,7 @@ final readonly class SessionOrchestrator
         ));
 
         /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.id IN (:ids)')
-            ->setParameter('ids', $registrationIds)
-            ->getQuery()
-            ->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
 
         /** @var array<string, Registration> $regById */
         $regById = [];
@@ -519,13 +491,7 @@ final readonly class SessionOrchestrator
 
         /** @var list<User> $users */
         $users = [] !== $userIds
-            ? $this->entityManager->createQueryBuilder()
-                ->select('u')
-                ->from(User::class, 'u')
-                ->where('u.id IN (:ids)')
-                ->setParameter('ids', $userIds)
-                ->getQuery()
-                ->getResult()
+            ? $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds])
             : [];
 
         /** @var array<string, User> $userById */
@@ -539,16 +505,10 @@ final readonly class SessionOrchestrator
             $sessionSlots,
         ));
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
-        /** @var array<string, ArchipelagoGame> $gameById */
+        /** @var array<string, Game> $gameById */
         $gameById = [];
         foreach ($games as $game) {
             $gameById[$game->getId()] = $game;
@@ -589,14 +549,8 @@ final readonly class SessionOrchestrator
             return [];
         }
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
         $downloadUrls = [];
 
@@ -658,13 +612,7 @@ final readonly class SessionOrchestrator
         $gameIds = array_unique(array_map(static fn (array $s): string => $s['gameId'], $slots));
 
         /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.id IN (:ids)')
-            ->setParameter('ids', $registrationIds)
-            ->getQuery()
-            ->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
 
         /** @var array<string, Registration> $regById */
         $regById = [];
@@ -674,13 +622,9 @@ final readonly class SessionOrchestrator
 
         /** @var list<User> $users */
         $users = [] !== $registrations
-            ? $this->entityManager->createQueryBuilder()
-                ->select('u')
-                ->from(User::class, 'u')
-                ->where('u.id IN (:ids)')
-                ->setParameter('ids', array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $registrations)))
-                ->getQuery()
-                ->getResult()
+            ? $this->entityManager->getRepository(User::class)->findBy([
+                'id' => array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $registrations)),
+            ])
             : [];
 
         /** @var array<string, User> $usersById */
@@ -689,16 +633,10 @@ final readonly class SessionOrchestrator
             $usersById[$user->getId()] = $user;
         }
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
-        /** @var array<string, ArchipelagoGame> $gameById */
+        /** @var array<string, Game> $gameById */
         $gameById = [];
         foreach ($games as $game) {
             $gameById[$game->getId()] = $game;
@@ -715,7 +653,7 @@ final readonly class SessionOrchestrator
                 'eventId' => $registration?->getEventId(),
                 'slotId' => $slot['slotId'] ?? $slot['registrationId'].'-'.$slot['gameId'],
                 'playerName' => $user?->getDisplayName() ?? $user?->getEmail() ?? $slot['registrationId'],
-                'archipelagoGameName' => $game instanceof ArchipelagoGame ? ($game->getArchipelagoGameName() ?? '') : 'Unknown',
+                'archipelagoGameName' => $game instanceof Game ? ($game->getArchipelagoGameName() ?? '') : 'Unknown',
                 'playerYaml' => $registrationSlot['playerYaml'] ?? null,
             ];
         }

@@ -24,15 +24,7 @@ final readonly class PublicPostCatalog
     public function list(): array
     {
         /** @var list<Post> $posts */
-        $posts = $this->entityManager->createQueryBuilder()
-            ->select('post')
-            ->from(Post::class, 'post')
-            ->andWhere('post.status = :status')
-            ->setParameter('status', Post::STATUS_PUBLISHED)
-            ->orderBy('post.publishedAt', 'DESC')
-            ->setMaxResults(200)
-            ->getQuery()
-            ->getResult();
+        $posts = $this->entityManager->getRepository(Post::class)->findBy(['status' => Post::STATUS_PUBLISHED], ['publishedAt' => 'DESC'], 200);
 
         return array_map(fn (Post $post): array => $this->payload($post), $posts);
     }

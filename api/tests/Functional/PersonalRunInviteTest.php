@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use Doctrine\ORM\Tools\SchemaTool;
 
 final class PersonalRunInviteTest extends FunctionalTestCase
@@ -17,8 +17,8 @@ final class PersonalRunInviteTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
-            $this->entityManager->getClassMetadata(PersonalRunParticipant::class),
+            $this->entityManager->getClassMetadata(Run::class),
+            $this->entityManager->getClassMetadata(RunParticipant::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -85,11 +85,11 @@ final class PersonalRunInviteTest extends FunctionalTestCase
 
         // Bob is still a participant
         $this->entityManager->clear();
-        $participant = $this->entityManager->find(PersonalRunParticipant::class, [
-            'personalRunId' => $run->getId(),
+        $participant = $this->entityManager->find(RunParticipant::class, [
+            'runId' => $run->getId(),
             'userId' => $bob->getId(),
         ]);
-        self::assertInstanceOf(PersonalRunParticipant::class, $participant);
+        self::assertInstanceOf(RunParticipant::class, $participant);
     }
 
     // -------------------------------------------------------------------------
@@ -130,8 +130,8 @@ final class PersonalRunInviteTest extends FunctionalTestCase
         // Only one participant record
         $count = (int) $this->entityManager->createQueryBuilder()
             ->select('COUNT(p.userId)')
-            ->from(PersonalRunParticipant::class, 'p')
-            ->where('p.personalRunId = :runId')
+            ->from(RunParticipant::class, 'p')
+            ->where('p.runId = :runId')
             ->setParameter('runId', $run->getId())
             ->getQuery()
             ->getSingleScalarResult();
@@ -151,8 +151,8 @@ final class PersonalRunInviteTest extends FunctionalTestCase
         self::assertTrue($data['isOwner']);
 
         // No participant record created for owner
-        $participant = $this->entityManager->find(PersonalRunParticipant::class, [
-            'personalRunId' => $run->getId(),
+        $participant = $this->entityManager->find(RunParticipant::class, [
+            'runId' => $run->getId(),
             'userId' => $alice->getId(),
         ]);
         self::assertNull($participant);
@@ -181,7 +181,7 @@ final class PersonalRunInviteTest extends FunctionalTestCase
     {
         $alice = $this->createUser('alice@example.org');
         $bob = $this->createUser('bob@example.org');
-        $run = $this->createRun($alice->getId(), 'Alice Run', PersonalRun::STATUS_CANCELLED);
+        $run = $this->createRun($alice->getId(), 'Alice Run', Run::STATUS_CANCELLED);
 
         $this->loginAs($bob);
         $this->client->jsonRequest('GET', '/api/v1/runs/join/'.$run->getInviteToken());
@@ -204,7 +204,7 @@ final class PersonalRunInviteTest extends FunctionalTestCase
         self::assertSame('Alice Run', $data['title']);
         self::assertSame('Alice Dupont', $data['ownerName']);
         self::assertSame(0, $data['participantCount']);
-        self::assertSame(PersonalRun::STATUS_DRAFT, $data['status']);
+        self::assertSame(Run::STATUS_DRAFT, $data['status']);
     }
 
     public function testPreviewReflectsParticipantCount(): void
@@ -225,7 +225,7 @@ final class PersonalRunInviteTest extends FunctionalTestCase
     public function testPreviewCancelledRunReturns404(): void
     {
         $alice = $this->createUser('alice@example.org');
-        $run = $this->createRun($alice->getId(), 'Alice Run', PersonalRun::STATUS_CANCELLED);
+        $run = $this->createRun($alice->getId(), 'Alice Run', Run::STATUS_CANCELLED);
 
         $this->client->jsonRequest('GET', '/api/v1/runs/invite/'.$run->getInviteToken().'/preview');
         self::assertResponseStatusCodeSame(404);
@@ -272,13 +272,13 @@ final class PersonalRunInviteTest extends FunctionalTestCase
     // Helpers
     // -------------------------------------------------------------------------
 
-    private function createRun(string $ownerId, string $title, string $status = PersonalRun::STATUS_DRAFT): PersonalRun
+    private function createRun(string $ownerId, string $title, string $status = Run::STATUS_DRAFT): Run
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $run = PersonalRun::create($ownerId, $title, $now);
+        $run = Run::create($ownerId, $title, $now);
 
-        if (PersonalRun::STATUS_DRAFT !== $status) {
-            $reflection = new \ReflectionProperty(PersonalRun::class, 'status');
+        if (Run::STATUS_DRAFT !== $status) {
+            $reflection = new \ReflectionProperty(Run::class, 'status');
             $reflection->setValue($run, $status);
         }
 

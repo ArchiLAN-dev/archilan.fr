@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use Doctrine\ORM\Tools\SchemaTool;
 
 final class PersonalRunTest extends FunctionalTestCase
@@ -17,8 +17,8 @@ final class PersonalRunTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
-            $this->entityManager->getClassMetadata(PersonalRunParticipant::class),
+            $this->entityManager->getClassMetadata(Run::class),
+            $this->entityManager->getClassMetadata(RunParticipant::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -50,7 +50,7 @@ final class PersonalRunTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(201);
         $data = $this->responseData();
         self::assertSame('Ma partie perso', $data['title']);
-        self::assertSame(PersonalRun::STATUS_DRAFT, $data['status']);
+        self::assertSame(Run::STATUS_DRAFT, $data['status']);
         self::assertSame($user->getId(), $data['ownerId']);
         self::assertIsString($data['inviteToken']);
         self::assertSame(64, strlen($data['inviteToken']));
@@ -170,7 +170,7 @@ final class PersonalRunTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/runs/'.$runId);
         self::assertResponseIsSuccessful();
         $data = $this->responseData();
-        self::assertSame(PersonalRun::STATUS_CANCELLED, $data['status']);
+        self::assertSame(Run::STATUS_CANCELLED, $data['status']);
     }
 
     public function testDeleteIdleRunReturns204(): void
@@ -178,7 +178,7 @@ final class PersonalRunTest extends FunctionalTestCase
         $user = $this->createUser('alice@example.org');
         $this->loginAs($user);
 
-        $run = $this->createRunDirectly($user->getId(), 'Idle Run', PersonalRun::STATUS_IDLE);
+        $run = $this->createRunDirectly($user->getId(), 'Idle Run', Run::STATUS_IDLE);
 
         $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$run->getId());
         self::assertResponseStatusCodeSame(204);
@@ -189,7 +189,7 @@ final class PersonalRunTest extends FunctionalTestCase
         $user = $this->createUser('alice@example.org');
         $this->loginAs($user);
 
-        $run = $this->createRunDirectly($user->getId(), 'Active Run', PersonalRun::STATUS_ACTIVE);
+        $run = $this->createRunDirectly($user->getId(), 'Active Run', Run::STATUS_ACTIVE);
 
         $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$run->getId());
         self::assertResponseStatusCodeSame(422);
@@ -201,7 +201,7 @@ final class PersonalRunTest extends FunctionalTestCase
         $user = $this->createUser('alice@example.org');
         $this->loginAs($user);
 
-        $run = $this->createRunDirectly($user->getId(), 'Starting Run', PersonalRun::STATUS_STARTING);
+        $run = $this->createRunDirectly($user->getId(), 'Starting Run', Run::STATUS_STARTING);
 
         $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$run->getId());
         self::assertResponseStatusCodeSame(422);
@@ -213,7 +213,7 @@ final class PersonalRunTest extends FunctionalTestCase
         $user = $this->createUser('alice@example.org');
         $this->loginAs($user);
 
-        $run = $this->createRunDirectly($user->getId(), 'Completed Run', PersonalRun::STATUS_COMPLETED);
+        $run = $this->createRunDirectly($user->getId(), 'Completed Run', Run::STATUS_COMPLETED);
 
         $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$run->getId());
         self::assertResponseStatusCodeSame(422);
@@ -225,19 +225,19 @@ final class PersonalRunTest extends FunctionalTestCase
         $alice = $this->createUser('alice@example.org');
         $bob = $this->createUser('bob@example.org');
 
-        $run = $this->createRunDirectly($alice->getId(), 'Alice Run', PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunDirectly($alice->getId(), 'Alice Run', Run::STATUS_DRAFT);
 
         $this->loginAs($bob);
         $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$run->getId());
         self::assertResponseStatusCodeSame(403);
     }
 
-    private function createRunDirectly(string $ownerId, string $title, string $status): PersonalRun
+    private function createRunDirectly(string $ownerId, string $title, string $status): Run
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $run = PersonalRun::create($ownerId, $title, $now);
+        $run = Run::create($ownerId, $title, $now);
 
-        $reflection = new \ReflectionProperty(PersonalRun::class, 'status');
+        $reflection = new \ReflectionProperty(Run::class, 'status');
         $reflection->setValue($run, $status);
 
         $this->entityManager->persist($run);

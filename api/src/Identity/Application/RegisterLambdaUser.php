@@ -18,6 +18,7 @@ final readonly class RegisterLambdaUser
         private UserPasswordHasherInterface $passwordHasher,
         private LoggerInterface $logger,
         private SlugGenerator $slugGenerator,
+        private SendEmailConfirmation $sendEmailConfirmation,
     ) {
     }
 
@@ -60,6 +61,8 @@ final readonly class RegisterLambdaUser
         }
 
         $this->logger->info('user.registered', ['userId' => $user->getId()]);
+
+        $this->sendEmailConfirmation->sendFor($user->getId(), $user->getEmail(), $user->getDisplayName(), $now);
 
         return ['user' => $user, 'errors' => []];
     }

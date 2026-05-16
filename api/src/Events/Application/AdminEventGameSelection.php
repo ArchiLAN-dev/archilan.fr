@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Application\ValidationErrors;
 use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,14 +34,8 @@ final readonly class AdminEventGameSelection
             return null;
         }
 
-        /** @var list<ArchipelagoGame> $allGames */
-        $allGames = $this->entityManager->createQueryBuilder()
-            ->select('game')
-            ->from(ArchipelagoGame::class, 'game')
-            ->orderBy('game.name', 'ASC')
-            ->setMaxResults(500)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $allGames */
+        $allGames = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC'], 500);
 
         $gamesById = [];
         foreach ($allGames as $game) {
@@ -51,7 +45,7 @@ final readonly class AdminEventGameSelection
         $selectedGames = [];
         foreach ($event->getGameSelectionConfig() as $entry) {
             $game = $gamesById[$entry['gameId']] ?? null;
-            if (!$game instanceof ArchipelagoGame) {
+            if (!$game instanceof Game) {
                 continue;
             }
 
@@ -63,7 +57,7 @@ final readonly class AdminEventGameSelection
         }
 
         $availableGames = array_map(
-            fn (ArchipelagoGame $game): array => [
+            fn (Game $game): array => [
                 'id' => $game->getId(),
                 'name' => $game->getName(),
                 'slug' => $game->getSlug(),
@@ -73,7 +67,7 @@ final readonly class AdminEventGameSelection
             ],
             array_values(array_filter(
                 $allGames,
-                fn (ArchipelagoGame $game): bool => $this->isGameAvailable($game),
+                fn (Game $game): bool => $this->isGameAvailable($game),
             )),
         );
 
@@ -182,9 +176,9 @@ final readonly class AdminEventGameSelection
             }
             $seenGameIds[] = $entry['gameId'];
 
-            $game = $this->entityManager->find(ArchipelagoGame::class, $entry['gameId']);
+            $game = $this->entityManager->find(Game::class, $entry['gameId']);
 
-            if (!$game instanceof ArchipelagoGame) {
+            if (!$game instanceof Game) {
                 $errors->add($prefix.'.gameId', 'Jeu introuvable dans la bibliothèque.');
                 continue;
             }
@@ -198,11 +192,11 @@ final readonly class AdminEventGameSelection
         return $errors->toArray();
     }
 
-    private function isGameAvailable(ArchipelagoGame $game): bool
+    private function isGameAvailable(Game $game): bool
     {
         return in_array($game->getAvailability(), [
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
-            ArchipelagoGame::AVAILABILITY_EXPERIMENTAL,
+            Game::AVAILABILITY_AVAILABLE,
+            Game::AVAILABILITY_EXPERIMENTAL,
         ], true);
     }
 }

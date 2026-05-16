@@ -6,7 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationAdminMessage;
@@ -27,7 +27,7 @@ final class AdminRegistrationMessageTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(EventPrivateAccessLog::class),
             $this->entityManager->getClassMetadata(Registration::class),
             $this->entityManager->getClassMetadata(RegistrationAdminMessage::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

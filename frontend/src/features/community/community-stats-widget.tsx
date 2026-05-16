@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { fetchCommunityStats } from "./community-api";
+import { SESSION_STALE_TIME } from "@/lib/query-client";
 
 export function CommunityStatsWidget() {
   const { data } = useQuery({
     queryKey: ["community-stats"],
     queryFn: fetchCommunityStats,
-    staleTime: 60 * 1000,
+    staleTime: SESSION_STALE_TIME,
   });
 
   const containerRef = useRef<HTMLDivElement>(null);

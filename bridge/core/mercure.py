@@ -7,7 +7,7 @@ from typing import Any
 
 import aiohttp
 
-from config import Config
+from .config import Config
 
 
 class TokenManager:

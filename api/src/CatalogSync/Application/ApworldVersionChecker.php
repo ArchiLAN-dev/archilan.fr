@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -22,7 +22,7 @@ final readonly class ApworldVersionChecker
         return '' !== $this->githubToken;
     }
 
-    public function check(ArchipelagoGame $game): ?ApworldVersionInfo
+    public function check(Game $game): ?ApworldVersionInfo
     {
         $sourceUrl = $game->getApworldSourceUrl();
 
@@ -116,12 +116,12 @@ final readonly class ApworldVersionChecker
 
         $deployedVersion = $game->getApworldDeployedVersion();
         if (null === $deployedVersion) {
-            $updateStatus = ArchipelagoGame::UPDATE_STATUS_UNKNOWN;
+            $updateStatus = Game::UPDATE_STATUS_UNKNOWN;
         } else {
             $normalizedDeployed = ltrim($deployedVersion, 'vV');
             $updateStatus = $normalizedTag === $normalizedDeployed
-                ? ArchipelagoGame::UPDATE_STATUS_UP_TO_DATE
-                : ArchipelagoGame::UPDATE_STATUS_UPDATE_AVAILABLE;
+                ? Game::UPDATE_STATUS_UP_TO_DATE
+                : Game::UPDATE_STATUS_UPDATE_AVAILABLE;
         }
 
         $info = new ApworldVersionInfo(
@@ -131,7 +131,7 @@ final readonly class ApworldVersionChecker
             assetName: $assetName,
             assetDownloadUrl: $assetDownloadUrl,
             updateStatus: $updateStatus,
-            isNewer: ArchipelagoGame::UPDATE_STATUS_UPDATE_AVAILABLE === $updateStatus,
+            isNewer: Game::UPDATE_STATUS_UPDATE_AVAILABLE === $updateStatus,
         );
 
         if (null !== $remaining && $remaining <= 10) {
@@ -147,7 +147,7 @@ final readonly class ApworldVersionChecker
      *
      * @return list<array{name: string, downloadUrl: string, size: int}>|null null = release/repo unreachable
      */
-    public function listAssets(ArchipelagoGame $game): ?array
+    public function listAssets(Game $game): ?array
     {
         $sourceUrl = $game->getApworldSourceUrl();
 

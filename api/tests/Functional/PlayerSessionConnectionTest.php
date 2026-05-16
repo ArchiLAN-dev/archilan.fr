@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
@@ -22,7 +22,7 @@ final class PlayerSessionConnectionTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

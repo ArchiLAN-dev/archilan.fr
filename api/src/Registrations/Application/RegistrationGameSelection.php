@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Application\ValidationErrors;
 use App\Registrations\Domain\Registration;
 use App\Shared\Application\EntityFinderTrait;
@@ -54,18 +54,11 @@ final readonly class RegistrationGameSelection
         $slotGameIds = array_unique(array_column($registration->getGameSlots(), 'gameId'));
         $allGameIds = array_values(array_unique(array_merge($configuredGameIds, $slotGameIds)));
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $allGameIds) {
-            /** @var list<ArchipelagoGame> $games */
-            $games = $this->entityManager->createQueryBuilder()
-                ->select('g')
-                ->from(ArchipelagoGame::class, 'g')
-                ->where('g.id IN (:ids)')
-                ->setParameter('ids', $allGameIds)
-                ->orderBy('g.name', 'ASC')
-                ->getQuery()
-                ->getResult();
+            /** @var list<Game> $games */
+            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $allGameIds], ['name' => 'ASC']);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
@@ -160,17 +153,11 @@ final readonly class RegistrationGameSelection
             return ['outcome' => 'error', 'errors' => $errors];
         }
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $gameIds) {
-            /** @var list<ArchipelagoGame> $games */
-            $games = $this->entityManager->createQueryBuilder()
-                ->select('g')
-                ->from(ArchipelagoGame::class, 'g')
-                ->where('g.id IN (:ids)')
-                ->setParameter('ids', array_values(array_unique($gameIds)))
-                ->getQuery()
-                ->getResult();
+            /** @var list<Game> $games */
+            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => array_values(array_unique($gameIds))]);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
@@ -209,7 +196,7 @@ final readonly class RegistrationGameSelection
         }
 
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $slot['gameId']);
+            $game = $this->findOrFail(Game::class, $slot['gameId']);
         } catch (\RuntimeException) {
             return null;
         }
@@ -263,7 +250,7 @@ final readonly class RegistrationGameSelection
     /**
      * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
      * @param list<string>                                                                                                     $gameIds
-     * @param array<string, ArchipelagoGame>                                                                                   $gamesById
+     * @param array<string, Game>                                                                                              $gamesById
      *
      * @return list<array{slotId: string, gameId: string, playerYaml?: string|null, apworldHash?: string|null}>
      */

@@ -26,16 +26,10 @@ export async function getShopCheckoutUrl(): Promise<string | null> {
 function isShopCheckoutPayload(
   payload: unknown,
 ): payload is { data: { checkoutEmbedUrl: string | null } } {
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data: unknown }).data
-      : null;
-
-  if (!data || typeof data !== "object" || !("checkoutEmbedUrl" in data)) {
-    return false;
-  }
-
-  const checkoutEmbedUrl = (data as { checkoutEmbedUrl: unknown }).checkoutEmbedUrl;
-
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || typeof payload.data !== "object" || payload.data === null) return false;
+  const data = payload.data;
+  if (!("checkoutEmbedUrl" in data)) return false;
+  const checkoutEmbedUrl = data.checkoutEmbedUrl;
   return checkoutEmbedUrl === null || typeof checkoutEmbedUrl === "string";
 }

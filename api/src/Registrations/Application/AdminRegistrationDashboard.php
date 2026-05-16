@@ -6,21 +6,26 @@ namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Payments\Application\HelloAssoPaymentLookup;
 use App\Registrations\Domain\Registration;
 use App\Shared\Application\EntityFinderTrait;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminRegistrationDashboard
 {
     use EntityFinderTrait;
 
+    private string $privateAccessLogTable;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private Connection $connection,
         private HelloAssoPaymentLookup $paymentLookup,
     ) {
+        $this->privateAccessLogTable = $entityManager->getClassMetadata(EventPrivateAccessLog::class)->getTableName();
     }
 
     /**
@@ -46,19 +51,16 @@ final readonly class AdminRegistrationDashboard
             return null;
         }
 
-        $qb = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.eventId = :eventId')
-            ->setParameter('eventId', $eventId)
-            ->orderBy('r.createdAt', 'DESC');
-
+        $criteria = ['eventId' => $eventId];
         if (null !== $statusFilter && in_array($statusFilter, [Registration::STATUS_RESERVED, Registration::STATUS_CANCELLED], true)) {
-            $qb->andWhere('r.status = :status')->setParameter('status', $statusFilter);
+            $criteria['status'] = $statusFilter;
         }
 
         /** @var list<Registration> $registrations */
-        $registrations = $qb->getQuery()->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(
+            $criteria,
+            ['createdAt' => 'DESC'],
+        );
 
         if ([] === $registrations) {
             return [];
@@ -68,13 +70,7 @@ final readonly class AdminRegistrationDashboard
         $userIds = array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $registrations));
 
         /** @var list<User> $users */
-        $users = $this->entityManager->createQueryBuilder()
-            ->select('u')
-            ->from(User::class, 'u')
-            ->where('u.id IN (:ids)')
-            ->setParameter('ids', $userIds)
-            ->getQuery()
-            ->getResult();
+        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
 
         /** @var array<string, User> $usersById */
         $usersById = [];
@@ -82,16 +78,20 @@ final readonly class AdminRegistrationDashboard
             $usersById[$user->getId()] = $user;
         }
 
-        /** @var list<string> $privateAccessUserIds */
-        $privateAccessUserIds = $this->entityManager->createQueryBuilder()
-            ->select('DISTINCT l.userId')
-            ->from(EventPrivateAccessLog::class, 'l')
-            ->where('l.eventId = :eventId')
-            ->andWhere('l.granted = :granted')
+        $qb = $this->connection->createQueryBuilder();
+        $rawUserIds = $qb->select('DISTINCT l.user_id')
+            ->from($this->privateAccessLogTable, 'l')
+            ->where($qb->expr()->and(
+                $qb->expr()->eq('l.event_id', ':eventId'),
+                $qb->expr()->eq('l.granted', ':granted'),
+            ))
             ->setParameter('eventId', $eventId)
             ->setParameter('granted', true)
-            ->getQuery()
-            ->getSingleColumnResult();
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        /** @var list<string> $privateAccessUserIds */
+        $privateAccessUserIds = array_values(array_filter($rawUserIds, 'is_string'));
 
         /** @var array<string, true> $privateAccessSet */
         $privateAccessSet = array_fill_keys($privateAccessUserIds, true);
@@ -106,17 +106,11 @@ final readonly class AdminRegistrationDashboard
         /** @var list<string> $allSelectedGameIds */
         $allSelectedGameIds = array_keys($allSelectedGameIds);
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $allSelectedGameIds) {
-            /** @var list<ArchipelagoGame> $games */
-            $games = $this->entityManager->createQueryBuilder()
-                ->select('g')
-                ->from(ArchipelagoGame::class, 'g')
-                ->where('g.id IN (:ids)')
-                ->setParameter('ids', $allSelectedGameIds)
-                ->getQuery()
-                ->getResult();
+            /** @var list<Game> $games */
+            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $allSelectedGameIds]);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
@@ -153,7 +147,7 @@ final readonly class AdminRegistrationDashboard
     }
 
     /**
-     * @param array<string, ArchipelagoGame> $gamesById
+     * @param array<string, Game> $gamesById
      *
      * @return list<array{gameId: string, gameName: string}>
      */
@@ -172,8 +166,8 @@ final readonly class AdminRegistrationDashboard
     }
 
     /**
-     * @param list<array{gameId: string}>    $gameSelectionConfig
-     * @param array<string, ArchipelagoGame> $gamesById
+     * @param list<array{gameId: string}> $gameSelectionConfig
+     * @param array<string, Game>         $gamesById
      */
     private function isGameSelectionComplete(
         Registration $registration,

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { env } from "@/lib/env";
+import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type PlayerStats = {
   runsParticipated: number;
@@ -34,51 +35,44 @@ export type PlayerHistory = {
 };
 
 function isPlayerStats(v: unknown): v is PlayerStats {
-  if (!v || typeof v !== "object") return false;
-  const s = v as Record<string, unknown>;
+  if (typeof v !== "object" || v === null) return false;
   return (
-    typeof s.runsParticipated === "number" &&
-    typeof s.goalCompletions === "number" &&
-    typeof s.goalCompletionRate === "number" &&
-    typeof s.totalChecksDone === "number" &&
-    typeof s.totalItemsReceived === "number"
+    hasNumberProp(v, "runsParticipated") &&
+    hasNumberProp(v, "goalCompletions") &&
+    hasNumberProp(v, "goalCompletionRate") &&
+    hasNumberProp(v, "totalChecksDone") &&
+    hasNumberProp(v, "totalItemsReceived")
   );
 }
 
 function isPlayerProfilePayload(payload: unknown): payload is { data: PlayerProfile } {
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
-  const data = p.data;
-  if (!data || typeof data !== "object") return false;
-  const d = data as Record<string, unknown>;
-  return (
-    typeof d.slug === "string" &&
-    (d.displayName === null || typeof d.displayName === "string") &&
-    typeof d.joinedAt === "string" &&
-    isPlayerStats(d.stats)
-  );
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || typeof payload.data !== "object" || payload.data === null) return false;
+  const data = payload.data;
+  if (!hasStringProp(data, "slug")) return false;
+  if (!("displayName" in data) || (data.displayName !== null && typeof data.displayName !== "string")) return false;
+  if (!hasStringProp(data, "joinedAt")) return false;
+  if (!("stats" in data)) return false;
+  return isPlayerStats(data.stats);
 }
 
 function isRunHistoryEntry(v: unknown): v is RunHistoryEntry {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
-  return (
-    typeof e.sessionId === "string" &&
-    typeof e.eventName === "string" &&
-    (e.finishedAt === null || typeof e.finishedAt === "string") &&
-    typeof e.game === "string" &&
-    typeof e.checksDone === "number" &&
-    typeof e.itemsReceived === "number" &&
-    (e.goalReachedAt === null || typeof e.goalReachedAt === "string") &&
-    typeof e.wasReleased === "boolean" &&
-    typeof e.isInvalidated === "boolean"
-  );
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "sessionId")) return false;
+  if (!hasStringProp(v, "eventName")) return false;
+  if (!("finishedAt" in v) || (v.finishedAt !== null && typeof v.finishedAt !== "string")) return false;
+  if (!hasStringProp(v, "game")) return false;
+  if (!hasNumberProp(v, "checksDone")) return false;
+  if (!hasNumberProp(v, "itemsReceived")) return false;
+  if (!("goalReachedAt" in v) || (v.goalReachedAt !== null && typeof v.goalReachedAt !== "string")) return false;
+  if (!hasBooleanProp(v, "wasReleased")) return false;
+  return hasBooleanProp(v, "isInvalidated");
 }
 
 function isPlayerHistoryPayload(payload: unknown): payload is PlayerHistory {
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
-  return Array.isArray(p.data) && (p.data as unknown[]).every(isRunHistoryEntry);
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || !Array.isArray(payload.data)) return false;
+  return payload.data.every(isRunHistoryEntry);
 }
 
 export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfile | null> => {

@@ -8,6 +8,7 @@ use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Presentation\AuthController;
@@ -28,11 +29,12 @@ final class AuthLogoutTest extends FunctionalTestCase
         $this->em = $this->entityManager;
 
         $this->factory = new RefreshTokenFactory();
-        $this->repository = new RefreshTokenRepository($this->em);
+        $this->repository = new RefreshTokenRepository($this->em, $this->em->getConnection());
 
         $metadata = [
             $this->em->getClassMetadata(User::class),
             $this->em->getClassMetadata(RefreshToken::class),
+            $this->em->getClassMetadata(EmailConfirmationToken::class),
         ];
         $schemaTool = new SchemaTool($this->em);
         $schemaTool->dropSchema(array_reverse($metadata));

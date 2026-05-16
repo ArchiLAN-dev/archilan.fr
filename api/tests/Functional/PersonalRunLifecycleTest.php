@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
@@ -21,9 +21,9 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
-            $this->entityManager->getClassMetadata(PersonalRunParticipant::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Run::class),
+            $this->entityManager->getClassMetadata(RunParticipant::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -44,11 +44,11 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(202);
         $data = $this->responseData();
         self::assertSame($run->getId(), $data['runId']);
-        self::assertSame(PersonalRun::STATUS_STARTING, $data['status']);
+        self::assertSame(Run::STATUS_STARTING, $data['status']);
 
         // Password stored on run
         $this->entityManager->refresh($run);
-        self::assertSame(PersonalRun::STATUS_STARTING, $run->getStatus());
+        self::assertSame(Run::STATUS_STARTING, $run->getStatus());
         self::assertNotNull($run->getConnectionPassword());
         self::assertSame(16, strlen($run->getConnectionPassword()));
 
@@ -66,7 +66,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testStartAlreadyStartingReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_STARTING);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_STARTING);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
@@ -78,7 +78,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testStartAlreadyActiveReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_ACTIVE);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_ACTIVE);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
@@ -90,7 +90,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testStartUnauthenticatedReturns401(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_DRAFT);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
 
@@ -100,7 +100,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testStartWithoutGameConfigReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_DRAFT);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
@@ -114,7 +114,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testCallbackRunningTransitionsToActive(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_STARTING);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_STARTING);
 
         $this->sendCallback('/api/v1/runs/'.$run->getId().'/running', [
             'connectionHost' => 'runner.example.com',
@@ -124,10 +124,10 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertResponseIsSuccessful();
         $data = $this->responseData();
         self::assertSame($run->getId(), $data['runId']);
-        self::assertSame(PersonalRun::STATUS_ACTIVE, $data['status']);
+        self::assertSame(Run::STATUS_ACTIVE, $data['status']);
 
         $this->entityManager->refresh($run);
-        self::assertSame(PersonalRun::STATUS_ACTIVE, $run->getStatus());
+        self::assertSame(Run::STATUS_ACTIVE, $run->getStatus());
         self::assertSame('runner.example.com', $run->getConnectionHost());
         self::assertSame(38281, $run->getConnectionPort());
     }
@@ -135,7 +135,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testCallbackRunningRequiresSecret(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_STARTING);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_STARTING);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/running', [
             'connectionHost' => 'runner.example.com',
@@ -148,7 +148,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testCallbackRunningRejectsNonStartingRun(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_DRAFT);
 
         $this->sendCallback('/api/v1/runs/'.$run->getId().'/running', [
             'connectionHost' => 'runner.example.com',
@@ -159,7 +159,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertSame('invalid_run_status', $this->errorCode());
 
         $this->entityManager->refresh($run);
-        self::assertSame(PersonalRun::STATUS_DRAFT, $run->getStatus());
+        self::assertSame(Run::STATUS_DRAFT, $run->getStatus());
         self::assertNull($run->getConnectionHost());
         self::assertNull($run->getConnectionPort());
     }
@@ -169,7 +169,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testStopActiveRunReturns202AndDispatchesJob(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_ACTIVE);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_ACTIVE);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/stop');
@@ -177,7 +177,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(202);
         $data = $this->responseData();
         self::assertSame($run->getId(), $data['runId']);
-        self::assertSame(PersonalRun::STATUS_STOPPING, $data['status']);
+        self::assertSame(Run::STATUS_STOPPING, $data['status']);
 
         // Job dispatched to run_server queue
         /** @var InMemoryTransport $transport */
@@ -193,7 +193,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testStopNonActiveRunReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_IDLE);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_IDLE);
         $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/stop');
@@ -207,7 +207,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testCallbackStoppedTransitionsToIdle(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_STOPPING);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_STOPPING);
         // Give it connection fields to verify they are cleared
         $run->markRunning('runner.example.com', 38281, new \DateTimeImmutable());
         $run->stop(new \DateTimeImmutable());
@@ -217,10 +217,10 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
 
         self::assertResponseIsSuccessful();
         $data = $this->responseData();
-        self::assertSame(PersonalRun::STATUS_IDLE, $data['status']);
+        self::assertSame(Run::STATUS_IDLE, $data['status']);
 
         $this->entityManager->refresh($run);
-        self::assertSame(PersonalRun::STATUS_IDLE, $run->getStatus());
+        self::assertSame(Run::STATUS_IDLE, $run->getStatus());
         self::assertNull($run->getConnectionHost());
         self::assertNull($run->getConnectionPort());
         self::assertNull($run->getConnectionPassword());
@@ -229,7 +229,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testCallbackStoppedRequiresSecret(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_STOPPING);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_STOPPING);
 
         $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/stopped', []);
 
@@ -239,7 +239,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testCallbackStoppedRejectsNonStoppingRun(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_ACTIVE);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_ACTIVE);
         $run->markRunning('runner.example.com', 38281, new \DateTimeImmutable());
         $this->entityManager->flush();
 
@@ -249,7 +249,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertSame('invalid_run_status', $this->errorCode());
 
         $this->entityManager->refresh($run);
-        self::assertSame(PersonalRun::STATUS_ACTIVE, $run->getStatus());
+        self::assertSame(Run::STATUS_ACTIVE, $run->getStatus());
         self::assertSame('runner.example.com', $run->getConnectionHost());
         self::assertSame(38281, $run->getConnectionPort());
     }
@@ -259,10 +259,10 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testGetConnectionDetailsWhenActiveAreNonNull(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_ACTIVE);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_ACTIVE);
         $run->markRunning('runner.example.com', 38281, new \DateTimeImmutable());
         // Simulate password set at start time
-        $reflection = new \ReflectionProperty(PersonalRun::class, 'connectionPassword');
+        $reflection = new \ReflectionProperty(Run::class, 'connectionPassword');
         $reflection->setValue($run, 'deadbeef12345678');
         $this->entityManager->flush();
 
@@ -279,7 +279,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     public function testGetConnectionDetailsWhenIdleAreNull(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunInStatus($user->getId(), PersonalRun::STATUS_IDLE);
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_IDLE);
         $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId());
@@ -294,14 +294,14 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     /** @param list<array{gameId: string}> $games */
-    private function createRunWithGames(string $ownerId, array $games): PersonalRun
+    private function createRunWithGames(string $ownerId, array $games): Run
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $run = PersonalRun::create($ownerId, 'Test Run', $now);
+        $run = Run::create($ownerId, 'Test Run', $now);
         $run->configureGames($games, $now);
         $this->entityManager->persist($run);
 
-        $participant = PersonalRunParticipant::create($run->getId(), $ownerId, $now);
+        $participant = RunParticipant::create($run->getId(), $ownerId, $now);
         $slots = array_map(
             static fn (array $g): array => ['slotId' => bin2hex(random_bytes(8)), 'gameId' => $g['gameId']],
             $games,
@@ -314,12 +314,12 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         return $run;
     }
 
-    private function createRunInStatus(string $ownerId, string $status): PersonalRun
+    private function createRunInStatus(string $ownerId, string $status): Run
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $run = PersonalRun::create($ownerId, 'Test Run', $now);
+        $run = Run::create($ownerId, 'Test Run', $now);
 
-        $reflection = new \ReflectionProperty(PersonalRun::class, 'status');
+        $reflection = new \ReflectionProperty(Run::class, 'status');
         $reflection->setValue($run, $status);
 
         $this->entityManager->persist($run);

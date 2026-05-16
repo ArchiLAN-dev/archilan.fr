@@ -34,18 +34,13 @@ final readonly class HelloAssoPaymentLookup
             return null;
         }
 
+        $results = $this->entityManager->getRepository(HelloAssoOrder::class)->findBy(
+            ['formSlug' => $formSlug, 'payerEmail' => $payerEmail],
+            ['syncedAt' => 'DESC'],
+            1,
+        );
         /** @var HelloAssoOrder|null $order */
-        $order = $this->entityManager->createQueryBuilder()
-            ->select('o')
-            ->from(HelloAssoOrder::class, 'o')
-            ->where('o.formSlug = :formSlug')
-            ->andWhere('o.payerEmail = :payerEmail')
-            ->setParameter('formSlug', $formSlug)
-            ->setParameter('payerEmail', $payerEmail)
-            ->orderBy('o.syncedAt', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+        $order = $results[0] ?? null;
 
         if (!$order instanceof HelloAssoOrder) {
             return null;

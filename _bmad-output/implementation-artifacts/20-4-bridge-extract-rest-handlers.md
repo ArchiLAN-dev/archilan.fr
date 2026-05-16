@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+review
 
 ## Acceptance Criteria
 
@@ -78,22 +78,22 @@ def test_route_parity():
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Audit actual routes — run `grep -n "router.add_" bridge/core/rest.py` and record the route table
-- [ ] Task 3: Create `bridge/core/rest_keys.py` with `AppKey` constants
-  - [ ] Define `APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR` in `rest_keys.py` — not in `rest.py`; handler modules import from `rest_keys`, `rest.py` also imports from `rest_keys`, avoiding a circular import
-  - [ ] Note: logging uses `logging.getLogger("bridge.rest_X")` at module level — no `APP_LOG` key needed
-- [ ] Task 4: Extract all handlers found in the audit (one task per handler)
-- [ ] Task 5: Extract auth helper `_require_internal_auth`
-- [ ] Task 6: Split handlers into `rest_session.py`, `rest_hints.py`, `rest_reachable.py` per AC3 (always — not conditional)
-- [ ] Task 7: Write `bridge/tests/test_rest_handlers.py` — at least one behavior test per extracted module
-  - [ ] 7a: `health` (`rest_session`) — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
-  - [ ] 7b: `post_command` (`rest_session`) — success path + WS disconnected path (503)
-  - [ ] 7c: `request_hint` (`rest_hints`) on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
-  - [ ] 7d: `get_reachable` (`rest_reachable`) on `GET /reachable/{slot}` — success path (mock state + mock `_compute_reachable` returning a result dict → 200) + non-integer `slot` in URL → `{"error": "invalid slot"}` 400 (no mock needed for this path)
-  - [ ] 7e: Route parity test verifying all routes from the AC1 audit (filter HEAD)
-  - [ ] 7f: `post_pause` (`rest_session`) — success path (valid token + coordinator pauses → 200) + unauthorized path (missing/invalid token → 401) — covers `_require_internal_auth` and coordinator integration
-- [ ] Task 8: Verify quality gates — ruff (0), mypy (0), full test suite green
+- [x] Task 1: Create story file (this file)
+- [x] Task 2: Audit actual routes — run `grep -n "router.add_" bridge/core/rest.py` and record the route table
+- [x] Task 3: Create `bridge/core/rest_keys.py` with `AppKey` constants
+  - [x] Define `APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR` in `rest_keys.py` — not in `rest.py`; handler modules import from `rest_keys`, `rest.py` also imports from `rest_keys`, avoiding a circular import
+  - [x] Note: logging uses `logging.getLogger("bridge.rest_X")` at module level — no `APP_LOG` key needed
+- [x] Task 4: Extract all handlers found in the audit (one task per handler)
+- [x] Task 5: Extract auth helper `_require_internal_auth`
+- [x] Task 6: Split handlers into `rest_session.py`, `rest_hints.py`, `rest_reachable.py` per AC3 (always — not conditional)
+- [x] Task 7: Write `bridge/tests/test_rest_handlers.py` — at least one behavior test per extracted module
+  - [x] 7a: `health` (`rest_session`) — success path (ws_connected=True → 200 `{"status":"ok","ws_connected":true}`)
+  - [x] 7b: `post_command` (`rest_session`) — success path + WS disconnected path (503)
+  - [x] 7c: `request_hint` (`rest_hints`) on `POST /hints/{slot}/request` — success path + missing `location_id` in body (400) + non-integer `slot` in URL (400)
+  - [x] 7d: `get_reachable` (`rest_reachable`) on `GET /reachable/{slot}` — success path (mock state + mock `_compute_reachable` returning a result dict → 200) + non-integer `slot` in URL → `{"error": "invalid slot"}` 400 (no mock needed for this path)
+  - [x] 7e: Route parity test verifying all routes from the AC1 audit (filter HEAD)
+  - [x] 7f: `post_pause` (`rest_session`) — success path (valid token + coordinator pauses → 200) + unauthorized path (missing/invalid token → 401) — covers `_require_internal_auth` and coordinator integration
+- [x] Task 8: Verify quality gates — ruff (0), mypy (0), full test suite green
 
 ## Dev Notes
 
@@ -183,8 +183,24 @@ Story 20.4 depends on Story 20.2 (coordinator must be injectable) and should be 
 - `bridge/tests/test_rest_handlers.py` — new: 6+ handler unit tests
 - `_bmad-output/implementation-artifacts/20-4-bridge-extract-rest-handlers.md` — this file
 
+## Dev Agent Record
+
+### Completion Notes
+
+Implemented 2026-05-15.
+
+- Created `rest_keys.py` with 4 typed `AppKey` constants (`APP_STATE`, `APP_AP_CLIENT`, `APP_SEMAPHORE`, `APP_COORDINATOR`); domain types imported under `TYPE_CHECKING` only to prevent future transitive cycles.
+- Created `rest_session.py` with all pause/resume/wake flow helpers, `_require_internal_auth`, and 6 route handlers (`health`, `get_state`, `post_command`, `post_save`, `post_pause`, `post_resume`).
+- Created `rest_hints.py` with `get_hints` and `request_hint`.
+- Created `rest_reachable.py` with `get_reachable` and `get_item_locations`.
+- Rewrote `rest.py` to contain only `create_app`; stores all dependencies via typed `AppKey` (eliminates the `# type: ignore[assignment]` on `app["coordinator"]`).
+- Updated `test_pause_endpoint.py`, `test_resume_endpoint.py`, `test_wake_on_connect.py` to import from `bridge.core.rest_session` instead of `bridge.core.rest`.
+- Created `test_rest_handlers.py` with 10 behavior tests covering all 3 extracted modules + route parity.
+- Quality gates: ruff 0 errors, mypy 0 errors (18 source files), 154 tests green.
+
 ## Change Log
 
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
+| 2026-05-15 | Implementation complete — handlers extracted, quality gates green |

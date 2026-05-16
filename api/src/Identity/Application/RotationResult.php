@@ -10,12 +10,13 @@ final class RotationResult
         public readonly string $outcome,
         public readonly ?string $userId,
         public readonly ?string $rawRefreshToken,
+        public readonly bool $rememberMe = true,
     ) {
     }
 
-    public static function rotated(string $userId, string $rawRefreshToken): self
+    public static function rotated(string $userId, string $rawRefreshToken, bool $rememberMe = true): self
     {
-        return new self('rotated', $userId, $rawRefreshToken);
+        return new self('rotated', $userId, $rawRefreshToken, $rememberMe);
     }
 
     public static function invalid(): self

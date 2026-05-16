@@ -4,20 +4,27 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use App\Shared\Application\EntityFinderTrait;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PlayerSessionConnection
 {
     use EntityFinderTrait;
 
+    private string $sessionSlotTable;
+    private string $sessionTable;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private Connection $connection,
     ) {
+        $this->sessionSlotTable = $entityManager->getClassMetadata(SessionSlot::class)->getTableName();
+        $this->sessionTable = $entityManager->getClassMetadata(Session::class)->getTableName();
     }
 
     /**
@@ -44,29 +51,37 @@ final readonly class PlayerSessionConnection
             return null;
         }
 
-        /** @var list<string> $sessionIds */
-        $sessionIds = $this->entityManager->createQueryBuilder()
-            ->select('DISTINCT ss.sessionId')
-            ->from(SessionSlot::class, 'ss')
-            ->where('ss.registrationId = :registrationId')
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb->select('DISTINCT ss.session_id')
+            ->from($this->sessionSlotTable, 'ss')
+            ->where($qb->expr()->eq('ss.registration_id', ':registrationId'))
             ->setParameter('registrationId', $registrationId)
-            ->getQuery()
-            ->getSingleColumnResult();
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        /** @var list<string> $sessionIds */
+        $sessionIds = array_values(array_filter($rows, 'is_string'));
 
         if ([] === $sessionIds) {
             return ['session' => null, 'slots' => []];
         }
 
-        /** @var Session|null $session */
-        $session = $this->entityManager->createQueryBuilder()
-            ->select('s')
-            ->from(Session::class, 's')
-            ->where('s.id IN (:ids)')
-            ->setParameter('ids', $sessionIds)
-            ->orderBy('s.createdAt', 'DESC')
+        $qb2 = $this->connection->createQueryBuilder();
+        $placeholders = array_map(fn (string $id) => $qb2->createNamedParameter($id), $sessionIds);
+        $sessionIdResult = $qb2->select('s.id')
+            ->from($this->sessionTable, 's')
+            ->where($qb2->expr()->in('s.id', $placeholders))
+            ->orderBy('s.created_at', 'DESC')
             ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+            ->executeQuery()
+            ->fetchOne();
+
+        if (false === $sessionIdResult || !is_string($sessionIdResult)) {
+            return ['session' => null, 'slots' => []];
+        }
+
+        /** @var Session|null $session */
+        $session = $this->entityManager->find(Session::class, $sessionIdResult);
 
         if (!$session instanceof Session) {
             return ['session' => null, 'slots' => []];
@@ -81,14 +96,8 @@ final readonly class PlayerSessionConnection
             array_map(static fn (SessionSlot $s) => $s->getGameId(), $sessionSlots),
         ));
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
         /** @var array<string, string> $nameById */
         $nameById = [];

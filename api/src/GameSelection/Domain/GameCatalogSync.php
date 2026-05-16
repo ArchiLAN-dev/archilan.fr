@@ -7,14 +7,13 @@ namespace App\GameSelection\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'game_catalog_sync')]
 class GameCatalogSync
 {
     public function __construct(
         #[ORM\Id]
         #[ORM\OneToOne(inversedBy: 'catalogSync')]
         #[ORM\JoinColumn(name: 'game_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
-        private ArchipelagoGame $game,
+        private Game $game,
         #[ORM\Column(name: 'catalog_sheet_name', type: 'string', length: 160, nullable: true)]
         private ?string $catalogSheetName = null,
         #[ORM\Column(name: 'apworld_source_url', type: 'string', length: 500, nullable: true)]
@@ -64,30 +63,30 @@ class GameCatalogSync
     public function computeApworldUpdateStatus(): string
     {
         if (null === $this->apworldSourceUrl || '' === $this->apworldSourceUrl) {
-            return ArchipelagoGame::UPDATE_STATUS_NOT_TRACKED;
+            return Game::UPDATE_STATUS_NOT_TRACKED;
         }
 
         if (!str_starts_with($this->apworldSourceUrl, 'https://github.com/')) {
-            return ArchipelagoGame::UPDATE_STATUS_NOT_TRACKED;
+            return Game::UPDATE_STATUS_NOT_TRACKED;
         }
 
         if (null === $this->apworldCheckedAt || null === $this->apworldLatestVersion) {
-            return ArchipelagoGame::UPDATE_STATUS_UNKNOWN;
+            return Game::UPDATE_STATUS_UNKNOWN;
         }
 
         if (null === $this->apworldDeployedVersion) {
-            return ArchipelagoGame::UPDATE_STATUS_UNKNOWN;
+            return Game::UPDATE_STATUS_UNKNOWN;
         }
 
         $latest = ltrim($this->apworldLatestVersion, 'vV');
         $deployed = ltrim($this->apworldDeployedVersion, 'vV');
 
         return $latest === $deployed
-            ? ArchipelagoGame::UPDATE_STATUS_UP_TO_DATE
-            : ArchipelagoGame::UPDATE_STATUS_UPDATE_AVAILABLE;
+            ? Game::UPDATE_STATUS_UP_TO_DATE
+            : Game::UPDATE_STATUS_UPDATE_AVAILABLE;
     }
 
-    public function getGame(): ArchipelagoGame
+    public function getGame(): Game
     {
         return $this->game;
     }

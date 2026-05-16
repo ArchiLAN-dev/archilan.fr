@@ -1,19 +1,30 @@
 import { env } from "@/lib/env";
 import { apiFetch } from "@/lib/apiFetch";
+import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+
+function isStringArray(v: unknown[]): v is string[] {
+  return v.every((item): item is string => typeof item === "string");
+}
+
+function isGameRequestItem(v: unknown): v is GameRequestItem {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasStringProp(v, "normalizedName") &&
+    hasStringProp(v, "displayName") &&
+    hasNumberProp(v, "voteCount") &&
+    hasBooleanProp(v, "hasVoted")
+  );
+}
 
 export async function getCatalogGames(): Promise<string[]> {
   try {
     const res = await fetch(`${env.apiBaseUrl}/catalog-games`, { cache: "no-store" });
     if (!res.ok) return [];
     const json: unknown = await res.json();
-    if (
-      !json ||
-      typeof json !== "object" ||
-      !Array.isArray((json as { data?: unknown }).data)
-    ) {
-      return [];
-    }
-    return (json as { data: string[] }).data;
+    if (typeof json !== "object" || json === null) return [];
+    if (!("data" in json) || !Array.isArray(json.data)) return [];
+    if (!isStringArray(json.data)) return [];
+    return json.data;
   } catch {
     return [];
   }
@@ -34,14 +45,10 @@ export async function getGameRequests(): Promise<GameRequestItem[]> {
     });
     if (!res.ok) return [];
     const json: unknown = await res.json();
-    if (
-      !json ||
-      typeof json !== "object" ||
-      !Array.isArray((json as { data?: unknown }).data)
-    ) {
-      return [];
-    }
-    return (json as { data: GameRequestItem[] }).data;
+    if (typeof json !== "object" || json === null) return [];
+    if (!("data" in json) || !Array.isArray(json.data)) return [];
+    if (!json.data.every(isGameRequestItem)) return [];
+    return json.data;
   } catch {
     return [];
   }
@@ -62,7 +69,7 @@ export async function submitGameRequest(
     return {
       ok: false,
       alreadyVoted: false,
-      error: (json as { error?: { message?: string } })?.error?.message,
+      error: json?.error?.message,
     };
   } catch {
     return { ok: false, alreadyVoted: false, error: "Erreur réseau." };

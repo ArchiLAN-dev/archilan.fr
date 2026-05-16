@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+review
 
 ## Acceptance Criteria
 
@@ -43,27 +43,24 @@ export function makeQueryClient(): QueryClient {
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit across all of `frontend/` **before creating `query-client.ts`** (run from repo root):
-  ```bash
-  rg 'new QueryClient' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
-  rg 'staleTime:' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
-  rg 'gcTime:' frontend --glob '!**/node_modules/**' --glob '!**/.next/**' --glob '!**/dist/**' --glob '!**/coverage/**'
-  ```
-  - [ ] List each occurrence: file, line, current value (includes `.storybook/` if present)
-  - [ ] Note: if the audit is re-run after Task 3, add `--glob '!**/src/lib/query-client.ts'` to exclude the new constant definitions from results
-- [ ] Task 3: Create `src/lib/query-client.ts`
-  - [ ] 3a: Define the five standard constants (`DEFAULT_STALE_TIME`, `REALTIME_STALE_TIME`, `STATIC_STALE_TIME`, `SESSION_STALE_TIME`, `DEFAULT_GC_TIME`)
-  - [ ] 3b: Implement `makeQueryClient()` with default options using `DEFAULT_STALE_TIME` and `DEFAULT_GC_TIME`
-- [ ] Task 4: Replace all `new QueryClient(...)` with `makeQueryClient()`
-  - [ ] `src/lib/query-provider.tsx` (or equivalent provider file)
-  - [ ] Any other call sites found in audit
-- [ ] Task 5: Replace all raw `staleTime` and `gcTime` numeric literals with named constants
-  - [ ] `staleTime` mapping: 0–5 000 ms → `REALTIME_STALE_TIME`; ~30 000 ms → `DEFAULT_STALE_TIME`; ~60 000 ms → `SESSION_STALE_TIME`; `Infinity` → `STATIC_STALE_TIME`
-  - [ ] `gcTime` mapping: `5 * 60_000` or `300_000` → `DEFAULT_GC_TIME`
-  - [ ] Add new named constants for any values that don't map to an existing tier
-- [ ] Task 5b: Verification — re-run the Task 2 audit commands adding `--glob '!**/src/lib/query-client.ts'` to exclude the constants file; confirm zero remaining raw literals across all of `frontend/`
-- [ ] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` — all clean
+- [x] Task 1: Create story file (this file)
+- [x] Task 2: Run grep audit across all of `frontend/` **before creating `query-client.ts`**
+  - [x] `src/lib/query-provider.tsx:9` — `new QueryClient({...})` with `staleTime: 60 * 1000, retry: 1`
+  - [x] `src/lib/query-provider.tsx:12` — `staleTime: 60 * 1000` (default options)
+  - [x] `src/features/community/leaderboard-client.tsx:45` — `staleTime: 60 * 1000` (useQuery)
+  - [x] `src/features/community/community-stats-widget.tsx:12` — `staleTime: 60 * 1000` (useQuery)
+  - [x] Zero `gcTime:` occurrences
+- [x] Task 3: Create `src/lib/query-client.ts`
+  - [x] 3a: Define five standard constants
+  - [x] 3b: Implement `makeQueryClient()` with `DEFAULT_STALE_TIME`, `DEFAULT_GC_TIME`, `retry: 1`
+- [x] Task 4: Replace all `new QueryClient(...)` with `makeQueryClient()`
+  - [x] `src/lib/query-provider.tsx` — replaced with `useState(makeQueryClient)` (stable initialiser)
+- [x] Task 5: Replace all raw `staleTime` literals with named constants
+  - [x] `src/features/community/leaderboard-client.tsx` — `60 * 1000` → `SESSION_STALE_TIME`
+  - [x] `src/features/community/community-stats-widget.tsx` — `60 * 1000` → `SESSION_STALE_TIME`
+  - [x] `query-provider.tsx` default literal removed (absorbed by `makeQueryClient()`)
+- [x] Task 5b: Verification — zero remaining raw literals across `frontend/` (excluding `query-client.ts`)
+- [x] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` — all clean
 
 ## Dev Notes
 
@@ -121,8 +118,25 @@ Story 20.7 test helpers that create a `QueryClient` for testing purposes must al
 - Any file found by the Task 2 audit across `frontend/` (including `.storybook/` and test setup files outside `src/` if present) with `new QueryClient(...)`, raw `staleTime`, or raw `gcTime` literals
 - `_bmad-output/implementation-artifacts/20-8-frontend-centralise-queryclient.md` — this file
 
+## Dev Agent Record
+
+### Completion Notes
+
+Implemented 2026-05-15.
+
+**Audit findings:** 1 `new QueryClient()` in `query-provider.tsx`; 3 `staleTime: 60 * 1000` literals (all → `SESSION_STALE_TIME`); 0 `gcTime:` literals.
+
+**`src/lib/query-client.ts`:** Exports five named constants (`DEFAULT_STALE_TIME`, `REALTIME_STALE_TIME`, `STATIC_STALE_TIME`, `SESSION_STALE_TIME`, `DEFAULT_GC_TIME`) and `makeQueryClient()` with `staleTime: DEFAULT_STALE_TIME` (30 s), `gcTime: DEFAULT_GC_TIME` (300 s), `retry: 1`.
+
+**`query-provider.tsx`:** Replaced the full inline `new QueryClient({...})` with `useState(makeQueryClient)` — the function reference as stable initialiser avoids re-creating the client on each render while keeping the pattern clean.
+
+**leaderboard-client.tsx / community-stats-widget.tsx:** Both per-call `staleTime: 60 * 1000` replaced with `SESSION_STALE_TIME` from `@/lib/query-client`.
+
+**Quality gates:** `pnpm typecheck` 0 errors; `pnpm lint` 0 errors; `pnpm build` clean.
+
 ## Change Log
 
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
+| 2026-05-15 | Implementation complete — query-client.ts created, all QueryClient and staleTime literals centralised, quality gates green |

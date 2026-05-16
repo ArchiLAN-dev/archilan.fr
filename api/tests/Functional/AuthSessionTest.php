@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Presentation\AuthController;
@@ -20,6 +21,7 @@ final class AuthSessionTest extends FunctionalTestCase
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(RefreshToken::class),
+            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema(array_reverse($metadata));
@@ -90,6 +92,64 @@ final class AuthSessionTest extends FunctionalTestCase
         $maxAge = $accessCookie->getMaxAge();
         self::assertGreaterThanOrEqual(840, $maxAge);
         self::assertLessThanOrEqual(960, $maxAge);
+    }
+
+    public function testRememberMeTrueGivesThirtyDayCookieTtl(): void
+    {
+        $this->createLambdaUser();
+
+        $before = time();
+        $this->client->jsonRequest('POST', '/api/v1/auth/login', [
+            'email' => 'jean@example.org',
+            'password' => 'correct horse battery staple',
+            'rememberMe' => true,
+        ]);
+        $after = time();
+
+        self::assertResponseIsSuccessful();
+
+        $cookies = $this->client->getResponse()->headers->getCookies();
+        $cookiesByName = [];
+        foreach ($cookies as $c) {
+            $cookiesByName[$c->getName()] = $c;
+        }
+
+        $refresh = $cookiesByName[AuthController::REFRESH_COOKIE_NAME] ?? null;
+        self::assertNotNull($refresh);
+
+        $expectedMin = $before + 30 * 86400 - 5;
+        $expectedMax = $after + 30 * 86400 + 5;
+        self::assertGreaterThanOrEqual($expectedMin, $refresh->getExpiresTime());
+        self::assertLessThanOrEqual($expectedMax, $refresh->getExpiresTime());
+    }
+
+    public function testRememberMeFalseGivesOneDayCookieTtl(): void
+    {
+        $this->createLambdaUser();
+
+        $before = time();
+        $this->client->jsonRequest('POST', '/api/v1/auth/login', [
+            'email' => 'jean@example.org',
+            'password' => 'correct horse battery staple',
+            'rememberMe' => false,
+        ]);
+        $after = time();
+
+        self::assertResponseIsSuccessful();
+
+        $cookies = $this->client->getResponse()->headers->getCookies();
+        $cookiesByName = [];
+        foreach ($cookies as $c) {
+            $cookiesByName[$c->getName()] = $c;
+        }
+
+        $refresh = $cookiesByName[AuthController::REFRESH_COOKIE_NAME] ?? null;
+        self::assertNotNull($refresh);
+
+        $expectedMin = $before + 1 * 86400 - 5;
+        $expectedMax = $after + 1 * 86400 + 5;
+        self::assertGreaterThanOrEqual($expectedMin, $refresh->getExpiresTime());
+        self::assertLessThanOrEqual($expectedMax, $refresh->getExpiresTime());
     }
 
     public function testInvalidCredentialsReturnGenericAuthenticationError(): void

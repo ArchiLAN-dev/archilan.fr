@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Handler;
 
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Shared\Application\EntityFinderTrait;
@@ -29,7 +29,7 @@ final readonly class StopPersonalRunJobHandler
     public function __invoke(StopPersonalRunJob $job): void
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $job->personalRunId);
+            $run = $this->findOrFail(Run::class, $job->personalRunId);
         } catch (\RuntimeException) {
             $this->logger->error('personal_run.stop.not_found', ['runId' => $job->personalRunId]);
 

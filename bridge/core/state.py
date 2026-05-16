@@ -7,8 +7,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from domain import HintInfo, PlayerState
-from save_parser import load_save_state
+from .domain import HintInfo, PlayerState
+from .save_parser import load_save_state
 
 
 class StateManager:

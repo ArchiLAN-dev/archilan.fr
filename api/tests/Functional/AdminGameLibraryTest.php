@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 
@@ -16,7 +16,7 @@ final class AdminGameLibraryTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -67,14 +67,14 @@ final class AdminGameLibraryTest extends FunctionalTestCase
             ...$this->validPayload(),
             'name' => 'Ocarina of Time AP',
             'slug' => 'oot-ap',
-            'availability' => ArchipelagoGame::AVAILABILITY_EXPERIMENTAL,
+            'availability' => Game::AVAILABILITY_EXPERIMENTAL,
         ]);
         self::assertResponseIsSuccessful();
         $response = $this->decodedJsonResponse();
         self::assertIsArray($response['data']);
         self::assertSame('Ocarina of Time AP', $response['data']['name']);
         self::assertSame('oot-ap', $response['data']['slug']);
-        self::assertSame(ArchipelagoGame::AVAILABILITY_EXPERIMENTAL, $response['data']['availability']);
+        self::assertSame(Game::AVAILABILITY_EXPERIMENTAL, $response['data']['availability']);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/games');
         self::assertResponseIsSuccessful();
@@ -134,7 +134,7 @@ final class AdminGameLibraryTest extends FunctionalTestCase
             'description' => 'Un classique compatible Archipelago avec progression multiworld.',
             'coverImageAlt' => 'Logo Ocarina of Time',
             'coverImageCredit' => 'Nintendo',
-            'availability' => ArchipelagoGame::AVAILABILITY_AVAILABLE,
+            'availability' => Game::AVAILABILITY_AVAILABLE,
         ];
     }
 }

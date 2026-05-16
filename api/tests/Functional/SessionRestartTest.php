@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Domain\Session;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -20,7 +20,7 @@ final class SessionRestartTest extends FunctionalTestCase
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
+            $this->entityManager->getClassMetadata(Run::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -74,7 +74,7 @@ final class SessionRestartTest extends FunctionalTestCase
     {
         $other = $this->createUser('other@example.org');
         $session = $this->createIdleSessionWithSave('sessions/abc/saves/save.apsave');
-        // No PersonalRun linking other to session
+        // No Run linking other to session
 
         $this->loginAs($other);
         $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
@@ -254,11 +254,11 @@ final class SessionRestartTest extends FunctionalTestCase
         return $session;
     }
 
-    private function linkPersonalRunToSession(string $ownerId, string $sessionId): PersonalRun
+    private function linkPersonalRunToSession(string $ownerId, string $sessionId): Run
     {
-        $run = PersonalRun::create($ownerId, 'Test Run', new \DateTimeImmutable());
+        $run = Run::create($ownerId, 'Test Run', new \DateTimeImmutable());
         $run->markStopped(new \DateTimeImmutable()); // set to idle
-        $reflection = new \ReflectionProperty(PersonalRun::class, 'sessionId');
+        $reflection = new \ReflectionProperty(Run::class, 'sessionId');
         $reflection->setValue($run, $sessionId);
         $this->entityManager->persist($run);
         $this->entityManager->flush();

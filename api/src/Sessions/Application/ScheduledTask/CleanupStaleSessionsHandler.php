@@ -29,13 +29,7 @@ final readonly class CleanupStaleSessionsHandler
         $now = new \DateTimeImmutable();
 
         /** @var list<Session> $candidates */
-        $candidates = $this->entityManager->createQueryBuilder()
-            ->select('s')
-            ->from(Session::class, 's')
-            ->where('s.status IN (:statuses)')
-            ->setParameter('statuses', Session::STALE_STATUSES)
-            ->getQuery()
-            ->getResult();
+        $candidates = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STALE_STATUSES]);
 
         /** @var list<Session> $cleaned */
         $cleaned = [];

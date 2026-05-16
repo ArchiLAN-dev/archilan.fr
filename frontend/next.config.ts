@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  // Allow Next.js jest to transform these ESM-only packages (needed for msw/node in tests).
+  transpilePackages: ["msw", "rettime", "until-async", "@open-draft/deferred-promise"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

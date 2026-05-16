@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
@@ -76,10 +76,10 @@ final readonly class RunResultsQuery
             return [$event->getTitle(), false];
         }
 
-        $pr = $this->entityManager->getRepository(PersonalRun::class)
+        $pr = $this->entityManager->getRepository(Run::class)
             ->findOneBy(['id' => $session->getEventId()]);
 
-        return [$pr instanceof PersonalRun ? $pr->getTitle() : 'Run', true];
+        return [$pr instanceof Run ? $pr->getTitle() : 'Run', true];
     }
 
     /**
@@ -171,13 +171,7 @@ final readonly class RunResultsQuery
         ));
 
         /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.id IN (:ids)')
-            ->setParameter('ids', $registrationIds)
-            ->getQuery()
-            ->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
 
         foreach ($registrations as $reg) {
             $map[$reg->getId()] = $reg->getUserId();
@@ -201,13 +195,7 @@ final readonly class RunResultsQuery
         }
 
         /** @var list<User> $users */
-        $users = $this->entityManager->createQueryBuilder()
-            ->select('u')
-            ->from(User::class, 'u')
-            ->where('u.id IN (:ids)')
-            ->setParameter('ids', array_values($userIds))
-            ->getQuery()
-            ->getResult();
+        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => array_values($userIds)]);
 
         /** @var array<string, User> $userById */
         $userById = [];
@@ -221,22 +209,16 @@ final readonly class RunResultsQuery
     /**
      * @param list<SessionSlot> $slots
      *
-     * @return array<string, ArchipelagoGame>
+     * @return array<string, Game>
      */
     private function loadGames(array $slots): array
     {
         $gameIds = array_unique(array_map(static fn (SessionSlot $s) => $s->getGameId(), $slots));
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
-        /** @var array<string, ArchipelagoGame> $gameById */
+        /** @var array<string, Game> $gameById */
         $gameById = [];
         foreach ($games as $game) {
             $gameById[$game->getId()] = $game;

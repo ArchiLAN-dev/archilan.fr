@@ -28,18 +28,15 @@ final readonly class InactivityWatchdogHandler
         $threshold = $now->modify("-{$this->inactivityTimeoutSeconds} seconds");
         $graceLimit = $now->modify('-60 seconds');
 
+        /** @var list<Session> $allRunning */
+        $allRunning = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STATUS_RUNNING]);
         /** @var list<Session> $sessions */
-        $sessions = $this->entityManager->createQueryBuilder()
-            ->select('s')
-            ->from(Session::class, 's')
-            ->where('s.status = :status')
-            ->andWhere('s.startedAt < :graceLimit')
-            ->andWhere('(s.lastActivityAt IS NULL OR s.lastActivityAt < :threshold)')
-            ->setParameter('status', Session::STATUS_RUNNING)
-            ->setParameter('threshold', $threshold)
-            ->setParameter('graceLimit', $graceLimit)
-            ->getQuery()
-            ->getResult();
+        $sessions = array_values(array_filter(
+            $allRunning,
+            fn (Session $s): bool => null !== $s->getStartedAt()
+                && $s->getStartedAt() < $graceLimit
+                && (null === $s->getLastActivityAt() || $s->getLastActivityAt() < $threshold),
+        ));
 
         foreach ($sessions as $session) {
             $this->messageBus->dispatch(new PauseRunJob($session->getId(), $session->getBridgePort() ?? 0));

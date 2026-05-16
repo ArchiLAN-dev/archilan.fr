@@ -51,17 +51,19 @@ final readonly class RotateRefreshToken
             return RotationResult::invalid();
         }
 
+        $rememberMe = $existing->isRememberMe();
         ['rawToken' => $newRawToken, 'entity' => $newEntity] = $this->refreshTokenFactory->issue(
             $user->getId(),
             $now,
             $userAgent,
+            $rememberMe,
         );
 
-        $this->refreshTokenRepository->save($newEntity);
+        $this->refreshTokenRepository->persist($newEntity);
 
         $existing->revoke($now);
         $this->refreshTokenRepository->flush();
 
-        return RotationResult::rotated($user->getId(), $newRawToken);
+        return RotationResult::rotated($user->getId(), $newRawToken, $rememberMe);
     }
 }

@@ -7,7 +7,6 @@ namespace App\Registrations\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'registrations_admin_messages')]
 #[ORM\Index(name: 'idx_registrations_admin_messages_registration', columns: ['registration_id', 'sent_at'])]
 final class RegistrationAdminMessage
 {

@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,11 +30,12 @@ final class AuthCleanupCommandTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
 
-        $this->repository = new RefreshTokenRepository($em);
+        $this->repository = new RefreshTokenRepository($em, $em->getConnection());
 
         $metadata = [
             $this->em->getClassMetadata(User::class),
             $this->em->getClassMetadata(RefreshToken::class),
+            $this->em->getClassMetadata(EmailConfirmationToken::class),
         ];
         $schemaTool = new SchemaTool($this->em);
         $schemaTool->dropSchema(array_reverse($metadata));

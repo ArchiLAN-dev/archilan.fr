@@ -4,16 +4,35 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use App\Events\Domain\Event;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\Run;
+use App\Registrations\Domain\Registration;
+use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionSlot;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PlayerHistoryQuery
 {
+    private string $sessionTable;
+    private string $slotTable;
+    private string $registrationTable;
+    private string $runTable;
+    private string $eventTable;
+    private string $gameTable;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private Connection $connection,
     ) {
+        $this->sessionTable = $entityManager->getClassMetadata(Session::class)->getTableName();
+        $this->slotTable = $entityManager->getClassMetadata(SessionSlot::class)->getTableName();
+        $this->registrationTable = $entityManager->getClassMetadata(Registration::class)->getTableName();
+        $this->runTable = $entityManager->getClassMetadata(Run::class)->getTableName();
+        $this->eventTable = $entityManager->getClassMetadata(Event::class)->getTableName();
+        $this->gameTable = $entityManager->getClassMetadata(Game::class)->getTableName();
     }
 
     /**
@@ -75,46 +94,52 @@ final readonly class PlayerHistoryQuery
      */
     private function fetchHistory(string $userId): array
     {
-        $eventRows = $this->connection->fetchAllAssociative(
-            <<<SQL
-                SELECT
-                    s.id AS session_id,
-                    e.title AS event_name,
-                    s.finished_at,
-                    g.name AS game,
-                    slot.checks_done,
-                    slot.items_received,
-                    slot.goal_reached_at,
-                    slot.was_released
-                FROM archipelago_session_slots slot
-                JOIN event_registrations reg ON slot.registration_id = reg.id
-                JOIN archipelago_sessions s ON slot.session_id = s.id
-                JOIN events e ON s.event_id = e.id
-                JOIN games g ON slot.game_id = g.id
-                WHERE reg.user_id = :userId AND s.status = 'finished'
-            SQL,
-            ['userId' => $userId],
-        );
+        $eventQb = $this->connection->createQueryBuilder();
+        $eventRows = $eventQb
+            ->select(
+                's.id AS session_id',
+                'e.title AS event_name',
+                's.finished_at',
+                'g.name AS game',
+                'slot.checks_done',
+                'slot.items_received',
+                'slot.goal_reached_at',
+                'slot.was_released',
+            )
+            ->from($this->slotTable, 'slot')
+            ->join('slot', $this->registrationTable, 'reg', $eventQb->expr()->eq('reg.id', 'slot.registration_id'))
+            ->join('slot', $this->sessionTable, 's', $eventQb->expr()->eq('s.id', 'slot.session_id'))
+            ->join('s', $this->eventTable, 'e', $eventQb->expr()->eq('e.id', 's.event_id'))
+            ->join('slot', $this->gameTable, 'g', $eventQb->expr()->eq('g.id', 'slot.game_id'))
+            ->where($eventQb->expr()->eq('reg.user_id', ':userId'))
+            ->andWhere($eventQb->expr()->eq('s.status', ':status'))
+            ->setParameter('userId', $userId)
+            ->setParameter('status', 'finished')
+            ->executeQuery()
+            ->fetchAllAssociative();
 
-        $prRows = $this->connection->fetchAllAssociative(
-            <<<SQL
-                SELECT
-                    s.id AS session_id,
-                    pr.title AS event_name,
-                    s.finished_at,
-                    g.name AS game,
-                    slot.checks_done,
-                    slot.items_received,
-                    slot.goal_reached_at,
-                    slot.was_released
-                FROM archipelago_session_slots slot
-                JOIN archipelago_sessions s ON slot.session_id = s.id
-                JOIN personal_runs pr ON pr.session_id = s.id
-                JOIN games g ON slot.game_id = g.id
-                WHERE slot.registration_id = :userId AND s.status = 'finished'
-            SQL,
-            ['userId' => $userId],
-        );
+        $prQb = $this->connection->createQueryBuilder();
+        $prRows = $prQb
+            ->select(
+                's.id AS session_id',
+                'pr.title AS event_name',
+                's.finished_at',
+                'g.name AS game',
+                'slot.checks_done',
+                'slot.items_received',
+                'slot.goal_reached_at',
+                'slot.was_released',
+            )
+            ->from($this->slotTable, 'slot')
+            ->join('slot', $this->sessionTable, 's', $prQb->expr()->eq('s.id', 'slot.session_id'))
+            ->join('s', $this->runTable, 'pr', $prQb->expr()->eq('pr.session_id', 's.id'))
+            ->join('slot', $this->gameTable, 'g', $prQb->expr()->eq('g.id', 'slot.game_id'))
+            ->where($prQb->expr()->eq('slot.registration_id', ':userId'))
+            ->andWhere($prQb->expr()->eq('s.status', ':status'))
+            ->setParameter('userId', $userId)
+            ->setParameter('status', 'finished')
+            ->executeQuery()
+            ->fetchAllAssociative();
 
         return array_merge($eventRows, $prRows);
     }

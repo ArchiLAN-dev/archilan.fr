@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\AccountDeletionAudit;
+use App\Identity\Domain\DeletionAudit;
 use App\Identity\Domain\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -18,10 +18,10 @@ final readonly class DeleteAccount
     ) {
     }
 
-    public function delete(User $user, string $reason = 'user_request'): AccountDeletionAudit
+    public function delete(User $user, string $reason = 'user_request'): DeletionAudit
     {
         $now = new \DateTimeImmutable();
-        $audit = AccountDeletionAudit::record(
+        $audit = DeletionAudit::record(
             $user->getId(),
             $user->getEmailHash($this->emailHashSecret),
             $reason,

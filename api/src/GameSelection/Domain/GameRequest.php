@@ -7,7 +7,6 @@ namespace App\GameSelection\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'game_requests')]
 #[ORM\UniqueConstraint(name: 'uq_game_requests_user_game', columns: ['user_id', 'normalized_name'])]
 class GameRequest
 {

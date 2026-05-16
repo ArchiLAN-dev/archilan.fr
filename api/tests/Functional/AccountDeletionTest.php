@@ -6,7 +6,8 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RegisterLambdaUser;
-use App\Identity\Domain\AccountDeletionAudit;
+use App\Identity\Domain\DeletionAudit;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -19,8 +20,9 @@ final class AccountDeletionTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(AccountDeletionAudit::class),
+            $this->entityManager->getClassMetadata(DeletionAudit::class),
             $this->entityManager->getClassMetadata(RefreshToken::class),
+            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -49,10 +51,10 @@ final class AccountDeletionTest extends FunctionalTestCase
         self::assertNull($user->getDisplayName());
         self::assertSame(['ROLE_USER'], $user->getRoles());
 
-        $audit = $this->entityManager->getRepository(AccountDeletionAudit::class)->findOneBy([
+        $audit = $this->entityManager->getRepository(DeletionAudit::class)->findOneBy([
             'userId' => $user->getId(),
         ]);
-        self::assertInstanceOf(AccountDeletionAudit::class, $audit);
+        self::assertInstanceOf(DeletionAudit::class, $audit);
         self::assertNotSame('', $audit->getId());
         self::assertSame('user_request', $audit->getReason());
         self::assertNotSame('jean@example.org', $audit->getEmailHash());

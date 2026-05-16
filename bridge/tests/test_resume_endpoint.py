@@ -15,7 +15,8 @@ from bridge.bridge import (
     StateManager,
     create_app,
 )
-import rest as _rest  # noqa: E402 - available after bridge.bridge import
+from bridge.core import rest_session as _rest
+from bridge.core.coordinator import PauseResumeCoordinator
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +128,7 @@ async def test_wait_for_ap_health_returns_true_on_connect() -> None:
     mock_writer.close = MagicMock()
     mock_writer.wait_closed = AsyncMock()
 
-    with patch("rest.asyncio.open_connection", return_value=(mock_reader, mock_writer)):
+    with patch("bridge.core.rest_session.asyncio.open_connection", return_value=(mock_reader, mock_writer)):
         result = await _rest._wait_for_ap_health(ap_client, timeout=10.0)
 
     assert result is True
@@ -143,8 +144,8 @@ async def test_wait_for_ap_health_returns_false_on_timeout() -> None:
             self._t += 200
             return self._t
 
-    with patch("rest.asyncio.get_event_loop", return_value=_FakeLoop()):
-        with patch("rest.asyncio.open_connection", side_effect=OSError):
+    with patch("bridge.core.rest_session.asyncio.get_event_loop", return_value=_FakeLoop()):
+        with patch("bridge.core.rest_session.asyncio.open_connection", side_effect=OSError):
             result = await _rest._wait_for_ap_health(ap_client, timeout=60.0)
 
     assert result is False
@@ -206,7 +207,7 @@ async def test_resume_flow_uses_local_save_if_available(tmp_path: object) -> Non
     with patch.object(_rest, "_launch_ap", new=_mock_launch):
         with patch.object(_rest, "_wait_for_ap_health", new=_mock_health):
             with patch.object(_rest, "_notify_restarted", new=_mock_notify):
-                await _rest._resume_flow(ap_client, last_save_key=None)
+                await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator())
 
     assert launched == [save_file]
     assert notified == [True]
@@ -237,7 +238,7 @@ async def test_resume_flow_falls_back_to_minio_when_no_local_save(tmp_path: obje
         with patch.object(_rest, "_launch_ap", new=_mock_launch):
             with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=True)):
                 with patch.object(_rest, "_notify_restarted", new=AsyncMock()):
-                    await _rest._resume_flow(ap_client, last_save_key=save_key)
+                    await _rest._resume_flow(ap_client, last_save_key=save_key, coordinator=PauseResumeCoordinator())
 
     assert downloaded == [save_key]
     assert len(launched) == 1
@@ -255,7 +256,7 @@ async def test_resume_flow_stops_if_no_save_available(tmp_path: object) -> None:
 
     with patch.object(_rest, "_launch_ap", new=_mock_launch):
         with patch.object(_rest, "_notify_restart_failed", new=AsyncMock()) as mock_notify_failed:
-            await _rest._resume_flow(ap_client, last_save_key=None)
+            await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator())
             mock_notify_failed.assert_awaited_once()
 
     assert not launch_called
@@ -283,7 +284,7 @@ async def test_resume_flow_kills_ap_on_health_check_failure(tmp_path: object) ->
         with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=False)):
             with patch.object(_rest, "_notify_restarted", new=AsyncMock()) as mock_notify:
                 with patch.object(_rest, "_notify_restart_failed", new=AsyncMock()) as mock_notify_failed:
-                    await _rest._resume_flow(ap_client, last_save_key=None)
+                    await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator())
                     mock_notify.assert_not_called()
                     mock_notify_failed.assert_awaited_once()
 

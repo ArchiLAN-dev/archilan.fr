@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\CatalogSync\Application;
 
 use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\IgnoredCatalogEntry;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -45,14 +45,8 @@ final readonly class CatalogSyncStatusQuery
 
         $cachedAt = $this->catalogSyncService->getCachedAt();
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g', 'cs')
-            ->from(ArchipelagoGame::class, 'g')
-            ->leftJoin('g.catalogSync', 'cs')
-            ->orderBy('g.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC']);
 
         /** @var list<IgnoredCatalogEntry> $ignoredEntries */
         $ignoredEntries = $this->entityManager->getRepository(IgnoredCatalogEntry::class)->findAll();
@@ -97,14 +91,14 @@ final readonly class CatalogSyncStatusQuery
                 $diff['stabilityChanged'],
             ),
             'removedFromSheet' => array_map(
-                static fn (ArchipelagoGame $g): array => [
+                static fn (Game $g): array => [
                     'gameId' => $g->getId(),
                     'gameName' => $g->getName(),
                 ],
                 $diff['removedFromSheet'],
             ),
             'apworldUpdates' => array_map(
-                static fn (ArchipelagoGame $g): array => [
+                static fn (Game $g): array => [
                     'gameId' => $g->getId(),
                     'gameName' => $g->getName(),
                     'deployedVersion' => $g->getApworldDeployedVersion(),

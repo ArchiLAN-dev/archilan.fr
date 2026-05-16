@@ -37,15 +37,11 @@ final readonly class AdminHelloAssoSyncStatus
         }
 
         /** @var list<HelloAssoSyncLog> $logs */
-        $logs = $this->entityManager->createQueryBuilder()
-            ->select('l')
-            ->from(HelloAssoSyncLog::class, 'l')
-            ->where('l.formSlug = :formSlug')
-            ->setParameter('formSlug', $formSlug)
-            ->orderBy('l.attemptAt', 'DESC')
-            ->setMaxResults(10)
-            ->getQuery()
-            ->getResult();
+        $logs = $this->entityManager->getRepository(HelloAssoSyncLog::class)->findBy(
+            ['formSlug' => $formSlug],
+            ['attemptAt' => 'DESC'],
+            10,
+        );
 
         $recentSyncs = array_map(
             static fn (HelloAssoSyncLog $log): array => [

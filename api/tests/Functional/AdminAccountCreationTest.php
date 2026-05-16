@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\AdminAccountCreationAudit;
+use App\Identity\Domain\AdminCreationAudit;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -17,7 +17,7 @@ final class AdminAccountCreationTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(AdminAccountCreationAudit::class),
+            $this->entityManager->getClassMetadata(AdminCreationAudit::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -137,12 +137,12 @@ final class AdminAccountCreationTest extends FunctionalTestCase
         ];
     }
 
-    private function singleAudit(): AdminAccountCreationAudit
+    private function singleAudit(): AdminCreationAudit
     {
-        $audits = $this->entityManager->getRepository(AdminAccountCreationAudit::class)->findAll();
+        $audits = $this->entityManager->getRepository(AdminCreationAudit::class)->findAll();
         self::assertCount(1, $audits);
         $audit = $audits[0];
-        self::assertInstanceOf(AdminAccountCreationAudit::class, $audit);
+        self::assertInstanceOf(AdminCreationAudit::class, $audit);
 
         return $audit;
     }

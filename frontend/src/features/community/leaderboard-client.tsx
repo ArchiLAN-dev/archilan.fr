@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { SESSION_STALE_TIME } from "@/lib/query-client";
 import type { PublicEvent } from "@/features/events/event-types";
 import {
   fetchLeaderboard,
@@ -42,7 +43,7 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
         ? initialData
         : undefined,
     initialDataUpdatedAt: axis === "goals" && limit === PAGE_SIZE && !activeEventId ? initialDataFetchedAt : undefined,
-    staleTime: 60 * 1000,
+    staleTime: SESSION_STALE_TIME,
   });
 
   function handleAxisChange(next: LeaderboardAxis) {

@@ -13,10 +13,10 @@ import websockets
 if TYPE_CHECKING:
     pass
 
-from config import Config
-from domain import HintInfo
-from mercure import MercurePublisher
-from state import StateManager
+from .config import Config
+from .domain import HintInfo
+from .mercure import MercurePublisher
+from .state import StateManager
 
 _WS_RETRY_DELAYS = [1, 2, 4, 8, 16, 30]
 

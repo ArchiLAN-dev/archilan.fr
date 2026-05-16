@@ -6,7 +6,7 @@ namespace App\Tests\Unit\CatalogSync;
 
 use App\CatalogSync\Application\CatalogSyncService;
 use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -24,8 +24,8 @@ final class CatalogDiffTest extends TestCase
         ?string $catalogSheetName = null,
         ?string $archipelagoGameName = null,
         bool $availabilityLocked = false,
-    ): ArchipelagoGame {
-        $game = ArchipelagoGame::create(
+    ): Game {
+        $game = Game::create(
             $name,
             strtolower(str_replace(' ', '-', $name)),
             'description',

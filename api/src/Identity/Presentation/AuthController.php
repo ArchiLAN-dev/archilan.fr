@@ -54,11 +54,13 @@ final readonly class AuthController
             return $this->authError();
         }
 
+        $rememberMe = true === ($payload['rememberMe'] ?? true);
         $now = new \DateTimeImmutable();
         ['rawToken' => $rawToken, 'entity' => $refreshToken] = $this->refreshTokenFactory->issue(
             $user->getId(),
             $now,
             $request->headers->get('User-Agent'),
+            $rememberMe,
         );
         $this->refreshTokenRepository->save($refreshToken);
 
@@ -69,7 +71,7 @@ final readonly class AuthController
             ],
         ]);
         $response->headers->setCookie($this->sessionCookie($this->authSessionSigner->sign($user->getId())));
-        $response->headers->setCookie($this->refreshCookie($rawToken));
+        $response->headers->setCookie($this->refreshCookie($rawToken, $rememberMe));
 
         return $response;
     }
@@ -115,7 +117,7 @@ final readonly class AuthController
         if ('rotated' === $result->outcome && null !== $result->userId && null !== $result->rawRefreshToken) {
             $response = new JsonResponse(null, 204);
             $response->headers->setCookie($this->sessionCookie($this->authSessionSigner->sign($result->userId)));
-            $response->headers->setCookie($this->refreshCookie($result->rawRefreshToken));
+            $response->headers->setCookie($this->refreshCookie($result->rawRefreshToken, $result->rememberMe));
 
             return $response;
         }
@@ -160,7 +162,7 @@ final readonly class AuthController
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string|null, roles: list<string>, createdAt: string, updatedAt: string}
+     * @return array{id: string, email: string, displayName: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
      */
     private function userPayload(User $user): array
     {
@@ -169,6 +171,7 @@ final readonly class AuthController
             'email' => $user->getEmail(),
             'displayName' => $user->getDisplayName(),
             'roles' => $user->getRoles(),
+            'emailVerifiedAt' => $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),
             'createdAt' => $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];
@@ -185,11 +188,13 @@ final readonly class AuthController
             ->withSameSite(Cookie::SAMESITE_LAX);
     }
 
-    private function refreshCookie(string $value): Cookie
+    private function refreshCookie(string $value, bool $rememberMe = true): Cookie
     {
+        $ttlDays = $rememberMe ? RefreshTokenFactory::TOKEN_TTL_LONG_DAYS : RefreshTokenFactory::TOKEN_TTL_SHORT_DAYS;
+
         return Cookie::create(self::REFRESH_COOKIE_NAME)
             ->withValue($value)
-            ->withExpires(time() + RefreshTokenFactory::TOKEN_TTL_DAYS * 86400)
+            ->withExpires(time() + $ttlDays * 86400)
             ->withPath(self::REFRESH_COOKIE_SCOPE)
             ->withSecure(true)
             ->withHttpOnly(true)

@@ -27,13 +27,7 @@ final readonly class AdminPostCatalog
     public function list(): array
     {
         /** @var list<Post> $posts */
-        $posts = $this->entityManager->createQueryBuilder()
-            ->select('post')
-            ->from(Post::class, 'post')
-            ->orderBy('post.updatedAt', 'DESC')
-            ->setMaxResults(500)
-            ->getQuery()
-            ->getResult();
+        $posts = $this->entityManager->getRepository(Post::class)->findBy([], ['updatedAt' => 'DESC'], 500);
 
         return array_map(fn (Post $post): array => $this->payload($post), $posts);
     }

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Handler;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use App\Sessions\Application\Message\GenerateRunJob;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\Session;
@@ -35,21 +35,15 @@ final readonly class LaunchPersonalRunJobHandler
     public function __invoke(LaunchPersonalRunJob $job): void
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $job->personalRunId);
+            $run = $this->findOrFail(Run::class, $job->personalRunId);
         } catch (\RuntimeException) {
             $this->logger->error('personal_run.launch.not_found', ['runId' => $job->personalRunId]);
 
             return;
         }
 
-        /** @var list<PersonalRunParticipant> $participants */
-        $participants = $this->entityManager->createQueryBuilder()
-            ->select('p')
-            ->from(PersonalRunParticipant::class, 'p')
-            ->where('p.personalRunId = :runId')
-            ->setParameter('runId', $run->getId())
-            ->getQuery()
-            ->getResult();
+        /** @var list<RunParticipant> $participants */
+        $participants = $this->entityManager->getRepository(RunParticipant::class)->findBy(['runId' => $run->getId()]);
 
         $slotsForSession = [];
         foreach ($participants as $participant) {
@@ -74,13 +68,7 @@ final readonly class LaunchPersonalRunJobHandler
         $gameIds = array_unique(array_column($slotsForSession, 'gameId'));
 
         /** @var list<User> $users */
-        $users = $this->entityManager->createQueryBuilder()
-            ->select('u')
-            ->from(User::class, 'u')
-            ->where('u.id IN (:ids)')
-            ->setParameter('ids', $userIds)
-            ->getQuery()
-            ->getResult();
+        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
 
         /** @var array<string, User> $usersById */
         $usersById = [];
@@ -88,16 +76,10 @@ final readonly class LaunchPersonalRunJobHandler
             $usersById[$user->getId()] = $user;
         }
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         foreach ($games as $game) {
             $gamesById[$game->getId()] = $game;

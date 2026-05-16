@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\CatalogSync\Application;
 
 use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -426,13 +426,13 @@ final readonly class CatalogSyncService
     /**
      * Compare sheet entries against existing games and return a categorised diff.
      *
-     * @param list<CatalogEntry>    $sheetEntries
-     * @param list<ArchipelagoGame> $existingGames
+     * @param list<CatalogEntry> $sheetEntries
+     * @param list<Game>         $existingGames
      *
      * @return array{
      *   newGames: list<CatalogEntry>,
-     *   stabilityChanged: list<array{game: ArchipelagoGame, entry: CatalogEntry}>,
-     *   removedFromSheet: list<ArchipelagoGame>
+     *   stabilityChanged: list<array{game: Game, entry: CatalogEntry}>,
+     *   removedFromSheet: list<Game>
      * }
      */
     public function computeDiff(array $sheetEntries, array $existingGames): array
@@ -458,7 +458,7 @@ final readonly class CatalogSyncService
 
         $removedFromSheet = array_values(array_filter(
             $existingGames,
-            static function (ArchipelagoGame $game) use ($matchedGameIds): bool {
+            static function (Game $game) use ($matchedGameIds): bool {
                 $csn = $game->getCatalogSheetName();
 
                 return null !== $csn && '' !== $csn && !in_array($game->getId(), $matchedGameIds, true);
@@ -473,9 +473,9 @@ final readonly class CatalogSyncService
     }
 
     /**
-     * @param list<ArchipelagoGame> $existingGames
+     * @param list<Game> $existingGames
      */
-    private function findMatch(CatalogEntry $entry, array $existingGames): ?ArchipelagoGame
+    private function findMatch(CatalogEntry $entry, array $existingGames): ?Game
     {
         // Step 1: catalog_sheet_name exact match
         foreach ($existingGames as $game) {

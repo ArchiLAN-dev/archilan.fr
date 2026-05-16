@@ -5,15 +5,28 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\Run;
+use App\Registrations\Domain\Registration;
+use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionSlot;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PlayerProfileQuery
 {
+    private string $sessionTable;
+    private string $slotTable;
+    private string $registrationTable;
+    private string $runTable;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
         private Connection $connection,
     ) {
+        $this->sessionTable = $entityManager->getClassMetadata(Session::class)->getTableName();
+        $this->slotTable = $entityManager->getClassMetadata(SessionSlot::class)->getTableName();
+        $this->registrationTable = $entityManager->getClassMetadata(Registration::class)->getTableName();
+        $this->runTable = $entityManager->getClassMetadata(Run::class)->getTableName();
     }
 
     /**
@@ -62,39 +75,41 @@ final readonly class PlayerProfileQuery
      */
     private function computeStats(string $userId): array
     {
-        $eventRow = $this->connection->fetchAssociative(
-            <<<SQL
-                SELECT
-                    COUNT(DISTINCT s.id) AS runs_participated,
-                    COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END) AS goal_completions,
-                    COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL)
-                                      THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done,
-                    COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL)
-                                      THEN slot.items_received ELSE 0 END), 0) AS total_items_received
-                FROM archipelago_session_slots slot
-                JOIN event_registrations reg ON slot.registration_id = reg.id
-                JOIN archipelago_sessions s ON slot.session_id = s.id
-                WHERE reg.user_id = :userId AND s.status = 'finished'
-            SQL,
-            ['userId' => $userId],
-        );
+        $eventQb = $this->connection->createQueryBuilder();
+        $eventRow = $eventQb
+            ->select(
+                'COUNT(DISTINCT s.id) AS runs_participated',
+                'COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END) AS goal_completions',
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done',
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.items_received ELSE 0 END), 0) AS total_items_received',
+            )
+            ->from($this->slotTable, 'slot')
+            ->join('slot', $this->registrationTable, 'reg', $eventQb->expr()->eq('reg.id', 'slot.registration_id'))
+            ->join('slot', $this->sessionTable, 's', $eventQb->expr()->eq('s.id', 'slot.session_id'))
+            ->where($eventQb->expr()->eq('reg.user_id', ':userId'))
+            ->andWhere($eventQb->expr()->eq('s.status', ':status'))
+            ->setParameter('userId', $userId)
+            ->setParameter('status', 'finished')
+            ->executeQuery()
+            ->fetchAssociative();
 
-        $prRow = $this->connection->fetchAssociative(
-            <<<SQL
-                SELECT
-                    COUNT(DISTINCT s.id) AS runs_participated,
-                    COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END) AS goal_completions,
-                    COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL)
-                                      THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done,
-                    COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL)
-                                      THEN slot.items_received ELSE 0 END), 0) AS total_items_received
-                FROM archipelago_session_slots slot
-                JOIN archipelago_sessions s ON slot.session_id = s.id
-                WHERE slot.registration_id = :userId AND s.status = 'finished'
-                  AND EXISTS (SELECT 1 FROM personal_runs pr WHERE pr.session_id = s.id)
-            SQL,
-            ['userId' => $userId],
-        );
+        $prQb = $this->connection->createQueryBuilder();
+        $prRow = $prQb
+            ->select(
+                'COUNT(DISTINCT s.id) AS runs_participated',
+                'COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END) AS goal_completions',
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done',
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.items_received ELSE 0 END), 0) AS total_items_received',
+            )
+            ->from($this->slotTable, 'slot')
+            ->join('slot', $this->sessionTable, 's', $prQb->expr()->eq('s.id', 'slot.session_id'))
+            ->join('s', $this->runTable, 'pr', $prQb->expr()->eq('pr.session_id', 's.id'))
+            ->where($prQb->expr()->eq('slot.registration_id', ':userId'))
+            ->andWhere($prQb->expr()->eq('s.status', ':status'))
+            ->setParameter('userId', $userId)
+            ->setParameter('status', 'finished')
+            ->executeQuery()
+            ->fetchAssociative();
 
         return [
             'runs_participated' => $this->intVal($eventRow, 'runs_participated') + $this->intVal($prRow, 'runs_participated'),

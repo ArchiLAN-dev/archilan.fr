@@ -7,7 +7,7 @@ namespace App\Tests\Unit\CatalogSync;
 use App\CatalogSync\Application\ApworldVersionChecker;
 use App\CatalogSync\Application\ApworldVersionInfo;
 use App\CatalogSync\Application\GithubRateLimitException;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
@@ -16,16 +16,16 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class ApworldVersionCheckerTest extends TestCase
 {
-    private function makeGame(?string $sourceUrl, ?string $deployedVersion = null): ArchipelagoGame
+    private function makeGame(?string $sourceUrl, ?string $deployedVersion = null): Game
     {
-        $game = ArchipelagoGame::create(
+        $game = Game::create(
             'Hollow Knight',
             'hollow-knight',
             'A platformer.',
             null,
             'Hollow Knight cover',
             '',
-            ArchipelagoGame::AVAILABILITY_AVAILABLE,
+            Game::AVAILABILITY_AVAILABLE,
             new \DateTimeImmutable(),
         );
         $game->updateCatalogueMetadata(sourceUrl: $sourceUrl, deployedVersion: $deployedVersion);
@@ -67,7 +67,7 @@ final class ApworldVersionCheckerTest extends TestCase
         self::assertInstanceOf(ApworldVersionInfo::class, $info);
         self::assertSame('1.2.0', $info->latestTag);
         self::assertSame('hollow-knight.apworld', $info->assetName);
-        self::assertSame(ArchipelagoGame::UPDATE_STATUS_UNKNOWN, $info->updateStatus);
+        self::assertSame(Game::UPDATE_STATUS_UNKNOWN, $info->updateStatus);
         self::assertFalse($info->isNewer);
         self::assertSame('1.2.0', $game->getApworldLatestVersion());
     }
@@ -83,7 +83,7 @@ final class ApworldVersionCheckerTest extends TestCase
         self::assertInstanceOf(ApworldVersionInfo::class, $info);
         self::assertSame('1.2.0', $info->latestTag);
         self::assertNull($info->assetName);
-        self::assertSame(ArchipelagoGame::UPDATE_STATUS_UP_TO_DATE, $info->updateStatus);
+        self::assertSame(Game::UPDATE_STATUS_UP_TO_DATE, $info->updateStatus);
         self::assertFalse($info->isNewer);
     }
 

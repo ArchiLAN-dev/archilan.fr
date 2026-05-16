@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
@@ -55,8 +55,11 @@ abstract class FunctionalTestCase extends WebTestCase
         array $roles = ['ROLE_USER'],
         ?string $displayName = null,
         ?string $slug = null,
+        ?\DateTimeImmutable $emailVerifiedAt = null,
+        bool $emailVerified = true,
     ): User {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $resolvedEmailVerifiedAt = $emailVerified ? ($emailVerifiedAt ?? $now) : null;
         $user = new User(
             bin2hex(random_bytes(16)),
             $email,
@@ -66,6 +69,7 @@ abstract class FunctionalTestCase extends WebTestCase
             $roles,
             $now, $now, $now,
             slug: $slug,
+            emailVerifiedAt: $resolvedEmailVerifiedAt,
         );
         $this->entityManager->persist($user);
         $this->entityManager->flush();
@@ -122,10 +126,10 @@ abstract class FunctionalTestCase extends WebTestCase
     protected function createGame(
         string $name,
         string $slug,
-        string $availability = ArchipelagoGame::AVAILABILITY_AVAILABLE,
-    ): ArchipelagoGame {
+        string $availability = Game::AVAILABILITY_AVAILABLE,
+    ): Game {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
-        $game = ArchipelagoGame::create(
+        $game = Game::create(
             $name,
             $slug,
             'Description.',

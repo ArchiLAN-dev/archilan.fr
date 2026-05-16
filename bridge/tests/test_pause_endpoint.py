@@ -9,8 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-# Importing from bridge.bridge ensures the core/ sys.path bootstrap runs,
-# making `import rest` available for direct helper imports below.
 from bridge.bridge import (
     ArchipelagoClient,
     Config,
@@ -18,7 +16,8 @@ from bridge.bridge import (
     StateManager,
     create_app,
 )
-import rest as _rest  # noqa: E402 - available after bridge.bridge import
+from bridge.core import rest_session as _rest
+from bridge.core.coordinator import PauseResumeCoordinator
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +127,7 @@ async def test_poll_for_save_returns_none_when_timeout(tmp_path: object) -> None
             self._t += 100  # always past deadline
             return self._t
 
-    with patch("rest.asyncio.get_event_loop", return_value=_FakeLoop()):
+    with patch("bridge.core.rest_session.asyncio.get_event_loop", return_value=_FakeLoop()):
         result = await _rest._poll_for_save(ap_client)
 
     assert result is None
@@ -178,8 +177,8 @@ async def test_kill_ap_sends_sigterm_then_waits(tmp_path: object) -> None:
         if kill_count > 1:
             raise ProcessLookupError(errno.ESRCH, "No such process")
 
-    with patch("rest._os.kill", side_effect=_fake_kill):
-        with patch("rest.asyncio.sleep", new=AsyncMock()):
+    with patch("bridge.core.rest_session._os.kill", side_effect=_fake_kill):
+        with patch("bridge.core.rest_session.asyncio.sleep", new=AsyncMock()):
             await _rest._kill_ap(pid_file)
 
     assert signal.SIGTERM in signals_sent
@@ -201,7 +200,7 @@ async def test_kill_ap_already_gone_process(tmp_path: object) -> None:
     def _raise(_pid: int, _sig: int) -> None:
         raise ProcessLookupError
 
-    with patch("rest._os.kill", side_effect=_raise):
+    with patch("bridge.core.rest_session._os.kill", side_effect=_raise):
         await _rest._kill_ap(pid_file)  # must not raise
 
 
@@ -265,7 +264,7 @@ async def test_pause_flow_failed_save_sets_flag(tmp_path: object) -> None:
     with patch.object(_rest, "_poll_for_save", new=AsyncMock(return_value=None)):
         with patch.object(_rest, "_kill_ap", new=AsyncMock()):
             with patch.object(_rest, "_notify_paused", new=_mock_notify):
-                await _rest._pause_flow(ap_client)
+                await _rest._pause_flow(ap_client, PauseResumeCoordinator())
 
     assert len(notified) == 1
     assert notified[0]["failed_save"] is True
@@ -295,7 +294,7 @@ async def test_pause_flow_successful_save_uploads_and_kills(tmp_path: object) ->
         with patch.object(_rest, "_upload_save", new=AsyncMock(return_value="sessions/run-1/saves/ts.apsave")):
             with patch.object(_rest, "_kill_ap", new=_mock_kill):
                 with patch.object(_rest, "_notify_paused", new=_mock_notify):
-                    await _rest._pause_flow(ap_client)
+                    await _rest._pause_flow(ap_client, PauseResumeCoordinator())
 
     assert len(kill_called) == 1
     assert len(notified) == 1

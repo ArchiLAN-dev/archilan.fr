@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Shared\Application\PaginationHelper;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -80,8 +80,8 @@ final readonly class PublicGameCatalog
         $qb = $this->connection->createQueryBuilder()
             ->from('games', 'game')
             ->where('game.availability IN (:available, :experimental)')
-            ->setParameter('available', ArchipelagoGame::AVAILABILITY_AVAILABLE)
-            ->setParameter('experimental', ArchipelagoGame::AVAILABILITY_EXPERIMENTAL);
+            ->setParameter('available', Game::AVAILABILITY_AVAILABLE)
+            ->setParameter('experimental', Game::AVAILABILITY_EXPERIMENTAL);
 
         if ('' !== $searchQuery) {
             $qb->andWhere('(LOWER(game.name) LIKE :query OR LOWER(game.description) LIKE :query)')

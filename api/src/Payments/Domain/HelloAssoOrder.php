@@ -7,7 +7,6 @@ namespace App\Payments\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'payments_helloasso_orders')]
 final class HelloAssoOrder
 {
     public function __construct(

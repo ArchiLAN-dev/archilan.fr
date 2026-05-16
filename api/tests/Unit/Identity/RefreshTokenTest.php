@@ -72,6 +72,22 @@ final class RefreshTokenTest extends TestCase
         self::assertSame($first, $token->getRevokedAt());
     }
 
+    public function testRememberMeDefaultsToTrue(): void
+    {
+        $now = new \DateTimeImmutable('2026-01-01 10:00:00');
+        $token = RefreshToken::issue('user-id-1', 'raw-token', $now->modify('+30 days'), $now);
+
+        self::assertTrue($token->isRememberMe());
+    }
+
+    public function testRememberMeFalseIsPreserved(): void
+    {
+        $now = new \DateTimeImmutable('2026-01-01 10:00:00');
+        $token = RefreshToken::issue('user-id-1', 'raw-token', $now->modify('+1 day'), $now, null, false);
+
+        self::assertFalse($token->isRememberMe());
+    }
+
     public function testUserAgentIsTruncatedTo255Characters(): void
     {
         $now = new \DateTimeImmutable('2026-01-01 10:00:00');

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -29,8 +29,8 @@ final class PlayerStateTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
-            $this->entityManager->getClassMetadata(PersonalRunParticipant::class),
+            $this->entityManager->getClassMetadata(Run::class),
+            $this->entityManager->getClassMetadata(RunParticipant::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

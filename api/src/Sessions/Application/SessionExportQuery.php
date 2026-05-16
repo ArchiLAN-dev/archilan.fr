@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
@@ -44,13 +44,7 @@ final readonly class SessionExportQuery
         $registrationIds = array_unique(array_map(static fn (SessionSlot $s) => $s->getRegistrationId(), $slots));
 
         /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.id IN (:ids)')
-            ->setParameter('ids', $registrationIds)
-            ->getQuery()
-            ->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
 
         /** @var array<string, Registration> $regById */
         $regById = [];
@@ -62,13 +56,7 @@ final readonly class SessionExportQuery
 
         /** @var list<User> $users */
         $users = [] !== $userIds
-            ? $this->entityManager->createQueryBuilder()
-                ->select('u')
-                ->from(User::class, 'u')
-                ->where('u.id IN (:ids)')
-                ->setParameter('ids', $userIds)
-                ->getQuery()
-                ->getResult()
+            ? $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds])
             : [];
 
         /** @var array<string, User> $userById */
@@ -79,16 +67,10 @@ final readonly class SessionExportQuery
 
         $gameIds = array_unique(array_map(static fn (SessionSlot $s) => $s->getGameId(), $slots));
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $gameIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
 
-        /** @var array<string, ArchipelagoGame> $gameById */
+        /** @var array<string, Game> $gameById */
         $gameById = [];
         foreach ($games as $game) {
             $gameById[$game->getId()] = $game;

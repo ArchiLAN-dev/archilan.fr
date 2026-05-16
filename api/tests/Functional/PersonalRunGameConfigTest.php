@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use Doctrine\ORM\Tools\SchemaTool;
 
 final class PersonalRunGameConfigTest extends FunctionalTestCase
@@ -18,9 +18,9 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
-            $this->entityManager->getClassMetadata(PersonalRunParticipant::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Run::class),
+            $this->entityManager->getClassMetadata(RunParticipant::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -31,7 +31,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     {
         $user = $this->createUser('alice@example.org');
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $run = $this->createRunDirectly($user->getId(), 'My Run', PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -48,7 +48,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     {
         $user = $this->createUser('alice@example.org');
         $game = $this->createGame('Celeste', 'celeste');
-        $run = $this->createRunDirectly($user->getId(), 'Idle Run', PersonalRun::STATUS_IDLE);
+        $run = $this->createRunDirectly($user->getId(), 'Idle Run', Run::STATUS_IDLE);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -65,7 +65,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     {
         $user = $this->createUser('alice@example.org');
         $game = $this->createGame('Super Metroid', 'super-metroid');
-        $run = $this->createRunDirectly($user->getId(), 'Active Run', PersonalRun::STATUS_ACTIVE);
+        $run = $this->createRunDirectly($user->getId(), 'Active Run', Run::STATUS_ACTIVE);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -80,7 +80,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     {
         $user = $this->createUser('alice@example.org');
         $game = $this->createGame('Timespinner', 'timespinner');
-        $run = $this->createRunDirectly($user->getId(), 'Starting Run', PersonalRun::STATUS_STARTING);
+        $run = $this->createRunDirectly($user->getId(), 'Starting Run', Run::STATUS_STARTING);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -94,7 +94,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     public function testConfigureGamesUnknownGameIdReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunDirectly($user->getId(), 'My Run', PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -112,7 +112,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         $alice = $this->createUser('alice@example.org');
         $bob = $this->createUser('bob@example.org');
         $game = $this->createGame('A Link to the Past', 'a-link-to-the-past');
-        $run = $this->createRunDirectly($alice->getId(), 'Alice Run', PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunDirectly($alice->getId(), 'Alice Run', Run::STATUS_DRAFT);
         $this->loginAs($bob);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -127,8 +127,8 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         $alice = $this->createUser('alice@example.org');
         $bob = $this->createUser('bob@example.org');
         $game = $this->createGame('Oracle of Seasons', 'oracle-of-seasons');
-        $run = $this->createRunDirectly($alice->getId(), 'Alice Run', PersonalRun::STATUS_DRAFT);
-        $participant = PersonalRunParticipant::create($run->getId(), $bob->getId(), new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $run = $this->createRunDirectly($alice->getId(), 'Alice Run', Run::STATUS_DRAFT);
+        $participant = RunParticipant::create($run->getId(), $bob->getId(), new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
         $this->entityManager->persist($participant);
         $this->entityManager->flush();
         $this->loginAs($bob);
@@ -143,7 +143,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     public function testConfigureGamesEmptyListReturns422(): void
     {
         $user = $this->createUser('alice@example.org');
-        $run = $this->createRunDirectly($user->getId(), 'My Run', PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -160,7 +160,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
     {
         $user = $this->createUser('alice@example.org');
         $game = $this->createGame('Secret of Evermore', 'secret-of-evermore');
-        $run = $this->createRunDirectly($user->getId(), 'My Run', PersonalRun::STATUS_DRAFT);
+        $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
         $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/runs/'.$run->getId().'/games', [
@@ -197,12 +197,12 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    private function createRunDirectly(string $ownerId, string $title, string $status): PersonalRun
+    private function createRunDirectly(string $ownerId, string $title, string $status): Run
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
-        $run = PersonalRun::create($ownerId, $title, $now);
+        $run = Run::create($ownerId, $title, $now);
 
-        $reflection = new \ReflectionProperty(PersonalRun::class, 'status');
+        $reflection = new \ReflectionProperty(Run::class, 'status');
         $reflection->setValue($run, $status);
 
         $this->entityManager->persist($run);

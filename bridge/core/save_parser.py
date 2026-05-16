@@ -9,7 +9,7 @@ import zlib
 from datetime import datetime, timezone
 from typing import Any
 
-from domain import HintInfo, PlayerState
+from .domain import HintInfo, PlayerState
 
 
 def _save_slot_map(mapping: dict[Any, Any]) -> dict[int, Any]:

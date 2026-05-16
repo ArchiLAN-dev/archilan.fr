@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+done
 
 ## Acceptance Criteria
 
@@ -27,33 +27,29 @@ todo
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Install and configure Jest
-  - [ ] 2a: `pnpm add -D jest @types/jest jest-environment-jsdom` (do NOT add `ts-jest` — `next/jest` handles TS transforms)
-  - [ ] 2b: Create `jest.config.ts` using `createJestConfig` from `next/jest`
-  - [ ] 2c: Add `"test": "jest"` to `package.json` scripts
-- [ ] Task 3: Install and configure MSW v2
-  - [ ] 3a: `pnpm add -D msw`
-  - [ ] 3b: Create `frontend/src/tests/constants.ts` exporting `TEST_API_BASE_URL = "http://localhost:8080"` — must contain only literal exports, no imports of any kind (application or infrastructure); this purity is what makes it safe to import before the `process.env` assignment in `setup.ts`
-  - [ ] 3c: Create `frontend/src/tests/setup.ts` importing `TEST_API_BASE_URL` from `./constants`; assign to `process.env.NEXT_PUBLIC_API_BASE_URL`; configure MSW server
-  - [ ] 3d: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
-- [ ] Task 3e: Audit each `*-api.ts` file for its HTTP client before writing any test:
-  ```bash
-  rg 'fetch\(|apiFetch|axios|createClient|httpClient' frontend/src/features --glob '*-api.ts'
-  ```
-  For each file record whether it uses global `fetch` (→ MSW intercepts automatically) or a custom wrapper/axios (→ `jest.mock` the module instead). Files using global `fetch` follow the MSW pattern in Dev Notes; files using a custom client need a separate mocking strategy and must be noted before proceeding to Task 4.
-- [ ] Task 4: Write test files for each existing `*-api.ts` file — verify inventory with `rg --files frontend/src/features | rg -- '-api\.ts$'` before starting; the list below reflects the repo as of 2026-05-15
-  - [ ] `src/features/events/public-events-api.test.ts`
-  - [ ] `src/features/content/public-posts-api.test.ts`
-  - [ ] `src/features/payments/membership-api.test.ts`
-  - [ ] `src/features/payments/shop-api.test.ts`
-  - [ ] `src/features/games/public-games-api.test.ts`
-  - [ ] `src/features/games/game-request-api.test.ts`
-  - [ ] `src/features/runs/run-results-api.test.ts`
-  - [ ] `src/features/players/player-profile-api.test.ts`
-  - [ ] `src/features/community/community-api.test.ts`
-- [ ] Task 5: Run `pnpm test` — all green
-- [ ] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` — all clean
+- [x] Task 1: Create story file (this file)
+- [x] Task 2: Install and configure Jest
+  - [x] 2a: `pnpm add -D jest @types/jest jest-environment-jsdom` (do NOT add `ts-jest` — `next/jest` handles TS transforms)
+  - [x] 2b: Create `jest.config.mjs` using `createJestConfig` from `next/jest` (used `.mjs` instead of `.ts` to avoid requiring `ts-node`)
+  - [x] 2c: Add `"test": "jest"` to `package.json` scripts
+- [x] Task 3: Install and configure MSW v2
+  - [x] 3a: `pnpm add -D msw`
+  - [x] 3b: Create `frontend/src/tests/constants.ts` exporting `TEST_API_BASE_URL = "http://localhost:8080"`
+  - [x] 3c: Create `frontend/src/tests/setup.ts` importing `TEST_API_BASE_URL` from `./constants`; assign to `process.env.NEXT_PUBLIC_API_BASE_URL`; configure MSW server
+  - [x] 3d: Add `setupFilesAfterEnv: ["<rootDir>/src/tests/setup.ts"]` to jest config
+- [x] Task 3e: Audit — `apiFetch` wraps global `fetch`, so MSW intercepts it; all 9 files use global `fetch` (directly or via `apiFetch`)
+- [x] Task 4: Write test files for each existing `*-api.ts` file
+  - [x] `src/features/events/public-events-api.test.ts`
+  - [x] `src/features/content/public-posts-api.test.ts`
+  - [x] `src/features/payments/membership-api.test.ts`
+  - [x] `src/features/payments/shop-api.test.ts`
+  - [x] `src/features/games/public-games-api.test.ts`
+  - [x] `src/features/games/game-request-api.test.ts`
+  - [x] `src/features/runs/run-results-api.test.ts`
+  - [x] `src/features/players/player-profile-api.test.ts`
+  - [x] `src/features/community/community-api.test.ts`
+- [x] Task 5: Run `pnpm test` — 54 tests, all green
+- [x] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` — all clean
 
 ## Dev Notes
 
@@ -172,8 +168,27 @@ Constraints for `setup.ts`:
 - `frontend/src/features/**/*-api.test.ts` — new: one per existing `*-api.ts` file
 - `_bmad-output/implementation-artifacts/20-7-frontend-jest-api-test-suite.md` — this file
 
+## Dev Agent Record
+
+### Completion Notes
+
+Implemented 2026-05-15.
+
+**Config**: `jest.config.mjs` (not `.ts` — avoids requiring `ts-node`); `testEnvironment: "node"` (API functions are server-side, no DOM needed). MSW v2's `setupServer` from `msw/node` requires Node globals (`Request`, `Response`), which are available natively in Node 22.
+
+**ESM deps**: Next.js 16's `next/jest` resolves MSW to its TypeScript source and transforms it via SWC. Several of MSW's transitive deps ship ESM-only builds (`rettime`, `until-async`, `@open-draft/deferred-promise`). Fixed by adding them to `transpilePackages` in `next.config.ts` — Next.js's jest config reads this to build its pnpm-aware `transformIgnorePatterns` allowlist.
+
+**`apiFetch` note**: `apiFetch` wraps global `fetch`, so MSW intercepts it transparently. No separate mocking strategy needed. Tests avoid 401 responses to skip the token-refresh retry path.
+
+**Fallback APIs**: `getPublicEvents`, `getPublicPosts`, `getPublicPostBySlugFromApi`, and `getPublicEvent` return mock fallback data on error rather than `null`. Tests for list functions verify the fallback shape; tests for single-item functions use unknown IDs so the fallback resolves to `null`.
+
+**ESLint**: Added `src/tests/setup.ts` to the process.env rule's `ignores` (it legitimately sets the env var before test modules load). Added `no-restricted-syntax: ImportDeclaration` scoped to `src/tests/constants.ts`.
+
+**Quality gates**: `pnpm test` 54 tests, 0 failures; `pnpm typecheck` 0 errors; `pnpm lint` 0 errors; `pnpm build` clean.
+
 ## Change Log
 
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
+| 2026-05-15 | Implementation complete — 9 test files, 54 tests green, all quality gates pass |

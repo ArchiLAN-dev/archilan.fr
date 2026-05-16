@@ -6,7 +6,7 @@ namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Handler\StopPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,7 +42,7 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     public function testPersonalRunHasNoSessionLogsWarningAndReturns(): void
     {
         $now = new \DateTimeImmutable();
-        $run = PersonalRun::create('owner-1', 'Test Run', $now);
+        $run = Run::create('owner-1', 'Test Run', $now);
 
         $this->entityManager->method('find')->willReturn($run);
 
@@ -59,12 +59,12 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     public function testSessionNotFoundLogsWarningAndReturns(): void
     {
         $now = new \DateTimeImmutable();
-        $run = PersonalRun::create('owner-1', 'Test Run', $now);
+        $run = Run::create('owner-1', 'Test Run', $now);
         $run->setSessionId('sess-missing');
 
         $this->entityManager->method('find')->willReturnCallback(
             static function (string $class) use ($run): ?object {
-                return PersonalRun::class === $class ? $run : null;
+                return Run::class === $class ? $run : null;
             }
         );
 
@@ -84,14 +84,14 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     public function testAllFoundDispatchesStopRunJob(): void
     {
         $now = new \DateTimeImmutable();
-        $run = PersonalRun::create('owner-1', 'Test Run', $now);
+        $run = Run::create('owner-1', 'Test Run', $now);
         $run->setSessionId('sess-1');
 
         $session = Session::create('sess-1', 'event-1', $now);
 
         $this->entityManager->method('find')->willReturnCallback(
             static function (string $class) use ($run, $session): ?object {
-                if (PersonalRun::class === $class) {
+                if (Run::class === $class) {
                     return $run;
                 }
                 if (Session::class === $class) {

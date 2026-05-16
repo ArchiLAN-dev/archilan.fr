@@ -35,7 +35,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 ### Application layer (`Application/`)
 
 **AC-A1:** Application services are `final` — no extension, no inheritance hierarchies.  
-**AC-A2:** Application services MAY inject `EntityManagerInterface` for **writes** (persist / flush / remove) and `Connection` for **read queries**. This is correct and expected.  
+**AC-A2:** Application services MAY inject `EntityManagerInterface` for **writes** (`persist` / `flush` / `remove` / `find` / `findBy` / `findOneBy`) and `Connection` for **read and write queries via DBAL QueryBuilder only**. All SQL must be built with `$this->connection->createQueryBuilder()` — no raw SQL strings, no DQL, no `EntityManagerInterface::createQueryBuilder()`.  
 **AC-A3:** Command services (writes) return `void`. Query services (reads) return typed DTOs or PHP arrays. Never return raw Doctrine entities from a query.  
 **AC-A4:** A command service performs exactly one unit of work. Side effects after the DB commit (emails via Messenger, Mercure publishes) are dispatched asynchronously — never inline before `flush()`.  
 **AC-A5:** No `new` on infrastructure dependencies inside Application. Always inject the interface (`RunnerGatewayInterface`, `MinioStorageInterface`, etc.).  
@@ -125,6 +125,25 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 ## Forbidden patterns (never do these)
 
 ```php
+// ❌ Raw SQL string — use DBAL QueryBuilder instead
+$rows = $conn->fetchAllAssociative('SELECT * FROM session WHERE status = :s', ['s' => 'finished']);
+
+// ❌ DQL — use DBAL QueryBuilder instead
+$this->entityManager->createQuery('SELECT u FROM App\Identity\Domain\User u WHERE u.slug = :slug');
+
+// ❌ ORM QueryBuilder (generates DQL) — use DBAL QueryBuilder instead
+$this->entityManager->createQueryBuilder()->select('u')->from(User::class, 'u');
+
+// ✅ DBAL QueryBuilder — always this
+$qb = $this->connection->createQueryBuilder();
+$rows = $qb->select('s.id', 'e.title')
+    ->from('session', 's')
+    ->join('s', 'event', 'e', $qb->expr()->eq('e.id', 's.event_id'))
+    ->where($qb->expr()->eq('s.status', ':status'))
+    ->setParameter('status', 'finished')
+    ->executeQuery()
+    ->fetchAllAssociative();
+
 // ❌ Static mutable state
 private static array $cache = [];
 

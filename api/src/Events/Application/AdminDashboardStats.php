@@ -5,17 +5,26 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Registrations\Domain\Registration;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminDashboardStats
 {
+    private string $eventTable;
+    private string $registrationTable;
+    private string $gameTable;
+
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private Connection $connection,
+        EntityManagerInterface $em,
         private LoggerInterface $logger,
     ) {
+        $this->eventTable = $em->getClassMetadata(Event::class)->getTableName();
+        $this->registrationTable = $em->getClassMetadata(Registration::class)->getTableName();
+        $this->gameTable = $em->getClassMetadata(Game::class)->getTableName();
     }
 
     /**
@@ -23,28 +32,36 @@ final readonly class AdminDashboardStats
      */
     public function getStats(): array
     {
-        $publishedEvents = (int) $this->entityManager->createQueryBuilder()
+        $evtQb = $this->connection->createQueryBuilder();
+        $placeholders = array_map(
+            static fn (string $s): string => $evtQb->createNamedParameter($s),
+            Event::PUBLIC_STATUSES,
+        );
+        $publishedEventsRaw = $evtQb
             ->select('COUNT(e.id)')
-            ->from(Event::class, 'e')
-            ->where('e.status IN (:statuses)')
-            ->setParameter('statuses', Event::PUBLIC_STATUSES)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->from($this->eventTable, 'e')
+            ->where($evtQb->expr()->in('e.status', $placeholders))
+            ->executeQuery()
+            ->fetchOne();
+        $publishedEvents = is_numeric($publishedEventsRaw) ? (int) $publishedEventsRaw : 0;
 
-        $totalConfirmedRegistrations = (int) $this->entityManager->createQueryBuilder()
+        $regQb = $this->connection->createQueryBuilder();
+        $confirmedRaw = $regQb
             ->select('COUNT(r.id)')
-            ->from(Registration::class, 'r')
-            ->where('r.status = :status')
-            ->setParameter('status', Registration::STATUS_RESERVED)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->from($this->registrationTable, 'r')
+            ->where($regQb->expr()->neq('r.status', ':status'))
+            ->setParameter('status', Registration::STATUS_CANCELLED)
+            ->executeQuery()
+            ->fetchOne();
+        $totalConfirmedRegistrations = is_numeric($confirmedRaw) ? (int) $confirmedRaw : 0;
 
-        // TODO: Expand when game library is fully managed via admin CRUD
-        $gameCount = (int) $this->entityManager->createQueryBuilder()
+        $gameQb = $this->connection->createQueryBuilder();
+        $gameCountRaw = $gameQb
             ->select('COUNT(g.id)')
-            ->from(ArchipelagoGame::class, 'g')
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->from($this->gameTable, 'g')
+            ->executeQuery()
+            ->fetchOne();
+        $gameCount = is_numeric($gameCountRaw) ? (int) $gameCountRaw : 0;
 
         $this->logger->debug('AdminDashboardStats.getStats', [
             'publishedEvents' => $publishedEvents,

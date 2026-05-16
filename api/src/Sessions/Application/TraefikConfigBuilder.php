@@ -23,13 +23,7 @@ final readonly class TraefikConfigBuilder
     public function build(): array
     {
         /** @var list<Session> $sessions */
-        $sessions = $this->entityManager->createQueryBuilder()
-            ->select('s')
-            ->from(Session::class, 's')
-            ->where('s.status = :status')
-            ->setParameter('status', Session::STATUS_RUNNING)
-            ->getQuery()
-            ->getResult();
+        $sessions = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STATUS_RUNNING]);
 
         $routers = [];
         $services = [];

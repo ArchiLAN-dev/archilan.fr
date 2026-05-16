@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\SessionRestartFailedMessage;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Domain\Session;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -23,7 +23,7 @@ final class BridgeLifecycleCallbackTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
+            $this->entityManager->getClassMetadata(Run::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

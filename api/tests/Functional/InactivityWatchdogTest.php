@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\SessionPausedWithoutSaveMessage;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Application\Message\PauseRunJob;
 use App\Sessions\Application\ScheduledTask\InactivityWatchdogHandler;
 use App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage;
@@ -21,7 +21,7 @@ final class InactivityWatchdogTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(PersonalRun::class),
+            $this->entityManager->getClassMetadata(Run::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);

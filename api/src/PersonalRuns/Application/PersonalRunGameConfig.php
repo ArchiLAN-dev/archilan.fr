@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Application\ValidationErrors;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -26,7 +26,7 @@ final readonly class PersonalRunGameConfig
     public function configure(string $runId, string $callerId, array $input): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->result(found: false);
         }
@@ -35,11 +35,11 @@ final readonly class PersonalRunGameConfig
             return $this->result(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), PersonalRun::ACTIVE_STATUSES, true)) {
+        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
             return $this->result(found: true, blocked: true, blockReason: 'run_active');
         }
 
-        if (!in_array($run->getStatus(), [PersonalRun::STATUS_DRAFT, PersonalRun::STATUS_IDLE], true)) {
+        if (!in_array($run->getStatus(), [Run::STATUS_DRAFT, Run::STATUS_IDLE], true)) {
             return $this->result(found: true, blocked: true, blockReason: 'run_not_configurable');
         }
 
@@ -109,9 +109,9 @@ final readonly class PersonalRunGameConfig
         $errors = new ValidationErrors();
 
         foreach ($games as $index => $entry) {
-            $game = $this->entityManager->find(ArchipelagoGame::class, $entry['gameId']);
+            $game = $this->entityManager->find(Game::class, $entry['gameId']);
 
-            if (!$game instanceof ArchipelagoGame) {
+            if (!$game instanceof Game) {
                 $errors->add(sprintf('games.%d.gameId', $index), 'Jeu introuvable dans la bibliothèque.');
             }
         }

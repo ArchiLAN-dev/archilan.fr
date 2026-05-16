@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -49,12 +49,12 @@ final class ArchipelagoGameApworldUrlNormalizationTest extends TestCase
     #[DataProvider('validUrlProvider')]
     public function testValidUrlsAreNormalized(string $input, string $expected): void
     {
-        self::assertSame($expected, ArchipelagoGame::normalizeApworldSourceUrl($input));
+        self::assertSame($expected, Game::normalizeApworldSourceUrl($input));
     }
 
     #[DataProvider('invalidUrlProvider')]
     public function testInvalidUrlsReturnNull(string $input): void
     {
-        self::assertNull(ArchipelagoGame::normalizeApworldSourceUrl($input));
+        self::assertNull(Game::normalizeApworldSourceUrl($input));
     }
 }

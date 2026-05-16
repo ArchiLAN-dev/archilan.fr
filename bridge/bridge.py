@@ -10,26 +10,18 @@ import sys
 import aiohttp
 from aiohttp import web
 
-# Bootstrap: add core/ to sys.path so all core modules can import siblings directly.
-# Works in both script mode (python /bridge/bridge.py) and package mode (from bridge.bridge import ...).
-_core = os.path.join(os.path.dirname(os.path.abspath(__file__)), "core")
-if _core not in sys.path:
-    sys.path.insert(0, _core)
+if __package__ in {None, ""}:
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, repo_root)
 
-# Re-export all public symbols so tests using `from bridge.bridge import X` keep working.
-from config import Config  # noqa: E402  # temporary — removed in story 20.3
-from domain import HintInfo, PlayerState  # noqa: E402  # temporary — removed in story 20.3
-from save_parser import load_save_state  # noqa: E402  # temporary — removed in story 20.3
-from state import StateManager  # noqa: E402  # temporary — removed in story 20.3
-from mercure import MercurePublisher, TokenManager  # noqa: E402  # temporary — removed in story 20.3
-from ap_client import (  # noqa: E402  # temporary — removed in story 20.3
-    ArchipelagoClient,
-    DataPackageStore,
-    _build_feed_event,
-)
-from reachable import _compute_reachable, _reachable_cache  # noqa: E402  # temporary — removed in story 20.3
-from rest import create_app  # noqa: E402  # temporary — removed in story 20.3
-from loops import (  # noqa: E402  # temporary — removed in story 20.3
+from bridge.core.config import Config
+from bridge.core.domain import HintInfo, PlayerState
+from bridge.core.save_parser import load_save_state
+from bridge.core.state import StateManager
+from bridge.core.mercure import MercurePublisher, TokenManager
+from bridge.core.ap_client import ArchipelagoClient, DataPackageStore
+from bridge.core.rest import create_app
+from bridge.core.loops import (
     _apsave_reconcile_loop,
     _heartbeat_loop,
     _reachable_sweep_loop,
@@ -46,9 +38,6 @@ __all__ = [
     "TokenManager",
     "ArchipelagoClient",
     "DataPackageStore",
-    "_build_feed_event",
-    "_compute_reachable",
-    "_reachable_cache",
     "create_app",
     "setup_logging",
 ]
@@ -98,4 +87,7 @@ async def _main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(_main())
+    if "--check-imports" in sys.argv:
+        print("script import ok")
+    else:
+        asyncio.run(_main())

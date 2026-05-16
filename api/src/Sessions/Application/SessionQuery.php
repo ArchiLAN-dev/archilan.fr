@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Shared\Application\EntityFinderTrait;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class SessionQuery
 {
     use EntityFinderTrait;
 
-    public function __construct(private EntityManagerInterface $entityManager)
-    {
+    private string $registrationTable;
+
+    public function __construct(
+        private EntityManagerInterface $entityManager,
+        private Connection $connection,
+    ) {
+        $this->registrationTable = $entityManager->getClassMetadata(Registration::class)->getTableName();
     }
 
     /**
@@ -55,17 +61,22 @@ final readonly class SessionQuery
 
     public function hasActiveEventRegistration(string $userId, string $eventId): bool
     {
-        $count = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(r.id)')
-            ->from(Registration::class, 'r')
-            ->where('r.eventId = :eventId AND r.userId = :userId AND r.status = :status AND r.submittedAt IS NOT NULL')
+        $qb = $this->connection->createQueryBuilder();
+        $result = $qb->select('COUNT(r.id)')
+            ->from($this->registrationTable, 'r')
+            ->where($qb->expr()->and(
+                $qb->expr()->eq('r.event_id', ':eventId'),
+                $qb->expr()->eq('r.user_id', ':userId'),
+                $qb->expr()->eq('r.status', ':status'),
+                $qb->expr()->isNotNull('r.submitted_at'),
+            ))
             ->setParameter('eventId', $eventId)
             ->setParameter('userId', $userId)
             ->setParameter('status', Registration::STATUS_RESERVED)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->executeQuery()
+            ->fetchOne();
 
-        return $count > 0;
+        return false !== $result && is_numeric($result) && (int) $result > 0;
     }
 
     public function isUserAuthorizedForSession(string $userId, string $eventId, string $sessionId): bool
@@ -74,13 +85,13 @@ final readonly class SessionQuery
             return true;
         }
 
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-        if ($personalRun instanceof PersonalRun) {
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof Run) {
             if ($personalRun->isOwnedBy($userId)) {
                 return true;
             }
-            $participant = $this->entityManager->getRepository(PersonalRunParticipant::class)->findOneBy([
-                'personalRunId' => $personalRun->getId(),
+            $participant = $this->entityManager->getRepository(RunParticipant::class)->findOneBy([
+                'runId' => $personalRun->getId(),
                 'userId' => $userId,
             ]);
 

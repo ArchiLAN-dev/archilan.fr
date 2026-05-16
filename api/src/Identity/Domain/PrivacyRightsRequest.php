@@ -7,7 +7,6 @@ namespace App\Identity\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'identity_privacy_rights_requests')]
 #[ORM\Index(name: 'idx_identity_privacy_rights_requests_user_id', columns: ['user_id'])]
 #[ORM\Index(name: 'idx_identity_privacy_rights_requests_status', columns: ['status'])]
 class PrivacyRightsRequest

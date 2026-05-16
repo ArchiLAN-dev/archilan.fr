@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application;
 
+use App\Communications\Application\ArchilanMailer;
+use App\Communications\Application\Email\AdminDirectMessageEmail;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationAdminMessage;
 use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-use Symfony\Component\Mailer\MailerInterface;
-use Symfony\Component\Mime\Address;
-use Symfony\Component\Mime\Email;
 
 final readonly class SendMessageToRegistrant
 {
@@ -21,9 +18,7 @@ final readonly class SendMessageToRegistrant
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MailerInterface $mailer,
-        private LoggerInterface $logger,
-        private string $mailerSender,
+        private ArchilanMailer $mailer,
     ) {
     }
 
@@ -48,23 +43,14 @@ final readonly class SendMessageToRegistrant
             return ['outcome' => 'not_found'];
         }
 
-        $emailBody = $body."\n\n---\nCe message a été envoyé depuis le backoffice ArchiLAN.";
+        $sent = $this->mailer->send(new AdminDirectMessageEmail(
+            $participant->getEmail(),
+            $participant->getDisplayName(),
+            $subject,
+            $body,
+        ));
 
-        $email = (new Email())
-            ->from(new Address($this->mailerSender, 'ArchiLAN'))
-            ->to(new Address($participant->getEmail(), $participant->getDisplayName() ?? $participant->getEmail()))
-            ->subject($subject)
-            ->text($emailBody);
-
-        try {
-            $this->mailer->send($email);
-        } catch (TransportExceptionInterface $e) {
-            $this->logger->error('admin.registrations.message_send_failed', [
-                'registrationId' => $registrationId,
-                'eventId' => $eventId,
-                'error' => $e->getMessage(),
-            ]);
-
+        if (!$sent) {
             return ['outcome' => 'send_failed'];
         }
 

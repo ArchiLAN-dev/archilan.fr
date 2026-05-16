@@ -8,7 +8,7 @@
 
 ## Status
 
-todo
+review
 
 ## Acceptance Criteria
 
@@ -22,8 +22,8 @@ todo
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create story file (this file)
-- [ ] Task 2: Run grep audit for all 4 access patterns (run from repo root):
+- [x] Task 1: Create story file (this file)
+- [x] Task 2: Run grep audit for all 4 access patterns (run from repo root):
   ```bash
   # Standard dot access (caught by ESLint selector 1)
   rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
@@ -34,12 +34,12 @@ todo
   # Optional chaining (NOT caught by ESLint — accepted out-of-scope; fix manually if found)
   rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   ```
-  - [ ] Document each occurrence: file, line, pattern form, replacement
-- [ ] Task 3: Replace all violations with `env.*` accessors
-  - [ ] Add any missing env variables to `src/lib/env.ts` if the audit reveals accesses not yet covered
-- [ ] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*` using the `ignores` field inside the config block (not a separate override block) to exclude `src/lib/env.ts` and test files — see Dev Notes for the exact config shape
-- [ ] Task 5: Run `pnpm lint` — fix any remaining issues
-- [ ] Task 6: Run `pnpm typecheck` and `pnpm build` — verify clean
+  - [x] Document each occurrence: file, line, pattern form, replacement
+- [x] Task 3: Replace all violations with `env.*` accessors
+  - [x] Add any missing env variables to `src/lib/env.ts` if the audit reveals accesses not yet covered
+- [x] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*` using the `ignores` field inside the config block (not a separate override block) to exclude `src/lib/env.ts` and test files — see Dev Notes for the exact config shape
+- [x] Task 5: Run `pnpm lint` — fix any remaining issues
+- [x] Task 6: Run `pnpm typecheck` and `pnpm build` — verify clean
 
 ## Dev Notes
 
@@ -118,8 +118,19 @@ The grep audit in Task 2 still runs all four patterns to clean up any existing o
 - Any `frontend/src/**/*.{ts,tsx}` files with `process.env` violations (identified by audit)
 - `_bmad-output/implementation-artifacts/20-5-frontend-ban-process-env.md` — this file
 
+## Dev Agent Record
+
+### Completion Notes
+
+Implemented 2026-05-15.
+
+- Audit : zéro violation de `process.env` hors `src/lib/env.ts` — aucune correction requise sur le code existant.
+- Ajout du bloc `no-restricted-syntax` dans `frontend/eslint.config.mjs` avec 3 sélecteurs (dot-access, computed, destructuring) scopés à `src/**/*.{ts,tsx}`, excluant `src/lib/env.ts` et les fichiers test via le champ `ignores` interne au bloc de config.
+- Quality gates : `pnpm lint` 0 erreurs/avertissements, `pnpm typecheck` 0 erreurs, `pnpm build` propre.
+
 ## Change Log
 
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
+| 2026-05-15 | Implementation complete — ESLint rule added, quality gates green |

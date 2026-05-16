@@ -31,15 +31,7 @@ final readonly class PublicEventCatalog
     public function list(): array
     {
         /** @var list<Event> $events */
-        $events = $this->entityManager->createQueryBuilder()
-            ->select('event')
-            ->from(Event::class, 'event')
-            ->andWhere('event.status IN (:statuses)')
-            ->setParameter('statuses', Event::PUBLIC_STATUSES)
-            ->orderBy('event.startsAt', 'ASC')
-            ->setMaxResults(500)
-            ->getQuery()
-            ->getResult();
+        $events = $this->entityManager->getRepository(Event::class)->findBy(['status' => Event::PUBLIC_STATUSES], ['startsAt' => 'ASC'], 500);
 
         return array_map(fn (Event $event): array => [
             ...$this->payload($event),

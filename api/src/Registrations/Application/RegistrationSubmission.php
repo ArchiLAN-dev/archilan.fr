@@ -6,7 +6,7 @@ namespace App\Registrations\Application;
 
 use App\Communications\Application\RegistrationConfirmationMessage;
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Shared\Application\EntityFinderTrait;
@@ -119,14 +119,8 @@ final readonly class RegistrationSubmission
 
         $uniqueIds = array_values(array_unique($gameIds));
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.id IN (:ids)')
-            ->setParameter('ids', $uniqueIds)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $uniqueIds]);
 
         /** @var array<string, string> $namesById */
         $namesById = [];

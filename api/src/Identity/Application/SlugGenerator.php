@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use Doctrine\DBAL\Connection;
+use App\Identity\Domain\User;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final readonly class SlugGenerator
 {
-    public function __construct(private Connection $connection)
+    public function __construct(private EntityManagerInterface $entityManager)
     {
     }
 
@@ -48,9 +49,6 @@ final readonly class SlugGenerator
 
     private function slugExists(string $slug): bool
     {
-        return false !== $this->connection->fetchOne(
-            'SELECT 1 FROM identity_users WHERE slug = ?',
-            [$slug],
-        );
+        return null !== $this->entityManager->getRepository(User::class)->findOneBy(['slug' => $slug]);
     }
 }

@@ -7,7 +7,6 @@ namespace App\Identity\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'identity_refresh_tokens')]
 #[ORM\UniqueConstraint(name: 'uniq_identity_refresh_tokens_token_hash', columns: ['token_hash'])]
 #[ORM\Index(name: 'idx_identity_refresh_tokens_user_revoked', columns: ['user_id', 'revoked_at'])]
 class RefreshToken
@@ -28,6 +27,8 @@ class RefreshToken
         private readonly ?string $userAgent,
         #[ORM\Column(name: 'revoked_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $revokedAt = null,
+        #[ORM\Column(name: 'remember_me', type: 'boolean')]
+        private readonly bool $rememberMe = true,
     ) {
     }
 
@@ -37,6 +38,7 @@ class RefreshToken
         \DateTimeImmutable $expiresAt,
         \DateTimeImmutable $now,
         ?string $userAgent = null,
+        bool $rememberMe = true,
     ): self {
         return new self(
             bin2hex(random_bytes(16)),
@@ -45,6 +47,7 @@ class RefreshToken
             $expiresAt,
             $now,
             null !== $userAgent ? substr($userAgent, 0, 255) : null,
+            rememberMe: $rememberMe,
         );
     }
 
@@ -81,6 +84,11 @@ class RefreshToken
     public function getRevokedAt(): ?\DateTimeImmutable
     {
         return $this->revokedAt;
+    }
+
+    public function isRememberMe(): bool
+    {
+        return $this->rememberMe;
     }
 
     public function isRevoked(): bool

@@ -8,7 +8,6 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'run_audit_logs')]
 final class RunAuditLog
 {
     public function __construct(

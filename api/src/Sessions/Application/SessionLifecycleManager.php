@@ -9,7 +9,7 @@ use App\Communications\Application\SessionRestartFailedMessage;
 use App\Communications\Application\SessionRunningMessage;
 use App\Events\Domain\Event;
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Application\Message\StopRunJob;
@@ -140,8 +140,8 @@ final readonly class SessionLifecycleManager
         if (Session::STATUS_DRAFT === $newStatus && null !== $validationErrors) {
             $session->setValidationErrors($validationErrors);
 
-            $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-            if ($personalRun instanceof PersonalRun && PersonalRun::STATUS_STARTING === $personalRun->getStatus()) {
+            $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+            if ($personalRun instanceof Run && Run::STATUS_STARTING === $personalRun->getStatus()) {
                 $personalRun->resetAfterValidationFailure($now);
             }
         }
@@ -156,15 +156,15 @@ final readonly class SessionLifecycleManager
         }
 
         if (Session::STATUS_RUNNING === $newStatus) {
-            $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-            if ($personalRun instanceof PersonalRun) {
+            $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+            if ($personalRun instanceof Run) {
                 $personalRun->markRunning($session->getHost() ?? '', $session->getPort() ?? 0, $now, $session->getPassword());
             }
         }
 
         if (Session::STATUS_CRASHED === $newStatus) {
-            $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-            if ($personalRun instanceof PersonalRun) {
+            $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+            if ($personalRun instanceof Run) {
                 $session->markIdle($session->getLastSaveKey(), true, $now);
                 $personalRun->markStopped($now);
                 $this->logger->info('session.crash_recovered_to_idle', ['sessionId' => $sessionId]);
@@ -253,13 +253,7 @@ final readonly class SessionLifecycleManager
         $registrationIds = array_keys($slotNamesByRegistrationId);
 
         /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(Registration::class, 'r')
-            ->where('r.id IN (:ids)')
-            ->setParameter('ids', $registrationIds)
-            ->getQuery()
-            ->getResult();
+        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
 
         if ([] === $registrations) {
             return;
@@ -269,13 +263,7 @@ final readonly class SessionLifecycleManager
         $userIds = array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $registrations));
 
         /** @var list<User> $users */
-        $users = $this->entityManager->createQueryBuilder()
-            ->select('u')
-            ->from(User::class, 'u')
-            ->where('u.id IN (:ids)')
-            ->setParameter('ids', $userIds)
-            ->getQuery()
-            ->getResult();
+        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
 
         /** @var array<string, User> $usersById */
         $usersById = [];
@@ -385,10 +373,10 @@ final readonly class SessionLifecycleManager
             return ['found' => true, 'error' => 'no_save_available', 'sessionId' => null, 'status' => null];
         }
 
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
 
         if (!$isAdmin) {
-            if (!$personalRun instanceof PersonalRun || !$personalRun->isOwnedBy($callerId)) {
+            if (!$personalRun instanceof Run || !$personalRun->isOwnedBy($callerId)) {
                 return ['found' => true, 'error' => 'forbidden', 'sessionId' => null, 'status' => null];
             }
         }
@@ -396,7 +384,7 @@ final readonly class SessionLifecycleManager
         $now = new \DateTimeImmutable();
         $session->markRestarting($now);
 
-        if ($personalRun instanceof PersonalRun) {
+        if ($personalRun instanceof Run) {
             $personalRun->markRestarting($now);
         }
 
@@ -448,8 +436,8 @@ final readonly class SessionLifecycleManager
 
         $session->resumeRunning($effectiveHost, $effectivePort, $effectiveBridgePort, $now);
 
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-        if ($personalRun instanceof PersonalRun) {
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof Run) {
             $personalRun->markRunning($effectiveHost, $effectivePort, $now, $session->getPassword());
         }
 
@@ -491,8 +479,8 @@ final readonly class SessionLifecycleManager
             return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
         }
 
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-        if ($personalRun instanceof PersonalRun) {
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof Run) {
             $personalRun->markRestarting($now);
         }
 
@@ -533,8 +521,8 @@ final readonly class SessionLifecycleManager
             return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
         }
 
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-        if ($personalRun instanceof PersonalRun) {
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof Run) {
             $personalRun->markStopped($now);
         }
 
@@ -569,8 +557,8 @@ final readonly class SessionLifecycleManager
         $now = new \DateTimeImmutable();
         $session->markIdle($saveKey, $failedSave, $now);
 
-        $personalRun = $this->entityManager->getRepository(PersonalRun::class)->findOneBy(['sessionId' => $sessionId]);
-        if ($personalRun instanceof PersonalRun) {
+        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        if ($personalRun instanceof Run) {
             $personalRun->markStopped($now);
         }
 

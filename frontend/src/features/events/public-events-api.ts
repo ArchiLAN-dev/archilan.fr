@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { EventStatus, PublicEvent } from "./event-types";
 import { pastEvents, upcomingEvents } from "./mock-events";
 
@@ -131,11 +132,48 @@ function fallbackEvents() {
 }
 
 function isPublicEventListPayload(payload: unknown): payload is { data: PublicEventPayload[] } {
-  return Boolean(payload && typeof payload === "object" && "data" in payload && Array.isArray((payload as { data: unknown }).data));
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload)) return false;
+  return Array.isArray(payload.data) && payload.data.every(isPublicEventPayloadItem);
 }
 
 function isPublicEventPayload(payload: unknown): payload is { data: PublicEventPayload } {
-  const data = payload && typeof payload === "object" && "data" in payload ? (payload as { data: unknown }).data : null;
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload)) return false;
+  const data = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  return isPublicEventPayloadItem(data);
+}
 
-  return Boolean(data && typeof data === "object" && "id" in data && "title" in data);
+function isPublishedStatus(v: unknown): v is PublicEventPayload["status"] {
+  return v === "published" || v === "in-progress" || v === "completed";
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((item): item is string => typeof item === "string");
+}
+
+function isPublicEventPayloadItem(v: unknown): v is PublicEventPayload {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "id")) return false;
+  if (!hasStringProp(v, "title")) return false;
+  if (!hasStringProp(v, "description")) return false;
+  if (!("coverImageUrl" in v) || (v.coverImageUrl !== null && typeof v.coverImageUrl !== "string")) return false;
+  if (!("photoGallery" in v) || !isStringArray(v.photoGallery)) return false;
+  if (!hasStringProp(v, "type")) return false;
+  if (!("status" in v) || !isPublishedStatus(v.status)) return false;
+  if (!hasStringProp(v, "startsAt")) return false;
+  if (!hasStringProp(v, "endsAt")) return false;
+  if (!hasStringProp(v, "venue")) return false;
+  if (!hasNumberProp(v, "capacity")) return false;
+  if (!hasNumberProp(v, "confirmedRegistrations")) return false;
+  if (!hasStringProp(v, "registrationOpensAt")) return false;
+  if (!hasStringProp(v, "registrationClosesAt")) return false;
+  if (!hasBooleanProp(v, "isPublic")) return false;
+  if (!hasBooleanProp(v, "hasPrivateAccessPassword")) return false;
+  if (!("vodUrl" in v) || (v.vodUrl !== null && typeof v.vodUrl !== "string")) return false;
+  if (!("recapPostSlug" in v) || (v.recapPostSlug !== null && typeof v.recapPostSlug !== "string")) return false;
+  if (!hasBooleanProp(v, "hasRecap")) return false;
+  if (!("checkoutEmbedUrl" in v) || (v.checkoutEmbedUrl !== null && typeof v.checkoutEmbedUrl !== "string")) return false;
+  return hasBooleanProp(v, "checkoutUnavailable");
 }

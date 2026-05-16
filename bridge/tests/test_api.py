@@ -14,9 +14,9 @@ from bridge.bridge import (
     MercurePublisher,
     StateManager,
     TokenManager,
-    _reachable_cache,
     create_app,
 )
+from bridge.core.reachable import _reachable_cache
 
 
 def _make_config() -> Config:

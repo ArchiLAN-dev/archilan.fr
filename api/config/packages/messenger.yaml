@@ -42,6 +42,8 @@ framework:
 
         routing:
             'App\Communications\Application\RegistrationConfirmationMessage': async
+            'App\Communications\Application\PasswordResetMessage': async
+            'App\Communications\Application\EmailConfirmationMessage': async
             'App\Communications\Application\SessionRunningMessage': async
             'App\Events\Application\EventCapacityReachedMessage': async
             'App\Payments\Application\SyncHelloAssoFormMessage': async

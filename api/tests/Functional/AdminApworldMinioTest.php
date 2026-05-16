@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Domain\User;
 use App\Sessions\Infrastructure\NullRunnerGateway;
@@ -26,7 +26,7 @@ final class AdminApworldMinioTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
             $this->entityManager->getClassMetadata(GameCatalogSync::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
@@ -70,8 +70,8 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         $minioKey = $sha256.'.apworld';
         self::assertTrue($this->minioStorage->exists('apworlds', $minioKey), 'APWorld should be stored in MinIO');
 
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-        self::assertInstanceOf(ArchipelagoGame::class, $game);
+        $game = $this->entityManager->find(Game::class, $gameId);
+        self::assertInstanceOf(Game::class, $game);
         self::assertSame($minioKey, $game->getApworldMinioKey());
     }
 
@@ -106,8 +106,8 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         // Store count must not have increased (deduplication)
         self::assertCount($storeBefore, $this->minioStorage->getStore());
 
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-        self::assertInstanceOf(ArchipelagoGame::class, $game);
+        $game = $this->entityManager->find(Game::class, $gameId);
+        self::assertInstanceOf(Game::class, $game);
         self::assertSame($minioKey, $game->getApworldMinioKey());
     }
 
@@ -179,7 +179,7 @@ final class AdminApworldMinioTest extends FunctionalTestCase
             'description' => 'Un metroidvania compatible Archipelago.',
             'coverImageAlt' => 'Logo Hollow Knight',
             'coverImageCredit' => 'Team Cherry',
-            'availability' => ArchipelagoGame::AVAILABILITY_AVAILABLE,
+            'availability' => Game::AVAILABILITY_AVAILABLE,
         ]);
         self::assertResponseStatusCodeSame(201);
         $response = $this->decodedJsonResponse();

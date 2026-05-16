@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Domain\IgnoredCatalogEntry;
 use App\Identity\Domain\User;
@@ -22,7 +22,7 @@ final class CatalogSyncEndpointTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
             $this->entityManager->getClassMetadata(GameCatalogSync::class),
             $this->entityManager->getClassMetadata(IgnoredCatalogEntry::class),
         ];
@@ -95,7 +95,7 @@ final class CatalogSyncEndpointTest extends FunctionalTestCase
         self::assertNull($update['latestVersion']);
         self::assertNull($update['releaseUrl']);
         self::assertNull($update['publishedAt']);
-        self::assertSame(ArchipelagoGame::UPDATE_STATUS_UNKNOWN, $update['updateStatus']);
+        self::assertSame(Game::UPDATE_STATUS_UNKNOWN, $update['updateStatus']);
     }
 
     public function testCatalogSyncReturns503WhenSheetUnreachable(): void
@@ -153,7 +153,7 @@ final class CatalogSyncEndpointTest extends FunctionalTestCase
         self::assertIsArray($apworldUpdates);
         $firstUpdate = $apworldUpdates[0];
         self::assertIsArray($firstUpdate);
-        self::assertSame(ArchipelagoGame::UPDATE_STATUS_NOT_TRACKED, $firstUpdate['updateStatus']);
+        self::assertSame(Game::UPDATE_STATUS_NOT_TRACKED, $firstUpdate['updateStatus']);
     }
 
     public function testCatalogSyncNewGamesIncludeAdultContentField(): void
@@ -183,7 +183,7 @@ final class CatalogSyncEndpointTest extends FunctionalTestCase
 
     public function testCatalogSyncStabilityChangedIncludesAvailabilityLockedField(): void
     {
-        $game = $this->createGame('Hollow Knight', 'hollow-knight', ArchipelagoGame::AVAILABILITY_EXPERIMENTAL);
+        $game = $this->createGame('Hollow Knight', 'hollow-knight', Game::AVAILABILITY_EXPERIMENTAL);
         $game->updateCatalogueMetadata(catalogSheetName: 'Hollow Knight');
         $this->entityManager->flush();
 

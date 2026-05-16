@@ -6,7 +6,7 @@ namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Handler\LaunchPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
-use App\PersonalRuns\Domain\PersonalRun;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Application\SlotNameGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
@@ -42,7 +42,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
     public function testNoParticipantsLogsErrorAndReturns(): void
     {
         $now = new \DateTimeImmutable();
-        $run = PersonalRun::create('owner-1', 'Test Run', $now);
+        $run = Run::create('owner-1', 'Test Run', $now);
 
         $this->entityManager->method('find')->willReturn($run);
 

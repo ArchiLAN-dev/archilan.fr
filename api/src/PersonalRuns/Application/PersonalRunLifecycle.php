@@ -6,8 +6,8 @@ namespace App\PersonalRuns\Application;
 
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -28,7 +28,7 @@ final readonly class PersonalRunLifecycle
     public function start(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->result(found: false);
         }
@@ -37,17 +37,17 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), PersonalRun::ACTIVE_STATUSES, true)) {
+        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
             return $this->result(found: true, blocked: true, blockReason: 'run_already_active');
         }
 
-        $startableStatuses = [PersonalRun::STATUS_DRAFT, PersonalRun::STATUS_IDLE];
+        $startableStatuses = [Run::STATUS_DRAFT, Run::STATUS_IDLE];
         if (!in_array($run->getStatus(), $startableStatuses, true)) {
             return $this->result(found: true, blocked: true, blockReason: 'run_not_startable');
         }
 
-        $participants = $this->entityManager->getRepository(PersonalRunParticipant::class)
-            ->findBy(['personalRunId' => $run->getId()]);
+        $participants = $this->entityManager->getRepository(RunParticipant::class)
+            ->findBy(['runId' => $run->getId()]);
         $anyHasSlots = false;
         foreach ($participants as $participant) {
             if ($participant->hasSlots()) {
@@ -73,7 +73,7 @@ final readonly class PersonalRunLifecycle
     public function stop(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->result(found: false);
         }
@@ -82,7 +82,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, authorized: false);
         }
 
-        if (PersonalRun::STATUS_ACTIVE !== $run->getStatus()) {
+        if (Run::STATUS_ACTIVE !== $run->getStatus()) {
             return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
         }
 
@@ -100,12 +100,12 @@ final readonly class PersonalRunLifecycle
     public function markRunning(string $runId, string $host, int $port): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 
-        if (PersonalRun::STATUS_STARTING !== $run->getStatus()) {
+        if (Run::STATUS_STARTING !== $run->getStatus()) {
             return $this->result(found: true, blocked: true, blockReason: 'invalid_run_status');
         }
 
@@ -121,12 +121,12 @@ final readonly class PersonalRunLifecycle
     public function markStopped(string $runId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->result(found: false);
         }
 
-        if (PersonalRun::STATUS_STOPPING !== $run->getStatus()) {
+        if (Run::STATUS_STOPPING !== $run->getStatus()) {
             return $this->result(found: true, blocked: true, blockReason: 'invalid_run_status');
         }
 

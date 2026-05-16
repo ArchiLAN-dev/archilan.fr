@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\CatalogSync\Application\ApworldVersionChecker;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Application\ValidationErrors;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
@@ -33,16 +33,10 @@ final readonly class AdminGameLibrary
      */
     public function list(): array
     {
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('game')
-            ->from(ArchipelagoGame::class, 'game')
-            ->orderBy('game.name', 'ASC')
-            ->setMaxResults(500)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC'], 500);
 
-        return array_map(fn (ArchipelagoGame $game): array => $this->payload($game), $games);
+        return array_map(fn (Game $game): array => $this->payload($game), $games);
     }
 
     /**
@@ -50,9 +44,9 @@ final readonly class AdminGameLibrary
      */
     public function detail(string $gameId): ?array
     {
-        $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
+        $game = $this->entityManager->find(Game::class, $gameId);
 
-        return $game instanceof ArchipelagoGame ? $this->detailPayload($game) : null;
+        return $game instanceof Game ? $this->detailPayload($game) : null;
     }
 
     /**
@@ -70,7 +64,7 @@ final readonly class AdminGameLibrary
             return ['errors' => $errors];
         }
 
-        $game = ArchipelagoGame::create(
+        $game = Game::create(
             $parsed['name'],
             $parsed['slug'],
             $parsed['description'],
@@ -105,7 +99,7 @@ final readonly class AdminGameLibrary
     public function update(string $gameId, array $input): array
     {
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+            $game = $this->findOrFail(Game::class, $gameId);
         } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
@@ -158,7 +152,7 @@ final readonly class AdminGameLibrary
     public function configureApworld(string $gameId, string $fileContents, string $filename): array
     {
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+            $game = $this->findOrFail(Game::class, $gameId);
         } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
@@ -236,7 +230,7 @@ final readonly class AdminGameLibrary
     public function listGithubAssets(string $gameId): array
     {
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+            $game = $this->findOrFail(Game::class, $gameId);
         } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
@@ -268,7 +262,7 @@ final readonly class AdminGameLibrary
     public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null): array
     {
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+            $game = $this->findOrFail(Game::class, $gameId);
         } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
@@ -345,7 +339,7 @@ final readonly class AdminGameLibrary
     public function remove(string $gameId): array
     {
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $gameId);
+            $game = $this->findOrFail(Game::class, $gameId);
         } catch (\RuntimeException) {
             return ['found' => false, 'errors' => []];
         }
@@ -373,7 +367,7 @@ final readonly class AdminGameLibrary
 
         return [
             'name' => is_string($input['name'] ?? null) ? trim($input['name']) : '',
-            'slug' => is_string($input['slug'] ?? null) ? ArchipelagoGame::normalizeSlug($input['slug']) : '',
+            'slug' => is_string($input['slug'] ?? null) ? Game::normalizeSlug($input['slug']) : '',
             'description' => is_string($input['description'] ?? null) ? trim($input['description']) : '',
             'coverImageUrl' => is_string($rawCoverImageUrl) && '' !== trim($rawCoverImageUrl) ? trim($rawCoverImageUrl) : null,
             'coverImageAlt' => is_string($input['coverImageAlt'] ?? null) ? trim($input['coverImageAlt']) : '',
@@ -402,7 +396,7 @@ final readonly class AdminGameLibrary
             $errors->add('slug', 'Le slug doit contenir seulement des minuscules, chiffres et tirets.');
         }
 
-        if (!in_array($input['availability'], ArchipelagoGame::supportedAvailabilities(), true)) {
+        if (!in_array($input['availability'], Game::supportedAvailabilities(), true)) {
             $errors->add('availability', 'État de disponibilité invalide.');
         }
 
@@ -418,14 +412,14 @@ final readonly class AdminGameLibrary
             return;
         }
 
-        $existing = $this->entityManager->getRepository(ArchipelagoGame::class)->findOneBy(['slug' => $slug]);
+        $existing = $this->entityManager->getRepository(Game::class)->findOneBy(['slug' => $slug]);
 
-        if ($existing instanceof ArchipelagoGame && $existing->getId() !== $currentGameId) {
+        if ($existing instanceof Game && $existing->getId() !== $currentGameId) {
             $errors['slug'][] = 'Ce slug est déjà utilisé.';
         }
     }
 
-    private function usageCount(ArchipelagoGame $game): int
+    private function usageCount(Game $game): int
     {
         // Registration/game usage is introduced by later stories. Keep the boundary explicit.
         return 0;
@@ -434,7 +428,7 @@ final readonly class AdminGameLibrary
     /**
      * @return array<string, mixed>
      */
-    private function payload(ArchipelagoGame $game): array
+    private function payload(Game $game): array
     {
         return [
             'id' => $game->getId(),
@@ -459,7 +453,7 @@ final readonly class AdminGameLibrary
     /**
      * @return array<string, mixed>
      */
-    private function detailPayload(ArchipelagoGame $game): array
+    private function detailPayload(Game $game): array
     {
         $sync = $game->getCatalogSync();
 

@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type PublicGame = {
   id: string;
@@ -53,7 +54,29 @@ export async function getPublicGames(query = "", page = 1): Promise<GamePage> {
 function isGamePagePayload(
   payload: unknown,
 ): payload is { data: PublicGame[]; meta: { total: number; page: number; perPage: number; totalPages: number } } {
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
-  return Array.isArray(p.data) && typeof p.meta === "object" && p.meta !== null;
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || !Array.isArray(payload.data) || !payload.data.every(isPublicGame)) return false;
+  if (!("meta" in payload) || typeof payload.meta !== "object" || payload.meta === null) return false;
+  return (
+    hasNumberProp(payload.meta, "total") &&
+    hasNumberProp(payload.meta, "page") &&
+    hasNumberProp(payload.meta, "perPage") &&
+    hasNumberProp(payload.meta, "totalPages")
+  );
+}
+
+function isGameAvailability(v: unknown): v is PublicGame["availability"] {
+  return v === "available" || v === "experimental";
+}
+
+function isPublicGame(v: unknown): v is PublicGame {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "id")) return false;
+  if (!hasStringProp(v, "name")) return false;
+  if (!hasStringProp(v, "slug")) return false;
+  if (!hasStringProp(v, "description")) return false;
+  if (!("coverImageUrl" in v) || (v.coverImageUrl !== null && typeof v.coverImageUrl !== "string")) return false;
+  if (!hasStringProp(v, "coverImageAlt")) return false;
+  if (!("availability" in v) || !isGameAvailability(v.availability)) return false;
+  return "supportedEventTypes" in v && Array.isArray(v.supportedEventTypes) && v.supportedEventTypes.every((item): item is string => typeof item === "string");
 }

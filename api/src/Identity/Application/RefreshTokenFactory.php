@@ -8,7 +8,9 @@ use App\Identity\Domain\RefreshToken;
 
 final class RefreshTokenFactory
 {
-    public const TOKEN_TTL_DAYS = 30;
+    public const TOKEN_TTL_LONG_DAYS = 30;
+
+    public const TOKEN_TTL_SHORT_DAYS = 1;
 
     /**
      * @return array{rawToken: string, entity: RefreshToken}
@@ -17,10 +19,12 @@ final class RefreshTokenFactory
         string $userId,
         \DateTimeImmutable $now,
         ?string $userAgent = null,
+        bool $rememberMe = true,
     ): array {
+        $ttlDays = $rememberMe ? self::TOKEN_TTL_LONG_DAYS : self::TOKEN_TTL_SHORT_DAYS;
         $rawToken = $this->generateRawToken();
-        $expiresAt = $now->modify(sprintf('+%d days', self::TOKEN_TTL_DAYS));
-        $entity = RefreshToken::issue($userId, $rawToken, $expiresAt, $now, $userAgent);
+        $expiresAt = $now->modify(sprintf('+%d days', $ttlDays));
+        $entity = RefreshToken::issue($userId, $rawToken, $expiresAt, $now, $userAgent, $rememberMe);
 
         return ['rawToken' => $rawToken, 'entity' => $entity];
     }

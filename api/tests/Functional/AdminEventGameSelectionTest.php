@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 
@@ -18,7 +18,7 @@ final class AdminEventGameSelectionTest extends FunctionalTestCase
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(Event::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -88,9 +88,9 @@ final class AdminEventGameSelectionTest extends FunctionalTestCase
         $this->loginAs($admin);
 
         $eventId = $this->createEventViaApi();
-        $this->createGameViaApi('Zelda OoT', 'zelda-oot', ArchipelagoGame::AVAILABILITY_AVAILABLE);
-        $this->createGameViaApi('Factorio', 'factorio', ArchipelagoGame::AVAILABILITY_EXPERIMENTAL);
-        $this->createGameViaApi('Celeste', 'celeste', ArchipelagoGame::AVAILABILITY_UNAVAILABLE);
+        $this->createGameViaApi('Zelda OoT', 'zelda-oot', Game::AVAILABILITY_AVAILABLE);
+        $this->createGameViaApi('Factorio', 'factorio', Game::AVAILABILITY_EXPERIMENTAL);
+        $this->createGameViaApi('Celeste', 'celeste', Game::AVAILABILITY_UNAVAILABLE);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/admin/events/%s/game-selection', $eventId));
 
@@ -102,7 +102,7 @@ final class AdminEventGameSelectionTest extends FunctionalTestCase
         self::assertIsArray($availableGames);
         self::assertCount(2, $availableGames);
         self::assertNotContains(
-            ArchipelagoGame::AVAILABILITY_UNAVAILABLE,
+            Game::AVAILABILITY_UNAVAILABLE,
             array_column($availableGames, 'availability'),
         );
     }
@@ -211,7 +211,7 @@ final class AdminEventGameSelectionTest extends FunctionalTestCase
         $this->loginAs($admin);
 
         $eventId = $this->createEventViaApi();
-        $gameId = $this->createGameViaApi('Factorio', 'factorio', ArchipelagoGame::AVAILABILITY_UNAVAILABLE);
+        $gameId = $this->createGameViaApi('Factorio', 'factorio', Game::AVAILABILITY_UNAVAILABLE);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/game-selection', $eventId), [
             'gameSelectionEnabled' => true,
@@ -308,7 +308,7 @@ final class AdminEventGameSelectionTest extends FunctionalTestCase
     private function createGameViaApi(
         string $name,
         string $slug,
-        string $availability = ArchipelagoGame::AVAILABILITY_AVAILABLE,
+        string $availability = Game::AVAILABILITY_AVAILABLE,
     ): string {
         $this->client->jsonRequest('POST', '/api/v1/admin/games', [
             'name' => $name,

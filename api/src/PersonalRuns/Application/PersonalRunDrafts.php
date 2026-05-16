@@ -6,20 +6,25 @@ namespace App\PersonalRuns\Application;
 
 use App\Identity\Application\ValidationErrors;
 use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use App\Sessions\Domain\Session;
 use App\Shared\Application\EntityFinderTrait;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PersonalRunDrafts
 {
     use EntityFinderTrait;
 
+    private string $runParticipantTable;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private Connection $connection,
         private string $siteUrl,
     ) {
+        $this->runParticipantTable = $entityManager->getClassMetadata(RunParticipant::class)->getTableName();
     }
 
     /**
@@ -43,7 +48,7 @@ final readonly class PersonalRunDrafts
             return ['run' => null, 'errors' => $errs];
         }
 
-        $run = PersonalRun::create($ownerId, $title, new \DateTimeImmutable());
+        $run = Run::create($ownerId, $title, new \DateTimeImmutable());
         $this->entityManager->persist($run);
         $this->entityManager->flush();
 
@@ -55,18 +60,13 @@ final readonly class PersonalRunDrafts
      */
     public function listForOwner(string $ownerId): array
     {
-        /** @var list<PersonalRun> $runs */
-        $runs = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(PersonalRun::class, 'r')
-            ->where('r.ownerId = :ownerId')
-            ->orderBy('r.createdAt', 'DESC')
-            ->addOrderBy('r.id', 'DESC')
-            ->setParameter('ownerId', $ownerId)
-            ->getQuery()
-            ->getResult();
+        /** @var list<Run> $runs */
+        $runs = $this->entityManager->getRepository(Run::class)->findBy(
+            ['ownerId' => $ownerId],
+            ['createdAt' => 'DESC', 'id' => 'DESC'],
+        );
 
-        return array_map(fn (PersonalRun $run): array => $this->payload($run, $ownerId, []), $runs);
+        return array_map(fn (Run $run): array => $this->payload($run, $ownerId, []), $runs);
     }
 
     /**
@@ -75,7 +75,7 @@ final readonly class PersonalRunDrafts
     public function get(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'payload' => null];
         }
@@ -101,7 +101,7 @@ final readonly class PersonalRunDrafts
     public function cancel(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
@@ -110,11 +110,11 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
-        if (in_array($run->getStatus(), PersonalRun::ACTIVE_STATUSES, true)) {
+        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_active'];
         }
 
-        if (!in_array($run->getStatus(), [PersonalRun::STATUS_DRAFT, PersonalRun::STATUS_IDLE], true)) {
+        if (!in_array($run->getStatus(), [Run::STATUS_DRAFT, Run::STATUS_IDLE], true)) {
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_deletable'];
         }
 
@@ -130,7 +130,7 @@ final readonly class PersonalRunDrafts
     public function archive(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
@@ -140,9 +140,9 @@ final readonly class PersonalRunDrafts
         }
 
         $archivable = [
-            PersonalRun::STATUS_DRAFT,
-            PersonalRun::STATUS_IDLE,
-            PersonalRun::STATUS_STARTING,
+            Run::STATUS_DRAFT,
+            Run::STATUS_IDLE,
+            Run::STATUS_STARTING,
         ];
 
         if (!in_array($run->getStatus(), $archivable, true)) {
@@ -161,7 +161,7 @@ final readonly class PersonalRunDrafts
     public function unarchive(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
@@ -170,7 +170,7 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
-        if (PersonalRun::STATUS_CANCELLED !== $run->getStatus()) {
+        if (Run::STATUS_CANCELLED !== $run->getStatus()) {
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_archived'];
         }
 
@@ -186,7 +186,7 @@ final readonly class PersonalRunDrafts
     public function hardDelete(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
@@ -195,7 +195,7 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
-        $nonDeletable = [PersonalRun::STATUS_ACTIVE, PersonalRun::STATUS_STOPPING];
+        $nonDeletable = [Run::STATUS_ACTIVE, Run::STATUS_STOPPING];
         if (in_array($run->getStatus(), $nonDeletable, true)) {
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_active'];
         }
@@ -212,7 +212,7 @@ final readonly class PersonalRunDrafts
     public function regenerateToken(string $runId, string $callerId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return ['found' => false, 'authorized' => false, 'inviteToken' => null, 'inviteUrl' => null];
         }
@@ -237,27 +237,21 @@ final readonly class PersonalRunDrafts
      */
     public function joinByToken(string $inviteToken, string $callerId): array
     {
-        /** @var PersonalRun|null $run */
-        $run = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(PersonalRun::class, 'r')
-            ->where('r.inviteToken = :token')
-            ->setParameter('token', $inviteToken)
-            ->getQuery()
-            ->getOneOrNullResult();
+        /** @var Run|null $run */
+        $run = $this->entityManager->getRepository(Run::class)->findOneBy(['inviteToken' => $inviteToken]);
 
-        if (!$run instanceof PersonalRun || PersonalRun::STATUS_CANCELLED === $run->getStatus()) {
+        if (!$run instanceof Run || Run::STATUS_CANCELLED === $run->getStatus()) {
             return ['status' => 'not_found', 'payload' => null];
         }
 
         if (!$run->isOwnedBy($callerId)) {
-            $existing = $this->entityManager->find(PersonalRunParticipant::class, [
-                'personalRunId' => $run->getId(),
+            $existing = $this->entityManager->find(RunParticipant::class, [
+                'runId' => $run->getId(),
                 'userId' => $callerId,
             ]);
 
-            if (!$existing instanceof PersonalRunParticipant) {
-                $participant = PersonalRunParticipant::create($run->getId(), $callerId, new \DateTimeImmutable());
+            if (!$existing instanceof RunParticipant) {
+                $participant = RunParticipant::create($run->getId(), $callerId, new \DateTimeImmutable());
                 $this->entityManager->persist($participant);
                 $this->entityManager->flush();
             }
@@ -273,26 +267,22 @@ final readonly class PersonalRunDrafts
      */
     public function previewByToken(string $inviteToken): ?array
     {
-        /** @var PersonalRun|null $run */
-        $run = $this->entityManager->createQueryBuilder()
-            ->select('r')
-            ->from(PersonalRun::class, 'r')
-            ->where('r.inviteToken = :token')
-            ->setParameter('token', $inviteToken)
-            ->getQuery()
-            ->getOneOrNullResult();
+        /** @var Run|null $run */
+        $run = $this->entityManager->getRepository(Run::class)->findOneBy(['inviteToken' => $inviteToken]);
 
-        if (!$run instanceof PersonalRun || PersonalRun::STATUS_CANCELLED === $run->getStatus()) {
+        if (!$run instanceof Run || Run::STATUS_CANCELLED === $run->getStatus()) {
             return null;
         }
 
-        $participantCount = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(p.userId)')
-            ->from(PersonalRunParticipant::class, 'p')
-            ->where('p.personalRunId = :runId')
+        $qb = $this->connection->createQueryBuilder();
+        $countRaw = $qb->select('COUNT(p.user_id)')
+            ->from($this->runParticipantTable, 'p')
+            ->where($qb->expr()->eq('p.personal_run_id', ':runId'))
             ->setParameter('runId', $run->getId())
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->executeQuery()
+            ->fetchOne();
+
+        $participantCount = (false !== $countRaw && is_numeric($countRaw)) ? (int) $countRaw : 0;
 
         $owner = $this->entityManager->find(User::class, $run->getOwnerId());
         $ownerName = $owner instanceof User ? $owner->getDisplayName() : null;
@@ -310,30 +300,37 @@ final readonly class PersonalRunDrafts
      */
     private function getParticipants(string $runId): array
     {
-        /** @var list<array{0: PersonalRunParticipant, displayName: string|null, email: string}> $rows */
-        $rows = $this->entityManager->createQueryBuilder()
-            ->select('p', 'u.displayName AS displayName', 'u.email AS email')
-            ->from(PersonalRunParticipant::class, 'p')
-            ->leftJoin(User::class, 'u', 'WITH', 'u.id = p.userId')
-            ->where('p.personalRunId = :runId')
-            ->orderBy('p.joinedAt', 'ASC')
-            ->setParameter('runId', $runId)
-            ->getQuery()
-            ->getResult();
+        /** @var list<RunParticipant> $participants */
+        $participants = $this->entityManager->getRepository(RunParticipant::class)->findBy(
+            ['runId' => $runId],
+            ['joinedAt' => 'ASC'],
+        );
 
-        return array_map(function (array $row): array {
-            /** @var PersonalRunParticipant $p */
-            $p = $row[0];
-            $displayName = $row['displayName'];
-            $email = $row['email'];
+        if ([] === $participants) {
+            return [];
+        }
+
+        $userIds = array_unique(array_map(static fn (RunParticipant $p) => $p->getUserId(), $participants));
+
+        /** @var list<User> $users */
+        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
+
+        /** @var array<string, User> $usersById */
+        $usersById = [];
+        foreach ($users as $user) {
+            $usersById[$user->getId()] = $user;
+        }
+
+        return array_map(function (RunParticipant $p) use ($usersById): array {
+            $user = $usersById[$p->getUserId()] ?? null;
 
             return [
                 'userId' => $p->getUserId(),
-                'displayName' => $displayName ?? $email,
+                'displayName' => $user?->getDisplayName() ?? $user?->getEmail(),
                 'joinedAt' => $p->getJoinedAt()->format(\DateTimeInterface::ATOM),
                 'slotCount' => count($p->getGameSlots()),
             ];
-        }, $rows);
+        }, $participants);
     }
 
     /**
@@ -341,9 +338,9 @@ final readonly class PersonalRunDrafts
      *
      * @return array<string, mixed>
      */
-    private function payload(PersonalRun $run, ?string $callerId, array $participants): array
+    private function payload(Run $run, ?string $callerId, array $participants): array
     {
-        $isActive = PersonalRun::STATUS_ACTIVE === $run->getStatus();
+        $isActive = Run::STATUS_ACTIVE === $run->getStatus();
 
         $lastActivityAt = null;
         $pausedWithoutSave = false;
@@ -353,12 +350,12 @@ final readonly class PersonalRunDrafts
         if (null !== $sessionId) {
             $session = $this->entityManager->find(Session::class, $sessionId);
             if ($session instanceof Session) {
-                if (in_array($run->getStatus(), [PersonalRun::STATUS_IDLE, PersonalRun::STATUS_RESTARTING], true)) {
+                if (in_array($run->getStatus(), [Run::STATUS_IDLE, Run::STATUS_RESTARTING], true)) {
                     $lastActivityAt = $session->getLastActivityAt()?->format(\DateTimeInterface::ATOM);
                     $pausedWithoutSave = $session->isPausedWithoutSave();
                 }
 
-                if (PersonalRun::STATUS_DRAFT === $run->getStatus() && Session::STATUS_DRAFT === $session->getStatus()) {
+                if (Run::STATUS_DRAFT === $run->getStatus() && Session::STATUS_DRAFT === $session->getStatus()) {
                     $validationErrors = $session->getValidationErrors();
                 }
             }

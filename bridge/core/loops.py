@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 
 import aiohttp
 
-from config import Config
-from mercure import MercurePublisher
-from reachable import _compute_reachable
-from state import StateManager
+from .config import Config
+from .mercure import MercurePublisher
+from .reachable import _compute_reachable
+from .state import StateManager
 
 
 def setup_logging(run_id: str) -> None:

@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
+use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionSlot;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class CommunityStatsQuery
 {
-    public function __construct(private Connection $connection)
+    private string $sessionTable;
+    private string $slotTable;
+
+    public function __construct(private Connection $connection, EntityManagerInterface $em)
     {
+        $this->sessionTable = $em->getClassMetadata(Session::class)->getTableName();
+        $this->slotTable = $em->getClassMetadata(SessionSlot::class)->getTableName();
     }
 
     /**
@@ -17,22 +25,28 @@ final readonly class CommunityStatsQuery
      */
     public function execute(): array
     {
-        $sessionsCount = $this->connection->fetchOne(
-            "SELECT COUNT(*) FROM archipelago_sessions WHERE status = 'finished'",
-        );
-        $totalFinishedSessions = is_numeric($sessionsCount) ? (int) $sessionsCount : 0;
+        $countQb = $this->connection->createQueryBuilder();
+        $countRaw = $countQb
+            ->select('COUNT(*)')
+            ->from($this->sessionTable, 's')
+            ->where($countQb->expr()->eq('s.status', ':status'))
+            ->setParameter('status', 'finished')
+            ->executeQuery()
+            ->fetchOne();
+        $totalFinishedSessions = is_numeric($countRaw) ? (int) $countRaw : 0;
 
-        $slotsRow = $this->connection->fetchAssociative(
-            <<<SQL
-                SELECT
-                    COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL)
-                                      THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done,
-                    COUNT(slot.goal_reached_at) AS total_goals_reached
-                FROM archipelago_session_slots slot
-                JOIN archipelago_sessions s ON slot.session_id = s.id
-                WHERE s.status = 'finished'
-            SQL,
-        );
+        $slotsQb = $this->connection->createQueryBuilder();
+        $slotsRow = $slotsQb
+            ->select(
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done',
+                'COUNT(slot.goal_reached_at) AS total_goals_reached',
+            )
+            ->from($this->slotTable, 'slot')
+            ->join('slot', $this->sessionTable, 's', $slotsQb->expr()->eq('s.id', 'slot.session_id'))
+            ->where($slotsQb->expr()->eq('s.status', ':status'))
+            ->setParameter('status', 'finished')
+            ->executeQuery()
+            ->fetchAssociative();
 
         return [
             'totalFinishedSessions' => $totalFinishedSessions,

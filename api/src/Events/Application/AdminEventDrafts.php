@@ -32,13 +32,7 @@ final readonly class AdminEventDrafts
     public function list(): array
     {
         /** @var list<Event> $events */
-        $events = $this->entityManager->createQueryBuilder()
-            ->select('event')
-            ->from(Event::class, 'event')
-            ->orderBy('event.startsAt', 'ASC')
-            ->setMaxResults(500)
-            ->getQuery()
-            ->getResult();
+        $events = $this->entityManager->getRepository(Event::class)->findBy([], ['startsAt' => 'ASC'], 500);
 
         return array_map(fn (Event $event): array => $this->payload($event), $events);
     }

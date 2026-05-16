@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\SessionRunningMessage;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Realtime\Infrastructure\SpyHub;
 use App\Registrations\Domain\Registration;
@@ -29,7 +29,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -952,7 +952,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
         return $this->createUser($email, ['ROLE_USER'], $displayName);
     }
 
-    private function makeGame(string $name, ?string $archipelagoGameName): ArchipelagoGame
+    private function makeGame(string $name, ?string $archipelagoGameName): Game
     {
         $now = new \DateTimeImmutable('2026-05-02T10:00:00+00:00');
         $slug = strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2));

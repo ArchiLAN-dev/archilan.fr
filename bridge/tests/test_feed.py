@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from bridge.bridge import DataPackageStore, _build_feed_event
+from bridge.core.ap_client import DataPackageStore, _build_feed_event
 
 
 def _store_with_player(slot: int = 1, alias: str = "Alice") -> DataPackageStore:

@@ -6,9 +6,9 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
-use App\GameSelection\Domain\ArchipelagoGame;
-use App\Identity\Domain\AccountDeletionAudit;
-use App\Identity\Domain\AdminAccountCreationAudit;
+use App\GameSelection\Domain\Game;
+use App\Identity\Domain\AdminCreationAudit;
+use App\Identity\Domain\DeletionAudit;
 use App\Identity\Domain\RoleChangeAudit;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
@@ -25,10 +25,10 @@ final class RbacEnforcementTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Event::class),
             $this->entityManager->getClassMetadata(EventPrivateAccessLog::class),
             $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
-            $this->entityManager->getClassMetadata(AccountDeletionAudit::class),
+            $this->entityManager->getClassMetadata(Game::class),
+            $this->entityManager->getClassMetadata(DeletionAudit::class),
             $this->entityManager->getClassMetadata(RoleChangeAudit::class),
-            $this->entityManager->getClassMetadata(AdminAccountCreationAudit::class),
+            $this->entityManager->getClassMetadata(AdminCreationAudit::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -213,7 +213,7 @@ final class RbacEnforcementTest extends FunctionalTestCase
                     'description' => 'Game description',
                     'coverImageAlt' => 'Game cover',
                     'coverImageCredit' => 'Publisher',
-                    'availability' => ArchipelagoGame::AVAILABILITY_AVAILABLE,
+                    'availability' => Game::AVAILABILITY_AVAILABLE,
                 ],
             ],
             [
@@ -225,7 +225,7 @@ final class RbacEnforcementTest extends FunctionalTestCase
                     'description' => 'Game description',
                     'coverImageAlt' => 'Game cover',
                     'coverImageCredit' => 'Publisher',
-                    'availability' => ArchipelagoGame::AVAILABILITY_AVAILABLE,
+                    'availability' => Game::AVAILABILITY_AVAILABLE,
                 ],
             ],
             ['method' => 'PATCH', 'path' => '/api/v1/admin/games/nonexistent/apworld'],

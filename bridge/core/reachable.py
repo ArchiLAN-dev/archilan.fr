@@ -5,7 +5,7 @@ import glob
 import json
 import logging
 import sys
-from state import StateManager
+from .state import StateManager
 
 _reachable_cache: dict[int, tuple[tuple, dict]] = {}
 

@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type LeaderboardAxis = "goals" | "checks" | "speed";
 
@@ -22,40 +23,36 @@ export type CommunityStats = {
 };
 
 function isLeaderboardEntry(v: unknown): v is LeaderboardEntry {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
+  if (typeof v !== "object" || v === null) return false;
   return (
-    typeof e.rank === "number" &&
-    typeof e.slug === "string" &&
-    typeof e.displayName === "string" &&
-    typeof e.value === "number" &&
-    typeof e.unit === "string"
+    hasNumberProp(v, "rank") &&
+    hasStringProp(v, "slug") &&
+    hasStringProp(v, "displayName") &&
+    hasNumberProp(v, "value") &&
+    hasStringProp(v, "unit")
   );
 }
 
 function isLeaderboardResponse(payload: unknown): payload is LeaderboardResponse {
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || !Array.isArray(payload.data)) return false;
+  if (!("meta" in payload) || typeof payload.meta !== "object" || payload.meta === null) return false;
   return (
-    Array.isArray(p.data) &&
-    (p.data as unknown[]).every(isLeaderboardEntry) &&
-    typeof p.meta === "object" &&
-    p.meta !== null
+    payload.data.every(isLeaderboardEntry) &&
+    hasStringProp(payload.meta, "axis") &&
+    hasNumberProp(payload.meta, "page") &&
+    hasNumberProp(payload.meta, "total")
   );
 }
 
-function isCommunityStatsPayload(
-  payload: unknown,
-): payload is { data: CommunityStats } {
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
-  const data = p.data;
-  if (!data || typeof data !== "object") return false;
-  const d = data as Record<string, unknown>;
+function isCommunityStatsPayload(payload: unknown): payload is { data: CommunityStats } {
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || typeof payload.data !== "object" || payload.data === null) return false;
+  const data = payload.data;
   return (
-    typeof d.totalFinishedSessions === "number" &&
-    typeof d.totalChecksDone === "number" &&
-    typeof d.totalGoalsReached === "number"
+    hasNumberProp(data, "totalFinishedSessions") &&
+    hasNumberProp(data, "totalChecksDone") &&
+    hasNumberProp(data, "totalGoalsReached")
   );
 }
 

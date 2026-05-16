@@ -6,21 +6,26 @@ namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Payments\Application\HelloAssoPaymentLookup;
 use App\Registrations\Domain\Registration;
 use App\Shared\Application\EntityFinderTrait;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminRegistrationInspector
 {
     use EntityFinderTrait;
 
+    private string $privateAccessLogTable;
+
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private Connection $connection,
         private HelloAssoPaymentLookup $paymentLookup,
     ) {
+        $this->privateAccessLogTable = $entityManager->getClassMetadata(EventPrivateAccessLog::class)->getTableName();
     }
 
     /**
@@ -66,32 +71,30 @@ final readonly class AdminRegistrationInspector
 
         $user = $this->entityManager->find(User::class, $registration->getUserId());
 
-        $privateAccessCount = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(l.id)')
-            ->from(EventPrivateAccessLog::class, 'l')
-            ->where('l.eventId = :eventId')
-            ->andWhere('l.userId = :userId')
-            ->andWhere('l.granted = :granted')
+        $qb = $this->connection->createQueryBuilder();
+        $privateAccessRaw = $qb->select('COUNT(l.id)')
+            ->from($this->privateAccessLogTable, 'l')
+            ->where($qb->expr()->and(
+                $qb->expr()->eq('l.event_id', ':eventId'),
+                $qb->expr()->eq('l.user_id', ':userId'),
+                $qb->expr()->eq('l.granted', ':granted'),
+            ))
             ->setParameter('eventId', $eventId)
             ->setParameter('userId', $registration->getUserId())
             ->setParameter('granted', true)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->executeQuery()
+            ->fetchOne();
+
+        $privateAccessCount = (false !== $privateAccessRaw && is_numeric($privateAccessRaw)) ? (int) $privateAccessRaw : 0;
 
         $slots = $registration->getGameSlots();
         $uniqueGameIds = array_values(array_unique(array_column($slots, 'gameId')));
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $uniqueGameIds) {
-            /** @var list<ArchipelagoGame> $games */
-            $games = $this->entityManager->createQueryBuilder()
-                ->select('g')
-                ->from(ArchipelagoGame::class, 'g')
-                ->where('g.id IN (:ids)')
-                ->setParameter('ids', $uniqueGameIds)
-                ->getQuery()
-                ->getResult();
+            /** @var list<Game> $games */
+            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $uniqueGameIds]);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;

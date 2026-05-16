@@ -5,24 +5,32 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Registrations\Domain\Registration;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class RegistrationCounter
 {
-    public function __construct(private EntityManagerInterface $entityManager)
+    private string $table;
+
+    public function __construct(private Connection $connection, EntityManagerInterface $em)
     {
+        $this->table = $em->getClassMetadata(Registration::class)->getTableName();
     }
 
     public function countConfirmed(string $eventId): int
     {
-        return (int) $this->entityManager->createQueryBuilder()
+        $qb = $this->connection->createQueryBuilder();
+
+        $raw = $qb
             ->select('COUNT(r.id)')
-            ->from(Registration::class, 'r')
-            ->where('r.eventId = :eventId')
-            ->andWhere('r.status != :cancelled')
+            ->from($this->table, 'r')
+            ->where($qb->expr()->eq('r.event_id', ':eventId'))
+            ->andWhere($qb->expr()->neq('r.status', ':cancelled'))
             ->setParameter('eventId', $eventId)
             ->setParameter('cancelled', Registration::STATUS_CANCELLED)
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($raw) ? (int) $raw : 0;
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\ArchiveRunJob;
@@ -26,7 +26,7 @@ final class AdminRunArchivalTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(Session::class),
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
             $this->entityManager->getClassMetadata(RunAuditLog::class),
             $this->entityManager->getClassMetadata(Event::class),
         ];

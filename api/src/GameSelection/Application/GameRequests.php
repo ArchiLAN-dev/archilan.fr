@@ -10,10 +10,13 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class GameRequests
 {
+    private string $table;
+
     public function __construct(
         private EntityManagerInterface $em,
         private Connection $connection,
     ) {
+        $this->table = $em->getClassMetadata(GameRequest::class)->getTableName();
     }
 
     /**
@@ -21,29 +24,31 @@ final readonly class GameRequests
      */
     public function list(?string $userId): array
     {
-        $hasVotedCol = null !== $userId
-            ? ', BOOL_OR(user_id = :userId) AS has_voted'
-            : ', false AS has_voted';
+        $qb = $this->connection->createQueryBuilder();
+        $qb->select(
+            'gr.normalized_name',
+            'MIN(gr.game_name) AS display_name',
+            'COUNT(*) AS vote_count',
+        )
+            ->from($this->table, 'gr')
+            ->groupBy('gr.normalized_name')
+            ->orderBy('vote_count', 'DESC')
+            ->addOrderBy('gr.normalized_name', 'ASC')
+            ->setMaxResults(50);
 
-        $sql = <<<SQL
-            SELECT
-                normalized_name,
-                MIN(game_name) AS display_name,
-                COUNT(*) AS vote_count
-                {$hasVotedCol}
-            FROM game_requests
-            GROUP BY normalized_name
-            ORDER BY vote_count DESC, normalized_name ASC
-            LIMIT 50
-        SQL;
+        if (null !== $userId) {
+            $qb->addSelect('BOOL_OR(gr.user_id = :userId) AS has_voted')
+                ->setParameter('userId', $userId);
+        } else {
+            $qb->addSelect('FALSE AS has_voted');
+        }
 
-        $params = null !== $userId ? ['userId' => $userId] : [];
-        $rows = $this->connection->fetchAllAssociative($sql, $params);
+        $rows = $qb->executeQuery()->fetchAllAssociative();
 
-        return array_map(fn (array $row) => [
-            'normalizedName' => is_string($row['normalized_name']) ? $row['normalized_name'] : '',
-            'displayName' => is_string($row['display_name']) ? $row['display_name'] : '',
-            'voteCount' => is_numeric($row['vote_count']) ? (int) $row['vote_count'] : 0,
+        return array_map(fn (array $row): array => [
+            'normalizedName' => is_string($row['normalized_name'] ?? null) ? $row['normalized_name'] : '',
+            'displayName' => is_string($row['display_name'] ?? null) ? $row['display_name'] : '',
+            'voteCount' => is_numeric($row['vote_count'] ?? null) ? (int) $row['vote_count'] : 0,
             'hasVoted' => (bool) ($row['has_voted'] ?? false),
         ], $rows);
     }

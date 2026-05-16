@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Application\ValidationErrors;
-use App\PersonalRuns\Domain\PersonalRun;
-use App\PersonalRuns\Domain\PersonalRunParticipant;
+use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipant;
 use App\Shared\Application\EntityFinderTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -28,7 +28,7 @@ final readonly class PersonalRunGameSelection
     public function getMySlots(string $runId, string $userId): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->result(found: false);
         }
@@ -41,20 +41,13 @@ final readonly class PersonalRunGameSelection
         $existingSlots = $participant->getGameSlots();
         $existingGameIds = array_unique(array_column($existingSlots, 'gameId'));
 
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g')
-            ->from(ArchipelagoGame::class, 'g')
-            ->where('g.availability IN (:avail)')
-            ->setParameter('avail', [
-                ArchipelagoGame::AVAILABILITY_AVAILABLE,
-                ArchipelagoGame::AVAILABILITY_EXPERIMENTAL,
-            ])
-            ->orderBy('g.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $games */
+        $games = $this->entityManager->getRepository(Game::class)->findBy(
+            ['availability' => [Game::AVAILABILITY_AVAILABLE, Game::AVAILABILITY_EXPERIMENTAL]],
+            ['name' => 'ASC'],
+        );
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         foreach ($games as $game) {
             $gamesById[$game->getId()] = $game;
@@ -70,7 +63,7 @@ final readonly class PersonalRunGameSelection
             ]);
         }
 
-        $availableGames = array_map(fn (ArchipelagoGame $g): array => [
+        $availableGames = array_map(fn (Game $g): array => [
             'id' => $g->getId(),
             'name' => $g->getName(),
             'slug' => $g->getSlug(),
@@ -93,7 +86,7 @@ final readonly class PersonalRunGameSelection
     public function saveMyGames(string $runId, string $userId, array $input): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->resultWithErrors(found: false);
         }
@@ -103,7 +96,7 @@ final readonly class PersonalRunGameSelection
             return $this->resultWithErrors(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), PersonalRun::ACTIVE_STATUSES, true)) {
+        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
             return $this->resultWithErrors(found: true, blocked: true, blockReason: 'run_active');
         }
 
@@ -121,17 +114,11 @@ final readonly class PersonalRunGameSelection
             return $this->resultWithErrors(found: true, errors: $errors);
         }
 
-        /** @var array<string, ArchipelagoGame> $gamesById */
+        /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $gameIds) {
-            /** @var list<ArchipelagoGame> $games */
-            $games = $this->entityManager->createQueryBuilder()
-                ->select('g')
-                ->from(ArchipelagoGame::class, 'g')
-                ->where('g.id IN (:ids)')
-                ->setParameter('ids', array_values(array_unique($gameIds)))
-                ->getQuery()
-                ->getResult();
+            /** @var list<Game> $games */
+            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => array_values(array_unique($gameIds))]);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
@@ -154,7 +141,7 @@ final readonly class PersonalRunGameSelection
     public function saveSlotYaml(string $runId, string $userId, string $slotId, string $playerYaml): array
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return $this->yamlResult(found: false);
         }
@@ -164,7 +151,7 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), PersonalRun::ACTIVE_STATUSES, true)) {
+        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
             return $this->yamlResult(found: true, blocked: true, blockReason: 'run_active');
         }
 
@@ -174,7 +161,7 @@ final readonly class PersonalRunGameSelection
         }
 
         try {
-            $game = $this->findOrFail(ArchipelagoGame::class, $slot['gameId']);
+            $game = $this->findOrFail(Game::class, $slot['gameId']);
         } catch (\RuntimeException) {
             return $this->yamlResult(found: true, errors: ['gameId' => ['Jeu introuvable.']]);
         }
@@ -192,22 +179,22 @@ final readonly class PersonalRunGameSelection
         return $this->yamlResult(found: true);
     }
 
-    private function loadParticipant(string $runId, string $userId): ?PersonalRunParticipant
+    private function loadParticipant(string $runId, string $userId): ?RunParticipant
     {
         try {
-            $run = $this->findOrFail(PersonalRun::class, $runId);
+            $run = $this->findOrFail(Run::class, $runId);
         } catch (\RuntimeException) {
             return null;
         }
 
         if ($run->isOwnedBy($userId)) {
-            $participant = $this->entityManager->find(PersonalRunParticipant::class, [
-                'personalRunId' => $runId,
+            $participant = $this->entityManager->find(RunParticipant::class, [
+                'runId' => $runId,
                 'userId' => $userId,
             ]);
 
-            if (!$participant instanceof PersonalRunParticipant) {
-                $participant = PersonalRunParticipant::create($runId, $userId, new \DateTimeImmutable());
+            if (!$participant instanceof RunParticipant) {
+                $participant = RunParticipant::create($runId, $userId, new \DateTimeImmutable());
                 $this->entityManager->persist($participant);
                 $this->entityManager->flush();
             }
@@ -215,12 +202,12 @@ final readonly class PersonalRunGameSelection
             return $participant;
         }
 
-        $participant = $this->entityManager->find(PersonalRunParticipant::class, [
-            'personalRunId' => $runId,
+        $participant = $this->entityManager->find(RunParticipant::class, [
+            'runId' => $runId,
             'userId' => $userId,
         ]);
 
-        return $participant instanceof PersonalRunParticipant ? $participant : null;
+        return $participant instanceof RunParticipant ? $participant : null;
     }
 
     /**
@@ -233,8 +220,8 @@ final readonly class PersonalRunGameSelection
         $errors = new ValidationErrors();
 
         foreach ($gameIds as $index => $gameId) {
-            $game = $this->entityManager->find(ArchipelagoGame::class, $gameId);
-            if (!$game instanceof ArchipelagoGame) {
+            $game = $this->entityManager->find(Game::class, $gameId);
+            if (!$game instanceof Game) {
                 $errors->add(sprintf('gameIds.%d', $index), 'Jeu introuvable dans la bibliothèque.');
             }
         }
@@ -245,7 +232,7 @@ final readonly class PersonalRunGameSelection
     /**
      * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
      * @param list<string>                                                                                                     $gameIds
-     * @param array<string, ArchipelagoGame>                                                                                   $gamesById
+     * @param array<string, Game>                                                                                              $gamesById
      *
      * @return list<array{slotId: string, gameId: string, playerYaml?: string|null, apworldHash?: string|null}>
      */

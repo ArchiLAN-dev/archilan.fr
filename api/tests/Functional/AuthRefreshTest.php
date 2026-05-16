@@ -8,6 +8,7 @@ use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RegisterLambdaUser;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Presentation\AuthController;
@@ -27,11 +28,12 @@ final class AuthRefreshTest extends FunctionalTestCase
         $this->em = $this->entityManager;
 
         $this->factory = new RefreshTokenFactory();
-        $this->repository = new RefreshTokenRepository($this->em);
+        $this->repository = new RefreshTokenRepository($this->em, $this->em->getConnection());
 
         $metadata = [
             $this->em->getClassMetadata(User::class),
             $this->em->getClassMetadata(RefreshToken::class),
+            $this->em->getClassMetadata(EmailConfirmationToken::class),
         ];
         $schemaTool = new SchemaTool($this->em);
         $schemaTool->dropSchema(array_reverse($metadata));
@@ -75,6 +77,41 @@ final class AuthRefreshTest extends FunctionalTestCase
         $oldToken = $this->repository->findByTokenHash(hash('sha256', $rawToken));
         self::assertNotNull($oldToken);
         self::assertTrue($oldToken->isRevoked());
+    }
+
+    public function testRememberMePreferenceIsPreservedThroughRotation(): void
+    {
+        $now = new \DateTimeImmutable();
+        ['rawToken' => $rawToken, 'entity' => $entity] = $this->factory->issue($this->userId, $now, null, false);
+        $this->repository->save($entity);
+
+        $before = time();
+        $this->client->getCookieJar()->set(
+            new \Symfony\Component\BrowserKit\Cookie(
+                AuthController::REFRESH_COOKIE_NAME,
+                $rawToken,
+                null,
+                AuthController::REFRESH_COOKIE_PATH,
+            )
+        );
+        $this->client->jsonRequest('POST', AuthController::REFRESH_COOKIE_PATH);
+        $after = time();
+
+        self::assertResponseStatusCodeSame(204);
+
+        $cookies = $this->client->getResponse()->headers->getCookies();
+        $cookiesByName = [];
+        foreach ($cookies as $c) {
+            $cookiesByName[$c->getName()] = $c;
+        }
+
+        $newRefresh = $cookiesByName[AuthController::REFRESH_COOKIE_NAME] ?? null;
+        self::assertNotNull($newRefresh);
+
+        $expectedMin = $before + 1 * 86400 - 5;
+        $expectedMax = $after + 1 * 86400 + 5;
+        self::assertGreaterThanOrEqual($expectedMin, $newRefresh->getExpiresTime());
+        self::assertLessThanOrEqual($expectedMax, $newRefresh->getExpiresTime());
     }
 
     public function testMissingRefreshCookieReturns401(): void

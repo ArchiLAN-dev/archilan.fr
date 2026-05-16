@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -26,12 +27,16 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1",
+    "msw": "^2.14.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

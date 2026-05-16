@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -17,7 +17,7 @@ final class AdminGameApworldTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(ArchipelagoGame::class),
+            $this->entityManager->getClassMetadata(Game::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -131,7 +131,7 @@ final class AdminGameApworldTest extends FunctionalTestCase
             'description' => 'Un metroidvania compatible Archipelago.',
             'coverImageAlt' => 'Logo Hollow Knight',
             'coverImageCredit' => 'Team Cherry',
-            'availability' => ArchipelagoGame::AVAILABILITY_AVAILABLE,
+            'availability' => Game::AVAILABILITY_AVAILABLE,
         ]);
         self::assertResponseStatusCodeSame(201);
         $response = $this->decodedJsonResponse();

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application;
 
-use App\GameSelection\Domain\ArchipelagoGame;
+use App\GameSelection\Domain\Game;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -22,17 +22,12 @@ final readonly class CheckApworldUpdatesService
      */
     public function checkAll(): array
     {
-        /** @var list<ArchipelagoGame> $games */
-        $games = $this->entityManager->createQueryBuilder()
-            ->select('g', 'cs')
-            ->from(ArchipelagoGame::class, 'g')
-            ->join('g.catalogSync', 'cs')
-            ->where('cs.apworldSourceUrl IS NOT NULL')
-            ->andWhere('cs.apworldSourceUrl LIKE :prefix')
-            ->setParameter('prefix', 'https://github.com/%')
-            ->orderBy('g.name', 'ASC')
-            ->getQuery()
-            ->getResult();
+        /** @var list<Game> $allGames */
+        $allGames = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC']);
+        $games = array_values(array_filter(
+            $allGames,
+            static fn (Game $g): bool => str_starts_with($g->getCatalogSync()?->getApworldSourceUrl() ?? '', 'https://github.com/'),
+        ));
 
         $checked = 0;
         $rateLimitHit = false;
