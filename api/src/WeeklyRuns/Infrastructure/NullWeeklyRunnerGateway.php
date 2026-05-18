@@ -15,6 +15,7 @@ final class NullWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
         string $apworldDownloadUrl,
         string $playerName,
         string $yaml,
+        string $archipelagoGameName,
     ): array {
         return [
             'externalSessionId' => 'null-session-id',

@@ -1,17 +1,20 @@
 "use client";
 
+import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import Link from "next/link";
 
 import {
+  fetchWeeklyEntryPatches,
   launchWeeklyEntry,
   optInToWeeklyRun,
   isGoalReachedEvent,
 } from "./weekly-runs-api";
 import type { CurrentWeeklyRun } from "./weekly-runs-api";
 import { WeeklyRunLeaderboard } from "./weekly-run-leaderboard";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { env } from "@/lib/env";
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
@@ -116,6 +119,17 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  const patchEntryId = run.myEntry?.entryId ?? null;
+  const { data: patches = [] } = useQuery({
+    queryKey: ["weekly-run-patches", run.weeklyRunId, patchEntryId],
+    queryFn: async () => {
+      if (!patchEntryId) return [];
+      return fetchWeeklyEntryPatches(run.weeklyRunId, patchEntryId);
+    },
+    staleTime: DEFAULT_STALE_TIME,
+    enabled: run.myEntry !== null && run.myEntry.connectionInfo !== null,
+  });
 
   // Subscribe to Mercure for real-time leaderboard updates
   useEffect(() => {
@@ -255,6 +269,24 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
                 password={myEntry.connectionInfo.password}
                 port={myEntry.connectionInfo.port}
               />
+              {patches.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Fichiers patch
+                  </p>
+                  {patches.map((filename) => (
+                    <a
+                      key={filename}
+                      className="inline-flex w-fit items-center gap-1.5 text-sm text-accent-text hover:underline"
+                      download={filename}
+                      href={`${env.apiBaseUrl}/weekly-runs/${run.weeklyRunId}/entries/${myEntry.entryId}/patches/${filename}`}
+                    >
+                      <Download aria-hidden="true" className="size-3.5" />
+                      {filename}
+                    </a>
+                  ))}
+                </div>
+              )}
               <Link
                 className="inline-flex w-fit items-center gap-1.5 rounded border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent hover:text-foreground"
                 href={`/runs-hebdo/${run.weeklyRunId}/ma-run`}

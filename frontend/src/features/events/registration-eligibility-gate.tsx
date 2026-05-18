@@ -20,7 +20,6 @@ type EligibilityReason =
 type EligibilityEvent = {
   id: string;
   title: string;
-  type: string;
   startsAt: string;
   endsAt: string;
   venue: string;
@@ -191,9 +190,6 @@ export function RegistrationEligibilityGate({
   return (
     <article className="grid gap-8">
       <header className="grid gap-2">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
-          {result.event.type}
-        </p>
         <h1 className="font-heading text-4xl font-bold leading-tight text-foreground">
           {result.event.title}
         </h1>

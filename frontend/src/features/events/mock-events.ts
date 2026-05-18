@@ -7,7 +7,7 @@ export const upcomingEvents: PublicEvent[] = [
   {
     id: "spring-sync-2026",
     title: "Spring Sync Archipelago",
-    type: "Multiworld ouvert",
+
     date: "31 mai 2026",
     dateIso: "2026-05-31",
     endDateIso: "2026-05-31",
@@ -23,7 +23,7 @@ export const upcomingEvents: PublicEvent[] = [
   {
     id: "summer-seed-2026",
     title: "Summer Seed Night",
-    type: "Soirée découverte",
+
     date: "20 juin 2026",
     dateIso: "2026-06-20",
     endDateIso: "2026-06-20",
@@ -36,7 +36,7 @@ export const upcomingEvents: PublicEvent[] = [
   {
     id: "member-race-2026",
     title: "Member Race",
-    type: "Événement membres",
+
     date: "12 septembre 2026",
     dateIso: "2026-09-12",
     endDateIso: "2026-09-12",
@@ -50,7 +50,7 @@ export const upcomingEvents: PublicEvent[] = [
   {
     id: "full-chaos-2026",
     title: "Chaos Ladder",
-    type: "Tournoi amical",
+
     date: "3 octobre 2026",
     dateIso: "2026-10-03",
     endDateIso: "2026-10-03",
@@ -67,7 +67,7 @@ export const pastEvents: PublicEvent[] = [
   {
     id: "winter-link-2025",
     title: "Winter Link",
-    type: "Récap public",
+
     date: "7 décembre 2025",
     dateIso: "2025-12-07",
     endDateIso: "2025-12-07",
@@ -87,7 +87,7 @@ export const pastEvents: PublicEvent[] = [
   {
     id: "first-seed-2025",
     title: "First Seed",
-    type: "Archive",
+
     date: "14 septembre 2025",
     dateIso: "2025-09-14",
     endDateIso: "2025-09-14",

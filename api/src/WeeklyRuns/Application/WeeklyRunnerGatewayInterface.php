@@ -16,6 +16,7 @@ interface WeeklyRunnerGatewayInterface
         string $apworldDownloadUrl,
         string $playerName,
         string $yaml,
+        string $archipelagoGameName,
     ): array;
 
     public function terminate(string $externalSessionId): void;

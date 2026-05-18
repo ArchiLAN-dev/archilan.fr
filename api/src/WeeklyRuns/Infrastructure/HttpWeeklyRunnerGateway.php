@@ -16,6 +16,10 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
         private string $runnerBaseUrl,
         private string $runnerApiKey,
         private string $runnerPublicHost,
+        private string $symfonyInternalUrl,
+        private string $mercureHubUrl,
+        private string $centralApiSecret,
+        private string $bridgeInternalToken,
     ) {
     }
 
@@ -26,17 +30,30 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
         string $apworldDownloadUrl,
         string $playerName,
         string $yaml,
+        string $archipelagoGameName,
     ): array {
+        $slot = [
+            'slotName' => $playerName,
+            'apworldStorageKey' => $apworldStorageKey,
+            'playerYaml' => $yaml,
+        ];
+        if ('' !== $apworldDownloadUrl) {
+            $slot['apworldDownloadUrl'] = $apworldDownloadUrl;
+        }
+
         $data = $this->post(
             "/sessions/{$weeklyEntryId}/generate-and-launch",
             [
                 'seed' => $seed,
-                'slots' => [[
-                    'slotName' => $playerName,
-                    'apworldStorageKey' => $apworldStorageKey,
-                    'apworldDownloadUrl' => $apworldDownloadUrl,
-                    'playerYaml' => $yaml,
-                ]],
+                'slots' => [$slot],
+                'bridgeConfig' => [
+                    'RUN_ID' => $weeklyEntryId,
+                    'SYMFONY_INTERNAL_URL' => $this->symfonyInternalUrl,
+                    'MERCURE_HUB_URL' => $this->mercureHubUrl,
+                    'CENTRAL_API_SECRET' => $this->centralApiSecret,
+                    'BRIDGE_INTERNAL_TOKEN' => $this->bridgeInternalToken,
+                    'SLOT_NAMES' => json_encode([['name' => $playerName, 'game' => $archipelagoGameName]], \JSON_THROW_ON_ERROR),
+                ],
             ],
             // Must exceed runner's GENERATION_TIMEOUT (default 300s) plus container startup time.
             timeout: 360,

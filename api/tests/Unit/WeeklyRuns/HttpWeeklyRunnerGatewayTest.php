@@ -20,6 +20,10 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
             runnerBaseUrl: 'http://runner.internal',
             runnerApiKey: 'test-key',
             runnerPublicHost: $publicHost,
+            symfonyInternalUrl: 'http://api.test',
+            mercureHubUrl: 'http://mercure.test/.well-known/mercure',
+            centralApiSecret: 'test-secret',
+            bridgeInternalToken: '',
         );
     }
 
@@ -37,7 +41,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse()), 'my-public-runner.archilan.fr');
 
-        $result = $gateway->launchEntry('entry-1', 'seed123', 'abc.apworld', 'http://minio/abc.apworld', 'Alice', "name: Alice\n");
+        $result = $gateway->launchEntry('entry-1', 'seed123', 'abc.apworld', 'http://minio/abc.apworld', 'Alice', "name: Alice\n", '');
 
         self::assertSame('my-public-runner.archilan.fr', $result['connectionInfo']['host']);
         self::assertNotSame('0.0.0.0', $result['connectionInfo']['host']);
@@ -47,7 +51,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse(port: 38282)));
 
-        $result = $gateway->launchEntry('entry-1', 'seed', 'abc.apworld', 'http://minio/url', 'Alice', 'yaml');
+        $result = $gateway->launchEntry('entry-1', 'seed', 'abc.apworld', 'http://minio/url', 'Alice', 'yaml', '');
 
         self::assertSame(38282, $result['connectionInfo']['port']);
     }
@@ -82,7 +86,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         };
 
         $gateway = $this->makeGateway(new MockHttpClient($factory));
-        $gateway->launchEntry('entry-2', 'seed', 'key.apworld', 'http://minio/presigned-url', 'Bob', "name: Bob\n");
+        $gateway->launchEntry('entry-2', 'seed', 'key.apworld', 'http://minio/presigned-url', 'Bob', "name: Bob\n", '');
 
         self::assertSame('http://minio/presigned-url', $capturedDownloadUrl);
     }
@@ -95,14 +99,14 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/generation_failed/');
 
-        $gateway->launchEntry('entry-3', 'seed', 'key.apworld', 'http://minio/url', 'Carol', 'yaml');
+        $gateway->launchEntry('entry-3', 'seed', 'key.apworld', 'http://minio/url', 'Carol', 'yaml', '');
     }
 
     public function testLaunchEntrySetsExternalSessionId(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse()));
 
-        $result = $gateway->launchEntry('my-entry-id', 'seed', 'key', 'http://minio/url', 'Dan', 'yaml');
+        $result = $gateway->launchEntry('my-entry-id', 'seed', 'key', 'http://minio/url', 'Dan', 'yaml', '');
 
         self::assertSame('my-entry-id', $result['externalSessionId']);
     }
@@ -117,7 +121,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         ], \JSON_THROW_ON_ERROR);
         $gateway = $this->makeGateway(new MockHttpClient(new MockResponse($body)));
 
-        $result = $gateway->launchEntry('entry-5', 'seed', 'key', 'http://minio/url', 'Eve', 'yaml');
+        $result = $gateway->launchEntry('entry-5', 'seed', 'key', 'http://minio/url', 'Eve', 'yaml', '');
 
         self::assertNull($result['connectionInfo']['password']);
     }

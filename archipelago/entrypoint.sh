@@ -1,11 +1,14 @@
 #!/bin/sh
 set -e
 
-# Find the .archipelago game file from the mounted output directory
-GAME_FILE=$(ls /archipelago/output/*.archipelago 2>/dev/null | head -1)
+# Find the .archipelago game file from the output directory.
+# ARCHIPELAGO_OUTPUT_DIR can override the default when the workspace is mounted
+# as a named volume (the runner passes the session-specific subpath via this var).
+GAME_DIR="${ARCHIPELAGO_OUTPUT_DIR:-/archipelago/output}"
+GAME_FILE=$(ls "$GAME_DIR"/*.archipelago 2>/dev/null | head -1)
 
 if [ -z "$GAME_FILE" ]; then
-    echo '{"event":"no .archipelago file found in /archipelago/output/","severity":"ERROR","run_id":"","timestamp":""}' >&2
+    echo '{"event":"no .archipelago file found in '"$GAME_DIR"'","severity":"ERROR","run_id":"","timestamp":""}' >&2
     exit 1
 fi
 

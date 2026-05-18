@@ -55,8 +55,7 @@ export function EventCard({ event }: { event: PublicEvent }) {
       <div className="grid p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-accent-warm">{event.type}</p>
-          <h3 className="mt-2 font-heading text-2xl font-semibold leading-tight text-foreground">{event.title}</h3>
+          <h3 className="font-heading text-2xl font-semibold leading-tight text-foreground">{event.title}</h3>
         </div>
         <span className={`shrink-0 rounded border px-2 py-1 text-xs font-semibold ${state.tone}`}>
           {state.label}

@@ -5,8 +5,7 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, MapPin, RefreshCw, Trophy, Users } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
 import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/events/event-types";
-import { publicEvents } from "@/features/events/mock-events";
-import { getPublicEvent } from "@/features/events/public-events-api";
+import { getPublicEvent, getPublicEvents } from "@/features/events/public-events-api";
 import { EventCheckout } from "@/features/events/event-checkout";
 import { EventRegistrationCta } from "@/features/events/event-registration-cta";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
@@ -73,8 +72,9 @@ const schemaAttendanceModeMap: Record<EventAttendanceMode, string> = {
   mixed: "https://schema.org/MixedEventAttendanceMode",
 };
 
-export function generateStaticParams() {
-  return publicEvents.map((event) => ({ eventSlug: event.id }));
+export async function generateStaticParams() {
+  const { upcoming, past } = await getPublicEvents();
+  return [...upcoming, ...past].map((event) => ({ eventSlug: event.id }));
 }
 
 export async function generateMetadata({ params }: EventDetailPageProps): Promise<Metadata> {
@@ -152,10 +152,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
         <header className="grid gap-6 border-b border-border pb-10">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
-                {event.type}
-              </p>
-              <h1 className="mt-3 max-w-4xl font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
+              <h1 className="max-w-4xl font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
                 {event.title}
               </h1>
             </div>

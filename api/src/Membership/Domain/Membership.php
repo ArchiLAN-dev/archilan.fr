@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(columns: ['user_id'], name: 'idx_memberships_user_id')]
 #[ORM\Index(columns: ['expires_at', 'status'], name: 'idx_memberships_expires_at_status')]
 #[ORM\Index(columns: ['status', 'user_id'], name: 'idx_memberships_status_user_id')]
-#[ORM\UniqueConstraint(name: 'uniq_memberships_active_user_id', columns: ['user_id'], options: ['where' => "status = 'active'"])]
+#[ORM\UniqueConstraint(name: 'uniq_memberships_active_user_id', columns: ['user_id'], options: ['where' => "((status)::text = 'active'::text)"])]
 #[ORM\UniqueConstraint(name: 'uniq_memberships_helloasso_order_id', columns: ['helloasso_order_id'])]
 final class Membership
 {

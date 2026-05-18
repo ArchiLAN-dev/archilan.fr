@@ -372,7 +372,7 @@ final readonly class PersonalRunController
             return $user;
         }
 
-        $result = $this->drafts->cancel($runId, $user->getId());
+        $result = $this->drafts->hardDelete($runId, $user->getId());
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);

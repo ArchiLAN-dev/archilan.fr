@@ -46,6 +46,7 @@ WORKSPACE_ROOT: str = os.environ.get("WORKSPACE_ROOT", "/workspace")
 ARCHIPELAGO_GENERATE_CMD: str = os.environ.get("ARCHIPELAGO_GENERATE_CMD", "ArchipelagoGenerate")
 ARCHIPELAGO_TEMPLATE_CMD: str = os.environ.get("ARCHIPELAGO_TEMPLATE_CMD", "")
 ARCHIPELAGO_SERVER_IMAGE: str = os.environ.get("ARCHIPELAGO_SERVER_IMAGE", "archipelago-server:latest")
+ARCHIPELAGO_WORKSPACE_VOLUME: str = os.environ.get("ARCHIPELAGO_WORKSPACE_VOLUME", "")
 GENERATION_TIMEOUT: int = int(os.environ.get("GENERATION_TIMEOUT", "300"))
 APWORLD_TEMPLATE_TIMEOUT: int = int(os.environ.get("APWORLD_TEMPLATE_TIMEOUT", "30"))
 ARCHIPELAGO_WORLD_DIR_FLAG: str = os.environ.get("ARCHIPELAGO_WORLD_DIR_FLAG", DEFAULT_WORLD_DIR_FLAG)
@@ -337,8 +338,8 @@ async def generate_and_launch(request: Request, session_id: str) -> JSONResponse
                 slot_errors.append(f"playerYaml est requis pour le slot '{slot_name}'.")
             if not str(slot.get("apworldStorageKey", "")).strip():
                 slot_errors.append(f"apworldStorageKey est requis pour le slot '{slot_name}'.")
-            if not str(slot.get("apworldDownloadUrl") or "").strip():
-                slot_errors.append(f"apworldDownloadUrl est requis pour le slot '{slot_name}'.")
+            # apworldDownloadUrl is optional: the API may have pre-staged the file in
+            # {workspace}/{session_id}/apworlds/ - generator.py will detect it.
 
     name_errors = validate_slot_names(slot_names)
     all_errors = slot_errors + name_errors
@@ -367,7 +368,12 @@ async def generate_and_launch(request: Request, session_id: str) -> JSONResponse
         error = (session or {}).get("error", "unknown")
         return JSONResponse({"error": "generation_failed", "details": error}, status_code=503)
 
-    launch_result = await launch_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE)
+    bridge_config_raw = body.get("bridgeConfig")
+    bridge_env: dict[str, str] | None = None
+    if isinstance(bridge_config_raw, dict):
+        bridge_env = {k: v for k, v in bridge_config_raw.items() if isinstance(k, str) and isinstance(v, str)} or None
+
+    launch_result = await launch_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE, workspace_volume=ARCHIPELAGO_WORKSPACE_VOLUME or None, bridge_env=bridge_env)
     if "error" in launch_result:
         err = launch_result["error"]
         if err == "not_found":
@@ -515,7 +521,12 @@ async def generate_yamls(request: Request, session_id: str) -> JSONResponse:
 
 @app.post("/sessions/{session_id}/launch", dependencies=[Depends(_require_api_key)])
 async def launch(request: Request, session_id: str) -> JSONResponse:
-    result = await launch_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE)
+    body: dict[str, Any] = await _json_body(request)
+    bridge_config_raw = body.get("bridgeConfig")
+    bridge_env: dict[str, str] | None = None
+    if isinstance(bridge_config_raw, dict):
+        bridge_env = {k: v for k, v in bridge_config_raw.items() if isinstance(k, str) and isinstance(v, str)} or None
+    result = await launch_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE, workspace_volume=ARCHIPELAGO_WORKSPACE_VOLUME or None, bridge_env=bridge_env)
     if "error" in result:
         err = result["error"]
         if err == "not_found":
@@ -532,7 +543,12 @@ async def launch(request: Request, session_id: str) -> JSONResponse:
 
 @app.post("/sessions/{session_id}/restart", dependencies=[Depends(_require_api_key)])
 async def restart(request: Request, session_id: str) -> JSONResponse:
-    result = await restart_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE)
+    body: dict[str, Any] = await _json_body(request)
+    bridge_config_raw = body.get("bridgeConfig")
+    bridge_env: dict[str, str] | None = None
+    if isinstance(bridge_config_raw, dict):
+        bridge_env = {k: v for k, v in bridge_config_raw.items() if isinstance(k, str) and isinstance(v, str)} or None
+    result = await restart_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE, workspace_volume=ARCHIPELAGO_WORKSPACE_VOLUME or None, bridge_env=bridge_env)
     if "error" in result:
         err = result["error"]
         if err == "not_found":

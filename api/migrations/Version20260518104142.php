@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20260517213155 extends AbstractMigration
+final class Version20260518104142 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -42,7 +42,7 @@ final class Version20260517213155 extends AbstractMigration
         $this->addSql('CREATE INDEX idx_memberships_user_id ON memberships (user_id)');
         $this->addSql('CREATE INDEX idx_memberships_expires_at_status ON memberships (expires_at, status)');
         $this->addSql('CREATE INDEX idx_memberships_status_user_id ON memberships (status, user_id)');
-        $this->addSql('CREATE UNIQUE INDEX uniq_memberships_active_user_id ON memberships (user_id) WHERE status = \'active\'');
+        $this->addSql('CREATE UNIQUE INDEX uniq_memberships_active_user_id ON memberships (user_id) WHERE ((status)::text = \'active\'::text)');
         $this->addSql('CREATE UNIQUE INDEX uniq_memberships_helloasso_order_id ON memberships (helloasso_order_id)');
         $this->addSql('CREATE TABLE password_reset_token (id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, token_hash VARCHAR(64) NOT NULL, expires_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, used_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE INDEX idx_identity_password_reset_tokens_user ON password_reset_token (user_id)');

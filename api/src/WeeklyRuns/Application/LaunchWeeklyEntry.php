@@ -12,6 +12,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Yaml\Yaml;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class LaunchWeeklyEntry
 {
@@ -20,9 +21,11 @@ final readonly class LaunchWeeklyEntry
         private EntityManagerInterface $entityManager,
         private WeeklyRunnerGatewayInterface $gateway,
         private MinioStorageInterface $minioStorage,
+        private HttpClientInterface $httpClient,
         private ClockInterface $clock,
         private string $minioApworldsBucket,
         private int $minioPresignTtl,
+        private string $workspaceDir,
     ) {
     }
 
@@ -79,6 +82,12 @@ final readonly class LaunchWeeklyEntry
             $this->minioPresignTtl,
         );
 
+        // Pre-stage the apworld in the workspace so the runner does not need to reach
+        // the MinIO internal hostname. Mirrors what GenerateRunJobHandler does on the
+        // Symfony-worker side. Failure is non-fatal: the runner will fall back to
+        // downloading via the presigned URL.
+        $gatewayDownloadUrl = $this->stageApworld($entryId, $apworldStorageKey, $apworldDownloadUrl);
+
         $userTable = $this->connection->quoteSingleIdentifier('user');
         $userRow = $this->connection->createQueryBuilder()
             ->select('u.display_name')
@@ -94,6 +103,8 @@ final readonly class LaunchWeeklyEntry
         if (!is_array($parsed)) {
             $parsed = [];
         }
+        $gameNameRaw = $parsed['game'] ?? null;
+        $archipelagoGameName = is_string($gameNameRaw) ? $gameNameRaw : '';
         $parsed['name'] = $displayName;
         $substitutedYaml = Yaml::dump($parsed, 4, 2);
 
@@ -101,9 +112,10 @@ final readonly class LaunchWeeklyEntry
             $entryId,
             $run->getSeed(),
             $apworldStorageKey,
-            $apworldDownloadUrl,
+            $gatewayDownloadUrl,
             $displayName,
             $substitutedYaml,
+            $archipelagoGameName,
         );
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
@@ -125,5 +137,28 @@ final readonly class LaunchWeeklyEntry
             'externalSessionId' => $result['externalSessionId'],
             'connectionInfo' => $result['connectionInfo'],
         ];
+    }
+
+    /**
+     * Downloads the apworld file into the session workspace so the runner can use it
+     * directly without needing to reach the MinIO internal endpoint.
+     *
+     * Returns an empty string on success (signals to the gateway to skip the download
+     * URL), or the original presigned URL on failure so the runner can attempt it.
+     */
+    private function stageApworld(string $entryId, string $storageKey, string $presignedUrl): string
+    {
+        try {
+            $content = $this->httpClient->request('GET', $presignedUrl)->getContent(true);
+            $apworldsDir = $this->workspaceDir.'/'.$entryId.'/apworlds';
+            if (!is_dir($apworldsDir)) {
+                mkdir($apworldsDir, 0755, true);
+            }
+            file_put_contents($apworldsDir.'/'.basename($storageKey), $content);
+
+            return '';
+        } catch (\Throwable) {
+            return $presignedUrl;
+        }
     }
 }

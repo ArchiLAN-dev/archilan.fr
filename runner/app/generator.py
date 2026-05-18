@@ -133,6 +133,21 @@ async def run_generation(
                     tmp_path.rename(apworlds_dest / dest_name)
 
             has_apworlds = True
+    elif apworlds_dest.exists():
+        # The API pre-staged the apworld file(s) directly in the workspace so the runner
+        # does not need to reach the MinIO internal endpoint. Rename each file to its
+        # canonical {pkg_name}.apworld name before passing to ArchipelagoGenerate.
+        staged = [p for p in apworlds_dest.iterdir() if p.is_file() and p.suffix.lower() == ".apworld"]
+        for pre_staged in staged:
+            canonical = _apworld_dest_name(pre_staged, pre_staged.name)
+            if canonical != pre_staged.name:
+                pre_staged.rename(apworlds_dest / canonical)
+        has_apworlds = bool(staged)
+        if has_apworlds:
+            logger.info(
+                "using pre-staged apworlds",
+                extra={"request_id": "-", "session_id": session_id, "count": len(staged)},
+            )
 
     if has_apworlds:
         cmd.extend([world_dir_flag, str(apworlds_dest)])

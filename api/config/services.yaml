@@ -68,6 +68,8 @@ services:
             $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
             $runnerApiKey: '%env(RUNNER_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+            $symfonyInternalUrl: '%env(default:default_empty_string:SYMFONY_INTERNAL_URL)%'
+            $mercureHubUrl: '%env(default:default_empty_string:MERCURE_HUB_URL)%'
 
     App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\DolibarrClient'
 
@@ -110,6 +112,14 @@ services:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
     App\Sessions\Presentation\PlayerPatchController:
+        arguments:
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+
+    App\WeeklyRuns\Application\LaunchWeeklyEntry:
+        arguments:
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+
+    App\WeeklyRuns\Presentation\WeeklyEntryPatchController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 

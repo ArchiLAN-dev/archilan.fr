@@ -29,7 +29,7 @@ import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { fetchCurrentWeeklyRuns } from "./weekly-runs-api";
 
-// Weekly runs are solo sessions — the player is always slot 1
+// Weekly runs are solo sessions - the player is always slot 1
 const SLOT_INDEX = "1";
 
 type PageState =

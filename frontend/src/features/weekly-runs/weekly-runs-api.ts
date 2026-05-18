@@ -90,6 +90,23 @@ export async function optInToWeeklyRun(
   }
 }
 
+export async function fetchWeeklyEntryPatches(
+  weeklyRunId: string,
+  entryId: string,
+): Promise<string[]> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/weekly-runs/${weeklyRunId}/entries/${entryId}/patches`,
+    );
+    if (!res.ok) return [];
+    const payload: unknown = await res.json();
+    if (!isWeeklyEntryPatchesPayload(payload)) return [];
+    return payload.data.files;
+  } catch {
+    return [];
+  }
+}
+
 export async function withdrawFromWeeklyRun(
   weeklyRunId: string,
   entryId: string,
@@ -155,6 +172,14 @@ function isLaunchPayload(v: unknown): v is { data: LaunchResult } {
   if (!("entryId" in d) || typeof d.entryId !== "string") return false;
   if (!("connectionInfo" in d) || typeof d.connectionInfo !== "object" || d.connectionInfo === null) return false;
   return true;
+}
+
+function isWeeklyEntryPatchesPayload(v: unknown): v is { data: { files: string[] } } {
+  if (typeof v !== "object" || v === null || !("data" in v)) return false;
+  const data: unknown = Reflect.get(v, "data");
+  if (typeof data !== "object" || data === null || !("files" in data)) return false;
+  const files: unknown = Reflect.get(data, "files");
+  return Array.isArray(files) && files.every((f): f is string => typeof f === "string");
 }
 
 // ── Mercure goal event type guard ──────────────────────────────────────────────

@@ -17,6 +17,7 @@ use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class LaunchWeeklyEntryTest extends TestCase
 {
@@ -258,14 +259,19 @@ final class LaunchWeeklyEntryTest extends TestCase
     ): LaunchWeeklyEntry {
         $minio ??= $this->createStub(MinioStorageInterface::class);
 
+        $httpClient = $this->createMock(HttpClientInterface::class);
+        $httpClient->method('request')->willThrowException(new \RuntimeException('not available in unit tests'));
+
         return new LaunchWeeklyEntry(
             $connection,
             $em,
             $gateway,
             $minio,
+            $httpClient,
             self::$clock,
             'apworlds',
             3600,
+            '',
         );
     }
 

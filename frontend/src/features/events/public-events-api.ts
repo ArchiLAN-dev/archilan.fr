@@ -2,7 +2,6 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import type { EventStatus, PublicEvent } from "./event-types";
-import { pastEvents, upcomingEvents } from "./mock-events";
 
 type PublicEventPayload = {
   id: string;
@@ -10,7 +9,6 @@ type PublicEventPayload = {
   description: string;
   coverImageUrl: string | null;
   photoGallery: string[];
-  type: string;
   status: "published" | "in-progress" | "completed";
   startsAt: string;
   endsAt: string;
@@ -55,25 +53,23 @@ export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past
 }
 
 export async function getPublicEvent(eventId: string): Promise<PublicEvent | null> {
-  const fallback = [...upcomingEvents, ...pastEvents].find((event) => event.id === eventId) ?? null;
-
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/events/${eventId}`, {
       cache: "no-store",
     });
 
     if (!response.ok) {
-      return fallback;
+      return null;
     }
 
     const payload: unknown = await response.json();
     if (!isPublicEventPayload(payload)) {
-      return fallback;
+      return null;
     }
 
     return toPublicEvent(payload.data);
   } catch {
-    return fallback;
+    return null;
   }
 }
 
@@ -81,7 +77,6 @@ function toPublicEvent(event: PublicEventPayload): PublicEvent {
   return {
     id: event.id,
     title: event.title,
-    type: event.type,
     date: formatDate(event.startsAt),
     dateIso: event.startsAt,
     endDateIso: event.endsAt,
@@ -124,11 +119,8 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function fallbackEvents() {
-  return {
-    upcoming: upcomingEvents,
-    past: pastEvents,
-  };
+function fallbackEvents(): { upcoming: PublicEvent[]; past: PublicEvent[] } {
+  return { upcoming: [], past: [] };
 }
 
 function isPublicEventListPayload(payload: unknown): payload is { data: PublicEventPayload[] } {
@@ -160,7 +152,6 @@ function isPublicEventPayloadItem(v: unknown): v is PublicEventPayload {
   if (!hasStringProp(v, "description")) return false;
   if (!("coverImageUrl" in v) || (v.coverImageUrl !== null && typeof v.coverImageUrl !== "string")) return false;
   if (!("photoGallery" in v) || !isStringArray(v.photoGallery)) return false;
-  if (!hasStringProp(v, "type")) return false;
   if (!("status" in v) || !isPublishedStatus(v.status)) return false;
   if (!hasStringProp(v, "startsAt")) return false;
   if (!hasStringProp(v, "endsAt")) return false;

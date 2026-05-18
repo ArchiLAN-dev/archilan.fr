@@ -486,7 +486,7 @@ def test_generate_and_launch_success(client: TestClient, monkeypatch: pytest.Mon
     ) -> None:
         store.update(session_id, status="generated", outputFile="/fake/world.archipelago")
 
-    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image):
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
         return {"containerHost": "0.0.0.0", "containerPort": 38281, "serverPassword": "s3cr3t"}
 
     monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
@@ -546,7 +546,11 @@ def test_generate_and_launch_empty_slots_returns_422(client: TestClient, monkeyp
     assert res.json()["error"] == "invalid_slots"
 
 
-def test_generate_and_launch_missing_apworld_download_url_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_and_launch_missing_apworld_download_url_is_accepted(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # apworldDownloadUrl is optional: the API may pre-stage the apworld in the workspace.
+    # Without a download URL and without pre-staged files, generation proceeds but may fail
+    # for other reasons (no world directory). The point here is that the request is NOT
+    # rejected at the validation layer (no 422).
     import app.main as main_module
     monkeypatch.setattr(main_module, "session_store", SessionStore())
 
@@ -556,10 +560,7 @@ def test_generate_and_launch_missing_apworld_download_url_returns_422(client: Te
         json={"slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld"}]},
     )
 
-    assert res.status_code == 422
-    body = res.json()
-    assert body["error"] == "invalid_slots"
-    assert any("apworldDownloadUrl" in detail for detail in body["details"])
+    assert res.status_code != 422, f"Request was rejected at validation, expected generation attempt: {res.json()}"
 
 
 def test_generate_and_launch_missing_player_yaml_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -608,7 +609,7 @@ def test_generate_and_launch_launch_error_returns_503(client: TestClient, monkey
     ) -> None:
         store.update(session_id, status="generated", outputFile="/fake/world.archipelago")
 
-    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image):
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
         return {"error": "no_ports_available"}
 
     monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
@@ -658,7 +659,7 @@ def test_generate_and_launch_seed_is_passed_to_run_generation(client: TestClient
         received.append(seed)
         store.update(session_id, status="generated", outputFile="/fake/world.archipelago")
 
-    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image):
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
         return {"containerHost": "0.0.0.0", "containerPort": 38281, "serverPassword": None}
 
     monkeypatch.setattr(main_module, "run_generation", fake_run_generation)

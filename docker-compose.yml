@@ -60,6 +60,7 @@ services:
             ARCHIPELAGO_GENERATE_CMD: ${ARCHIPELAGO_GENERATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_multiworld.py}
             ARCHIPELAGO_TEMPLATE_CMD: ${ARCHIPELAGO_TEMPLATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_template.py}
             ARCHIPELAGO_SERVER_IMAGE: archipelago-server:latest
+            ARCHIPELAGO_WORKSPACE_VOLUME: ${ARCHIPELAGO_WORKSPACE_VOLUME:-archilan_workspace}
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - workspace:/workspace

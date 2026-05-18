@@ -239,7 +239,7 @@ function CurrentRunCard({ run, expanded, onToggle }: CurrentRunCardProps) {
                               : "Oui"}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </td>
                     </tr>

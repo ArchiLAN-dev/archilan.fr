@@ -43,6 +43,26 @@ __all__ = [
 ]
 
 
+_TOKEN_FETCH_DELAYS = (2, 4, 8, 16, 32)
+
+
+async def _fetch_token_with_retry(token_mgr: TokenManager, log: logging.Logger) -> None:
+    for attempt, delay in enumerate(_TOKEN_FETCH_DELAYS, start=1):
+        try:
+            await token_mgr.fetch_token()
+            return
+        except Exception as exc:
+            log.warning(
+                "Token fetch failed (attempt %d/%d): %s. Retrying in %ds…",
+                attempt,
+                len(_TOKEN_FETCH_DELAYS),
+                exc,
+                delay,
+            )
+            await asyncio.sleep(delay)
+    await token_mgr.fetch_token()
+
+
 async def _main() -> None:
     config = Config.from_env()
     setup_logging(config.run_id)
@@ -55,7 +75,7 @@ async def _main() -> None:
     timeout = aiohttp.ClientTimeout(total=10)
     async with aiohttp.ClientSession(timeout=timeout) as http:
         token_mgr = TokenManager(config, http)
-        await token_mgr.fetch_token()
+        await _fetch_token_with_retry(token_mgr, log)
         token_mgr.schedule_refresh(config.token_refresh_interval)
 
         publisher = MercurePublisher(config, token_mgr, http)

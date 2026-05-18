@@ -62,16 +62,40 @@ class DockerManager:
         output_dir: str,
         password: str,
         container_port: int = 38281,
+        workspace_volume: str | None = None,
+        workspace_root: str = "/workspace",
+        extra_env: dict[str, str] | None = None,
     ) -> docker.models.containers.Container:
-        """Start an Archipelago server container and track it. Raises if not connected."""
+        """Start an Archipelago server container and track it. Raises if not connected.
+
+        When *workspace_volume* is provided the named Docker volume is mounted at
+        /workspace (read-only) and the session's output path is communicated via
+        ARCHIPELAGO_OUTPUT_DIR.  This is required when the workspace is a named
+        volume: the Docker daemon interprets plain paths as host bind-mount sources
+        and the volume-internal path does not exist there.
+        """
         if self._client is None:
             raise RuntimeError("Docker not connected")
+
+        env: dict[str, str] = {"PASSWORD": password}
+        if extra_env:
+            env.update(extra_env)
+
+        if workspace_volume:
+            volumes: dict[str, dict[str, str]] = {
+                workspace_volume: {"bind": "/workspace", "mode": "ro"}
+            }
+            subpath = output_dir.removeprefix(workspace_root).lstrip("/")
+            env["ARCHIPELAGO_OUTPUT_DIR"] = f"/workspace/{subpath}"
+        else:
+            volumes = {output_dir: {"bind": "/archipelago/output", "mode": "ro"}}
+
         container = self._client.containers.run(
             image,
             detach=True,
             ports={f"{container_port}/tcp": host_port},
-            volumes={output_dir: {"bind": "/archipelago/output", "mode": "ro"}},
-            environment={"PASSWORD": password},
+            volumes=volumes,
+            environment=env,
             remove=True,
         )
         self.track(str(container.id), container)

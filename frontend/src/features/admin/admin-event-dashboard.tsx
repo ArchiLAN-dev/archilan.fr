@@ -14,7 +14,6 @@ type AdminEvent = {
   description: string;
   coverImageUrl: string | null;
   photoGallery: string[];
-  type: string;
   status: "draft" | "published" | "in-progress" | "completed";
   startsAt: string;
   endsAt: string;
@@ -471,10 +470,7 @@ function EventList({
             {state.events.map((event) => (
               <tr className="border-b border-border last:border-b-0" key={event.id}>
                 <td className="px-4 py-3 font-semibold text-foreground">
-                  <div className="flex flex-col gap-0.5">
-                    <span>{event.title}</span>
-                    <span className="text-xs font-normal text-muted-foreground">{event.type}</span>
-                  </div>
+                  <span>{event.title}</span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-accent-text">{statusLabel(event.status)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">

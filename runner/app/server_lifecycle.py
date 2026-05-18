@@ -68,6 +68,8 @@ async def launch_server(
     docker_manager: DockerManager,
     *,
     image: str,
+    workspace_volume: str | None = None,
+    bridge_env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     session = store.get(session_id)
     if session is None:
@@ -93,6 +95,8 @@ async def launch_server(
             host_port=port,
             output_dir=output_dir,
             password=password,
+            workspace_volume=workspace_volume,
+            extra_env=bridge_env,
         )
         container_id = str(container.id)
     except Exception as exc:
@@ -148,6 +152,8 @@ async def restart_server(
     docker_manager: DockerManager,
     *,
     image: str,
+    workspace_volume: str | None = None,
+    bridge_env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     session = store.get(session_id)
     if session is None:
@@ -169,4 +175,4 @@ async def restart_server(
 
     store.update(session_id, status="generated", containerPort=None, containerId=None, serverPassword=None)
 
-    return await launch_server(session_id, store, port_pool, docker_manager, image=image)
+    return await launch_server(session_id, store, port_pool, docker_manager, image=image, workspace_volume=workspace_volume, bridge_env=bridge_env)

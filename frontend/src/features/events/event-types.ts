@@ -5,7 +5,6 @@ export type EventAttendanceMode = "offline" | "online" | "mixed";
 export type PublicEvent = {
   id: string;
   title: string;
-  type: string;
   date: string;
   dateIso?: string;
   endDateIso?: string;
