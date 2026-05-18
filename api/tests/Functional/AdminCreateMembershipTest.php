@@ -126,5 +126,4 @@ final class AdminCreateMembershipTest extends FunctionalTestCase
         self::assertIsString($data['expiresAt']);
         self::assertStringStartsWith('2026-06-30', $data['expiresAt']);
     }
-
 }

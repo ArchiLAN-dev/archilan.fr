@@ -25,7 +25,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         self::$defaultNow = new \DateTimeImmutable('2026-05-18T00:00:00', new \DateTimeZone('UTC'));
     }
 
-    public function testInvoke_skipsTemplateWhenRunAlreadyExistsForCurrentWeek(): void
+    public function testInvokeSkipsTemplateWhenRunAlreadyExistsForCurrentWeek(): void
     {
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('persist');
@@ -35,7 +35,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
-    public function testInvoke_createsWeeklyRunWhenNoneExistsForCurrentWeek(): void
+    public function testInvokeCreatesWeeklyRunWhenNoneExistsForCurrentWeek(): void
     {
         /** @var WeeklyRun|null $persisted */
         $persisted = null;
@@ -54,7 +54,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         self::assertSame('template-1', $persisted->getTemplateId());
     }
 
-    public function testInvoke_seedIsRandomPositiveInteger(): void
+    public function testInvokeSeedIsRandomPositiveInteger(): void
     {
         /** @var WeeklyRun|null $persisted */
         $persisted = null;
@@ -72,7 +72,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         self::assertGreaterThan(0, (int) $persisted->getSeed());
     }
 
-    public function testInvoke_usesIsoYearNotCalendarYearAtYearBoundary(): void
+    public function testInvokeUsesIsoYearNotCalendarYearAtYearBoundary(): void
     {
         // 2027-01-01 is calendar year 2027 but ISO year 2026 (ISO week 53).
         // format('Y') would give 2027, format('o') gives 2026 - the handler must use 'o'.
@@ -98,7 +98,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         self::assertNotSame((int) $boundaryDate->format('Y'), $persisted->getWeekYear());
     }
 
-    public function testInvoke_skipsNonStringTemplateIds(): void
+    public function testInvokeSkipsNonStringTemplateIds(): void
     {
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::never())->method('persist');

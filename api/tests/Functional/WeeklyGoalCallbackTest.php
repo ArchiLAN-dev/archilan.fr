@@ -34,7 +34,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         $this->hub()->reset();
     }
 
-    public function testCallback_badSecret_returns401(): void
+    public function testCallbackBadSecretReturns401(): void
     {
         $this->client->request(
             'POST',
@@ -48,7 +48,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testCallback_missingSecret_returns401(): void
+    public function testCallbackMissingSecretReturns401(): void
     {
         $this->client->request(
             'POST',
@@ -62,7 +62,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testCallback_unknownSessionId_returns200(): void
+    public function testCallbackUnknownSessionIdReturns200(): void
     {
         $this->client->request(
             'POST',
@@ -76,7 +76,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(200);
     }
 
-    public function testCallback_recordsGoalAndPublishesMercure(): void
+    public function testCallbackRecordsGoalAndPublishesMercure(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER'], displayName: 'GoalPlayer');
         $game = $this->createGame('Archipelago', 'archipelago');
@@ -123,7 +123,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         self::assertSame(42, $eventData['checksTotal']);
     }
 
-    public function testCallback_idempotent_secondCallIsNoOp(): void
+    public function testCallbackIdempotentSecondCallIsNoOp(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER']);
         $game = $this->createGame('Archipelago', 'archipelago');

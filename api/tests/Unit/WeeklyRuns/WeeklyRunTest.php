@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class WeeklyRunTest extends TestCase
 {
-    public function testFinish_setsStatusToFinished(): void
+    public function testFinishSetsStatusToFinished(): void
     {
         $run = $this->makeRun();
         $finishedAt = new \DateTimeImmutable('2026-05-24T23:59:00+00:00');
@@ -19,7 +19,7 @@ final class WeeklyRunTest extends TestCase
         self::assertSame(WeeklyRun::STATUS_FINISHED, $run->getStatus());
     }
 
-    public function testFinish_setsFinishedAt(): void
+    public function testFinishSetsFinishedAt(): void
     {
         $run = $this->makeRun();
         $finishedAt = new \DateTimeImmutable('2026-05-24T23:59:00+00:00');
@@ -29,21 +29,21 @@ final class WeeklyRunTest extends TestCase
         self::assertEquals($finishedAt, $run->getFinishedAt());
     }
 
-    public function testNewRun_hasNullFinishedAt(): void
+    public function testNewRunHasNullFinishedAt(): void
     {
         $run = $this->makeRun();
 
         self::assertNull($run->getFinishedAt());
     }
 
-    public function testNewRun_hasActiveStatus(): void
+    public function testNewRunHasActiveStatus(): void
     {
         $run = $this->makeRun();
 
         self::assertSame(WeeklyRun::STATUS_ACTIVE, $run->getStatus());
     }
 
-    public function testFinish_isNoOpWhenAlreadyFinished(): void
+    public function testFinishIsNoOpWhenAlreadyFinished(): void
     {
         $run = $this->makeRun();
         $first = new \DateTimeImmutable('2026-05-24T23:59:00+00:00');

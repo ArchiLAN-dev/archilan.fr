@@ -33,7 +33,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         ], \JSON_THROW_ON_ERROR));
     }
 
-    public function testLaunchEntry_usesRunnerPublicHostNotContainerHost(): void
+    public function testLaunchEntryUsesRunnerPublicHostNotContainerHost(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse()), 'my-public-runner.archilan.fr');
 
@@ -43,7 +43,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         self::assertNotSame('0.0.0.0', $result['connectionInfo']['host']);
     }
 
-    public function testLaunchEntry_mapsContainerPortToPort(): void
+    public function testLaunchEntryMapsContainerPortToPort(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse(port: 38282)));
 
@@ -52,7 +52,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         self::assertSame(38282, $result['connectionInfo']['port']);
     }
 
-    public function testLaunchEntry_sendsApworldDownloadUrlInBody(): void
+    public function testLaunchEntrySendsApworldDownloadUrlInBody(): void
     {
         // Symfony's HttpClient converts the `json:` option to a `body:` string before calling the factory.
         /** @var string|null $capturedDownloadUrl */
@@ -87,7 +87,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         self::assertSame('http://minio/presigned-url', $capturedDownloadUrl);
     }
 
-    public function testLaunchEntry_throwsRuntimeExceptionOnErrorResponse(): void
+    public function testLaunchEntryThrowsRuntimeExceptionOnErrorResponse(): void
     {
         $errorBody = (string) json_encode(['error' => 'generation_failed', 'details' => 'docker failed'], \JSON_THROW_ON_ERROR);
         $gateway = $this->makeGateway(new MockHttpClient(new MockResponse($errorBody)));
@@ -98,7 +98,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         $gateway->launchEntry('entry-3', 'seed', 'key.apworld', 'http://minio/url', 'Carol', 'yaml');
     }
 
-    public function testLaunchEntry_setsExternalSessionId(): void
+    public function testLaunchEntrySetsExternalSessionId(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse()));
 
@@ -107,7 +107,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         self::assertSame('my-entry-id', $result['externalSessionId']);
     }
 
-    public function testLaunchEntry_handlesNullServerPassword(): void
+    public function testLaunchEntryHandlesNullServerPassword(): void
     {
         $body = (string) json_encode([
             'sessionId' => 'entry-5',

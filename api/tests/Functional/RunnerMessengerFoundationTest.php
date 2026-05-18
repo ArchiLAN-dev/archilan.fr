@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\User;
-use App\Shared\Application\Message\GenerateRunJob;
 use App\Sessions\Application\Message\RestartRunJob;
 use App\Sessions\Application\Message\RunHealthCheckJob;
 use App\Sessions\Application\Message\StartRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\Shared\Application\Message\GenerateRunJob;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;

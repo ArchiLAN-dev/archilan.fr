@@ -37,7 +37,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
 
     // ── LIST ──────────────────────────────────────────────────────────────────
 
-    public function testList_returnsTemplates(): void
+    public function testListReturnsTemplates(): void
     {
         $this->createTemplate($this->game->getId(), 'Template A');
         $this->createTemplate($this->game->getId(), 'Template B');
@@ -53,14 +53,14 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertSame(2, $response['meta']['total']);
     }
 
-    public function testList_unauthenticated_returns401(): void
+    public function testListUnauthenticatedReturns401(): void
     {
         $this->client->jsonRequest('GET', '/api/v1/admin/weekly-templates');
 
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testList_nonAdmin_returns403(): void
+    public function testListNonAdminReturns403(): void
     {
         $user = $this->createUser('user@test.com', ['ROLE_USER']);
         $this->loginAs($user);
@@ -72,7 +72,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
 
     // ── CREATE ────────────────────────────────────────────────────────────────
 
-    public function testCreate_returnsTemplate(): void
+    public function testCreateReturnsTemplate(): void
     {
         $this->loginAs($this->admin);
 
@@ -93,7 +93,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertTrue($data['isActive']);
     }
 
-    public function testCreate_gameNotReady_returns422(): void
+    public function testCreateGameNotReadyReturns422(): void
     {
         $gameNoApworld = $this->createGame('NoApworld', 'no-apworld');
         $this->loginAs($this->admin);
@@ -108,7 +108,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertSame('game_not_ready', $response['error']);
     }
 
-    public function testCreate_missingGameId_returns422(): void
+    public function testCreateMissingGameIdReturns422(): void
     {
         $this->loginAs($this->admin);
 
@@ -121,7 +121,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
 
     // ── UPDATE ────────────────────────────────────────────────────────────────
 
-    public function testUpdate_patchesFields(): void
+    public function testUpdatePatchesFields(): void
     {
         $template = $this->createTemplate($this->game->getId(), 'Original Name');
         $this->loginAs($this->admin);
@@ -139,7 +139,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertSame(5, $data['maxAttempts']);
     }
 
-    public function testUpdate_notFound_returns404(): void
+    public function testUpdateNotFoundReturns404(): void
     {
         $this->loginAs($this->admin);
 
@@ -152,7 +152,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
 
     // ── DEACTIVATE ────────────────────────────────────────────────────────────
 
-    public function testDeactivate_returns204(): void
+    public function testDeactivateReturns204(): void
     {
         $template = $this->createTemplate($this->game->getId(), 'Active Template');
         $this->loginAs($this->admin);
@@ -167,7 +167,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertFalse($refreshed->isActive());
     }
 
-    public function testDeactivate_notFound_returns404(): void
+    public function testDeactivateNotFoundReturns404(): void
     {
         $this->loginAs($this->admin);
 
@@ -178,7 +178,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
 
     // ── ADMIN CURRENT RUNS ────────────────────────────────────────────────────
 
-    public function testAdminCurrentRuns_returnsActiveAndFinishedForCurrentWeek(): void
+    public function testAdminCurrentRunsReturnsActiveAndFinishedForCurrentWeek(): void
     {
         $template = $this->createTemplate($this->game->getId(), 'Weekly Template');
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
@@ -200,7 +200,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertSame('Weekly Template', $run['templateName']);
     }
 
-    public function testAdminCurrentRuns_excludesOtherWeeks(): void
+    public function testAdminCurrentRunsExcludesOtherWeeks(): void
     {
         $template = $this->createTemplate($this->game->getId(), 'Old Template');
         $old = new \DateTimeImmutable('2020-01-06T00:00:00+00:00');

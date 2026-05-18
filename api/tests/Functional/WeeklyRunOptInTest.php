@@ -40,7 +40,7 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         $this->run = $this->createRun($this->template->getId(), WeeklyRun::STATUS_ACTIVE, $now);
     }
 
-    public function testOptIn_createsEntry(): void
+    public function testOptInCreatesEntry(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER']);
         $this->createMembership($member->getId());
@@ -56,7 +56,7 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         self::assertSame(1, $response['data']['attemptNumber']);
     }
 
-    public function testOptIn_maxAttempts_blocksSecondEntry(): void
+    public function testOptInMaxAttemptsBlocksSecondEntry(): void
     {
         $this->entityManager->remove($this->template);
         $this->entityManager->flush();
@@ -78,7 +78,7 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         self::assertSame('max_attempts_reached', $response['error']);
     }
 
-    public function testOptIn_inactiveRun_returns422(): void
+    public function testOptInInactiveRunReturns422(): void
     {
         $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
         $finishedRun = $this->createRun($this->template->getId(), WeeklyRun::STATUS_FINISHED, $now);
@@ -94,14 +94,14 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         self::assertSame('run_not_active', $response['error']);
     }
 
-    public function testOptIn_unauthenticated_returns401(): void
+    public function testOptInUnauthenticatedReturns401(): void
     {
         $this->client->jsonRequest('POST', '/api/v1/weekly-runs/'.$this->run->getId().'/entries');
 
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testOptIn_nonMember_returns403(): void
+    public function testOptInNonMemberReturns403(): void
     {
         $user = $this->createUser('user@test.com', ['ROLE_USER']);
         $this->loginAs($user);
@@ -111,7 +111,7 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testWithdraw_beforeLaunch_returns204(): void
+    public function testWithdrawBeforeLaunchReturns204(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER']);
         $this->createMembership($member->getId());
@@ -124,7 +124,7 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(204);
     }
 
-    public function testWithdraw_afterLaunch_returns422(): void
+    public function testWithdrawAfterLaunchReturns422(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER']);
         $this->createMembership($member->getId());
@@ -140,7 +140,7 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
         self::assertSame('session_already_started', $response['error']);
     }
 
-    public function testWithdraw_anotherUsersEntry_returns403(): void
+    public function testWithdrawAnotherUsersEntryReturns403(): void
     {
         $owner = $this->createUser('owner@test.com', ['ROLE_USER']);
         $other = $this->createUser('other@test.com', ['ROLE_USER']);

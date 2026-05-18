@@ -6,11 +6,11 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
-use App\GameSelection\Domain\GameCatalogSync;
 use App\Sessions\Domain\SessionSlot;
 use Doctrine\ORM\Tools\SchemaTool;
 

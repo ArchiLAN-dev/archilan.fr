@@ -7,12 +7,12 @@ namespace App\Tests\Functional;
 use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use App\Shared\Application\Message\GenerateRunJob;
 use App\Sessions\Application\Message\RestartRunJob;
 use App\Sessions\Application\Message\StartRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\Shared\Application\Message\GenerateRunJob;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
