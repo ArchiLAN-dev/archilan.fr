@@ -1,4 +1,4 @@
-# Story 18.5: Frontend — Public Run Results Page (`/runs/{id}/resultats`)
+# Story 18.5: Frontend - Public Run Results Page (`/runs/{id}/resultats`)
 
 ## Story
 
@@ -16,7 +16,7 @@ review
 
 **AC2:** A results grid displays one card per slot with: player name, game, checks done, items received, goal status badge, and completion time if goal was reached.
 
-**AC3:** Slots are grouped in three labelled sections: "Objectifs atteints" (sorted by completion time asc — handled by API), "Incomplets" (no goal, not invalidated), "Forfaits" (isInvalidated: true).
+**AC3:** Slots are grouped in three labelled sections: "Objectifs atteints" (sorted by completion time asc - handled by API), "Incomplets" (no goal, not invalidated), "Forfaits" (isInvalidated: true).
 
 **AC4:** "Forfait" slot cards display an amber "Forfait" badge, checks and items are shown in muted style, and a tooltip explains "Statistiques exclues des classements (slot relâché)".
 
@@ -32,15 +32,15 @@ review
 
 ## Tasks / Subtasks
 
-- [x] Task 1: `run-results-api.ts` — types + `getRunResults` with `React.cache()`
+- [x] Task 1: `run-results-api.ts` - types + `getRunResults` with `React.cache()`
   - [x] 1a: Define `SlotResult` and `RunResults` types
   - [x] 1b: Implement `isRunResultsPayload` type guard
   - [x] 1c: Implement `getRunResults = cache(async (runId) => fetch(...))`
-- [x] Task 2: `run-results-page.tsx` — server component
-  - [x] 2a: `RunResultsPage` — header (event name, date, duration, links) + 3 sections
-  - [x] 2b: `RunResultsNotFound` — 404 placeholder with back link
-  - [x] 2c: `SlotCard` — player, game, stats, `StatusBadge`
-  - [x] 2d: `StatusBadge` — green/amber/gray badge
+- [x] Task 2: `run-results-page.tsx` - server component
+  - [x] 2a: `RunResultsPage` - header (event name, date, duration, links) + 3 sections
+  - [x] 2b: `RunResultsNotFound` - 404 placeholder with back link
+  - [x] 2c: `SlotCard` - player, game, stats, `StatusBadge`
+  - [x] 2d: `StatusBadge` - green/amber/gray badge
   - [x] 2e: `formatDuration(seconds)` → "Xh Ym"; `formatDate(iso)` → French format
 - [x] Task 3: Route `frontend/src/app/(public)/runs/[runId]/resultats/page.tsx`
   - [x] 3a: `generateMetadata` with dynamic title + og:title
@@ -100,9 +100,9 @@ API returns 404 when session not found or not finished. `getRunResults` returns 
 
 ## File List
 
-- `frontend/src/features/runs/run-results-api.ts` — new
-- `frontend/src/features/runs/run-results-page.tsx` — new
-- `frontend/src/app/(public)/runs/[runId]/resultats/page.tsx` — new
+- `frontend/src/features/runs/run-results-api.ts` - new
+- `frontend/src/features/runs/run-results-page.tsx` - new
+- `frontend/src/app/(public)/runs/[runId]/resultats/page.tsx` - new
 
 ## Change Log
 

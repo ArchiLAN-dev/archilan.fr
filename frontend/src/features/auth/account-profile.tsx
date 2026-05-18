@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
+import { FaDiscord } from "react-icons/fa";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -11,11 +12,102 @@ export type Profile = {
   id: string;
   email: string;
   displayName: string;
+  discordUsername: string | null;
   roles: string[];
   emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
+
+// ── DiscordSection ────────────────────────────────────────────────────────────
+
+type DiscordSectionProps = {
+  discordUsername: string | null;
+  linkFeedback?: string;
+};
+
+function initMessage(linkFeedback: string | undefined): { text: string; isError: boolean } | null {
+  if (!linkFeedback) return null;
+  if (linkFeedback === "1") return { text: "Compte Discord lié avec succès.", isError: false };
+  if (linkFeedback === "already_used") return { text: "Ce compte Discord est déjà associé à un autre compte ArchiLAN.", isError: true };
+  if (linkFeedback === "access_denied") return { text: "Liaison Discord annulée.", isError: true };
+  return { text: "Une erreur s'est produite lors de la liaison Discord.", isError: true };
+}
+
+export function DiscordSection({ discordUsername, linkFeedback }: DiscordSectionProps) {
+  const [unlinking, setUnlinking] = useState(false);
+  const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(
+    initMessage(linkFeedback),
+  );
+  const [linked, setLinked] = useState<boolean>(discordUsername !== null);
+  const [linkedUsername, setLinkedUsername] = useState<string | null>(discordUsername);
+
+  async function handleUnlink() {
+    setUnlinking(true);
+    setMessage(null);
+
+    try {
+      const response = await apiFetch(`${env.apiBaseUrl}/account/discord`, { method: "DELETE" });
+
+      if (!response.ok) {
+        setMessage({ text: "Impossible de délier Discord pour le moment.", isError: true });
+        return;
+      }
+
+      setLinked(false);
+      setLinkedUsername(null);
+      setMessage({ text: "Compte Discord délié.", isError: false });
+    } catch {
+      setMessage({ text: "Impossible de délier Discord pour le moment.", isError: true });
+    } finally {
+      setUnlinking(false);
+    }
+  }
+
+  return (
+    <section className="card-glow grid gap-4 rounded-lg border border-border p-6">
+      <div>
+        <h2 className="font-heading text-xl font-semibold text-foreground">Discord</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Lier ton compte Discord te permet de te connecter directement via Discord.
+        </p>
+      </div>
+
+      {message ? (
+        <p className="rounded border border-border bg-background p-3 text-sm text-muted-foreground" role={message.isError ? "alert" : "status"}>
+          {message.text}
+        </p>
+      ) : null}
+
+      {linked ? (
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-sm text-foreground">
+            Lié en tant que{" "}
+            <span className="font-semibold text-[#5865F2]">{linkedUsername}</span>
+          </p>
+          <button
+            className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-danger hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={unlinking}
+            type="button"
+            onClick={handleUnlink}
+          >
+            {unlinking ? "Déliaison..." : "Délier Discord"}
+          </button>
+        </div>
+      ) : (
+        <div>
+          <a
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded bg-[#5865F2] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#4752C4]"
+            href={`${env.apiBaseUrl}/account/discord/link`}
+          >
+            <FaDiscord aria-hidden="true" size={16} />
+            Lier Discord
+          </a>
+        </div>
+      )}
+    </section>
+  );
+}
 
 type PrivacyRightType = "access" | "rectification" | "erasure" | "portability" | "opposition";
 

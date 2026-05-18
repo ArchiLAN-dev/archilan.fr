@@ -147,7 +147,7 @@ abstract class FunctionalTestCase extends WebTestCase
 
     /**
      * Applies status transitions from STATUS_DRAFT up to $targetStatus.
-     * Does NOT flush — caller must flush after any additional mutations.
+     * Does NOT flush - caller must flush after any additional mutations.
      */
     protected function transitionEventTo(Event $event, string $targetStatus, \DateTimeImmutable $now): void
     {

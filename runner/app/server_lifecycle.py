@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import secrets
 import socket
 from typing import TYPE_CHECKING, Any
@@ -83,13 +84,14 @@ async def launch_server(
         return {"error": "no_ports_available"}
 
     output_file: str = session["outputFile"]
+    output_dir = os.path.dirname(output_file)
     password = secrets.token_urlsafe(12)
 
     try:
         container = docker_manager.run_container(
             image=image,
             host_port=port,
-            output_file=output_file,
+            output_dir=output_dir,
             password=password,
         )
         container_id = str(container.id)

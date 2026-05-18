@@ -21,7 +21,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // AC2 (20.7): constants.ts must have no imports — it is loaded before process.env is set.
+    // AC2 (20.7): constants.ts must have no imports - it is loaded before process.env is set.
     files: ["src/tests/constants.ts"],
     rules: {
       "no-restricted-syntax": [
@@ -29,7 +29,7 @@ const eslintConfig = defineConfig([
         {
           selector: "ImportDeclaration",
           message:
-            "constants.ts must have no imports — it is evaluated before process.env is set in setup.ts.",
+            "constants.ts must have no imports - it is evaluated before process.env is set in setup.ts.",
         },
       ],
     },

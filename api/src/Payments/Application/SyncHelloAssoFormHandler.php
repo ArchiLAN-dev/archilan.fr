@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Application;
 
+use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoSyncLog;
 use App\Payments\Infrastructure\HelloAssoHttpClient;
@@ -11,6 +12,7 @@ use App\Shared\Application\Handler\LogsHandlerErrors;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class SyncHelloAssoFormHandler
@@ -20,6 +22,7 @@ final readonly class SyncHelloAssoFormHandler
     public function __construct(
         private HelloAssoHttpClient $httpClient,
         private EntityManagerInterface $entityManager,
+        private MessageBusInterface $bus,
         private LoggerInterface $logger,
     ) {
     }
@@ -55,13 +58,21 @@ final readonly class SyncHelloAssoFormHandler
             throw $e;
         }
 
+        $pendingMessages = [];
         foreach ($items as $item) {
-            $this->upsertOrder($item, $message->formType, $message->formSlug, $now);
+            $pending = $this->upsertOrder($item, $message->formType, $message->formSlug, $now);
+            if (null !== $pending) {
+                $pendingMessages[] = $pending;
+            }
         }
 
         $this->entityManager->persist(HelloAssoSyncLog::fromSuccess($message->formSlug, $now));
 
         $this->executeWithLogging('helloasso.sync_persist_failed', fn () => $this->entityManager->flush());
+
+        foreach ($pendingMessages as $paidMessage) {
+            $this->bus->dispatch($paidMessage);
+        }
 
         $this->logger->info('helloasso.sync_completed', [
             'formType' => $message->formType,
@@ -83,12 +94,14 @@ final readonly class SyncHelloAssoFormHandler
     /**
      * @param array{orderId: int, status: string, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null} $item
      */
-    private function upsertOrder(array $item, string $formType, string $formSlug, \DateTimeImmutable $now): void
+    private function upsertOrder(array $item, string $formType, string $formSlug, \DateTimeImmutable $now): ?HelloAssoOrderPaidMessage
     {
         $found = $this->entityManager->getRepository(HelloAssoOrder::class)
             ->findOneBy(['helloassoOrderId' => $item['orderId']]);
 
         if ($found instanceof HelloAssoOrder) {
+            $wasUnpaid = null === $found->getPaidAt();
+
             $found->updateFromSync(
                 $item['status'],
                 $item['amountCents'],
@@ -99,7 +112,16 @@ final readonly class SyncHelloAssoFormHandler
                 $now,
             );
 
-            return;
+            if ($wasUnpaid && null !== $item['paidAt']) {
+                return new HelloAssoOrderPaidMessage(
+                    (string) $item['orderId'],
+                    $formSlug,
+                    $item['payerEmail'],
+                    $item['paidAt'],
+                );
+            }
+
+            return null;
         }
 
         $order = HelloAssoOrder::fromHelloAsso(
@@ -116,5 +138,16 @@ final readonly class SyncHelloAssoFormHandler
         );
 
         $this->entityManager->persist($order);
+
+        if (null !== $item['paidAt']) {
+            return new HelloAssoOrderPaidMessage(
+                (string) $item['orderId'],
+                $formSlug,
+                $item['payerEmail'],
+                $item['paidAt'],
+            );
+        }
+
+        return null;
     }
 }

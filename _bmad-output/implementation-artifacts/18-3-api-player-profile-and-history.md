@@ -1,4 +1,4 @@
-# Story 18.3: API — Player Profile and History Endpoints
+# Story 18.3: API - Player Profile and History Endpoints
 
 ## Story
 
@@ -33,26 +33,26 @@ review
 ## Tasks / Subtasks
 
 - [x] Task 1: `SlugGenerator` service + unit tests
-  - [x] 1a: Create `api/src/Identity/Application/SlugGenerator.php` — `normalize(string): string` (AsciiSlugger), `generate(string, callable): string` (collision suffix), `generateForUser(string): string` (DB check)
-  - [x] 1b: Unit tests `api/tests/Unit/Identity/SlugGeneratorTest.php` — normalization, accent stripping, collision suffix
-- [x] Task 2: User domain — add `slug` property
+  - [x] 1a: Create `api/src/Identity/Application/SlugGenerator.php` - `normalize(string): string` (AsciiSlugger), `generate(string, callable): string` (collision suffix), `generateForUser(string): string` (DB check)
+  - [x] 1b: Unit tests `api/tests/Unit/Identity/SlugGeneratorTest.php` - normalization, accent stripping, collision suffix
+- [x] Task 2: User domain - add `slug` property
   - [x] 2a: Add `?string $slug = null` as last constructor param in `User`; add `getSlug(): ?string` getter
   - [x] 2b: Add ORM column: `#[ORM\Column(type: 'string', length: 80, nullable: true, unique: true)]`
   - [x] 2c: Update `registerLambda()` to accept and set `string $slug`
-- [x] Task 3: `RegisterLambdaUser` — inject `SlugGenerator`, generate slug from email local part
+- [x] Task 3: `RegisterLambdaUser` - inject `SlugGenerator`, generate slug from email local part
 - [x] Task 4: Migration `Version20260518110000.php`
   - [x] 4a: `up()`: `ALTER TABLE identity_users ADD slug VARCHAR(80) DEFAULT NULL`
   - [x] 4b: `postUp()`: backfill all existing rows using PHP + AsciiSlugger; then `ALTER COLUMN slug SET NOT NULL`; add unique index
   - [x] 4c: `down()`: drop unique index; drop column
-- [x] Task 5: `PlayerProfileController` — `GET /api/v1/players/{slug}`
+- [x] Task 5: `PlayerProfileController` - `GET /api/v1/players/{slug}`
   - [x] 5a: Resolve user by slug → 404 if not found
   - [x] 5b: Compute stats via two DBAL aggregate queries (event slots + personal-run slots), merge totals
   - [x] 5c: Return 200 with full profile JSON (no auth)
-- [x] Task 6: `PlayerHistoryController` — `GET /api/v1/players/{slug}/history`
+- [x] Task 6: `PlayerHistoryController` - `GET /api/v1/players/{slug}/history`
   - [x] 6a: Resolve user by slug → 404 if not found
   - [x] 6b: Fetch paginated finished-session slots (event + personal run) via DBAL, sorted by `finishedAt` DESC
   - [x] 6c: Return 200 with `{ data: [...], meta: { page, limit, total } }` (no auth)
-- [x] Task 7: Functional tests — `PlayerProfileTest.php`
+- [x] Task 7: Functional tests - `PlayerProfileTest.php`
   - [x] 7a: Player with event slots (some invalidated) → correct stats + correct goal rate
   - [x] 7b: Player with no finished runs → 200 + empty history
   - [x] 7c: Non-existent slug → 404 on both endpoints
@@ -110,7 +110,7 @@ ORM annotation:
 #[ORM\UniqueConstraint(...)] // on class level
 ```
 Note: unique via `#[ORM\UniqueConstraint(name: 'uniq_identity_users_slug', columns: ['slug'])]` at class level,
-or `unique: true` on column — use `unique: true` directly on the column attribute.
+or `unique: true` on column - use `unique: true` directly on the column attribute.
 
 ### Stats Queries (DBAL)
 
@@ -144,7 +144,7 @@ Sum both result sets in PHP. `goalCompletionRate = runsParticipated > 0 ? goalCo
 
 Note: `goal_completions` = COUNT where `goal_reached_at IS NOT NULL` and slot is not invalidated. Since a slot with `goal_reached_at IS NOT NULL` can never be invalidated (domain guard), the NOT-invalidated check is redundant but explicit.
 
-Simplification: `goal_completions = COUNT(slot.goal_reached_at IS NOT NULL)` — the domain guard ensures `was_released=true` implies `goal_reached_at IS NULL`.
+Simplification: `goal_completions = COUNT(slot.goal_reached_at IS NOT NULL)` - the domain guard ensures `was_released=true` implies `goal_reached_at IS NULL`.
 
 ### History Query
 
@@ -176,7 +176,7 @@ WHERE slot.registration_id = :userId AND s.status = 'finished'
 ```
 
 Merge → sort by `finished_at` DESC → paginate (offset = (page-1)*limit).
-`isInvalidated = wasReleased && goalReachedAt === null` — computed in PHP.
+`isInvalidated = wasReleased && goalReachedAt === null` - computed in PHP.
 
 ### Migration
 
@@ -192,8 +192,8 @@ Use `User` directly with `slug` param set.
 
 ### PHPStan Constraints
 
-- DBAL `fetchAllAssociative` → `list<array<string, mixed>>` — null-check all value access
-- `fetchOne` returns `mixed` (false if not found) — use `false !== $result` pattern
+- DBAL `fetchAllAssociative` → `list<array<string, mixed>>` - null-check all value access
+- `fetchOne` returns `mixed` (false if not found) - use `false !== $result` pattern
 - `is_string`, `is_numeric` guards required on DBAL row values
 
 ## Dev Agent Record
@@ -215,24 +215,24 @@ _(empty)_
 
 ### Completion Notes
 
-All 8 tasks complete. PHPStan max — 0 errors. CS Fixer applied (one concat-spacing fix in SlugGenerator). 13/13 tests pass (5 functional + 8 unit).
+All 8 tasks complete. PHPStan max - 0 errors. CS Fixer applied (one concat-spacing fix in SlugGenerator). 13/13 tests pass (5 functional + 8 unit).
 
 Key implementation notes:
 - `slug` column is `nullable: true` in ORM (for SchemaTool in tests) but NOT NULL in production via migration's `postUp()`
 - `usort` comparator uses `is_string()` narrowing to satisfy PHPStan max (`(string) mixed` forbidden)
 - Personal-run stats query uses `EXISTS (SELECT 1 FROM personal_runs pr WHERE pr.session_id = s.id)` instead of JOIN to avoid row multiplication
-- `goal_completions = COUNT(slot.goal_reached_at)` — domain guard ensures `was_released` can only be true when `goal_reached_at IS NULL`, so no extra filter needed
+- `goal_completions = COUNT(slot.goal_reached_at)` - domain guard ensures `was_released` can only be true when `goal_reached_at IS NULL`, so no extra filter needed
 
 ## File List
 
-- `api/src/Identity/Application/SlugGenerator.php` — new
-- `api/tests/Unit/Identity/SlugGeneratorTest.php` — new
-- `api/src/Identity/Domain/User.php` — modified (slug column + getter + registerLambda update)
-- `api/src/Identity/Application/RegisterLambdaUser.php` — modified (SlugGenerator injection)
-- `api/migrations/Version20260518110000.php` — new
-- `api/src/Identity/Presentation/PlayerProfileController.php` — new
-- `api/src/Identity/Presentation/PlayerHistoryController.php` — new
-- `api/tests/Functional/PlayerProfileTest.php` — new
+- `api/src/Identity/Application/SlugGenerator.php` - new
+- `api/tests/Unit/Identity/SlugGeneratorTest.php` - new
+- `api/src/Identity/Domain/User.php` - modified (slug column + getter + registerLambda update)
+- `api/src/Identity/Application/RegisterLambdaUser.php` - modified (SlugGenerator injection)
+- `api/migrations/Version20260518110000.php` - new
+- `api/src/Identity/Presentation/PlayerProfileController.php` - new
+- `api/src/Identity/Presentation/PlayerHistoryController.php` - new
+- `api/tests/Functional/PlayerProfileTest.php` - new
 
 ## Change Log
 

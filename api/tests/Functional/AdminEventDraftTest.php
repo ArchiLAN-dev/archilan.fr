@@ -23,13 +23,13 @@ final class AdminEventDraftTest extends FunctionalTestCase
         $schemaTool->createSchema($metadata);
     }
 
-    public function testAnonymousAndLambdaCannotManageEvents(): void
+    public function testAnonymousAndUserCannotManageEvents(): void
     {
         $this->client->jsonRequest('GET', '/api/v1/admin/events');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
+        $this->loginAs($user);
         $this->client->jsonRequest('POST', '/api/v1/admin/events', $this->validPayload());
         self::assertResponseStatusCodeSame(403);
     }

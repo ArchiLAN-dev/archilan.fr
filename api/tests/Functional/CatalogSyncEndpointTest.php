@@ -36,8 +36,8 @@ final class CatalogSyncEndpointTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('user@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('user@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync');
         self::assertResponseStatusCodeSame(403);

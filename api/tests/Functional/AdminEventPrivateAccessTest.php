@@ -77,11 +77,11 @@ final class AdminEventPrivateAccessTest extends FunctionalTestCase
         self::assertArrayHasKey('password', $response['error']['details']);
     }
 
-    public function testLambdaCannotConfigurePrivateAccess(): void
+    public function testStandardCannotConfigurePrivateAccess(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
         $event = $this->makeEvent(isPublic: false);
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s/private-access', $event->getId()), [
             'password' => 'private-access-passphrase',

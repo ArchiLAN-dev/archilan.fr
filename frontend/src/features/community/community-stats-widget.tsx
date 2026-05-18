@@ -89,7 +89,7 @@ function StatCounter({
   triggered: boolean;
 }) {
   const count = useCountUp(target ?? 0, triggered && target !== null);
-  const displayValue = target === null ? "—" : formatNumber(count);
+  const displayValue = target === null ? "-" : formatNumber(count);
 
   return (
     <div className="rounded-lg border border-border bg-surface p-6 text-center">

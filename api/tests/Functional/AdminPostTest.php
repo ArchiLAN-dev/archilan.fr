@@ -32,10 +32,10 @@ final class AdminPostTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaUserIsRejected(): void
+    public function testStandardUserIsRejected(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/posts');
         self::assertResponseStatusCodeSame(403);

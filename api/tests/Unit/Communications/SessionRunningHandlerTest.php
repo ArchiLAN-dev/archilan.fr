@@ -173,7 +173,7 @@ final class SessionRunningHandlerTest extends TestCase
         $innerMailer->method('send')->willThrowException(new \RuntimeException('Transport down'));
 
         $this->makeHandler(innerMailer: $innerMailer)($this->makeMessage());
-        // No exception propagates — ArchilanMailer absorbs it and logs the failure.
+        // No exception propagates - ArchilanMailer absorbs it and logs the failure.
         $this->addToAssertionCount(1);
     }
 

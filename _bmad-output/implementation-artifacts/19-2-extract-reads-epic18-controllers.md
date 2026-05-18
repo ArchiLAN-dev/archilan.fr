@@ -24,7 +24,7 @@ review
 
 **AC6:** All 20 functional tests covering these controllers pass unchanged (`CommunityLeaderboardTest`, `PlayerProfileTest`, `RunResultsTest`).
 
-**AC7:** Running `app:architecture:ddd` reports 32 CQRS violations (down from 47 in Story 19.1 baseline — 15 eliminated by this story).
+**AC7:** Running `app:architecture:ddd` reports 32 CQRS violations (down from 47 in Story 19.1 baseline - 15 eliminated by this story).
 
 **AC8:** PHPStan level max: 0 errors on all 10 modified/new files. CS Fixer @Symfony: 0 violations.
 
@@ -32,22 +32,22 @@ review
 
 - [x] Task 1: Create story file (this file)
 - [x] Task 2: Create Application query classes
-  - [x] 2a: `Sessions\Application\LeaderboardQuery` — `computeAggregatePage()` + `computeSpeedPage()`
-  - [x] 2b: `Sessions\Application\CommunityStatsQuery` — `execute(): array{...}`
-  - [x] 2c: `Sessions\Application\RunResultsQuery` — `execute(string $id): ?array`
-  - [x] 2d: `Identity\Application\PlayerProfileQuery` — `execute(string $slug): ?array`
-  - [x] 2e: `Identity\Application\PlayerHistoryQuery` — `execute(string $slug, int $page, int $limit): ?array`
+  - [x] 2a: `Sessions\Application\LeaderboardQuery` - `computeAggregatePage()` + `computeSpeedPage()`
+  - [x] 2b: `Sessions\Application\CommunityStatsQuery` - `execute(): array{...}`
+  - [x] 2c: `Sessions\Application\RunResultsQuery` - `execute(string $id): ?array`
+  - [x] 2d: `Identity\Application\PlayerProfileQuery` - `execute(string $slug): ?array`
+  - [x] 2e: `Identity\Application\PlayerHistoryQuery` - `execute(string $slug, int $page, int $limit): ?array`
 - [x] Task 3: Refactor controllers to inject query classes
-  - [x] 3a: `LeaderboardController` — injects `LeaderboardQuery`, delegates compute methods
-  - [x] 3b: `CommunityStatsController` — injects `CommunityStatsQuery`, one-liner action
-  - [x] 3c: `RunResultsController` — injects `RunResultsQuery`, null-check → 404
-  - [x] 3d: `PlayerProfileController` — injects `PlayerProfileQuery`, null-check → 404
-  - [x] 3e: `PlayerHistoryController` — injects `PlayerHistoryQuery`, null-check → 404
+  - [x] 3a: `LeaderboardController` - injects `LeaderboardQuery`, delegates compute methods
+  - [x] 3b: `CommunityStatsController` - injects `CommunityStatsQuery`, one-liner action
+  - [x] 3c: `RunResultsController` - injects `RunResultsQuery`, null-check → 404
+  - [x] 3d: `PlayerProfileController` - injects `PlayerProfileQuery`, null-check → 404
+  - [x] 3e: `PlayerHistoryController` - injects `PlayerHistoryQuery`, null-check → 404
 - [x] Task 4: Quality gates
-  - [x] PHPStan level max — 0 errors
-  - [x] CS Fixer @Symfony — 0 violations
-  - [x] Functional tests — 20/20 pass
-  - [x] `app:architecture:ddd` — 32 violations (down from 47)
+  - [x] PHPStan level max - 0 errors
+  - [x] CS Fixer @Symfony - 0 violations
+  - [x] Functional tests - 20/20 pass
+  - [x] `app:architecture:ddd` - 32 violations (down from 47)
 
 ## Dev Notes
 
@@ -56,7 +56,7 @@ review
 Each query class:
 - Is `final readonly` (immutable service)
 - Injects DB infrastructure (`Connection`, `EntityManagerInterface`) at construction
-- Returns typed arrays (`array{...}|null`) — no raw Doctrine entities escape to the controller
+- Returns typed arrays (`array{...}|null`) - no raw Doctrine entities escape to the controller
 - Returns `null` when the primary entity is not found; the controller converts that to a 404
 
 ### Null-return pattern
@@ -79,11 +79,11 @@ The `array_map(function (array $row): array {...}, $pageRows)` closure cannot be
 ### Completion Notes
 
 - 5 Application query classes created (2 in `Sessions\Application`, 2 in `Identity\Application`, 1 in `Sessions\Application`)
-- 5 controllers refactored — all DB infrastructure imports removed from Presentation layer
+- 5 controllers refactored - all DB infrastructure imports removed from Presentation layer
 - PHPStan level max: 0 errors on all 10 files
 - CS Fixer @Symfony: 0 violations on all 10 files
 - Functional tests: 20/20 pass (no behavioural changes)
-- `app:architecture:ddd`: 32 violations remaining (down from 47 — 15 eliminated)
+- `app:architecture:ddd`: 32 violations remaining (down from 47 - 15 eliminated)
 
 ### Remaining CQRS Violations Baseline (32 violations, 14 controllers)
 
@@ -97,17 +97,17 @@ The `array_map(function (array $row): array {...}, $pageRows)` closure cannot be
 
 ## File List
 
-- `api/src/Sessions/Application/LeaderboardQuery.php` — new
-- `api/src/Sessions/Application/CommunityStatsQuery.php` — new
-- `api/src/Sessions/Application/RunResultsQuery.php` — new
-- `api/src/Identity/Application/PlayerProfileQuery.php` — new
-- `api/src/Identity/Application/PlayerHistoryQuery.php` — new
-- `api/src/Sessions/Presentation/LeaderboardController.php` — modified (removed `Connection`, injects `LeaderboardQuery`)
-- `api/src/Sessions/Presentation/CommunityStatsController.php` — modified (removed `Connection`, injects `CommunityStatsQuery`)
-- `api/src/Sessions/Presentation/RunResultsController.php` — modified (removed `EntityManagerInterface`, injects `RunResultsQuery`)
-- `api/src/Identity/Presentation/PlayerProfileController.php` — modified (removed `EntityManagerInterface` + `Connection`, injects `PlayerProfileQuery`)
-- `api/src/Identity/Presentation/PlayerHistoryController.php` — modified (removed `EntityManagerInterface` + `Connection`, injects `PlayerHistoryQuery`)
-- `_bmad-output/implementation-artifacts/19-2-extract-reads-epic18-controllers.md` — this file
+- `api/src/Sessions/Application/LeaderboardQuery.php` - new
+- `api/src/Sessions/Application/CommunityStatsQuery.php` - new
+- `api/src/Sessions/Application/RunResultsQuery.php` - new
+- `api/src/Identity/Application/PlayerProfileQuery.php` - new
+- `api/src/Identity/Application/PlayerHistoryQuery.php` - new
+- `api/src/Sessions/Presentation/LeaderboardController.php` - modified (removed `Connection`, injects `LeaderboardQuery`)
+- `api/src/Sessions/Presentation/CommunityStatsController.php` - modified (removed `Connection`, injects `CommunityStatsQuery`)
+- `api/src/Sessions/Presentation/RunResultsController.php` - modified (removed `EntityManagerInterface`, injects `RunResultsQuery`)
+- `api/src/Identity/Presentation/PlayerProfileController.php` - modified (removed `EntityManagerInterface` + `Connection`, injects `PlayerProfileQuery`)
+- `api/src/Identity/Presentation/PlayerHistoryController.php` - modified (removed `EntityManagerInterface` + `Connection`, injects `PlayerHistoryQuery`)
+- `_bmad-output/implementation-artifacts/19-2-extract-reads-epic18-controllers.md` - this file
 
 ## Change Log
 

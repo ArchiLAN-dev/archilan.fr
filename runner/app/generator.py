@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import pathlib
@@ -16,6 +17,22 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 300  # 5 minutes
 DEFAULT_WORLD_DIR_FLAG = "--world_directory"
+
+
+def _to_int_seed(seed: str) -> str:
+    """Return a numeric seed string accepted by ArchipelagoGenerate.
+
+    ArchipelagoGenerate requires --seed to be a plain integer.  If the caller
+    provides a non-numeric string (e.g. 'archilan-weekly-2026-20'), we derive a
+    stable 31-bit integer from its SHA-256 digest so the same string always
+    maps to the same number.
+    """
+    try:
+        int(seed)
+        return seed
+    except ValueError:
+        digest = hashlib.sha256(seed.encode()).digest()
+        return str(int.from_bytes(digest[:4], "big") & 0x7FFF_FFFF)
 
 
 def _apworld_dest_name(src: pathlib.Path, fallback: str) -> str:
@@ -45,6 +62,7 @@ async def run_generation(
     generate_cmd: str,
     timeout: int = DEFAULT_TIMEOUT,
     world_dir_flag: str = DEFAULT_WORLD_DIR_FLAG,
+    seed: str | None = None,
 ) -> None:
     """
     Run the Archipelago generator as a subprocess and update session state.
@@ -68,6 +86,9 @@ async def run_generation(
         "--player_files_path", str(yamls_dir),
         "--outputpath", str(output_dir),
     ]
+
+    if seed:
+        cmd.extend(["--seed", _to_int_seed(seed)])
 
     urls_manifest_path = session_dir / "apworld_urls.json"
     apworlds_dest = session_dir / "apworlds"

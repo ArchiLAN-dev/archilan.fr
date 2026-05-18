@@ -141,14 +141,14 @@ function SlotCard({ slot }: { slot: SlotResult }) {
               muted ? "text-muted-foreground" : "text-foreground"
             }`}
           >
-            {slot.playerName || "—"}
+            {slot.playerName || "-"}
           </p>
           <p
             className={`text-sm truncate ${
               muted ? "text-muted-foreground/70" : "text-muted-foreground"
             }`}
           >
-            {slot.game || "—"}
+            {slot.game || "-"}
           </p>
         </div>
         <StatusBadge slot={slot} />

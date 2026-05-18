@@ -91,11 +91,11 @@ final class AdminSyncStatusTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testLambdaCannotReadSyncStatus(): void
+    public function testStandardCannotReadSyncStatus(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
         $event = $this->makeEvent('archilan-spring-2027');
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/admin/events/%s/payments/sync/status', $event->getId()));
 

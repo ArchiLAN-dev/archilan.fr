@@ -37,7 +37,7 @@ export function PlayerProfilePage({
             value={
               profile.stats.runsParticipated > 0
                 ? `${Math.round(profile.stats.goalCompletionRate * 100)}%`
-                : "—"
+                : "-"
             }
           />
         </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Calendar, Gamepad2, Library, Newspaper, Users } from "lucide-react";
+import { Bot, Calendar, CreditCard, Gamepad2, Library, Newspaper, Users } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { env } from "@/lib/env";
 
@@ -10,8 +10,11 @@ type AdminEventStatus = "draft" | "published" | "in-progress" | "completed";
 type AdminEventSummary = { status: AdminEventStatus };
 
 type DashboardStats = {
-  totalConfirmedRegistrations: number;
+  totalActiveRegistrations: number;
   gameCount: number;
+  userCount: number;
+  activeMemberCount: number;
+  totalRevenueCents: number;
 };
 
 const sections = [
@@ -44,13 +47,30 @@ const sections = [
     soon: false,
   },
   {
+    href: "/admin/adhesions",
+    icon: CreditCard,
+    label: "Adhésions",
+    description: "Gérer les adhésions et synchroniser Dolibarr.",
+    soon: false,
+  },
+  {
     href: "/admin/catalogue",
     icon: Library,
     label: "Catalogue",
     description: "Synchroniser le catalogue de jeux depuis Google Sheets.",
     soon: false,
   },
+  {
+    href: "/admin/discord",
+    icon: Bot,
+    label: "Discord Bot",
+    description: "Statut du bot et synchronisation des rôles Discord.",
+    soon: false,
+  },
 ] as const;
+
+const eurFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const numFormatter = new Intl.NumberFormat("fr-FR");
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
@@ -92,18 +112,18 @@ export default function AdminDashboardPage() {
       {/* At-a-glance stats */}
       {statsLoading ? (
         <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <div className="h-20 animate-pulse rounded-lg bg-surface-2" key={i} />
           ))}
         </div>
       ) : (
         <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
-          <StatCard label="Événements publiés" value={publishedEvents} />
-          <StatCard
-            label="Inscriptions confirmées"
-            value={dashStats?.totalConfirmedRegistrations ?? null}
-          />
-          <StatCard label="Jeux en bibliothèque" value={dashStats?.gameCount ?? null} />
+          <StatCard label="Événements publiés" value={publishedEvents !== null ? numFormatter.format(publishedEvents) : null} />
+          <StatCard label="Inscriptions actives" value={dashStats !== null ? numFormatter.format(dashStats.totalActiveRegistrations) : null} />
+          <StatCard label="Jeux en bibliothèque" value={dashStats !== null ? numFormatter.format(dashStats.gameCount) : null} />
+          <StatCard label="Comptes inscrits" value={dashStats !== null ? numFormatter.format(dashStats.userCount) : null} />
+          <StatCard label="Adhésions en cours" value={dashStats !== null ? numFormatter.format(dashStats.activeMemberCount) : null} />
+          <StatCard label="Recettes HelloAsso" value={dashStats !== null ? eurFormatter.format(dashStats.totalRevenueCents / 100) : null} />
         </div>
       )}
 
@@ -132,7 +152,7 @@ export default function AdminDashboardPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number | null }) {
+function StatCard({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>

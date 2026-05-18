@@ -13,7 +13,8 @@ type RegistrationStatus = "pending" | "confirmed" | "cancelled";
 type SessionStatus =
   | "draft" | "validating" | "ready"
   | "generating" | "generated" | "launching"
-  | "running" | "stopped" | "failed" | "crashed";
+  | "running" | "idle" | "restarting"
+  | "stopped" | "failed" | "crashed" | "finished";
 
 type Registration = {
   registrationId: string;
@@ -52,9 +53,12 @@ const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
   generated: "Générée",
   launching: "Lancement en cours",
   running: "En cours",
+  idle: "En pause",
+  restarting: "Redémarrage",
   stopped: "Arrêtée",
   failed: "Échec",
   crashed: "Plantée",
+  finished: "Terminée",
 };
 
 function formatDate(iso: string) {

@@ -1,4 +1,4 @@
-# Story 19.1: Extend `DddArchitectureValidator` — Missing Contexts + CQRS Rules
+# Story 19.1: Extend `DddArchitectureValidator` - Missing Contexts + CQRS Rules
 
 ## Story
 
@@ -31,10 +31,10 @@ review
 - [x] Task 1: Create story file (this file)
 - [x] Task 2: Extend `DddArchitectureValidator`
   - [x] 2a: Add `Sessions`, `PersonalRuns`, `CatalogSync`, `Streaming` to `CONTEXTS`
-  - [x] 2b: Simplify `validateContextDirectories` — only require the context directory to exist, not all 4 layer sub-dirs (the file placement check handles the rest)
+  - [x] 2b: Simplify `validateContextDirectories` - only require the context directory to exist, not all 4 layer sub-dirs (the file placement check handles the rest)
   - [x] 2c: Add `validatePresentationCqrs(string $srcDir): list<string>` method
   - [x] 2d: Wire `validatePresentationCqrs` into `validate()`
-- [x] Task 3: Update `services.yaml` — add `src/CatalogSync/Domain/` to autowiring excludes
+- [x] Task 3: Update `services.yaml` - add `src/CatalogSync/Domain/` to autowiring excludes
 - [x] Task 4: Write unit tests `tests/Unit/DddArchitectureValidatorTest.php`
   - [x] 4a: Presentation with forbidden `Connection` import → violation reported
   - [x] 4b: Presentation with forbidden `EntityManagerInterface` import → violation reported
@@ -49,14 +49,14 @@ review
 ### CQRS scan logic
 
 Scan all files under `*/Presentation/`:
-1. **Forbidden imports** — search for `Doctrine\DBAL\Connection` or `Doctrine\ORM\EntityManagerInterface` in `use` statements or constructor type hints
-2. **Forbidden method calls** — search for any of: `fetchAllAssociative`, `fetchOne`, `executeQuery`, `createQueryBuilder`, `createQuery`, `getRepository`
+1. **Forbidden imports** - search for `Doctrine\DBAL\Connection` or `Doctrine\ORM\EntityManagerInterface` in `use` statements or constructor type hints
+2. **Forbidden method calls** - search for any of: `fetchAllAssociative`, `fetchOne`, `executeQuery`, `createQueryBuilder`, `createQuery`, `getRepository`
 
-Use `str_contains()` on file contents — no AST parsing needed at this stage.
+Use `str_contains()` on file contents - no AST parsing needed at this stage.
 
 ### Why simplify directory check
 
-`CatalogSync` and `PersonalRuns` have no `Infrastructure/` layer yet (no external infrastructure needed). Requiring all 4 layers would produce false positive violations. The `validateSourceFiles` check already ensures every PHP file is in a valid layer — the directory existence check is redundant and noisy.
+`CatalogSync` and `PersonalRuns` have no `Infrastructure/` layer yet (no external infrastructure needed). Requiring all 4 layers would produce false positive violations. The `validateSourceFiles` check already ensures every PHP file is in a valid layer - the directory existence check is redundant and noisy.
 
 ### services.yaml
 
@@ -74,9 +74,9 @@ Use `str_contains()` on file contents — no AST parsing needed at this stage.
 - `phpstan analyse` on modified files → 0 errors; `php-cs-fixer check` → 0 violations.
 - 8/8 unit tests green (14 assertions). 42 pre-existing unit errors on `ArchipelagoGame::updateCatalogueMetadata()` are unrelated to this story.
 - **Baseline:** `app:architecture:ddd` exits 1 and reports **47 CQRS violations** across 19 controllers (Identity, Events, Content, Sessions, CatalogSync, Registrations). These are the targets for Stories 19.2–19.4.
-- Post-review fix: `createQuery` detection switched from `str_contains` to `preg_match('/(?:->|::)createQuery\s*\(/')` — eliminates false positives where `createQueryBuilder` previously also triggered a `createQuery` violation. All SQL method call detections now use the same regex pattern.
+- Post-review fix: `createQuery` detection switched from `str_contains` to `preg_match('/(?:->|::)createQuery\s*\(/')` - eliminates false positives where `createQueryBuilder` previously also triggered a `createQuery` violation. All SQL method call detections now use the same regex pattern.
 
-### CQRS Baseline — 54 violations (19 controllers)
+### CQRS Baseline - 54 violations (19 controllers)
 
 | Module | Controllers |
 |---|---|
@@ -89,10 +89,10 @@ Use `str_contains()` on file contents — no AST parsing needed at this stage.
 
 ## File List
 
-- `api/src/Shared/Application/DddArchitectureValidator.php` — modified
-- `api/config/services.yaml` — modified (added `CatalogSync/Domain/` exclusion)
-- `api/tests/Unit/DddArchitectureValidatorTest.php` — modified (new contexts + 5 CQRS test cases)
-- `_bmad-output/implementation-artifacts/19-1-extend-ddd-validator-missing-contexts-cqrs-rules.md` — this file
+- `api/src/Shared/Application/DddArchitectureValidator.php` - modified
+- `api/config/services.yaml` - modified (added `CatalogSync/Domain/` exclusion)
+- `api/tests/Unit/DddArchitectureValidatorTest.php` - modified (new contexts + 5 CQRS test cases)
+- `_bmad-output/implementation-artifacts/19-1-extend-ddd-validator-missing-contexts-cqrs-rules.md` - this file
 
 ## Change Log
 

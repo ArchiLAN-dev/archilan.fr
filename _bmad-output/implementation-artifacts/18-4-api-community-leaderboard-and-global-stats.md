@@ -1,4 +1,4 @@
-# Story 18.4: API — Community Leaderboard and Global Stats Endpoints
+# Story 18.4: API - Community Leaderboard and Global Stats Endpoints
 
 ## Story
 
@@ -16,11 +16,11 @@ review
 
 **AC2:** `GET /api/v1/leaderboard?axis=goals|checks|speed&page=1&limit=20` returns 200 with `{ data: [{ rank, slug, displayName, value, unit }], meta: { axis, page, total } }`. `Cache-Control: public, max-age=60`.
 
-**AC3:** `axis=goals` — `value` = count of slots with `goal_reached_at IS NOT NULL` across non-invalidated slots from `finished` sessions.
+**AC3:** `axis=goals` - `value` = count of slots with `goal_reached_at IS NOT NULL` across non-invalidated slots from `finished` sessions.
 
-**AC4:** `axis=checks` — `value` = sum of `checks_done` across non-invalidated slots from `finished` sessions.
+**AC4:** `axis=checks` - `value` = sum of `checks_done` across non-invalidated slots from `finished` sessions.
 
-**AC5:** `axis=speed` — `value` = player's minimum `(goal_reached_at - session.started_at)` in seconds; players with zero goal completions are excluded. Sorted fastest-first (value ASC, unlike other axes).
+**AC5:** `axis=speed` - `value` = player's minimum `(goal_reached_at - session.started_at)` in seconds; players with zero goal completions are excluded. Sorted fastest-first (value ASC, unlike other axes).
 
 **AC6:** Primary sort: `value DESC` for goals and checks, `value ASC` for speed (fastest first). Secondary tie-breaker: `displayName ASC` case-insensitive.
 
@@ -38,22 +38,22 @@ review
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Migration — DB indexes on `archipelago_session_slots`
+- [x] Task 1: Migration - DB indexes on `archipelago_session_slots`
   - [x] 1a: Create `api/migrations/Version20260519120000.php`
   - [x] 1b: `up()`: CREATE INDEX on `(was_released, goal_reached_at)` and `(session_id)`
   - [x] 1c: `down()`: DROP both indexes
-- [x] Task 2: `CommunityStatsController` — `GET /api/v1/community/stats`
+- [x] Task 2: `CommunityStatsController` - `GET /api/v1/community/stats`
   - [x] 2a: Aggregate query for `totalFinishedSessions` (all finished sessions)
   - [x] 2b: Aggregate query for `totalChecksDone` and `totalGoalsReached` (exclude invalidated slots)
   - [x] 2c: Return 200 JSON + `Cache-Control: public, max-age=60`, no auth
-- [x] Task 3: `LeaderboardController` — `GET /api/v1/leaderboard`
+- [x] Task 3: `LeaderboardController` - `GET /api/v1/leaderboard`
   - [x] 3a: Validate axis (goals|checks|speed) → 422 if invalid
   - [x] 3b: Clamp limit [1, 100], parse page and optional eventId
   - [x] 3c: Compute per-user scores for goals/checks via DBAL (event + personal run, unless eventId set)
   - [x] 3d: Compute per-user min-speed via DBAL + PHP timestamp diff (event + personal run)
   - [x] 3e: Sort (DESC for goals/checks, ASC for speed) + displayName tie-breaker; paginate in PHP
   - [x] 3f: Load users batch; return ranked JSON + `Cache-Control: public, max-age=60`, no auth
-- [x] Task 4: Functional tests — `CommunityLeaderboardTest.php`
+- [x] Task 4: Functional tests - `CommunityLeaderboardTest.php`
   - [x] 4a: Community stats: correct aggregate with invalidated slots excluded
   - [x] 4b: Goals axis: correct ranking and tie-breaker
   - [x] 4c: Checks axis: correct values and ordering
@@ -98,9 +98,9 @@ JOIN archipelago_sessions s ON slot.session_id = s.id
 WHERE s.status = 'finished'
 ```
 
-No need to split event/personal run — aggregate is global.
+No need to split event/personal run - aggregate is global.
 
-### Leaderboard — Goals/Checks Axis
+### Leaderboard - Goals/Checks Axis
 
 Two separate DBAL queries merged in PHP:
 
@@ -133,7 +133,7 @@ Axis filters:
 - goals: `AND slot.goal_reached_at IS NOT NULL`
 - checks: `AND NOT (slot.was_released AND slot.goal_reached_at IS NULL)`
 
-### Leaderboard — Speed Axis
+### Leaderboard - Speed Axis
 
 Fetch raw datetime strings per slot, compute seconds in PHP (portable, works with SQLite and PostgreSQL):
 
@@ -158,8 +158,8 @@ Tie-breaker for all axes: `mb_strtolower(displayName) ASC`.
 
 ### PHPStan Constraints
 
-- DBAL `fetchAllAssociative` → `list<array<string, mixed>>` — use `is_string()`, `is_numeric()` guards
-- `fetchOne()` → `string|int|float|bool|null` — guard with `is_numeric()`
+- DBAL `fetchAllAssociative` → `list<array<string, mixed>>` - use `is_string()`, `is_numeric()` guards
+- `fetchOne()` → `string|int|float|bool|null` - guard with `is_numeric()`
 - Declare `$entries` docblock type `list<array{...}>` for safe usort closure access
 
 ### Cache-Control
@@ -177,7 +177,7 @@ Same as `RunResultsTest.php` / `PlayerProfileTest.php`. Schema needs: User, Even
 
 ### Implementation Plan
 
-1. Migration — indexes (Task 1)
+1. Migration - indexes (Task 1)
 2. CommunityStatsController (Task 2)
 3. LeaderboardController (Task 3)
 4. Functional tests (Task 4)
@@ -194,8 +194,8 @@ All 5 tasks complete. PHPStan max → 0 errors. CS Fixer → 0 violations. 9/9 f
 Key implementation notes:
 - `CommunityStatsController`: single query for slot aggregates (no event/personal-run split needed for global stats); `fetchOne()` for session count with `is_numeric()` guard
 - `LeaderboardController`: goals/checks use full SQL pagination (ORDER BY, LIMIT, OFFSET, COUNT pushed to DB via UNION ALL inner subquery + JOIN identity_users); speed uses SQL GROUP BY (user_id, session_id) with MIN(goal_reached_at) reducing rows from "all goal slots" to "one row per user-session pair", then PHP-side diff + sort + paginate
-- `EntityManagerInterface` removed from constructor — user info for speed axis is now loaded via DBAL with positional IN placeholders
-- Speed axis sorted ASC (fastest first), goals/checks sorted DESC — spec says "value DESC" globally but speed semantically must be ASC (fastest = better rank 1)
+- `EntityManagerInterface` removed from constructor - user info for speed axis is now loaded via DBAL with positional IN placeholders
+- Speed axis sorted ASC (fastest first), goals/checks sorted DESC - spec says "value DESC" globally but speed semantically must be ASC (fastest = better rank 1)
 - `eventId` filter: personal-run queries skipped entirely when eventId is set
 - Cache-Control header normalized by Symfony as `max-age=60, public`; test asserts both substrings independently
 
@@ -203,18 +203,18 @@ Key implementation notes:
 
 Review findings addressed:
 
-**Finding 1 (Major) — In-memory pagination:** Rewrote `computeAggregatePage()` to push ORDER BY, LIMIT, OFFSET, and COUNT to SQL via a UNION ALL inner subquery joined with `identity_users`. Row count in PHP reduced from "all scored users" to "one page worth". `EntityManagerInterface` dependency removed.
+**Finding 1 (Major) - In-memory pagination:** Rewrote `computeAggregatePage()` to push ORDER BY, LIMIT, OFFSET, and COUNT to SQL via a UNION ALL inner subquery joined with `identity_users`. Row count in PHP reduced from "all scored users" to "one page worth". `EntityManagerInterface` dependency removed.
 
-**Finding 2 (Medium) — Speed axis full-table scan:** Rewrote speed queries to use `MIN(slot.goal_reached_at) GROUP BY reg.user_id, s.id, s.started_at` — reduces from O(goal_slots) to O(user×session_pairs). PHP-side sort/paginate retained for speed (timestamp diff is not cross-DB portable in SQL).
+**Finding 2 (Medium) - Speed axis full-table scan:** Rewrote speed queries to use `MIN(slot.goal_reached_at) GROUP BY reg.user_id, s.id, s.started_at` - reduces from O(goal_slots) to O(user×session_pairs). PHP-side sort/paginate retained for speed (timestamp diff is not cross-DB portable in SQL).
 
-**Finding 3 (Minor) — NFR not covered by tests:** Tests verify business logic; architectural compliance is enforced by the implementation SQL, not by tests. No test change needed.
+**Finding 3 (Minor) - NFR not covered by tests:** Tests verify business logic; architectural compliance is enforced by the implementation SQL, not by tests. No test change needed.
 
 ## File List
 
-- `api/migrations/Version20260519120000.php` — new (indexes)
-- `api/src/Sessions/Presentation/CommunityStatsController.php` — new
-- `api/src/Sessions/Presentation/LeaderboardController.php` — new
-- `api/tests/Functional/CommunityLeaderboardTest.php` — new (9 tests)
+- `api/migrations/Version20260519120000.php` - new (indexes)
+- `api/src/Sessions/Presentation/CommunityStatsController.php` - new
+- `api/src/Sessions/Presentation/LeaderboardController.php` - new
+- `api/tests/Functional/CommunityLeaderboardTest.php` - new (9 tests)
 
 ## Change Log
 

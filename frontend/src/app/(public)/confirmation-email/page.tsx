@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Confirmation d'email",
   description: "Confirmation de ton adresse email ArchiLAN.",
   openGraph: {
-    title: "Confirmation d'email — ArchiLAN",
+    title: "Confirmation d'email - ArchiLAN",
   },
 };
 

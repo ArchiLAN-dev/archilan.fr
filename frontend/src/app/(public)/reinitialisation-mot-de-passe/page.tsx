@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Réinitialisation du mot de passe",
   description: "Choisis un nouveau mot de passe pour ton compte ArchiLAN.",
   openGraph: {
-    title: "Réinitialisation du mot de passe — ArchiLAN",
+    title: "Réinitialisation du mot de passe - ArchiLAN",
   },
 };
 

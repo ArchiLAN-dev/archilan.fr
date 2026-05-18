@@ -84,7 +84,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(1, $data['totalGoalsReached']); // only slot1 has a goal
     }
 
-    // ─── Leaderboard — Goals axis ─────────────────────────────────────────────
+    // ─── Leaderboard - Goals axis ─────────────────────────────────────────────
 
     public function testGoalsAxisRanksCorrectlyWithTieBreaker(): void
     {
@@ -158,7 +158,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(1, $entry2['value']);
     }
 
-    // ─── Leaderboard — Checks axis ───────────────────────────────────────────
+    // ─── Leaderboard - Checks axis ───────────────────────────────────────────
 
     public function testChecksAxisSumsCorrectlyExcludingInvalidated(): void
     {
@@ -198,7 +198,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         $data = $responseData['data'];
         self::assertIsArray($data);
 
-        // Bob (150) > Alice (100 — 20 invalidated checks excluded)
+        // Bob (150) > Alice (100 - 20 invalidated checks excluded)
         $entry0 = $data[0];
         self::assertIsArray($entry0);
         self::assertSame('bob', $entry0['slug']);
@@ -211,7 +211,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(100, $entry1['value']);
     }
 
-    // ─── Leaderboard — Speed axis ─────────────────────────────────────────────
+    // ─── Leaderboard - Speed axis ─────────────────────────────────────────────
 
     public function testSpeedAxisRanksFastestFirst(): void
     {
@@ -221,7 +221,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
 
         $alice = $this->createUser('alice@ex.com', ['ROLE_USER'], 'Alice', 'alice');
         $bob = $this->createUser('bob@ex.com', ['ROLE_USER'], 'Bob', 'bob');
-        $carol = $this->createUser('carol@ex.com', ['ROLE_USER'], 'Carol', 'carol'); // no goal — excluded
+        $carol = $this->createUser('carol@ex.com', ['ROLE_USER'], 'Carol', 'carol'); // no goal - excluded
 
         $regA = $this->createRegistration($event->getId(), $alice->getId());
         $regB = $this->createRegistration($event->getId(), $bob->getId());

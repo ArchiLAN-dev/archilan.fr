@@ -1,5 +1,5 @@
 ---
-stepsCompleted: ["step-01-validate-prerequisites", "step-02-design-epics", "step-03-create-stories", "step-04-final-validation", "step-01-validate-prerequisites-archipelago-run", "step-02-design-epics-archipelago-run", "step-03-create-stories-archipelago-run", "step-04-final-validation-archipelago-run", "step-01-validate-prerequisites-ux-sessions", "step-02-design-epics-ux-sessions", "step-03-create-stories-ux-sessions", "step-04-final-validation-ux-sessions", "step-01-validate-prerequisites-personal-runs", "step-02-design-epics-personal-runs", "step-03-create-stories-personal-runs", "step-04-final-validation-personal-runs", "step-amendment-wake-on-connect"]
+stepsCompleted: ["step-01-validate-prerequisites", "step-02-design-epics", "step-03-create-stories", "step-04-final-validation", "step-01-validate-prerequisites-archipelago-run", "step-02-design-epics-archipelago-run", "step-03-create-stories-archipelago-run", "step-04-final-validation-archipelago-run", "step-01-validate-prerequisites-ux-sessions", "step-02-design-epics-ux-sessions", "step-03-create-stories-ux-sessions", "step-04-final-validation-ux-sessions", "step-01-validate-prerequisites-personal-runs", "step-02-design-epics-personal-runs", "step-03-create-stories-personal-runs", "step-04-final-validation-personal-runs", "step-amendment-wake-on-connect", "step-01-validate-prerequisites-discord-bot", "step-02-design-epics-discord-bot", "step-03-create-stories-discord-bot", "step-04-final-validation-discord-bot", "step-01-validate-prerequisites-membership", "step-02-design-epics-membership", "step-03-create-stories-membership", "step-04-final-validation-membership"]
 inputDocuments:
   - "_bmad-output/planning-artifacts/prd.md"
   - "_bmad-output/planning-artifacts/architecture.md"
@@ -49,6 +49,45 @@ codeQualityPass:
   scope: "Epic 19 - Code quality: centralize test entity factories, extract controller auth guard, application service entity resolution, DBAL pagination helper, message handler error pattern"
   newRequirements:
     - NFR-CQ1 through NFR-CQ5
+discordBotPass:
+  date: "2026-05-16"
+  scope: "Epic 21 - Discord Bot role synchronization: auto-assign Discord server roles on link/unlink/role-change, admin monitoring panel"
+  newRequirements:
+    - FR-DB1 through FR-DB8
+    - NFR-DB1 through NFR-DB4
+membershipPass:
+  date: "2026-05-16"
+  scope: "Epic 22 - Internal membership management: HelloAsso payment → rolling 12-month membership, role transitions, email notifications, Discord sync, Dolibarr push, admin dashboard"
+  newRequirements:
+    - FR-ME1 through FR-ME13
+    - NFR-ME1 through NFR-ME4
+weeklyRunsPass:
+  date: "2026-05-17"
+  scope: "Epic 23 - Weekly Runs: admin-configured weekly Archipelago sessions with deterministic seed, individual on-demand per-player runs, three leaderboards, and member opt-in/launch flow"
+  newRequirements:
+    - FR-WR1 through FR-WR10
+    - NFR-WR1 through NFR-WR4
+weeklyRunsUxAmendment:
+  date: "2026-05-17"
+  scope: "Amend Epic 23 - Game library integration + yaml-option-editor reuse for template creation. Stories 23.1 and 23.5 revised; Story 23.6 minor update. Players cannot customize YAML (admin config is fixed for all slots)."
+  changes:
+    - "WeeklyTemplate.game (varchar free text) replaced by WeeklyTemplate.gameId (varchar 36 UUID, plain string FK to GameSelection.Game)"
+    - "Story 23.5: template creation is a two-step flow - game picker then yaml-option-editor, not a raw textarea"
+    - "Story 23.5: POST /admin/weekly-templates accepts gameId instead of game+yamlConfig free fields"
+    - "Story 23.1: WeeklyEntry.playerYaml field removed (no per-player customization)"
+    - "Story 23.6: member page shows game name from joined Game record"
+weeklyRunsArchitectureAmendment:
+  date: "2026-05-17"
+  scope: "Amend Epic 23 - Individual on-demand runs per player (not shared multiworld). Stories 23.1, 23.3, 23.4 substantially revised."
+  changes:
+    - "No shared multiworld session - each player generates their own independent Archipelago game via --seed"
+    - "WeeklyRun has no externalSessionId; status simplified to 'active'|'finished' (no 'pending' phase)"
+    - "WeeklyEntry gains externalSessionId (per-player runner session) + launchedAt"
+    - "WeeklyEntry.slotIndex removed (irrelevant for single-player sessions)"
+    - "WeeklyRunnerGatewayInterface: launch() replaced by launchEntry(entryId, seed, apworldStorageKey, playerName, yaml)"
+    - "Story 23.3: LaunchPendingWeeklyRunsMessage removed; scheduler only creates WeeklyRun records (Monday 00:00) and stops entries (Sunday 23:59)"
+    - "Story 23.4: new POST .../launch endpoint; goal callback uses externalSessionId not slotIndex; YAML name substituted at launch time"
+    - "Template yamlConfig stores 'ArchiLAN' as placeholder name; displayName substituted at runtime by LaunchWeeklyEntry service"
 ---
 
 # archilan.fr - Epic Breakdown
@@ -152,6 +191,28 @@ NFR31: Site availability target is 99.5% excluding scheduled maintenance.
 NFR32: Registration must complete fully or roll back entirely, with no partial states.
 NFR33: No registration or payment data may be lost due to server errors.
 NFR34: Scheduled maintenance must occur outside active registration windows.
+NFR-DB1: Discord Bot API calls (role assign/remove) must be non-blocking - dispatched as Messenger async messages, never inline in HTTP request handlers.
+NFR-DB2: Sync failures must be logged via `LoggerInterface` (PSR-3) but must never surface as user-facing errors; the originating ArchiLAN action always succeeds independently.
+NFR-DB3: `DiscordBotClientInterface` must have a null/stub implementation registered in `when@test` so CI passes without a real bot token.
+NFR-DB4: The bot's Discord server role must be positioned above all managed ArchiLAN roles in the guild hierarchy (operational constraint, documented in Dev Notes).
+FR-WR1: Members can view the current week's active Archipelago weekly run(s) and their leaderboards without authentication.
+FR-WR2: Authenticated members can opt into an active weekly run; the system enforces the template's `maxAttempts` limit per user per week.
+FR-WR3: The system automatically generates a deterministic seed and creates the `WeeklyRun` record each Monday at 00:00 UTC; individual player sessions are launched on demand when a member clicks "Lancer ma partie".
+FR-WR4: The system automatically stops all weekly run containers at Sunday 23:59 UTC and marks each run as finished.
+FR-WR5: Admins can create, edit, and soft-delete weekly run templates specifying game, yaml, name, and attempt limit.
+FR-WR6: Admins can activate or deactivate a template to include or exclude it from the next automated weekly generation.
+FR-WR7: Admins can view the current week's run status and all member entries from the backoffice.
+FR-WR8: Three leaderboards are displayed per weekly run: fastest goal (MIN completion time), fewest checks (MIN checks_total), fewest items (MIN items_total).
+FR-WR9: Each leaderboard entry shows the member's displayName, the relevant metric value, and their goal timestamp.
+FR-WR10: The member-facing leaderboard updates in real time via Mercure when a player reaches the goal.
+NFR-ME1: Membership expiry detection and role demotion must run via Symfony Scheduler (daily recurring task), not an external cron job.
+NFR-ME2: HelloAsso payment processing and Dolibarr push are handled by async Messenger messages; a Dolibarr sync failure must not block membership activation.
+NFR-ME3: `DolibarrClientInterface` must have a null stub implementation registered under `when@test:` in `services.yaml`.
+NFR-ME4: Role change (ROLE_MEMBER promotion or demotion) and membership status update must be committed in the same database transaction.
+NFR-WR1: `WeeklyRun` record creation (seed generation + DB persist) must complete within 10 seconds of the Monday 00:00 UTC scheduler tick. Individual player session launch (on-demand via `POST .../launch`) must return `connectionInfo` within 30 seconds.
+NFR-WR2: The `--seed` parameter must be passed verbatim to the Archipelago generation CLI so the same seed string always produces the same game world.
+NFR-WR3: Goal detection latency from bridge callback to leaderboard data update must be under 5 seconds end-to-end.
+NFR-WR4: Weekly run scheduling must use the existing Symfony Scheduler provider (`src/Schedule.php`), not an external cron job.
 
 ### Additional Requirements
 
@@ -297,6 +358,30 @@ FR-HC7: Epic 18 - A public community leaderboard with three axes (goal completio
 FR-HC8: Epic 18 - A public global stats widget showing figures from sessions with status `finished`.
 FR-HC9: Epic 18 - Stats and leaderboards use only sessions with status `finished`; all other statuses expose no public stats.
 
+### FR Coverage Map (Discord Bot pass)
+
+FR-DB1: Epic 21 - When a user links their Discord account, the bot assigns the ArchiLAN Discord server role matching the user's current ArchiLAN role (Admin → admin role, Membre → member role, User → user role).
+FR-DB2: Epic 21 - When an admin promotes or demotes a user's ArchiLAN role, the bot syncs the corresponding Discord server role asynchronously within seconds.
+FR-DB3: Epic 21 - When a user unlinks their Discord account, the bot removes all managed ArchiLAN roles from their Discord server membership.
+FR-DB4: Epic 21 - A Symfony console command triggers a full resync of all linked accounts (bulk migration/fix tool).
+FR-DB5: Epic 21 - Admins can view a bot status panel showing: bot connection status, Discord guild member count, and the list of managed role IDs.
+FR-DB6: Epic 21 - Admins can view a per-user table showing each user's ArchiLAN role, Discord username, and last sync status/timestamp.
+FR-DB7: Epic 21 - Admins can trigger a bulk resync of all linked accounts from the admin UI.
+FR-DB8: Epic 21 - If the Discord bot API is unreachable, the ArchiLAN action (link/unlink/role change) still succeeds; the sync failure is logged and retried via Messenger.
+FR-ME1: Epic 22 - A user can initiate a membership subscription or renewal via an embedded HelloAsso checkout in their account profile.
+FR-ME2: Epic 22 - On a confirmed HelloAsso payment for the membership form, the system creates or renews the user's membership for a rolling 12-month period from the payment date; processing the same payment twice produces only one membership record.
+FR-ME3: Epic 22 - Membership activation automatically promotes the user to ROLE_MEMBER (unless they are already ROLE_ADMIN).
+FR-ME4: Epic 22 - Membership expiry automatically demotes the user from ROLE_MEMBER to ROLE_USER.
+FR-ME5: Epic 22 - The system sends a confirmation email on membership activation including the expiry date and a thank-you message.
+FR-ME6: Epic 22 - The system sends a renewal reminder email 30 days before expiry with a direct link to the membership checkout.
+FR-ME7: Epic 22 - The system sends a second renewal reminder email 7 days before expiry.
+FR-ME8: Epic 22 - The system sends an expiry notification email on the day of expiry informing the user their member status has been removed.
+FR-ME9: Epic 22 - Every membership activation and expiry triggers a Discord Bot role sync (Epic 21): the member Discord role is assigned on activation and removed on expiry.
+FR-ME10: Epic 22 - A user can view their current membership status (active / expired / none) and expiry date from their account profile.
+FR-ME11: Epic 22 - Admins can view a paginated list of all memberships (active and expired) with search by email/name and filter by status.
+FR-ME12: Epic 22 - Admins can manually create or renew a membership for any user (for offline payments or corrections), with a note field.
+FR-ME13: Epic 22 - The system pushes membership data to Dolibarr via its REST API on creation, renewal, and expiry; push failures are logged and retried asynchronously without blocking the membership operation.
+
 ## Epic List
 
 ### Epic 0: Project Foundation & Quality Gates
@@ -358,6 +443,14 @@ Sessions (event-based and personal) auto-stop after 1 hour of inactivity, with g
 ### Epic 18: Run History, Player Profiles & Community Leaderboards
 Players and visitors can explore completed run results, personal history across all runs, and community-wide leaderboards. Slot stats are automatically invalidated when a player forfeits and their slot is released/collected, ensuring leaderboard integrity.
 **FRs covered:** FR-HC1, FR-HC2, FR-HC3, FR-HC4, FR-HC5, FR-HC6, FR-HC7, FR-HC8, FR-HC9, NFR-HC1, NFR-HC2, NFR-HC3, NFR-HC4.
+
+### Epic 21: Discord Bot - Role Synchronisation & Admin Panel
+Users with linked Discord accounts automatically receive the Discord server role matching their ArchiLAN role; admins can monitor bot health and trigger resyncs from the backoffice.
+**FRs covered:** FR-DB1, FR-DB2, FR-DB3, FR-DB4, FR-DB5, FR-DB6, FR-DB7, FR-DB8, NFR-DB1, NFR-DB2, NFR-DB3, NFR-DB4.
+
+### Epic 22: Membership Management - Adhésions & Sync Dolibarr
+Users can subscribe and renew their ArchiLAN membership autonomously via HelloAsso; the system handles role transitions, expiry reminders, Discord sync, and Dolibarr push automatically. Admins retain a full dashboard and manual override.
+**FRs covered:** FR-ME1, FR-ME2, FR-ME3, FR-ME4, FR-ME5, FR-ME6, FR-ME7, FR-ME8, FR-ME9, FR-ME10, FR-ME11, FR-ME12, FR-ME13, NFR-ME1, NFR-ME2, NFR-ME3, NFR-ME4.
 
 ## Epic 0: Project Foundation & Quality Gates
 
@@ -2834,18 +2927,18 @@ So that I can resume playing without having to ask anyone to restart it.
 
 ## Epic 18: Run History, Player Profiles & Community Leaderboards
 
-Players and visitors can explore completed run results, personal history across all runs, and community-wide leaderboards. Slot stats are automatically invalidated when a player forfeits and their slot is released/collected, ensuring leaderboard integrity. The data layer already exists (`checksDone`, `itemsReceived`, `goalReachedAt` on `SessionSlot`, timestamps on `Session`) — this epic exposes it engagingly.
+Players and visitors can explore completed run results, personal history across all runs, and community-wide leaderboards. Slot stats are automatically invalidated when a player forfeits and their slot is released/collected, ensuring leaderboard integrity. The data layer already exists (`checksDone`, `itemsReceived`, `goalReachedAt` on `SessionSlot`, timestamps on `Session`) - this epic exposes it engagingly.
 
 ### New Requirements
 
 #### Functional Requirements
 
 FR-HC1: Visitors can view a public run results page (`/runs/{id}/resultats`) showing per-slot stats (checks done, items received, goal reached, playtime), grouped by slot outcome: "Objectif atteint" / "Incomplet" / "Forfait".
-FR-HC2: A slot is invalidated when an admin (backoffice) or the personal-run owner triggers the release/collect action AND the slot has no `goal_reached_at`. Slots where `goal_reached_at IS NOT NULL` are immune — a completed player can never be invalidated.
+FR-HC2: A slot is invalidated when an admin (backoffice) or the personal-run owner triggers the release/collect action AND the slot has no `goal_reached_at`. Slots where `goal_reached_at IS NOT NULL` are immune - a completed player can never be invalidated.
 FR-HC3: A `was_released` boolean column is added to `session_slots` and set to `true` atomically within the same transaction as the release/collect action.
-FR-HC4: Invalidated slots display a distinct "Forfait" badge on the results page and are excluded from all leaderboard aggregations (goal count, checks count, completion rate). Their run attendance is counted in `runsParticipated` — showing up counts regardless of outcome.
+FR-HC4: Invalidated slots display a distinct "Forfait" badge on the results page and are excluded from all leaderboard aggregations (goal count, checks count, completion rate). Their run attendance is counted in `runsParticipated` - showing up counts regardless of outcome.
 FR-HC5: Any visitor (no login required) can view a public player profile page at `/joueurs/{slug}`. A new unique `slug` column is introduced on `identity_users` as part of this epic and generated from the player's `displayName`.
-FR-HC6: The player profile page displays aggregated personal stats: total runs participated in, total checks done, total items received, goal completion rate, and number of goals reached — all metrics excluding invalidated slots from numerators; `runsParticipated` counts all slots.
+FR-HC6: The player profile page displays aggregated personal stats: total runs participated in, total checks done, total items received, goal completion rate, and number of goals reached - all metrics excluding invalidated slots from numerators; `runsParticipated` counts all slots.
 FR-HC7: A public community leaderboard at `/classements` ranks players on three axes: most goal completions, most checks done (all-time), and fastest single-run completion (goal reached, shortest elapsed time). Each axis is paginated, limit clamped to [1, 100], secondary tie-breaker is `displayName ASC`. Optional filter by event.
 FR-HC8: A global community stats widget (embeddable on the landing page) shows: total sessions with status `finished`, total checks done across all non-invalidated slots, and total goals reached.
 FR-HC9: Run results and leaderboards are only computed from sessions with status `finished`. Sessions in any other status (generating, running, idle, stopped, failed, crashed) expose no stats publicly.
@@ -2854,7 +2947,7 @@ FR-HC9: Run results and leaderboards are only computed from sessions with status
 
 NFR-HC1: All API endpoints under this epic (`GET /api/v1/runs/{id}/results`, `GET /api/v1/players/{slug}`, `GET /api/v1/community/stats`, `GET /api/v1/leaderboard`) require no authentication. Frontend routes (`/runs/{id}/resultats`, `/joueurs/{slug}`, `/classements`) are public Next.js pages accessible without login.
 NFR-HC2: Leaderboard queries must use indexed columns (`goal_reached_at`, `checks_done`, `session_id`, `was_released`) and paginate; a full table scan on `session_slots` is not acceptable at scale.
-NFR-HC3: Setting `was_released = true` must be atomic with the parent release/collect transaction — no separate async job, no eventual consistency gap.
+NFR-HC3: Setting `was_released = true` must be atomic with the parent release/collect transaction - no separate async job, no eventual consistency gap.
 NFR-HC4: Leaderboard and global-stats endpoints must be cacheable; a 60-second server-side cache is acceptable (ETag or `Cache-Control: max-age=60`).
 NFR-CQ1: Each test entity factory (`createUser`, `createEvent`, `createGame`, `createRegistration`) is defined exactly once in `FunctionalTestCase`; no functional test file retains its own copy.
 NFR-CQ2: Controller auth guard logic is implemented in a single shared location; no controller retains an inline copy of the guard pattern.
@@ -2876,7 +2969,7 @@ FR-HC9: Epic 18 - Stats gated on `finished` status only.
 
 ---
 
-### Story 18.1: Domain & Migration — `was_released` Flag on SessionSlot
+### Story 18.1: Domain & Migration - `was_released` Flag on SessionSlot
 
 As a developer,
 I want a `was_released` flag on `SessionSlot` that is set when an admin releases/collects a forfeiting player's slot,
@@ -2897,7 +2990,7 @@ So that the system can distinguish intentionally invalidated participation from 
 **When** the action targets a slot whose registration is in a cancelled/abandoned state (or the personal-run participant has left)
 **Then** `SessionSlot::markAsReleased()` is called inside the same DB transaction that persists the release action
 **And** the transaction commits both changes atomically
-**And** if the slot has `goalReachedAt` set, `markAsReleased()` is a silent no-op — the transaction still commits, the flag stays `false`
+**And** if the slot has `goalReachedAt` set, `markAsReleased()` is a silent no-op - the transaction still commits, the flag stays `false`
 
 **Given** a slot with `was_released = true`
 **When** it is serialized to the API response
@@ -2908,7 +3001,7 @@ So that the system can distinguish intentionally invalidated participation from 
 
 ---
 
-### Story 18.2: API — Public Run Results Endpoint
+### Story 18.2: API - Public Run Results Endpoint
 
 As a visitor or player,
 I want to fetch the results of a completed run via a public API endpoint,
@@ -2963,7 +3056,7 @@ So that the frontend can display per-slot stats without requiring authentication
 
 ---
 
-### Story 18.3: API — Player Profile and History Endpoints
+### Story 18.3: API - Player Profile and History Endpoints
 
 As a visitor,
 I want to fetch a player's public profile and run history,
@@ -3018,7 +3111,7 @@ So that the frontend can render their page without requiring authentication.
 
 ---
 
-### Story 18.4: API — Community Leaderboard and Global Stats Endpoints
+### Story 18.4: API - Community Leaderboard and Global Stats Endpoints
 
 As a visitor,
 I want to query community leaderboards and aggregate stats,
@@ -3073,7 +3166,7 @@ So that the frontend can render the `/classements` page and the landing-page sta
 
 ---
 
-### Story 18.5: Frontend — Public Run Results Page (`/runs/{id}/resultats`)
+### Story 18.5: Frontend - Public Run Results Page (`/runs/{id}/resultats`)
 
 As a visitor or player,
 I want to view a richly formatted results page for a finished run,
@@ -3087,7 +3180,7 @@ So that I can celebrate achievements, identify who completed what, and understan
 **When** the API returns a session with status `finished`
 **Then** the page renders a header with: event name, run date, total duration (formatted as `Xh Ym`)
 **And** a results grid displays one card per slot with: player name, game, checks done, items received, goal status badge ("Objectif atteint" or "Incomplet"), and completion time if goal was reached
-**And** slots are grouped in three labelled sections: "Objectifs atteints" (sorted by completion time asc), "Incomplets" (no goal, not invalidated), "Forfaits" (invalidated — `isInvalidated: true`)
+**And** slots are grouped in three labelled sections: "Objectifs atteints" (sorted by completion time asc), "Incomplets" (no goal, not invalidated), "Forfaits" (invalidated - `isInvalidated: true`)
 **And** "Forfait" slot cards display an amber "Forfait" badge, checks and items are shown in muted style, and a tooltip explains "Statistiques exclues des classements (slot relâché)"
 **And** the page is publicly accessible with no login requirement
 **And** the page has proper `<title>` and `og:title` meta for social sharing (e.g. "Résultats de la run ArchiLAN #12")
@@ -3105,7 +3198,7 @@ So that I can celebrate achievements, identify who completed what, and understan
 
 ---
 
-### Story 18.6: Frontend — Public Player Profile Page (`/joueurs/{slug}`)
+### Story 18.6: Frontend - Public Player Profile Page (`/joueurs/{slug}`)
 
 As a visitor,
 I want to view a player's profile with their run history and personal stats,
@@ -3135,7 +3228,7 @@ So that I can understand their involvement in ArchiLAN runs.
 
 ---
 
-### Story 18.7: Frontend — Community Leaderboard Page (`/classements`) and Stats Widget
+### Story 18.7: Frontend - Community Leaderboard Page (`/classements`) and Stats Widget
 
 As a visitor,
 I want to browse community leaderboards and discover top players,
@@ -3369,7 +3462,7 @@ public static function applyTo(QueryBuilder $qb, int $page, int $limit, int $min
 **And** the method clamps `$limit` to `[$minLimit, $maxLimit]` before applying
 **And** `PublicGameCatalog` (the only Application service that used `setFirstResult(($page-1)*$limit)->setMaxResults($limit)` via a `QueryBuilder`) is migrated to `PaginationHelper::applyTo()`
 
-> **Scope note (added during implementation):** The original AC estimated "8+ query services". Codebase audit found exactly 1 service with a `Doctrine\DBAL\Query\QueryBuilder` + `($page-1)*$limit` pattern (`PublicGameCatalog`, migrated from ORM QB to DBAL QB as part of this story). `LeaderboardQuery` and `PlayerHistoryQuery` paginate via raw SQL heredocs / PHP `array_slice` — they do not use a `QueryBuilder` and are out of scope without a larger architectural change.
+> **Scope note (added during implementation):** The original AC estimated "8+ query services". Codebase audit found exactly 1 service with a `Doctrine\DBAL\Query\QueryBuilder` + `($page-1)*$limit` pattern (`PublicGameCatalog`, migrated from ORM QB to DBAL QB as part of this story). `LeaderboardQuery` and `PlayerHistoryQuery` paginate via raw SQL heredocs / PHP `array_slice` - they do not use a `QueryBuilder` and are out of scope without a larger architectural change.
 
 **Given** PHPStan analyses `PaginationHelper`
 **When** it is passed a non-DBAL `QueryBuilder`
@@ -3415,7 +3508,7 @@ protected function executeWithLogging(string $context, \Closure $fn): void;
 
 ---
 
-## Epic 20: Code Quality Enforcement — Frontend & Bridge
+## Epic 20: Code Quality Enforcement - Frontend & Bridge
 
 Mirror the quality discipline of Epic 19 (API layer) on the two remaining stacks: the Next.js frontend and the Python bridge. Both stacks already have working code and passing basics (typecheck/lint/build for the frontend, a full pytest suite for the bridge), but neither has the same depth of static analysis, architectural constraints, or structural hygiene enforced by automated gates. Stories 20.1–20.4 address the bridge; stories 20.5–20.8 address the frontend.
 
@@ -3424,8 +3517,8 @@ Mirror the quality discipline of Epic 19 (API layer) on the two remaining stacks
 #### Non-Functional Requirements
 
 NFR-BRIDGE1: The bridge has `ruff` and `mypy` running as CI quality gates with zero violations.
-NFR-BRIDGE2: The bridge has no module-level mutable globals — all runtime state flows through explicit objects injected at construction time.
-NFR-BRIDGE3: The bridge uses proper Python package imports — no `sys.path` manipulation at startup (the `sys.path` hack in `bridge.py` is removed; `save_parser.py`'s AP-source injection is a different concern and out of scope).
+NFR-BRIDGE2: The bridge has no module-level mutable globals - all runtime state flows through explicit objects injected at construction time.
+NFR-BRIDGE3: The bridge uses proper Python package imports - no `sys.path` manipulation at startup (the `sys.path` hack in `bridge.py` is removed; `save_parser.py`'s AP-source injection is a different concern and out of scope).
 NFR-BRIDGE4: `rest.py` route handlers are extracted from the single `create_app` closure into named coroutines, each independently testable.
 NFR-FE1: No `process.env` access outside `src/lib/env.ts` in the frontend (enforced by ESLint).
 NFR-FE2: No `as SomeThing` type assertions at API response boundaries in the frontend (enforced by ESLint + type guard audit).
@@ -3434,14 +3527,14 @@ NFR-FE4: The frontend `QueryClient` and its `staleTime` / `gcTime` defaults are 
 
 #### NFR Coverage Map
 
-NFR-BRIDGE1: Story 20.1 — ruff + mypy as bridge quality gates.
-NFR-BRIDGE2: Story 20.2 — eliminate module-level mutable state from rest.py.
-NFR-BRIDGE3: Story 20.3 — fix sys.path import hack in bridge.py.
-NFR-BRIDGE4: Story 20.4 — extract rest.py route handlers into named coroutines.
-NFR-FE1: Story 20.5 — ESLint rule banning process.env outside env.ts.
-NFR-FE2: Story 20.6 — type-guard completeness audit + ESLint assertion-style enforcement.
-NFR-FE3: Story 20.7 — Jest unit test suite for the API layer.
-NFR-FE4: Story 20.8 — centralise QueryClient configuration.
+NFR-BRIDGE1: Story 20.1 - ruff + mypy as bridge quality gates.
+NFR-BRIDGE2: Story 20.2 - eliminate module-level mutable state from rest.py.
+NFR-BRIDGE3: Story 20.3 - fix sys.path import hack in bridge.py.
+NFR-BRIDGE4: Story 20.4 - extract rest.py route handlers into named coroutines.
+NFR-FE1: Story 20.5 - ESLint rule banning process.env outside env.ts.
+NFR-FE2: Story 20.6 - type-guard completeness audit + ESLint assertion-style enforcement.
+NFR-FE3: Story 20.7 - Jest unit test suite for the API layer.
+NFR-FE4: Story 20.8 - centralise QueryClient configuration.
 
 ---
 
@@ -3456,9 +3549,9 @@ So that Python style violations and type errors are caught before merge, mirrori
 **Given** `ruff` is configured in `pyproject.toml` (rule set already present)
 **When** story 20.1 is complete
 **Then** `ruff` and `mypy` are added to `bridge/requirements.txt` and both run in CI
-**And** `ruff check bridge/` exits 0 — all existing violations (including `PLW0603` global-statement warnings, `PLC0415` import-not-at-top) are resolved or annotated with a `# noqa:` and an explanation comment
-**And** `mypy` is configured in `pyproject.toml` with at minimum `disallow_untyped_defs = true` and `ignore_missing_imports = true` (broad stopgap only — suppresses all unresolved import errors including internal ones; must be narrowed to per-module overrides for external packages once Story 20.3 fixes the package structure)
-**And** `mypy bridge/` exits 0 — all public function and method signatures carry type annotations
+**And** `ruff check bridge/` exits 0 - all existing violations (including `PLW0603` global-statement warnings, `PLC0415` import-not-at-top) are resolved or annotated with a `# noqa:` and an explanation comment
+**And** `mypy` is configured in `pyproject.toml` with at minimum `disallow_untyped_defs = true` and `ignore_missing_imports = true` (broad stopgap only - suppresses all unresolved import errors including internal ones; must be narrowed to per-module overrides for external packages once Story 20.3 fixes the package structure)
+**And** `mypy bridge/` exits 0 - all public function and method signatures carry type annotations
 **And** both commands are added to the CI bridge job
 **And** the full existing bridge test suite passes unchanged
 
@@ -3484,7 +3577,7 @@ This is the Python equivalent of the static mutable properties banned in the API
 **When** story 20.2 is complete
 **Then** a `PauseResumeCoordinator` dataclass is introduced in `core/coordinator.py` holding `wake_stop_event` and `wake_task` as instance attributes
 **And** `create_app` receives a `coordinator: PauseResumeCoordinator` parameter (defaulting to a new instance if omitted, for backwards compatibility)
-**And** `_pause_flow` and `_cancel_wake_task` receive the coordinator as a parameter — no `global` statements remain in `rest.py`
+**And** `_pause_flow` and `_cancel_wake_task` receive the coordinator as a parameter - no `global` statements remain in `rest.py`
 **And** all callers of `create_app()` continue to work without signature changes; tests that previously accessed `_rest._wake_stop_event` / `_rest._wake_task` directly are updated to read the coordinator from the app
 **And** `ruff check`, `mypy`, and `pytest` all pass
 
@@ -3505,8 +3598,8 @@ So that `import bridge.core.config` works correctly and mypy and ruff resolve sy
 **When** story 20.3 is complete
 **Then** all imports inside `bridge/core/*.py` use relative imports (`from .config import Config`, `from .state import StateManager`)
 **And** `bridge/bridge.py` removes the `sys.path.insert` block entirely
-**And** private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) are removed from both `__all__` **and** the top-level `import` statements in `bridge.py` — removing from `__all__` alone is insufficient because symbols remain importable as long as they exist at module top-level
-**And** `python -m bridge.bridge` and `python bridge/bridge.py` both run from the repo root with no `ImportError` or `ModuleNotFoundError` (both verified as explicit CI steps — no `|| true` masking)
+**And** private symbols (`_build_feed_event`, `_PRINT_TYPE_MAP`, `_WS_RETRY_DELAYS`, `_compute_reachable`, `_daemon_ready_events`, `_reachable_cache`, `_reachable_daemons`, `_start_daemon`) are removed from both `__all__` **and** the top-level `import` statements in `bridge.py` - removing from `__all__` alone is insufficient because symbols remain importable as long as they exist at module top-level
+**And** `python -m bridge.bridge` and `python bridge/bridge.py` both run from the repo root with no `ImportError` or `ModuleNotFoundError` (both verified as explicit CI steps - no `|| true` masking)
 **And** the global `ignore_missing_imports = true` stopgap added in Story 20.1 is removed from `[tool.mypy]`; per-module `[[tool.mypy.overrides]]` entries replace it for external packages that genuinely lack stubs; any internal module that now fails to resolve indicates a missed relative-import conversion and must be fixed
 **And** `mypy`, `ruff`, and `pytest` all pass
 
@@ -3526,13 +3619,13 @@ So that each handler is independently readable, testable in isolation, and fully
 **Given** all route handlers (`health`, `get_state`, `post_command` on `/commands`, `get_hints` on `/hints/{slot}`, `request_hint` on `/hints/{slot}/request`, `get_reachable` on `/reachable/{slot}`, `get_item_locations` on `/item-locations/{slot}`, `post_save`, `post_pause`, `post_resume`) are closures inside `create_app`
 **When** story 20.4 is complete
 **Then** each handler is extracted to a module-level `async def` function receiving its dependencies as parameters or reading them from `request.app`
-**And** `AppKey` constants are extracted to a new `rest_keys.py` (imported by both `rest.py` and handler modules to avoid a circular import); handlers are always split by domain into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py`; `rest.py` is reduced to `create_app` as the assembly point (assembly only: imports from `rest_keys` and handler modules, wires routes — no handler logic, no key definitions)
+**And** `AppKey` constants are extracted to a new `rest_keys.py` (imported by both `rest.py` and handler modules to avoid a circular import); handlers are always split by domain into `rest_session.py`, `rest_hints.py`, and `rest_reachable.py`; `rest.py` is reduced to `create_app` as the assembly point (assembly only: imports from `rest_keys` and handler modules, wires routes - no handler logic, no key definitions)
 **And** at least 3 handlers gain dedicated unit tests in `tests/test_rest_handlers.py` covering a success path and one error path each, plus a route parity test
 **And** `mypy`, `ruff`, and `pytest` (full suite + new tests) all pass
 
 ---
 
-### Story 20.5: ESLint Rule — Ban process.env Outside env.ts
+### Story 20.5: ESLint Rule - Ban process.env Outside env.ts
 
 As a developer,
 I want an ESLint rule that rejects any `process.env` access outside `src/lib/env.ts`,
@@ -3545,7 +3638,7 @@ So that AC-ENV1 is machine-enforced and cannot be violated silently by future co
 
 **Given** `process.env` may exist in files other than `src/lib/env.ts`
 **When** the audit is complete
-**Then** every `process.env` access outside `src/lib/env.ts` in non-test files is replaced by the appropriate `env.*` accessor (test files `**/*.test.ts` and `**/*.test.tsx` are excluded from the audit — they intentionally use `process.env` for MSW base URL setup)
+**Then** every `process.env` access outside `src/lib/env.ts` in non-test files is replaced by the appropriate `env.*` accessor (test files `**/*.test.ts` and `**/*.test.tsx` are excluded from the audit - they intentionally use `process.env` for MSW base URL setup)
 
 **When** all violations are resolved
 **Then** three `no-restricted-syntax` selectors are added to `eslint.config.*`, scoped to `src/**/*.{ts,tsx}` and excluding `src/lib/env.ts` and test files via the `ignores` field: dot-access (`process.env.FOO`), computed access (`process["env"].FOO`), and destructuring (`const/let/var { FOO } = process.env`); optional chaining is the one accepted gap, documented explicitly
@@ -3581,7 +3674,7 @@ I want every `*-api.ts` file to have a corresponding Jest unit test file,
 So that fetch logic, type guards, and error handling are verified independently of the browser and the running API.
 
 **Context:**
-The frontend currently has zero automated tests. The `src/features/**/*-api.ts` files are the highest-value first target: they contain fetch logic, type guards, and null-return error handling — all testable as pure functions with `fetch` mocked via MSW or `jest.fn()`.
+The frontend currently has zero automated tests. The `src/features/**/*-api.ts` files are the highest-value first target: they contain fetch logic, type guards, and null-return error handling - all testable as pure functions with `fetch` mocked via MSW or `jest.fn()`.
 
 **Acceptance Criteria:**
 
@@ -3619,14 +3712,819 @@ So that caching behaviour is consistent across all features and changing a globa
 **When** the audit is complete
 **Then** `src/lib/query-client.ts` is created exporting:
 ```ts
-export const DEFAULT_STALE_TIME = 30_000;    // 30 s — standard catalog data
-export const REALTIME_STALE_TIME = 5_000;    // 5 s — live session state
-export const SESSION_STALE_TIME = 60_000;    // 60 s — session-level polling
+export const DEFAULT_STALE_TIME = 30_000;    // 30 s - standard catalog data
+export const REALTIME_STALE_TIME = 5_000;    // 5 s - live session state
+export const SESSION_STALE_TIME = 60_000;    // 60 s - session-level polling
 export const STATIC_STALE_TIME = Infinity;   // legal pages, configuration
-export const DEFAULT_GC_TIME = 300_000;  // 5 min (300 s) — garbage collection window
+export const DEFAULT_GC_TIME = 300_000;  // 5 min (300 s) - garbage collection window
 
 export function makeQueryClient(): QueryClient { ... }
 ```
 **And** all `new QueryClient(...)` call sites use `makeQueryClient()`
 **And** raw `staleTime` and `gcTime` numeric literals in `useQuery` and `useInfiniteQuery` calls are replaced by named constants
 **And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` remain clean
+
+---
+
+## Epic 21: Discord Bot - Role Synchronisation & Admin Panel
+
+Users with linked Discord accounts automatically receive the Discord server role matching their ArchiLAN role (Admin / Membre / User). Admins can monitor bot health and trigger resyncs from the backoffice.
+
+### Story 21.1: Discord Bot Client Interface & Sync Message Infrastructure
+
+As a developer,
+I want a `DiscordBotClientInterface` with a real HTTP client and a null stub, plus a `SyncDiscordRoleMessage` Messenger pipeline,
+So that role-sync side effects can be dispatched asynchronously without coupling business logic to Discord's API.
+
+**Context:**
+The Discord Bot REST API (`PATCH /guilds/{guildId}/members/{userId}/roles/{roleId}` / `DELETE` variant) requires a bot token (`Authorization: Bot <token>`), distinct from the OAuth2 access token used for user linking. Three new env vars are needed: `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and one role ID per ArchiLAN tier (`DISCORD_ROLE_ID_ADMIN`, `DISCORD_ROLE_ID_MEMBER`, `DISCORD_ROLE_ID_USER`). The `NullDiscordBotClient` is registered under `when@test:` in `services.yaml` so CI passes without a real bot token. The message handler maps ArchiLAN roles to Discord role IDs from config parameters.
+
+**Acceptance Criteria:**
+
+**Given** the Identity bounded context exists
+**When** story 21.1 is implemented
+**Then** `src/Identity/Application/DiscordBotClientInterface.php` is created with methods:
+```php
+public function assignRole(string $guildId, string $discordUserId, string $roleId): void;
+public function removeRole(string $guildId, string $discordUserId, string $roleId): void;
+/** @return array<string, mixed> */
+public function fetchGuildInfo(string $guildId): array;
+```
+**And** `src/Identity/Infrastructure/DiscordBotClient.php` implements the Application interface using Symfony `HttpClientInterface`, setting `Authorization: Bot {token}` on every request, and throws unless role assign/remove calls return `204`; callers narrow each field from `array<string, mixed>` with `is_string()` / `is_int()` before use (no direct casts)
+**And** `src/Identity/Infrastructure/NullDiscordBotClient.php` implements the Application interface as a no-op stub; `fetchGuildInfo()` returns `['online' => false]`
+**And** `src/Identity/Application/Message/SyncDiscordRoleMessage.php` is a readonly class with properties: `userId` (ArchiLAN UUID), `discordUserId` (Discord snowflake), `archilanRoles` (`list<string>`), `removeAll` (`bool`, default `false`)
+**And** `src/Identity/Application/Handler/SyncDiscordRoleMessageHandler.php` implements `__invoke(SyncDiscordRoleMessage)`:
+- Resolves Discord role IDs from injected config params
+- If `removeAll`: calls `removeRole()` for each managed role ID the user might hold
+- Else: reloads the current `User` by `userId`, uses the current `discordId` and roles as the source of truth, selects exactly one Discord role by ArchiLAN priority (`ROLE_ADMIN` > `ROLE_MEMBER` > `ROLE_USER`), calls `assignRole()` for that role, and `removeRole()` for all other managed roles
+**And** `services.yaml` registers `DiscordBotClientInterface → DiscordBotClient` with `$botToken`, `$guildId` from parameters; `when@test:` overrides with `NullDiscordBotClient`
+**And** `api/.env` and the environment example/documentation add `DISCORD_BOT_TOKEN=`, `DISCORD_GUILD_ID=`, `DISCORD_ROLE_ID_ADMIN=`, `DISCORD_ROLE_ID_MEMBER=`, `DISCORD_ROLE_ID_USER=`
+**And** the role ID mapping documents the Discord role hierarchy requirement: the bot role must be above every managed role, otherwise sync fails with a logged configuration error
+**And** all four quality gates pass (PHPStan level max, CS Fixer, phpunit, DDD validator)
+
+---
+
+### Story 21.2: Auto-Sync Discord Role on Account Link & Unlink
+
+As a user who links or unlinks their Discord account,
+I want my Discord server role to be automatically assigned or removed within seconds,
+So that my ArchiLAN status is always reflected on the Discord server without any manual step.
+
+**Context:**
+`User::$discordId` (the Discord snowflake) already exists on the entity - no new migration is needed to identify the user to the bot. However, the sync state (timestamp + last error) must be tracked to power the admin dashboard in Story 21.4. Two nullable columns are added: `discord_role_synced_at` (datetime_immutable) and `discord_sync_error` (text). The handler updates these columns after each sync attempt. `LinkDiscordToAccount::link()` and `UnlinkDiscordFromAccount::unlink()` inject `MessageBusInterface` and dispatch `SyncDiscordRoleMessage` **after a successful flush in the application service**. The Messenger transport must be async (existing `async` transport is used).
+Dispatch failures after a successful `flush()` are logged and never surfaced to the user; link/unlink remains successful even if the sync queue is temporarily unavailable.
+
+**Acceptance Criteria:**
+
+**Given** a migration is applied
+**When** story 21.2 begins
+**Then** a new Doctrine migration following the project's timestamp convention adds nullable columns `discord_role_synced_at` (datetime_immutable) and `discord_sync_error` (text, 500 chars) to the `users` table
+**And** `User::markDiscordSyncSuccess(\DateTimeImmutable $at): void` sets `discordRoleSyncedAt = $at` and clears `discordSyncError`
+**And** `User::markDiscordSyncFailure(string $error, \DateTimeImmutable $at): void` sets `discordSyncError` and leaves `discordRoleSyncedAt` unchanged
+
+**Given** `LinkDiscordToAccount::link()` completes with outcome `linked`
+**When** the method returns
+**Then** `SyncDiscordRoleMessage` is dispatched to the async Messenger bus with `discordUserId = $user->getDiscordId()`, `archilanRoles = $user->getRoles()`, `removeAll = false`
+**And** the dispatch happens after the service's successful `flush()` - never before
+**And** if the user was already linked to a different Discord ID, a `removeAll = true` message is dispatched for the previous Discord ID before the new sync message
+
+**Given** `UnlinkDiscordFromAccount::unlink()` is called for a user with a linked Discord account
+**When** the method resolves
+**Then** `SyncDiscordRoleMessage` is dispatched with `removeAll = true` and the Discord user ID captured **before** `unlinkDiscord()` nullifies it
+**And** the dispatch happens after the service's successful `flush()`
+**And** a dispatch exception is logged but does not change the unlink response
+
+**Given** `SyncDiscordRoleMessageHandler` processes the message successfully
+**When** the handler returns
+**Then** `User::markDiscordSyncSuccess()` is called and flushed
+
+**Given** `SyncDiscordRoleMessageHandler` catches a Discord API or configuration exception during an attempt
+**When** the handler cannot complete the sync
+**Then** `User::markDiscordSyncFailure(message, new \DateTimeImmutable())` is called and flushed before the exception is rethrown for Messenger retry handling
+**And** the exception is logged via `LoggerInterface` at `error` level with `userId`, `discordUserId`, and `removeAll` context
+**And** the error is never surfaced to the end user (the link/unlink API response is unaffected)
+
+**And** all four quality gates pass
+
+---
+
+### Story 21.3: Sync Discord Role on ArchiLAN Role Promotion / Demotion
+
+As an admin who promotes or demotes a user,
+I want the user's Discord server role to reflect the new ArchiLAN role automatically,
+So that Discord membership always matches the current ArchiLAN tier without manual intervention.
+
+**Context:**
+`AdminChangeUserRole::change()` already performs the role change and calls `flush()`. Injecting `MessageBusInterface` and dispatching `SyncDiscordRoleMessage` after a successful `flush()` - but only when the target user has a non-null `discordId` - is the only change required. The message carries the user's **new** roles (post-change), not the old ones. `User::markDiscordSyncSuccess()` and `markDiscordSyncFailure()` introduced in Story 21.2 are used by the existing handler - no new domain methods are needed here.
+
+**Acceptance Criteria:**
+
+**Given** `AdminChangeUserRole` is updated
+**When** `change()` completes with a successful role transition (no errors returned)
+**Then** if `$target->getDiscordId()` is non-null, `SyncDiscordRoleMessage` is dispatched after the service's successful `flush()` with the target user's updated roles and `removeAll = false`
+**And** if `$target->getDiscordId()` is null, no message is dispatched (user has no linked Discord account)
+**And** the dispatch never happens before persistence succeeds; if a stricter post-commit guarantee is required later, the implementation must introduce an outbox/post-commit dispatcher instead of relying on `flush()` alone
+
+**Given** the Messenger handler processes the sync message for a role change
+**When** the handler completes
+**Then** all managed Discord roles inconsistent with the new ArchiLAN role are removed and the correct role is assigned in a single sequence of bot API calls
+**And** `User::markDiscordSyncSuccess()` is called and flushed on success
+
+**And** all four quality gates pass
+
+---
+
+### Story 21.4: Admin Discord Bot Dashboard - Status, User Table & Bulk Resync
+
+As an admin,
+I want a backoffice panel showing the bot's connection status, a per-user sync table, and a one-click bulk resync button,
+So that I can verify the integration is healthy and fix drift without using the command line.
+
+**Context:**
+Three new API endpoints are added under the `Identity/Presentation/Admin/` namespace. Controllers delegate to Application services only; they do not inject DBAL, EntityManager, Messenger, or the Discord client directly.
+- `GET /api/v1/admin/discord-bot/status` - calls an Application query service wrapping `DiscordBotClientInterface::fetchGuildInfo()` and returns `{ botOnline, guildName, memberCount, managedRoleIds }`. Returns a degraded `{ botOnline: false }` payload if the bot API is unreachable, so the UI can show a warning without throwing.
+- `GET /api/v1/admin/discord-bot/users` - calls an Application query service that uses DBAL internally to read `users` filtered to `discord_id IS NOT NULL`, paginated, returning `{ id, email, displayName, roles, discordId, discordUsername, discordRoleSyncedAt, discordSyncError }`.
+- `POST /api/v1/admin/discord-bot/resync` - calls the Application command service `DiscordResyncAllUsers::run(bool $dryRun = false): int`. With `$dryRun = false` it dispatches `SyncDiscordRoleMessage` for every user with a non-null `discordId` and returns the count. The endpoint always calls with `$dryRun = false` and responds `202 { data: { queued: N } }`. The same service is reused by the console command in Story 21.5 with `$dryRun = true`.
+
+The frontend adds a new `/admin/discord` page (Next.js App Router). The server page fetches initial status/table data; a child client component owns the bulk resync button, loading state, mutation call, and refresh after completion. The existing admin sidebar navigation must be updated to include a "Discord Bot" entry pointing to `/admin/discord`.
+
+**Acceptance Criteria:**
+
+**Given** an admin is authenticated
+**When** `GET /api/v1/admin/discord-bot/status` is called
+**Then** the response is `200` with `{ data: { botOnline: bool, guildName: string|null, memberCount: int|null, managedRoleIds: string[] } }`
+**And** if `fetchGuildInfo()` throws, `botOnline` is `false` and other fields are `null` - no 500 is returned
+
+**Given** an admin is authenticated
+**When** `GET /api/v1/admin/discord-bot/users?page=1&limit=50` is called
+**Then** the response is `200` with `{ data: [...], meta: { page: 1, limit: 50, total: int } }`
+**And** every entry has `discord_id IS NOT NULL` and contains `id`, `email`, `displayName`, `roles`, `discordId`, `discordUsername`, `discordRoleSyncedAt`, `discordSyncError`
+
+**Given** an admin is authenticated
+**When** `POST /api/v1/admin/discord-bot/resync` is called
+**Then** the controller calls `DiscordResyncAllUsers`
+**And** `SyncDiscordRoleMessage` is dispatched for every user with a non-null `discordId`
+**And** the response is `202` with `{ data: { queued: N } }`
+
+**Given** a non-admin user is authenticated
+**When** any of the three endpoints is called
+**Then** the response is `403 Forbidden`
+
+**Given** the admin visits `/admin/discord`
+**When** the page loads
+**Then** the bot status card shows connection status (green checkmark or red warning), guild name, and member count
+**And** the per-user table shows email, Discord username, last sync timestamp, and a sync error badge when `discordSyncError` is non-null
+**And** the "Resync tout" button dispatches `POST /api/v1/admin/discord-bot/resync`, shows a loading state, and displays the queued count on completion
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` are clean
+**And** all four API quality gates pass
+
+---
+
+### Story 21.5: Console Command `app:discord:resync-roles`
+
+As a developer or system administrator,
+I want a Symfony console command to trigger a full Discord role resync for all linked accounts,
+So that I can recover from drift after migrations, bot downtime, or initial setup without going through the admin UI.
+
+**Context:**
+The command reuses `DiscordResyncAllUsers` introduced in Story 21.4. `DiscordResyncAllUsers::run(bool $dryRun = false): int` iterates all `User` rows where `discord_id IS NOT NULL` via DBAL (never `EntityManagerInterface::findAll()`) and either dispatches one `SyncDiscordRoleMessage` per row (`$dryRun = false`) or only counts them (`$dryRun = true`), returning the count in both cases. The command passes `--dry-run` to the service, then formats the output. The command lives in `src/Identity/Presentation/Command/` and calls at most one Application service (AC-P4).
+
+**Acceptance Criteria:**
+
+**Given** users with non-null `discord_id` exist in the database
+**When** `php bin/console app:discord:resync-roles` is executed
+**Then** one `SyncDiscordRoleMessage` per matching user is dispatched to the async Messenger bus
+**And** the command outputs `"Dispatched N sync messages."` and exits 0
+
+**Given** `--dry-run` is passed
+**When** the command runs
+**Then** no messages are dispatched
+**And** the command outputs `"[DRY-RUN] Would dispatch N sync messages."` and exits 0
+
+**Given** no users have a linked Discord account
+**When** the command runs
+**Then** the command outputs `"No linked Discord accounts found."` and exits 0
+
+**Given** the `DiscordBotClientInterface` is the null stub (test environment)
+**When** the command runs in the test environment
+**Then** messages are dispatched to the bus with no real HTTP calls made
+**And** `pnpm typecheck`, `pnpm lint`, `pnpm build` are unaffected (frontend-only gates)
+**And** all four API quality gates pass (PHPStan, CS Fixer, phpunit, DDD validator)
+
+---
+
+## Epic 22: Membership Management - Adhésions & Sync Dolibarr
+
+Users can subscribe and renew their ArchiLAN membership autonomously via HelloAsso. The system handles role transitions, expiry reminders, Discord sync, and Dolibarr push automatically. Admins retain a full dashboard and manual override.
+
+### Story 22.1: Membership Domain Model & Core Application Services
+
+As a developer,
+I want a `Membership` bounded context with an entity, two command services (`ActivateMembership`, `ExpireMembership`), and Discord sync dispatch,
+So that membership lifecycle transitions are encapsulated in a single place and can be triggered from multiple entry points (HelloAsso webhook, scheduler, admin action).
+
+**Context:**
+A new `Membership` bounded context is created alongside `Identity`, `Events`, etc. `Membership` owns everything related to the cotisation lifecycle. The `Membership` entity is the only aggregate; it holds no Symfony dependencies. `ActivateMembership` and `ExpireMembership` are the two write services.
+
+To avoid a direct `Membership/Application` → `Identity/Domain/User` cross-context import, a `UserRoleGatewayInterface` is defined in `Membership/Application/` with two methods (`promoteToMember(string $userId): void`, `demoteToUser(string $userId): void`). Its concrete implementation `UserRoleGateway` lives in `Membership/Infrastructure/` and is the only class allowed to import `Identity\Domain\User`. The services update the `Membership` entity and call the gateway, flush both in one unit of work (NFR-ME4), then dispatch `SyncDiscordRoleMessage` (from Epic 21) after the successful flush. Later stories (22.4, 22.6) add further dispatches additively. `DddArchitectureValidator::CONTEXTS` and `services.yaml` Domain exclusions must be updated for the new context.
+
+**Acceptance Criteria:**
+
+**Given** the monorepo has existing bounded contexts
+**When** story 22.1 begins
+**Then** the directories `src/Membership/{Domain,Application,Infrastructure,Presentation}/` are created
+**And** `DddArchitectureValidator::CONTEXTS` includes `'Membership'`
+**And** `services.yaml` excludes `App\Membership\Domain\` from autowiring (consistent with other Domain exclusions)
+**And** Doctrine mapping is configured for `src/Membership/Domain/`
+
+**Given** the bounded context is set up
+**When** the entity and migration are created
+**Then** `src/Membership/Domain/Membership.php` is a `final` entity with ORM annotations and fields: `id` (UUID string), `userId` (string, NOT NULL), `helloassoOrderId` (varchar 100, nullable, unique), `startedAt` (datetime_immutable), `expiresAt` (datetime_immutable), `status` (`varchar 10`, `'active'|'expired'`), `source` (`varchar 20`, `'helloasso'|'admin'`), `adminNote` (text nullable), `reminder30SentAt` (datetime_immutable nullable), `reminder7SentAt` (datetime_immutable nullable), `createdAt`, `updatedAt`
+**And** a Doctrine migration adds the `memberships` table with indexes on `(user_id)`, `(expires_at, status)`, `(status, user_id)`, and a unique constraint on `helloasso_order_id`
+**And** `ActivateMembership` enforces one active membership per `userId` by updating the existing active row when present instead of creating a second active membership
+
+**Given** `src/Membership/Application/UserRoleGatewayInterface.php` exists
+**When** story 22.1 begins
+**Then** the interface declares `promoteToMember(string $userId): void` and `demoteToUser(string $userId): void`
+**And** `src/Membership/Infrastructure/UserRoleGateway.php` implements it by loading `Identity\Domain\User` via `EntityManagerInterface` and calling the domain method
+**And** `UserRoleGatewayInterface` is bound to `UserRoleGateway` in `services.yaml`
+
+**Given** the entity exists
+**When** `ActivateMembership::activate(string $userId, \DateTimeImmutable $startedAt, string $source, ?string $helloassoOrderId = null, ?string $adminNote = null): void` is called
+**Then** it finds an existing active membership for the user and renews it to `max(existing expiresAt, $startedAt) + 12 months`, or creates a new `Membership` with `$startedAt + 12 months` if none exists
+**And** calls `$this->userRoleGateway->promoteToMember($userId)` (the gateway handles the `ROLE_ADMIN` guard internally)
+**And** flushes `Membership` entity in one `EntityManagerInterface::flush()` call (the gateway flushes `User` inside its own call, sharing the same `EntityManager` instance - same unit of work)
+**And** dispatches `SyncDiscordRoleMessage` after flush with the user's updated roles
+
+**Given** the entity exists
+**When** `ExpireMembership::expire(string $membershipId): void` is called
+**Then** it no-ops if the membership is already expired
+**And** otherwise sets `$membership->status = 'expired'` and calls `$this->userRoleGateway->demoteToUser($userId)` (the gateway guards `ROLE_MEMBER` internally)
+**And** flushes both in the same unit of work
+**And** dispatches `SyncDiscordRoleMessage` after flush
+
+**And** all four quality gates pass
+
+---
+
+### Story 22.2: HelloAsso Payment to Membership Activation
+
+As a user who pays their cotisation via HelloAsso,
+I want my membership to be created or renewed automatically without any manual step,
+So that I can access member-only features immediately after payment.
+
+**Context:**
+The HelloAsso sync adapter from Epic 6 (Story 6.5) already pulls order data into `Payments\Domain\HelloAssoOrder`. To avoid a `Payments → Membership` cross-context import, the `Payments` context dispatches a generic `HelloAssoOrderPaidMessage(helloassoOrderId, formType, payerEmail, paidAt)` when a membership-form order transitions into a paid state. `HelloAssoOrderPaidMessage` lives in `Payments/Application/Message/` - `Payments` imports nothing from `Membership`. The `Membership` context subscribes to this message via `HelloAssoOrderPaidMessageHandler` (in `Membership/Application/Handler/`), which filters for the configured membership form type and calls `ProcessHelloAssoMembershipPayment`. This decouples the two contexts through an event.
+
+**Acceptance Criteria:**
+
+**Given** a `HelloAssoOrder` for the membership form is newly inserted or transitions into a paid state
+**When** the HelloAsso sync pipeline flushes successfully
+**Then** `HelloAssoOrderPaidMessage(helloassoOrderId, formType: 'membership', payerEmail, paidAt)` is dispatched to the async bus exactly once for that paid transition
+**And** `Payments/` imports nothing from `Membership/` - the message type is defined in `Payments/Application/Message/`
+
+**Given** `HelloAssoOrderPaidMessageHandler` (in `Membership/`) processes the message
+**When** `formType` matches `HELLOASSO_MEMBERSHIP_FORM_SLUG`
+**Then** `ProcessHelloAssoMembershipPayment::process(helloassoOrderId, payerEmail, paidAt)` is called
+
+**Given** `ProcessHelloAssoMembershipPayment::process(string $helloassoOrderId): void` is called
+**When** the order exists, belongs to the membership form, has a paid status, and has a non-null payer email and paid date
+**Then** it looks up the ArchiLAN user by email; if no matching user is found, it logs a warning at `warning` level with the email and order ID, then returns without error
+**And** it calls `ActivateMembership::activate($userId, $paidAt, 'helloasso', $helloassoOrderId)`
+
+**Given** the order does not exist, is not paid, is not for the membership form, has no payer email, or has no paid date
+**When** `process()` runs
+**Then** it logs at `info` or `warning` level as appropriate and returns without changing membership state
+
+**Given** the same `helloassoOrderId` is processed twice
+**When** `activate()` triggers a `UniqueConstraintViolationException`
+**Then** the exception is caught, a log entry is written at `info` level (`membership.already_processed`), and the method returns - no duplicate membership, no role change, no error response
+
+**Given** `api/.env`
+**When** story 22.2 is complete
+**Then** `HELLOASSO_MEMBERSHIP_FORM_SLUG=` is added and documented as the HelloAsso form slug for membership payments
+
+**And** all four quality gates pass
+
+---
+
+### Story 22.3: Symfony Scheduler - Daily Expiry & Reminder Dispatch
+
+As the system,
+I want a daily scheduled task that detects expired memberships and dispatches expiry and reminder messages for each,
+So that role demotion and email notifications happen automatically without any manual intervention.
+
+**Context:**
+The existing central `src/Schedule.php` provider dispatches `CheckMembershipExpiryMessage` daily at 00:05 UTC. The handler uses a DBAL query (not EntityManager) to find: (1) active memberships where `expires_at <= NOW()` - dispatches `ExpireMembershipMessage(membershipId)` for each; (2) active memberships expiring within a 30-day window (between `NOW() + 29 days 23h` and `NOW() + 30 days 1h`) and `reminder_30_sent_at IS NULL` - dispatches `MembershipReminderMessage(membershipId, 30)` and marks `reminder_30_sent_at`; (3) same for the 7-day window using `reminder_7_sent_at`. `ExpireMembershipMessageHandler` calls `ExpireMembership::expire()`. `MembershipReminderMessageHandler` is introduced in this story as a no-op handler that logs and returns; Story 22.4 replaces it with the real email sender so messages are always handleable.
+
+**Acceptance Criteria:**
+
+**Given** Symfony Scheduler is configured
+**When** story 22.3 is complete
+**Then** `src/Schedule.php` includes a `RecurringMessage::cron('5 0 * * *', new CheckMembershipExpiryMessage())` entry on the default schedule
+
+**Given** `CheckMembershipExpiryMessageHandler` runs
+**When** active memberships exist with `expires_at <= NOW()`
+**Then** one `ExpireMembershipMessage(membershipId)` is dispatched per expired membership to the async bus
+
+**Given** `ExpireMembershipMessageHandler` processes a message
+**When** the membership is found and `status = 'active'`
+**Then** `ExpireMembership::expire(membershipId)` is called successfully
+
+**Given** active memberships expire in 30 days (within the window)
+**When** `CheckMembershipExpiryMessageHandler` runs
+**Then** `reminder_30_sent_at` is written and flushed **before** dispatching `MembershipReminderMessage(membershipId, daysLeft: 30)`
+**And** the dispatch happens only after the flush succeeds
+**And** this order guarantees that at worst a reminder is skipped (if the dispatch crashes), never sent twice
+
+**Given** active memberships expire in 7 days (within the window)
+**When** the handler runs
+**Then** `reminder_7_sent_at` is written and flushed **before** dispatching `MembershipReminderMessage(membershipId, daysLeft: 7)`
+**And** same ordering guarantee applies
+
+**Given** no memberships match any condition
+**When** the handler runs
+**Then** no messages are dispatched and the handler exits with no errors
+
+**And** all four quality gates pass
+
+---
+
+### Story 22.4: Email Notification Pipeline
+
+As a member,
+I want to receive emails on membership activation, 30 days before expiry, 7 days before expiry, and on the day of expiry,
+So that I am never surprised by a loss of member access.
+
+**Context:**
+`ActivateMembership` (22.1) is updated to dispatch `MembershipActivatedNotificationMessage(userId, expiresAt)` after successful flush. `ExpireMembership` (22.1) is updated to dispatch `MembershipExpiredNotificationMessage(userId)` after successful flush. The no-op `MembershipReminderMessageHandler` from 22.3 is replaced by the real email sender here. All handlers look up the user email via DBAL, build the email with `MailerInterface`, and send. Templates use Symfony Mailer with Twig; styling follows the existing email design. On send failure, handlers log at `error` level with message context and rethrow so Messenger retries according to the configured transport policy; the already-flushed role change is not rolled back.
+
+**Acceptance Criteria:**
+
+**Given** `ActivateMembership::activate()` flushes successfully
+**When** `MembershipActivatedNotificationMessage` is processed
+**Then** an email is sent to the user with subject "Bienvenue chez ArchiLAN - Adhésion activée", expiry date formatted as `DD/MM/YYYY`, and a link to their account profile
+
+**Given** `MembershipReminderMessage(membershipId, daysLeft: 30)` is processed
+**When** the handler runs
+**Then** an email is sent with subject "Votre adhésion ArchiLAN expire dans 30 jours" and a direct link to the HelloAsso membership form
+
+**Given** `MembershipReminderMessage(membershipId, daysLeft: 7)` is processed
+**When** the handler runs
+**Then** an email is sent with subject "Plus que 7 jours - renouvelez votre adhésion ArchiLAN" and the renewal link
+
+**Given** `ExpireMembership::expire()` flushes successfully
+**When** `MembershipExpiredNotificationMessage` is processed
+**Then** an email is sent with subject "Votre adhésion ArchiLAN a expiré" informing the user their member access has been removed and providing the renewal link
+
+**Given** any handler catches an SMTP error or cannot find the target user in DBAL
+**When** the email cannot be sent
+**Then** the failure is logged at `error` level with `membershipId` or `userId` context before the exception is rethrown for Messenger retry handling
+**And** the role transition already committed is not rolled back (email failure is non-critical)
+
+**And** all four quality gates pass
+
+---
+
+### Story 22.5: User-Facing Membership Section
+
+As an authenticated user,
+I want to see my current membership status in my account profile and access the HelloAsso checkout to subscribe or renew,
+So that I can manage my membership entirely from the ArchiLAN site.
+
+**Context:**
+A new "Adhésion" section is added to the existing account tabs (`account-tabs.tsx`). The API exposes `GET /api/v1/account/membership`. The frontend follows AGENTS.md: a server component or TanStack Query loads the data; no `useEffect` for data fetching. The HelloAsso checkout URL is fetched through the existing `GET /api/v1/payments/membership/checkout` API and `features/payments/membership-api.ts`, avoiding a second frontend env source for the same form URL.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated user
+**When** `GET /api/v1/account/membership` is called
+**Then** the response is `200 { data: { status: 'active'|'expired'|'none', expiresAt: string|null, startedAt: string|null } }`
+**And** unauthenticated requests receive `401`
+
+**Given** the user has an active membership
+**When** they visit the "Adhésion" tab in their account profile
+**Then** they see a status badge "Adhésion active", the expiry date, and a "Renouveler" link to the HelloAsso form
+
+**Given** the user has no membership or an expired one
+**When** they visit the section
+**Then** they see "Aucune adhésion active" and a prominent HelloAsso checkout link to subscribe
+**And** if previously expired, the past expiry date is shown for context
+
+**Given** the membership checkout URL is rendered
+**When** the account section needs the subscribe or renew link
+**Then** it reuses `getMembershipCheckoutUrl()` from `features/payments/membership-api.ts`
+**And** no new `NEXT_PUBLIC_HELLOASSO_MEMBERSHIP_FORM_URL` variable is introduced
+**And** `process.env` is not accessed directly anywhere in the component tree
+
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` are clean
+**And** all four API quality gates pass
+
+---
+
+### Story 22.6: Admin Membership Dashboard & Dolibarr Sync
+
+As an admin,
+I want a membership management dashboard with manual create and automatic Dolibarr synchronisation,
+So that I can monitor membership state, correct edge cases, and keep the association ERP up to date.
+
+**Context:**
+Three endpoints are added under `Membership/Presentation/Admin/`. Controllers delegate to Application services only. `DolibarrClientInterface` lives in `Membership/Infrastructure/` - consistent with `DiscordBotClientInterface` and `DiscordOAuthClientInterface` (existing Infrastructure convention). It exposes `upsertMember(string $email, string $displayName, string $status, ?\DateTimeImmutable $expiresAt): void`. `DolibarrClient` (real HTTP impl) and `NullDolibarrClient` (no-op stub) also live in `Membership/Infrastructure/`, with the null implementation registered under `when@test:`. `ActivateMembership` and `ExpireMembership` (22.1) are each updated to dispatch `SyncMemberToDolibarrMessage` after successful flush. The handler calls `DolibarrClientInterface::upsertMember()`; failures are caught, logged, and rethrown for Messenger retry without affecting the ArchiLAN membership record (NFR-ME2). This story also adds a Dolibarr bulk resync endpoint/service so memberships created before Dolibarr configuration can be pushed later.
+
+**Acceptance Criteria:**
+
+**Given** an admin is authenticated
+**When** `GET /api/v1/admin/memberships?page=1&limit=50&status=active&search=jean` is called
+**Then** the response is `200` with `{ data: [...], meta: { page: 1, limit: 50, total: int } }`
+**And** memberships are filtered by `status` and searched by `email` or `displayName`
+**And** each entry contains `id`, `userId`, `email`, `displayName`, `status`, `startedAt`, `expiresAt`, `source`, `helloassoOrderId`, `adminNote`
+
+**Given** an admin is authenticated
+**When** `POST /api/v1/admin/memberships` is called with `{ userId: string, startedAt?: string, adminNote?: string }`
+**Then** `ActivateMembership::activate($userId, startedAt ?? now(), 'admin', null, $adminNote)` is called
+**And** the response is `201` with the created membership payload
+
+**Given** an admin is authenticated
+**When** `POST /api/v1/admin/memberships/dolibarr/resync` is called
+**Then** `SyncMemberToDolibarrMessage` is dispatched for every membership row
+**And** the response is `202` with `{ data: { queued: N } }`
+
+**Given** a non-admin user
+**When** any admin endpoint is called
+**Then** the response is `403 Forbidden`
+
+**Given** `ActivateMembership` or `ExpireMembership` flushes successfully
+**When** `SyncMemberToDolibarrMessage` is processed
+**Then** `DolibarrClientInterface::upsertMember()` is called with the user's email, displayName, status, and expiresAt
+**And** success is logged at `info` level
+**And** on failure the exception is caught, logged at `error` level, and rethrown for Messenger retry - the ArchiLAN membership is unaffected
+
+**Given** the admin visits `/admin/memberships`
+**When** the page loads
+**Then** a searchable, filterable table shows all memberships with status badges (active in green, expired in muted)
+**And** a "Créer une adhésion" button opens a dialog with a user email search field and optional note field, submits to `POST /api/v1/admin/memberships`, and refreshes the table on success
+**And** the admin sidebar navigation includes an "Adhésions" entry pointing to `/admin/memberships`
+
+**Given** `api/.env`
+**When** story 22.6 is complete
+**Then** `DOLIBARR_API_URL=` and `DOLIBARR_API_KEY=` are added and documented
+
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` are clean
+**And** all four API quality gates pass
+
+---
+
+## Epic 23: Weekly Runs - Runs Hebdomadaires Archipelago
+
+Members can join an admin-scheduled weekly Archipelago challenge that resets every Monday. Each participant generates their own individual Archipelago game on demand using a shared deterministic seed - everyone plays the same randomized world independently. Three leaderboards rank participants by fastest goal, fewest checks, and fewest items. Admins configure run templates using the existing YAML editor; the weekly scheduling is fully automated.
+
+### Requirements: FR-WR1–FR-WR10, NFR-WR1–NFR-WR4
+
+---
+
+### Story 23.1: Weekly Run Domain Model & Bounded Context
+
+*(Amended 2026-05-17: `WeeklyTemplate.game` replaced by `gameId` UUID; `WeeklyEntry.playerYaml` removed - admin YAML fixed for all players)*
+*(Amended 2026-05-17: individual on-demand runs per player - no shared multiworld. WeeklyRun has no externalSessionId; WeeklyEntry gains externalSessionId + launchedAt; status simplified to `'active'|'finished'`.)*
+
+As a developer,
+I want a `WeeklyRuns` bounded context with `WeeklyTemplate`, `WeeklyRun`, and `WeeklyEntry` domain entities,
+So that the weekly run lifecycle is cleanly encapsulated with no coupling to other bounded contexts.
+
+**Context:**
+A new `WeeklyRuns` bounded context is created. `WeeklyTemplate` defines the game, YAML config, and rules for a weekly challenge. `WeeklyRun` is one instantiation per ISO week. `WeeklyEntry` links one member attempt to a run and owns the runner session for that player's individual Archipelago game. Each player generates their own session on demand using the week's seed - there is no shared multiworld.
+
+Cross-context coupling: `WeeklyRuns` never imports from `PersonalRuns`, `Sessions`, or `Events`. It references `GameSelection` only by UUID string (`gameId`). The runner is accessed through `WeeklyRunnerGatewayInterface` in `WeeklyRuns/Application/`.
+
+**Domain entities:**
+
+`WeeklyTemplate` (`final`, ORM-mapped):
+- `id`: UUID varchar 36
+- `name`: varchar 100, nullable (falls back to game name for display)
+- `gameId`: varchar 36 (UUID of a `GameSelection\Domain\Game` - plain string, no Doctrine cross-context relation)
+- `yamlConfig`: text (admin-configured YAML; placeholder name "ArchiLAN" substituted with player's displayName at launch time)
+- `maxAttempts`: int nullable (`null` = unlimited attempts per member per week)
+- `isActive`: bool default true
+- `createdAt`, `updatedAt`: datetime_immutable
+
+`WeeklyRun` (`final`, ORM-mapped):
+- `id`: UUID varchar 36
+- `templateId`: varchar 36 (plain string)
+- `weekYear`: int (e.g. 2026) - ISO year via `format('o')`
+- `weekNumber`: int (ISO 8601, 1–53)
+- `seed`: varchar 100 (format: `archilan-weekly-{weekYear}-{weekNumber:02d}`)
+- `status`: varchar 10 (`'active'|'finished'` - no `pending` phase)
+- `startedAt`: datetime_immutable (set Monday 00:00 at creation - serves as leaderboard time baseline)
+- `finishedAt`: datetime_immutable nullable
+- `createdAt`: datetime_immutable
+
+`WeeklyEntry` (`final`, ORM-mapped):
+- `id`: UUID varchar 36
+- `weeklyRunId`: varchar 36 (plain string)
+- `userId`: varchar 36 (plain string)
+- `attemptNumber`: int (1-based per user per `WeeklyRun`)
+- `externalSessionId`: varchar 36 nullable (runner session ID for this player's individual game, set at launch)
+- `launchedAt`: datetime_immutable nullable (set when player starts their session)
+- `goalReachedAt`: datetime_immutable nullable
+- `completionTimeSeconds`: int nullable (`goalReachedAt - run.startedAt` in seconds)
+- `checksTotal`: int nullable
+- `itemsTotal`: int nullable
+- `createdAt`, `updatedAt`: datetime_immutable
+
+**Acceptance Criteria:**
+
+**Given** the monorepo has existing bounded contexts
+**When** story 23.1 begins
+**Then** `src/WeeklyRuns/{Domain,Application,Infrastructure,Presentation}/` directories are created
+**And** `DddArchitectureValidator::CONTEXTS` includes `'WeeklyRuns'`
+**And** `services.yaml` excludes `App\WeeklyRuns\Domain\` from autowiring
+**And** Doctrine mapping is configured for `src/WeeklyRuns/Domain/`
+
+**Given** the bounded context is set up
+**When** the migration runs
+**Then** a `weekly_templates` table is created with all fields, an index on `is_active`, and an index on `game_id`
+**And** a `weekly_runs` table is created with all fields, a unique index on `(template_id, week_year, week_number)`, and an index on `status`
+**And** a `weekly_entries` table is created with all fields, a unique index on `(weekly_run_id, user_id, attempt_number)`, an index on `(weekly_run_id, goal_reached_at)`, and an index on `(user_id)`
+**And** no foreign key constraint is created between `weekly_templates.game_id` and `game.id` - the reference is intentionally loose (cross-context coupling via DB constraint is forbidden)
+
+**Given** `WeeklyRunnerGatewayInterface` is defined in `WeeklyRuns/Application/`
+**When** story 23.1 is complete
+**Then** the interface declares:
+- `launchEntry(string $weeklyEntryId, string $seed, string $apworldStorageKey, string $playerName, string $yaml): array` - returns `['externalSessionId' => string, 'connectionInfo' => ['host' => string, 'port' => int, 'password' => string|null]]`
+- `terminate(string $externalSessionId): void`
+- `getStats(string $externalSessionId): array` - returns `['checksTotal' => int, 'itemsTotal' => int, 'goalReachedAt' => ?string]`
+**And** `NullWeeklyRunnerGateway` (stub, `when@test:`) is registered in `services.yaml`
+**And** `HttpWeeklyRunnerGateway` (real implementation) is registered as default
+
+**Given** domain methods are called on `WeeklyRun` and `WeeklyEntry`
+**When** story 23.1 is complete
+**Then** `WeeklyRun::finish(\DateTimeImmutable $finishedAt): void` sets `status = 'finished'` and `finishedAt`
+**And** `WeeklyEntry::launch(string $externalSessionId, \DateTimeImmutable $launchedAt): void` sets `externalSessionId` and `launchedAt`
+**And** `WeeklyEntry::recordGoal(\DateTimeImmutable $goalReachedAt, int $completionTimeSeconds, int $checksTotal, int $itemsTotal): void` sets all goal fields
+**And** `WeeklyTemplate::deactivate(): void` sets `isActive = false`
+**And** no method accepts a Symfony or infrastructure dependency (AC-D3)
+
+**And** all four quality gates pass
+
+---
+
+### Story 23.2: Bridge/Runner Extension - Seed Parameter Support
+
+As the system,
+I want to pass a deterministic `--seed` argument to the Archipelago CLI during weekly run generation,
+So that the same seed string always produces the same game world for a given week.
+
+**Context:**
+The existing generation pipeline (dispatched by `PersonalRuns` via a Messenger job to the Python bridge) does not pass a seed. Three layers need extension: (1) the PHP job message gains a nullable `seed` field; (2) the PHP handler includes `seed` in the job payload sent to the bridge; (3) the Python `runner/app/generator.py` appends `--seed <value>` to the Archipelago CLI invocation when the field is present and non-null. A `null` seed preserves current behaviour - random generation, PersonalRuns are unaffected.
+
+To avoid coupling `WeeklyRuns/Application/` to `PersonalRuns/Application/Message/`, `GenerateRunJob` is moved from `PersonalRuns/Application/Message/` to `Shared/Application/Message/`. `PersonalRuns/Application/Handler/GenerateRunJobHandler` is updated to import from `Shared`. `DddArchitectureValidator` and `messenger.yaml` routing are updated accordingly. **This Messenger bus path is for PersonalRuns only.** The `WeeklyRuns` context does NOT dispatch `GenerateRunJob` through the bus - it launches player sessions directly via `HttpWeeklyRunnerGateway::launchEntry()` (an HTTP call to the runner, fully implemented in this story as AC4).
+
+**Acceptance Criteria:**
+
+**Given** `Shared/Application/Message/GenerateRunJob.php` exists (moved from PersonalRuns)
+**When** story 23.2 is complete
+**Then** `GenerateRunJob` has a new `seed: ?string` constructor parameter (default `null`)
+**And** `PersonalRuns/Application/Handler/GenerateRunJobHandler.php` imports `GenerateRunJob` from `Shared\Application\Message\` - not from `PersonalRuns\Application\Message\`
+**And** the old `PersonalRuns/Application/Message/GenerateRunJob.php` file is deleted
+**And** `DddArchitectureValidator` allows `Shared\Application\Message\` imports from any Application layer
+**And** all existing PersonalRuns functional tests pass unchanged (seed is `null` → same behaviour)
+
+**Given** `GenerateRunJobHandler` serializes the job for the bridge
+**When** `seed` is non-null
+**Then** the JSON payload sent to the bridge includes `"seed": "<value>"`
+**And** when `seed` is null the `seed` field is omitted from the payload
+
+**Given** `runner/app/generator.py` receives a generation job payload
+**When** the payload contains a `seed` field with a non-empty string value
+**Then** the Archipelago CLI command includes `--seed <value>` as additional flags
+**And** when the field is absent or null the command is unchanged
+
+**Given** the same seed string is provided twice in separate weeks
+**When** Archipelago generates both worlds
+**Then** both produce identical game worlds (determinism is guaranteed by Archipelago's `--seed` flag - this is a smoke-test assertion in Dev Notes, not an automated test)
+
+**Given** `runner/app/main.py` is updated
+**When** `POST /sessions/{sessionId}/generate-and-launch` is called with `{ seed?, slots: [{ slotName, apworldStorageKey, playerYaml }] }`
+**Then** the runner writes the YAML, runs Archipelago generation synchronously (awaited), launches the Docker container, and returns `{ sessionId, containerHost, containerPort, serverPassword }`
+**And** `HttpWeeklyRunnerGateway::launchEntry()` calls this single endpoint with timeout ≥120s and maps the response to `['externalSessionId', 'connectionInfo']`
+
+**Given** story 23.2 is complete
+**When** `php bin/console app:architecture:ddd` runs
+**Then** no layer violations are reported for the moved message type
+
+**And** all four quality gates pass
+
+---
+
+### Story 23.3: Scheduler - Weekly Lifecycle Automation
+
+*(Amended 2026-05-17: no LaunchWeeklyRunJob - runs start as `'active'` immediately; stop handler terminates per-entry sessions)*
+
+As the system,
+I want a fully automated weekly run lifecycle driven by Symfony Scheduler,
+So that `WeeklyRun` records are created every Monday at 00:00 UTC and all still-running player sessions are stopped every Sunday at 23:59 UTC.
+
+**Context:**
+Two recurring entries in `src/Schedule.php`: (1) `cron('0 0 * * 1', new GenerateWeeklyRunsMessage())` - creates the weekly run record; (2) `cron('59 23 * * 0', new StopWeeklyRunsMessage())` - stops player sessions. No batch launch: player sessions are created on demand when a member clicks "Lancer ma partie" (Story 23.4).
+
+`GenerateWeeklyRunsMessageHandler`: for each active template with no existing run this ISO week, creates `WeeklyRun` with `status = 'active'`, `startedAt = now`, `seed = 'archilan-weekly-{year}-{week:02d}'`. No runner call.
+
+`StopWeeklyRunsMessageHandler`: for each active `WeeklyRun`, finds all `WeeklyEntry` with `externalSessionId IS NOT NULL AND goalReachedAt IS NULL`, calls `terminate(externalSessionId)` for each (best-effort, continues on error), then calls `WeeklyRun::finish(now)` and flushes.
+
+**Acceptance Criteria:**
+
+**Given** `src/Schedule.php` is the central scheduler
+**When** story 23.3 is complete
+**Then** a `RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage())` entry exists
+**And** a `RecurringMessage::cron('59 23 * * 0', new StopWeeklyRunsMessage())` entry exists
+
+**Given** `GenerateWeeklyRunsMessageHandler` runs
+**When** an active template has no existing run for the current ISO week
+**Then** a `WeeklyRun` is created with `status = 'active'`, `startedAt = now`, correct `weekYear`, `weekNumber`, `seed`
+**And** it is persisted and flushed with no runner call and no async job dispatched
+
+**Given** `GenerateWeeklyRunsMessageHandler` runs again for the same week
+**When** a run already exists
+**Then** no duplicate is created (idempotent)
+
+**Given** `StopWeeklyRunsMessageHandler` runs on Sunday at 23:59
+**When** active runs exist with launched entries
+**Then** `terminate(externalSessionId)` is called for each entry with non-null `externalSessionId` and null `goalReachedAt`
+**And** on `terminate()` exception the error is logged at `error` level and the handler continues (best-effort)
+**And** `WeeklyRun::finish(now)` is called and flushed for each run
+
+**And** all four quality gates pass
+
+---
+
+### Story 23.4: Member Opt-In Flow & Goal Detection
+
+*(Amended 2026-05-17: on-demand per-player launch endpoint added; goal callback uses `externalSessionId` not `slotIndex`; secret is `CENTRAL_API_SECRET`/`$centralApiSecret` matching existing pattern)*
+
+As a member,
+I want to opt into the weekly run and launch my personal Archipelago session on demand, with my progress tracked automatically,
+So that I appear on the leaderboard when I reach the goal.
+
+**Context:**
+Three steps: (1) opt-in creates a `WeeklyEntry`; (2) player launches their individual session via `POST .../launch` which substitutes their `displayName` into the template YAML and calls `WeeklyRunnerGatewayInterface::launchEntry()`; (3) the bridge POSTs a goal callback to `POST /api/v1/internal/weekly-runs/goal-callback` (header: `X-Internal-Secret: {CENTRAL_API_SECRET}`) when the player reaches the goal. Internal auth follows the same pattern as `Sessions/Presentation/RunnerCallbackController`.
+
+**Acceptance Criteria:**
+
+**Given** an authenticated member (`ROLE_MEMBER`)
+**When** `POST /api/v1/weekly-runs/{weeklyRunId}/entries` is called
+**Then** if run `status ≠ 'active'` → `422 { error: 'run_not_active' }`
+**And** if entry count ≥ `maxAttempts` (skip when null) → `422 { error: 'max_attempts_reached' }`
+**And** otherwise `WeeklyEntry` created, flushed, response `201 { data: { id, weeklyRunId, userId, attemptNumber } }`
+
+**Given** `POST /api/v1/weekly-runs/{weeklyRunId}/entries/{entryId}/launch` (ROLE_MEMBER, own entry)
+**When** entry has no `externalSessionId` yet
+**Then** service fetches `apworldStorageKey` from `game` table via DBAL, fetches `displayName` from `user` table via DBAL, substitutes `displayName` as YAML `name` field, calls `WeeklyRunnerGatewayInterface::launchEntry()`, calls `WeeklyEntry::launch(externalSessionId, now)`, flushes
+**And** response is `201 { data: { entryId, externalSessionId, connectionInfo: { host, port, password } } }`
+**And** if `externalSessionId` already set → `422 { error: 'session_already_started' }`
+
+**Given** `POST /api/v1/internal/weekly-runs/goal-callback`
+**When** `X-Internal-Secret` header ≠ `CENTRAL_API_SECRET` env → `401 Unauthorized`
+
+**Given** goal callback with `{ externalSessionId, checksTotal, itemsTotal, goalReachedAt }`
+**When** `RecordWeeklyGoal::record()` is called
+**Then** entry found by `externalSessionId`; if `goalReachedAt` already set → no-op
+**And** `WeeklyEntry::recordGoal(goalReachedAt, completionTimeSeconds, checksTotal, itemsTotal)` called where `completionTimeSeconds = max(0, goalReachedAt - run.startedAt)`
+**And** flushed; Mercure published on `weekly-runs/{weeklyRunId}/leaderboard` via `HubInterface::publish(new Update(...))` after flush
+
+**Given** `GET /api/v1/weekly-runs/current` (public)
+**When** authenticated caller's `myEntry` is included
+**Then** `200 { data: [{ weeklyRunId, templateName, gameName, weekNumber, weekYear, status, startedAt, finishedAt, leaderboard: { fastest, fewestChecks, fewestItems }, participants, myEntry: null | { entryId, launchedAt, goalReachedAt, connectionInfo } }] }`
+
+**And** all four quality gates pass
+
+---
+
+### Story 23.5: Admin - Template CRUD & Weekly Run Monitoring
+
+*(Amended 2026-05-17: template creation uses game picker + yaml-option-editor instead of raw textarea; API accepts gameId not free-text game name)*
+
+As an admin,
+I want to create and edit weekly run templates using the existing game library and YAML editor,
+So that I can configure which games run each week with the same visual tool players already know.
+
+**Context:**
+Five endpoints under `WeeklyRuns/Presentation/Admin/`. Template CRUD follows the same pattern as admin membership endpoints: controllers call Application services, no DB access in controllers (AC-P1/P2). Soft-delete: `WeeklyTemplate::deactivate()` sets `isActive = false`; the template is never physically removed.
+
+**Template creation UX - two-step flow:**
+The "Nouveau template" action opens a dedicated page (or full-screen dialog) with two sequential steps:
+1. **Sélection du jeu** - a game picker card grid (reusing `GET /api/v1/admin/games?apworldReady=true`) showing game name and cover image. The admin clicks a game to proceed. Only games with `isApworldReady = true` are shown.
+2. **Configuration YAML** - the `yaml-option-editor.tsx` component is mounted with the selected game's `defaultYaml` as schema seed. The admin uses the visual editor (toggles, dropdowns, sliders) to set the options for the week. Below the editor, fields for `name` (optional override) and `maxAttempts` (number or "Illimité" toggle). The "Créer" button serializes the YAML and submits `POST /api/v1/admin/weekly-templates`.
+
+**Template edit UX:**
+Edit re-opens the same two-step page. Step 1 is skipped (game cannot be changed once created - it would invalidate the YAML). Step 2 mounts `yaml-option-editor.tsx` with the stored `yamlConfig` merged over `defaultYaml` via `mergePlayerValues()` from `src/lib/archipelago-yaml.ts`, so previous admin choices are restored in the UI.
+
+**API contract for template endpoints:** `gameId` is a UUID referencing `GameSelection.Game`. The backend validates that the referenced game exists and has `isApworldReady = true`; if not, returns `422 { error: 'game_not_ready' }`.
+
+**Acceptance Criteria:**
+
+**Given** an admin is authenticated
+**When** `GET /api/v1/admin/weekly-templates` is called
+**Then** the response is `200 { data: [...], meta: { total } }` listing all templates (active and inactive)
+**And** each entry contains `id, name, gameId, gameName, maxAttempts, isActive, createdAt`
+**And** `gameName` is joined from the `game` table via DBAL (not from `WeeklyTemplate` - avoids denormalization)
+
+**Given** an admin is authenticated
+**When** `POST /api/v1/admin/weekly-templates` is called with `{ gameId, yamlConfig, name?, maxAttempts? }`
+**Then** the application service validates `gameId` references an existing game with `apworld_storage_key IS NOT NULL` (DBAL check - no `is_apworld_ready` column exists)
+**And** a new `WeeklyTemplate` is created with `isActive = true`, storing `gameId` and `yamlConfig`
+**And** the response is `201 { data: { id, name, gameId, gameName, yamlConfig, maxAttempts, isActive } }`
+**And** missing `gameId` or `yamlConfig` returns `422`
+**And** a `gameId` referencing a non-existent or non-ready game returns `422 { error: 'game_not_ready' }`
+
+**Given** an admin is authenticated
+**When** `GET /api/v1/admin/weekly-templates/{id}` is called
+**Then** the response is `200 { data: { id, name, gameId, gameName, yamlConfig, maxAttempts, isActive } }`
+**And** `yamlConfig` is included in full so the frontend can seed `yaml-option-editor.tsx` for editing
+
+**Given** an admin is authenticated
+**When** `PATCH /api/v1/admin/weekly-templates/{id}` is called with partial fields
+**Then** only provided fields are updated (`name`, `yamlConfig`, `maxAttempts`, `isActive`) - `gameId` is immutable after creation
+**And** the response is `200 { data: { ... updated template ... } }`
+
+**Given** an admin is authenticated
+**When** `DELETE /api/v1/admin/weekly-templates/{id}` is called
+**Then** `WeeklyTemplate::deactivate()` is called (sets `isActive = false`)
+**And** any active `WeeklyRun` for this template is not stopped - it runs to its natural end
+**And** the response is `204 No Content`
+
+**Given** an admin is authenticated
+**When** `GET /api/v1/admin/weekly-runs/current` is called
+**Then** the response is `200 { data: [{ weeklyRunId, templateName, gameName, status, seed, startedAt, finishedAt, entryCount, entries: [{ userId, displayName, attemptNumber, externalSessionId, launchedAt, goalReachedAt, completionTimeSeconds, checksTotal, itemsTotal }] }] }` where `status IN ('active', 'finished')`
+**And** unauthenticated requests receive `401`, non-admin `403`
+
+**Given** the admin visits `/admin/weekly-runs`
+**When** the page loads
+**Then** two sections are visible: "Templates" and "Run de la semaine"
+**And** the Templates section lists all templates with columns: game cover thumbnail, game name, template name, maxAttempts badge ("Illimité" or "N tentative(s)"), active/inactive toggle, and "Éditer" / "Désactiver" row actions
+**And** clicking "Nouveau template" navigates to the two-step creation page described in Context
+**And** clicking "Éditer" navigates to the same page pre-filled with the template's current values
+**And** the "Run de la semaine" section shows a card per `active` or `finished` run with: seed pill, status badge (active=green, finished=muted), participant count, and an expandable table of entries with `externalSessionId` (truncated), `launchedAt`, `goalReachedAt`, and metric values
+
+**Given** the admin is on the YAML configuration step (step 2)
+**When** the `yaml-option-editor.tsx` component renders
+**Then** it receives the game's `defaultYaml` (fetched from `GET /api/v1/admin/games/{gameId}`) as its base schema
+**And** in edit mode, `mergePlayerValues(defaultYaml, storedYamlConfig)` pre-populates the editor with the previous admin choices
+**And** the live YAML preview panel updates as the admin changes options (same behaviour as player-facing editor)
+**And** clicking "Créer" or "Enregistrer" serializes the editor state via `serializeToYaml()` and POSTs or PATCHes the endpoint
+
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` are clean
+**And** all four API quality gates pass
+
+---
+
+### Story 23.6: Member-Facing Weekly Run Page & Live Leaderboard
+
+As a member,
+I want a dedicated weekly runs page where I can see the current run, opt in with one click, and watch the leaderboard update live as other players reach their goal,
+So that participating in the weekly Archipelago challenge feels engaging and competitive.
+
+**Context:**
+`/runs-hebdo` is a new Next.js page under `app/(public)/runs-hebdo/` (accessible to authenticated members only - auth enforced in the Server Component, same pattern as `compte/`; no middleware). It uses TanStack Query with `staleTime: 30_000` as the baseline and a Mercure EventSource for real-time pushes on the `weekly-runs/{weeklyRunId}/leaderboard` topic. The opt-in button calls `POST /api/v1/weekly-runs/{weeklyRunId}/entries`; on `201` the query is invalidated, and the member sees a "Lancer ma partie" button. On launch, `POST .../launch` returns `connectionInfo: { host, port, password }`. The three leaderboard columns (fastest, fewest checks, fewest items) are rendered as tabs; players without a goal appear in a "Participants en cours" section. Env vars go through `src/lib/env.ts` (AC-ENV1). All keys use stable IDs (AC-KEY1). No `useEffect` for initial data (AC-NX1).
+
+**Acceptance Criteria:**
+
+**Given** an unauthenticated visitor
+**When** `/runs-hebdo` is accessed
+**Then** they are redirected to the login page (auth check in Server Component - no middleware)
+
+**Given** an authenticated member
+**When** `/runs-hebdo` loads
+**Then** the page fetches `GET /api/v1/weekly-runs/current` and renders each active run in a card
+**And** each card shows: `gameName` (from the joined Game record), optional `templateName` if set, week number (`Semaine {N}`), time remaining until Sunday 23:59, and the three leaderboard tabs
+
+**Given** no run is active this week
+**When** the page loads
+**Then** a placeholder "Aucun run cette semaine - revenez lundi !" is displayed
+
+**Given** the member has not yet opted in and `maxAttempts` allows it
+**When** they click "Rejoindre ce run"
+**Then** `POST /api/v1/weekly-runs/{weeklyRunId}/entries` is called
+**And** on `201` the button changes to "Vous participez (tentative #N)" and the participants list updates
+**And** on `422 max_attempts_reached` a toast "Vous avez atteint le nombre maximum de tentatives" is shown
+**And** on `422 run_not_active` a toast "Ce run n'est plus actif" is shown
+
+**Given** a Mercure EventSource is subscribed to `weekly-runs/{weeklyRunId}/leaderboard`
+**When** a goal event arrives
+**Then** the leaderboard entries update without a full page reload
+**And** the EventSource listener is cleaned up in the `useEffect` return function (no memory leak)
+
+**Given** the three leaderboard tabs
+**When** entries with goals exist
+**Then** "Meilleur temps" shows `displayName` and time formatted as `HH:mm:ss`, ordered fastest first
+**And** "Moins de checks" shows `displayName` and `checksTotal` integer, ordered lowest first
+**And** "Moins d'items" shows `displayName` and `itemsTotal` integer, ordered lowest first
+**And** each tab shows the member's own entry highlighted (if present)
+
+**Given** `GET /api/v1/weekly-runs/current` is called (public endpoint, optional authentication)
+**When** runs exist this week
+**Then** the response is `200 { data: [{ weeklyRunId, templateName, gameName, weekNumber, weekYear, status, startedAt, finishedAt, leaderboard: { fastest, fewestChecks, fewestItems }, participants, myEntry }] }`
+**And** `gameName` is joined from the `game` table (DBAL query - no cross-context import)
+**And** `myEntry` is `null` for unauthenticated callers; for authenticated callers it is `{ entryId, launchedAt, goalReachedAt, connectionInfo: { host, port, password } | null }` or `null` if the member has not opted in
+
+**And** `pnpm typecheck`, `pnpm lint`, and `pnpm build` are clean
+**And** all four API quality gates pass

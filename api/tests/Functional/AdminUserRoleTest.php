@@ -25,7 +25,7 @@ final class AdminUserRoleTest extends FunctionalTestCase
 
     public function testUnauthenticatedRoleChangeIsRejected(): void
     {
-        $target = $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
+        $target = $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/users/%s/role', $target->getId()), [
             'role' => 'member',
@@ -35,11 +35,11 @@ final class AdminUserRoleTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaRoleChangeIsForbidden(): void
+    public function testStandardRoleChangeIsForbidden(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
         $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target');
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/users/%s/role', $target->getId()), [
             'role' => 'member',
@@ -49,7 +49,7 @@ final class AdminUserRoleTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testAdminPromotesLambdaToMemberWithAudit(): void
+    public function testAdminPromotesUserToMemberWithAudit(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
         $target = $this->createUser('target@example.org', ['ROLE_USER'], 'Target');
@@ -70,32 +70,32 @@ final class AdminUserRoleTest extends FunctionalTestCase
         $audit = $this->singleAudit();
         self::assertSame($target->getId(), $audit->getTargetUserId());
         self::assertSame($admin->getId(), $audit->getAdminUserId());
-        self::assertSame('lambda', $audit->getPreviousRole());
+        self::assertSame('user', $audit->getPreviousRole());
         self::assertSame('member', $audit->getNewRole());
         self::assertNotSame('', $audit->getId());
         self::assertLessThanOrEqual(new \DateTimeImmutable(), $audit->getChangedAt());
     }
 
-    public function testAdminDemotesMemberToLambdaWithAudit(): void
+    public function testAdminDemotesMemberToUserWithAudit(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
         $target = $this->createUser('target@example.org', ['ROLE_USER', 'ROLE_MEMBER'], 'Target');
         $this->loginAs($admin);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/users/%s/role', $target->getId()), [
-            'role' => 'lambda',
+            'role' => 'user',
             'confirmed' => true,
         ]);
 
         self::assertResponseIsSuccessful();
         $response = $this->decodedJsonResponse();
         self::assertIsArray($response['data']);
-        self::assertSame('lambda', $response['data']['role']);
+        self::assertSame('user', $response['data']['role']);
         self::assertSame(['ROLE_USER'], $response['data']['roles']);
 
         $audit = $this->singleAudit();
         self::assertSame('member', $audit->getPreviousRole());
-        self::assertSame('lambda', $audit->getNewRole());
+        self::assertSame('user', $audit->getNewRole());
     }
 
     public function testConfirmationIsRequired(): void
@@ -123,13 +123,13 @@ final class AdminUserRoleTest extends FunctionalTestCase
         $this->loginAs($admin);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/users/%s/role', $admin->getId()), [
-            'role' => 'lambda',
+            'role' => 'user',
             'confirmed' => true,
         ]);
         self::assertResponseStatusCodeSame(422);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/users/%s/role', $otherAdmin->getId()), [
-            'role' => 'lambda',
+            'role' => 'user',
             'confirmed' => true,
         ]);
         self::assertResponseStatusCodeSame(422);

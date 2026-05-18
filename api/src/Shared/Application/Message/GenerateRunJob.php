@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Application\Message;
+namespace App\Shared\Application\Message;
 
 final readonly class GenerateRunJob
 {
@@ -15,6 +15,7 @@ final readonly class GenerateRunJob
         public string $phase, // 'validate' | 'generate'
         public array $slots = [],
         public array $apworldDownloadUrls = [],
+        public ?string $seed = null,
     ) {
     }
 }

@@ -34,7 +34,8 @@ services:
             string $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
-            string $siteUrl: '%env(default:default_empty_string:SITE_URL)%'
+            string $siteUrl: '%env(FRONTEND_ORIGIN)%'
+            string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
             string $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
 
     # makes classes in src/ available to be used as services
@@ -57,6 +58,23 @@ services:
             - '../src/Sessions/Domain/'
             - '../src/PersonalRuns/Domain/'
             - '../src/CatalogSync/Domain/'
+            - '../src/Membership/Domain/'
+            - '../src/WeeklyRuns/Domain/'
+
+    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway'
+
+    App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway:
+        arguments:
+            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $runnerApiKey: '%env(RUNNER_API_KEY)%'
+            $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+
+    App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\DolibarrClient'
+
+    App\Membership\Infrastructure\DolibarrClient:
+        arguments:
+            $dolibarrApiUrl: '%env(default:default_empty_string:DOLIBARR_API_URL)%'
+            $dolibarrApiKey: '%env(default:default_empty_string:DOLIBARR_API_KEY)%'
 
     App\Sessions\Infrastructure\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
 
@@ -67,6 +85,7 @@ services:
             $endpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
             $accessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
             $secretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
+            $presignEndpoint: '%env(default:default_empty_string:MINIO_PRESIGN_ENDPOINT)%'
 
     App\Sessions\Infrastructure\RunnerGateway:
         arguments:
@@ -156,6 +175,56 @@ services:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $archiveDir: '%env(ARCHIVE_DIR)%'
 
+    App\Identity\Infrastructure\DiscordOAuthClientInterface: '@App\Identity\Infrastructure\DiscordOAuthClient'
+
+    App\Identity\Infrastructure\DiscordOAuthClient:
+        arguments:
+            $clientId: '%env(DISCORD_CLIENT_ID)%'
+            $clientSecret: '%env(DISCORD_CLIENT_SECRET)%'
+
+    App\Identity\Application\DiscordBotClientInterface: '@App\Identity\Infrastructure\DiscordBotClient'
+
+    App\Identity\Infrastructure\DiscordBotClient:
+        arguments:
+            $botToken: '%env(DISCORD_BOT_TOKEN)%'
+
+    App\Identity\Application\Message\SyncDiscordRoleMessageHandler:
+        arguments:
+            $guildId: '%env(DISCORD_GUILD_ID)%'
+            $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
+            $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
+
+    App\Identity\Application\DiscordBotStatusQuery:
+        arguments:
+            $clientId: '%env(DISCORD_CLIENT_ID)%'
+            $guildId: '%env(DISCORD_GUILD_ID)%'
+            $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
+            $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
+
+    App\Identity\Application\HandleDiscordAuthCallback:
+        arguments:
+            $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
+
+    App\Identity\Application\LinkDiscordToAccount:
+        arguments:
+            $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
+
+    App\Identity\Presentation\DiscordAuthController:
+        arguments:
+            $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
+
+    App\Identity\Presentation\DiscordLinkController:
+        arguments:
+            $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
+
+    App\Membership\Application\UserRoleGatewayInterface: '@App\Membership\Infrastructure\UserRoleGateway'
+
+    App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\ActivateMembership'
+
+    App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\ProcessHelloAssoMembershipPayment'
+
+    App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\ExpireMembership'
+
     App\Streaming\Infrastructure\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
 
     App\Streaming\Infrastructure\TwitchApiClient:
@@ -205,3 +274,14 @@ when@test:
 
         App\GameSelection\Infrastructure\StubIgdbHttpClient:
             public: true
+
+        App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway'
+
+        App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway:
+            public: true
+
+        App\Identity\Application\DiscordBotClientInterface:
+            class: App\Identity\Infrastructure\NullDiscordBotClient
+
+        App\Membership\Application\DolibarrClientInterface:
+            class: App\Membership\Infrastructure\NullDolibarrClient

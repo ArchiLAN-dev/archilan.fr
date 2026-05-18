@@ -6,6 +6,7 @@ import { useId, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useAuth } from "./auth-context";
+import { DiscordButton } from "./discord-button";
 import type { AuthUser } from "./auth-context";
 
 type AuthResponse =
@@ -39,13 +40,22 @@ function isAuthResponse(v: unknown): v is AuthResponse {
   return hasProp(v, "data");
 }
 
-export function LoginForm({ returnTo }: { returnTo?: string }) {
+const DISCORD_ERROR_MESSAGES: Record<string, string> = {
+  email_conflict:
+    "Un compte existe déjà avec l'adresse email associée à ce compte Discord. Connecte-toi avec ton email et mot de passe.",
+  access_denied: "Connexion Discord annulée ou refusée.",
+  generic: "Une erreur s'est produite lors de la connexion Discord. Réessaie.",
+};
+
+export function LoginForm({ returnTo, discordError }: { returnTo?: string; discordError?: string }) {
   const emailId = useId();
   const passwordId = useId();
   const rememberMeId = useId();
   const router = useRouter();
   const { setUser } = useAuth();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    discordError ? (DISCORD_ERROR_MESSAGES[discordError] ?? DISCORD_ERROR_MESSAGES.generic) : null,
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -163,6 +173,14 @@ export function LoginForm({ returnTo }: { returnTo?: string }) {
           </Link>
         </p>
       </form>
+
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        ou
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <DiscordButton label="Continuer avec Discord" />
     </div>
   );
 }

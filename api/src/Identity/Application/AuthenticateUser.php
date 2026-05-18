@@ -21,7 +21,7 @@ final readonly class AuthenticateUser
 
     public function authenticate(string $email, string $password): ?User
     {
-        $emailCanonical = RegisterLambdaUser::canonicalizeEmail($email);
+        $emailCanonical = RegisterUser::canonicalizeEmail($email);
 
         if ('' === $emailCanonical || '' === $password) {
             return null;

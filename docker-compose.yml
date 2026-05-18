@@ -57,7 +57,7 @@ services:
             PORT_RANGE_START: ${PORT_RANGE_START:-25000}
             PORT_RANGE_END: ${PORT_RANGE_END:-25099}
             WORKSPACE_ROOT: /workspace
-            ARCHIPELAGO_GENERATE_CMD: ${ARCHIPELAGO_GENERATE_CMD:-docker exec archilan-archipelago ArchipelagoGenerate}
+            ARCHIPELAGO_GENERATE_CMD: ${ARCHIPELAGO_GENERATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_multiworld.py}
             ARCHIPELAGO_TEMPLATE_CMD: ${ARCHIPELAGO_TEMPLATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_template.py}
             ARCHIPELAGO_SERVER_IMAGE: archipelago-server:latest
         volumes:
@@ -83,6 +83,14 @@ services:
             interval: 10s
             timeout: 5s
             retries: 10
+
+    mailpit:
+        image: axllent/mailpit:latest
+        container_name: archilan-mailpit
+        restart: unless-stopped
+        ports:
+            - "${MAILPIT_SMTP_PORT:-1025}:1025"
+            - "${MAILPIT_UI_PORT:-8025}:8025"
 
     minio:
         image: minio/minio:RELEASE.2025-04-22T22-12-26Z

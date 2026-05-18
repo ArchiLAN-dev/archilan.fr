@@ -3,18 +3,23 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { ArrowLeft, Calendar, Gamepad2, Library, LogOut, Newspaper, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Bot, Calendar, CreditCard, Gamepad2, LayoutDashboard, Library, LogOut, Menu, Newspaper, Timer, Users, X } from "lucide-react";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { QueryProvider } from "@/lib/query-provider";
 
 const navItems = [
-  { href: "/admin/evenements", icon: Calendar, label: "Événements", shortLabel: "Events" },
-  { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus" },
-  { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux" },
-  { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users" },
-  { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue" },
+  { href: "/admin", icon: LayoutDashboard, label: "Dashboard", shortLabel: "Home", exact: true },
+  { href: "/admin/evenements", icon: Calendar, label: "Événements", shortLabel: "Events", exact: false },
+  { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus", exact: false },
+  { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux", exact: false },
+  { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users", exact: false },
+  { href: "/admin/adhesions", icon: CreditCard, label: "Adhésions", shortLabel: "Adhés.", exact: false },
+  { href: "/admin/discord", icon: Bot, label: "Bot Discord", shortLabel: "Discord", exact: false },
+  { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
+  { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdo", shortLabel: "Runs", exact: false },
 ] as const;
 
 function AdminShellSkeleton() {
@@ -59,6 +64,13 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading, setUser } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const [menuState, setMenuState] = useState({ open: false, pathname });
+  const mobileMenuOpen = menuState.open && menuState.pathname === pathname;
+
+  useEffect(() => {
+    document.body.classList.toggle("overflow-hidden", mobileMenuOpen);
+    return () => document.body.classList.remove("overflow-hidden");
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -102,8 +114,8 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav aria-label="Sections" className="flex flex-1 flex-col gap-1 p-3">
-          {navItems.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+          {navItems.map(({ href, icon: Icon, label, exact }) => {
+            const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 aria-current={active ? "page" : undefined}
@@ -159,8 +171,8 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex flex-1 flex-col items-center gap-1 py-3">
-          {navItems.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+          {navItems.map(({ href, icon: Icon, label, exact }) => {
+            const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 className={[
@@ -198,33 +210,88 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Mobile bottom tab bar - visible <768px */}
-      <nav
-        aria-label="Navigation administration"
-        className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border bg-surface md:hidden"
-      >
-        {navItems.map(({ href, icon: Icon, shortLabel }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <Link
-              aria-current={active ? "page" : undefined}
-              className={[
-                "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors",
-                active ? "text-accent-text" : "text-muted-foreground",
-              ].join(" ")}
-              href={href}
-              key={href}
-            >
-              <Icon aria-hidden="true" className="size-5" />
-              {shortLabel}
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Mobile header - visible <768px */}
+      <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 md:hidden">
+        <div className="flex items-center gap-2.5">
+          <Image
+            alt=""
+            aria-hidden="true"
+            className="size-7 shrink-0"
+            height={28}
+            src="/images/logo.webp"
+            width={28}
+          />
+          <span className="font-heading text-sm font-bold text-foreground">Administration</span>
+        </div>
+        <button
+          aria-expanded={mobileMenuOpen}
+          aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          className="inline-flex size-10 items-center justify-center rounded border border-border text-foreground transition-colors hover:border-accent"
+          type="button"
+          onClick={() => setMenuState((s) => ({ open: !(s.open && s.pathname === pathname), pathname }))}
+        >
+          {mobileMenuOpen ? (
+            <X aria-hidden="true" className="size-5" />
+          ) : (
+            <Menu aria-hidden="true" className="size-5" />
+          )}
+        </button>
+      </header>
 
-      {/* Content area: offset for sidebars, pb-16 on mobile for tab bar */}
+      {/* Mobile menu overlay */}
+      <div
+        aria-hidden={!mobileMenuOpen}
+        className={[
+          "fixed inset-0 top-14 z-40 bg-background md:hidden",
+          mobileMenuOpen ? "visible opacity-100" : "invisible pointer-events-none opacity-0",
+          "transition",
+        ].join(" ")}
+      >
+        <nav aria-label="Navigation administration mobile" className="flex h-full flex-col overflow-y-auto p-4">
+          <div className="flex flex-col gap-1">
+            {navItems.map(({ href, icon: Icon, label, exact }) => {
+              const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <Link
+                  aria-current={active ? "page" : undefined}
+                  className={[
+                    "flex items-center gap-3 border-l-2 px-4 py-3 text-sm font-medium transition-colors",
+                    active
+                      ? "border-accent bg-surface text-foreground"
+                      : "border-transparent text-muted-foreground hover:bg-surface hover:text-foreground",
+                  ].join(" ")}
+                  href={href}
+                  key={href}
+                >
+                  <Icon aria-hidden="true" className="size-5 shrink-0" />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+          <div className="mt-auto flex flex-col gap-1 border-t border-border pt-4">
+            <Link
+              className="flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              href="/"
+            >
+              <ArrowLeft aria-hidden="true" className="size-5" />
+              Site public
+            </Link>
+            <button
+              className="flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground transition-colors hover:text-danger"
+              type="button"
+              onClick={handleLogout}
+            >
+              <LogOut aria-hidden="true" className="size-5" />
+              Se déconnecter
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      {/* Content area */}
       <main
-        className="flex-1 overflow-auto pb-16 md:ml-12 md:pb-0 lg:ml-60"
+        className="flex-1 overflow-auto pt-14 md:ml-12 md:pt-0 lg:ml-60"
         id="admin-main-content"
       >
         {children}
@@ -235,8 +302,10 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <AdminShellInner>{children}</AdminShellInner>
-    </AuthProvider>
+    <QueryProvider>
+      <AuthProvider>
+        <AdminShellInner>{children}</AdminShellInner>
+      </AuthProvider>
+    </QueryProvider>
   );
 }

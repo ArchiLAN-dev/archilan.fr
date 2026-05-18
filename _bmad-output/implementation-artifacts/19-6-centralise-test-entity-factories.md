@@ -12,13 +12,13 @@ review
 
 ## Acceptance Criteria
 
-**AC1:** `FunctionalTestCase` exposes `createUser()`, `createEvent()`, `createGame()`, and `createRegistration()` — each persists and flushes the entity before returning it.
+**AC1:** `FunctionalTestCase` exposes `createUser()`, `createEvent()`, `createGame()`, and `createRegistration()` - each persists and flushes the entity before returning it.
 
 **AC2:** `createEvent()` accepts optional `$published`, `$gameSelectionEnabled`, and `$gameSelectionConfig` parameters so tests requiring published or game-selection-enabled events do not need to bypass the factory.
 
 **AC3:** `createRegistration()` accepts an optional `$selectedGameIds` list so tests requiring pre-seeded game slots do not need to bypass the factory.
 
-**AC4:** No functional test file retains a full duplicate of the shared construction logic — local helpers that previously inlined `new Event(...)`, `Event::draft(...)`, `ArchipelagoGame::create(...)`, or `new Registration(...)` are replaced by calls to the shared factories.
+**AC4:** No functional test file retains a full duplicate of the shared construction logic - local helpers that previously inlined `new Event(...)`, `Event::draft(...)`, `ArchipelagoGame::create(...)`, or `new Registration(...)` are replaced by calls to the shared factories.
 
 **AC5:** All four quality gates (PHPStan level max, CS Fixer, `phpunit`, DDD validator) pass green.
 
@@ -31,13 +31,13 @@ review
   - [x] 2c: `createGame(name, slug)`
   - [x] 2d: `createRegistration(eventId, userId, status, selectedGameIds)`
 - [x] Task 3: Migrate local helpers to use shared factories
-  - [x] `AdminRegistrationDetailTest::makeEvent()` — delegates to `createEvent(published: true, ...)`
-  - [x] `AdminRegistrationDetailTest::makeRegistration()` — delegates to `createRegistration(..., selectedGameIds)`
-  - [x] `RegistrationSubmitTest::makeEvent()` — delegates to `createEvent(published: true, ...)`
-  - [x] `RegistrationSubmitTest::makeRegistration()` — delegates to `createRegistration(..., selectedGameIds)`
-  - [x] `PlayerProfileTest` — replaces inline `Event::draft` / `ArchipelagoGame::create` / `new Registration` with factory calls
-  - [x] `CommunityLeaderboardTest` — same (5 test methods updated)
-  - [x] `RunResultsTest` — replaces inline `Event::draft` / `ArchipelagoGame::create` with factory calls
+  - [x] `AdminRegistrationDetailTest::makeEvent()` - delegates to `createEvent(published: true, ...)`
+  - [x] `AdminRegistrationDetailTest::makeRegistration()` - delegates to `createRegistration(..., selectedGameIds)`
+  - [x] `RegistrationSubmitTest::makeEvent()` - delegates to `createEvent(published: true, ...)`
+  - [x] `RegistrationSubmitTest::makeRegistration()` - delegates to `createRegistration(..., selectedGameIds)`
+  - [x] `PlayerProfileTest` - replaces inline `Event::draft` / `ArchipelagoGame::create` / `new Registration` with factory calls
+  - [x] `CommunityLeaderboardTest` - same (5 test methods updated)
+  - [x] `RunResultsTest` - replaces inline `Event::draft` / `ArchipelagoGame::create` with factory calls
 - [x] Task 4: Quality gates
 
 ## Dev Notes
@@ -50,17 +50,17 @@ review
 
 ### Session helpers
 
-`makeFinishedSession()` / `createFinishedSession()` remain as local helpers in their respective test classes — they are test-scenario helpers (setting session state to `finished`, adding timestamps) rather than basic entity factories, and are not repeated across files.
+`makeFinishedSession()` / `createFinishedSession()` remain as local helpers in their respective test classes - they are test-scenario helpers (setting session state to `finished`, adding timestamps) rather than basic entity factories, and are not repeated across files.
 
 ## File List
 
-- `api/tests/Functional/FunctionalTestCase.php` — extended with richer factory signatures
-- `api/tests/Functional/AdminRegistrationDetailTest.php` — local helpers delegate to shared factories
-- `api/tests/Functional/RegistrationSubmitTest.php` — local helpers delegate to shared factories
-- `api/tests/Functional/PlayerProfileTest.php` — direct constructions replaced
-- `api/tests/Functional/CommunityLeaderboardTest.php` — direct constructions replaced (5 test methods)
-- `api/tests/Functional/RunResultsTest.php` — direct constructions replaced
-- `_bmad-output/implementation-artifacts/19-6-centralise-test-entity-factories.md` — this file
+- `api/tests/Functional/FunctionalTestCase.php` - extended with richer factory signatures
+- `api/tests/Functional/AdminRegistrationDetailTest.php` - local helpers delegate to shared factories
+- `api/tests/Functional/RegistrationSubmitTest.php` - local helpers delegate to shared factories
+- `api/tests/Functional/PlayerProfileTest.php` - direct constructions replaced
+- `api/tests/Functional/CommunityLeaderboardTest.php` - direct constructions replaced (5 test methods)
+- `api/tests/Functional/RunResultsTest.php` - direct constructions replaced
+- `_bmad-output/implementation-artifacts/19-6-centralise-test-entity-factories.md` - this file
 
 ## Change Log
 

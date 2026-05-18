@@ -7,7 +7,7 @@ namespace App\Tests\Functional;
 use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use App\Sessions\Application\Message\GenerateRunJob;
+use App\Shared\Application\Message\GenerateRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use Doctrine\ORM\Tools\SchemaTool;

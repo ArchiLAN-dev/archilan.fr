@@ -15,57 +15,64 @@ export function CgvAcceptanceGate({
   includeCgu = false,
 }: CgvAcceptanceGateProps) {
   const checkboxId = useId();
-  const termsId = useId();
   const [accepted, setAccepted] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
   if (confirmed) {
-    return <div className="mt-5">{children}</div>;
+    return <div className="mt-6">{children}</div>;
   }
 
   return (
-    <div className="mt-5 grid gap-4">
-      <div className="flex items-start gap-3">
+    <div className="mt-6 grid gap-5">
+      <label
+        className="flex cursor-pointer items-start gap-3"
+        htmlFor={checkboxId}
+      >
         <input
-          aria-describedby={termsId}
           checked={accepted}
-          className="mt-0.5 size-4 accent-accent"
+          className="mt-0.5 size-4 shrink-0 accent-accent"
           id={checkboxId}
-          onChange={(event) => setAccepted(event.target.checked)}
+          onChange={(e) => setAccepted(e.target.checked)}
           type="checkbox"
         />
-        <p className="text-sm leading-6 text-foreground" id={termsId}>
-          <label className="cursor-pointer" htmlFor={checkboxId}>
-            J&apos;ai lu et j&apos;accepte
-          </label>{" "}
-          les{" "}
-          <Link className="underline hover:text-accent-text" href="/cgv">
-            Conditions Generales de Vente
+        <span className="text-sm leading-6 text-foreground">
+          J&apos;ai lu et j&apos;accepte les{" "}
+          <Link
+            className="underline underline-offset-2 hover:text-accent-text"
+            href="/cgv"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Conditions Générales de Vente
           </Link>
-          {includeCgu ? (
+          {includeCgu && (
             <>
               {" "}
               et les{" "}
-              <Link className="underline hover:text-accent-text" href="/cgu">
-                Conditions Generales d&apos;Utilisation
+              <Link
+                className="underline underline-offset-2 hover:text-accent-text"
+                href="/cgu"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Conditions Générales d&apos;Utilisation
               </Link>
             </>
-          ) : null}{" "}
-          d&apos;ArchiLAN ainsi que les{" "}
+          )}{" "}
+          d&apos;ArchiLAN, ainsi que les{" "}
           <a
-            className="underline hover:text-accent-text"
+            className="underline underline-offset-2 hover:text-accent-text"
             href="https://www.helloasso.com/page/conditions-generales-d-utilisation"
+            onClick={(e) => e.stopPropagation()}
             rel="noopener noreferrer"
             target="_blank"
           >
             CGU HelloAsso
           </a>
           .
-        </p>
-      </div>
+        </span>
+      </label>
 
       <button
-        className="inline-flex min-h-11 w-fit items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex min-h-11 w-fit items-center justify-center rounded bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!accepted}
         onClick={() => setConfirmed(true)}
         type="button"

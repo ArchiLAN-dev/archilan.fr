@@ -320,7 +320,7 @@ final readonly class AdminGameLibrary
         }
 
         if (null !== $latestTag) {
-            $game->getCatalogSync()?->setApworldDeployedVersion($latestTag);
+            $game->getCatalogSync()->setApworldDeployedVersion($latestTag);
             $this->entityManager->flush();
         }
 

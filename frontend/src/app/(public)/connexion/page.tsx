@@ -12,9 +12,10 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { returnTo, reset } = await searchParams;
+  const { returnTo, reset, discord_error } = await searchParams;
   const safeReturnTo = safeInternalReturnTo(returnTo);
   const passwordWasReset = reset === "1";
+  const discordError = typeof discord_error === "string" ? discord_error : undefined;
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center">
@@ -32,7 +33,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         {passwordWasReset && <PasswordResetBanner />}
-        <LoginForm returnTo={safeReturnTo} />
+        <LoginForm discordError={discordError} returnTo={safeReturnTo} />
       </div>
     </div>
   );

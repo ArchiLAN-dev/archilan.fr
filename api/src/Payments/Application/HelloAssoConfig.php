@@ -77,11 +77,26 @@ final readonly class HelloAssoConfig
         return $this->sandbox;
     }
 
-    public function buildEmbedUrl(string $formType, string $formSlug): string
+    public static function fromApiFormType(string $apiFormType): string
+    {
+        return match ($apiFormType) {
+            'Membership' => self::FORM_TYPE_MEMBERSHIP,
+            'Event' => self::FORM_TYPE_EVENT,
+            'PaymentForm' => self::FORM_TYPE_SHOP,
+            default => mb_strtolower($apiFormType),
+        };
+    }
+
+    public function buildEmbedUrl(string $formType, string $formSlug, ?string $email = null): string
     {
         $orgSlug = $this->getOrganizationSlug();
         $baseHost = $this->sandbox ? 'www.helloasso-sandbox.com' : 'www.helloasso.com';
+        $url = sprintf('https://%s/associations/%s/%s/%s/widget', $baseHost, $orgSlug, $formType, $formSlug);
 
-        return sprintf('https://%s/associations/%s/%s/%s/widget', $baseHost, $orgSlug, $formType, $formSlug);
+        if (null !== $email && '' !== $email) {
+            $url .= '?initialEmail='.urlencode($email);
+        }
+
+        return $url;
     }
 }

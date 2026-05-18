@@ -47,7 +47,7 @@ def _make_app(config: Config | None = None) -> tuple[object, StateManager, Archi
 
 
 # ---------------------------------------------------------------------------
-# Task 7a: health (rest_session) — success path
+# Task 7a: health (rest_session) - success path
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -77,7 +77,7 @@ async def test_health_returns_ok_when_ws_disconnected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Task 7b: post_command (rest_session) — success + WS disconnected 503
+# Task 7b: post_command (rest_session) - success + WS disconnected 503
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -108,7 +108,7 @@ async def test_post_command_ws_disconnected_returns_503() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Task 7c: request_hint (rest_hints) — success + missing location_id + bad slot
+# Task 7c: request_hint (rest_hints) - success + missing location_id + bad slot
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -156,7 +156,7 @@ async def test_request_hint_non_integer_slot_returns_400() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Task 7d: get_reachable (rest_reachable) — success + non-integer slot 400
+# Task 7d: get_reachable (rest_reachable) - success + non-integer slot 400
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -212,7 +212,7 @@ def test_route_parity() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Task 7f: post_pause (rest_session) — success + unauthorized 401
+# Task 7f: post_pause (rest_session) - success + unauthorized 401
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio

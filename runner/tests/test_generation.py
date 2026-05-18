@@ -435,3 +435,243 @@ async def test_generation_apworld_network_error_sets_failed(tmp_path: pathlib.Pa
     assert session is not None
     assert session["status"] == "failed"
     assert "bad.apworld" in session["error"] or "Connection refused" in session["error"]
+
+
+# ─── Seed parameter ───────────────────────────────────────────────────────────
+
+async def test_seed_is_appended_to_cmd(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-seed")
+
+    output_dir = tmp_path / "sess-seed" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        await run_generation("sess-seed", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=10, seed="99999")
+
+    cmd_list = list(mock_exec.call_args.args)
+    assert "--seed" in cmd_list
+    assert cmd_list[cmd_list.index("--seed") + 1] == "99999"
+
+
+async def test_no_seed_does_not_append_flag(tmp_path: pathlib.Path) -> None:
+    store = SessionStore()
+    store.create("sess-noseed")
+
+    output_dir = tmp_path / "sess-noseed" / "output"
+    output_dir.mkdir(parents=True)
+    (output_dir / "world.archipelago").write_bytes(b"fake")
+
+    proc = _make_proc(returncode=0)
+    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec:
+        await run_generation("sess-noseed", str(tmp_path), store, generate_cmd="FakeGenerate", timeout=10)
+
+    cmd_list = list(mock_exec.call_args.args)
+    assert "--seed" not in cmd_list
+
+
+# ─── generate-and-launch endpoint ────────────────────────────────────────────
+
+def test_generate_and_launch_success(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    async def fake_run_generation(
+        session_id: str, workspace_root: str, store: SessionStore,
+        *, generate_cmd: str, timeout: int, world_dir_flag: str, seed: str | None = None,
+    ) -> None:
+        store.update(session_id, status="generated", outputFile="/fake/world.archipelago")
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image):
+        return {"containerHost": "0.0.0.0", "containerPort": 38281, "serverPassword": "s3cr3t"}
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+    monkeypatch.setattr(main_module, "write_slot_yamls", lambda *a, **kw: [])
+
+    res = client.post(
+        "/sessions/sess-gal-ok/generate-and-launch",
+        headers=HEADERS,
+        json={
+            "seed": "42",
+            "slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}],
+        },
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["sessionId"] == "sess-gal-ok"
+    assert body["containerPort"] == 38281
+    assert body["serverPassword"] == "s3cr3t"
+
+
+def test_generate_and_launch_generation_failure(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    async def fake_run_generation(
+        session_id: str, workspace_root: str, store: SessionStore,
+        *, generate_cmd: str, timeout: int, world_dir_flag: str, seed: str | None = None,
+    ) -> None:
+        store.update(session_id, status="failed", error="docker exploded")
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(main_module, "write_slot_yamls", lambda *a, **kw: [])
+
+    res = client.post(
+        "/sessions/sess-gal-fail/generate-and-launch",
+        headers=HEADERS,
+        json={"slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}]},
+    )
+
+    assert res.status_code == 503
+    body = res.json()
+    assert body["error"] == "generation_failed"
+    assert "docker exploded" in body["details"]
+
+
+def test_generate_and_launch_empty_slots_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+    monkeypatch.setattr(main_module, "session_store", SessionStore())
+
+    res = client.post("/sessions/sess-empty/generate-and-launch", headers=HEADERS, json={"slots": []})
+
+    assert res.status_code == 422
+    assert res.json()["error"] == "invalid_slots"
+
+
+def test_generate_and_launch_missing_apworld_download_url_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+    monkeypatch.setattr(main_module, "session_store", SessionStore())
+
+    res = client.post(
+        "/sessions/sess-no-url/generate-and-launch",
+        headers=HEADERS,
+        json={"slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld"}]},
+    )
+
+    assert res.status_code == 422
+    body = res.json()
+    assert body["error"] == "invalid_slots"
+    assert any("apworldDownloadUrl" in detail for detail in body["details"])
+
+
+def test_generate_and_launch_missing_player_yaml_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+    monkeypatch.setattr(main_module, "session_store", SessionStore())
+
+    res = client.post(
+        "/sessions/sess-no-yaml/generate-and-launch",
+        headers=HEADERS,
+        json={"slots": [{"slotName": "Alice", "playerYaml": "", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}]},
+    )
+
+    assert res.status_code == 422
+    body = res.json()
+    assert body["error"] == "invalid_slots"
+    assert any("playerYaml" in detail for detail in body["details"])
+
+
+def test_generate_and_launch_session_already_active_returns_409(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    fresh_store.create("sess-active")
+    fresh_store.update("sess-active", status="running")
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    res = client.post(
+        "/sessions/sess-active/generate-and-launch",
+        headers=HEADERS,
+        json={"slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}]},
+    )
+
+    assert res.status_code == 409
+    assert res.json()["error"] == "already_active"
+
+
+def test_generate_and_launch_launch_error_returns_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    async def fake_run_generation(
+        session_id: str, workspace_root: str, store: SessionStore,
+        *, generate_cmd: str, timeout: int, world_dir_flag: str, seed: str | None = None,
+    ) -> None:
+        store.update(session_id, status="generated", outputFile="/fake/world.archipelago")
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image):
+        return {"error": "no_ports_available"}
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+    monkeypatch.setattr(main_module, "write_slot_yamls", lambda *a, **kw: [])
+
+    res = client.post(
+        "/sessions/sess-no-ports/generate-and-launch",
+        headers=HEADERS,
+        json={"slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}]},
+    )
+
+    assert res.status_code == 503
+    assert res.json()["error"] == "no_ports_available"
+
+
+def test_generate_and_launch_write_failed_returns_500(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    monkeypatch.setattr(main_module, "session_store", SessionStore())
+    monkeypatch.setattr(main_module, "write_slot_yamls", lambda *a, **kw: (_ for _ in ()).throw(OSError("disk full")))
+
+    res = client.post(
+        "/sessions/sess-write-fail/generate-and-launch",
+        headers=HEADERS,
+        json={"slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}]},
+    )
+
+    assert res.status_code == 500
+    body = res.json()
+    assert body["error"] == "write_failed"
+    assert "disk full" in body["details"]
+
+
+def test_generate_and_launch_seed_is_passed_to_run_generation(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    received: list[str | None] = []
+
+    async def fake_run_generation(
+        session_id: str, workspace_root: str, store: SessionStore,
+        *, generate_cmd: str, timeout: int, world_dir_flag: str, seed: str | None = None,
+    ) -> None:
+        received.append(seed)
+        store.update(session_id, status="generated", outputFile="/fake/world.archipelago")
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image):
+        return {"containerHost": "0.0.0.0", "containerPort": 38281, "serverPassword": None}
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+    monkeypatch.setattr(main_module, "write_slot_yamls", lambda *a, **kw: [])
+
+    client.post(
+        "/sessions/sess-seed-prop/generate-and-launch",
+        headers=HEADERS,
+        json={
+            "seed": "99999",
+            "slots": [{"slotName": "Alice", "playerYaml": "name: Alice\n", "apworldStorageKey": "abc.apworld", "apworldDownloadUrl": "http://example.com/abc.apworld"}],
+        },
+    )
+
+    assert received == ["99999"]

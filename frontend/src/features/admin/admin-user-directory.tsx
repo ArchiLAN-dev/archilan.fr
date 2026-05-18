@@ -11,7 +11,7 @@ type AdminUser = {
     id: string;
     email: string;
     displayName: string | null;
-    role: "admin" | "member" | "lambda";
+    role: "admin" | "member" | "user";
     roles: string[];
     status: "active" | "deleted";
     createdAt: string;
@@ -30,7 +30,7 @@ type FieldErrors = Partial<Record<"email" | "password" | "displayName", string>>
 const roleLabels: Record<AdminUser["role"], string> = {
     admin: "Admin",
     member: "Membre",
-    lambda: "Lambda",
+    user: "Utilisateur",
 };
 
 const statusLabels: Record<AdminUser["status"], string> = {
@@ -46,7 +46,7 @@ export function AdminUserDirectory() {
     const [mutationError, setMutationError] = useState<string | null>(null);
     const [pendingChange, setPendingChange] = useState<{
         user: AdminUser;
-        targetRole: "lambda" | "member"
+        targetRole: "user" | "member"
     } | null>(null);
     const [creationMessage, setCreationMessage] = useState<string | null>(null);
 
@@ -120,7 +120,7 @@ export function AdminUserDirectory() {
 
     const hasFilters = query.trim() !== "" || role !== "all";
 
-    function requestRoleChange(user: AdminUser, targetRole: "lambda" | "member") {
+    function requestRoleChange(user: AdminUser, targetRole: "user" | "member") {
         setPendingChange({user, targetRole});
     }
 
@@ -197,7 +197,7 @@ export function AdminUserDirectory() {
                             Annuaire utilisateurs
                         </h1>
                         <p className="mt-3 max-w-2xl text-muted-foreground">
-                            Recherche, consultation et gestion des rôles lambda/membre.
+                            Recherche, consultation et gestion des rôles utilisateur/membre.
                         </p>
                     </div>
                 </div>
@@ -227,7 +227,7 @@ export function AdminUserDirectory() {
                         value={role}
                     >
                         <option value="all">Tous les rôles</option>
-                        <option value="lambda">Lambda</option>
+                        <option value="user">Utilisateur</option>
                         <option value="member">Membre</option>
                         <option value="admin">Admin</option>
                     </select>
@@ -401,7 +401,7 @@ function DirectoryBody({
                        }: {
     changingUserId: string | null;
     hasFilters: boolean;
-    onChangeRole: (user: AdminUser, targetRole: "lambda" | "member") => void;
+    onChangeRole: (user: AdminUser, targetRole: "user" | "member") => void;
     state: DirectoryState;
 }) {
     if (state.kind === "loading") {
@@ -502,15 +502,15 @@ function RoleActionButton({
                               user,
                           }: {
     changing: boolean;
-    onChangeRole: (user: AdminUser, targetRole: "lambda" | "member") => void;
+    onChangeRole: (user: AdminUser, targetRole: "user" | "member") => void;
     user: AdminUser;
 }) {
     if (user.status === "deleted" || user.role === "admin") {
         return <span className="text-sm text-muted-foreground">Non modifiable</span>;
     }
 
-    const targetRole = user.role === "lambda" ? "member" : "lambda";
-    const label = user.role === "lambda" ? "Promouvoir membre" : "Rétrograder lambda";
+    const targetRole = user.role === "user" ? "member" : "user";
+    const label = user.role === "user" ? "Promouvoir membre" : "Rétrograder utilisateur";
 
     return (
         <button
@@ -531,9 +531,9 @@ function RoleChangeConfirmDialog({
                                  }: {
     onCancel: () => void;
     onConfirm: () => void;
-    pending: { user: AdminUser; targetRole: "lambda" | "member" };
+    pending: { user: AdminUser; targetRole: "user" | "member" };
 }) {
-    const action = pending.targetRole === "member" ? "promouvoir en membre" : "rétrograder en lambda";
+    const action = pending.targetRole === "member" ? "promouvoir en membre" : "rétrograder en utilisateur";
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -590,7 +590,7 @@ function EmptyPanel({
     );
 }
 
-function withRole(user: AdminUser, role: "lambda" | "member"): AdminUser {
+function withRole(user: AdminUser, role: "user" | "member"): AdminUser {
     return {
         ...user,
         role,

@@ -29,10 +29,10 @@ final class AdminUserDirectoryTest extends FunctionalTestCase
         self::assertSame('unauthenticated', $response['error']['code']);
     }
 
-    public function testLambdaUserDirectoryAccessIsForbidden(): void
+    public function testStandardUserDirectoryAccessIsForbidden(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/users');
 
@@ -88,7 +88,7 @@ final class AdminUserDirectoryTest extends FunctionalTestCase
     public function testAdminCanFilterUsersByRole(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
-        $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
+        $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
         $this->createUser('member@example.org', ['ROLE_USER', 'ROLE_MEMBER'], 'Membre');
 
         $this->loginAs($admin);

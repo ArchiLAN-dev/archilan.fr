@@ -31,10 +31,10 @@ final class AdminGameApworldTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaCannotUploadApworld(): void
+    public function testStandardCannotUploadApworld(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->request('PATCH', '/api/v1/admin/games/nonexistent/apworld');
 

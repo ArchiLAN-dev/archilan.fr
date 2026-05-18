@@ -37,10 +37,10 @@ final class AdminRegistrationDashboardTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaUserGets403(): void
+    public function testStandardUserGets403(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/events/nonexistent/registrations');
         self::assertResponseStatusCodeSame(403);

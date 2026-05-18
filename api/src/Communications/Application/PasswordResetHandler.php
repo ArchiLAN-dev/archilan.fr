@@ -24,6 +24,7 @@ final readonly class PasswordResetHandler
             $message->userEmail,
             $message->userDisplayName,
             $resetUrl,
+            $this->siteUrl,
         ));
     }
 }

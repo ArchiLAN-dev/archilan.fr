@@ -11,23 +11,26 @@ use Psr\Http\Message\StreamInterface;
 final class S3MinioStorage implements MinioStorageInterface
 {
     private readonly S3Client $client;
+    private readonly S3Client $presignClient;
 
     public function __construct(
         string $endpoint,
         string $accessKey,
         string $secretKey,
         string $region = 'us-east-1',
+        string $presignEndpoint = '',
     ) {
-        $this->client = new S3Client([
+        $config = [
             'version' => 'latest',
             'region' => $region,
-            'endpoint' => $endpoint,
             'use_path_style_endpoint' => true,
-            'credentials' => [
-                'key' => $accessKey,
-                'secret' => $secretKey,
-            ],
-        ]);
+            'credentials' => ['key' => $accessKey, 'secret' => $secretKey],
+        ];
+
+        $this->client = new S3Client(['endpoint' => $endpoint] + $config);
+        $this->presignClient = '' !== $presignEndpoint
+            ? new S3Client(['endpoint' => $presignEndpoint] + $config)
+            : $this->client;
     }
 
     public function upload(string $bucket, string $key, string $contents): void
@@ -74,12 +77,12 @@ final class S3MinioStorage implements MinioStorageInterface
 
     public function presignedUrl(string $bucket, string $key, int $ttlSeconds): string
     {
-        $cmd = $this->client->getCommand('GetObject', [
+        $cmd = $this->presignClient->getCommand('GetObject', [
             'Bucket' => $bucket,
             'Key' => $key,
         ]);
 
-        $request = $this->client->createPresignedRequest($cmd, sprintf('+%d seconds', $ttlSeconds));
+        $request = $this->presignClient->createPresignedRequest($cmd, sprintf('+%d seconds', $ttlSeconds));
 
         return (string) $request->getUri();
     }

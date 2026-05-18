@@ -62,6 +62,18 @@ doctrine:
                 dir: '%kernel.project_dir%/src/PersonalRuns/Domain'
                 prefix: 'App\PersonalRuns\Domain'
                 alias: PersonalRuns
+            Membership:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Membership/Domain'
+                prefix: 'App\Membership\Domain'
+                alias: Membership
+            WeeklyRuns:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/WeeklyRuns/Domain'
+                prefix: 'App\WeeklyRuns\Domain'
+                alias: WeeklyRuns
 
 when@test:
     doctrine:

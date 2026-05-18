@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\SessionRunningMessage;
+use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\Run;
 use App\Realtime\Infrastructure\SpyHub;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Application\Message\RestartRunJob;
@@ -20,9 +23,9 @@ final class SessionLifecycleTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
-        SpyHub::reset();
-
         parent::setUp();
+
+        $this->hub()->reset();
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
@@ -30,6 +33,9 @@ final class SessionLifecycleTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Registration::class),
             $this->entityManager->getClassMetadata(Game::class),
+            $this->entityManager->getClassMetadata(GameCatalogSync::class),
+            $this->entityManager->getClassMetadata(Run::class),
+            $this->entityManager->getClassMetadata(Event::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -72,10 +78,11 @@ final class SessionLifecycleTest extends FunctionalTestCase
         $sessionId = $createData['id'];
         self::assertIsString($sessionId);
 
-        self::assertCount(1, SpyHub::$published);
+        $hub = $this->hub();
+        self::assertCount(1, $hub->published);
         self::assertSame(
             sprintf('/sessions/%s', $sessionId),
-            SpyHub::$published[0]->getTopics()[0],
+            $hub->published[0]->getTopics()[0],
         );
     }
 
@@ -179,16 +186,19 @@ final class SessionLifecycleTest extends FunctionalTestCase
         $sessionId = $createData['id'];
         self::assertIsString($sessionId);
 
+        // Verify create published 1 event (before next request reboots the kernel)
+        self::assertCount(1, $this->hub()->published);
+        self::assertSame(sprintf('/sessions/%s', $sessionId), $this->hub()->published[0]->getTopics()[0]);
+
+        // Each PATCH reboots the kernel before handling - so each transition gets a fresh SpyHub.
+        // Verify that every transition publishes exactly 1 Mercure event on its own hub instance.
         $statuses = ['validating', 'ready', 'generating', 'generated', 'launching', 'running', 'stopped'];
         foreach ($statuses as $status) {
             $this->patchStatus($sessionId, $status);
             self::assertResponseIsSuccessful(sprintf('transition to %s failed', $status));
-        }
-
-        // 1 create + 7 transitions = 8 published events
-        self::assertCount(8, SpyHub::$published);
-        foreach (SpyHub::$published as $update) {
-            self::assertSame(sprintf('/sessions/%s', $sessionId), $update->getTopics()[0]);
+            $published = $this->hub()->published;
+            self::assertCount(1, $published, sprintf('Expected 1 Mercure event for transition to %s', $status));
+            self::assertSame(sprintf('/sessions/%s', $sessionId), $published[0]->getTopics()[0]);
         }
     }
 
@@ -940,6 +950,14 @@ final class SessionLifecycleTest extends FunctionalTestCase
         $firstSlot = $slots[0];
         self::assertIsArray($firstSlot);
         self::assertSame('slot-uuid-abc', $firstSlot['slotId']);
+    }
+
+    private function hub(): SpyHub
+    {
+        $hub = static::getContainer()->get(SpyHub::class);
+        self::assertInstanceOf(SpyHub::class, $hub);
+
+        return $hub;
     }
 
     private function createAdmin(): User

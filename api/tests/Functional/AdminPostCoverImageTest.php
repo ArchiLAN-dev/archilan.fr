@@ -181,8 +181,8 @@ final class AdminPostCoverImageTest extends FunctionalTestCase
         $this->client->request('POST', '/api/v1/admin/posts/nonexistent/cover-image');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
         $this->client->request('POST', '/api/v1/admin/posts/nonexistent/cover-image');
         self::assertResponseStatusCodeSame(403);
     }

@@ -24,6 +24,7 @@ final readonly class EmailConfirmationHandler
             $message->userEmail,
             $message->userDisplayName,
             $confirmationUrl,
+            $this->siteUrl,
         ));
     }
 }

@@ -67,10 +67,10 @@ final class RealtimeTokenTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testLambdaCannotGetSubscribeToken(): void
+    public function testStandardCannotGetSubscribeToken(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest(
             'GET',

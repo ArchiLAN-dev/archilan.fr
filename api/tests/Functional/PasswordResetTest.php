@@ -33,7 +33,7 @@ final class PasswordResetTest extends FunctionalTestCase
         self::assertInstanceOf(RegisterUser::class, $register);
         $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
 
-        // Reset transport — setUp dispatched an EmailConfirmationMessage; each test starts clean.
+        // Reset transport - setUp dispatched an EmailConfirmationMessage; each test starts clean.
         $this->asyncTransport()->reset();
     }
 

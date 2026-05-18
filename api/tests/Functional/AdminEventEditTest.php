@@ -187,11 +187,11 @@ final class AdminEventEditTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testLambdaCannotEditEvents(): void
+    public function testStandardCannotEditEvents(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
         $event = $this->createEvent('Spring Sync 2027', new \DateTimeImmutable('2027-05-31T10:00:00+00:00'), new \DateTimeImmutable('2027-05-31T22:00:00+00:00'));
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s', $event->getId()), $this->validPayload());
 

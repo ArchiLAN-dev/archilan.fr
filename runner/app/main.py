@@ -160,7 +160,7 @@ async def upload_apworld(request: Request, file: UploadFile = File(...)) -> JSON
                         status_code=422,
                     )
             else:
-                # Older APWorld format: no archipelago.json — infer game name from __init__.py
+                # Older APWorld format: no archipelago.json - infer game name from __init__.py
                 game_name = _infer_game_name_from_zip(zf, names)
                 if not game_name:
                     return JSONResponse(
@@ -282,6 +282,10 @@ async def generate(request: Request, session_id: str) -> JSONResponse:
     if existing and existing["status"] == "generating":
         return JSONResponse({"error": "already_generating"}, status_code=409)
 
+    body: dict[str, Any] = await _json_body(request)
+    seed_raw = body.get("seed")
+    seed: str | None = str(seed_raw).strip() if isinstance(seed_raw, str) and seed_raw.strip() else None
+
     session = session_store.create(session_id)
 
     asyncio.create_task(
@@ -292,6 +296,7 @@ async def generate(request: Request, session_id: str) -> JSONResponse:
             generate_cmd=ARCHIPELAGO_GENERATE_CMD,
             timeout=GENERATION_TIMEOUT,
             world_dir_flag=ARCHIPELAGO_WORLD_DIR_FLAG,
+            seed=seed,
         )
     )
 
@@ -300,6 +305,87 @@ async def generate(request: Request, session_id: str) -> JSONResponse:
         extra={"request_id": getattr(request.state, "request_id", "-"), "session_id": session_id},
     )
     return JSONResponse(session, status_code=202)
+
+
+@app.post("/sessions/{session_id}/generate-and-launch", dependencies=[Depends(_require_api_key)])
+async def generate_and_launch(request: Request, session_id: str) -> JSONResponse:
+    # Guard: reject if a session is already active for this id
+    existing = session_store.get(session_id)
+    if existing is not None and existing.get("status") in ("generating", "generated", "running"):
+        return JSONResponse({"error": "already_active", "status": existing.get("status")}, status_code=409)
+
+    body: dict[str, Any] = await _json_body(request)
+    seed_raw = body.get("seed")
+    seed: str | None = str(seed_raw).strip() if isinstance(seed_raw, str) and seed_raw.strip() else None
+    raw_slots: list[Any] = body.get("slots") if isinstance(body.get("slots"), list) else []
+    slots = [s for s in raw_slots if isinstance(s, dict)]
+
+    # Validate slots before touching the filesystem or session store
+    if not slots:
+        return JSONResponse({"error": "invalid_slots", "details": ["Au moins un slot est requis."]}, status_code=422)
+
+    slot_errors: list[str] = []
+    slot_names: list[str] = []
+    for slot in slots:
+        slot_name = str(slot.get("slotName", "")).strip()
+        slot_names.append(slot_name)
+        if not slot_name:
+            slot_errors.append("slotName est requis et ne peut pas être vide.")
+            continue
+        if "apworldStorageKey" in slot:
+            if not str(slot.get("playerYaml", "")).strip():
+                slot_errors.append(f"playerYaml est requis pour le slot '{slot_name}'.")
+            if not str(slot.get("apworldStorageKey", "")).strip():
+                slot_errors.append(f"apworldStorageKey est requis pour le slot '{slot_name}'.")
+            if not str(slot.get("apworldDownloadUrl") or "").strip():
+                slot_errors.append(f"apworldDownloadUrl est requis pour le slot '{slot_name}'.")
+
+    name_errors = validate_slot_names(slot_names)
+    all_errors = slot_errors + name_errors
+    if all_errors:
+        return JSONResponse({"error": "invalid_slots", "details": all_errors}, status_code=422)
+
+    try:
+        write_slot_yamls(session_id, slots, WORKSPACE_ROOT)
+    except Exception as exc:
+        logger.error("yaml write failed: %s", exc, extra={"request_id": getattr(request.state, "request_id", "-")})
+        return JSONResponse({"error": "write_failed", "details": str(exc)}, status_code=500)
+
+    session_store.create(session_id)
+    await run_generation(
+        session_id,
+        WORKSPACE_ROOT,
+        session_store,
+        generate_cmd=ARCHIPELAGO_GENERATE_CMD,
+        timeout=GENERATION_TIMEOUT,
+        world_dir_flag=ARCHIPELAGO_WORLD_DIR_FLAG,
+        seed=seed,
+    )
+
+    session = session_store.get(session_id)
+    if session is None or session.get("status") != "generated":
+        error = (session or {}).get("error", "unknown")
+        return JSONResponse({"error": "generation_failed", "details": error}, status_code=503)
+
+    launch_result = await launch_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE)
+    if "error" in launch_result:
+        err = launch_result["error"]
+        if err == "not_found":
+            return JSONResponse(launch_result, status_code=404)
+        if err in ("already_running", "not_ready"):
+            return JSONResponse(launch_result, status_code=409)
+        return JSONResponse(launch_result, status_code=503)
+
+    logger.info(
+        "generate-and-launch succeeded",
+        extra={"request_id": getattr(request.state, "request_id", "-"), "session_id": session_id},
+    )
+    return JSONResponse({
+        "sessionId": session_id,
+        "containerHost": launch_result["containerHost"],
+        "containerPort": launch_result["containerPort"],
+        "serverPassword": launch_result["serverPassword"],
+    })
 
 
 @app.get("/sessions/{session_id}", dependencies=[Depends(_require_api_key)])

@@ -96,6 +96,12 @@ function AuthNavDesktop() {
         )}
         <Link
           className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+          href="/runs-hebdo"
+        >
+          Runs hebdo
+        </Link>
+        <Link
+          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
           href="/compte"
         >
           Mon espace
@@ -157,6 +163,13 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
             Administration
           </Link>
         )}
+        <Link
+          className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+          href="/runs-hebdo"
+          onClick={onNavigate}
+        >
+          Runs hebdo
+        </Link>
         <Link
           className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
           href="/compte"

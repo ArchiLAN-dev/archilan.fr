@@ -44,7 +44,7 @@ describe("getPublicEvents", () => {
   it("returns fallback events on network error", async () => {
     server.use(http.get(`${BASE}/events`, () => HttpResponse.error()));
     const result = await getPublicEvents();
-    // On error, fallback is returned — shape must match
+    // On error, fallback is returned - shape must match
     expect(result).toHaveProperty("upcoming");
     expect(result).toHaveProperty("past");
   });

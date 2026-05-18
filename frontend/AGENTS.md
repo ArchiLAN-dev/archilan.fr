@@ -6,14 +6,14 @@ This version has breaking changes - APIs, conventions, and file structure may al
 
 ---
 
-# Frontend — TypeScript / React / Next.js Standards
+# Frontend - TypeScript / React / Next.js Standards
 
 ## Quality gates (non-negotiable)
 
 ```bash
-pnpm typecheck   # tsc --noEmit — 0 errors
-pnpm lint        # eslint — 0 errors, 0 warnings
-pnpm build       # next build — clean
+pnpm typecheck   # tsc --noEmit - 0 errors
+pnpm lint        # eslint - 0 errors, 0 warnings
+pnpm build       # next build - clean
 ```
 
 Run all three before marking any task complete.
@@ -25,7 +25,7 @@ Run all three before marking any task complete.
 **AC-TS1:** `strict: true` is active in `tsconfig.json`. Zero tolerance for type errors.  
 **AC-TS2:** Never use `any`. If unavoidable, add an `// eslint-disable-next-line @typescript-eslint/no-explicit-any` comment with a one-line explanation.  
 **AC-TS3:** Never use `as SomeType` at API boundaries. All API responses are `unknown` until validated by a type guard function (`function isX(v: unknown): v is X`).  
-**AC-TS4:** Type guards live in the same file as their `fetch*` function — always `is{TypeName}` naming.  
+**AC-TS4:** Type guards live in the same file as their `fetch*` function - always `is{TypeName}` naming.  
 **AC-TS5:** Prefer `type` over `interface` for plain data shapes. Use `interface` only when you need declaration merging.
 
 ---
@@ -40,28 +40,28 @@ Run all three before marking any task complete.
 ## Next.js App Router conventions
 
 **AC-NX1:** Data fetching happens in **Server Components** (async functions). Never use `useEffect` to fetch initial data.  
-**AC-NX2:** `route.ts` params are `Promise<{...}>` in Next.js 15 — always `await params` before destructuring.  
+**AC-NX2:** `route.ts` params are `Promise<{...}>` in Next.js 15 - always `await params` before destructuring.  
 **AC-NX3:** Use `React.cache()` to deduplicate fetch calls between `generateMetadata` and the page component.  
 **AC-NX4:** `"use client"` is added only when the component requires: event handlers, browser APIs, or TanStack Query hooks. Prefer Server Components by default.  
-**AC-NX5:** `notFound()` is called for 404 cases — never return a rendered "not found" JSX from the page function.  
+**AC-NX5:** `notFound()` is called for 404 cases - never return a rendered "not found" JSX from the page function.  
 **AC-NX6:** `generateMetadata` must set `title`, `description`, and `openGraph.title` at minimum.
 
 ---
 
 ## Component design
 
-**AC-CO1:** Components are pure functions of their props. A component must produce the same JSX for the same props — no side effects during render.  
+**AC-CO1:** Components are pure functions of their props. A component must produce the same JSX for the same props - no side effects during render.  
 **AC-CO2:** Props types are defined as a local `type Props = {...}` above the component, or inline. Never leave a component without explicit prop types.  
 **AC-CO3:** No default exports for components inside `features/`. Use named exports. Default exports are reserved for Next.js page routes (`app/**/page.tsx`, `app/**/layout.tsx`).  
 **AC-CO4:** Do not pass raw domain types from server to client as props if they contain non-serializable values (Dates, Maps, class instances). Serialize to plain objects first.
 
 ---
 
-## React hooks — side effect discipline
+## React hooks - side effect discipline
 
 **AC-HK1:** `useEffect` exhaustive-deps rule is enforced by ESLint. Never suppress it without understanding why.  
 **AC-HK2:** No synchronous `setState` at the top level of a `useEffect` body. Mutations happen inside async callbacks or `requestAnimationFrame` callbacks only.  
-**AC-HK3:** Impure functions (`Date.now()`, `Math.random()`, `crypto.randomUUID()`) MUST NOT be called during render — including inside `useQuery` options, `useMemo` deps, or conditional expressions in JSX. Compute them outside the component (server-side, in event handlers, or in `useRef` init).  
+**AC-HK3:** Impure functions (`Date.now()`, `Math.random()`, `crypto.randomUUID()`) MUST NOT be called during render - including inside `useQuery` options, `useMemo` deps, or conditional expressions in JSX. Compute them outside the component (server-side, in event handlers, or in `useRef` init).  
 **AC-HK4:** Custom hooks are named `use{Noun}` and must follow the rules of hooks (no conditional calls, no loops).  
 **AC-HK5:** TanStack Query's `initialDataUpdatedAt` must be set from a server-computed timestamp passed as a prop, never from `Date.now()` inside the client component.
 
@@ -70,10 +70,10 @@ Run all three before marking any task complete.
 ## API layer
 
 **AC-API1:** All fetch functions live in `src/features/{module}/{module}-api.ts`. No fetch calls inside components or hooks.  
-**AC-API2:** Every fetch function returns a typed result or `null` — never throws to the caller. Network errors and non-OK responses are caught and return `null`.  
+**AC-API2:** Every fetch function returns a typed result or `null` - never throws to the caller. Network errors and non-OK responses are caught and return `null`.  
 **AC-API3:** All API base URLs are read from `env.apiBaseUrl`. No hardcoded strings like `http://localhost:8080`.  
 **AC-API4:** TanStack Query is used for all client-side data fetching. No raw `fetch` inside `useEffect`.  
-**AC-API5:** `staleTime` is set explicitly on every `useQuery` call — never rely on the default (0ms causes unnecessary refetches).
+**AC-API5:** `staleTime` is set explicitly on every `useQuery` call - never rely on the default (0ms causes unnecessary refetches).
 
 ---
 

@@ -47,6 +47,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private ?string $slug = null,
         #[ORM\Column(name: 'email_verified_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $emailVerifiedAt = null,
+        #[ORM\Column(name: 'discord_id', type: 'string', length: 32, nullable: true, unique: true)]
+        private ?string $discordId = null,
+        #[ORM\Column(name: 'discord_username', type: 'string', length: 100, nullable: true)]
+        private ?string $discordUsername = null,
+        #[ORM\Column(name: 'discord_role_synced_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $discordRoleSyncedAt = null,
+        #[ORM\Column(name: 'discord_sync_error', type: 'string', length: 500, nullable: true)]
+        private ?string $discordSyncError = null,
     ) {
     }
 
@@ -95,6 +103,57 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getDisplayName(): string
     {
         return $this->displayName;
+    }
+
+    public function getDiscordId(): ?string
+    {
+        return $this->discordId;
+    }
+
+    public function getDiscordUsername(): ?string
+    {
+        return $this->discordUsername;
+    }
+
+    public function isDiscordLinked(): bool
+    {
+        return null !== $this->discordId;
+    }
+
+    public function linkDiscord(string $discordId, string $discordUsername, \DateTimeImmutable $now): void
+    {
+        $this->discordId = $discordId;
+        $this->discordUsername = $discordUsername;
+        $this->updatedAt = $now;
+    }
+
+    public function unlinkDiscord(\DateTimeImmutable $now): void
+    {
+        $this->discordId = null;
+        $this->discordUsername = null;
+        $this->updatedAt = $now;
+    }
+
+    public function markDiscordSyncSuccess(\DateTimeImmutable $at): void
+    {
+        $this->discordRoleSyncedAt = $at;
+        $this->discordSyncError = null;
+    }
+
+    public function markDiscordSyncFailure(string $error, \DateTimeImmutable $at): void
+    {
+        $this->discordSyncError = $error;
+        $this->updatedAt = $at;
+    }
+
+    public function getDiscordRoleSyncedAt(): ?\DateTimeImmutable
+    {
+        return $this->discordRoleSyncedAt;
+    }
+
+    public function getDiscordSyncError(): ?string
+    {
+        return $this->discordSyncError;
     }
 
     public function getSlug(): ?string

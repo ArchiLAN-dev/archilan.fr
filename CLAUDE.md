@@ -1,4 +1,4 @@
-# archilan.fr — Agent Standards (root)
+# archilan.fr - Agent Standards (root)
 
 ## Project layout
 
@@ -6,14 +6,14 @@
 |-------------|----------------------------------------------|-----------------------|
 | `api/`      | Symfony 7, PHP 8.3, DDD/CQRS, PHPUnit        | `api/CLAUDE.md`       |
 | `frontend/` | Next.js 15 App Router, TypeScript, TanStack  | `frontend/AGENTS.md`  |
-| `bridge/`   | Python 3.10, REST bridge to Archipelago      | —                     |
+| `bridge/`   | Python 3.10, REST bridge to Archipelago      | -                     |
 
 **Read the relevant sub-file before touching code in that layer.**  
 Both files are loaded automatically by the agent runtime. Do not skip them.
 
 ---
 
-## Quality gates — must all pass before any task is marked complete
+## Quality gates - must all pass before any task is marked complete
 
 ```
 # API
@@ -49,17 +49,17 @@ Domain ← Application ← Infrastructure
 
 - Lower layers never import higher layers.
 - Domain imports nothing from the project (only PHP stdlib and framework-agnostic libraries).
-- Presentation only calls Application services — never Domain entities directly, never DB infrastructure.
+- Presentation only calls Application services - never Domain entities directly, never DB infrastructure.
 
 ### No magic, no global state
 
 - No static mutable properties anywhere.
 - No `$_SESSION`, no `$_GLOBALS`, no Symfony container accessed at runtime (only constructor injection).
-- No `date()`, `time()`, `rand()` in domain or application logic — inject a `ClockInterface` or pass as parameter.
+- No `date()`, `time()`, `rand()` in domain or application logic - inject a `ClockInterface` or pass as parameter.
 
 ### Naming that communicates intent
 
-- Commands (writes): verb + noun — `RegisterUser`, `MarkSlotReleased`, `PublishEvent`
-- Queries (reads): noun + context — `PlayerProfileQuery`, `LeaderboardQuery`, `PublicEventCatalog`
-- Events: past tense — `UserRegistered`, `SessionFinished`
-- DTOs: suffix `DTO` or named record — `LeaderboardEntryDTO`
+- Commands (writes): verb + noun - `RegisterUser`, `MarkSlotReleased`, `PublishEvent`
+- Queries (reads): noun + context - `PlayerProfileQuery`, `LeaderboardQuery`, `PublicEventCatalog`
+- Events: past tense - `UserRegistered`, `SessionFinished`
+- DTOs: suffix `DTO` or named record - `LeaderboardEntryDTO`

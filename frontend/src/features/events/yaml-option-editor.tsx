@@ -39,20 +39,22 @@ export function YamlOptionEditor({
   defaultYaml,
   playerYaml,
   registrationId,
-  registrationOpen,
+  registrationOpen = true,
   slotId,
   onDirty,
   onSaved,
   saveUrl,
+  onChange,
 }: {
   defaultYaml: string | null;
   playerYaml: string | null;
-  registrationId: string;
-  registrationOpen: boolean;
-  slotId: string;
-  onDirty: (slotId: string) => void;
-  onSaved: (slotId: string) => void;
+  registrationId?: string;
+  registrationOpen?: boolean;
+  slotId?: string;
+  onDirty?: (slotId: string) => void;
+  onSaved?: (slotId: string) => void;
   saveUrl?: string;
+  onChange?: (yaml: string) => void;
 }) {
   const [parsed, setParsed] = useState<ParsedYaml | null>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "");
@@ -75,8 +77,22 @@ export function YamlOptionEditor({
     return firstKey ? new Set([firstKey]) : new Set();
   });
 
+  // When used in template mode (onChange provided), always editable.
+  const effectivelyOpen = onChange ? true : (registrationOpen ?? false);
+
+  // Notify parent in template mode whenever parsed/rawYaml change.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (!onChange) return;
+    onChange(parsed ? serializeToYaml(parsed) : rawYaml);
+  }, [parsed, rawYaml, onChange]);
+
   function markDirty() {
-    onDirty(slotId);
+    if (slotId) onDirty?.(slotId);
     setPanelSave({ kind: "idle" });
   }
 
@@ -84,6 +100,9 @@ export function YamlOptionEditor({
     setParsed((p) =>
       p ? { ...p, options: p.options.map((o) => (o.key === updated.key ? updated : o)) } : p,
     );
+    if (parsed) {
+      onChange?.(serializeToYaml({ ...parsed, options: parsed.options.map((o) => (o.key === updated.key ? updated : o)) }));
+    }
     markDirty();
   }
 
@@ -119,10 +138,14 @@ export function YamlOptionEditor({
       }
     }
     const yamlToSave = parsed ? serializeToYaml({ ...parsed, playerName: parsed.playerName.trim() }) : rawYaml;
+    if (onChange) {
+      onChange(yamlToSave);
+      return;
+    }
     setPanelSave({ kind: "saving" });
     try {
       const res = await fetch(
-        saveUrl ?? `${env.apiBaseUrl}/registrations/${registrationId}/slots/${slotId}/yaml`,
+        saveUrl ?? `${env.apiBaseUrl}/registrations/${registrationId ?? ""}/slots/${slotId ?? ""}/yaml`,
         {
           body: JSON.stringify({ playerYaml: yamlToSave }),
           credentials: "include",
@@ -134,7 +157,7 @@ export function YamlOptionEditor({
         setPanelSave({ kind: "error", message: "Impossible de sauvegarder la configuration." });
         return;
       }
-      onSaved(slotId);
+      if (slotId) onSaved?.(slotId);
       setPanelSave({ kind: "saved" });
     } catch {
       setPanelSave({ kind: "error", message: "Impossible de contacter l'API." });
@@ -155,17 +178,19 @@ export function YamlOptionEditor({
                 <input
                   aria-invalid={nameError}
                   className={`min-h-9 min-w-0 flex-1 rounded border bg-background px-3 text-sm font-normal text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60 ${nameError ? "border-danger" : "border-border"}`}
-                  disabled={!registrationOpen}
+                  disabled={!effectivelyOpen}
                   maxLength={50}
                   value={parsed.playerName}
                   onBlur={(e) => {
                     const trimmed = e.target.value.trim();
                     setParsed((p) => (p ? { ...p, playerName: trimmed } : p));
                     if (!trimmed) setNameError(true);
+                    if (parsed) onChange?.(serializeToYaml({ ...parsed, playerName: trimmed }));
                   }}
                   onChange={(e) => {
                     setParsed((p) => (p ? { ...p, playerName: e.target.value } : p));
                     if (e.target.value.trim()) setNameError(false);
+                    if (parsed) onChange?.(serializeToYaml({ ...parsed, playerName: e.target.value }));
                     markDirty();
                   }}
                 />
@@ -229,7 +254,7 @@ export function YamlOptionEditor({
                     key={opt.key}
                     mode={mode}
                     option={opt}
-                    readOnly={!registrationOpen}
+                    readOnly={!effectivelyOpen}
                     onChange={updateOption}
                   />
                 ))}
@@ -245,10 +270,11 @@ export function YamlOptionEditor({
           </p>
           <textarea
             className="min-h-48 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={!registrationOpen}
+            disabled={!effectivelyOpen}
             value={rawYaml}
             onChange={(e) => {
               setRawYaml(e.target.value);
+              onChange?.(e.target.value);
               markDirty();
             }}
           />
@@ -256,13 +282,13 @@ export function YamlOptionEditor({
       )}
 
       <div className="mt-5 grid gap-2">
-        {panelSave.kind === "saved" ? (
+        {!onChange && panelSave.kind === "saved" ? (
           <span className="flex items-center gap-1.5 text-sm text-success">
             <CheckCircle aria-hidden="true" className="size-4 shrink-0" />
             Sauvegardé
           </span>
         ) : null}
-        {panelSave.kind === "error" ? (
+        {!onChange && panelSave.kind === "error" ? (
           <span className="flex items-center gap-1.5 text-sm text-danger">
             <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
             {panelSave.message}
@@ -270,7 +296,7 @@ export function YamlOptionEditor({
         ) : null}
 
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
-          {registrationOpen ? (
+          {!onChange && effectivelyOpen ? (
             <button
               className="inline-flex min-h-11 w-full items-center justify-center rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               disabled={panelSave.kind === "saving"}

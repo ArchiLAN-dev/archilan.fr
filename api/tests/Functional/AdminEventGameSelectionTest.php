@@ -25,13 +25,13 @@ final class AdminEventGameSelectionTest extends FunctionalTestCase
         $schemaTool->createSchema($metadata);
     }
 
-    public function testAnonymousAndLambdaCannotConfigureGameSelection(): void
+    public function testAnonymousAndUserCannotConfigureGameSelection(): void
     {
         $this->client->jsonRequest('GET', '/api/v1/admin/events/nonexistent/game-selection');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/events/nonexistent/game-selection');
         self::assertResponseStatusCodeSame(403);

@@ -1,4 +1,4 @@
-# Story 20.5: ESLint Rule — Ban process.env Outside env.ts
+# Story 20.5: ESLint Rule - Ban process.env Outside env.ts
 
 ## Story
 
@@ -14,7 +14,7 @@ review
 
 **AC1:** A grep audit of `frontend/src/**/*.{ts,tsx}` (excluding `src/lib/env.ts` and `**/*.test.{ts,tsx}`) identifies zero or more `process.env` accesses. Every occurrence found in non-test files is replaced by the appropriate `env.*` accessor from `src/lib/env.ts`. Test files intentionally use `process.env` for MSW base URL configuration (Story 20.7) and are excluded from the migration scope.
 
-**AC2:** Three `no-restricted-syntax` selectors are added to `frontend/eslint.config.*`, together covering dot-access (`process.env.FOO`), computed access (`process["env"].FOO`), and destructuring (`const { FOO } = process.env`). Optional chaining (`process?.env?.FOO`) is explicitly accepted out-of-scope — it is not a realistic pattern in this codebase and has no straightforward single-selector equivalent. The rule is scoped to `src/**/*.{ts,tsx}` and excludes `src/lib/env.ts` and test files (`**/*.test.ts`, `**/*.test.tsx`) via the `ignores` field in the config block (see Dev Notes for exact config).
+**AC2:** Three `no-restricted-syntax` selectors are added to `frontend/eslint.config.*`, together covering dot-access (`process.env.FOO`), computed access (`process["env"].FOO`), and destructuring (`const { FOO } = process.env`). Optional chaining (`process?.env?.FOO`) is explicitly accepted out-of-scope - it is not a realistic pattern in this codebase and has no straightforward single-selector equivalent. The rule is scoped to `src/**/*.{ts,tsx}` and excludes `src/lib/env.ts` and test files (`**/*.test.ts`, `**/*.test.tsx`) via the `ignores` field in the config block (see Dev Notes for exact config).
 
 **AC3:** `pnpm lint` exits 0 with 0 errors and 0 warnings after the rule is added.
 
@@ -29,17 +29,17 @@ review
   rg 'process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   # Computed property (caught by ESLint selector 2)
   rg 'process\["env"\]' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
-  # Destructuring — const/let/var (caught by ESLint selector 3)
+  # Destructuring - const/let/var (caught by ESLint selector 3)
   rg '(?:const|let|var)\s*\{[^}]+\}\s*=\s*process\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
-  # Optional chaining (NOT caught by ESLint — accepted out-of-scope; fix manually if found)
+  # Optional chaining (NOT caught by ESLint - accepted out-of-scope; fix manually if found)
   rg 'process\?\.env' frontend/src --glob '!frontend/src/lib/env.ts' --glob '!**/*.test.ts' --glob '!**/*.test.tsx'
   ```
   - [x] Document each occurrence: file, line, pattern form, replacement
 - [x] Task 3: Replace all violations with `env.*` accessors
   - [x] Add any missing env variables to `src/lib/env.ts` if the audit reveals accesses not yet covered
-- [x] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*` using the `ignores` field inside the config block (not a separate override block) to exclude `src/lib/env.ts` and test files — see Dev Notes for the exact config shape
-- [x] Task 5: Run `pnpm lint` — fix any remaining issues
-- [x] Task 6: Run `pnpm typecheck` and `pnpm build` — verify clean
+- [x] Task 4: Add ESLint `no-restricted-syntax` rule to `eslint.config.*` using the `ignores` field inside the config block (not a separate override block) to exclude `src/lib/env.ts` and test files - see Dev Notes for the exact config shape
+- [x] Task 5: Run `pnpm lint` - fix any remaining issues
+- [x] Task 6: Run `pnpm typecheck` and `pnpm build` - verify clean
 
 ## Dev Notes
 
@@ -92,7 +92,7 @@ export default [
 ]
 ```
 
-Using `ignores` within the block (instead of a separate `rules: {"no-restricted-syntax": "off"}` block) means that future restrictions added to `no-restricted-syntax` in other config blocks will still apply to `env.ts` — only this block's rules are excluded.
+Using `ignores` within the block (instead of a separate `rules: {"no-restricted-syntax": "off"}` block) means that future restrictions added to `no-restricted-syntax` in other config blocks will still apply to `env.ts` - only this block's rules are excluded.
 
 ### ESLint selector coverage
 
@@ -102,8 +102,8 @@ Three selectors together cover all practical forms of `process.env` access:
 |---------|---------|----------|
 | `process.env.FOO` | Yes | `MemberExpression[object.name='process'][property.name='env']` |
 | `process["env"].FOO` | Yes | `MemberExpression[object.name='process'][computed=true][property.value='env']` |
-| `const/let/var { FOO } = process.env` | Yes | `VariableDeclarator[init.object.name='process'][init.property.name='env']` — `kind` is on the parent `VariableDeclaration`, not the `VariableDeclarator`; all declaration types are caught |
-| `process?.env?.FOO` | No | Optional chaining — no straightforward single selector; explicitly accepted out-of-scope as this pattern is not realistic in this codebase |
+| `const/let/var { FOO } = process.env` | Yes | `VariableDeclarator[init.object.name='process'][init.property.name='env']` - `kind` is on the parent `VariableDeclaration`, not the `VariableDeclarator`; all declaration types are caught |
+| `process?.env?.FOO` | No | Optional chaining - no straightforward single selector; explicitly accepted out-of-scope as this pattern is not realistic in this codebase |
 
 The grep audit in Task 2 still runs all four patterns to clean up any existing optional chaining occurrences at story time.
 
@@ -113,10 +113,10 @@ The grep audit in Task 2 still runs all four patterns to clean up any existing o
 
 ## File List
 
-- `frontend/src/lib/env.ts` — potentially extended with new env vars found in audit
-- `frontend/eslint.config.*` — add `no-restricted-syntax` rule + env.ts override
+- `frontend/src/lib/env.ts` - potentially extended with new env vars found in audit
+- `frontend/eslint.config.*` - add `no-restricted-syntax` rule + env.ts override
 - Any `frontend/src/**/*.{ts,tsx}` files with `process.env` violations (identified by audit)
-- `_bmad-output/implementation-artifacts/20-5-frontend-ban-process-env.md` — this file
+- `_bmad-output/implementation-artifacts/20-5-frontend-ban-process-env.md` - this file
 
 ## Dev Agent Record
 
@@ -124,7 +124,7 @@ The grep audit in Task 2 still runs all four patterns to clean up any existing o
 
 Implemented 2026-05-15.
 
-- Audit : zéro violation de `process.env` hors `src/lib/env.ts` — aucune correction requise sur le code existant.
+- Audit : zéro violation de `process.env` hors `src/lib/env.ts` - aucune correction requise sur le code existant.
 - Ajout du bloc `no-restricted-syntax` dans `frontend/eslint.config.mjs` avec 3 sélecteurs (dot-access, computed, destructuring) scopés à `src/**/*.{ts,tsx}`, excluant `src/lib/env.ts` et les fichiers test via le champ `ignores` interne au bloc de config.
 - Quality gates : `pnpm lint` 0 erreurs/avertissements, `pnpm typecheck` 0 erreurs, `pnpm build` propre.
 
@@ -133,4 +133,4 @@ Implemented 2026-05-15.
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
-| 2026-05-15 | Implementation complete — ESLint rule added, quality gates green |
+| 2026-05-15 | Implementation complete - ESLint rule added, quality gates green |

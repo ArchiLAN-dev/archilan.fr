@@ -47,7 +47,7 @@ framework:
             'App\Communications\Application\SessionRunningMessage': async
             'App\Events\Application\EventCapacityReachedMessage': async
             'App\Payments\Application\SyncHelloAssoFormMessage': async
-            'App\Sessions\Application\Message\GenerateRunJob': run_generation
+            'App\Shared\Application\Message\GenerateRunJob': run_generation
             'App\Sessions\Application\Message\StartRunJob': run_server
             'App\Sessions\Application\Message\StopRunJob': run_server
             'App\Sessions\Application\Message\RestartRunJob': run_server
@@ -56,7 +56,13 @@ framework:
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
             'App\PersonalRuns\Application\Message\LaunchPersonalRunJob': run_server
             'App\PersonalRuns\Application\Message\StopPersonalRunJob': run_server
+            'App\Identity\Application\Message\SyncDiscordRoleMessage': async
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
+            'App\Membership\Application\Message\ExpireMembershipMessage': async
+            'App\Membership\Application\Message\MembershipReminderMessage': async
+            'App\Membership\Application\Message\MembershipActivatedNotificationMessage': async
+            'App\Membership\Application\Message\MembershipExpiredNotificationMessage': async
+            'App\Membership\Application\Message\SyncMemberToDolibarrMessage': async
             'App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask': async
             'App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage': async
             'App\Sessions\Application\Message\PauseRunJob': run_server

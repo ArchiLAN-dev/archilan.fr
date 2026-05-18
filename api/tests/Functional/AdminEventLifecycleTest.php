@@ -71,11 +71,11 @@ final class AdminEventLifecycleTest extends FunctionalTestCase
         self::assertArrayHasKey('status', $response['error']['details']);
     }
 
-    public function testLambdaCannotTransitionEvents(): void
+    public function testStandardCannotTransitionEvents(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
         $event = $this->makeEvent(Event::STATUS_DRAFT);
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->transition($event, Event::STATUS_PUBLISHED);
 

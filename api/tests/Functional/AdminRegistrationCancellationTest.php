@@ -35,10 +35,10 @@ final class AdminRegistrationCancellationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaUserGets403(): void
+    public function testStandardUserGets403(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('DELETE', '/api/v1/admin/events/event-id/registrations/reg-id');
         self::assertResponseStatusCodeSame(403);

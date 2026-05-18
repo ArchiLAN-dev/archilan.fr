@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App;
 
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
+use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage;
+use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
+use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule as SymfonySchedule;
@@ -27,6 +30,9 @@ final class Schedule implements ScheduleProviderInterface
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true)
             ->add(
+                RecurringMessage::cron('5 0 * * *', new CheckMembershipExpiryMessage()),
+            )
+            ->add(
                 RecurringMessage::cron('0 3 * * *', new CleanupRefreshTokensMessage()),
             )
             ->add(
@@ -34,6 +40,12 @@ final class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('5 minutes', new InactivityWatchdogMessage()),
+            )
+            ->add(
+                RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),
+            )
+            ->add(
+                RecurringMessage::cron('59 23 * * 0', new StopWeeklyRunsMessage(), new \DateTimeZone('UTC')),
             );
     }
 }

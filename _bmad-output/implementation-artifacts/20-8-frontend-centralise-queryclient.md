@@ -16,11 +16,11 @@ review
 
 **AC2:** `src/lib/query-client.ts` is created and exports:
 ```ts
-export const DEFAULT_STALE_TIME = 30_000;    // 30 s — public catalog, session list
-export const REALTIME_STALE_TIME = 5_000;    // 5 s — live player state, slot progression
+export const DEFAULT_STALE_TIME = 30_000;    // 30 s - public catalog, session list
+export const REALTIME_STALE_TIME = 5_000;    // 5 s - live player state, slot progression
 export const STATIC_STALE_TIME = Infinity;   // legal pages, env-config data
-export const SESSION_STALE_TIME = 60_000;    // 60 s — session-level state polled less aggressively
-export const DEFAULT_GC_TIME = 300_000;  // 5 min (300 s) — default garbage collection window
+export const SESSION_STALE_TIME = 60_000;    // 60 s - session-level state polled less aggressively
+export const DEFAULT_GC_TIME = 300_000;  // 5 min (300 s) - default garbage collection window
 
 export function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -45,22 +45,22 @@ export function makeQueryClient(): QueryClient {
 
 - [x] Task 1: Create story file (this file)
 - [x] Task 2: Run grep audit across all of `frontend/` **before creating `query-client.ts`**
-  - [x] `src/lib/query-provider.tsx:9` — `new QueryClient({...})` with `staleTime: 60 * 1000, retry: 1`
-  - [x] `src/lib/query-provider.tsx:12` — `staleTime: 60 * 1000` (default options)
-  - [x] `src/features/community/leaderboard-client.tsx:45` — `staleTime: 60 * 1000` (useQuery)
-  - [x] `src/features/community/community-stats-widget.tsx:12` — `staleTime: 60 * 1000` (useQuery)
+  - [x] `src/lib/query-provider.tsx:9` - `new QueryClient({...})` with `staleTime: 60 * 1000, retry: 1`
+  - [x] `src/lib/query-provider.tsx:12` - `staleTime: 60 * 1000` (default options)
+  - [x] `src/features/community/leaderboard-client.tsx:45` - `staleTime: 60 * 1000` (useQuery)
+  - [x] `src/features/community/community-stats-widget.tsx:12` - `staleTime: 60 * 1000` (useQuery)
   - [x] Zero `gcTime:` occurrences
 - [x] Task 3: Create `src/lib/query-client.ts`
   - [x] 3a: Define five standard constants
   - [x] 3b: Implement `makeQueryClient()` with `DEFAULT_STALE_TIME`, `DEFAULT_GC_TIME`, `retry: 1`
 - [x] Task 4: Replace all `new QueryClient(...)` with `makeQueryClient()`
-  - [x] `src/lib/query-provider.tsx` — replaced with `useState(makeQueryClient)` (stable initialiser)
+  - [x] `src/lib/query-provider.tsx` - replaced with `useState(makeQueryClient)` (stable initialiser)
 - [x] Task 5: Replace all raw `staleTime` literals with named constants
-  - [x] `src/features/community/leaderboard-client.tsx` — `60 * 1000` → `SESSION_STALE_TIME`
-  - [x] `src/features/community/community-stats-widget.tsx` — `60 * 1000` → `SESSION_STALE_TIME`
+  - [x] `src/features/community/leaderboard-client.tsx` - `60 * 1000` → `SESSION_STALE_TIME`
+  - [x] `src/features/community/community-stats-widget.tsx` - `60 * 1000` → `SESSION_STALE_TIME`
   - [x] `query-provider.tsx` default literal removed (absorbed by `makeQueryClient()`)
-- [x] Task 5b: Verification — zero remaining raw literals across `frontend/` (excluding `query-client.ts`)
-- [x] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` — all clean
+- [x] Task 5b: Verification - zero remaining raw literals across `frontend/` (excluding `query-client.ts`)
+- [x] Task 6: Run `pnpm typecheck`, `pnpm lint`, `pnpm build` - all clean
 
 ## Dev Notes
 
@@ -68,23 +68,23 @@ export function makeQueryClient(): QueryClient {
 
 | Constant | Value | Used for |
 |---|---|---|
-| `REALTIME_STALE_TIME` | 5 000 ms | Player state, slot progression, session status — bridge updates every few seconds |
-| `DEFAULT_STALE_TIME` | 30 000 ms | Public event catalog, game library, player profile — changes rarely during a session |
+| `REALTIME_STALE_TIME` | 5 000 ms | Player state, slot progression, session status - bridge updates every few seconds |
+| `DEFAULT_STALE_TIME` | 30 000 ms | Public event catalog, game library, player profile - changes rarely during a session |
 | `SESSION_STALE_TIME` | 60 000 ms | Session-level state polled less aggressively than realtime slot data |
-| `STATIC_STALE_TIME` | `Infinity` | Legal pages, env config — effectively static between deployments |
+| `STATIC_STALE_TIME` | `Infinity` | Legal pages, env config - effectively static between deployments |
 | `DEFAULT_GC_TIME` | 300 000 ms | Default garbage collection window (5 min) for all query data |
 
 If a feature needs a value outside these tiers, add a named constant rather than using a magic number:
 ```ts
-export const HINTS_STALE_TIME = 10_000; // 10 s — hint state updates on each LocationScouts response
+export const HINTS_STALE_TIME = 10_000; // 10 s - hint state updates on each LocationScouts response
 ```
 
 ### STATIC_STALE_TIME and JSON serialisation
 
-`JSON.stringify(Infinity)` produces `"null"`, not `"Infinity"`. This is normally harmless because TanStack Query's `dehydrate()` does **not** include `staleTime` in the serialised output — it is a runtime QueryClient configuration, not query state. Dehydrated payloads only carry data, status, `dataUpdatedAt`, etc., so passing a dehydrated state from a server component to the client via props is safe even when `STATIC_STALE_TIME` is in use.
+`JSON.stringify(Infinity)` produces `"null"`, not `"Infinity"`. This is normally harmless because TanStack Query's `dehydrate()` does **not** include `staleTime` in the serialised output - it is a runtime QueryClient configuration, not query state. Dehydrated payloads only carry data, status, `dataUpdatedAt`, etc., so passing a dehydrated state from a server component to the client via props is safe even when `STATIC_STALE_TIME` is in use.
 
 Two things to avoid:
-- Do **not** use `STATIC_STALE_TIME` as a value for `gcTime` — TanStack Query v5 may include `gcTime` in dehydrated state in some configurations, and `Infinity` would become `null` after serialisation.
+- Do **not** use `STATIC_STALE_TIME` as a value for `gcTime` - TanStack Query v5 may include `gcTime` in dehydrated state in some configurations, and `Infinity` would become `null` after serialisation.
 - Do **not** put `STATIC_STALE_TIME` (or `Infinity`) into any object that is JSON-serialised and sent over the wire or stored.
 
 If a query genuinely needs indefinite caching on both client and server, use `staleTime: STATIC_STALE_TIME` (safe) combined with a finite `gcTime` (also safe).
@@ -105,7 +105,7 @@ export default async function PlayerProfilePage({ params }) {
 
 ### Default options vs per-call staleTime
 
-`makeQueryClient()` sets a `defaultOptions.queries.staleTime`. Individual `useQuery` calls that override `staleTime` must use a named constant — the default is a floor, not a ceiling.
+`makeQueryClient()` sets a `defaultOptions.queries.staleTime`. Individual `useQuery` calls that override `staleTime` must use a named constant - the default is a floor, not a ceiling.
 
 ### Relationship to Story 20.7
 
@@ -113,10 +113,10 @@ Story 20.7 test helpers that create a `QueryClient` for testing purposes must al
 
 ## File List
 
-- `frontend/src/lib/query-client.ts` — new: `makeQueryClient()` + named staleTime and gcTime constants
-- `frontend/src/lib/query-provider.tsx` — updated: use `makeQueryClient()`
+- `frontend/src/lib/query-client.ts` - new: `makeQueryClient()` + named staleTime and gcTime constants
+- `frontend/src/lib/query-provider.tsx` - updated: use `makeQueryClient()`
 - Any file found by the Task 2 audit across `frontend/` (including `.storybook/` and test setup files outside `src/` if present) with `new QueryClient(...)`, raw `staleTime`, or raw `gcTime` literals
-- `_bmad-output/implementation-artifacts/20-8-frontend-centralise-queryclient.md` — this file
+- `_bmad-output/implementation-artifacts/20-8-frontend-centralise-queryclient.md` - this file
 
 ## Dev Agent Record
 
@@ -128,7 +128,7 @@ Implemented 2026-05-15.
 
 **`src/lib/query-client.ts`:** Exports five named constants (`DEFAULT_STALE_TIME`, `REALTIME_STALE_TIME`, `STATIC_STALE_TIME`, `SESSION_STALE_TIME`, `DEFAULT_GC_TIME`) and `makeQueryClient()` with `staleTime: DEFAULT_STALE_TIME` (30 s), `gcTime: DEFAULT_GC_TIME` (300 s), `retry: 1`.
 
-**`query-provider.tsx`:** Replaced the full inline `new QueryClient({...})` with `useState(makeQueryClient)` — the function reference as stable initialiser avoids re-creating the client on each render while keeping the pattern clean.
+**`query-provider.tsx`:** Replaced the full inline `new QueryClient({...})` with `useState(makeQueryClient)` - the function reference as stable initialiser avoids re-creating the client on each render while keeping the pattern clean.
 
 **leaderboard-client.tsx / community-stats-widget.tsx:** Both per-call `staleTime: 60 * 1000` replaced with `SESSION_STALE_TIME` from `@/lib/query-client`.
 
@@ -139,4 +139,4 @@ Implemented 2026-05-15.
 | Date       | Change         |
 |------------|----------------|
 | 2026-05-15 | Story created  |
-| 2026-05-15 | Implementation complete — query-client.ts created, all QueryClient and staleTime literals centralised, quality gates green |
+| 2026-05-15 | Implementation complete - query-client.ts created, all QueryClient and staleTime literals centralised, quality gates green |

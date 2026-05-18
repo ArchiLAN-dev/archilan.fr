@@ -23,7 +23,7 @@ final class AdminEventRecapTest extends FunctionalTestCase
         $schemaTool->createSchema($metadata);
     }
 
-    public function testAnonymousAndLambdaCannotAttachRecap(): void
+    public function testAnonymousAndUserCannotAttachRecap(): void
     {
         $this->client->jsonRequest('PATCH', '/api/v1/admin/events/nonexistent/recap', [
             'vodUrl' => null,
@@ -31,8 +31,8 @@ final class AdminEventRecapTest extends FunctionalTestCase
         ]);
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('PATCH', '/api/v1/admin/events/nonexistent/recap', [
             'vodUrl' => null,

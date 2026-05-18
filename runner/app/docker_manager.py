@@ -59,7 +59,7 @@ class DockerManager:
         self,
         image: str,
         host_port: int,
-        output_file: str,
+        output_dir: str,
         password: str,
         container_port: int = 38281,
     ) -> docker.models.containers.Container:
@@ -70,8 +70,8 @@ class DockerManager:
             image,
             detach=True,
             ports={f"{container_port}/tcp": host_port},
-            volumes={output_file: {"bind": "/archipelago/worlds/world.archipelago", "mode": "ro"}},
-            environment={"SERVER_PASSWORD": password},
+            volumes={output_dir: {"bind": "/archipelago/output", "mode": "ro"}},
+            environment={"PASSWORD": password},
             remove=True,
         )
         self.track(str(container.id), container)

@@ -42,9 +42,9 @@ export default function ConfidentialitePage() {
           <LegalRow label="Contact RGPD">
             <a
               className="text-accent-text hover:text-accent-text-hover"
-              href="mailto:rgpd@archilan.fr"
+              href="mailto:contact@archilan.fr"
             >
-              rgpd@archilan.fr
+              contact@archilan.fr
             </a>
           </LegalRow>
         </dl>
@@ -240,9 +240,9 @@ export default function ConfidentialitePage() {
             (section « Données et confidentialité »), ou contactez-nous à{" "}
             <a
               className="font-semibold text-accent-text hover:text-accent-text-hover"
-              href="mailto:rgpd@archilan.fr"
+              href="mailto:contact@archilan.fr"
             >
-              rgpd@archilan.fr
+              contact@archilan.fr
             </a>
           </p>
           <p className="mt-2">

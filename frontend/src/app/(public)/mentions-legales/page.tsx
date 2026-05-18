@@ -73,7 +73,7 @@ export default function MentionsLegalesPage() {
           <LegalRow label="Prestataire">OVH SAS</LegalRow>
 
           <LegalRow label="Forme juridique / immatriculation">
-            SAS au capital de 10 174 560 € - RCS Lille Métropole 424 761 419
+            SAS au capital de 50 000 000,00 € - RCS Lille Métropole 424 761 419
           </LegalRow>
 
           <LegalRow label="Adresse">2 rue Kellermann, 59100 Roubaix, France</LegalRow>

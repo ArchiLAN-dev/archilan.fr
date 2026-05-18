@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\RoleChangeAudit;
 use App\Identity\Domain\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class AdminChangeUserRole
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
+        private MessageBusInterface $bus,
     ) {
     }
 
@@ -57,12 +60,16 @@ final readonly class AdminChangeUserRole
         }
 
         $previousRole = $this->primaryRole($target);
+        if ($previousRole === $normalizedRole) {
+            return ['user' => $this->userPayload($target), 'errors' => []];
+        }
+
         $now = new \DateTimeImmutable();
 
         if ('member' === $normalizedRole) {
             $target->promoteToMember($now);
         } else {
-            $target->demoteToLambda($now);
+            $target->demoteToUser($now);
         }
 
         $newRole = $this->primaryRole($target);
@@ -78,13 +85,36 @@ final readonly class AdminChangeUserRole
 
         $this->logger->info('user.role_changed', ['targetUserId' => $target->getId(), 'adminId' => $admin->getId(), 'from' => $previousRole, 'to' => $newRole]);
 
+        $discordId = $target->getDiscordId();
+        if (null !== $discordId) {
+            $this->dispatchDiscordSync(new SyncDiscordRoleMessage(
+                $target->getId(),
+                $discordId,
+                $target->getRoles(),
+            ));
+        }
+
         return ['user' => $this->userPayload($target), 'errors' => []];
+    }
+
+    private function dispatchDiscordSync(SyncDiscordRoleMessage $message): void
+    {
+        try {
+            $this->bus->dispatch($message);
+        } catch (\Throwable $e) {
+            $this->logger->error('discord.sync_dispatch_failed', [
+                'userId' => $message->userId,
+                'discordUserId' => $message->discordUserId,
+                'removeAll' => $message->removeAll,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function normalizeRole(string $targetRole): ?string
     {
         return match (mb_strtolower(trim($targetRole))) {
-            'lambda', 'user' => 'lambda',
+            'user' => 'user',
             'member', 'membre' => 'member',
             default => null,
         };
@@ -118,6 +148,6 @@ final readonly class AdminChangeUserRole
             return 'member';
         }
 
-        return 'lambda';
+        return 'user';
     }
 }

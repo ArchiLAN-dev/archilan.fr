@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\User;
-use App\Sessions\Application\Message\GenerateRunJob;
+use App\Shared\Application\Message\GenerateRunJob;
 use App\Sessions\Application\Message\RestartRunJob;
 use App\Sessions\Application\Message\RunHealthCheckJob;
 use App\Sessions\Application\Message\StartRunJob;

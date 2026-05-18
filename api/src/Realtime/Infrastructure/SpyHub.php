@@ -12,11 +12,11 @@ use Symfony\Component\Mercure\Update;
 final class SpyHub implements HubInterface
 {
     /** @var list<Update> */
-    public static array $published = [];
+    public array $published = [];
 
-    public static function reset(): void
+    public function reset(): void
     {
-        self::$published = [];
+        $this->published = [];
     }
 
     public function getUrl(): string
@@ -46,7 +46,7 @@ final class SpyHub implements HubInterface
 
     public function publish(Update $update): string
     {
-        self::$published[] = $update;
+        $this->published[] = $update;
 
         return '';
     }

@@ -31,10 +31,10 @@ final class AdminAccountCreationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaAdminCreationIsForbidden(): void
+    public function testStandardAdminCreationIsForbidden(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER'], 'Lambda');
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER'], 'User');
+        $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/admin/users/admins', $this->validPayload());
 
@@ -114,7 +114,7 @@ final class AdminAccountCreationTest extends FunctionalTestCase
 
         $payload = $this->validPayload();
         $payload['roles'] = ['ROLE_USER'];
-        $payload['role'] = 'lambda';
+        $payload['role'] = 'user';
 
         $this->client->jsonRequest('POST', '/api/v1/admin/users/admins', $payload);
 

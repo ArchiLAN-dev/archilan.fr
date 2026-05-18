@@ -35,8 +35,8 @@ final class AdminCatalogSyncTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('user@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('user@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
         self::assertResponseStatusCodeSame(403);
@@ -97,8 +97,8 @@ final class AdminCatalogSyncTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', '/api/v1/admin/catalog-sync/check-updates');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('user@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('user@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('POST', '/api/v1/admin/catalog-sync/check-updates');
         self::assertResponseStatusCodeSame(403);

@@ -41,6 +41,27 @@ final readonly class HelloAssoHttpClient
     }
 
     /**
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}|null
+     */
+    public function fetchOrder(int $orderId, string $accessToken): ?array
+    {
+        try {
+            $url = sprintf('%s/orders/%d', $this->config->getApiBaseUrl(), $orderId);
+            $response = $this->httpClient->request('GET', $url, [
+                'headers' => ['Authorization' => 'Bearer '.$accessToken],
+            ]);
+
+            if (200 !== $response->getStatusCode()) {
+                return null;
+            }
+
+            return $this->parseOrderDirect($response->toArray(false));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * @return list<array{orderId: int, status: string, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}>
      */
     public function fetchFormItems(string $formType, string $formSlug, string $accessToken): array
@@ -111,18 +132,27 @@ final readonly class HelloAssoHttpClient
             return null;
         }
 
-        $status = $order['status'] ?? '';
+        $status = $rawItem['state'] ?? '';
         if (!is_string($status)) {
             $status = 'unknown';
         }
 
-        $amountData = $order['amount'] ?? null;
-        $amountCents = is_array($amountData) && is_int($amountData['total'] ?? null) ? $amountData['total'] : 0;
+        // Items endpoint exposes amount as a plain int on the item, not as order.amount.{total}
+        $rawAmount = $rawItem['amount'] ?? null;
+        $amountCents = is_int($rawAmount) ? $rawAmount : 0;
 
-        $payer = $order['payer'] ?? null;
-        $payerEmail = is_array($payer) && is_string($payer['email'] ?? null) && '' !== $payer['email'] ? $payer['email'] : null;
-        $payerFirstName = is_array($payer) && is_string($payer['firstName'] ?? null) && '' !== $payer['firstName'] ? $payer['firstName'] : null;
-        $payerLastName = is_array($payer) && is_string($payer['lastName'] ?? null) && '' !== $payer['lastName'] ? $payer['lastName'] : null;
+        // Payer is a top-level field on the item (not nested in order)
+        $payer = $rawItem['payer'] ?? null;
+        $user = $rawItem['user'] ?? null;
+        $payerEmail = is_array($payer) && is_string($payer['email'] ?? null) && '' !== $payer['email']
+            ? $payer['email']
+            : (is_array($user) && is_string($user['email'] ?? null) && '' !== $user['email'] ? $user['email'] : null);
+        $payerFirstName = is_array($payer) && is_string($payer['firstName'] ?? null) && '' !== $payer['firstName']
+            ? $payer['firstName']
+            : (is_array($user) && is_string($user['firstName'] ?? null) && '' !== $user['firstName'] ? $user['firstName'] : null);
+        $payerLastName = is_array($payer) && is_string($payer['lastName'] ?? null) && '' !== $payer['lastName']
+            ? $payer['lastName']
+            : (is_array($user) && is_string($user['lastName'] ?? null) && '' !== $user['lastName'] ? $user['lastName'] : null);
 
         $paidAt = null;
         $dateStr = $order['date'] ?? null;
@@ -136,6 +166,50 @@ final readonly class HelloAssoHttpClient
         return [
             'orderId' => $orderId,
             'status' => $status,
+            'amountCents' => $amountCents,
+            'payerEmail' => $payerEmail,
+            'payerFirstName' => $payerFirstName,
+            'payerLastName' => $payerLastName,
+            'paidAt' => $paidAt,
+        ];
+    }
+
+    /**
+     * Parses the response from GET /orders/{id} (no nested "order" wrapper).
+     * Note: HelloAsso v5 does not expose a top-level state field on this endpoint.
+     *
+     * @return array{orderId: int, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}|null
+     */
+    private function parseOrderDirect(mixed $data): ?array
+    {
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $orderId = $data['id'] ?? null;
+        if (!is_int($orderId)) {
+            return null;
+        }
+
+        $amountData = $data['amount'] ?? null;
+        $amountCents = is_array($amountData) && is_int($amountData['total'] ?? null) ? $amountData['total'] : 0;
+
+        $payer = $data['payer'] ?? null;
+        $payerEmail = is_array($payer) && is_string($payer['email'] ?? null) && '' !== $payer['email'] ? $payer['email'] : null;
+        $payerFirstName = is_array($payer) && is_string($payer['firstName'] ?? null) && '' !== $payer['firstName'] ? $payer['firstName'] : null;
+        $payerLastName = is_array($payer) && is_string($payer['lastName'] ?? null) && '' !== $payer['lastName'] ? $payer['lastName'] : null;
+
+        $paidAt = null;
+        $dateStr = $data['date'] ?? null;
+        if (is_string($dateStr) && '' !== $dateStr) {
+            try {
+                $paidAt = new \DateTimeImmutable($dateStr);
+            } catch (\Exception) {
+            }
+        }
+
+        return [
+            'orderId' => $orderId,
             'amountCents' => $amountCents,
             'payerEmail' => $payerEmail,
             'payerFirstName' => $payerFirstName,

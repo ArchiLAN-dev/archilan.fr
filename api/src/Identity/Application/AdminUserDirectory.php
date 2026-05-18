@@ -82,7 +82,7 @@ final readonly class AdminUserDirectory
             'admin', 'role_admin' => in_array('ROLE_ADMIN', $roles, true),
             'member', 'membre', 'role_member' => in_array('ROLE_MEMBER', $roles, true)
                 && !in_array('ROLE_ADMIN', $roles, true),
-            'lambda', 'user', 'role_user' => !in_array('ROLE_MEMBER', $roles, true)
+            'user', 'role_user' => !in_array('ROLE_MEMBER', $roles, true)
                 && !in_array('ROLE_ADMIN', $roles, true),
             default => false,
         };
@@ -99,6 +99,6 @@ final readonly class AdminUserDirectory
             return 'member';
         }
 
-        return 'lambda';
+        return 'user';
     }
 }

@@ -284,19 +284,19 @@ class Game
         $subParts = array_slice($parts, 2);
 
         if (0 === count($subParts)) {
-            // /owner/repo — valid
+            // /owner/repo - valid
         } elseif ('releases' === $subParts[0]) {
             if (1 === count($subParts)) {
-                // /releases — valid
+                // /releases - valid
             } elseif ('latest' === $subParts[1] && 2 === count($subParts)) {
-                // /releases/latest — valid
+                // /releases/latest - valid
             } elseif ('tag' === $subParts[1] && 3 === count($subParts)) {
-                // /releases/tag/{version} — valid
+                // /releases/tag/{version} - valid
             } else {
                 return null;
             }
         } elseif ('tree' === $subParts[0] && count($subParts) >= 2) {
-            // /tree/{branch} — valid
+            // /tree/{branch} - valid
         } else {
             return null;
         }

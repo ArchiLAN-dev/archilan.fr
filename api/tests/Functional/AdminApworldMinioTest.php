@@ -155,8 +155,8 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/admin/sessions/session-stub/apworlds/somehash/download-url');
         self::assertResponseStatusCodeSame(401);
 
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
         $this->client->jsonRequest('GET', '/api/v1/admin/sessions/session-stub/apworlds/somehash/download-url');
         self::assertResponseStatusCodeSame(403);
     }

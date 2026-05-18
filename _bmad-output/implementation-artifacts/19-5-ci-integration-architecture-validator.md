@@ -1,4 +1,4 @@
-# Story 19.5: CI Integration — `app:architecture:ddd` in Quality Gates
+# Story 19.5: CI Integration - `app:architecture:ddd` in Quality Gates
 
 ## Story
 
@@ -16,9 +16,9 @@ review
 
 **AC2:** `.github/workflows/backend.yml` includes an **Architecture** step that runs `composer arch` after PHP CS Fixer and before PHPUnit. The step fails the workflow if the command exits non-zero.
 
-**AC3:** The root `CLAUDE.md` quality-gates table already lists `php bin/console app:architecture:ddd → exit 0`. No change needed — verify it is present.
+**AC3:** The root `CLAUDE.md` quality-gates table already lists `php bin/console app:architecture:ddd → exit 0`. No change needed - verify it is present.
 
-**AC4:** The `api/CLAUDE.md` quality-gates section already lists `php bin/console app:architecture:ddd → exit 0`. No change needed — verify it is present.
+**AC4:** The `api/CLAUDE.md` quality-gates section already lists `php bin/console app:architecture:ddd → exit 0`. No change needed - verify it is present.
 
 **AC5:** PHPStan level max: 0 errors on modified files. CS Fixer @Symfony: 0 violations. All existing tests pass.
 
@@ -41,7 +41,7 @@ review
 
 ### Architecture step placement in CI
 
-Place the Architecture step **after** CS Fixer and **before** PHPUnit — it is a fast static check (no DB needed).
+Place the Architecture step **after** CS Fixer and **before** PHPUnit - it is a fast static check (no DB needed).
 
 ### No validator changes needed
 
@@ -53,9 +53,9 @@ The validator already:
 
 ## File List
 
-- `api/composer.json` — modified (add `arch` script)
-- `.github/workflows/backend.yml` — modified (add Architecture step)
-- `_bmad-output/implementation-artifacts/19-5-ci-integration-architecture-validator.md` — this file
+- `api/composer.json` - modified (add `arch` script)
+- `.github/workflows/backend.yml` - modified (add Architecture step)
+- `_bmad-output/implementation-artifacts/19-5-ci-integration-architecture-validator.md` - this file
 
 ## Dev Agent Record
 
@@ -64,10 +64,10 @@ The validator already:
 - `api/composer.json`: added `"arch": "php bin/console app:architecture:ddd"` to scripts section
 - `.github/workflows/backend.yml`: added Architecture step after PHP CS Fixer, before PHPUnit
 - `app:architecture:ddd` → exit 0 (0 violations, confirmed after stories 19.1–19.4)
-- CS Fixer @Symfony: 0 violations on modified files (`composer.json`, `backend.yml` are non-PHP — no CS Fixer scope)
+- CS Fixer @Symfony: 0 violations on modified files (`composer.json`, `backend.yml` are non-PHP - no CS Fixer scope)
 - PHPStan: 0 errors on Story 19.5 modified files (no PHP files modified); pre-existing 192 errors are unrelated to this story
-- PHPUnit: 726 tests — pre-existing 45 errors + 6 failures unchanged, 0 regressions introduced
-- AC3/AC4: `php bin/console app:architecture:ddd → exit 0` already present in root `CLAUDE.md` (line 23) and `api/CLAUDE.md` (line 9) — no changes needed
+- PHPUnit: 726 tests - pre-existing 45 errors + 6 failures unchanged, 0 regressions introduced
+- AC3/AC4: `php bin/console app:architecture:ddd → exit 0` already present in root `CLAUDE.md` (line 23) and `api/CLAUDE.md` (line 9) - no changes needed
 
 ## Change Log
 

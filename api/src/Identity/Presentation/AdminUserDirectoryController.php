@@ -31,7 +31,7 @@ final readonly class AdminUserDirectoryController
         }
 
         $roleFilter = $request->query->getString('role') ?: null;
-        $validRoles = ['all', 'lambda', 'member', 'admin'];
+        $validRoles = ['all', 'user', 'member', 'admin'];
         if (null !== $roleFilter && !in_array($roleFilter, $validRoles, true)) {
             return $this->apiAccessGuard->errorResponse(
                 'invalid_parameter',

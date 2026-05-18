@@ -66,10 +66,10 @@ done
   - [x] 5h: `CatalogSyncController`
   - [x] 5i: `PublicCatalogGamesController`
 - [x] Task 6: Quality gates
-  - [x] PHPStan level max — 0 errors on all 20 files
-  - [x] CS Fixer @Symfony — 0 violations on all 20 files
-  - [x] Functional tests — no new failures introduced
-  - [x] `app:architecture:ddd` — 0 violations (down from 14)
+  - [x] PHPStan level max - 0 errors on all 20 files
+  - [x] CS Fixer @Symfony - 0 violations on all 20 files
+  - [x] Functional tests - no new failures introduced
+  - [x] `app:architecture:ddd` - 0 violations (down from 14)
 
 ## Dev Notes
 
@@ -87,7 +87,7 @@ done
 | `CatalogSyncStatusQuery` | CatalogSync | Query | `force: bool` | full data array or null (sheet unavailable) |
 | `IgnoreCatalogEntryCommand` | CatalogSync | Command | `name` | `void` |
 | `UnignoreCatalogEntryCommand` | CatalogSync | Command | `name` | `bool` (true=found+removed) |
-| `PublicCatalogGamesQuery` | CatalogSync | Query | — | `list<string>\|null` |
+| `PublicCatalogGamesQuery` | CatalogSync | Query | - | `list<string>\|null` |
 
 ### Violation elimination
 
@@ -104,38 +104,38 @@ done
 
 ## File List
 
-- `api/src/Sessions/Application/NotifyAllGoalCommand.php` — new
-- `api/src/Sessions/Application/SendBridgeCommand.php` — new
-- `api/src/Sessions/Application/ForceEndSessionCommand.php` — new
-- `api/src/Events/Application/UploadEventCoverImageCommand.php` — new
-- `api/src/Events/Application/ManageEventGalleryCommand.php` — new
-- `api/src/Content/Application/UploadPostCoverImageCommand.php` — new
-- `api/src/Registrations/Application/MyRegistrationQuery.php` — new
-- `api/src/CatalogSync/Application/CatalogSyncStatusQuery.php` — new
-- `api/src/CatalogSync/Application/IgnoreCatalogEntryCommand.php` — new
-- `api/src/CatalogSync/Application/UnignoreCatalogEntryCommand.php` — new
-- `api/src/CatalogSync/Application/PublicCatalogGamesQuery.php` — new
-- `api/src/Sessions/Presentation/AllGoalController.php` — modified
-- `api/src/Sessions/Presentation/CommandsController.php` — modified
-- `api/src/Sessions/Presentation/ForceEndController.php` — modified
-- `api/src/Events/Presentation/AdminEventCoverImageController.php` — modified
-- `api/src/Events/Presentation/AdminEventGalleryController.php` — modified
-- `api/src/Content/Presentation/AdminPostCoverImageController.php` — modified
-- `api/src/Registrations/Presentation/RegistrationController.php` — modified
-- `api/src/CatalogSync/Presentation/CatalogSyncController.php` — modified
-- `api/src/CatalogSync/Presentation/PublicCatalogGamesController.php` — modified
-- `_bmad-output/implementation-artifacts/19-4-extract-reads-writes-remaining-controllers.md` — this file
+- `api/src/Sessions/Application/NotifyAllGoalCommand.php` - new
+- `api/src/Sessions/Application/SendBridgeCommand.php` - new
+- `api/src/Sessions/Application/ForceEndSessionCommand.php` - new
+- `api/src/Events/Application/UploadEventCoverImageCommand.php` - new
+- `api/src/Events/Application/ManageEventGalleryCommand.php` - new
+- `api/src/Content/Application/UploadPostCoverImageCommand.php` - new
+- `api/src/Registrations/Application/MyRegistrationQuery.php` - new
+- `api/src/CatalogSync/Application/CatalogSyncStatusQuery.php` - new
+- `api/src/CatalogSync/Application/IgnoreCatalogEntryCommand.php` - new
+- `api/src/CatalogSync/Application/UnignoreCatalogEntryCommand.php` - new
+- `api/src/CatalogSync/Application/PublicCatalogGamesQuery.php` - new
+- `api/src/Sessions/Presentation/AllGoalController.php` - modified
+- `api/src/Sessions/Presentation/CommandsController.php` - modified
+- `api/src/Sessions/Presentation/ForceEndController.php` - modified
+- `api/src/Events/Presentation/AdminEventCoverImageController.php` - modified
+- `api/src/Events/Presentation/AdminEventGalleryController.php` - modified
+- `api/src/Content/Presentation/AdminPostCoverImageController.php` - modified
+- `api/src/Registrations/Presentation/RegistrationController.php` - modified
+- `api/src/CatalogSync/Presentation/CatalogSyncController.php` - modified
+- `api/src/CatalogSync/Presentation/PublicCatalogGamesController.php` - modified
+- `_bmad-output/implementation-artifacts/19-4-extract-reads-writes-remaining-controllers.md` - this file
 
 ## Dev Agent Record
 
 ### Completion Notes
 
 - 11 Application services created across Sessions, Events, Content, Registrations, CatalogSync contexts
-- 9 controllers refactored — all DB infrastructure imports removed from Presentation layer
+- 9 controllers refactored - all DB infrastructure imports removed from Presentation layer
 - PHPStan level max: 0 errors on all 20 files
 - CS Fixer @Symfony: 0 violations on all 20 files
-- `app:architecture:ddd`: 0 violations (down from 14 — all 14 eliminated)
-- Pre-existing failures unchanged: 45 errors + 6 failures (all from ArchipelagoGame.updateCatalogueMetadata missing, Event domain changes, and missing IgnoredCatalogEntry in CatalogSyncEndpointTest schema — all predating this story)
+- `app:architecture:ddd`: 0 violations (down from 14 - all 14 eliminated)
+- Pre-existing failures unchanged: 45 errors + 6 failures (all from ArchipelagoGame.updateCatalogueMetadata missing, Event domain changes, and missing IgnoredCatalogEntry in CatalogSyncEndpointTest schema - all predating this story)
 
 ## Change Log
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DiscordButton } from "./discord-button";
 
 const CGU_VERSION_LABEL = "2 mai 2026";
 
@@ -81,94 +82,104 @@ export function SignupForm() {
   }
 
   return (
-    <form className="grid gap-5 card-glow rounded-lg border border-border p-6" onSubmit={handleSubmit}>
-      <FieldErrorSummary message={formMessage} type={formMessageType} />
+    <div className="grid gap-5 card-glow rounded-lg border border-border p-6">
+      <form className="grid gap-5" onSubmit={handleSubmit}>
+        <FieldErrorSummary message={formMessage} type={formMessageType} />
 
-      <div className="grid gap-2">
-        <label className="text-sm font-semibold text-foreground" htmlFor={displayNameId}>
-          Pseudo
-        </label>
-        <input
-          aria-describedby={fieldErrors.displayName ? `${displayNameId}-error` : undefined}
-          aria-invalid={fieldErrors.displayName ? true : undefined}
-          autoComplete="nickname"
-          className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
-          id={displayNameId}
-          maxLength={80}
-          name="displayName"
-          required
-          type="text"
-        />
-        <FieldError errors={fieldErrors.displayName} id={`${displayNameId}-error`} />
-      </div>
-
-      <div className="grid gap-2">
-        <label className="text-sm font-semibold text-foreground" htmlFor={emailId}>
-          Email
-        </label>
-        <input
-          aria-describedby={fieldErrors.email ? `${emailId}-error` : undefined}
-          aria-invalid={fieldErrors.email ? true : undefined}
-          autoComplete="email"
-          className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
-          id={emailId}
-          name="email"
-          required
-          type="email"
-        />
-        <FieldError errors={fieldErrors.email} id={`${emailId}-error`} />
-      </div>
-
-      <div className="grid gap-2">
-        <label className="text-sm font-semibold text-foreground" htmlFor={passwordId}>
-          Mot de passe
-        </label>
-        <input
-          aria-describedby={fieldErrors.password ? `${passwordId}-error ${passwordId}-hint` : `${passwordId}-hint`}
-          aria-invalid={fieldErrors.password ? true : undefined}
-          autoComplete="new-password"
-          className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
-          id={passwordId}
-          minLength={12}
-          name="password"
-          required
-          type="password"
-        />
-        <p className="text-sm text-muted-foreground" id={`${passwordId}-hint`}>
-          Minimum 12 caractères.
-        </p>
-        <FieldError errors={fieldErrors.password} id={`${passwordId}-error`} />
-      </div>
-
-      <div className="grid gap-2">
-        <label className="flex items-start gap-3 text-sm text-muted-foreground" htmlFor={cguId}>
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor={displayNameId}>
+            Pseudo
+          </label>
           <input
-            aria-describedby={fieldErrors.acceptedCgu ? `${cguId}-error` : undefined}
-            aria-invalid={fieldErrors.acceptedCgu ? true : undefined}
-            className="mt-1 size-4 rounded border-border text-accent-text"
-            id={cguId}
-            name="acceptedCgu"
-            type="checkbox"
+            aria-describedby={fieldErrors.displayName ? `${displayNameId}-error` : undefined}
+            aria-invalid={fieldErrors.displayName ? true : undefined}
+            autoComplete="nickname"
+            className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+            id={displayNameId}
+            maxLength={80}
+            name="displayName"
+            required
+            type="text"
           />
-          <span>
-            J&apos;accepte les{" "}
-            <Link className="text-accent-text hover:text-accent-text-hover" href="/cgu">
-              conditions d&apos;utilisation
-            </Link>{" "}
-            d&apos;ArchiLAN, version du {CGU_VERSION_LABEL}.
-          </span>
-        </label>
-        <FieldError errors={fieldErrors.acceptedCgu} id={`${cguId}-error`} />
+          <FieldError errors={fieldErrors.displayName} id={`${displayNameId}-error`} />
+        </div>
+
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor={emailId}>
+            Email
+          </label>
+          <input
+            aria-describedby={fieldErrors.email ? `${emailId}-error` : undefined}
+            aria-invalid={fieldErrors.email ? true : undefined}
+            autoComplete="email"
+            className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+            id={emailId}
+            name="email"
+            required
+            type="email"
+          />
+          <FieldError errors={fieldErrors.email} id={`${emailId}-error`} />
+        </div>
+
+        <div className="grid gap-2">
+          <label className="text-sm font-semibold text-foreground" htmlFor={passwordId}>
+            Mot de passe
+          </label>
+          <input
+            aria-describedby={fieldErrors.password ? `${passwordId}-error ${passwordId}-hint` : `${passwordId}-hint`}
+            aria-invalid={fieldErrors.password ? true : undefined}
+            autoComplete="new-password"
+            className="min-h-12 rounded border border-border bg-background px-3 text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+            id={passwordId}
+            minLength={12}
+            name="password"
+            required
+            type="password"
+          />
+          <p className="text-sm text-muted-foreground" id={`${passwordId}-hint`}>
+            Minimum 12 caractères.
+          </p>
+          <FieldError errors={fieldErrors.password} id={`${passwordId}-error`} />
+        </div>
+
+        <div className="grid gap-2">
+          <label className="flex items-start gap-3 text-sm text-muted-foreground" htmlFor={cguId}>
+            <input
+              aria-describedby={fieldErrors.acceptedCgu ? `${cguId}-error` : undefined}
+              aria-invalid={fieldErrors.acceptedCgu ? true : undefined}
+              className="mt-1 size-4 rounded border-border text-accent-text"
+              id={cguId}
+              name="acceptedCgu"
+              type="checkbox"
+            />
+            <span>
+              J&apos;accepte les{" "}
+              <Link className="text-accent-text hover:text-accent-text-hover" href="/cgu">
+                conditions d&apos;utilisation
+              </Link>{" "}
+              d&apos;ArchiLAN, version du {CGU_VERSION_LABEL}.
+            </span>
+          </label>
+          <FieldError errors={fieldErrors.acceptedCgu} id={`${cguId}-error`} />
+        </div>
+
+        <button
+          className="inline-flex min-h-12 items-center justify-center rounded bg-accent px-5 font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting}
+          type="submit"
+        >
+          {submitting ? "Création..." : "Créer mon compte"}
+        </button>
+      </form>
+
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        ou
+        <span className="h-px flex-1 bg-border" />
       </div>
 
-      <button
-        className="inline-flex min-h-12 items-center justify-center rounded bg-accent px-5 font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={submitting}
-        type="submit"
-      >
-        {submitting ? "Création..." : "Créer mon compte"}
-      </button>
-    </form>
+      <DiscordButton label="S'inscrire avec Discord" />
+    </div>
   );
 }
 

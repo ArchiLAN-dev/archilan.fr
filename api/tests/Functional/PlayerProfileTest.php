@@ -55,7 +55,7 @@ final class PlayerProfileTest extends FunctionalTestCase
         $slot1->setItemsReceived(30);
         $this->entityManager->persist($slot1);
 
-        // Slot 2: invalidated (was_released, no goal) — excluded from goalCompletions, checks, items
+        // Slot 2: invalidated (was_released, no goal) - excluded from goalCompletions, checks, items
         $slot2 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Jean2', 1);
         $slot2->setChecksDone(10);
         $slot2->setItemsReceived(5);

@@ -1,4 +1,4 @@
-# Story 18.6: Frontend — Public Player Profile Page (`/joueurs/{slug}`)
+# Story 18.6: Frontend - Public Player Profile Page (`/joueurs/{slug}`)
 
 ## Story
 
@@ -28,16 +28,16 @@ done
 
 ## Tasks / Subtasks
 
-- [x] Task 1: `player-profile-api.ts` — types + `getPlayerProfile` + `getPlayerHistory` with `React.cache()`
+- [x] Task 1: `player-profile-api.ts` - types + `getPlayerProfile` + `getPlayerHistory` with `React.cache()`
   - [x] 1a: Define `PlayerProfile`, `PlayerStats`, `RunHistoryEntry`, `PlayerHistory` types
   - [x] 1b: Implement type guards `isPlayerProfilePayload`, `isPlayerHistoryPayload`
   - [x] 1c: Implement `getPlayerProfile = cache(async (slug) => fetch(...))`
   - [x] 1d: Implement `getPlayerHistory = cache(async (slug) => fetch(...))`
-- [x] Task 2: `player-profile-page.tsx` — server components
-  - [x] 2a: `PlayerProfilePage` — header with display name + join date + stats, history section
-  - [x] 2b: `RunHistoryRow` — event name, date, game, checks, items, status badge, link to results
-  - [x] 2c: `StatusBadge` — green/amber/gray
-  - [x] 2d: `StatCard` — reusable stat display
+- [x] Task 2: `player-profile-page.tsx` - server components
+  - [x] 2a: `PlayerProfilePage` - header with display name + join date + stats, history section
+  - [x] 2b: `RunHistoryRow` - event name, date, game, checks, items, status badge, link to results
+  - [x] 2c: `StatusBadge` - green/amber/gray
+  - [x] 2d: `StatCard` - reusable stat display
   - [x] 2e: helpers `formatDate(iso)` → French long date, `formatPct(rate)` → "X%"
 - [x] Task 3: Route `frontend/src/app/(public)/joueurs/[playerSlug]/page.tsx`
   - [x] 3a: `generateMetadata` with dynamic title + og:title, `notFound()` metadata on 404
@@ -100,7 +100,7 @@ Both `getPlayerProfile` and `getPlayerHistory` are wrapped in `React.cache()` so
 
 ### Goal Completion Rate
 
-API returns float `0.0–1.0`. Format as `Math.round(rate * 100)%`. If `runsParticipated === 0`, display "—".
+API returns float `0.0–1.0`. Format as `Math.round(rate * 100)%`. If `runsParticipated === 0`, display "-".
 
 ## Dev Agent Record
 
@@ -115,9 +115,9 @@ API returns float `0.0–1.0`. Format as `Math.round(rate * 100)%`. If `runsPart
 
 ## File List
 
-- `frontend/src/features/players/player-profile-api.ts` — new
-- `frontend/src/features/players/player-profile-page.tsx` — new
-- `frontend/src/app/(public)/joueurs/[playerSlug]/page.tsx` — new
+- `frontend/src/features/players/player-profile-api.ts` - new
+- `frontend/src/features/players/player-profile-page.tsx` - new
+- `frontend/src/app/(public)/joueurs/[playerSlug]/page.tsx` - new
 
 ## Change Log
 

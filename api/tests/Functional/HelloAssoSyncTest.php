@@ -60,11 +60,11 @@ final class HelloAssoSyncTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testLambdaCannotTriggerSync(): void
+    public function testStandardCannotTriggerSync(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
         $event = $this->makeEvent(helloassoFormSlug: 'archilan-spring-2027');
-        $this->loginAs($lambda);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/events/%s/payments/sync', $event->getId()));
 

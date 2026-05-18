@@ -4,25 +4,32 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { AccountRegistrations } from "./account-registrations";
-import { DangerSection, PrivacySection } from "./account-profile";
+import { DangerSection, DiscordSection, PrivacySection } from "./account-profile";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import { PersonalRunsListPage } from "@/features/personal-runs/personal-runs-list-page";
+import { MembershipSection } from "./membership-section";
 import type { Profile } from "./account-profile";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "inscriptions" | "parties" | "confidentialite" | "compte";
+type Tab = "inscriptions" | "parties" | "adhesion" | "confidentialite" | "compte";
 
 const TABS: Array<{ id: Tab; label: string; danger?: true }> = [
   { id: "inscriptions", label: "Inscriptions" },
   { id: "parties", label: "Mes parties" },
+  { id: "adhesion", label: "Adhésion" },
   { id: "confidentialite", label: "Confidentialité" },
   { id: "compte", label: "Compte", danger: true },
 ];
 
 // ── AccountTabs ───────────────────────────────────────────────────────────────
 
-export function AccountTabs() {
+type AccountTabsProps = {
+  discordLinked?: string;
+  discordLinkError?: string;
+};
+
+export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("inscriptions");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -118,8 +125,19 @@ export function AccountTabs() {
         <div role="tabpanel">
           {activeTab === "inscriptions" && <AccountRegistrations />}
           {activeTab === "parties" && <PersonalRunsListPage embedded />}
+          {activeTab === "adhesion" && <MembershipSection />}
           {activeTab === "confidentialite" && <PrivacySection />}
-          {activeTab === "compte" && <DangerSection />}
+          {activeTab === "compte" && (
+            <div className="grid gap-6">
+              {!loadingProfile && (
+                <DiscordSection
+                  discordUsername={profile?.discordUsername ?? null}
+                  linkFeedback={discordLinked === "1" ? "1" : discordLinkError}
+                />
+              )}
+              <DangerSection />
+            </div>
+          )}
         </div>
       </div>
     </div>

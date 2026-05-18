@@ -1,4 +1,4 @@
-// No `as` casts — assertionStyle: "never" enforced by ESLint (see eslint.config.mjs).
+// No `as` casts - assertionStyle: "never" enforced by ESLint (see eslint.config.mjs).
 
 export function hasStringProp<K extends string>(v: object, key: K): v is Record<K, string> {
   return key in v && typeof Reflect.get(v, key) === "string";

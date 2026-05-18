@@ -1,4 +1,4 @@
-# Story 18.2: API — Public Run Results Endpoint
+# Story 18.2: API - Public Run Results Endpoint
 
 ## Story
 
@@ -35,8 +35,8 @@ done
 - [x] Task 1: Create `RunResultsController` in `api/src/Sessions/Presentation/`
   - [x] 1a: Route `GET /api/v1/runs/{id}/results`, no auth guard
   - [x] 1b: Return 404 if session not found or not `finished`
-  - [x] 1c: Resolve `eventName` — from `Event::getTitle()` or `PersonalRun::getTitle()`
-  - [x] 1d: Load slots and resolve playerName (Registration→User for events; User directly for personal runs), game name — batch-loaded to avoid N+1
+  - [x] 1c: Resolve `eventName` - from `Event::getTitle()` or `PersonalRun::getTitle()`
+  - [x] 1d: Load slots and resolve playerName (Registration→User for events; User directly for personal runs), game name - batch-loaded to avoid N+1
   - [x] 1e: Compute `completionSeconds`, `isInvalidated`; apply slot ordering (goal→incomplete→invalidated)
   - [x] 1f: Return 200 with full JSON payload
 - [x] Task 2: Create `RunResultsTest` functional test
@@ -44,7 +44,7 @@ done
   - [x] 2b: invalidated slot appears with `isInvalidated: true`, `wasReleased: true`
   - [x] 2c: non-finished session → 404 `run_not_found_or_not_finished`
   - [x] 2d: non-existent session → 404
-- [x] Task 3: Quality gates — PHPStan 0 errors, CS Fixer 0 violations
+- [x] Task 3: Quality gates - PHPStan 0 errors, CS Fixer 0 violations
 
 ## Dev Notes
 
@@ -91,19 +91,19 @@ if (null !== $slot->getGoalReachedAt() && null !== $session->getStartedAt()) {
 
 ### Functional Test Pattern
 
-See `SessionActivityTest.php` — uses `WebTestCase`, `SchemaTool::createSchema`, creates entities directly via EntityManager. Include all relevant entity class metadata in `createSchema`.
+See `SessionActivityTest.php` - uses `WebTestCase`, `SchemaTool::createSchema`, creates entities directly via EntityManager. Include all relevant entity class metadata in `createSchema`.
 
 ### PHPStan Constraints
 
-- All `->find()` calls return `null|Entity` — always null-check.
-- `getTimestamp()` returns `int` — safe arithmetic.
+- All `->find()` calls return `null|Entity` - always null-check.
+- `getTimestamp()` returns `int` - safe arithmetic.
 
 ## Dev Agent Record
 
 ### Implementation Plan
 
-1. Controller (Task 1) — all logic inline in the controller (no separate service needed for this story scope)
-2. Functional tests (Task 2) — RED before GREEN
+1. Controller (Task 1) - all logic inline in the controller (no separate service needed for this story scope)
+2. Functional tests (Task 2) - RED before GREEN
 3. Quality gates (Task 3)
 
 ### Debug Log
@@ -124,8 +124,8 @@ _(empty)_
 ## File List
 
 - `api/src/Sessions/Presentation/RunResultsController.php` (new)
-- `api/src/Sessions/Domain/SessionSlot.php` (modified — added `getId()` getter)
-- `api/tests/Functional/RunResultsTest.php` (new — 5 tests including personal run)
+- `api/src/Sessions/Domain/SessionSlot.php` (modified - added `getId()` getter)
+- `api/tests/Functional/RunResultsTest.php` (new - 5 tests including personal run)
 - `_bmad-output/implementation-artifacts/18-2-api-public-run-results-endpoint.md` (updated)
 
 ## Change Log

@@ -6,7 +6,10 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
+use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\User;
+use App\Membership\Domain\Membership;
+use App\Payments\Domain\HelloAssoOrder;
 use App\Registrations\Domain\Registration;
 use Doctrine\ORM\Tools\SchemaTool;
 
@@ -18,9 +21,12 @@ final class AdminDashboardStatsTest extends FunctionalTestCase
 
         $metadata = [
             $this->entityManager->getClassMetadata(User::class),
+            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
             $this->entityManager->getClassMetadata(Event::class),
             $this->entityManager->getClassMetadata(Registration::class),
             $this->entityManager->getClassMetadata(Game::class),
+            $this->entityManager->getClassMetadata(Membership::class),
+            $this->entityManager->getClassMetadata(HelloAssoOrder::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -33,10 +39,10 @@ final class AdminDashboardStatsTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testLambdaUserGets403(): void
+    public function testStandardUserGets403(): void
     {
-        $lambda = $this->createUser('lambda@example.org', ['ROLE_USER']);
-        $this->loginAs($lambda);
+        $user = $this->createUser('lambda@example.org', ['ROLE_USER']);
+        $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/admin/dashboard-stats');
         self::assertResponseStatusCodeSame(403);
@@ -56,11 +62,17 @@ final class AdminDashboardStatsTest extends FunctionalTestCase
         $data = $response['data'];
         self::assertIsArray($data);
         self::assertArrayHasKey('publishedEvents', $data);
-        self::assertArrayHasKey('totalConfirmedRegistrations', $data);
+        self::assertArrayHasKey('totalActiveRegistrations', $data);
         self::assertArrayHasKey('gameCount', $data);
+        self::assertArrayHasKey('userCount', $data);
+        self::assertArrayHasKey('activeMemberCount', $data);
+        self::assertArrayHasKey('totalRevenueCents', $data);
         self::assertIsInt($data['publishedEvents']);
-        self::assertIsInt($data['totalConfirmedRegistrations']);
+        self::assertIsInt($data['totalActiveRegistrations']);
         self::assertIsInt($data['gameCount']);
+        self::assertIsInt($data['userCount']);
+        self::assertIsInt($data['activeMemberCount']);
+        self::assertIsInt($data['totalRevenueCents']);
     }
 
     public function testCountsPublishedEventsExcludesDrafts(): void
@@ -81,7 +93,7 @@ final class AdminDashboardStatsTest extends FunctionalTestCase
         self::assertSame(3, $data['publishedEvents']);
     }
 
-    public function testCountsReservedRegistrationsExcludesCancelled(): void
+    public function testCountsActiveRegistrationsExcludesCancelled(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
         $userA = $this->createUser('a@example.org', ['ROLE_USER']);
@@ -97,7 +109,7 @@ final class AdminDashboardStatsTest extends FunctionalTestCase
         $response = $this->decodedJsonResponse();
         $data = $response['data'];
         self::assertIsArray($data);
-        self::assertSame(1, $data['totalConfirmedRegistrations']);
+        self::assertSame(1, $data['totalActiveRegistrations']);
     }
 
     public function testCountsGames(): void
@@ -114,6 +126,62 @@ final class AdminDashboardStatsTest extends FunctionalTestCase
         $data = $response['data'];
         self::assertIsArray($data);
         self::assertSame(2, $data['gameCount']);
+    }
+
+    public function testCountsUsers(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->createUser('user1@example.org', ['ROLE_USER']);
+        $this->createUser('user2@example.org', ['ROLE_USER']);
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/dashboard-stats');
+        self::assertResponseStatusCodeSame(200);
+
+        $response = $this->decodedJsonResponse();
+        $data = $response['data'];
+        self::assertIsArray($data);
+        self::assertSame(3, $data['userCount']);
+    }
+
+    public function testCountsActiveMembershipsExcludesExpired(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $now = new \DateTimeImmutable();
+        $activeMembership = Membership::create('user-1', $now, $now->modify('+12 months'), 'admin', null, null, $now);
+        $expiredMembership = Membership::create('user-2', $now->modify('-13 months'), $now->modify('-1 month'), 'admin', null, null, $now->modify('-13 months'));
+        $this->entityManager->persist($activeMembership);
+        $this->entityManager->persist($expiredMembership);
+        $this->entityManager->flush();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/dashboard-stats');
+        self::assertResponseStatusCodeSame(200);
+
+        $response = $this->decodedJsonResponse();
+        $data = $response['data'];
+        self::assertIsArray($data);
+        self::assertSame(1, $data['activeMemberCount']);
+    }
+
+    public function testSumsRevenueCentsFromPaidOrders(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $now = new \DateTimeImmutable();
+        $paid = HelloAssoOrder::fromHelloAsso(1001, 'Membership', 'adhesion-2026', 'Payment', 1500, 'a@b.com', 'A', 'B', $now, $now);
+        $unpaid = HelloAssoOrder::fromHelloAsso(1002, 'Membership', 'adhesion-2026', 'Pending', 1500, null, null, null, null, $now);
+        $this->entityManager->persist($paid);
+        $this->entityManager->persist($unpaid);
+        $this->entityManager->flush();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/dashboard-stats');
+        self::assertResponseStatusCodeSame(200);
+
+        $response = $this->decodedJsonResponse();
+        $data = $response['data'];
+        self::assertIsArray($data);
+        self::assertSame(1500, $data['totalRevenueCents']);
     }
 
     private function makeEvent(string $status): Event

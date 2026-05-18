@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Handler;
 
-use App\Sessions\Application\Message\GenerateRunJob;
 use App\Sessions\Infrastructure\DockerSocketClient;
 use App\Sessions\Infrastructure\RunnerCallbackClient;
+use App\Shared\Application\Message\GenerateRunJob;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -127,6 +127,12 @@ final readonly class GenerateRunJobHandler
         $yamlCount = count(glob($yamlDir.'/*.yaml') ?: []);
 
         $cmd = ['--player_files_path', '/yamls', '--outputpath', '/output', '--multi', (string) $yamlCount];
+
+        if (null !== $job->seed && '' !== $job->seed) {
+            $cmd[] = '--seed';
+            $cmd[] = $job->seed;
+        }
+
         $binds = [$yamlDir.':/yamls', $outputDir.':/output'];
 
         if ([] !== $job->apworldDownloadUrls) {

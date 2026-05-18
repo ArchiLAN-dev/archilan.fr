@@ -10,7 +10,7 @@ use Doctrine\Migrations\AbstractMigration;
 /**
  * Auto-generated Migration: Please modify to your needs!
  */
-final class Version20260515163534 extends AbstractMigration
+final class Version20260517213155 extends AbstractMigration
 {
     public function getDescription(): string
     {
@@ -38,6 +38,12 @@ final class Version20260515163534 extends AbstractMigration
         $this->addSql('CREATE UNIQUE INDEX UNIQ_3248E149D1E09C22 ON hello_asso_order (helloasso_order_id)');
         $this->addSql('CREATE TABLE hello_asso_sync_log (id VARCHAR(32) NOT NULL, form_slug VARCHAR(120) NOT NULL, attempt_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, success BOOLEAN NOT NULL, error_message TEXT DEFAULT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE TABLE ignored_catalog_entry (name VARCHAR(160) NOT NULL, ignored_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, PRIMARY KEY (name))');
+        $this->addSql('CREATE TABLE memberships (id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, helloasso_order_id VARCHAR(100) DEFAULT NULL, started_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, expires_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, status VARCHAR(10) NOT NULL, source VARCHAR(20) NOT NULL, admin_note TEXT DEFAULT NULL, reminder_30_sent_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, reminder_7_sent_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE INDEX idx_memberships_user_id ON memberships (user_id)');
+        $this->addSql('CREATE INDEX idx_memberships_expires_at_status ON memberships (expires_at, status)');
+        $this->addSql('CREATE INDEX idx_memberships_status_user_id ON memberships (status, user_id)');
+        $this->addSql('CREATE UNIQUE INDEX uniq_memberships_active_user_id ON memberships (user_id) WHERE status = \'active\'');
+        $this->addSql('CREATE UNIQUE INDEX uniq_memberships_helloasso_order_id ON memberships (helloasso_order_id)');
         $this->addSql('CREATE TABLE password_reset_token (id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, token_hash VARCHAR(64) NOT NULL, expires_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, used_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE INDEX idx_identity_password_reset_tokens_user ON password_reset_token (user_id)');
         $this->addSql('CREATE UNIQUE INDEX uniq_identity_password_reset_tokens_hash ON password_reset_token (token_hash)');
@@ -62,9 +68,13 @@ final class Version20260515163534 extends AbstractMigration
         $this->addSql('CREATE TABLE run_participant (personal_run_id VARCHAR(32) NOT NULL, user_id VARCHAR(32) NOT NULL, joined_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, game_slots JSON NOT NULL, PRIMARY KEY (personal_run_id, user_id))');
         $this->addSql('CREATE TABLE session (id VARCHAR(36) NOT NULL, event_id VARCHAR(36) NOT NULL, status VARCHAR(20) NOT NULL, host VARCHAR(255) DEFAULT NULL, port INT DEFAULT NULL, password VARCHAR(255) DEFAULT NULL, server_password VARCHAR(255) DEFAULT NULL, bridge_port INT DEFAULT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, started_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, stopped_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, notified_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, validation_errors JSON DEFAULT NULL, finished_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, last_logs TEXT DEFAULT NULL, archived_save_path VARCHAR(512) DEFAULT NULL, archived_spoiler_path VARCHAR(512) DEFAULT NULL, runner_id VARCHAR(255) DEFAULT NULL, last_heartbeat_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, last_activity_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, last_save_key VARCHAR(500) DEFAULT NULL, paused_without_save BOOLEAN DEFAULT false NOT NULL, restart_failed BOOLEAN DEFAULT false NOT NULL, PRIMARY KEY (id))');
         $this->addSql('CREATE TABLE session_slot (id VARCHAR(36) NOT NULL, session_id VARCHAR(36) NOT NULL, registration_id VARCHAR(36) NOT NULL, game_id VARCHAR(36) NOT NULL, slot_name VARCHAR(16) NOT NULL, slot_order INT NOT NULL, slot_id VARCHAR(36) DEFAULT NULL, checks_done INT NOT NULL, items_received INT NOT NULL, goal_reached_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, was_released BOOLEAN DEFAULT false NOT NULL, PRIMARY KEY (id))');
-        $this->addSql('CREATE TABLE "user" (id VARCHAR(32) NOT NULL, email VARCHAR(180) NOT NULL, email_canonical VARCHAR(180) NOT NULL, display_name VARCHAR(80) DEFAULT NULL, password_hash VARCHAR(255) NOT NULL, roles JSON NOT NULL, cgu_accepted_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, deleted_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, cgu_accepted_version VARCHAR(20) NOT NULL, slug VARCHAR(80) DEFAULT NULL, email_verified_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE TABLE "user" (id VARCHAR(32) NOT NULL, email VARCHAR(180) NOT NULL, email_canonical VARCHAR(180) NOT NULL, display_name VARCHAR(80) NOT NULL, password_hash VARCHAR(255) NOT NULL, roles JSON NOT NULL, cgu_accepted_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, deleted_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, cgu_accepted_version VARCHAR(20) NOT NULL, slug VARCHAR(80) DEFAULT NULL, email_verified_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, discord_id VARCHAR(32) DEFAULT NULL, discord_username VARCHAR(100) DEFAULT NULL, discord_role_synced_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, discord_sync_error VARCHAR(500) DEFAULT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE UNIQUE INDEX UNIQ_8D93D64943349DE ON "user" (discord_id)');
         $this->addSql('CREATE UNIQUE INDEX uniq_identity_users_email_canonical ON "user" (email_canonical)');
         $this->addSql('CREATE UNIQUE INDEX uniq_identity_users_slug ON "user" (slug)');
+        $this->addSql('CREATE TABLE weekly_entries (id VARCHAR(36) NOT NULL, weekly_run_id VARCHAR(36) NOT NULL, user_id VARCHAR(32) NOT NULL, attempt_number INT NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, external_session_id VARCHAR(36) DEFAULT NULL, launched_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, goal_reached_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, completion_time_seconds INT DEFAULT NULL, checks_total INT DEFAULT NULL, items_total INT DEFAULT NULL, connection_host VARCHAR(255) DEFAULT NULL, connection_port INT DEFAULT NULL, connection_password VARCHAR(120) DEFAULT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE TABLE weekly_runs (id VARCHAR(36) NOT NULL, template_id VARCHAR(36) NOT NULL, week_year INT NOT NULL, week_number INT NOT NULL, seed VARCHAR(100) NOT NULL, status VARCHAR(10) NOT NULL, started_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, finished_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL, PRIMARY KEY (id))');
+        $this->addSql('CREATE TABLE weekly_templates (id VARCHAR(36) NOT NULL, game_id VARCHAR(32) NOT NULL, yaml_config TEXT NOT NULL, name VARCHAR(100) DEFAULT NULL, max_attempts INT DEFAULT NULL, is_active BOOLEAN NOT NULL, created_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, updated_at TIMESTAMP(0) WITH TIME ZONE NOT NULL, PRIMARY KEY (id))');
         $this->addSql('ALTER TABLE game_catalog_sync ADD CONSTRAINT FK_B74E7162E48FD905 FOREIGN KEY (game_id) REFERENCES game (id) ON DELETE CASCADE NOT DEFERRABLE');
     }
 
@@ -83,6 +93,7 @@ final class Version20260515163534 extends AbstractMigration
         $this->addSql('DROP TABLE hello_asso_order');
         $this->addSql('DROP TABLE hello_asso_sync_log');
         $this->addSql('DROP TABLE ignored_catalog_entry');
+        $this->addSql('DROP TABLE memberships');
         $this->addSql('DROP TABLE password_reset_token');
         $this->addSql('DROP TABLE post');
         $this->addSql('DROP TABLE privacy_rights_request');
@@ -96,5 +107,8 @@ final class Version20260515163534 extends AbstractMigration
         $this->addSql('DROP TABLE session');
         $this->addSql('DROP TABLE session_slot');
         $this->addSql('DROP TABLE "user"');
+        $this->addSql('DROP TABLE weekly_entries');
+        $this->addSql('DROP TABLE weekly_runs');
+        $this->addSql('DROP TABLE weekly_templates');
     }
 }

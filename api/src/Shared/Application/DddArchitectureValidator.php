@@ -24,6 +24,8 @@ final readonly class DddArchitectureValidator
         'PersonalRuns',
         'CatalogSync',
         'Streaming',
+        'Membership',
+        'WeeklyRuns',
     ];
 
     /** @var list<string> */
