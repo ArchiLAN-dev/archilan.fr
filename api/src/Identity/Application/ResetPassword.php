@@ -4,32 +4,33 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\PasswordResetToken;
-use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final readonly class ResetPassword
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private PasswordResetTokenRepositoryInterface $tokenRepository,
+        private UserRepositoryInterface $userRepository,
         private UserPasswordHasherInterface $hasher,
-        private RefreshTokenRepository $refreshTokenRepository,
+        private RefreshTokenRepositoryInterface $refreshTokenRepository,
     ) {
     }
 
     public function reset(string $rawToken, string $newPassword, \DateTimeImmutable $now): void
     {
         $hash = hash('sha256', $rawToken);
-        $token = $this->entityManager->getRepository(PasswordResetToken::class)->findOneBy(['tokenHash' => $hash]);
+        $token = $this->tokenRepository->findByTokenHash($hash);
 
-        if (!$token instanceof PasswordResetToken || !$token->isValid($now)) {
+        if (null === $token || !$token->isValid($now)) {
             throw new \InvalidArgumentException('Invalid or expired password reset token.');
         }
 
-        $user = $this->entityManager->getRepository(User::class)->find($token->getUserId());
+        $user = $this->userRepository->findById($token->getUserId());
 
-        if (!$user instanceof User || $user->isDeleted()) {
+        if (null === $user || $user->isDeleted()) {
             throw new \InvalidArgumentException('Invalid or expired password reset token.');
         }
 
@@ -37,7 +38,8 @@ final readonly class ResetPassword
         $user->resetPassword($newHash, $now);
         $token->markUsed($now);
 
-        $this->entityManager->flush();
+        $this->tokenRepository->save($token);
+        $this->userRepository->save($user);
 
         $this->refreshTokenRepository->revokeAllForUser($user->getId());
     }

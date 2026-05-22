@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace App\Payments\Application;
 
-use App\Events\Domain\Event;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Events\Domain\EventRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class TriggerHelloAssoSync
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
         private MessageBusInterface $bus,
         private HelloAssoConfig $config,
         private LoggerInterface $logger,
@@ -27,9 +23,8 @@ final readonly class TriggerHelloAssoSync
      */
     public function triggerForEvent(string $eventId): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return ['found' => false, 'hasFormSlug' => false, 'dispatched' => false, 'configurationError' => null];
         }
 

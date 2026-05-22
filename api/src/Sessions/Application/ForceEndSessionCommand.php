@@ -7,17 +7,16 @@ namespace App\Sessions\Application;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\RunAuditLog;
+use App\Sessions\Domain\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Session;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class ForceEndSessionCommand
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
+        private RunAuditLogRepositoryInterface $auditLogs,
         private MessageBusInterface $messageBus,
     ) {
     }
@@ -27,9 +26,8 @@ final readonly class ForceEndSessionCommand
      */
     public function execute(string $sessionId, string $actorId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'notRunning' => false, 'payload' => []];
         }
 
@@ -42,7 +40,7 @@ final readonly class ForceEndSessionCommand
         $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->transition(Session::STATUS_FINISHED, $now);
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
         $this->messageBus->dispatch(new ArchiveRunJob($sessionId, $bridgePort));
@@ -55,8 +53,8 @@ final readonly class ForceEndSessionCommand
             null,
             $now,
         );
-        $this->entityManager->persist($log);
-        $this->entityManager->flush();
+        $this->auditLogs->persist($log);
+        $this->auditLogs->flush();
 
         return ['found' => true, 'notRunning' => false, 'payload' => $session->payload()];
     }

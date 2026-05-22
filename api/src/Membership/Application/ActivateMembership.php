@@ -8,14 +8,14 @@ use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Membership\Application\Message\MembershipActivatedNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class ActivateMembership implements ActivateMembershipInterface
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private MembershipRepositoryInterface $memberships,
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
@@ -29,8 +29,7 @@ final readonly class ActivateMembership implements ActivateMembershipInterface
         ?string $helloassoOrderId = null,
         ?string $adminNote = null,
     ): void {
-        $repo = $this->entityManager->getRepository(Membership::class);
-        $existing = $repo->findOneBy(['userId' => $userId, 'status' => 'active']);
+        $existing = $this->memberships->findActiveByUserId($userId);
         $now = new \DateTimeImmutable();
         $notificationExpiresAt = null;
         $activatedMembershipId = '';
@@ -41,15 +40,14 @@ final readonly class ActivateMembership implements ActivateMembershipInterface
             $existing->renew($startedAt, $newExpiresAt, $source, $helloassoOrderId, $adminNote, $now);
             $notificationExpiresAt = $newExpiresAt;
             $activatedMembershipId = $existing->getId();
+            $this->memberships->flush();
         } else {
             $expiresAt = $startedAt->add(new \DateInterval('P12M'));
             $membership = Membership::create($userId, $startedAt, $expiresAt, $source, $helloassoOrderId, $adminNote, $now);
-            $this->entityManager->persist($membership);
             $notificationExpiresAt = $expiresAt;
             $activatedMembershipId = $membership->getId();
+            $this->memberships->save($membership);
         }
-
-        $this->entityManager->flush();
 
         $discordInfo = $this->userRoleGateway->getUserDiscordInfo($userId);
         if (null !== $discordInfo['discordId']) {

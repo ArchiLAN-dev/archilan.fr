@@ -2,22 +2,18 @@ from __future__ import annotations
 
 import asyncio
 
-from aiohttp import web
+from fastapi import FastAPI, Request
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import JSONResponse
 
 from .ap_client import ArchipelagoClient
 from .coordinator import PauseResumeCoordinator
-from .rest_hints import get_hints, request_hint
-from .rest_keys import APP_AP_CLIENT, APP_COORDINATOR, APP_SEMAPHORE, APP_STATE
-from .rest_reachable import get_item_locations, get_reachable
-from .rest_session import (
-    get_state,
-    health,
-    post_command,
-    post_pause,
-    post_resume,
-    post_save,
-)
+from .rest_hints import router as hints_router
+from .rest_operator import OperatorState, router as operator_router
+from .rest_reachable import router as reachable_router
+from .rest_session import router as session_router
 from .state import StateManager
+from .ws_server import WsServer
 
 
 def create_app(
@@ -26,25 +22,43 @@ def create_app(
     reachable_semaphore: asyncio.Semaphore | None = None,
     *,
     coordinator: PauseResumeCoordinator | None = None,
-) -> web.Application:
+    ws_server: WsServer | None = None,
+    operator_state: OperatorState | None = None,
+) -> FastAPI:
     if reachable_semaphore is None:
         reachable_semaphore = asyncio.Semaphore(1)
     if coordinator is None:
         coordinator = PauseResumeCoordinator()
-    app = web.Application()
-    app[APP_STATE] = state
-    app[APP_AP_CLIENT] = ap_client
-    app[APP_SEMAPHORE] = reachable_semaphore
-    app[APP_COORDINATOR] = coordinator
 
-    app.router.add_get("/health", health)
-    app.router.add_get("/state", get_state)
-    app.router.add_post("/commands", post_command)
-    app.router.add_post("/save", post_save)
-    app.router.add_post("/pause", post_pause)
-    app.router.add_post("/resume", post_resume)
-    app.router.add_get("/hints/{slot}", get_hints)
-    app.router.add_post("/hints/{slot}/request", request_hint)
-    app.router.add_get("/reachable/{slot}", get_reachable)
-    app.router.add_get("/item-locations/{slot}", get_item_locations)
+    app = FastAPI(title="Archipelago Bridge", openapi_url="/openapi.json")
+
+    # Store shared objects on app.state
+    app.state.bridge_state = state
+    app.state.ap_client = ap_client
+    app.state.reachable_semaphore = reachable_semaphore
+    app.state.coordinator = coordinator
+    app.state.operator_state = operator_state
+    app.state.broadcast = ws_server.broadcast if ws_server is not None else None
+
+    # Map HTTPException → {"error": detail} for API compat; dict detail passed through as-is
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_exc(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        if isinstance(exc.detail, dict):
+            return JSONResponse(exc.detail, status_code=exc.status_code)
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+    app.include_router(session_router)
+
+    # Slot-scoped endpoints (hints + reachable)
+    app.include_router(hints_router)
+    app.include_router(reachable_router)
+
+    # WebSocket
+    if ws_server is not None:
+        app.add_api_websocket_route("/ws", ws_server.handle_ws)
+
+    # Operator API (requires operator_state)
+    if operator_state is not None:
+        app.include_router(operator_router)
+
     return app

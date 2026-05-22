@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final readonly class SlugGenerator
 {
-    public function __construct(private EntityManagerInterface $entityManager)
+    public function __construct(private UserRepositoryInterface $userRepository)
     {
     }
 
@@ -49,6 +48,6 @@ final readonly class SlugGenerator
 
     private function slugExists(string $slug): bool
     {
-        return null !== $this->entityManager->getRepository(User::class)->findOneBy(['slug' => $slug]);
+        return $this->userRepository->existsBySlug($slug);
     }
 }

@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Registrations\Application\RegistrationCounter;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class RegistrationEligibility
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
     ) {
     }
@@ -26,9 +23,8 @@ final readonly class RegistrationEligibility
      */
     public function check(string $eventId): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return null;
         }
 

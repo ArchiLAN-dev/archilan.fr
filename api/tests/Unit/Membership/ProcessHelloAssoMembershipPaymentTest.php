@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\ActivateMembershipInterface;
 use App\Membership\Application\Message\MembershipPaymentUnmatchedMessage;
 use App\Membership\Application\ProcessHelloAssoMembershipPayment;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Envelope;
@@ -28,7 +26,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createStub(Connection::class),
+            $this->createStub(UserRepositoryInterface::class),
             $this->createStub(ActivateMembershipInterface::class),
             $this->createStub(MessageBusInterface::class),
             $logger,
@@ -46,7 +44,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createStub(Connection::class),
+            $this->createStub(UserRepositoryInterface::class),
             $this->createStub(ActivateMembershipInterface::class),
             $this->createStub(MessageBusInterface::class),
             $logger,
@@ -63,6 +61,9 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
             self::anything()
         );
 
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findByEmailCanonical')->willReturn(null);
+
         $activateMembership = $this->createMock(ActivateMembershipInterface::class);
         $activateMembership->expects(self::never())->method('activate');
 
@@ -75,7 +76,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
             ->willReturn(new Envelope(new \stdClass()));
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createConnectionReturning(false),
+            $users,
             $activateMembership,
             $bus,
             $logger,
@@ -88,6 +89,13 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
     {
         $paidAt = new \DateTimeImmutable('2026-05-16T10:00:00+00:00');
 
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn('user-123');
+        $user->method('getDeletedAt')->willReturn(null);
+
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findByEmailCanonical')->willReturn($user);
+
         $activateMembership = $this->createMock(ActivateMembershipInterface::class);
         $activateMembership->expects(self::once())->method('activate')->with(
             'user-123',
@@ -97,7 +105,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createConnectionReturning('user-123'),
+            $users,
             $activateMembership,
             $this->createStub(MessageBusInterface::class),
             $this->createStub(LoggerInterface::class),
@@ -108,6 +116,13 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
 
     public function testProcessLogsAlreadyProcessedOnDuplicate(): void
     {
+        $user = $this->createStub(User::class);
+        $user->method('getId')->willReturn('user-123');
+        $user->method('getDeletedAt')->willReturn(null);
+
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findByEmailCanonical')->willReturn($user);
+
         $driverEx = $this->createStub(\Doctrine\DBAL\Driver\Exception::class);
         $exception = new UniqueConstraintViolationException($driverEx, null);
 
@@ -121,35 +136,12 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createConnectionReturning('user-123'),
+            $users,
             $activateMembership,
             $this->createStub(MessageBusInterface::class),
             $logger,
         );
 
         $service->process('order-1', 'payer@example.org', new \DateTimeImmutable());
-    }
-
-    private function createConnectionReturning(string|false $fetchOneResult): Connection
-    {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchOne')->willReturn($fetchOneResult);
-
-        $expr = $this->createStub(ExpressionBuilder::class);
-
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturn($qb);
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
-
-        $connection = $this->createStub(Connection::class);
-        $connection->method('quoteSingleIdentifier')->willReturn('"user"');
-        $connection->method('createQueryBuilder')->willReturn($qb);
-
-        return $connection;
     }
 }

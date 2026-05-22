@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\DolibarrClientInterface;
 use App\Membership\Application\Handler\SyncMemberToDolibarrMessageHandler;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
+use App\Membership\Domain\Membership;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -18,12 +18,19 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 {
     public function testHandleSyncsToDolibarrWhenMembershipFound(): void
     {
-        $row = [
-            'email' => 'jean@example.org',
-            'display_name' => 'Jean',
-            'status' => 'active',
-            'expires_at' => '2027-05-16 10:00:00+00',
-        ];
+        $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
+        $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T10:00:00+00:00'), 'admin', null, null, $now);
+
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('jean@example.org');
+        $user->method('getDisplayName')->willReturn('Jean');
+        $user->method('getDeletedAt')->willReturn(null);
+
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
+
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
         $dolibarr->expects(self::once())->method('upsertMember')->with(
@@ -34,7 +41,8 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         );
 
         $handler = new SyncMemberToDolibarrMessageHandler(
-            $this->createConnectionReturning($row),
+            $memberships,
+            $users,
             $dolibarr,
             $this->createStub(LoggerInterface::class),
         );
@@ -44,11 +52,15 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
     public function testHandleReturnsEarlyWhenMembershipNotFound(): void
     {
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn(null);
+
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
         $dolibarr->expects(self::never())->method('upsertMember');
 
         $handler = new SyncMemberToDolibarrMessageHandler(
-            $this->createConnectionReturning(false),
+            $memberships,
+            $this->createStub(UserRepositoryInterface::class),
             $dolibarr,
             $this->createStub(LoggerInterface::class),
         );
@@ -58,19 +70,27 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
     public function testHandleRethrowsOnDolibarrFailure(): void
     {
-        $row = [
-            'email' => 'jean@example.org',
-            'display_name' => 'Jean',
-            'status' => 'active',
-            'expires_at' => '2027-05-16 10:00:00+00',
-        ];
+        $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
+        $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T10:00:00+00:00'), 'admin', null, null, $now);
+
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('jean@example.org');
+        $user->method('getDisplayName')->willReturn('Jean');
+        $user->method('getDeletedAt')->willReturn(null);
+
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
+
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
         $dolibarr->expects(self::once())->method('upsertMember')
             ->willThrowException(new \RuntimeException('Dolibarr unreachable'));
 
         $handler = new SyncMemberToDolibarrMessageHandler(
-            $this->createConnectionReturning($row),
+            $memberships,
+            $users,
             $dolibarr,
             $this->createStub(LoggerInterface::class),
         );
@@ -81,56 +101,38 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $handler(new SyncMemberToDolibarrMessage('membership-id-1'));
     }
 
-    public function testHandleSyncsWithNullExpiresAtWhenEmptyDate(): void
+    public function testHandleSyncsExpiredMembership(): void
     {
-        $row = [
-            'email' => 'jean@example.org',
-            'display_name' => 'Jean',
-            'status' => 'expired',
-            'expires_at' => '',
-        ];
+        $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
+        $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2026-01-01T00:00:00+00:00'), 'admin', null, null, $now);
+        $membership->expire(new \DateTimeImmutable('2026-01-02T00:00:00+00:00'));
+
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('jean@example.org');
+        $user->method('getDisplayName')->willReturn('Jean');
+        $user->method('getDeletedAt')->willReturn(null);
+
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
+
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
         $dolibarr->expects(self::once())->method('upsertMember')->with(
             'jean@example.org',
             'Jean',
             'expired',
-            null,
+            self::isInstanceOf(\DateTimeImmutable::class),
         );
 
         $handler = new SyncMemberToDolibarrMessageHandler(
-            $this->createConnectionReturning($row),
+            $memberships,
+            $users,
             $dolibarr,
             $this->createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('membership-id-2'));
-    }
-
-    /**
-     * @param array<string, mixed>|false $rowData
-     */
-    private function createConnectionReturning(array|false $rowData): Connection
-    {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchAssociative')->willReturn($rowData);
-
-        $expr = $this->createStub(ExpressionBuilder::class);
-
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('innerJoin')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturn($qb);
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
-
-        $connection = $this->createStub(Connection::class);
-        $connection->method('createQueryBuilder')->willReturn($qb);
-        $connection->method('quoteSingleIdentifier')->willReturn('"user"');
-
-        return $connection;
     }
 }

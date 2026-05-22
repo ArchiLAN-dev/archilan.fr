@@ -1,4 +1,4 @@
-"""Tests for _build_feed_event - PrintJSON packet → Mercure feed event."""
+"""Tests for _build_feed_event - PrintJSON packet → WS feed event."""
 from __future__ import annotations
 
 import pytest
@@ -21,13 +21,15 @@ def _store_with_player(slot: int = 1, alias: str = "Alice") -> DataPackageStore:
 
 @pytest.mark.parametrize("ap_type,expected", [
     ("Chat",        "chat"),
-    ("ItemSend",    "item-received"),
-    ("ItemCheat",   "item-received"),
+    ("ItemSend",    "item_sent"),
+    ("ItemCheat",   "item_sent"),
     ("Hint",        "hint"),
     ("ServerChat",  "system"),
     ("Tutorial",    "system"),
-    ("Goal",        "system"),
-    ("Release",     "system"),
+    ("Goal",        "goal"),
+    ("Release",     "release"),
+    ("Join",        "join"),
+    ("Part",        "part"),
     ("Unknown",     "system"),
     ("",            "system"),
 ])

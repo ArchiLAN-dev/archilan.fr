@@ -8,8 +8,8 @@ use App\Identity\Application\DiscordBotClientInterface;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Application\Message\SyncDiscordRoleMessageHandler;
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;
-use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -28,15 +28,15 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         string $roleIdAdmin = self::ROLE_ADMIN,
         string $roleIdMember = self::ROLE_MEMBER,
     ): SyncDiscordRoleMessageHandler {
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('find')->willReturn($user);
+        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo->method('findById')->willReturn($user);
 
         $membershipQuery = $this->createStub(ActiveMembershipQueryInterface::class);
         $membershipQuery->method('hasActiveMembership')->willReturn($hasActiveMembership);
 
         return new SyncDiscordRoleMessageHandler(
             $client,
-            $em,
+            $userRepo,
             $membershipQuery,
             new NullLogger(),
             self::GUILD_ID,

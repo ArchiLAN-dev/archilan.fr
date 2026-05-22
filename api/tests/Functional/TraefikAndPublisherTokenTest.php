@@ -185,8 +185,9 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testPublisherTokenReturns404ForUnknownSession(): void
+    public function testPublisherTokenReturns200ForAnyRunIdWithValidSecret(): void
     {
+        // Session existence is no longer validated — weekly entries use this endpoint too.
         $this->client->request(
             'GET',
             '/api/v1/internal/sessions/no-such-session/publisher-token',
@@ -195,7 +196,7 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
             ['HTTP_X_INTERNAL_SECRET' => 'test-runner-secret'],
         );
 
-        self::assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(200);
     }
 
     public function testPublisherTokenReturnsTokenForExistingSession(): void

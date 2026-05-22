@@ -5,25 +5,22 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
-use App\Events\Domain\EventPrivateAccessLog;
+use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 
 final readonly class AdminRegistrationExporter
 {
-    use EntityFinderTrait;
-
-    private string $privateAccessLogTable;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private Connection $connection,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
+        private UserRepositoryInterface $userRepository,
+        private GameRepositoryInterface $gameRepository,
+        private PrivateAccessGrantedQueryInterface $privateAccessGrantedQuery,
     ) {
-        $this->privateAccessLogTable = $entityManager->getClassMetadata(EventPrivateAccessLog::class)->getTableName();
     }
 
     /**
@@ -68,9 +65,9 @@ final readonly class AdminRegistrationExporter
      */
     public function export(string $eventId, bool $includeCancelled): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (null === $event) {
             return null;
         }
 
@@ -79,42 +76,24 @@ final readonly class AdminRegistrationExporter
             $criteria['status'] = Registration::STATUS_RESERVED;
         }
 
-        /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(
-            $criteria,
-            ['createdAt' => 'ASC'],
-        );
+        $registrations = $this->registrationRepository->findBy($criteria, ['createdAt' => 'ASC']);
 
         if ([] === $registrations) {
             return $this->emptyExport($event, $includeCancelled);
         }
 
         /** @var list<string> $userIds */
-        $userIds = array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $registrations));
+        $userIds = array_values(array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $registrations)));
 
-        /** @var list<User> $users */
-        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
+        $users = $this->userRepository->findByIds($userIds);
 
-        /** @var array<string, User> $usersById */
+        /** @var array<string, \App\Identity\Domain\User> $usersById */
         $usersById = [];
         foreach ($users as $user) {
             $usersById[$user->getId()] = $user;
         }
 
-        $qb = $this->connection->createQueryBuilder();
-        $rawUserIds = $qb->select('DISTINCT l.user_id')
-            ->from($this->privateAccessLogTable, 'l')
-            ->where($qb->expr()->and(
-                $qb->expr()->eq('l.event_id', ':eventId'),
-                $qb->expr()->eq('l.granted', ':granted'),
-            ))
-            ->setParameter('eventId', $eventId)
-            ->setParameter('granted', true)
-            ->executeQuery()
-            ->fetchFirstColumn();
-
-        /** @var list<string> $privateAccessUserIds */
-        $privateAccessUserIds = array_values(array_filter($rawUserIds, 'is_string'));
+        $privateAccessUserIds = $this->privateAccessGrantedQuery->findGrantedUserIds($eventId);
 
         /** @var array<string, true> $privateAccessSet */
         $privateAccessSet = array_fill_keys($privateAccessUserIds, true);
@@ -125,14 +104,13 @@ final readonly class AdminRegistrationExporter
                 $allSelectedGameIds[$gameId] = true;
             }
         }
-        /** @var list<string> $allSelectedGameIds */
-        $allSelectedGameIds = array_keys($allSelectedGameIds);
+        /** @var list<string> $allSelectedGameIdsList */
+        $allSelectedGameIdsList = array_keys($allSelectedGameIds);
 
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
-        if ([] !== $allSelectedGameIds) {
-            /** @var list<Game> $games */
-            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $allSelectedGameIds]);
+        if ([] !== $allSelectedGameIdsList) {
+            $games = $this->gameRepository->findByIds($allSelectedGameIdsList);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;

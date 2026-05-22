@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Membership\Application\Handler;
 
 use App\Communications\Application\Email\MembershipExpiredEmail;
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
-use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mailer\MailerInterface;
@@ -18,7 +19,7 @@ use Symfony\Component\Mime\Email;
 final readonly class MembershipExpiredNotificationMessageHandler
 {
     public function __construct(
-        private Connection $connection,
+        private UserRepositoryInterface $users,
         private MailerInterface $mailer,
         private LoggerInterface $logger,
         private string $mailerSender,
@@ -34,18 +35,9 @@ final readonly class MembershipExpiredNotificationMessageHandler
 
     public function __invoke(MembershipExpiredNotificationMessage $message): void
     {
-        $userTable = $this->connection->quoteSingleIdentifier('user');
-        $qb = $this->connection->createQueryBuilder();
-        $row = $qb
-            ->select('u.email', 'u.display_name')
-            ->from($userTable, 'u')
-            ->where($qb->expr()->eq('u.id', ':userId'))
-            ->andWhere($qb->expr()->isNull('u.deleted_at'))
-            ->setParameter('userId', $message->userId)
-            ->executeQuery()
-            ->fetchAssociative();
+        $user = $this->users->findById($message->userId);
 
-        if (false === $row) {
+        if (!$user instanceof User || null !== $user->getDeletedAt()) {
             $this->logger->error('membership.expired_notification_user_not_found', [
                 'userId' => $message->userId,
             ]);
@@ -53,10 +45,10 @@ final readonly class MembershipExpiredNotificationMessageHandler
             throw new \RuntimeException('Membership expired notification user not found.');
         }
 
-        $recipientEmail = $row['email'];
-        $displayName = $row['display_name'];
+        $recipientEmail = $user->getEmail();
+        $displayName = $user->getDisplayName();
 
-        if (!is_string($recipientEmail) || '' === $recipientEmail) {
+        if ('' === $recipientEmail) {
             $this->logger->error('membership.expired_notification_invalid_email', [
                 'userId' => $message->userId,
             ]);
@@ -64,13 +56,11 @@ final readonly class MembershipExpiredNotificationMessageHandler
             return;
         }
 
-        $displayNameStr = is_string($displayName) ? $displayName : null;
-
         $renewalUrl = $this->buildRenewalUrl();
 
         $emailObj = new MembershipExpiredEmail(
             $recipientEmail,
-            $displayNameStr,
+            $displayName,
             $renewalUrl,
             $this->siteUrl,
         );

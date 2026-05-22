@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Handler;
 
-use App\Sessions\Infrastructure\DockerSocketClient;
 use App\Sessions\Infrastructure\RunnerCallbackClient;
 use App\Shared\Application\Message\GenerateRunJob;
+use App\Shared\Infrastructure\DockerSocketClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

@@ -17,5 +17,5 @@ disallow_untyped_defs = true
 exclude = ["bridge/tests/"]
 
 [[tool.mypy.overrides]]
-module = ["websockets.*", "boto3", "botocore.*"]
+module = ["websockets.*", "boto3", "botocore.*", "aiodocker", "aiodocker.*", "kubernetes_asyncio", "kubernetes_asyncio.*"]
 ignore_missing_imports = true

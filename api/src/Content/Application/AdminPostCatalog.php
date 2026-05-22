@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Content\Application;
 
 use App\Content\Domain\Post;
+use App\Content\Domain\PostRepositoryInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class AdminPostCatalog
 {
     private const VALID_TYPES = [Post::TYPE_NEWS, Post::TYPE_RECAP, Post::TYPE_ANNOUNCEMENT];
 
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private PostRepositoryInterface $postRepository,
         private MinioStorageInterface $minioStorage,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
@@ -26,8 +26,7 @@ final readonly class AdminPostCatalog
      */
     public function list(): array
     {
-        /** @var list<Post> $posts */
-        $posts = $this->entityManager->getRepository(Post::class)->findBy([], ['updatedAt' => 'DESC'], 500);
+        $posts = $this->postRepository->findAllSortedByUpdatedAt();
 
         return array_map(fn (Post $post): array => $this->payload($post), $posts);
     }
@@ -37,7 +36,7 @@ final readonly class AdminPostCatalog
      */
     public function get(string $id): ?array
     {
-        $post = $this->entityManager->getRepository(Post::class)->find($id);
+        $post = $this->postRepository->findById($id);
 
         if (!$post instanceof Post) {
             return null;
@@ -73,8 +72,7 @@ final readonly class AdminPostCatalog
         );
 
         try {
-            $this->entityManager->persist($post);
-            $this->entityManager->flush();
+            $this->postRepository->save($post);
         } catch (UniqueConstraintViolationException) {
             return ['errors' => ['slug' => ['Ce slug est déjà utilisé par un autre article.']]];
         }
@@ -89,7 +87,7 @@ final readonly class AdminPostCatalog
      */
     public function update(string $id, array $input, \DateTimeImmutable $now): array
     {
-        $post = $this->entityManager->getRepository(Post::class)->find($id);
+        $post = $this->postRepository->findById($id);
 
         if (!$post instanceof Post) {
             return ['found' => false, 'errors' => []];
@@ -122,7 +120,7 @@ final readonly class AdminPostCatalog
             $post->clearCoverImageKey($now);
         }
 
-        $this->entityManager->flush();
+        $this->postRepository->save($post);
 
         return ['found' => true, 'errors' => []];
     }
@@ -132,14 +130,14 @@ final readonly class AdminPostCatalog
      */
     public function publish(string $id, \DateTimeImmutable $now): array
     {
-        $post = $this->entityManager->getRepository(Post::class)->find($id);
+        $post = $this->postRepository->findById($id);
 
         if (!$post instanceof Post) {
             return ['found' => false];
         }
 
         $post->publish($now);
-        $this->entityManager->flush();
+        $this->postRepository->save($post);
 
         return ['found' => true];
     }
@@ -149,14 +147,14 @@ final readonly class AdminPostCatalog
      */
     public function unpublish(string $id, \DateTimeImmutable $now): array
     {
-        $post = $this->entityManager->getRepository(Post::class)->find($id);
+        $post = $this->postRepository->findById($id);
 
         if (!$post instanceof Post) {
             return ['found' => false];
         }
 
         $post->unpublish($now);
-        $this->entityManager->flush();
+        $this->postRepository->save($post);
 
         return ['found' => true];
     }

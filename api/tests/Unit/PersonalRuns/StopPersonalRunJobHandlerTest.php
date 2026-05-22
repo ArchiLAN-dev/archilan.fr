@@ -7,10 +7,10 @@ namespace App\Tests\Unit\PersonalRuns;
 use App\PersonalRuns\Application\Handler\StopPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
-use PHPUnit\Framework\MockObject\Stub;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Envelope;
@@ -18,16 +18,10 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class StopPersonalRunJobHandlerTest extends TestCase
 {
-    private EntityManagerInterface&Stub $entityManager;
-
-    protected function setUp(): void
-    {
-        $this->entityManager = $this->createStub(EntityManagerInterface::class);
-    }
-
     public function testPersonalRunNotFoundLogsErrorAndReturns(): void
     {
-        $this->entityManager->method('find')->willReturn(null);
+        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn(null);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('error')
@@ -36,7 +30,7 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $messageBus = $this->createMock(MessageBusInterface::class);
         $messageBus->expects($this->never())->method('dispatch');
 
-        $this->makeHandler(messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob('run-missing'));
+        $this->makeHandler(runs: $runs, messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob('run-missing'));
     }
 
     public function testPersonalRunHasNoSessionLogsWarningAndReturns(): void
@@ -44,7 +38,8 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
 
-        $this->entityManager->method('find')->willReturn($run);
+        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn($run);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('warning')
@@ -53,7 +48,7 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $messageBus = $this->createMock(MessageBusInterface::class);
         $messageBus->expects($this->never())->method('dispatch');
 
-        $this->makeHandler(messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob($run->getId()));
     }
 
     public function testSessionNotFoundLogsWarningAndReturns(): void
@@ -62,11 +57,11 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $run = Run::create('owner-1', 'Test Run', $now);
         $run->setSessionId('sess-missing');
 
-        $this->entityManager->method('find')->willReturnCallback(
-            static function (string $class) use ($run): ?object {
-                return Run::class === $class ? $run : null;
-            }
-        );
+        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn($run);
+
+        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions->method('findById')->willReturn(null);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('warning')
@@ -78,7 +73,7 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $messageBus = $this->createMock(MessageBusInterface::class);
         $messageBus->expects($this->never())->method('dispatch');
 
-        $this->makeHandler(messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, sessions: $sessions, messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob($run->getId()));
     }
 
     public function testAllFoundDispatchesStopRunJob(): void
@@ -89,18 +84,11 @@ final class StopPersonalRunJobHandlerTest extends TestCase
 
         $session = Session::create('sess-1', 'event-1', $now);
 
-        $this->entityManager->method('find')->willReturnCallback(
-            static function (string $class) use ($run, $session): ?object {
-                if (Run::class === $class) {
-                    return $run;
-                }
-                if (Session::class === $class) {
-                    return $session;
-                }
+        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn($run);
 
-                return null;
-            }
-        );
+        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions->method('findById')->willReturn($session);
 
         $messageBus = $this->createMock(MessageBusInterface::class);
         $messageBus->expects($this->once())->method('dispatch')
@@ -111,15 +99,18 @@ final class StopPersonalRunJobHandlerTest extends TestCase
             }))
             ->willReturn(new Envelope(new StopRunJob('sess-1', 0, 0)));
 
-        $this->makeHandler(messageBus: $messageBus)(new StopPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, sessions: $sessions, messageBus: $messageBus)(new StopPersonalRunJob($run->getId()));
     }
 
     private function makeHandler(
+        ?RunRepositoryInterface $runs = null,
+        ?SessionRepositoryInterface $sessions = null,
         ?MessageBusInterface $messageBus = null,
         ?LoggerInterface $logger = null,
     ): StopPersonalRunJobHandler {
         return new StopPersonalRunJobHandler(
-            $this->entityManager,
+            $runs ?? $this->createStub(RunRepositoryInterface::class),
+            $sessions ?? $this->createStub(SessionRepositoryInterface::class),
             $messageBus ?? $this->createStub(MessageBusInterface::class),
             $logger ?? $this->createStub(LoggerInterface::class),
         );

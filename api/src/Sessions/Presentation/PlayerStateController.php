@@ -275,7 +275,7 @@ final readonly class PlayerStateController
                 sprintf('http://%s:%d/hints/%d/request', $host, $bridgePort, $slotIndex),
                 [
                     'timeout' => 5,
-                    'json' => ['location_id' => $locationId, 'free' => $free],
+                    'json' => ['locationId' => $locationId, 'free' => $free],
                 ],
             );
 

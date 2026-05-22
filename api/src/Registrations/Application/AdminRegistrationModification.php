@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
-use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Events\Domain\EventRepositoryInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationModification
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
         private LoggerInterface $logger,
     ) {
     }
@@ -33,10 +31,10 @@ final readonly class AdminRegistrationModification
      */
     public function update(string $eventId, string $registrationId, array $input): array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+        $event = $this->eventRepository->findById($eventId);
+
+        if (null === $registration || null === $event) {
             return ['outcome' => 'not_found'];
         }
 
@@ -69,7 +67,7 @@ final readonly class AdminRegistrationModification
         $diffedSlots = $this->diffSlots($registration->getGameSlots(), $slotsInput);
         $registration->replaceSlots($diffedSlots, $now);
 
-        $this->entityManager->flush();
+        $this->registrationRepository->flush();
 
         $this->logger->info('registration.admin_updated', ['registrationId' => $registrationId, 'eventId' => $eventId]);
 

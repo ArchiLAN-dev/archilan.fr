@@ -61,6 +61,14 @@ services:
             - '../src/Membership/Domain/'
             - '../src/WeeklyRuns/Domain/'
 
+    App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyRunRepository'
+    App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyTemplateRepository'
+    App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyEntryRepository'
+    App\WeeklyRuns\Application\CurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
+    App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
+
     App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway'
 
     App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway:
@@ -70,6 +78,13 @@ services:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
             $symfonyInternalUrl: '%env(default:default_empty_string:SYMFONY_INTERNAL_URL)%'
             $mercureHubUrl: '%env(default:default_empty_string:MERCURE_HUB_URL)%'
+
+    App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\DockerWeeklyRunGenerator'
+
+    App\WeeklyRuns\Infrastructure\DockerWeeklyRunGenerator:
+        arguments:
+            $generateImage: '%env(ARCHIPELAGO_GENERATE_IMAGE)%'
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
     App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\DolibarrClient'
 
@@ -119,7 +134,11 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\WeeklyRuns\Presentation\WeeklyEntryPatchController:
+    App\WeeklyRuns\Presentation\WeeklyRunSlotStateController:
+        arguments:
+            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
+
+    App\WeeklyRuns\Application\WeeklyEntryPatchQuery:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
@@ -135,7 +154,7 @@ services:
         arguments:
             $inactivityTimeoutSeconds: '%env(default:default_inactivity_timeout:int:ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS)%'
 
-    App\Sessions\Infrastructure\DockerSocketClient:
+    App\Shared\Infrastructure\DockerSocketClient:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'
         autowire: false
@@ -204,7 +223,14 @@ services:
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\DiscordBotStatusQuery:
+    App\Identity\Application\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
+    App\Identity\Application\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
+    App\Identity\Application\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\DbalDiscordResyncAllUsers'
+    App\Identity\Application\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
+    App\Identity\Application\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
+    App\Identity\Application\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
+
+    App\Identity\Infrastructure\DbalDiscordBotStatusQuery:
         arguments:
             $clientId: '%env(DISCORD_CLIENT_ID)%'
             $guildId: '%env(DISCORD_GUILD_ID)%'
@@ -227,6 +253,14 @@ services:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
+    App\Membership\Domain\MembershipRepositoryInterface: '@App\Membership\Infrastructure\DoctrineMembershipRepository'
+    App\Membership\Application\AccountMembershipQueryInterface: '@App\Membership\Infrastructure\DbalAccountMembershipQuery'
+    App\Membership\Application\ActiveMembershipQueryInterface: '@App\Membership\Infrastructure\DbalActiveMembershipQuery'
+    App\Membership\Application\AdminMembershipListQueryInterface: '@App\Membership\Infrastructure\DbalAdminMembershipListQuery'
+    App\Membership\Application\AdminUnmatchedHelloAssoOrdersQueryInterface: '@App\Membership\Infrastructure\DbalAdminUnmatchedHelloAssoOrdersQuery'
+    App\Membership\Application\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\DbalMembershipAllIdsQuery'
+    App\Membership\Application\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\DbalMembershipExpiryCheckQuery'
+
     App\Membership\Application\UserRoleGatewayInterface: '@App\Membership\Infrastructure\UserRoleGateway'
 
     App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\ActivateMembership'
@@ -234,6 +268,17 @@ services:
     App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\ProcessHelloAssoMembershipPayment'
 
     App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\ExpireMembership'
+
+    App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
+    App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
+
+    App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
+    App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineRunAuditLogRepository'
+    App\Sessions\Application\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\DbalCommunityStatsQuery'
+    App\Sessions\Application\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\DbalLeaderboardQuery'
+    App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\DbalPlayerConnectionQuery'
+    App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
 
     App\Streaming\Infrastructure\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
 
@@ -244,6 +289,38 @@ services:
             $channelLogin: '%env(TWITCH_CHANNEL_LOGIN)%'
 
     App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
+
+    App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
+    App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
+    App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
+    App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
+    App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
+
+    App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
+
+    App\Content\Domain\PostRepositoryInterface: '@App\Content\Infrastructure\DoctrinePostRepository'
+
+    App\Events\Domain\EventRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventRepository'
+    App\Events\Domain\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventPrivateAccessLogRepository'
+    App\Events\Application\DashboardStatsQueryInterface: '@App\Events\Infrastructure\DbalDashboardStatsQuery'
+
+    App\Identity\Domain\UserRepositoryInterface: '@App\Identity\Infrastructure\DoctrineUserRepository'
+    App\Identity\Domain\EmailConfirmationTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineEmailConfirmationTokenRepository'
+    App\Identity\Domain\PasswordResetTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrinePasswordResetTokenRepository'
+    App\Identity\Domain\RefreshTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineRefreshTokenRepository'
+    App\Identity\Domain\PrivacyRightsRequestRepositoryInterface: '@App\Identity\Infrastructure\DoctrinePrivacyRightsRequestRepository'
+    App\Identity\Domain\AdminCreationAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineAdminCreationAuditRepository'
+    App\Identity\Domain\DeletionAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineDeletionAuditRepository'
+    App\Identity\Domain\RoleChangeAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineRoleChangeAuditRepository'
+
+    App\Payments\Domain\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\DoctrineHelloAssoOrderRepository'
+    App\Payments\Domain\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository'
+
+    App\Registrations\Domain\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationRepository'
+    App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationAdminMessageRepository'
+    App\Registrations\Application\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\DbalRegistrationCounterQuery'
+    App\Registrations\Application\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\DbalAccountRegistrationsQuery'
+    App\Registrations\Application\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\DbalPrivateAccessGrantedQuery'
 
     App\GameSelection\Infrastructure\IgdbHttpClient:
         arguments:
@@ -289,6 +366,9 @@ when@test:
 
         App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway:
             public: true
+
+        App\WeeklyRuns\Application\WeeklyRunGeneratorInterface:
+            class: App\WeeklyRuns\Infrastructure\NullWeeklyRunGenerator
 
         App\Identity\Application\DiscordBotClientInterface:
             class: App\Identity\Infrastructure\NullDiscordBotClient

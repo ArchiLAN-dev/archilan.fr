@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Handler;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
+use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\EntityFinderTrait;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use App\Shared\Application\Message\GenerateRunJob;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -22,28 +23,29 @@ use Symfony\Component\Messenger\MessageBusInterface;
 #[AsMessageHandler]
 final readonly class LaunchPersonalRunJobHandler
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private MessageBusInterface $messageBus,
+        private RunRepositoryInterface $runs,
+        private RunParticipantRepositoryInterface $participants,
+        private UserRepositoryInterface $users,
+        private GameRepositoryInterface $games,
+        private SessionRepositoryInterface $sessions,
+        private SessionSlotRepositoryInterface $slots,
         private SlotNameGenerator $slotNameGenerator,
+        private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
     ) {
     }
 
     public function __invoke(LaunchPersonalRunJob $job): void
     {
-        try {
-            $run = $this->findOrFail(Run::class, $job->personalRunId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($job->personalRunId);
+        if (!$run instanceof Run) {
             $this->logger->error('personal_run.launch.not_found', ['runId' => $job->personalRunId]);
 
             return;
         }
 
-        /** @var list<RunParticipant> $participants */
-        $participants = $this->entityManager->getRepository(RunParticipant::class)->findBy(['runId' => $run->getId()]);
+        $participants = $this->participants->findByRunId($run->getId());
 
         $slotsForSession = [];
         foreach ($participants as $participant) {
@@ -64,24 +66,20 @@ final readonly class LaunchPersonalRunJobHandler
             return;
         }
 
-        $userIds = array_unique(array_column($slotsForSession, 'userId'));
-        $gameIds = array_unique(array_column($slotsForSession, 'gameId'));
+        $userIds = array_values(array_unique(array_column($slotsForSession, 'userId')));
+        $gameIds = array_values(array_unique(array_column($slotsForSession, 'gameId')));
 
-        /** @var list<User> $users */
-        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
-
-        /** @var array<string, User> $usersById */
+        $users = $this->users->findByIds($userIds);
+        /** @var array<string, \App\Identity\Domain\User> $usersById */
         $usersById = [];
         foreach ($users as $user) {
             $usersById[$user->getId()] = $user;
         }
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
-
-        /** @var array<string, Game> $gamesById */
+        $foundGames = $this->games->findByIds($gameIds);
+        /** @var array<string, \App\GameSelection\Domain\Game> $gamesById */
         $gamesById = [];
-        foreach ($games as $game) {
+        foreach ($foundGames as $game) {
             $gamesById[$game->getId()] = $game;
         }
 
@@ -100,7 +98,7 @@ final readonly class LaunchPersonalRunJobHandler
         $now = new \DateTimeImmutable();
         $sessionId = bin2hex(random_bytes(16));
         $session = Session::create($sessionId, $run->getId(), $now);
-        $this->entityManager->persist($session);
+        $this->sessions->persist($session);
 
         $messageSlots = [];
         foreach ($slotsForSession as $i => $slot) {
@@ -119,7 +117,7 @@ final readonly class LaunchPersonalRunJobHandler
                 $slot['slotOrder'],
                 $slot['slotId'],
             );
-            $this->entityManager->persist($sessionSlot);
+            $this->slots->persist($sessionSlot);
 
             $playerYaml = ('' !== $slot['playerYaml'])
                 ? $slot['playerYaml']
@@ -136,7 +134,7 @@ final readonly class LaunchPersonalRunJobHandler
         $session->transition(Session::STATUS_VALIDATING, $now);
         $run->setSessionId($sessionId);
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         $this->messageBus->dispatch(new GenerateRunJob($sessionId, 'validate', $messageSlots));
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\DiscordBotUsersQuery;
+use App\Identity\Application\DiscordUsersQueryInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,7 +14,7 @@ final readonly class DiscordBotUsersController
 {
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private DiscordBotUsersQuery $query,
+        private DiscordUsersQueryInterface $query,
     ) {
     }
 

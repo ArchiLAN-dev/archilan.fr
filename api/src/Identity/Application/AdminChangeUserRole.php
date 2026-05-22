@@ -6,15 +6,17 @@ namespace App\Identity\Application;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\RoleChangeAudit;
+use App\Identity\Domain\RoleChangeAuditRepositoryInterface;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class AdminChangeUserRole
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
+        private RoleChangeAuditRepositoryInterface $auditRepository,
         private LoggerInterface $logger,
         private MessageBusInterface $bus,
     ) {
@@ -36,7 +38,7 @@ final readonly class AdminChangeUserRole
             $errors->add('role', 'Choisis un rôle cible valide.');
         }
 
-        $target = $this->entityManager->find(User::class, $targetUserId);
+        $target = $this->userRepository->findById($targetUserId);
         if (!$target instanceof User) {
             $errors->add('user', 'Utilisateur introuvable.');
         }
@@ -74,14 +76,13 @@ final readonly class AdminChangeUserRole
 
         $newRole = $this->primaryRole($target);
 
-        $this->entityManager->persist(RoleChangeAudit::record(
+        $this->auditRepository->saveAuditAndFlushUser(RoleChangeAudit::record(
             $target->getId(),
             $admin->getId(),
             $previousRole,
             $newRole,
             $now,
         ));
-        $this->entityManager->flush();
 
         $this->logger->info('user.role_changed', ['targetUserId' => $target->getId(), 'adminId' => $admin->getId(), 'from' => $previousRole, 'to' => $newRole]);
 

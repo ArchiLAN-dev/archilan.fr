@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Content\Application;
 
 use App\Content\Domain\Post;
+use App\Content\Domain\PostRepositoryInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicPostCatalog
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private PostRepositoryInterface $postRepository,
         private MinioStorageInterface $minioStorage,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
@@ -23,8 +23,7 @@ final readonly class PublicPostCatalog
      */
     public function list(): array
     {
-        /** @var list<Post> $posts */
-        $posts = $this->entityManager->getRepository(Post::class)->findBy(['status' => Post::STATUS_PUBLISHED], ['publishedAt' => 'DESC'], 200);
+        $posts = $this->postRepository->findByStatus(Post::STATUS_PUBLISHED);
 
         return array_map(fn (Post $post): array => $this->payload($post), $posts);
     }
@@ -34,10 +33,7 @@ final readonly class PublicPostCatalog
      */
     public function get(string $slug): ?array
     {
-        $post = $this->entityManager->getRepository(Post::class)->findOneBy([
-            'slug' => $slug,
-            'status' => Post::STATUS_PUBLISHED,
-        ]);
+        $post = $this->postRepository->findBySlugAndStatus($slug, Post::STATUS_PUBLISHED);
 
         if (!$post instanceof Post) {
             return null;

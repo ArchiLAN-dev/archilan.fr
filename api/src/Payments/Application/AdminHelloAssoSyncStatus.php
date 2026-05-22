@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Payments\Application;
 
-use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Payments\Domain\HelloAssoSyncLog;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
 
 final readonly class AdminHelloAssoSyncStatus
 {
-    use EntityFinderTrait;
-
-    public function __construct(private EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private EventRepositoryInterface $eventRepository,
+        private HelloAssoSyncLogRepositoryInterface $syncLogRepository,
+    ) {
     }
 
     /**
@@ -24,9 +23,8 @@ final readonly class AdminHelloAssoSyncStatus
      */
     public function getForEvent(string $eventId): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return null;
         }
 
@@ -36,12 +34,7 @@ final readonly class AdminHelloAssoSyncStatus
             return ['formSlug' => null, 'recentSyncs' => []];
         }
 
-        /** @var list<HelloAssoSyncLog> $logs */
-        $logs = $this->entityManager->getRepository(HelloAssoSyncLog::class)->findBy(
-            ['formSlug' => $formSlug],
-            ['attemptAt' => 'DESC'],
-            10,
-        );
+        $logs = $this->syncLogRepository->findRecentByFormSlug($formSlug, 10);
 
         $recentSyncs = array_map(
             static fn (HelloAssoSyncLog $log): array => [

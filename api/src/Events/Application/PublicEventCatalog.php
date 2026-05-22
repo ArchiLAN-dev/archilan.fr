@@ -5,18 +5,15 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Payments\Application\HelloAssoConfig;
 use App\Registrations\Application\RegistrationCounter;
-use App\Shared\Application\EntityFinderTrait;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicEventCatalog
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private HelloAssoConfig $helloAssoConfig,
         private MinioStorageInterface $minioStorage,
@@ -30,8 +27,7 @@ final readonly class PublicEventCatalog
      */
     public function list(): array
     {
-        /** @var list<Event> $events */
-        $events = $this->entityManager->getRepository(Event::class)->findBy(['status' => Event::PUBLIC_STATUSES], ['startsAt' => 'ASC'], 500);
+        $events = $this->eventRepository->findByStatuses(Event::PUBLIC_STATUSES);
 
         return array_map(fn (Event $event): array => [
             ...$this->payload($event),
@@ -43,9 +39,8 @@ final readonly class PublicEventCatalog
      */
     public function get(string $eventId): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return null;
         }
 

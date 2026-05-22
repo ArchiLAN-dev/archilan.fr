@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionQuery;
-use App\Sessions\Infrastructure\DockerSocketClient;
+use App\Shared\Infrastructure\DockerSocketClient;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

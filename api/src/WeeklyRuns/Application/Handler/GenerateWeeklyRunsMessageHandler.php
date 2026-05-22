@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Handler;
 
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
+use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\ParameterType;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -16,9 +19,12 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class GenerateWeeklyRunsMessageHandler
 {
     public function __construct(
-        private Connection $connection,
-        private EntityManagerInterface $entityManager,
+        private WeeklyRunRepositoryInterface $runs,
+        private WeeklyTemplateRepositoryInterface $templates,
+        private GameRepositoryInterface $games,
+        private WeeklyRunGeneratorInterface $generator,
         private ClockInterface $clock,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -29,32 +35,27 @@ final readonly class GenerateWeeklyRunsMessageHandler
         $weekNumber = (int) $now->format('W');
         $seed = (string) random_int(1, 2_147_483_647);
 
-        $templateIds = $this->connection->createQueryBuilder()
-            ->select('wt.id')
-            ->from('weekly_templates', 'wt')
-            ->where('wt.is_active = :active')
-            ->setParameter('active', true, ParameterType::BOOLEAN)
-            ->executeQuery()
-            ->fetchFirstColumn();
+        $activeTemplates = $this->templates->findAllActive();
 
-        foreach ($templateIds as $templateId) {
-            if (!is_string($templateId)) {
+        foreach ($activeTemplates as $template) {
+            $templateId = $template->getId();
+
+            if ($this->runs->existsByTemplateAndWeek($templateId, $weekYear, $weekNumber)) {
                 continue;
             }
 
-            $countRaw = $this->connection->createQueryBuilder()
-                ->select('COUNT(wr.id)')
-                ->from('weekly_runs', 'wr')
-                ->where('wr.template_id = :templateId')
-                ->andWhere('wr.week_year = :year')
-                ->andWhere('wr.week_number = :week')
-                ->setParameter('templateId', $templateId)
-                ->setParameter('year', $weekYear)
-                ->setParameter('week', $weekNumber)
-                ->executeQuery()
-                ->fetchOne();
+            $yamlConfig = $template->getYamlConfig();
+            $game = $this->games->findById($template->getGameId());
 
-            if (false !== $countRaw && is_numeric($countRaw) && 0 < (int) $countRaw) {
+            if (!$game instanceof Game) {
+                $this->logger->warning('weekly_runs.generate.template_not_found', ['templateId' => $templateId]);
+                continue;
+            }
+
+            $apworldStorageKey = $game->getApworldStorageKey();
+
+            if ('' === $yamlConfig || null === $apworldStorageKey || '' === $apworldStorageKey) {
+                $this->logger->warning('weekly_runs.generate.template_incomplete', ['templateId' => $templateId]);
                 continue;
             }
 
@@ -69,9 +70,31 @@ final readonly class GenerateWeeklyRunsMessageHandler
                 createdAt: $now,
             );
 
-            $this->entityManager->persist($run);
-            // Flush per template so a unique-constraint race on one template does not roll back the others.
-            $this->entityManager->flush();
+            // Flush before generation so the run ID is committed even if generation fails.
+            $this->runs->save($run);
+
+            try {
+                $seedFilePath = $this->generator->generate(
+                    $run->getId(),
+                    $apworldStorageKey,
+                    $yamlConfig,
+                    $run->getSeed(),
+                );
+                $run->markGenerated($seedFilePath);
+                $this->runs->flush();
+
+                $this->logger->info('weekly_runs.generate.success', [
+                    'weeklyRunId' => $run->getId(),
+                    'templateId' => $templateId,
+                    'seedFile' => basename($seedFilePath),
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->error('weekly_runs.generate.failed', [
+                    'weeklyRunId' => $run->getId(),
+                    'templateId' => $templateId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }

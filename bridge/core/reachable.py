@@ -4,6 +4,7 @@ import asyncio
 import glob
 import json
 import logging
+import os
 import sys
 from .state import StateManager
 
@@ -17,10 +18,12 @@ async def _start_daemon(slot: int, arch_file: str, log: logging.Logger) -> None:
     """Start reachable.py in --daemon mode for a slot and wait for it to signal ready."""
     event = asyncio.Event()
     _daemon_ready_events[slot] = event
+    output_dir = os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/archipelago/output")
+    yamls_dir = os.path.join(os.path.dirname(output_dir), "yamls")
     cmd = [
         sys.executable, "/reachable/reachable.py",
         "--archipelago", arch_file,
-        "--yamls", "/archipelago/yamls",
+        "--yamls", yamls_dir,
         "--slot", str(slot),
         "--daemon",
     ]
@@ -59,9 +62,12 @@ async def _compute_reachable(
     """
     ps = state._states.get(slot)
 
-    arch_files = glob.glob("/archipelago/output/*.archipelago")
+    output_dir = os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/archipelago/output")
+    arch_files = glob.glob(f"{output_dir}/*.archipelago") or glob.glob(f"{output_dir}/*.zip")
     if not arch_files:
         return None, "no .archipelago file"
+
+    yamls_dir = os.path.join(os.path.dirname(output_dir), "yamls")
 
     checks_done = len(ps._checked_locations) if ps else 0
     items_received = len(ps._received_items) if ps else 0
@@ -104,7 +110,7 @@ async def _compute_reachable(
         cmd = [
             sys.executable, "/reachable/reachable.py",
             "--archipelago", arch_files[0],
-            "--yamls", "/archipelago/yamls",
+            "--yamls", yamls_dir,
             "--slot", str(slot),
         ]
         try:

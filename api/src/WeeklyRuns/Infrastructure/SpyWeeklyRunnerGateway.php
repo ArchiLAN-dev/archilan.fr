@@ -8,7 +8,7 @@ use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 
 final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    /** @var list<array{entryId: string, seed: string, apworldStorageKey: string, apworldDownloadUrl: string, playerName: string, yaml: string, archipelagoGameName: string}> */
+    /** @var list<array{entryId: string, seedFilePath: string}> */
     public array $launchCalls = [];
 
     public function reset(): void
@@ -16,23 +16,13 @@ final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
         $this->launchCalls = [];
     }
 
-    public function launchEntry(
+    public function launchFromSeed(
         string $weeklyEntryId,
-        string $seed,
-        string $apworldStorageKey,
-        string $apworldDownloadUrl,
-        string $playerName,
-        string $yaml,
-        string $archipelagoGameName,
+        string $seedFilePath,
     ): array {
         $this->launchCalls[] = [
             'entryId' => $weeklyEntryId,
-            'seed' => $seed,
-            'apworldStorageKey' => $apworldStorageKey,
-            'apworldDownloadUrl' => $apworldDownloadUrl,
-            'playerName' => $playerName,
-            'yaml' => $yaml,
-            'archipelagoGameName' => $archipelagoGameName,
+            'seedFilePath' => $seedFilePath,
         ];
 
         return [
@@ -42,6 +32,7 @@ final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
                 'port' => 38281,
                 'password' => null,
             ],
+            'bridgePort' => 5001,
         ];
     }
 

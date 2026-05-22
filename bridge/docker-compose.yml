@@ -1,0 +1,44 @@
+# VPS deployment — copy this file to the server alongside a .env file.
+# For k8s migration: remove volumes + AP_*_CMD vars; AP becomes a separate pod
+# and data directories become PersistentVolumeClaims.
+
+services:
+  bridge:
+    image: ghcr.io/archilan/bridge:latest
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      SESSION_ID: ${SESSION_ID}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+      AP_WS_URL: ${AP_WS_URL:-ws://localhost:38281}
+      AP_SERVER_PASSWORD: ${AP_SERVER_PASSWORD:-}
+      AP_ADMIN_PASSWORD: ${AP_ADMIN_PASSWORD:-}
+      SAVE_DIR: /data/saves
+      AP_WORLDS_DIR: /data/worlds
+      AP_YAMLS_DIR: /data/yamls
+      AP_OUTPUT_DIR: /data/output
+      AP_PID_FILE: /data/ap.pid
+      AP_RUNTIME: ${AP_RUNTIME:-subprocess}
+      AP_IMAGE: ${AP_IMAGE:-}
+      AP_K8S_NAMESPACE: ${AP_K8S_NAMESPACE:-default}
+      AP_GENERATE_CMD: ${AP_GENERATE_CMD:-}
+      AP_START_CMD: ${AP_START_CMD:-}
+      AP_LAUNCH_CMD: ${AP_LAUNCH_CMD:-}
+      AP_TEMPLATE_CMD: ${AP_TEMPLATE_CMD:-}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-archipelago-saves}
+      REST_PORT: "5000"
+    volumes:
+      - bridge-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+volumes:
+  bridge-data:

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 
 final readonly class MyRegistrationQuery
 {
-    public function __construct(private EntityManagerInterface $entityManager)
+    public function __construct(private RegistrationRepositoryInterface $registrationRepository)
     {
     }
 
@@ -18,10 +18,7 @@ final readonly class MyRegistrationQuery
      */
     public function findActiveByEventAndUser(string $eventId, string $userId): ?array
     {
-        $registration = $this->entityManager->getRepository(Registration::class)->findOneBy([
-            'eventId' => $eventId,
-            'userId' => $userId,
-        ]);
+        $registration = $this->registrationRepository->findByEventAndUser($eventId, $userId);
 
         if (!$registration instanceof Registration || Registration::STATUS_CANCELLED === $registration->getStatus()) {
             return null;

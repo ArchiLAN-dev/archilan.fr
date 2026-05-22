@@ -8,15 +8,18 @@ use App\Communications\Application\SessionPausedWithoutSaveMessage;
 use App\Communications\Application\SessionRestartFailedMessage;
 use App\Communications\Application\SessionRunningMessage;
 use App\Events\Domain\Event;
-use App\Identity\Domain\User;
+use App\Events\Domain\EventRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -24,10 +27,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class SessionLifecycleManager
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
+        private SessionSlotRepositoryInterface $slots,
+        private RunRepositoryInterface $runs,
+        private RegistrationRepositoryInterface $registrations,
+        private UserRepositoryInterface $users,
+        private EventRepositoryInterface $events,
         private HubInterface $mercureHub,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
@@ -42,7 +48,7 @@ final readonly class SessionLifecycleManager
     public function createSession(string $eventId, array $slots): array
     {
         $session = Session::create($this->generateId(), $eventId, new \DateTimeImmutable());
-        $this->entityManager->persist($session);
+        $this->sessions->persist($session);
 
         foreach ($slots as $order => $slotData) {
             $slot = SessionSlot::create(
@@ -54,10 +60,10 @@ final readonly class SessionLifecycleManager
                 $order,
                 $slotData['slotId'] ?? null,
             );
-            $this->entityManager->persist($slot);
+            $this->slots->persist($slot);
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $this->logger->info('session.created', ['sessionId' => $session->getId(), 'eventId' => $eventId, 'slotCount' => count($slots)]);
@@ -70,20 +76,17 @@ final readonly class SessionLifecycleManager
      */
     public function getSession(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
-        $slots = $this->entityManager
-            ->getRepository(SessionSlot::class)
-            ->findBy(['sessionId' => $sessionId], ['slotOrder' => 'ASC']);
+        $slotsList = $this->slots->findBySessionId($sessionId);
 
         return [
             'found' => true,
             'session' => $session->payload(),
-            'slots' => array_map(fn (SessionSlot $s) => $s->payload(), $slots),
+            'slots' => array_map(fn (SessionSlot $s) => $s->payload(), $slotsList),
         ];
     }
 
@@ -104,9 +107,8 @@ final readonly class SessionLifecycleManager
         ?string $lastLogs = null,
         ?string $serverPassword = null,
     ): array {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -140,7 +142,7 @@ final readonly class SessionLifecycleManager
         if (Session::STATUS_DRAFT === $newStatus && null !== $validationErrors) {
             $session->setValidationErrors($validationErrors);
 
-            $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+            $personalRun = $this->runs->findBySessionId($sessionId);
             if ($personalRun instanceof Run && Run::STATUS_STARTING === $personalRun->getStatus()) {
                 $personalRun->resetAfterValidationFailure($now);
             }
@@ -156,14 +158,14 @@ final readonly class SessionLifecycleManager
         }
 
         if (Session::STATUS_RUNNING === $newStatus) {
-            $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+            $personalRun = $this->runs->findBySessionId($sessionId);
             if ($personalRun instanceof Run) {
                 $personalRun->markRunning($session->getHost() ?? '', $session->getPort() ?? 0, $now, $session->getPassword());
             }
         }
 
         if (Session::STATUS_CRASHED === $newStatus) {
-            $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+            $personalRun = $this->runs->findBySessionId($sessionId);
             if ($personalRun instanceof Run) {
                 $session->markIdle($session->getLastSaveKey(), true, $now);
                 $personalRun->markStopped($now);
@@ -171,7 +173,7 @@ final readonly class SessionLifecycleManager
             }
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $this->logger->info('session.transition', ['sessionId' => $sessionId, 'from' => $fromStatus, 'to' => $session->getStatus()]);
@@ -186,9 +188,8 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool} */
     public function heartbeat(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -197,7 +198,7 @@ final readonly class SessionLifecycleManager
         }
 
         $session->updateHeartbeat(new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         return ['found' => true];
     }
@@ -205,9 +206,8 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool, session?: array<string, mixed>} */
     public function forceReset(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -216,7 +216,7 @@ final readonly class SessionLifecycleManager
         $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->forceReset(new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $this->logger->warning('session.force_reset', [
@@ -224,7 +224,6 @@ final readonly class SessionLifecycleManager
             'previousStatus' => $previous,
         ]);
 
-        // Container is alive for RUNNING, LAUNCHING, and CRASHED states - stop it.
         $containerStatuses = [Session::STATUS_RUNNING, Session::STATUS_LAUNCHING, Session::STATUS_CRASHED];
         if (in_array($previous, $containerStatuses, true)) {
             $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
@@ -235,48 +234,43 @@ final readonly class SessionLifecycleManager
 
     private function dispatchRunningNotifications(Session $session): void
     {
-        /** @var list<SessionSlot> $slots */
-        $slots = $this->entityManager
-            ->getRepository(SessionSlot::class)
-            ->findBy(['sessionId' => $session->getId()], ['slotOrder' => 'ASC']);
+        $slotsList = $this->slots->findBySessionId($session->getId());
 
-        if ([] === $slots) {
+        if ([] === $slotsList) {
             return;
         }
 
         /** @var array<string, list<string>> $slotNamesByRegistrationId */
         $slotNamesByRegistrationId = [];
-        foreach ($slots as $slot) {
+        foreach ($slotsList as $slot) {
             $slotNamesByRegistrationId[$slot->getRegistrationId()][] = $slot->getSlotName();
         }
 
         $registrationIds = array_keys($slotNamesByRegistrationId);
 
-        /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
+        /** @var list<Registration> $regList */
+        $regList = $this->registrations->findBy(['id' => $registrationIds]);
 
-        if ([] === $registrations) {
+        if ([] === $regList) {
             return;
         }
 
-        /** @var list<string> $userIds */
-        $userIds = array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $registrations));
+        $userIds = array_values(array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $regList)));
 
-        /** @var list<User> $users */
-        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
+        $usersList = $this->users->findByIds($userIds);
 
-        /** @var array<string, User> $usersById */
+        /** @var array<string, \App\Identity\Domain\User> $usersById */
         $usersById = [];
-        foreach ($users as $user) {
+        foreach ($usersList as $user) {
             $usersById[$user->getId()] = $user;
         }
 
-        $event = $this->entityManager->find(Event::class, $session->getEventId());
+        $event = $this->events->findById($session->getEventId());
         $eventTitle = $event instanceof Event ? $event->getTitle() : $session->getEventId();
 
-        foreach ($registrations as $registration) {
+        foreach ($regList as $registration) {
             $user = $usersById[$registration->getUserId()] ?? null;
-            if (!$user instanceof User) {
+            if (null === $user) {
                 continue;
             }
 
@@ -294,7 +288,7 @@ final readonly class SessionLifecycleManager
             ));
         }
 
-        $this->logger->info('session.notifications.dispatched', ['sessionId' => $session->getId(), 'count' => count($registrations)]);
+        $this->logger->info('session.notifications.dispatched', ['sessionId' => $session->getId(), 'count' => count($regList)]);
     }
 
     /**
@@ -308,9 +302,8 @@ final readonly class SessionLifecycleManager
         ?string $archivedSpoilerPath,
         array $slots,
     ): array {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -323,10 +316,7 @@ final readonly class SessionLifecycleManager
                 continue;
             }
 
-            $slot = $this->entityManager->getRepository(SessionSlot::class)->findOneBy([
-                'sessionId' => $sessionId,
-                'slotName' => $slotName,
-            ]);
+            $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
 
             if (!$slot instanceof SessionSlot) {
                 continue;
@@ -347,7 +337,7 @@ final readonly class SessionLifecycleManager
             }
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         $this->logger->info('session.archive.stored', ['sessionId' => $sessionId, 'slot_count' => count($slots)]);
 
@@ -359,9 +349,8 @@ final readonly class SessionLifecycleManager
      */
     public function initiateRestart(string $sessionId, string $callerId, bool $isAdmin): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'error' => null, 'sessionId' => null, 'status' => null];
         }
 
@@ -373,7 +362,7 @@ final readonly class SessionLifecycleManager
             return ['found' => true, 'error' => 'no_save_available', 'sessionId' => null, 'status' => null];
         }
 
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
 
         if (!$isAdmin) {
             if (!$personalRun instanceof Run || !$personalRun->isOwnedBy($callerId)) {
@@ -388,11 +377,11 @@ final readonly class SessionLifecycleManager
             $personalRun->markRestarting($now);
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $saveKey = $session->getLastSaveKey();
-        \assert(null !== $saveKey); // checked above
+        \assert(null !== $saveKey);
 
         $this->messageBus->dispatch(new ResumeRunJob(
             $sessionId,
@@ -412,9 +401,8 @@ final readonly class SessionLifecycleManager
      */
     public function recordRestarted(string $sessionId, string $host, int $port, int $bridgePort): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'status' => null];
         }
 
@@ -428,20 +416,18 @@ final readonly class SessionLifecycleManager
 
         $now = new \DateTimeImmutable();
 
-        // For Option A restarts (container stays alive), the bridge sends empty/0 values
-        // because connection details are unchanged. Fall back to the existing session values.
         $effectiveHost = '' !== $host ? $host : ($session->getHost() ?? '');
         $effectivePort = $port > 0 ? $port : ($session->getPort() ?? 0);
         $effectiveBridgePort = $bridgePort > 0 ? $bridgePort : ($session->getBridgePort() ?? 0);
 
         $session->resumeRunning($effectiveHost, $effectivePort, $effectiveBridgePort, $now);
 
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
         if ($personalRun instanceof Run) {
             $personalRun->markRunning($effectiveHost, $effectivePort, $now, $session->getPassword());
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $this->logger->info('session.restarted', ['sessionId' => $sessionId, 'host' => $effectiveHost, 'port' => $effectivePort]);
@@ -450,16 +436,12 @@ final readonly class SessionLifecycleManager
     }
 
     /**
-     * Transition idle → restarting triggered by the bridge (wake-on-connect).
-     * Unlike initiateRestart(), this is called directly by the bridge without user auth.
-     *
      * @return array{found: bool, error: string|null, status: string|null}
      */
     public function markRestartingBridge(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'error' => null, 'status' => null];
         }
 
@@ -479,12 +461,12 @@ final readonly class SessionLifecycleManager
             return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
         }
 
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
         if ($personalRun instanceof Run) {
             $personalRun->markRestarting($now);
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $this->logger->info('session.restarting.bridge_triggered', ['sessionId' => $sessionId]);
@@ -493,15 +475,12 @@ final readonly class SessionLifecycleManager
     }
 
     /**
-     * Transition restarting → idle when the bridge failed to restart the AP process.
-     *
      * @return array{found: bool, error: string|null, status: string|null}
      */
     public function markRestartFailed(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'error' => null, 'status' => null];
         }
 
@@ -521,12 +500,12 @@ final readonly class SessionLifecycleManager
             return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
         }
 
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
         if ($personalRun instanceof Run) {
             $personalRun->markStopped($now);
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
         $this->messageBus->dispatch(new SessionRestartFailedMessage($sessionId));
 
@@ -540,9 +519,8 @@ final readonly class SessionLifecycleManager
      */
     public function recordPaused(string $sessionId, ?string $saveKey, bool $failedSave): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'status' => null];
         }
 
@@ -557,12 +535,12 @@ final readonly class SessionLifecycleManager
         $now = new \DateTimeImmutable();
         $session->markIdle($saveKey, $failedSave, $now);
 
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
         if ($personalRun instanceof Run) {
             $personalRun->markStopped($now);
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
         $this->publish($session);
 
         $this->logger->info('session.paused', [
@@ -581,14 +559,13 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool} */
     public function recordActivity(string $sessionId, \DateTimeImmutable $occurredAt): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
         $session->recordActivity($occurredAt);
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         return ['found' => true];
     }
@@ -596,14 +573,13 @@ final readonly class SessionLifecycleManager
     /** @return array{found: bool} */
     public function storeLogs(string $sessionId, string $output): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
         $session->setLastLogs($output);
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         $this->logger->info('session.logs.stored', ['sessionId' => $sessionId, 'length' => strlen($output)]);
 

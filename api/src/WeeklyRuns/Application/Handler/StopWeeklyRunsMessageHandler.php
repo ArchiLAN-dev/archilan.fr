@@ -6,9 +6,8 @@ namespace App\WeeklyRuns\Application\Handler;
 
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -17,8 +16,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class StopWeeklyRunsMessageHandler
 {
     public function __construct(
-        private Connection $connection,
-        private EntityManagerInterface $entityManager,
+        private WeeklyRunRepositoryInterface $runs,
+        private WeeklyEntryRepositoryInterface $entries,
         private WeeklyRunnerGatewayInterface $gateway,
         private LoggerInterface $logger,
         private ClockInterface $clock,
@@ -29,37 +28,14 @@ final readonly class StopWeeklyRunsMessageHandler
     {
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
 
-        $runIds = $this->connection->createQueryBuilder()
-            ->select('wr.id')
-            ->from('weekly_runs', 'wr')
-            ->where('wr.status = :status')
-            ->setParameter('status', WeeklyRun::STATUS_ACTIVE)
-            ->executeQuery()
-            ->fetchFirstColumn();
+        $activeRuns = $this->runs->findAllActive();
 
-        foreach ($runIds as $runId) {
-            if (!is_string($runId)) {
-                continue;
-            }
+        foreach ($activeRuns as $run) {
+            $activeEntries = $this->entries->findActiveEntriesForRun($run->getId());
 
-            $run = $this->entityManager->find(WeeklyRun::class, $runId);
-            if (!$run instanceof WeeklyRun) {
-                continue;
-            }
-
-            $entryRows = $this->connection->createQueryBuilder()
-                ->select('we.id', 'we.external_session_id')
-                ->from('weekly_entries', 'we')
-                ->where('we.weekly_run_id = :runId')
-                ->andWhere('we.external_session_id IS NOT NULL')
-                ->andWhere('we.goal_reached_at IS NULL')
-                ->setParameter('runId', $runId)
-                ->executeQuery()
-                ->fetchAllAssociative();
-
-            foreach ($entryRows as $row) {
-                $sessionId = $row['external_session_id'] ?? null;
-                if (!is_string($sessionId) || '' === $sessionId) {
+            foreach ($activeEntries as $entry) {
+                $sessionId = $entry->getExternalSessionId();
+                if (null === $sessionId || '' === $sessionId) {
                     continue;
                 }
 
@@ -74,7 +50,7 @@ final readonly class StopWeeklyRunsMessageHandler
             }
 
             $run->finish($now);
-            $this->entityManager->flush();
+            $this->runs->flush();
         }
     }
 }

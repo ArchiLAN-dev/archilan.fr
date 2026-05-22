@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Events\Application;
 
-use App\Events\Domain\Event;
 use App\Events\Domain\EventPrivateAccessLog;
+use App\Events\Domain\EventPrivateAccessLogRepositoryInterface;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Registrations\Application\RegistrationCounter;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class VerifyPrivateEventAccess
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
+        private EventPrivateAccessLogRepositoryInterface $accessLogRepository,
         private RegistrationCounter $registrationCounter,
         private LoggerInterface $logger,
     ) {
@@ -30,9 +28,8 @@ final readonly class VerifyPrivateEventAccess
      */
     public function verify(string $eventId, mixed $password, string $userId): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return null;
         }
 
@@ -49,24 +46,23 @@ final readonly class VerifyPrivateEventAccess
             && $this->canUnlockPrivateRegistration($event, $confirmedCount, new \DateTimeImmutable())
             && $event->verifyPrivateAccessPassword($password);
 
-        $this->entityManager->persist(new EventPrivateAccessLog(
+        $this->accessLogRepository->save(new EventPrivateAccessLog(
             bin2hex(random_bytes(16)),
             $event->getId(),
             $userId,
             $granted,
             new \DateTimeImmutable(),
         ));
-        $this->entityManager->flush();
 
         $this->logger->info('event.private_access_attempt', ['eventId' => $eventId, 'userId' => $userId, 'granted' => $granted]);
 
         return ['granted' => $granted];
     }
 
-    private function canUnlockPrivateRegistration(Event $event, int $confirmedCount, \DateTimeImmutable $now): bool
+    private function canUnlockPrivateRegistration(\App\Events\Domain\Event $event, int $confirmedCount, \DateTimeImmutable $now): bool
     {
         return !$event->isPublic()
-            && Event::STATUS_PUBLISHED === $event->getStatus()
+            && \App\Events\Domain\Event::STATUS_PUBLISHED === $event->getStatus()
             && $now >= $event->getRegistrationOpensAt()
             && $now <= $event->getRegistrationClosesAt()
             && !$event->isAtCapacity($confirmedCount);

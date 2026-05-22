@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\User;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final readonly class AuthenticateUser
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private UserPasswordHasherInterface $passwordHasher,
     ) {
     }
@@ -27,9 +24,7 @@ final readonly class AuthenticateUser
             return null;
         }
 
-        $user = $this->entityManager
-            ->getRepository(User::class)
-            ->findOneBy(['emailCanonical' => $emailCanonical]);
+        $user = $this->userRepository->findByEmailCanonical($emailCanonical);
 
         if (!$user instanceof User || $user->isDeleted() || !$this->passwordHasher->isPasswordValid($user, $password)) {
             return null;
@@ -40,13 +35,9 @@ final readonly class AuthenticateUser
 
     public function findUserById(string $userId): ?User
     {
-        try {
-            $user = $this->findOrFail(User::class, $userId);
-        } catch (\RuntimeException) {
-            return null;
-        }
+        $user = $this->userRepository->findById($userId);
 
-        if ($user->isDeleted()) {
+        if (!$user instanceof User || $user->isDeleted()) {
             return null;
         }
 

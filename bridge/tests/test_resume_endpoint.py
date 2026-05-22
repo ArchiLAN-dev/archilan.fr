@@ -1,4 +1,4 @@
-"""Tests for POST /resume endpoint and resume flow helpers (Story 17.3)."""
+"""Tests for POST /resume endpoint and resume flow helpers."""
 from __future__ import annotations
 
 import os
@@ -6,12 +6,11 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp.test_utils import TestClient, TestServer
+from httpx import ASGITransport, AsyncClient
 
 from bridge.bridge import (
     ArchipelagoClient,
     Config,
-    MercurePublisher,
     StateManager,
     create_app,
 )
@@ -25,20 +24,17 @@ from bridge.core.coordinator import PauseResumeCoordinator
 
 def _config(**overrides: object) -> Config:
     defaults: dict[str, object] = {
-        "bridge_internal_token": "test-token",
+        "internal_token": "test-token",
         "ap_pid_file": "/tmp/test-ap.pid",
         "ap_launch_cmd": "python multiserver.py",
-        "minio_endpoint": "http://minio.test:9000",
-        "minio_access_key": "minioadmin",
-        "minio_secret_key": "minioadmin",
-        "minio_bucket": "test-bucket",
+        "storage_endpoint": "http://minio.test:9000",
+        "storage_access_key": "minioadmin",
+        "storage_secret_key": "minioadmin",
+        "storage_bucket": "test-bucket",
     }
     defaults.update(overrides)
     return Config(  # type: ignore[arg-type]
-        mercure_hub_url="http://hub.test",
-        central_api_secret="s",
-        symfony_internal_url="http://api.test",
-        run_id="run-1",
+        session_id="run-1",
         **defaults,
     )
 
@@ -46,10 +42,8 @@ def _config(**overrides: object) -> Config:
 def _make_app(config: Config | None = None) -> tuple[object, ArchipelagoClient]:
     cfg = config or _config()
     state = StateManager()
-    publisher = MagicMock(spec=MercurePublisher)
-    publisher.publish = AsyncMock()
-    ap_client = ArchipelagoClient(cfg, state, publisher)
-    ap_client._http = AsyncMock()
+    broadcast = AsyncMock()
+    ap_client = ArchipelagoClient(cfg, state, broadcast)
     app = create_app(state, ap_client)
     return app, ap_client
 
@@ -61,17 +55,17 @@ def _make_app(config: Config | None = None) -> tuple[object, ArchipelagoClient]:
 @pytest.mark.asyncio
 async def test_resume_no_auth_returns_401() -> None:
     app, _ = _make_app()
-    async with TestClient(TestServer(app)) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/resume")
-        assert resp.status == 401
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_resume_wrong_token_returns_401() -> None:
     app, _ = _make_app()
-    async with TestClient(TestServer(app)) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/resume", headers={"Authorization": "Bearer bad"})
-        assert resp.status == 401
+        assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -79,14 +73,14 @@ async def test_resume_valid_token_returns_200() -> None:
     app, _ = _make_app()
 
     with patch.object(_rest, "_resume_flow", new=AsyncMock()):
-        async with TestClient(TestServer(app)) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
                 "/resume",
-                json={"lastSaveKey": "sessions/run-1/saves/ts.apsave"},
+                json={"saveKey": "20260519T143000.apsave"},
                 headers={"Authorization": "Bearer test-token"},
             )
-            assert resp.status == 200
-            data = await resp.json()
+            assert resp.status_code == 200
+            data = resp.json()
             assert data["ok"] is True
 
 
@@ -152,31 +146,6 @@ async def test_wait_for_ap_health_returns_false_on_timeout() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _notify_restarted
-# ---------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_notify_restarted_posts_empty_connection_details() -> None:
-    _, ap_client = _make_app()
-
-    mock_resp = AsyncMock()
-    mock_resp.status = 200
-    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-    mock_resp.__aexit__ = AsyncMock(return_value=False)
-    ap_client._http.post = MagicMock(return_value=mock_resp)
-
-    await _rest._notify_restarted(ap_client)
-
-    ap_client._http.post.assert_called_once()
-    call_kwargs = ap_client._http.post.call_args
-    body = call_kwargs[1]["json"]
-    assert body["connectionHost"] == ""
-    assert body["connectionPort"] == 0
-    assert body["bridgePort"] == 0
-    assert "restarted" in call_kwargs[0][0]
-
-
-# ---------------------------------------------------------------------------
 # _resume_flow integration (mocked deps)
 # ---------------------------------------------------------------------------
 
@@ -189,7 +158,7 @@ async def test_resume_flow_uses_local_save_if_available(tmp_path: object) -> Non
     _, ap_client = _make_app(config=_config(save_dir=str(tmp_path)))
 
     launched: list[str] = []
-    notified: list[bool] = []
+    broadcasts: list[str] = []
 
     async def _mock_launch(client: ArchipelagoClient, save_path: str) -> MagicMock:
         launched.append(save_path)
@@ -198,26 +167,22 @@ async def test_resume_flow_uses_local_save_if_available(tmp_path: object) -> Non
         proc.kill = MagicMock()
         return proc
 
-    async def _mock_health(client: ArchipelagoClient, timeout: float = 60.0) -> bool:
-        return True
-
-    async def _mock_notify(client: ArchipelagoClient) -> None:
-        notified.append(True)
+    async def _mock_broadcast(event_type: str, payload: dict) -> None:
+        broadcasts.append(payload.get("event", ""))
 
     with patch.object(_rest, "_launch_ap", new=_mock_launch):
-        with patch.object(_rest, "_wait_for_ap_health", new=_mock_health):
-            with patch.object(_rest, "_notify_restarted", new=_mock_notify):
-                await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator())
+        with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=True)):
+            await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
 
     assert launched == [save_file]
-    assert notified == [True]
+    assert "restarted" in broadcasts
 
 
 @pytest.mark.asyncio
-async def test_resume_flow_falls_back_to_minio_when_no_local_save(tmp_path: object) -> None:
+async def test_resume_flow_falls_back_to_storage_when_no_local_save(tmp_path: object) -> None:
     _, ap_client = _make_app(config=_config(save_dir=str(tmp_path)))
 
-    save_key = "sessions/run-1/saves/ts.apsave"
+    save_key = "20260519T143000.apsave"
     downloaded: list[str] = []
     launched: list[str] = []
 
@@ -234,11 +199,10 @@ async def test_resume_flow_falls_back_to_minio_when_no_local_save(tmp_path: obje
         proc.returncode = None
         return proc
 
-    with patch.object(_rest, "_download_save_from_minio", new=_mock_download):
+    with patch.object(_rest, "_download_save_from_storage", new=_mock_download):
         with patch.object(_rest, "_launch_ap", new=_mock_launch):
             with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=True)):
-                with patch.object(_rest, "_notify_restarted", new=AsyncMock()):
-                    await _rest._resume_flow(ap_client, last_save_key=save_key, coordinator=PauseResumeCoordinator())
+                await _rest._resume_flow(ap_client, last_save_key=save_key, coordinator=PauseResumeCoordinator(), broadcast=AsyncMock())
 
     assert downloaded == [save_key]
     assert len(launched) == 1
@@ -249,17 +213,20 @@ async def test_resume_flow_stops_if_no_save_available(tmp_path: object) -> None:
     _, ap_client = _make_app(config=_config(save_dir=str(tmp_path)))
 
     launch_called = False
+    broadcasts: list[str] = []
 
     async def _mock_launch(client: ArchipelagoClient, save_path: str) -> None:
         nonlocal launch_called
         launch_called = True
 
+    async def _mock_broadcast(event_type: str, payload: dict) -> None:
+        broadcasts.append(payload.get("event", ""))
+
     with patch.object(_rest, "_launch_ap", new=_mock_launch):
-        with patch.object(_rest, "_notify_restart_failed", new=AsyncMock()) as mock_notify_failed:
-            await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator())
-            mock_notify_failed.assert_awaited_once()
+        await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
 
     assert not launch_called
+    assert "restart_failed" in broadcasts
 
 
 @pytest.mark.asyncio
@@ -271,6 +238,7 @@ async def test_resume_flow_kills_ap_on_health_check_failure(tmp_path: object) ->
     _, ap_client = _make_app(config=_config(save_dir=str(tmp_path)))
 
     killed = False
+    broadcasts: list[str] = []
     mock_proc = MagicMock()
     mock_proc.returncode = None
 
@@ -280,12 +248,12 @@ async def test_resume_flow_kills_ap_on_health_check_failure(tmp_path: object) ->
 
     mock_proc.kill = _kill
 
+    async def _mock_broadcast(event_type: str, payload: dict) -> None:
+        broadcasts.append(payload.get("event", ""))
+
     with patch.object(_rest, "_launch_ap", new=AsyncMock(return_value=mock_proc)):
         with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=False)):
-            with patch.object(_rest, "_notify_restarted", new=AsyncMock()) as mock_notify:
-                with patch.object(_rest, "_notify_restart_failed", new=AsyncMock()) as mock_notify_failed:
-                    await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator())
-                    mock_notify.assert_not_called()
-                    mock_notify_failed.assert_awaited_once()
+            await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
 
+    assert "restart_failed" in broadcasts
     assert killed is True

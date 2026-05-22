@@ -6,8 +6,7 @@ namespace App\Events\Application;
 
 use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\EventCapacityReachedEmail;
-use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -15,7 +14,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class EventCapacityReachedHandler
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private ArchilanMailer $mailer,
         private LoggerInterface $logger,
     ) {
@@ -29,8 +28,7 @@ final readonly class EventCapacityReachedHandler
             'capacity' => $message->capacity,
         ]);
 
-        /** @var list<User> $users */
-        $users = $this->entityManager->getRepository(User::class)->findBy(['deletedAt' => null]);
+        $users = $this->userRepository->findAllNotDeleted();
 
         foreach ($users as $user) {
             if (!in_array('ROLE_ADMIN', $user->getRoles(), true)) {

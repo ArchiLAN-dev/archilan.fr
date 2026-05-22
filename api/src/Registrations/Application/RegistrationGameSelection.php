@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
-use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class RegistrationGameSelection
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
+        private GameRepositoryInterface $gameRepository,
         private LoggerInterface $logger,
     ) {
     }
@@ -29,9 +29,9 @@ final readonly class RegistrationGameSelection
      */
     public function getSelection(string $registrationId, string $userId): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return null;
         }
 
@@ -39,9 +39,9 @@ final readonly class RegistrationGameSelection
             return null;
         }
 
-        try {
-            $event = $this->findOrFail(Event::class, $registration->getEventId());
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($registration->getEventId());
+
+        if (null === $event) {
             return null;
         }
 
@@ -52,13 +52,13 @@ final readonly class RegistrationGameSelection
             : [];
 
         $slotGameIds = array_unique(array_column($registration->getGameSlots(), 'gameId'));
+        /** @var list<string> $allGameIds */
         $allGameIds = array_values(array_unique(array_merge($configuredGameIds, $slotGameIds)));
 
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $allGameIds) {
-            /** @var list<Game> $games */
-            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $allGameIds], ['name' => 'ASC']);
+            $games = $this->gameRepository->findByIdsSortedByName($allGameIds);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
@@ -113,9 +113,9 @@ final readonly class RegistrationGameSelection
      */
     public function saveSelection(string $registrationId, string $userId, array $input): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return null;
         }
 
@@ -123,9 +123,9 @@ final readonly class RegistrationGameSelection
             return null;
         }
 
-        try {
-            $event = $this->findOrFail(Event::class, $registration->getEventId());
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($registration->getEventId());
+
+        if (null === $event) {
             return null;
         }
 
@@ -156,8 +156,9 @@ final readonly class RegistrationGameSelection
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $gameIds) {
-            /** @var list<Game> $games */
-            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => array_values(array_unique($gameIds))]);
+            /** @var list<string> $uniqueIds */
+            $uniqueIds = array_values(array_unique($gameIds));
+            $games = $this->gameRepository->findByIds($uniqueIds);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
@@ -167,7 +168,7 @@ final readonly class RegistrationGameSelection
         $diffedSlots = $this->diffSlots($registration->getGameSlots(), $gameIds, $gamesById);
         $registration->replaceSlots($diffedSlots, $now);
 
-        $this->entityManager->flush();
+        $this->registrationRepository->flush();
 
         $this->logger->info('registration.game_selection_saved', ['registrationId' => $registrationId]);
 
@@ -179,9 +180,9 @@ final readonly class RegistrationGameSelection
      */
     public function saveSlotYaml(string $registrationId, string $userId, string $slotId, string $playerYaml): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return null;
         }
 
@@ -195,9 +196,9 @@ final readonly class RegistrationGameSelection
             return null;
         }
 
-        try {
-            $game = $this->findOrFail(Game::class, $slot['gameId']);
-        } catch (\RuntimeException) {
+        $game = $this->gameRepository->findById($slot['gameId']);
+
+        if (null === $game) {
             return null;
         }
 
@@ -207,7 +208,7 @@ final readonly class RegistrationGameSelection
 
         $registration->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', new \DateTimeImmutable());
 
-        $this->entityManager->flush();
+        $this->registrationRepository->flush();
 
         $this->logger->info('registration.slot_yaml_saved', ['registrationId' => $registrationId, 'slotId' => $slotId]);
 
@@ -241,12 +242,6 @@ final readonly class RegistrationGameSelection
         return $errors->toArray();
     }
 
-    /**
-     * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
-     * @param list<string>                                                                                                     $gameIds
-     *
-     * @return list<array{slotId: string, gameId: string}>
-     */
     /**
      * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
      * @param list<string>                                                                                                     $gameIds

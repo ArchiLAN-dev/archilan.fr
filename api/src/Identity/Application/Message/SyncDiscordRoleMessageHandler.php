@@ -6,8 +6,8 @@ namespace App\Identity\Application\Message;
 
 use App\Identity\Application\DiscordBotClientInterface;
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -16,7 +16,7 @@ final readonly class SyncDiscordRoleMessageHandler
 {
     public function __construct(
         private DiscordBotClientInterface $discordBotClient,
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private ActiveMembershipQueryInterface $membershipQuery,
         private LoggerInterface $logger,
         private string $guildId,
@@ -27,7 +27,7 @@ final readonly class SyncDiscordRoleMessageHandler
 
     public function __invoke(SyncDiscordRoleMessage $message): void
     {
-        $user = $this->entityManager->find(User::class, $message->userId);
+        $user = $this->userRepository->findById($message->userId);
         if (!$message->removeAll && !$user instanceof User) {
             $this->logger->warning('discord_bot.role_sync_skipped_user_missing', [
                 'userId' => $message->userId,
@@ -78,7 +78,7 @@ final readonly class SyncDiscordRoleMessageHandler
 
             if ($user instanceof User && $user->getDiscordId() === $message->discordUserId) {
                 $user->markDiscordSyncSuccess(new \DateTimeImmutable());
-                $this->entityManager->flush();
+                $this->userRepository->save($user);
             }
         } catch (\Throwable $e) {
             $this->logger->error('discord_bot.role_sync_failed', [
@@ -89,7 +89,7 @@ final readonly class SyncDiscordRoleMessageHandler
 
             if ($user instanceof User && $user->getDiscordId() === $message->discordUserId) {
                 $user->markDiscordSyncFailure($e->getMessage(), new \DateTimeImmutable());
-                $this->entityManager->flush();
+                $this->userRepository->save($user);
             }
 
             throw $e;

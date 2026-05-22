@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\Handler\MembershipExpiredNotificationMessageHandler;
 use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
@@ -18,20 +16,19 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
 {
     public function testInvokeSendsEmailWhenUserFound(): void
     {
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('test@example.com');
+        $user->method('getDisplayName')->willReturn('Test User');
+        $user->method('getDeletedAt')->willReturn(null);
+
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::never())->method('error');
 
-        $message = new MembershipExpiredNotificationMessage('user-1');
-
-        $handler = $this->createHandler($mailer, $logger, [
-            'email' => 'test@example.com',
-            'display_name' => 'Test User',
-        ]);
-
-        $handler($message);
+        $handler = $this->createHandler($this->stubUsers($user), $mailer, $logger);
+        $handler(new MembershipExpiredNotificationMessage('user-1'));
     }
 
     public function testInvokeLogsAndRethrowsWhenUserNotFound(): void
@@ -43,47 +40,46 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
         $logger->expects(self::once())->method('error')
             ->with('membership.expired_notification_user_not_found', self::anything());
 
-        $message = new MembershipExpiredNotificationMessage('user-missing');
-        $handler = $this->createHandler($mailer, $logger, false);
+        $handler = $this->createHandler($this->stubUsers(null), $mailer, $logger);
 
         $this->expectException(\RuntimeException::class);
-        $handler($message);
+        $handler(new MembershipExpiredNotificationMessage('user-missing'));
     }
 
     public function testInvokeLogsAndRethrowsOnSmtpFailure(): void
     {
-        $smtpError = new \RuntimeException('SMTP error');
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('test@example.com');
+        $user->method('getDisplayName')->willReturn('Test User');
+        $user->method('getDeletedAt')->willReturn(null);
 
         $mailer = $this->createMock(MailerInterface::class);
-        $mailer->expects(self::once())->method('send')->willThrowException($smtpError);
+        $mailer->expects(self::once())->method('send')->willThrowException(new \RuntimeException('SMTP error'));
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::once())->method('error')
             ->with('membership.expired_notification_send_failed', self::anything());
 
-        $message = new MembershipExpiredNotificationMessage('user-1');
-        $handler = $this->createHandler($mailer, $logger, [
-            'email' => 'test@example.com',
-            'display_name' => 'Test User',
-        ]);
+        $handler = $this->createHandler($this->stubUsers($user), $mailer, $logger);
 
         $this->expectException(\RuntimeException::class);
-        $handler($message);
+        $handler(new MembershipExpiredNotificationMessage('user-1'));
     }
 
     public function testInvokeBuildsFallbackUrlWhenSlugsEmpty(): void
     {
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('test@example.com');
+        $user->method('getDisplayName')->willReturn('Test User');
+        $user->method('getDeletedAt')->willReturn(null);
+
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
 
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $message = new MembershipExpiredNotificationMessage('user-1');
-
         $handler = new MembershipExpiredNotificationMessageHandler(
-            $this->createConnectionReturning(['email' => 'test@example.com', 'display_name' => 'Test User']),
+            $this->stubUsers($user),
             $mailer,
-            $logger,
+            $this->createStub(LoggerInterface::class),
             'noreply@archilan.fr',
             'https://archilan.fr',
             '',
@@ -91,19 +87,16 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
             false,
         );
 
-        $handler($message);
+        $handler(new MembershipExpiredNotificationMessage('user-1'));
     }
 
-    /**
-     * @param array<string, mixed>|false $rowData
-     */
     private function createHandler(
+        UserRepositoryInterface $users,
         MailerInterface $mailer,
         LoggerInterface $logger,
-        array|false $rowData,
     ): MembershipExpiredNotificationMessageHandler {
         return new MembershipExpiredNotificationMessageHandler(
-            $this->createConnectionReturning($rowData),
+            $users,
             $mailer,
             $logger,
             'noreply@archilan.fr',
@@ -114,29 +107,11 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
         );
     }
 
-    /**
-     * @param array<string, mixed>|false $rowData
-     */
-    private function createConnectionReturning(array|false $rowData): Connection
+    private function stubUsers(?User $user): UserRepositoryInterface
     {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchAssociative')->willReturn($rowData);
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findById')->willReturn($user);
 
-        $expr = $this->createStub(ExpressionBuilder::class);
-
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturn($qb);
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
-
-        $connection = $this->createStub(Connection::class);
-        $connection->method('createQueryBuilder')->willReturn($qb);
-        $connection->method('quoteSingleIdentifier')->willReturn('"user"');
-
-        return $connection;
+        return $users;
     }
 }

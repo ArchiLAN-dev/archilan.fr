@@ -8,14 +8,14 @@ use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Membership\Application\Message\MembershipActivatedNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class AdminCreateMembership
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private MembershipRepositoryInterface $memberships,
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
@@ -32,17 +32,15 @@ final readonly class AdminCreateMembership
         ?string $adminNote,
     ): array {
         $now = new \DateTimeImmutable();
-        $repo = $this->entityManager->getRepository(Membership::class);
 
-        $existing = $repo->findOneBy(['userId' => $userId, 'status' => 'active']);
+        $existing = $this->memberships->findActiveByUserId($userId);
         if ($existing instanceof Membership) {
             $existing->expire($now);
-            $this->entityManager->flush();
+            $this->memberships->flush();
         }
 
         $membership = Membership::create($userId, $startedAt, $expiresAt, 'admin', null, $adminNote, $now);
-        $this->entityManager->persist($membership);
-        $this->entityManager->flush();
+        $this->memberships->save($membership);
 
         $discordInfo = $this->userRoleGateway->getUserDiscordInfo($userId);
         if (null !== $discordInfo['discordId']) {

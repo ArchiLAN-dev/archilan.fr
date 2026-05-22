@@ -21,7 +21,6 @@ final readonly class WeeklyEntryPatchController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private WeeklyEntryPatchQuery $patchQuery,
-        private string $workspaceDir,
     ) {
     }
 
@@ -38,7 +37,7 @@ final readonly class WeeklyEntryPatchController
             return new JsonResponse(['data' => ['files' => []]]);
         }
 
-        $files = $this->findPatchFiles($context['externalSessionId'], $context['slotName']);
+        $files = $this->findPatchFiles($context['outputDir'], $context['slotName']);
 
         return new JsonResponse(['data' => ['files' => $files]]);
     }
@@ -56,17 +55,23 @@ final readonly class WeeklyEntryPatchController
             return $this->apiAccessGuard->errorResponse('not_found', 'Entrée introuvable.', 404);
         }
 
-        $ext = strtolower(pathinfo($filename, \PATHINFO_EXTENSION));
-        if ('archipelago' === $ext) {
+        if ('archipelago' === strtolower(pathinfo($filename, \PATHINFO_EXTENSION))) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Fichier non autorisé.', 403);
         }
 
-        $stem = pathinfo($filename, \PATHINFO_FILENAME);
-        if ($stem !== $context['slotName']) {
-            return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre entrée.", 403);
+        if (str_contains(strtolower($filename), '_spoiler')) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Fichier non autorisé.', 403);
         }
 
-        $outputDir = realpath($this->workspaceDir.'/'.$context['externalSessionId'].'/output');
+        // Post-launch: verify the file belongs to this player's slot.
+        if (null !== $context['slotName']) {
+            $stem = pathinfo($filename, \PATHINFO_FILENAME);
+            if ($stem !== $context['slotName']) {
+                return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre entrée.", 403);
+            }
+        }
+
+        $outputDir = realpath($context['outputDir']);
         if (false === $outputDir) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
         }
@@ -89,9 +94,8 @@ final readonly class WeeklyEntryPatchController
     /**
      * @return list<string>
      */
-    private function findPatchFiles(string $sessionId, string $slotName): array
+    private function findPatchFiles(string $outputDir, ?string $slotName): array
     {
-        $outputDir = $this->workspaceDir.'/'.$sessionId.'/output';
         if (!is_dir($outputDir)) {
             return [];
         }
@@ -101,13 +105,20 @@ final readonly class WeeklyEntryPatchController
             if (!is_file($path)) {
                 continue;
             }
+
             if ('archipelago' === strtolower(pathinfo($path, \PATHINFO_EXTENSION))) {
                 continue;
             }
-            $stem = pathinfo($path, \PATHINFO_FILENAME);
-            if ($stem === $slotName) {
-                $files[] = basename($path);
+
+            if (str_contains(strtolower(basename($path)), '_spoiler')) {
+                continue;
             }
+
+            if (null !== $slotName && pathinfo($path, \PATHINFO_FILENAME) !== $slotName) {
+                continue;
+            }
+
+            $files[] = basename($path);
         }
 
         sort($files);

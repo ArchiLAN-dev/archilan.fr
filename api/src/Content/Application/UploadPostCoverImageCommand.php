@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace App\Content\Application;
 
 use App\Content\Domain\Post;
-use App\Shared\Application\EntityFinderTrait;
+use App\Content\Domain\PostRepositoryInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class UploadPostCoverImageCommand
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private PostRepositoryInterface $postRepository,
         private MinioStorageInterface $minioStorage,
         private AdminPostCatalog $adminPostCatalog,
         private string $minioMediaBucket,
@@ -26,9 +23,9 @@ final readonly class UploadPostCoverImageCommand
      */
     public function execute(string $postId, string $key, string $contents): array
     {
-        try {
-            $post = $this->findOrFail(Post::class, $postId);
-        } catch (\RuntimeException) {
+        $post = $this->postRepository->findById($postId);
+
+        if (!$post instanceof Post) {
             return ['outcome' => 'not_found', 'data' => null];
         }
 
@@ -39,7 +36,7 @@ final readonly class UploadPostCoverImageCommand
         }
 
         $post->setCoverImageKey($key, new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->postRepository->save($post);
 
         return ['outcome' => 'ok', 'data' => $this->adminPostCatalog->get($postId)];
     }

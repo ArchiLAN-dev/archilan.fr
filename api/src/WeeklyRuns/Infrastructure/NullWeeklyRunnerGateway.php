@@ -8,14 +8,9 @@ use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 
 final class NullWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    public function launchEntry(
+    public function launchFromSeed(
         string $weeklyEntryId,
-        string $seed,
-        string $apworldStorageKey,
-        string $apworldDownloadUrl,
-        string $playerName,
-        string $yaml,
-        string $archipelagoGameName,
+        string $seedFilePath,
     ): array {
         return [
             'externalSessionId' => 'null-session-id',
@@ -24,6 +19,7 @@ final class NullWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
                 'port' => 38281,
                 'password' => null,
             ],
+            'bridgePort' => null,
         ];
     }
 

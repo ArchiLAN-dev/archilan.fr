@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\RefreshTokenRepository;
+use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -15,7 +15,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 final class CleanupRefreshTokensCommand extends Command
 {
     public function __construct(
-        private readonly RefreshTokenRepository $repository,
+        private readonly RefreshTokenRepositoryInterface $repository,
         private readonly LoggerInterface $logger,
     ) {
         parent::__construct();

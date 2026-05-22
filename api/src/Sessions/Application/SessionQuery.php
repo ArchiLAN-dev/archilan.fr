@@ -5,24 +5,19 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
-use App\Registrations\Domain\Registration;
+use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 
 final readonly class SessionQuery
 {
-    use EntityFinderTrait;
-
-    private string $registrationTable;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private Connection $connection,
+        private SessionRepositoryInterface $sessions,
+        private ActiveRegistrationQueryInterface $activeRegistration,
+        private RunRepositoryInterface $runs,
+        private RunParticipantRepositoryInterface $participants,
     ) {
-        $this->registrationTable = $entityManager->getClassMetadata(Registration::class)->getTableName();
     }
 
     /**
@@ -40,9 +35,8 @@ final readonly class SessionQuery
      */
     public function findById(string $id): ?array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $id);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($id);
+        if (!$session instanceof Session) {
             return null;
         }
 
@@ -61,22 +55,7 @@ final readonly class SessionQuery
 
     public function hasActiveEventRegistration(string $userId, string $eventId): bool
     {
-        $qb = $this->connection->createQueryBuilder();
-        $result = $qb->select('COUNT(r.id)')
-            ->from($this->registrationTable, 'r')
-            ->where($qb->expr()->and(
-                $qb->expr()->eq('r.event_id', ':eventId'),
-                $qb->expr()->eq('r.user_id', ':userId'),
-                $qb->expr()->eq('r.status', ':status'),
-                $qb->expr()->isNotNull('r.submitted_at'),
-            ))
-            ->setParameter('eventId', $eventId)
-            ->setParameter('userId', $userId)
-            ->setParameter('status', Registration::STATUS_RESERVED)
-            ->executeQuery()
-            ->fetchOne();
-
-        return false !== $result && is_numeric($result) && (int) $result > 0;
+        return $this->activeRegistration->hasActiveForEvent($userId, $eventId);
     }
 
     public function isUserAuthorizedForSession(string $userId, string $eventId, string $sessionId): bool
@@ -85,15 +64,13 @@ final readonly class SessionQuery
             return true;
         }
 
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
         if ($personalRun instanceof Run) {
             if ($personalRun->isOwnedBy($userId)) {
                 return true;
             }
-            $participant = $this->entityManager->getRepository(RunParticipant::class)->findOneBy([
-                'runId' => $personalRun->getId(),
-                'userId' => $userId,
-            ]);
+
+            $participant = $this->participants->findByRunAndUser($personalRun->getId(), $userId);
 
             return null !== $participant;
         }

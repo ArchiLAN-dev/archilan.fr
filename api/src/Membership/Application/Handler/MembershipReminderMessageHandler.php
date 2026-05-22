@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Membership\Application\Handler;
 
 use App\Communications\Application\Email\MembershipReminderEmail;
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\Message\MembershipReminderMessage;
-use Doctrine\DBAL\Connection;
+use App\Membership\Domain\Membership;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mailer\MailerInterface;
@@ -18,7 +21,8 @@ use Symfony\Component\Mime\Email;
 final readonly class MembershipReminderMessageHandler
 {
     public function __construct(
-        private Connection $connection,
+        private MembershipRepositoryInterface $memberships,
+        private UserRepositoryInterface $users,
         private MailerInterface $mailer,
         private LoggerInterface $logger,
         private string $mailerSender,
@@ -34,19 +38,9 @@ final readonly class MembershipReminderMessageHandler
 
     public function __invoke(MembershipReminderMessage $message): void
     {
-        $userTable = $this->connection->quoteSingleIdentifier('user');
-        $qb = $this->connection->createQueryBuilder();
-        $row = $qb
-            ->select('u.email', 'u.display_name', 'm.expires_at')
-            ->from('memberships', 'm')
-            ->innerJoin('m', $userTable, 'u', $qb->expr()->eq('u.id', 'm.user_id'))
-            ->where($qb->expr()->eq('m.id', ':membershipId'))
-            ->andWhere($qb->expr()->isNull('u.deleted_at'))
-            ->setParameter('membershipId', $message->membershipId)
-            ->executeQuery()
-            ->fetchAssociative();
+        $membership = $this->memberships->findById($message->membershipId);
 
-        if (false === $row) {
+        if (!$membership instanceof Membership) {
             $this->logger->error('membership.reminder_notification_not_found', [
                 'membershipId' => $message->membershipId,
                 'daysLeft' => $message->daysLeft,
@@ -55,11 +49,21 @@ final readonly class MembershipReminderMessageHandler
             throw new \RuntimeException('Membership reminder notification target not found.');
         }
 
-        $recipientEmail = $row['email'];
-        $displayName = $row['display_name'];
-        $expiresAtRaw = $row['expires_at'];
+        $user = $this->users->findById($membership->getUserId());
 
-        if (!is_string($recipientEmail) || '' === $recipientEmail) {
+        if (!$user instanceof User || null !== $user->getDeletedAt()) {
+            $this->logger->error('membership.reminder_notification_not_found', [
+                'membershipId' => $message->membershipId,
+                'daysLeft' => $message->daysLeft,
+            ]);
+
+            throw new \RuntimeException('Membership reminder notification target not found.');
+        }
+
+        $recipientEmail = $user->getEmail();
+        $displayName = $user->getDisplayName();
+
+        if ('' === $recipientEmail) {
             $this->logger->error('membership.reminder_notification_invalid_email', [
                 'membershipId' => $message->membershipId,
             ]);
@@ -67,18 +71,12 @@ final readonly class MembershipReminderMessageHandler
             return;
         }
 
-        $displayNameStr = is_string($displayName) ? $displayName : null;
-
-        $expiresAt = is_string($expiresAtRaw)
-            ? new \DateTimeImmutable($expiresAtRaw)
-            : new \DateTimeImmutable();
-
-        $expiryFormatted = $expiresAt->format('d/m/Y');
+        $expiryFormatted = $membership->getExpiresAt()->format('d/m/Y');
         $renewalUrl = $this->buildRenewalUrl();
 
         $emailObj = new MembershipReminderEmail(
             $recipientEmail,
-            $displayNameStr,
+            $displayName,
             $message->daysLeft,
             $expiryFormatted,
             $renewalUrl,

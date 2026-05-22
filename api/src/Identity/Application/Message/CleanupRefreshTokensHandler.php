@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Message;
 
-use App\Identity\Application\RefreshTokenRepository;
+use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -12,7 +12,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 final readonly class CleanupRefreshTokensHandler
 {
     public function __construct(
-        private RefreshTokenRepository $repository,
+        private RefreshTokenRepositoryInterface $repository,
         private LoggerInterface $logger,
     ) {
     }

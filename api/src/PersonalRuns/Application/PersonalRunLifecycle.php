@@ -7,17 +7,15 @@ namespace App\PersonalRuns\Application;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class PersonalRunLifecycle
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RunRepositoryInterface $runs,
+        private RunParticipantRepositoryInterface $participants,
         private MessageBusInterface $messageBus,
     ) {
     }
@@ -27,9 +25,8 @@ final readonly class PersonalRunLifecycle
      */
     public function start(string $runId, string $callerId): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
@@ -46,8 +43,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, blocked: true, blockReason: 'run_not_startable');
         }
 
-        $participants = $this->entityManager->getRepository(RunParticipant::class)
-            ->findBy(['runId' => $run->getId()]);
+        $participants = $this->participants->findByRunId($run->getId());
         $anyHasSlots = false;
         foreach ($participants as $participant) {
             if ($participant->hasSlots()) {
@@ -60,7 +56,7 @@ final readonly class PersonalRunLifecycle
         }
 
         $run->start(new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->runs->flush();
 
         $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId()));
 
@@ -72,9 +68,8 @@ final readonly class PersonalRunLifecycle
      */
     public function stop(string $runId, string $callerId): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
@@ -87,7 +82,7 @@ final readonly class PersonalRunLifecycle
         }
 
         $run->stop(new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->runs->flush();
 
         $this->messageBus->dispatch(new StopPersonalRunJob($run->getId()));
 
@@ -99,9 +94,8 @@ final readonly class PersonalRunLifecycle
      */
     public function markRunning(string $runId, string $host, int $port): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
@@ -110,7 +104,7 @@ final readonly class PersonalRunLifecycle
         }
 
         $run->markRunning($host, $port, new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->runs->flush();
 
         return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
     }
@@ -120,9 +114,8 @@ final readonly class PersonalRunLifecycle
      */
     public function markStopped(string $runId): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
@@ -131,7 +124,7 @@ final readonly class PersonalRunLifecycle
         }
 
         $run->markStopped(new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->runs->flush();
 
         return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
     }

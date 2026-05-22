@@ -35,6 +35,13 @@ final readonly class DddArchitectureValidator
     private const STARTER_PLACEHOLDERS = ['Controller', 'Entity', 'Repository'];
 
     /** @var list<string> */
+    private const FORBIDDEN_APPLICATION_IMPORTS = [
+        'Doctrine\\DBAL\\Connection',
+        'Doctrine\\ORM\\EntityManagerInterface',
+        'App\\Shared\\Application\\EntityFinderTrait',
+    ];
+
+    /** @var list<string> */
     private const FORBIDDEN_PRESENTATION_IMPORTS = [
         'Doctrine\\DBAL\\Connection',
         'Doctrine\\ORM\\EntityManagerInterface',
@@ -64,6 +71,7 @@ final readonly class DddArchitectureValidator
             ...$this->validateContextDirectories($srcDir),
             ...$this->validateSourceFiles($srcDir),
             ...$this->validateDomainDependencies($srcDir),
+            ...$this->validateApplicationCqrs($srcDir),
             ...$this->validatePresentationCqrs($srcDir),
             ...$this->validateServicesConfig($projectDir),
             ...$this->validateDoctrineMappings($projectDir, $srcDir),
@@ -230,6 +238,38 @@ final readonly class DddArchitectureValidator
             $expectedPrefix = "App\\{$context}\\Domain";
             if (($mapping['prefix'] ?? null) !== $expectedPrefix) {
                 $violations[] = "Doctrine mapping {$context} must use prefix {$expectedPrefix}";
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function validateApplicationCqrs(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $applicationDir = "{$srcDir}/{$context}/Application";
+            if (!is_dir($applicationDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($applicationDir) as $file) {
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                $relativePath = $this->relativePath($srcDir, $file);
+
+                foreach (self::FORBIDDEN_APPLICATION_IMPORTS as $import) {
+                    if (str_contains($contents, $import)) {
+                        $violations[] = "Application layer must not inject DB infrastructure ({$import}): src/{$relativePath}";
+                    }
+                }
             }
         }
 

@@ -1,35 +1,43 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from typing import Any
 
-from aiohttp import web
+from fastapi import APIRouter, Depends, HTTPException
 
 from .ap_client import ArchipelagoClient
+from .deps import get_ap_client, get_bridge_state, get_semaphore
 from .reachable import _compute_reachable, _reachable_cache
-from .rest_keys import APP_AP_CLIENT, APP_SEMAPHORE, APP_STATE
+from .schemas import ItemLocationResponse, ItemLocationsResponse
 from .state import StateManager
 
 log = logging.getLogger("bridge.rest_reachable")
 
+_CHECK_STATUS: dict[str, str] = {
+    "reachable_unchecked":   "reachable",
+    "reachable_checked":     "checked",
+    "unreachable_unchecked": "blocked",
+    "checked_unreachable":   "checked",
+}
 
-async def get_reachable(request: web.Request) -> web.Response:
-    try:
-        slot = int(request.match_info["slot"])
-    except (KeyError, ValueError):
-        return web.json_response({"error": "invalid slot"}, status=400)
+router = APIRouter(tags=["Reachable"])
 
-    state: StateManager = request.app[APP_STATE]
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
-    semaphore = request.app[APP_SEMAPHORE]
 
+@router.get("/slots/{slot}/reachable")
+@router.get("/reachable/{slot}", include_in_schema=False)
+async def get_reachable(
+    slot: int,
+    state: StateManager = Depends(get_bridge_state),
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+    semaphore: asyncio.Semaphore = Depends(get_semaphore),
+) -> dict[str, Any]:
     state.merge_state_from_save()
     result, err_msg = await _compute_reachable(slot, state, semaphore, log)
 
     if result is None:
-        return web.json_response(
-            {"error": err_msg},
-            status=500 if "timed out" not in err_msg else 504,
-        )
+        status = 504 if "timed out" in err_msg else 500
+        raise HTTPException(status_code=status, detail=err_msg)
 
     ps = state._states.get(slot)
     if ps is not None:
@@ -40,21 +48,19 @@ async def get_reachable(request: web.Request) -> web.Response:
         new_reachable = result.get("counts", {}).get("reachable_now", 0)
         if ps.reachable_now != new_reachable:
             ps.reachable_now = new_reachable
-            await ap_client._publish_players()
+            await ap_client._broadcast_state_changed()
 
-    return web.json_response(result)
+    return result
 
 
-async def get_item_locations(request: web.Request) -> web.Response:
-    try:
-        slot = int(request.match_info["slot"])
-    except (KeyError, ValueError):
-        return web.json_response({"error": "invalid slot"}, status=400)
-
-    state: StateManager = request.app[APP_STATE]
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
-    semaphore = request.app[APP_SEMAPHORE]
-
+@router.get("/slots/{slot}/item-locations", response_model=ItemLocationsResponse)
+@router.get("/item-locations/{slot}", response_model=ItemLocationsResponse, include_in_schema=False)
+async def get_item_locations(
+    slot: int,
+    state: StateManager = Depends(get_bridge_state),
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+    semaphore: asyncio.Semaphore = Depends(get_semaphore),
+) -> ItemLocationsResponse:
     state.merge_state_from_save()
 
     # Ensure reachability is computed for every known slot so locations across
@@ -63,14 +69,7 @@ async def get_item_locations(request: web.Request) -> web.Response:
         if s not in _reachable_cache:
             await _compute_reachable(s, state, semaphore, log)
 
-    _CHECK_STATUS: dict[str, str] = {
-        "reachable_unchecked": "reachable",
-        "reachable_checked":   "checked",
-        "unreachable_unchecked": "blocked",
-        "checked_unreachable": "checked",
-    }
-
-    locations = []
+    locations: list[ItemLocationResponse] = []
     for sender_slot, (_, result) in _reachable_cache.items():
         sender_name = ap_client._store.resolve_player(sender_slot)
         for list_name, check_status in _CHECK_STATUS.items():
@@ -78,14 +77,14 @@ async def get_item_locations(request: web.Request) -> web.Response:
                 item = check.get("item")
                 if not item or item.get("slot") != slot:
                     continue
-                locations.append({
-                    "item_id": item["id"],
-                    "item_name": item["name"],
-                    "location_id": check["id"],
-                    "location_name": check["name"],
-                    "finding_player": sender_slot,
-                    "finding_player_name": sender_name,
-                    "check_status": check_status,
-                })
+                locations.append(ItemLocationResponse(
+                    itemId=item["id"],
+                    itemName=item["name"],
+                    locationId=check["id"],
+                    locationName=check["name"],
+                    findingPlayer=sender_slot,
+                    findingPlayerName=sender_name,
+                    checkStatus=check_status,
+                ))
 
-    return web.json_response({"slot": slot, "locations": locations})
+    return ItemLocationsResponse(slot=slot, locations=locations)

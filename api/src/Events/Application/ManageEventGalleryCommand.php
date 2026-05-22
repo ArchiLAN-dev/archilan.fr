@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace App\Events\Application;
 
-use App\Events\Domain\Event;
-use App\Shared\Application\EntityFinderTrait;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class ManageEventGalleryCommand
 {
-    use EntityFinderTrait;
-
     private const int MAX_GALLERY_SIZE = 12;
 
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
         private MinioStorageInterface $minioStorage,
         private AdminEventDrafts $adminEventDrafts,
         private string $minioMediaBucket,
@@ -28,9 +24,8 @@ final readonly class ManageEventGalleryCommand
      */
     public function upload(string $eventId, string $key, string $contents): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return ['outcome' => 'not_found', 'data' => null];
         }
 
@@ -45,7 +40,7 @@ final readonly class ManageEventGalleryCommand
         }
 
         $event->appendGalleryUpload($key);
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         return ['outcome' => 'ok', 'data' => $this->adminEventDrafts->get($eventId)];
     }
@@ -55,9 +50,8 @@ final readonly class ManageEventGalleryCommand
      */
     public function delete(string $eventId, int $index): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return ['outcome' => 'not_found'];
         }
 
@@ -65,7 +59,7 @@ final readonly class ManageEventGalleryCommand
             return ['outcome' => 'invalid_index'];
         }
 
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         return ['outcome' => 'ok'];
     }

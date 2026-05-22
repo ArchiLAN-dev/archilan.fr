@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import glob as _glob
-import json
 import logging
 import os as _os
 import signal as _signal
 import shlex as _shlex
-from datetime import datetime, timezone as _timezone
+from datetime import datetime
+from datetime import timezone as _timezone
+from typing import Any
 
-from aiohttp import web
+from fastapi import APIRouter, Depends, HTTPException
 
 from .ap_client import ArchipelagoClient
 from .coordinator import PauseResumeCoordinator
-from .rest_keys import APP_AP_CLIENT, APP_COORDINATOR, APP_STATE
+from .deps import BroadcastFn, get_ap_client, get_bridge_state, get_broadcast, get_coordinator, require_auth
+from .schemas import CommandRequest, DeathLinkRequest, HealthResponse, OkResponse, ResumeRequest
 from .state import StateManager
 from .wake_on_connect import WakeOnConnectServer
 
@@ -21,14 +23,10 @@ log = logging.getLogger("bridge.rest_session")
 
 
 # ---------------------------------------------------------------------------
-# Auth helper
+# Router
 # ---------------------------------------------------------------------------
 
-def _require_internal_auth(request: web.Request, token: str) -> web.Response | None:
-    auth = request.headers.get("Authorization", "")
-    if not token or auth != f"Bearer {token}":
-        return web.json_response({"error": "unauthorized"}, status=401)
-    return None
+router = APIRouter(tags=["Session"])
 
 
 # ---------------------------------------------------------------------------
@@ -37,8 +35,7 @@ def _require_internal_auth(request: web.Request, token: str) -> web.Response | N
 
 async def _poll_for_save(ap_client: ArchipelagoClient) -> str | None:
     """Send /save to AP, then poll save_dir for an .apsave file (30s timeout)."""
-    config = ap_client._config
-    save_dir = config.save_dir
+    save_dir = ap_client._config.save_dir
 
     if ap_client.ws_connected:
         await ap_client.send_command("/save")
@@ -72,15 +69,15 @@ def _boto3_upload(endpoint: str, access_key: str, secret_key: str, bucket: str, 
 
 
 async def _upload_save(ap_client: ArchipelagoClient, save_path: str) -> str | None:
-    """Upload save file to MinIO; returns the object key or None on failure."""
+    """Upload save file to S3; returns the bare filename or None on failure."""
     config = ap_client._config
 
-    if not all([config.minio_endpoint, config.minio_access_key, config.minio_secret_key]):
-        log.warning("pause: MinIO not configured, skipping upload")
+    if not all([config.storage_endpoint, config.storage_access_key, config.storage_secret_key]):
+        log.warning("pause: storage not configured, skipping upload")
         return None
 
-    timestamp = datetime.now(_timezone.utc).strftime("%Y%m%d%H%M%S")
-    key = f"sessions/{config.run_id}/saves/{timestamp}.apsave"
+    timestamp = datetime.now(_timezone.utc).strftime("%Y%m%dT%H%M%S")
+    filename = f"{timestamp}.apsave"
 
     try:
         with open(save_path, "rb") as fh:
@@ -89,17 +86,17 @@ async def _upload_save(ap_client: ArchipelagoClient, save_path: str) -> str | No
         await loop.run_in_executor(
             None,
             _boto3_upload,
-            config.minio_endpoint,
-            config.minio_access_key,
-            config.minio_secret_key,
-            config.minio_bucket,
-            key,
+            config.storage_endpoint,
+            config.storage_access_key,
+            config.storage_secret_key,
+            config.storage_bucket,
+            filename,
             body,
         )
-        log.info("pause: uploaded save to MinIO key=%s", key)
-        return key
+        log.info("pause: uploaded save, key=%s", filename)
+        return filename
     except Exception as exc:
-        log.error("pause: MinIO upload failed: %s", exc)
+        log.error("pause: storage upload failed: %s", exc)
         return None
 
 
@@ -140,108 +137,14 @@ async def _kill_ap(pid_file: str) -> None:
         pass
 
 
-async def _notify_paused(ap_client: ArchipelagoClient, save_key: str | None, failed_save: bool) -> None:
-    """POST /sessions/{run_id}/paused callback to Symfony."""
-    config = ap_client._config
-    if ap_client._http is None:
-        log.warning("pause: no HTTP session, cannot notify Symfony")
-        return
-
-    url = f"{config.symfony_internal_url}/api/v1/sessions/{config.run_id}/paused"
-    try:
-        async with ap_client._http.post(
-            url,
-            json={"saveKey": save_key, "failedSave": failed_save},
-            headers={"Authorization": f"Bearer {config.bridge_internal_token}"},
-        ) as resp:
-            if resp.status >= 400:
-                log.warning("pause: Symfony callback returned %d", resp.status)
-            else:
-                log.info("pause: Symfony notified save_key=%s failed=%s", save_key, failed_save)
-    except Exception as exc:
-        log.error("pause: Symfony callback error: %s", exc)
-
-
-async def _notify_restarting(ap_client: ArchipelagoClient) -> bool:
-    """POST /internal/sessions/{run_id}/restarting - bridge-triggered wake-on-connect."""
-    config = ap_client._config
-    if ap_client._http is None:
-        log.warning("wake: no HTTP session, cannot call /restarting")
-        return False
-    url = f"{config.symfony_internal_url}/api/v1/internal/sessions/{config.run_id}/restarting"
-    try:
-        async with ap_client._http.post(
-            url,
-            json={},
-            headers={"Authorization": f"Bearer {config.bridge_internal_token}"},
-        ) as resp:
-            if resp.status >= 400:
-                log.warning("wake: /restarting callback returned %d", resp.status)
-                return False
-            else:
-                log.info("wake: Symfony notified - session is restarting")
-                return True
-    except Exception as exc:
-        log.error("wake: /restarting callback error: %s", exc)
-        return False
-
-
-async def _notify_restart_failed(ap_client: ArchipelagoClient) -> None:
-    """POST /internal/sessions/{run_id}/restart-failed - AP launch or health-check failed."""
-    config = ap_client._config
-    if ap_client._http is None:
-        log.warning("wake: no HTTP session, cannot call /restart-failed")
-        return
-    url = f"{config.symfony_internal_url}/api/v1/internal/sessions/{config.run_id}/restart-failed"
-    try:
-        async with ap_client._http.post(
-            url,
-            json={},
-            headers={"Authorization": f"Bearer {config.bridge_internal_token}"},
-        ) as resp:
-            if resp.status >= 400:
-                log.warning("wake: /restart-failed callback returned %d", resp.status)
-            else:
-                log.info("wake: Symfony notified - restart failed")
-    except Exception as exc:
-        log.error("wake: /restart-failed callback error: %s", exc)
-
-
-async def _wake_on_connect_flow(ap_client: ArchipelagoClient) -> None:
-    """Full restart flow triggered by a player TCP connection (wake-on-connect)."""
-    log.info("wake: on_connect triggered run_id=%s", ap_client._config.run_id)
-
-    if not await _notify_restarting(ap_client):
-        log.error("wake: Symfony refused restarting transition, restart aborted")
-        return
-
-    save_path = await _find_local_save(ap_client._config.save_dir)
-    if save_path is None:
-        log.error("wake: no local save found, restart aborted")
-        await _notify_restart_failed(ap_client)
-        return
-
-    process = await _launch_ap(ap_client, save_path)
-    if process is None:
-        log.error("wake: AP launch failed")
-        await _notify_restart_failed(ap_client)
-        return
-
-    healthy = await _wait_for_ap_health(ap_client)
-    if not healthy:
-        log.error("wake: AP did not become healthy")
-        await _notify_restart_failed(ap_client)
-        if process.returncode is None:
-            process.kill()
-        return
-
-    await _notify_restarted(ap_client)
-    log.info("wake: restart complete")
-
-
-async def _pause_flow(ap_client: ArchipelagoClient, coordinator: PauseResumeCoordinator) -> None:
-    """Full pause flow: save, upload, kill AP, start TCP listener, notify Symfony."""
-    log.info("pause: flow started run_id=%s", ap_client._config.run_id)
+async def _pause_flow(
+    ap_client: ArchipelagoClient,
+    coordinator: PauseResumeCoordinator,
+    broadcast: BroadcastFn,
+) -> None:
+    """Full pause flow: save, upload, kill AP, start TCP listener, broadcast lifecycle."""
+    session_id = ap_client._config.session_id
+    log.info("pause: flow started session_id=%s", session_id)
 
     save_path = await _poll_for_save(ap_client)
     failed_save = save_path is None
@@ -251,19 +154,24 @@ async def _pause_flow(ap_client: ArchipelagoClient, coordinator: PauseResumeCoor
     await _kill_ap(ap_client._config.ap_pid_file)
 
     try:
-        ap_port = int(ap_client._config.archipelago_ws_url.rsplit(":", 1)[-1])
+        ap_port = int(ap_client._config.ap_ws_url.rsplit(":", 1)[-1])
         coordinator.wake_stop_event = asyncio.Event()
         server = WakeOnConnectServer(
             ap_port,
             coordinator.wake_stop_event,
-            lambda: _wake_on_connect_flow(ap_client),
+            lambda: _wake_on_connect_flow(ap_client, coordinator, broadcast),
         )
         coordinator.wake_task = asyncio.create_task(server.serve())
         log.info("pause: wake-on-connect listener task started")
     except (ValueError, IndexError) as exc:
-        log.error("pause: cannot parse AP port from %s: %s", ap_client._config.archipelago_ws_url, exc)
+        log.error("pause: cannot parse AP port from %s: %s", ap_client._config.ap_ws_url, exc)
 
-    await _notify_paused(ap_client, save_key, failed_save)
+    await broadcast("lifecycle", {
+        "sessionId": session_id,
+        "event": "paused",
+        "saveKey": save_key,
+        "failedSave": failed_save,
+    })
     log.info("pause: flow complete save_key=%s failed=%s", save_key, failed_save)
 
 
@@ -272,7 +180,6 @@ async def _pause_flow(ap_client: ArchipelagoClient, coordinator: PauseResumeCoor
 # ---------------------------------------------------------------------------
 
 async def _find_local_save(save_dir: str) -> str | None:
-    """Return the path of the most recently modified .apsave in save_dir, or None."""
     files = sorted(
         _glob.glob(_os.path.join(save_dir, "*.apsave")),
         key=_os.path.getmtime,
@@ -280,11 +187,11 @@ async def _find_local_save(save_dir: str) -> str | None:
     return files[-1] if files else None
 
 
-async def _download_save_from_minio(ap_client: ArchipelagoClient, save_key: str) -> str | None:
-    """Download save from MinIO into save_dir and return the local path."""
+async def _download_save_from_storage(ap_client: ArchipelagoClient, save_key: str) -> str | None:
+    """Download save from S3 into save_dir and return the local path."""
     config = ap_client._config
-    if not all([config.minio_endpoint, config.minio_access_key, config.minio_secret_key]):
-        log.warning("resume: MinIO not configured, cannot download save")
+    if not all([config.storage_endpoint, config.storage_access_key, config.storage_secret_key]):
+        log.warning("resume: storage not configured, cannot download save")
         return None
 
     dest_path = _os.path.join(config.save_dir, _os.path.basename(save_key))
@@ -293,18 +200,18 @@ async def _download_save_from_minio(ap_client: ArchipelagoClient, save_key: str)
         contents = await loop.run_in_executor(
             None,
             _boto3_download,
-            config.minio_endpoint,
-            config.minio_access_key,
-            config.minio_secret_key,
-            config.minio_bucket,
+            config.storage_endpoint,
+            config.storage_access_key,
+            config.storage_secret_key,
+            config.storage_bucket,
             save_key,
         )
         with open(dest_path, "wb") as fh:
             fh.write(contents)
-        log.info("resume: downloaded save from MinIO key=%s", save_key)
+        log.info("resume: downloaded save key=%s", save_key)
         return dest_path
     except Exception as exc:
-        log.error("resume: MinIO download failed: %s", exc)
+        log.error("resume: storage download failed: %s", exc)
         return None
 
 
@@ -321,7 +228,6 @@ def _boto3_download(endpoint: str, access_key: str, secret_key: str, bucket: str
 
 
 async def _launch_ap(ap_client: ArchipelagoClient, save_path: str) -> "asyncio.subprocess.Process | None":
-    """Launch the AP process with the given save file; returns the Process or None on error."""
     config = ap_client._config
     if not config.ap_launch_cmd:
         log.warning("resume: AP_LAUNCH_CMD not configured, cannot launch AP")
@@ -348,12 +254,10 @@ async def _launch_ap(ap_client: ArchipelagoClient, save_path: str) -> "asyncio.s
 
 async def _wait_for_ap_health(ap_client: ArchipelagoClient, timeout: float = 60.0) -> bool:
     """TCP-probe the AP port every 2s until it accepts a connection or timeout."""
-    config = ap_client._config
-
     try:
-        ap_port = int(config.archipelago_ws_url.rsplit(":", 1)[-1])
+        ap_port = int(ap_client._config.ap_ws_url.rsplit(":", 1)[-1])
     except (ValueError, IndexError):
-        log.error("resume: cannot parse AP port from %s", config.archipelago_ws_url)
+        log.error("resume: cannot parse AP port from %s", ap_client._config.ap_ws_url)
         return False
 
     deadline = asyncio.get_event_loop().time() + timeout
@@ -377,30 +281,7 @@ async def _wait_for_ap_health(ap_client: ArchipelagoClient, timeout: float = 60.
     return False
 
 
-async def _notify_restarted(ap_client: ArchipelagoClient) -> None:
-    """POST /sessions/{run_id}/restarted - send empty connection details so Symfony preserves existing."""
-    config = ap_client._config
-    if ap_client._http is None:
-        log.warning("resume: no HTTP session, cannot notify Symfony")
-        return
-
-    url = f"{config.symfony_internal_url}/api/v1/sessions/{config.run_id}/restarted"
-    try:
-        async with ap_client._http.post(
-            url,
-            json={"connectionHost": "", "connectionPort": 0, "bridgePort": 0},
-            headers={"Authorization": f"Bearer {config.bridge_internal_token}"},
-        ) as resp:
-            if resp.status >= 400:
-                log.warning("resume: Symfony /restarted callback returned %d", resp.status)
-            else:
-                log.info("resume: Symfony notified - session is running")
-    except Exception as exc:
-        log.error("resume: Symfony /restarted callback error: %s", exc)
-
-
 async def _cancel_wake_task(coordinator: PauseResumeCoordinator) -> None:
-    """Cancel the running wake-on-connect listener, if any."""
     if coordinator.wake_stop_event is not None:
         coordinator.wake_stop_event.set()
     if coordinator.wake_task is not None and not coordinator.wake_task.done():
@@ -417,106 +298,177 @@ async def _resume_flow(
     ap_client: ArchipelagoClient,
     last_save_key: str | None,
     coordinator: PauseResumeCoordinator,
+    broadcast: BroadcastFn,
 ) -> None:
-    """Full resume flow: cancel wake listener, find save, launch AP, health-check, notify Symfony."""
-    log.info("resume: flow started run_id=%s", ap_client._config.run_id)
+    """Full resume flow: cancel wake listener, find save, launch AP, health-check, broadcast."""
+    session_id = ap_client._config.session_id
+    log.info("resume: flow started session_id=%s", session_id)
 
     await _cancel_wake_task(coordinator)
 
     save_path = await _find_local_save(ap_client._config.save_dir)
 
     if save_path is None and last_save_key:
-        save_path = await _download_save_from_minio(ap_client, last_save_key)
+        save_path = await _download_save_from_storage(ap_client, last_save_key)
 
     if save_path is None:
         log.error("resume: no save file available, cannot restart AP")
-        await _notify_restart_failed(ap_client)
+        await broadcast("lifecycle", {"sessionId": session_id, "event": "restart_failed"})
         return
 
     process = await _launch_ap(ap_client, save_path)
     if process is None:
         log.error("resume: AP launch failed, cannot restart")
-        await _notify_restart_failed(ap_client)
+        await broadcast("lifecycle", {"sessionId": session_id, "event": "restart_failed"})
         return
 
     healthy = await _wait_for_ap_health(ap_client)
     if not healthy:
         log.error("resume: AP did not become healthy, restart failed")
-        await _notify_restart_failed(ap_client)
+        await broadcast("lifecycle", {"sessionId": session_id, "event": "restart_failed"})
         if process.returncode is None:
             process.kill()
         return
 
-    await _notify_restarted(ap_client)
+    await broadcast("lifecycle", {"sessionId": session_id, "event": "restarted"})
     log.info("resume: flow complete")
 
 
 # ---------------------------------------------------------------------------
-# Route handlers
+# Wake-on-connect flow
 # ---------------------------------------------------------------------------
 
-async def health(request: web.Request) -> web.Response:
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
-    return web.json_response({"status": "ok", "ws_connected": ap_client.ws_connected})
+async def _wake_on_connect_flow(
+    ap_client: ArchipelagoClient,
+    coordinator: PauseResumeCoordinator,
+    broadcast: BroadcastFn,
+) -> None:
+    """Automatic restart triggered by a player TCP connection."""
+    session_id = ap_client._config.session_id
+    log.info("wake: on_connect triggered session_id=%s", session_id)
+
+    approved = await coordinator.request_approve_restart()
+    if not approved:
+        log.info("wake: restart not approved by any WS client, aborted")
+        return
+
+    save_path = await _find_local_save(ap_client._config.save_dir)
+    if save_path is None:
+        log.error("wake: no local save found, restart aborted")
+        await broadcast("lifecycle", {"sessionId": session_id, "event": "restart_failed"})
+        return
+
+    process = await _launch_ap(ap_client, save_path)
+    if process is None:
+        log.error("wake: AP launch failed")
+        await broadcast("lifecycle", {"sessionId": session_id, "event": "restart_failed"})
+        return
+
+    healthy = await _wait_for_ap_health(ap_client)
+    if not healthy:
+        log.error("wake: AP did not become healthy")
+        await broadcast("lifecycle", {"sessionId": session_id, "event": "restart_failed"})
+        if process.returncode is None:
+            process.kill()
+        return
+
+    await broadcast("lifecycle", {"sessionId": session_id, "event": "restarted"})
+    log.info("wake: restart complete")
 
 
-async def get_state(request: web.Request) -> web.Response:
-    state: StateManager = request.app[APP_STATE]
+# ---------------------------------------------------------------------------
+# Noop broadcast
+# ---------------------------------------------------------------------------
+
+async def _noop_broadcast(*_: object) -> None:
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Route handlers — public
+# ---------------------------------------------------------------------------
+
+@router.get("/health", response_model=HealthResponse)
+async def health(
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> HealthResponse:
+    return HealthResponse(
+        status="ok",
+        wsConnected=ap_client.ws_connected,
+        sessionId=ap_client._config.session_id,
+    )
+
+
+@router.get("/room")
+async def get_room(
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> dict[str, Any]:
+    return ap_client.get_room_dict()
+
+
+@router.get("/slots")
+async def get_slots(
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> dict[str, Any]:
+    return {"slots": ap_client.get_slots_summary()}
+
+
+@router.get("/state")
+async def get_state(
+    state: StateManager = Depends(get_bridge_state),
+) -> dict[str, Any]:
     state.merge_state_from_save()
-    return web.json_response(state.to_api_dict())
+    return state.to_api_dict()
 
 
-async def post_command(request: web.Request) -> web.Response:
-    try:
-        body = await request.json()
-    except (json.JSONDecodeError, Exception):
-        return web.json_response({"error": "invalid_json"}, status=400)
-    command = body.get("command")
-    if not isinstance(command, str) or not command.strip():
-        return web.json_response({"error": "command is required"}, status=400)
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
+@router.post("/commands", response_model=OkResponse)
+async def post_command(
+    body: CommandRequest,
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> OkResponse:
     if not ap_client.ws_connected:
-        return web.json_response(
-            {"error": "ws_disconnected", "message": "Le serveur Archipelago est déconnecté"},
-            status=503,
-        )
-    await ap_client.send_command(command)
-    return web.json_response({"ok": True})
+        raise HTTPException(status_code=503, detail="ws_disconnected")
+    await ap_client.send_command(body.command)
+    return OkResponse()
 
 
-async def post_save(request: web.Request) -> web.Response:
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
-    save_dir = ap_client._config.save_dir
-    save_files = _glob.glob(_os.path.join(save_dir, "*.apsave"))
-    saved = len(save_files) > 0
-    log.info("save requested: saved=%s save_dir=%s", saved, save_dir)
-    return web.json_response({"saved": saved})
+# ---------------------------------------------------------------------------
+# Route handlers — authenticated
+# ---------------------------------------------------------------------------
+
+@router.post("/pause", response_model=OkResponse, dependencies=[Depends(require_auth)])
+async def post_pause(
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+    coordinator: PauseResumeCoordinator = Depends(get_coordinator),
+    broadcast: BroadcastFn | None = Depends(get_broadcast),
+) -> OkResponse:
+    asyncio.create_task(_pause_flow(ap_client, coordinator, broadcast or _noop_broadcast))
+    return OkResponse()
 
 
-async def post_pause(request: web.Request) -> web.Response:
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
-    token = ap_client._config.bridge_internal_token
-    err = _require_internal_auth(request, token)
-    if err is not None:
-        return err
-    coordinator: PauseResumeCoordinator = request.app[APP_COORDINATOR]
-    asyncio.create_task(_pause_flow(ap_client, coordinator))
-    return web.json_response({"ok": True})
+@router.post("/resume", response_model=OkResponse, dependencies=[Depends(require_auth)])
+async def post_resume(
+    body: ResumeRequest | None = None,
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+    coordinator: PauseResumeCoordinator = Depends(get_coordinator),
+    broadcast: BroadcastFn | None = Depends(get_broadcast),
+) -> OkResponse:
+    save_key = body.saveKey if body else None
+    asyncio.create_task(_resume_flow(ap_client, save_key, coordinator, broadcast or _noop_broadcast))
+    return OkResponse()
 
 
-async def post_resume(request: web.Request) -> web.Response:
-    ap_client: ArchipelagoClient = request.app[APP_AP_CLIENT]
-    token = ap_client._config.bridge_internal_token
-    err = _require_internal_auth(request, token)
-    if err is not None:
-        return err
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    last_save_key = body.get("lastSaveKey") if isinstance(body, dict) else None
-    if not isinstance(last_save_key, str):
-        last_save_key = None
-    coordinator: PauseResumeCoordinator = request.app[APP_COORDINATOR]
-    asyncio.create_task(_resume_flow(ap_client, last_save_key, coordinator))
-    return web.json_response({"ok": True})
+@router.post("/deathlink", response_model=OkResponse, dependencies=[Depends(require_auth)])
+async def post_deathlink(
+    body: DeathLinkRequest | None = None,
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> OkResponse:
+    if not ap_client.ws_connected:
+        raise HTTPException(status_code=503, detail="ws_disconnected")
+    source = body.source if body else ""
+    cause = body.cause if body else None
+    data: dict[str, Any] = {"source": source, "time": datetime.now(_timezone.utc).timestamp()}
+    if cause:
+        data["cause"] = cause
+    await ap_client.send_packet({"cmd": "Bounce", "tags": ["DeathLink"], "data": data})
+    return OkResponse()

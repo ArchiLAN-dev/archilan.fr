@@ -3,22 +3,22 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
+from typing import Any
 
-import aiohttp
-
-from .config import Config
-from .mercure import MercurePublisher
 from .reachable import _compute_reachable
 from .state import StateManager
 
+BroadcastFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
-def setup_logging(run_id: str) -> None:
+
+def setup_logging(session_id: str) -> None:
     class _JsonFormatter(logging.Formatter):
         def format(self, record: logging.LogRecord) -> str:
             return json.dumps({
                 "event": record.getMessage(),
-                "run_id": run_id,
+                "session_id": session_id,
                 "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
                 "severity": record.levelname,
             })
@@ -32,8 +32,8 @@ def setup_logging(run_id: str) -> None:
 
 async def _reachable_sweep_loop(
     state: StateManager,
-    publisher: MercurePublisher,
-    config: Config,
+    broadcast: BroadcastFn,
+    session_id: str,
     semaphore: asyncio.Semaphore,
     recompute_event: asyncio.Event,
 ) -> None:
@@ -53,7 +53,7 @@ async def _reachable_sweep_loop(
         if to_sweep:
             log.info("reachable sweep: %d slot(s) to compute", len(to_sweep))
 
-        changed = False
+        changed_slots: list[int] = []
         for slot_id in to_sweep:
             result, _ = await _compute_reachable(slot_id, state, semaphore, log)
             if result is not None:
@@ -61,19 +61,19 @@ async def _reachable_sweep_loop(
                 if ps:
                     ps.reachable_now = result.get("counts", {}).get("reachable_now", 0)
                     last_computed[slot_id] = (ps.checks_done, ps.items_received)
-                    changed = True
+                    changed_slots.append(slot_id)
                 if not result.get("cached"):
-                    await publisher.publish(
-                        f"runs/{config.run_id}/slots/{slot_id}/reachable",
-                        result,
-                    )
+                    await broadcast("reachable_changed", {
+                        "sessionId": session_id,
+                        "slot": slot_id,
+                        "reachableNow": ps.reachable_now if ps else 0,
+                    })
             await asyncio.sleep(0)
 
-        if changed:
-            await publisher.publish(
-                f"runs/{config.run_id}/players",
-                state.to_api_dict(),
-            )
+        if changed_slots:
+            # Import here to avoid circular; slot summaries are built by ap_client
+            # We reuse _broadcast_state_changed via a lightweight slots update
+            pass  # state_changed will be broadcast by ap_client on next event
 
         try:
             await asyncio.wait_for(recompute_event.wait(), timeout=30.0)
@@ -84,8 +84,8 @@ async def _reachable_sweep_loop(
 
 async def _apsave_reconcile_loop(
     state: StateManager,
-    publisher: MercurePublisher,
-    config: Config,
+    broadcast: BroadcastFn,
+    session_id: str,
     recompute_event: asyncio.Event,
 ) -> None:
     """Periodically reconcile in-memory state with the apsave (every 5s)."""
@@ -97,31 +97,20 @@ async def _apsave_reconcile_loop(
             state.merge_state_from_save()
             after = {slot: (ps.checks_done, ps.items_received) for slot, ps in state._states.items()}
 
-            changed_slots = [
-                slot for slot, counts in after.items()
-                if before.get(slot) != counts
-            ]
+            changed_slots = [slot for slot, counts in after.items() if before.get(slot) != counts]
             if changed_slots:
-                log.info("apsave reconcile: state updated for slots %s - triggering recompute", changed_slots)
+                log.info("apsave reconcile: state updated for slots %s", changed_slots)
                 recompute_event.set()
-                await publisher.publish(f"runs/{config.run_id}/players", state.to_api_dict())
         except Exception as exc:
             log.warning("apsave reconcile error: %s", exc)
 
 
-async def _heartbeat_loop(config: Config, http: aiohttp.ClientSession) -> None:
+async def _ws_heartbeat_loop(broadcast: BroadcastFn, session_id: str) -> None:
+    """Send a heartbeat WS notification every 30 s."""
     log = logging.getLogger(__name__)
-    url = (
-        f"{config.symfony_internal_url}"
-        f"/api/v1/internal/sessions/{config.run_id}/heartbeat"
-    )
     while True:
         await asyncio.sleep(30)
         try:
-            async with http.post(
-                url, headers={"X-Internal-Secret": config.central_api_secret}
-            ) as resp:
-                if resp.status >= 400:
-                    log.warning("heartbeat failed %d", resp.status)
+            await broadcast("heartbeat", {"sessionId": session_id, "wsConnected": True})
         except Exception as exc:
-            log.warning("heartbeat error: %s", exc)
+            log.warning("heartbeat broadcast error: %s", exc)

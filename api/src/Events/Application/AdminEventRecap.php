@@ -5,17 +5,14 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventRecap
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
         private LoggerInterface $logger,
     ) {
     }
@@ -27,9 +24,9 @@ final readonly class AdminEventRecap
      */
     public function attach(string $eventId, array $input): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -46,7 +43,7 @@ final readonly class AdminEventRecap
             return ['found' => true, 'errors' => ['status' => ["Le récap ne peut être attaché qu'à un événement terminé."]]];
         }
 
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         $this->logger->info('event.recap_attached', ['eventId' => $eventId]);
 

@@ -6,7 +6,7 @@ namespace App\Sessions\Application\ScheduledTask;
 
 use App\Sessions\Application\Message\PauseRunJob;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -15,7 +15,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final readonly class InactivityWatchdogHandler
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private int $inactivityTimeoutSeconds,
@@ -28,8 +28,7 @@ final readonly class InactivityWatchdogHandler
         $threshold = $now->modify("-{$this->inactivityTimeoutSeconds} seconds");
         $graceLimit = $now->modify('-60 seconds');
 
-        /** @var list<Session> $allRunning */
-        $allRunning = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STATUS_RUNNING]);
+        $allRunning = $this->sessions->findByStatus(Session::STATUS_RUNNING);
         /** @var list<Session> $sessions */
         $sessions = array_values(array_filter(
             $allRunning,

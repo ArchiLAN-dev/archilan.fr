@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Membership\Application\Handler;
 
+use App\Membership\Application\MembershipExpiryCheckQueryInterface;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Membership\Application\Message\ExpireMembershipMessage;
 use App\Membership\Application\Message\MembershipReminderMessage;
 use App\Membership\Domain\Membership;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -18,8 +17,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final readonly class CheckMembershipExpiryMessageHandler
 {
     public function __construct(
-        private Connection $connection,
-        private EntityManagerInterface $entityManager,
+        private MembershipExpiryCheckQueryInterface $expiryCheck,
+        private MembershipRepositoryInterface $memberships,
         private MessageBusInterface $bus,
     ) {
     }
@@ -35,51 +34,19 @@ final readonly class CheckMembershipExpiryMessageHandler
 
     private function dispatchExpiries(\DateTimeImmutable $now): void
     {
-        $qb = $this->connection->createQueryBuilder();
-        $ids = $qb
-            ->select('m.id')
-            ->from('memberships', 'm')
-            ->where($qb->expr()->eq('m.status', ':status'))
-            ->andWhere($qb->expr()->lte('m.expires_at', ':now'))
-            ->setParameter('status', 'active')
-            ->setParameter('now', $now, Types::DATETIMETZ_IMMUTABLE)
-            ->executeQuery()
-            ->fetchFirstColumn();
+        $ids = $this->expiryCheck->findExpiredActiveIds($now);
 
         foreach ($ids as $id) {
-            if (!is_string($id)) {
-                continue;
-            }
-
             $this->bus->dispatch(new ExpireMembershipMessage($id));
         }
     }
 
     private function dispatchReminders(\DateTimeImmutable $now, int $daysLeft): void
     {
-        $deadline = $now->add(new \DateInterval('P'.$daysLeft.'D'));
-        $reminderField = 30 === $daysLeft ? 'm.reminder_30_sent_at' : 'm.reminder_7_sent_at';
-
-        $qb = $this->connection->createQueryBuilder();
-        $ids = $qb
-            ->select('m.id')
-            ->from('memberships', 'm')
-            ->where($qb->expr()->eq('m.status', ':status'))
-            ->andWhere($qb->expr()->gt('m.expires_at', ':now'))
-            ->andWhere($qb->expr()->lte('m.expires_at', ':deadline'))
-            ->andWhere($qb->expr()->isNull($reminderField))
-            ->setParameter('status', 'active')
-            ->setParameter('now', $now, Types::DATETIMETZ_IMMUTABLE)
-            ->setParameter('deadline', $deadline, Types::DATETIMETZ_IMMUTABLE)
-            ->executeQuery()
-            ->fetchFirstColumn();
+        $ids = $this->expiryCheck->findPendingReminderIds($now, $daysLeft);
 
         foreach ($ids as $id) {
-            if (!is_string($id)) {
-                continue;
-            }
-
-            $membership = $this->entityManager->find(Membership::class, $id);
+            $membership = $this->memberships->findById($id);
             if (!$membership instanceof Membership) {
                 continue;
             }
@@ -90,7 +57,7 @@ final readonly class CheckMembershipExpiryMessageHandler
                 $membership->markReminder7Sent($now);
             }
 
-            $this->entityManager->flush();
+            $this->memberships->flush();
 
             $this->bus->dispatch(new MembershipReminderMessage($id, $daysLeft));
         }

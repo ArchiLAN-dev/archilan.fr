@@ -6,8 +6,10 @@ namespace App\Tests\Unit\Identity;
 
 use App\Identity\Application\AdminChangeUserRole;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
+use App\Identity\Domain\RoleChangeAudit;
+use App\Identity\Domain\RoleChangeAuditRepositoryInterface;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Envelope;
@@ -20,7 +22,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $admin = $this->makeAdmin();
         $target = $this->makeTarget(withDiscord: true);
         $events = [];
-        $em = $this->makeEm($admin, $target, $events);
+        [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->once())
@@ -37,7 +39,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
                 return new Envelope($message);
             });
 
-        $result = $this->makeService($em, $bus)->change($admin, $target->getId(), 'member', true);
+        $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
         self::assertSame([], $result['errors']);
         self::assertSame(['flush', 'dispatch'], $events);
@@ -48,7 +50,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $admin = $this->makeAdmin();
         $target = $this->makeTarget(withDiscord: true, roles: ['ROLE_USER', 'ROLE_MEMBER']);
         $events = [];
-        $em = $this->makeEm($admin, $target, $events);
+        [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->once())
@@ -65,7 +67,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
                 return new Envelope($message);
             });
 
-        $result = $this->makeService($em, $bus)->change($admin, $target->getId(), 'user', true);
+        $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'user', true);
 
         self::assertSame([], $result['errors']);
         self::assertSame(['flush', 'dispatch'], $events);
@@ -76,12 +78,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $admin = $this->makeAdmin();
         $target = $this->makeTarget(withDiscord: false);
         $events = [];
-        $em = $this->makeEm($admin, $target, $events);
+        [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->never())->method('dispatch');
 
-        $this->makeService($em, $bus)->change($admin, $target->getId(), 'member', true);
+        $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
         self::assertSame(['flush'], $events);
     }
@@ -91,12 +93,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $admin = $this->makeAdmin();
         $target = $this->makeTarget(withDiscord: true, roles: ['ROLE_USER', 'ROLE_MEMBER']);
         $events = [];
-        $em = $this->makeEm($admin, $target, $events);
+        [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->never())->method('dispatch');
 
-        $result = $this->makeService($em, $bus)->change($admin, $target->getId(), 'member', true);
+        $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
         self::assertSame([], $result['errors']);
         $userPayload = $result['user'] ?? null;
@@ -110,12 +112,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $admin = $this->makeAdmin();
         $target = $this->makeTarget(withDiscord: true);
         $events = [];
-        $em = $this->makeEm($admin, $target, $events);
+        [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
-        $result = $this->makeService($em, $bus)->change($admin, $target->getId(), 'member', true);
+        $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
         self::assertSame([], $result['errors']);
         $userPayload = $result['user'] ?? null;
@@ -165,32 +167,28 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
 
     /**
      * @param list<string> $events
+     *
+     * @return array{0: UserRepositoryInterface, 1: RoleChangeAuditRepositoryInterface}
      */
-    private function makeEm(User $admin, User $target, array &$events): EntityManagerInterface
+    private function makeRepositories(User $target, array &$events): array
     {
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('find')->willReturnCallback(
-            static function (string $class, string $id) use ($admin, $target): ?User {
-                if ($id === $target->getId()) {
-                    return $target;
-                }
-                if ($id === $admin->getId()) {
-                    return $admin;
-                }
-
-                return null;
-            }
+        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo->method('findById')->willReturnCallback(
+            static fn (string $id): ?User => $id === $target->getId() ? $target : null,
         );
-        $em->method('persist');
-        $em->method('flush')->willReturnCallback(static function () use (&$events): void {
-            $events[] = 'flush';
-        });
 
-        return $em;
+        $auditRepo = $this->createStub(RoleChangeAuditRepositoryInterface::class);
+        $auditRepo->method('saveAuditAndFlushUser')->willReturnCallback(
+            static function (RoleChangeAudit $audit) use (&$events): void {
+                $events[] = 'flush';
+            },
+        );
+
+        return [$userRepo, $auditRepo];
     }
 
-    private function makeService(EntityManagerInterface $em, MessageBusInterface $bus): AdminChangeUserRole
+    private function makeService(UserRepositoryInterface $userRepo, RoleChangeAuditRepositoryInterface $auditRepo, MessageBusInterface $bus): AdminChangeUserRole
     {
-        return new AdminChangeUserRole($em, new NullLogger(), $bus);
+        return new AdminChangeUserRole($userRepo, $auditRepo, new NullLogger(), $bus);
     }
 }

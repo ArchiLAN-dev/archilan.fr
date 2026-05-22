@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\Handler\MembershipReminderMessageHandler;
 use App\Membership\Application\Message\MembershipReminderMessage;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
+use App\Membership\Domain\Membership;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
@@ -18,43 +18,37 @@ final class MembershipReminderMessageHandlerTest extends TestCase
 {
     public function testInvokeSendsEmailFor30DaysReminder(): void
     {
+        $membership = $this->makeMembership();
+
+        $user = $this->makeUser();
+
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::never())->method('error');
 
-        $message = new MembershipReminderMessage('membership-1', 30);
-
-        $handler = $this->createHandler($mailer, $logger, [
-            'email' => 'test@example.com',
-            'display_name' => 'Test User',
-            'expires_at' => '2027-05-16T00:00:00+00:00',
-        ]);
-
-        $handler($message);
+        $handler = $this->createHandler($membership, $user, $mailer, $logger);
+        $handler(new MembershipReminderMessage('membership-1', 30));
     }
 
     public function testInvokeSendsEmailFor7DaysReminder(): void
     {
+        $membership = $this->makeMembership();
+        $user = $this->makeUser();
+
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
 
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $message = new MembershipReminderMessage('membership-1', 7);
-
-        $handler = $this->createHandler($mailer, $logger, [
-            'email' => 'test@example.com',
-            'display_name' => 'Test User',
-            'expires_at' => '2027-05-16T00:00:00+00:00',
-        ]);
-
-        $handler($message);
+        $handler = $this->createHandler($membership, $user, $mailer, $this->createStub(LoggerInterface::class));
+        $handler(new MembershipReminderMessage('membership-1', 7));
     }
 
     public function testInvokeLogsAndRethrowsWhenMembershipNotFound(): void
     {
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn(null);
+
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::never())->method('send');
 
@@ -62,45 +56,9 @@ final class MembershipReminderMessageHandlerTest extends TestCase
         $logger->expects(self::once())->method('error')
             ->with('membership.reminder_notification_not_found', self::anything());
 
-        $message = new MembershipReminderMessage('membership-missing', 30);
-        $handler = $this->createHandler($mailer, $logger, false);
-
-        $this->expectException(\RuntimeException::class);
-        $handler($message);
-    }
-
-    public function testInvokeLogsAndRethrowsOnSmtpFailure(): void
-    {
-        $smtpError = new \RuntimeException('SMTP error');
-
-        $mailer = $this->createMock(MailerInterface::class);
-        $mailer->expects(self::once())->method('send')->willThrowException($smtpError);
-
-        $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('error')
-            ->with('membership.reminder_notification_send_failed', self::anything());
-
-        $message = new MembershipReminderMessage('membership-1', 30);
-        $handler = $this->createHandler($mailer, $logger, [
-            'email' => 'test@example.com',
-            'display_name' => 'Test User',
-            'expires_at' => '2027-05-16T00:00:00+00:00',
-        ]);
-
-        $this->expectException(\RuntimeException::class);
-        $handler($message);
-    }
-
-    /**
-     * @param array<string, mixed>|false $rowData
-     */
-    private function createHandler(
-        MailerInterface $mailer,
-        LoggerInterface $logger,
-        array|false $rowData,
-    ): MembershipReminderMessageHandler {
-        return new MembershipReminderMessageHandler(
-            $this->createConnectionReturning($rowData),
+        $handler = new MembershipReminderMessageHandler(
+            $memberships,
+            $this->createStub(UserRepositoryInterface::class),
             $mailer,
             $logger,
             'noreply@archilan.fr',
@@ -109,32 +67,68 @@ final class MembershipReminderMessageHandlerTest extends TestCase
             'cotisation-2026',
             false,
         );
+
+        $this->expectException(\RuntimeException::class);
+        $handler(new MembershipReminderMessage('membership-missing', 30));
     }
 
-    /**
-     * @param array<string, mixed>|false $rowData
-     */
-    private function createConnectionReturning(array|false $rowData): Connection
+    public function testInvokeLogsAndRethrowsOnSmtpFailure(): void
     {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchAssociative')->willReturn($rowData);
+        $membership = $this->makeMembership();
+        $user = $this->makeUser();
 
-        $expr = $this->createStub(ExpressionBuilder::class);
+        $mailer = $this->createMock(MailerInterface::class);
+        $mailer->expects(self::once())->method('send')->willThrowException(new \RuntimeException('SMTP error'));
 
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('innerJoin')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturn($qb);
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')
+            ->with('membership.reminder_notification_send_failed', self::anything());
 
-        $connection = $this->createStub(Connection::class);
-        $connection->method('createQueryBuilder')->willReturn($qb);
-        $connection->method('quoteSingleIdentifier')->willReturn('"user"');
+        $handler = $this->createHandler($membership, $user, $mailer, $logger);
 
-        return $connection;
+        $this->expectException(\RuntimeException::class);
+        $handler(new MembershipReminderMessage('membership-1', 30));
+    }
+
+    private function makeMembership(): Membership
+    {
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00+00:00');
+
+        return Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T00:00:00+00:00'), 'helloasso', null, null, $now);
+    }
+
+    private function makeUser(): User
+    {
+        $user = $this->createStub(User::class);
+        $user->method('getEmail')->willReturn('test@example.com');
+        $user->method('getDisplayName')->willReturn('Test User');
+        $user->method('getDeletedAt')->willReturn(null);
+
+        return $user;
+    }
+
+    private function createHandler(
+        Membership $membership,
+        User $user,
+        MailerInterface $mailer,
+        LoggerInterface $logger,
+    ): MembershipReminderMessageHandler {
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
+
+        $users = $this->createStub(UserRepositoryInterface::class);
+        $users->method('findById')->willReturn($user);
+
+        return new MembershipReminderMessageHandler(
+            $memberships,
+            $users,
+            $mailer,
+            $logger,
+            'noreply@archilan.fr',
+            'https://archilan.fr',
+            'archilan',
+            'cotisation-2026',
+            false,
+        );
     }
 }

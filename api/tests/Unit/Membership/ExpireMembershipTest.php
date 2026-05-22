@@ -9,7 +9,7 @@ use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Application\UserRoleGatewayInterface;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Envelope;
@@ -25,11 +25,12 @@ final class ExpireMembershipTest extends TestCase
     {
         $membership = Membership::create(self::USER_ID, new \DateTimeImmutable('2025-01-01'), new \DateTimeImmutable('2026-01-01'), 'admin', null, null, new \DateTimeImmutable('2025-01-01'));
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects($this->once())
-            ->method('find')
-            ->with(Membership::class, self::MEMBERSHIP_ID)
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->expects($this->once())
+            ->method('findById')
+            ->with(self::MEMBERSHIP_ID)
             ->willReturn($membership);
+        $memberships->expects($this->once())->method('flush');
 
         $gateway = $this->createMock(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => self::DISCORD_ID, 'roles' => ['ROLE_USER']]);
@@ -39,9 +40,7 @@ final class ExpireMembershipTest extends TestCase
             ->method('dispatch')
             ->willReturn(new Envelope(new \stdClass()));
 
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $service = new ExpireMembership($em, $gateway, $bus, $logger);
+        $service = new ExpireMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
         $service->expire(self::MEMBERSHIP_ID);
 
         self::assertSame('expired', $membership->getStatus());
@@ -52,33 +51,25 @@ final class ExpireMembershipTest extends TestCase
         $membership = Membership::create(self::USER_ID, new \DateTimeImmutable('2024-01-01'), new \DateTimeImmutable('2025-01-01'), 'admin', null, null, new \DateTimeImmutable('2024-01-01'));
         $membership->expire(new \DateTimeImmutable('2025-01-02'));
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('find')->willReturn($membership);
-
-        $gateway = $this->createStub(UserRoleGatewayInterface::class);
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->never())->method('dispatch');
 
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $service = new ExpireMembership($em, $gateway, $bus, $logger);
+        $service = new ExpireMembership($memberships, $this->createStub(UserRoleGatewayInterface::class), $bus, $this->createStub(LoggerInterface::class));
         $service->expire(self::MEMBERSHIP_ID);
     }
 
     public function testExpireIsNoOpWhenMembershipNotFound(): void
     {
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('find')->willReturn(null);
-
-        $gateway = $this->createStub(UserRoleGatewayInterface::class);
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn(null);
 
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->never())->method('dispatch');
 
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $service = new ExpireMembership($em, $gateway, $bus, $logger);
+        $service = new ExpireMembership($memberships, $this->createStub(UserRoleGatewayInterface::class), $bus, $this->createStub(LoggerInterface::class));
         $service->expire(self::MEMBERSHIP_ID);
     }
 
@@ -86,8 +77,8 @@ final class ExpireMembershipTest extends TestCase
     {
         $membership = Membership::create(self::USER_ID, new \DateTimeImmutable('2025-01-01'), new \DateTimeImmutable('2026-01-01'), 'admin', null, null, new \DateTimeImmutable('2025-01-01'));
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('find')->willReturn($membership);
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
 
         $gateway = $this->createStub(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => null, 'roles' => ['ROLE_USER']]);
@@ -101,9 +92,7 @@ final class ExpireMembershipTest extends TestCase
             ))
             ->willReturn(new Envelope(new \stdClass()));
 
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $service = new ExpireMembership($em, $gateway, $bus, $logger);
+        $service = new ExpireMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
         $service->expire(self::MEMBERSHIP_ID);
     }
 }

@@ -6,7 +6,7 @@ namespace App\Sessions\Application\ScheduledTask;
 
 use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -17,7 +17,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final readonly class CleanupStaleSessionsHandler
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
         private HubInterface $mercureHub,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
@@ -28,8 +28,7 @@ final readonly class CleanupStaleSessionsHandler
     {
         $now = new \DateTimeImmutable();
 
-        /** @var list<Session> $candidates */
-        $candidates = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STALE_STATUSES]);
+        $candidates = $this->sessions->findByStatuses(Session::STALE_STATUSES);
 
         /** @var list<Session> $cleaned */
         $cleaned = [];
@@ -61,7 +60,6 @@ final readonly class CleanupStaleSessionsHandler
                 'runnerId' => $session->getRunnerId(),
             ]);
 
-            // Running containers need an explicit stop so the runner cleans up Docker and releases ports.
             if (Session::STATUS_RUNNING === $previous) {
                 $this->messageBus->dispatch(new StopRunJob($session->getId(), $port, $bridgePort));
             }
@@ -73,7 +71,7 @@ final readonly class CleanupStaleSessionsHandler
             return;
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         foreach ($cleaned as $session) {
             try {

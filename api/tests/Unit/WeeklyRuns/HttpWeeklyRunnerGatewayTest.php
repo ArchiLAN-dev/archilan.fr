@@ -37,43 +37,36 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         ], \JSON_THROW_ON_ERROR));
     }
 
-    public function testLaunchEntryUsesRunnerPublicHostNotContainerHost(): void
+    public function testLaunchFromSeedUsesRunnerPublicHostNotContainerHost(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse()), 'my-public-runner.archilan.fr');
 
-        $result = $gateway->launchEntry('entry-1', 'seed123', 'abc.apworld', 'http://minio/abc.apworld', 'Alice', "name: Alice\n", '');
+        $result = $gateway->launchFromSeed('entry-1', '/workspace/run-1/output/world.archipelago');
 
         self::assertSame('my-public-runner.archilan.fr', $result['connectionInfo']['host']);
         self::assertNotSame('0.0.0.0', $result['connectionInfo']['host']);
     }
 
-    public function testLaunchEntryMapsContainerPortToPort(): void
+    public function testLaunchFromSeedMapsContainerPortToPort(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse(port: 38282)));
 
-        $result = $gateway->launchEntry('entry-1', 'seed', 'abc.apworld', 'http://minio/url', 'Alice', 'yaml', '');
+        $result = $gateway->launchFromSeed('entry-1', '/workspace/run-1/output/world.archipelago');
 
         self::assertSame(38282, $result['connectionInfo']['port']);
     }
 
-    public function testLaunchEntrySendsApworldDownloadUrlInBody(): void
+    public function testLaunchFromSeedSendsOutputFileInBody(): void
     {
-        // Symfony's HttpClient converts the `json:` option to a `body:` string before calling the factory.
-        /** @var string|null $capturedDownloadUrl */
-        $capturedDownloadUrl = null;
-        $factory = function (string $method, string $requestUrl, array $options) use (&$capturedDownloadUrl): MockResponse {
+        /** @var string|null $capturedOutputFile */
+        $capturedOutputFile = null;
+        $factory = function (string $method, string $requestUrl, array $options) use (&$capturedOutputFile): MockResponse {
             $raw = $options['body'] ?? null;
             if (is_string($raw)) {
                 $payload = json_decode($raw, true);
                 if (is_array($payload)) {
-                    $slots = $payload['slots'] ?? null;
-                    if (is_array($slots)) {
-                        $slot = $slots[0] ?? null;
-                        if (is_array($slot)) {
-                            $dlUrl = $slot['apworldDownloadUrl'] ?? null;
-                            $capturedDownloadUrl = is_string($dlUrl) ? $dlUrl : null;
-                        }
-                    }
+                    $of = $payload['outputFile'] ?? null;
+                    $capturedOutputFile = is_string($of) ? $of : null;
                 }
             }
 
@@ -86,32 +79,32 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         };
 
         $gateway = $this->makeGateway(new MockHttpClient($factory));
-        $gateway->launchEntry('entry-2', 'seed', 'key.apworld', 'http://minio/presigned-url', 'Bob', "name: Bob\n", '');
+        $gateway->launchFromSeed('entry-2', '/workspace/run-1/output/my-world.archipelago');
 
-        self::assertSame('http://minio/presigned-url', $capturedDownloadUrl);
+        self::assertSame('/workspace/run-1/output/my-world.archipelago', $capturedOutputFile);
     }
 
-    public function testLaunchEntryThrowsRuntimeExceptionOnErrorResponse(): void
+    public function testLaunchFromSeedThrowsRuntimeExceptionOnErrorResponse(): void
     {
-        $errorBody = (string) json_encode(['error' => 'generation_failed', 'details' => 'docker failed'], \JSON_THROW_ON_ERROR);
+        $errorBody = (string) json_encode(['error' => 'not_ready', 'details' => 'session not found'], \JSON_THROW_ON_ERROR);
         $gateway = $this->makeGateway(new MockHttpClient(new MockResponse($errorBody)));
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessageMatches('/generation_failed/');
+        $this->expectExceptionMessageMatches('/not_ready/');
 
-        $gateway->launchEntry('entry-3', 'seed', 'key.apworld', 'http://minio/url', 'Carol', 'yaml', '');
+        $gateway->launchFromSeed('entry-3', '/workspace/run-1/output/world.archipelago');
     }
 
-    public function testLaunchEntrySetsExternalSessionId(): void
+    public function testLaunchFromSeedSetsExternalSessionId(): void
     {
         $gateway = $this->makeGateway(new MockHttpClient($this->successResponse()));
 
-        $result = $gateway->launchEntry('my-entry-id', 'seed', 'key', 'http://minio/url', 'Dan', 'yaml', '');
+        $result = $gateway->launchFromSeed('my-entry-id', '/workspace/run-1/output/world.archipelago');
 
         self::assertSame('my-entry-id', $result['externalSessionId']);
     }
 
-    public function testLaunchEntryHandlesNullServerPassword(): void
+    public function testLaunchFromSeedHandlesNullServerPassword(): void
     {
         $body = (string) json_encode([
             'sessionId' => 'entry-5',
@@ -121,7 +114,7 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
         ], \JSON_THROW_ON_ERROR);
         $gateway = $this->makeGateway(new MockHttpClient(new MockResponse($body)));
 
-        $result = $gateway->launchEntry('entry-5', 'seed', 'key', 'http://minio/url', 'Eve', 'yaml', '');
+        $result = $gateway->launchFromSeed('entry-5', '/workspace/run-1/output/world.archipelago');
 
         self::assertNull($result['connectionInfo']['password']);
     }

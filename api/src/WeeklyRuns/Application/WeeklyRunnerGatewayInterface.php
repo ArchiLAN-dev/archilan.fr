@@ -7,16 +7,13 @@ namespace App\WeeklyRuns\Application;
 interface WeeklyRunnerGatewayInterface
 {
     /**
-     * @return array{externalSessionId: string, connectionInfo: array{host: string, port: int, password: string|null}}
+     * Launch an Archipelago server from a pre-generated seed file.
+     *
+     * @return array{externalSessionId: string, connectionInfo: array{host: string, port: int, password: string|null}, bridgePort: int|null}
      */
-    public function launchEntry(
+    public function launchFromSeed(
         string $weeklyEntryId,
-        string $seed,
-        string $apworldStorageKey,
-        string $apworldDownloadUrl,
-        string $playerName,
-        string $yaml,
-        string $archipelagoGameName,
+        string $seedFilePath,
     ): array;
 
     public function terminate(string $externalSessionId): void;

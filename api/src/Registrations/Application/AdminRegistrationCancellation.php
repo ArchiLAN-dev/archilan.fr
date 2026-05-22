@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application;
 
-use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Realtime\Application\RealtimePublisher;
-use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationCancellation
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private RealtimePublisher $realtimePublisher,
         private LoggerInterface $logger,
@@ -28,9 +25,9 @@ final readonly class AdminRegistrationCancellation
      */
     public function cancel(string $eventId, string $registrationId): array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return ['outcome' => 'not_found'];
         }
 
@@ -45,12 +42,12 @@ final readonly class AdminRegistrationCancellation
         $now = new \DateTimeImmutable();
         $registration->cancel($now);
 
-        $event = $this->entityManager->find(Event::class, $eventId);
-        $this->entityManager->flush();
+        $event = $this->eventRepository->findById($eventId);
+        $this->registrationRepository->flush();
 
         $this->logger->info('registration.admin_cancelled', ['registrationId' => $registrationId, 'eventId' => $eventId]);
 
-        if ($event instanceof Event) {
+        if (null !== $event) {
             $remaining = max(0, $event->getCapacity() - $this->registrationCounter->countConfirmed($eventId));
             $this->realtimePublisher->seatCounter($event->getId(), $remaining);
         }

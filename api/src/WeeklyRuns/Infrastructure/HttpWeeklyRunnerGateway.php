@@ -23,57 +23,43 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
     ) {
     }
 
-    public function launchEntry(
+    public function launchFromSeed(
         string $weeklyEntryId,
-        string $seed,
-        string $apworldStorageKey,
-        string $apworldDownloadUrl,
-        string $playerName,
-        string $yaml,
-        string $archipelagoGameName,
+        string $seedFilePath,
     ): array {
-        $slot = [
-            'slotName' => $playerName,
-            'apworldStorageKey' => $apworldStorageKey,
-            'playerYaml' => $yaml,
-        ];
-        if ('' !== $apworldDownloadUrl) {
-            $slot['apworldDownloadUrl'] = $apworldDownloadUrl;
-        }
-
         $data = $this->post(
-            "/sessions/{$weeklyEntryId}/generate-and-launch",
+            "/sessions/{$weeklyEntryId}/launch-from-file",
             [
-                'seed' => $seed,
-                'slots' => [$slot],
+                'outputFile' => $seedFilePath,
                 'bridgeConfig' => [
                     'RUN_ID' => $weeklyEntryId,
                     'SYMFONY_INTERNAL_URL' => $this->symfonyInternalUrl,
                     'MERCURE_HUB_URL' => $this->mercureHubUrl,
                     'CENTRAL_API_SECRET' => $this->centralApiSecret,
                     'BRIDGE_INTERNAL_TOKEN' => $this->bridgeInternalToken,
-                    'SLOT_NAMES' => json_encode([['name' => $playerName, 'game' => $archipelagoGameName]], \JSON_THROW_ON_ERROR),
                 ],
             ],
-            // Must exceed runner's GENERATION_TIMEOUT (default 300s) plus container startup time.
-            timeout: 360,
+            timeout: 30,
         );
 
         if (isset($data['error'])) {
             $errorMsg = is_string($data['error']) ? $data['error'] : 'unknown';
             $details = isset($data['details']) ? (is_string($data['details']) ? $data['details'] : json_encode($data['details'])) : null;
-            $this->logger->error('weekly_runner.launch_failed', ['error' => $errorMsg, 'details' => $details]);
-            throw new \RuntimeException('Runner launchEntry failed: '.$errorMsg.($details ? ' | '.$details : ''));
+            $this->logger->error('weekly_runner.launch_from_seed_failed', ['error' => $errorMsg, 'details' => $details]);
+            throw new \RuntimeException('Runner launchFromSeed failed: '.$errorMsg.($details ? ' | '.$details : ''));
         }
 
         $portRaw = $data['containerPort'] ?? null;
         if (!is_int($portRaw) && !is_string($portRaw) && !is_float($portRaw)) {
-            throw new \RuntimeException('Runner launchEntry: missing or invalid containerPort in response');
+            throw new \RuntimeException('Runner launchFromSeed: missing or invalid containerPort in response');
         }
         $port = (int) $portRaw;
 
         $passwordRaw = $data['serverPassword'] ?? null;
         $password = is_string($passwordRaw) ? $passwordRaw : null;
+
+        $bridgePortRaw = $data['containerBridgePort'] ?? null;
+        $bridgePort = (is_int($bridgePortRaw) || is_string($bridgePortRaw) || is_float($bridgePortRaw)) ? (int) $bridgePortRaw : null;
 
         return [
             'externalSessionId' => $weeklyEntryId,
@@ -82,6 +68,7 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
                 'port' => $port,
                 'password' => $password,
             ],
+            'bridgePort' => $bridgePort,
         ];
     }
 

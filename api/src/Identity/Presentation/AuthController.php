@@ -8,8 +8,8 @@ use App\Identity\Application\AuthenticateUser;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\CurrentUserProvider;
 use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RotateRefreshToken;
+use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use App\Identity\Domain\User;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,7 +27,7 @@ final readonly class AuthController
         private AuthSessionSigner $authSessionSigner,
         private CurrentUserProvider $currentUserProvider,
         private RefreshTokenFactory $refreshTokenFactory,
-        private RefreshTokenRepository $refreshTokenRepository,
+        private RefreshTokenRepositoryInterface $refreshTokenRepository,
         private RotateRefreshToken $rotateRefreshToken,
     ) {
     }

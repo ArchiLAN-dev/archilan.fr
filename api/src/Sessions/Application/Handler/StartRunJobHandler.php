@@ -6,9 +6,9 @@ namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\RunHealthCheckJob;
 use App\Sessions\Application\Message\StartRunJob;
-use App\Sessions\Infrastructure\DockerSocketClient;
 use App\Sessions\Infrastructure\PortPool;
 use App\Sessions\Infrastructure\RunnerCallbackClient;
+use App\Shared\Infrastructure\DockerSocketClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;

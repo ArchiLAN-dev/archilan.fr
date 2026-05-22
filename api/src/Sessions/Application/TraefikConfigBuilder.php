@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 
 final readonly class TraefikConfigBuilder
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
         private string $wsDomain,
     ) {
     }
@@ -22,8 +22,7 @@ final readonly class TraefikConfigBuilder
      */
     public function build(): array
     {
-        /** @var list<Session> $sessions */
-        $sessions = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STATUS_RUNNING]);
+        $sessions = $this->sessions->findByStatus(Session::STATUS_RUNNING);
 
         $routers = [];
         $services = [];

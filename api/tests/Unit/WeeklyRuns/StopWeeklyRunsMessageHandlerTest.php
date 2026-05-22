@@ -7,12 +7,10 @@ namespace App\Tests\Unit\WeeklyRuns;
 use App\WeeklyRuns\Application\Handler\StopWeeklyRunsMessageHandler;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
+use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
@@ -30,9 +28,15 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
     {
         $run = $this->makeRun('run-1');
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('find')->willReturn($run);
-        $em->expects(self::once())->method('flush');
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('findAllActive')->willReturn([$run]);
+        $runs->expects(self::once())->method('flush');
+
+        $entry1 = $this->makeEntry('entry-1', 'run-1', 'session-1');
+        $entry2 = $this->makeEntry('entry-2', 'run-1', 'session-2');
+
+        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries->method('findActiveEntriesForRun')->willReturn([$entry1, $entry2]);
 
         /** @var list<string> $terminateCalls */
         $terminateCalls = [];
@@ -44,12 +48,7 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
             }
         });
 
-        $entryRows = [
-            ['id' => 'entry-1', 'external_session_id' => 'session-1'],
-            ['id' => 'entry-2', 'external_session_id' => 'session-2'],
-        ];
-
-        $this->makeHandler($this->createConnectionReturning(['run-1'], $entryRows), $em, $gateway)
+        $this->makeHandler($runs, $entries, $gateway)
             ->__invoke(new StopWeeklyRunsMessage());
 
         self::assertSame(['session-1', 'session-2'], $terminateCalls);
@@ -60,33 +59,34 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
     {
         $run = $this->makeRun('run-1');
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('find')->willReturn($run);
-        $em->expects(self::once())->method('flush');
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('findAllActive')->willReturn([$run]);
+        $runs->expects(self::once())->method('flush');
+
+        $entry1 = $this->makeEntry('entry-1', 'run-1', 'session-1');
+
+        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries->method('findActiveEntriesForRun')->willReturn([$entry1]);
 
         $gateway = $this->createStub(WeeklyRunnerGatewayInterface::class);
         $gateway->method('terminate')->willThrowException(new \RuntimeException('all fail'));
 
-        $entryRows = [
-            ['id' => 'entry-1', 'external_session_id' => 'session-1'],
-        ];
-
-        $this->makeHandler($this->createConnectionReturning(['run-1'], $entryRows), $em, $gateway)
+        $this->makeHandler($runs, $entries, $gateway)
             ->__invoke(new StopWeeklyRunsMessage());
 
         self::assertSame(WeeklyRun::STATUS_FINISHED, $run->getStatus());
     }
 
-    public function testInvokeSkipsRunWhenEntityNotFound(): void
+    public function testInvokeDoesNothingWhenNoActiveRuns(): void
     {
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('find')->willReturn(null);
-        $em->expects(self::never())->method('flush');
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('findAllActive')->willReturn([]);
+        $runs->expects(self::never())->method('flush');
 
         $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);
         $gateway->expects(self::never())->method('terminate');
 
-        $this->makeHandler($this->createConnectionReturning(['run-ghost'], []), $em, $gateway)
+        $this->makeHandler($runs, $this->createStub(WeeklyEntryRepositoryInterface::class), $gateway)
             ->__invoke(new StopWeeklyRunsMessage());
     }
 
@@ -94,18 +94,19 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
     {
         $run = $this->makeRun('run-1');
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('find')->willReturn($run);
-        $em->expects(self::once())->method('flush');
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('findAllActive')->willReturn([$run]);
+        $runs->expects(self::once())->method('flush');
+
+        $entry = $this->makeEntry('entry-1', 'run-1', null);
+
+        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries->method('findActiveEntriesForRun')->willReturn([$entry]);
 
         $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);
         $gateway->expects(self::never())->method('terminate');
 
-        $entryRows = [
-            ['id' => 'entry-1', 'external_session_id' => null],
-        ];
-
-        $this->makeHandler($this->createConnectionReturning(['run-1'], $entryRows), $em, $gateway)
+        $this->makeHandler($runs, $entries, $gateway)
             ->__invoke(new StopWeeklyRunsMessage());
     }
 
@@ -123,44 +124,30 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
         );
     }
 
+    private function makeEntry(string $id, string $runId, ?string $externalSessionId): WeeklyEntry
+    {
+        return new WeeklyEntry(
+            id: $id,
+            weeklyRunId: $runId,
+            userId: 'user-1',
+            attemptNumber: 1,
+            createdAt: new \DateTimeImmutable(),
+            updatedAt: new \DateTimeImmutable(),
+            externalSessionId: $externalSessionId,
+        );
+    }
+
     private function makeHandler(
-        Connection $connection,
-        EntityManagerInterface $em,
+        WeeklyRunRepositoryInterface $runs,
+        WeeklyEntryRepositoryInterface $entries,
         WeeklyRunnerGatewayInterface $gateway,
     ): StopWeeklyRunsMessageHandler {
         return new StopWeeklyRunsMessageHandler(
-            $connection,
-            $em,
+            $runs,
+            $entries,
             $gateway,
             new NullLogger(),
             self::$clock,
         );
-    }
-
-    /**
-     * @param list<mixed>                $runIds
-     * @param list<array<string, mixed>> $entryRows
-     */
-    private function createConnectionReturning(array $runIds, array $entryRows): Connection
-    {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchFirstColumn')->willReturn($runIds);
-        $result->method('fetchAllAssociative')->willReturn($entryRows);
-
-        $expr = $this->createStub(ExpressionBuilder::class);
-
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturn($qb);
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
-
-        $connection = $this->createStub(Connection::class);
-        $connection->method('createQueryBuilder')->willReturn($qb);
-
-        return $connection;
     }
 }

@@ -5,20 +5,13 @@ declare(strict_types=1);
 namespace App\CatalogSync\Application;
 
 use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\GameCatalogSync;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicCatalogGamesQuery
 {
-    private string $syncTable;
-
     public function __construct(
-        private Connection $connection,
+        private ImportedCatalogNamesQueryInterface $importedNamesQuery,
         private CatalogSyncService $catalogSyncService,
-        EntityManagerInterface $em,
     ) {
-        $this->syncTable = $em->getClassMetadata(GameCatalogSync::class)->getTableName();
     }
 
     /**
@@ -34,20 +27,7 @@ final readonly class PublicCatalogGamesQuery
             return null;
         }
 
-        $qb = $this->connection->createQueryBuilder();
-        $rows = $qb
-            ->select('cs.catalog_sheet_name')
-            ->from($this->syncTable, 'cs')
-            ->where($qb->expr()->isNotNull('cs.catalog_sheet_name'))
-            ->executeQuery()
-            ->fetchAllAssociative();
-
-        $importedNames = [];
-        foreach ($rows as $row) {
-            if (is_string($row['catalog_sheet_name'] ?? null)) {
-                $importedNames[$row['catalog_sheet_name']] = true;
-            }
-        }
+        $importedNames = array_flip($this->importedNamesQuery->list());
 
         $notImported = array_values(array_filter(
             $entries,

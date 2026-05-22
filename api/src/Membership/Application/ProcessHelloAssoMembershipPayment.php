@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Membership\Application;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\Message\MembershipPaymentUnmatchedMessage;
-use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -13,7 +14,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final readonly class ProcessHelloAssoMembershipPayment implements ProcessHelloAssoMembershipPaymentInterface
 {
     public function __construct(
-        private Connection $connection,
+        private UserRepositoryInterface $users,
         private ActivateMembershipInterface $activateMembership,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
@@ -38,18 +39,9 @@ final readonly class ProcessHelloAssoMembershipPayment implements ProcessHelloAs
             return;
         }
 
-        $userTable = $this->connection->quoteSingleIdentifier('user');
-        $qb = $this->connection->createQueryBuilder();
-        $result = $qb
-            ->select('u.id')
-            ->from($userTable, 'u')
-            ->where($qb->expr()->eq('u.email_canonical', ':email'))
-            ->andWhere($qb->expr()->isNull('u.deleted_at'))
-            ->setParameter('email', strtolower($payerEmail))
-            ->executeQuery()
-            ->fetchOne();
+        $user = $this->users->findByEmailCanonical(strtolower($payerEmail));
 
-        if (false === $result || !is_string($result)) {
+        if (!$user instanceof User || null !== $user->getDeletedAt()) {
             $this->logger->warning('membership.helloasso_payment_user_not_found', [
                 'helloassoOrderId' => $helloassoOrderId,
                 'payerEmail' => $payerEmail,
@@ -68,7 +60,7 @@ final readonly class ProcessHelloAssoMembershipPayment implements ProcessHelloAs
         }
 
         try {
-            $this->activateMembership->activate($result, $paidAt, 'helloasso', $helloassoOrderId);
+            $this->activateMembership->activate($user->getId(), $paidAt, 'helloasso', $helloassoOrderId);
         } catch (UniqueConstraintViolationException) {
             $this->logger->info('membership.already_processed', [
                 'helloassoOrderId' => $helloassoOrderId,

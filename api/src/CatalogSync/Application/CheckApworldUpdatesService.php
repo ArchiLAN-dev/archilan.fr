@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application;
 
-use App\GameSelection\Domain\Game;
-use Doctrine\ORM\EntityManagerInterface;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class CheckApworldUpdatesService
 {
     public function __construct(
         private ApworldVersionChecker $checker,
-        private EntityManagerInterface $entityManager,
+        private GameRepositoryInterface $gameRepository,
         private LoggerInterface $logger,
     ) {
     }
@@ -22,11 +21,10 @@ final readonly class CheckApworldUpdatesService
      */
     public function checkAll(): array
     {
-        /** @var list<Game> $allGames */
-        $allGames = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC']);
+        $allGames = $this->gameRepository->findAllSortedByName();
         $games = array_values(array_filter(
             $allGames,
-            static fn (Game $g): bool => str_starts_with($g->getCatalogSync()?->getApworldSourceUrl() ?? '', 'https://github.com/'),
+            static fn (\App\GameSelection\Domain\Game $g): bool => str_starts_with($g->getCatalogSync()?->getApworldSourceUrl() ?? '', 'https://github.com/'),
         ));
 
         $checked = 0;
@@ -51,7 +49,7 @@ final readonly class CheckApworldUpdatesService
             }
         }
 
-        $this->entityManager->flush();
+        $this->gameRepository->flush();
 
         return ['checked' => $checked, 'rateLimitHit' => $rateLimitHit];
     }

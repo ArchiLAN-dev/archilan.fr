@@ -6,10 +6,11 @@ namespace App\Payments\Application;
 
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use App\Payments\Domain\HelloAssoOrder;
+use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
 use App\Payments\Domain\HelloAssoSyncLog;
+use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
 use App\Payments\Infrastructure\HelloAssoHttpClient;
 use App\Shared\Application\Handler\LogsHandlerErrors;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -21,7 +22,8 @@ final readonly class SyncHelloAssoFormHandler
 
     public function __construct(
         private HelloAssoHttpClient $httpClient,
-        private EntityManagerInterface $entityManager,
+        private HelloAssoOrderRepositoryInterface $orderRepository,
+        private HelloAssoSyncLogRepositoryInterface $syncLogRepository,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
     ) {
@@ -66,9 +68,9 @@ final readonly class SyncHelloAssoFormHandler
             }
         }
 
-        $this->entityManager->persist(HelloAssoSyncLog::fromSuccess($message->formSlug, $now));
+        $this->syncLogRepository->persist(HelloAssoSyncLog::fromSuccess($message->formSlug, $now));
 
-        $this->executeWithLogging('helloasso.sync_persist_failed', fn () => $this->entityManager->flush());
+        $this->executeWithLogging('helloasso.sync_persist_failed', fn () => $this->orderRepository->flush());
 
         foreach ($pendingMessages as $paidMessage) {
             $this->bus->dispatch($paidMessage);
@@ -84,8 +86,7 @@ final readonly class SyncHelloAssoFormHandler
     private function persistLog(HelloAssoSyncLog $log): void
     {
         try {
-            $this->entityManager->persist($log);
-            $this->entityManager->flush();
+            $this->syncLogRepository->save($log);
         } catch (\Throwable) {
             // Log persistence must never prevent re-throwing the original error.
         }
@@ -96,8 +97,7 @@ final readonly class SyncHelloAssoFormHandler
      */
     private function upsertOrder(array $item, string $formType, string $formSlug, \DateTimeImmutable $now): ?HelloAssoOrderPaidMessage
     {
-        $found = $this->entityManager->getRepository(HelloAssoOrder::class)
-            ->findOneBy(['helloassoOrderId' => $item['orderId']]);
+        $found = $this->orderRepository->findByHelloAssoOrderId($item['orderId']);
 
         if ($found instanceof HelloAssoOrder) {
             $wasUnpaid = null === $found->getPaidAt();
@@ -137,7 +137,7 @@ final readonly class SyncHelloAssoFormHandler
             $now,
         );
 
-        $this->entityManager->persist($order);
+        $this->orderRepository->persist($order);
 
         if (null !== $item['paidAt']) {
             return new HelloAssoOrderPaidMessage(

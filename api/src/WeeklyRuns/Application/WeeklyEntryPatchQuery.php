@@ -4,24 +4,29 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyRun;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 
 final readonly class WeeklyEntryPatchQuery
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private Connection $connection,
+        private WeeklyEntryRepositoryInterface $entries,
+        private WeeklyRunRepositoryInterface $runs,
+        private UserRepositoryInterface $users,
+        private string $workspaceDir,
     ) {
     }
 
     /**
-     * @return array{externalSessionId: string, slotName: string}|null
+     * @return array{outputDir: string, slotName: string|null}|null
      */
     public function forEntry(string $weeklyRunId, string $entryId, string $userId): ?array
     {
-        $entry = $this->entityManager->find(WeeklyEntry::class, $entryId);
+        $entry = $this->entries->findById($entryId);
         if (!$entry instanceof WeeklyEntry) {
             return null;
         }
@@ -30,22 +35,31 @@ final readonly class WeeklyEntryPatchQuery
         }
 
         $externalSessionId = $entry->getExternalSessionId();
-        if (null === $externalSessionId) {
+
+        if (null !== $externalSessionId) {
+            $user = $this->users->findById($userId);
+            $slotName = $user instanceof User ? $user->getDisplayName() : 'ArchiLAN';
+
+            return [
+                'outputDir' => $this->workspaceDir.'/'.$externalSessionId.'/output',
+                'slotName' => $slotName,
+            ];
+        }
+
+        // Pre-launch: serve the cleaned zip from the run's generation output.
+        // slotName is null because the zip is not named after the player.
+        $run = $this->runs->findById($weeklyRunId);
+        if (!$run instanceof WeeklyRun) {
+            return null;
+        }
+        $seedPath = $run->getGeneratedSeedPath();
+        if (null === $seedPath) {
             return null;
         }
 
-        $userTable = $this->connection->quoteSingleIdentifier('user');
-        $row = $this->connection->createQueryBuilder()
-            ->select('u.display_name')
-            ->from($userTable, 'u')
-            ->where('u.id = :userId')
-            ->setParameter('userId', $userId)
-            ->executeQuery()
-            ->fetchAssociative();
-
-        $displayName = false !== $row ? ($row['display_name'] ?? null) : null;
-        $slotName = is_string($displayName) ? $displayName : 'ArchiLAN';
-
-        return ['externalSessionId' => $externalSessionId, 'slotName' => $slotName];
+        return [
+            'outputDir' => \dirname($seedPath),
+            'slotName' => null,
+        ];
     }
 }
