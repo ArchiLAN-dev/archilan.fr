@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem *)",
+      "Bash(git *)",
+      "Bash(go build *)",
+      "Bash(go vet *)",
+      "Bash(go test *)",
+      "Skill(update-config)",
+      "Bash(bash /mnt/c/Users/maste/Documents/archilan.fr/.claude/quality-gates.sh)",
+      "Bash(bash \"C:/Users/maste/Documents/archilan.fr/.claude/quality-gates.sh\")",
+      "Bash(echo \"exit: $?\")",
+      "PowerShell(jq *)",
+      "PowerShell($json = Get-Content \"C:\\\\Users\\\\maste\\\\Documents\\\\archilan.fr\\\\.claude\\\\settings.json\" -Raw | ConvertFrom-Json; $hook = $json.hooks.Stop[0].hooks[0]; Write-Host \"type: $\\($hook.type\\)\"; Write-Host \"command: $\\($hook.command\\)\"; Write-Host \"timeout: $\\($hook.timeout\\)\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\maste\\\\Documents\\\\archilan.fr\\\\runner\" | ForEach-Object { if \\($_.PSIsContainer\\) { \"$\\($_.Name\\)/ [DIR]\" } else { $_.Name } })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\maste\\\\Documents\\\\archilan.fr\\\\runner\\\\docs archipelago\" | Select-Object -First 10 | ForEach-Object { if \\($_.PSIsContainer\\) { \"$\\($_.Name\\)/ [DIR]\" } else { $_.Name } })",
+      "Bash(python -m ruff check .)",
+      "Bash(python -m ruff check . --fix)"
+    ]
+  }
+}

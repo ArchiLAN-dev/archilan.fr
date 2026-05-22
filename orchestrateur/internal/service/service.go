@@ -1,9 +1,13 @@
 package service
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"time"
 
@@ -11,13 +15,15 @@ import (
 	"archilan.fr/orchestrateur/internal/db"
 	"archilan.fr/orchestrateur/internal/docker"
 	"archilan.fr/orchestrateur/internal/portpool"
+	"archilan.fr/orchestrateur/internal/storage"
 	"archilan.fr/orchestrateur/internal/webhook"
 )
 
 var (
-	ErrNotFound      = errors.New("session not found")
-	ErrAlreadyExists = errors.New("session already exists")
-	ErrPortExhausted = portpool.ErrExhausted
+	ErrNotFound             = errors.New("session not found")
+	ErrAlreadyExists        = errors.New("session already exists")
+	ErrPortExhausted        = portpool.ErrExhausted
+	ErrStorageNotConfigured = errors.New("storage not configured")
 )
 
 type Service struct {
@@ -25,6 +31,7 @@ type Service struct {
 	docker  *docker.Client
 	pool    *portpool.Pool
 	webhook *webhook.Sender
+	storage *storage.Client // nil if Minio not configured
 	cfg     *config.Config
 	log     *slog.Logger
 }
@@ -34,6 +41,7 @@ func New(
 	dockerClient *docker.Client,
 	pool *portpool.Pool,
 	webhookSender *webhook.Sender,
+	storageCl *storage.Client,
 	cfg *config.Config,
 	log *slog.Logger,
 ) *Service {
@@ -42,26 +50,83 @@ func New(
 		docker:  dockerClient,
 		pool:    pool,
 		webhook: webhookSender,
+		storage: storageCl,
 		cfg:     cfg,
 		log:     log,
 	}
 }
 
-// RecoverFromDB restores the port pool from persisted container records.
+// UploadApworld hashes the binary, stores it in Minio, generates the YAML template via
+// a one-shot Archipelago container, stores the template, and returns both.
+func (s *Service) UploadApworld(ctx context.Context, data []byte) (hash string, yamlData []byte, err error) {
+	if s.storage == nil {
+		return "", nil, ErrStorageNotConfigured
+	}
+
+	sum := sha256.Sum256(data)
+	hash = fmt.Sprintf("%x", sum)
+
+	if err = s.storage.UploadApworld(ctx, hash, data); err != nil {
+		return hash, nil, fmt.Errorf("upload apworld: %w", err)
+	}
+
+	yamlData, err = s.docker.GenerateTemplate(ctx, data, hash)
+	if err != nil {
+		return hash, nil, fmt.Errorf("generate template: %w", err)
+	}
+
+	if err = s.storage.UploadApworldTemplate(ctx, hash, yamlData); err != nil {
+		return hash, yamlData, fmt.Errorf("upload template: %w", err)
+	}
+
+	return hash, yamlData, nil
+}
+
+// GetApworldTemplate returns the default YAML template for an apworld.
+// Returns ErrNotFound if Minio is not configured or no template is stored for this hash.
+func (s *Service) GetApworldTemplate(ctx context.Context, hash string) ([]byte, error) {
+	if s.storage == nil {
+		return nil, ErrNotFound
+	}
+	data, found, err := s.storage.DownloadApworldTemplate(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, ErrNotFound
+	}
+	return data, nil
+}
+
+// RecoverFromDB restores the port pool from persisted container and session records.
 func (s *Service) RecoverFromDB(ctx context.Context) error {
+	// Recover legacy Bridge-only container ports
 	ports, err := s.db.AllPorts()
 	if err != nil {
-		return fmt.Errorf("recover: %w", err)
+		return fmt.Errorf("recover containers: %w", err)
 	}
 	for port, sessionID := range ports {
 		s.pool.Reserve(port, sessionID)
-		s.log.Info("recovered session from db", "session_id", sessionID, "port", port)
+		s.log.Info("recovered container from db", "session_id", sessionID, "port", port)
 	}
+
+	// Recover session ports
+	sessionPorts, err := s.db.AllSessionPorts()
+	if err != nil {
+		return fmt.Errorf("recover sessions: %w", err)
+	}
+	for port, sessionID := range sessionPorts {
+		s.pool.Reserve(port, sessionID)
+		s.log.Info("recovered session port from db", "session_id", sessionID, "port", port)
+	}
+
 	return nil
 }
 
 type CreateRequest struct {
-	SessionID string
+	SessionID      string
+	ServerPassword string
+	AdminPassword  string
 }
 
 // Create allocates a port, starts a Bridge container, and records it in the DB.
@@ -93,23 +158,71 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (int, error) {
 		return 0, fmt.Errorf("db insert: %w", err)
 	}
 
-	go s.startContainer(req.SessionID, port)
+	go s.startContainer(req.SessionID, port, req.ServerPassword, req.AdminPassword)
 
 	return port, nil
 }
 
-func (s *Service) startContainer(sessionID string, port int) {
+func (s *Service) startContainer(sessionID string, port int, serverPassword, adminPassword string) {
 	ctx := context.Background()
 
-	containerID, err := s.docker.CreateAndStart(ctx, docker.CreateConfig{
-		SessionID:   sessionID,
-		Port:        port,
-		BridgeToken: s.cfg.BridgeToken,
+	// Build tar from Minio files if storage is configured.
+	var tarData io.Reader
+	if s.storage != nil {
+		tr, n, err := s.buildDataTar(ctx, sessionID)
+		if err != nil {
+			s.log.Error("build data tar failed", "session_id", sessionID, "err", err)
+			_ = s.db.UpdateStatus(sessionID, "crashed", nil)
+			s.webhook.Send(ctx, webhook.Payload{
+				Event:     "container.crashed",
+				SessionID: sessionID,
+				Port:      port,
+				Error:     err.Error(),
+			})
+			return
+		}
+		if n > 0 {
+			tarData = tr
+		}
+	}
+
+	containerID, err := s.docker.Create(ctx, docker.CreateConfig{
+		SessionID:      sessionID,
+		Port:           port,
+		BridgeToken:    s.cfg.BridgeToken,
+		APImage:        s.cfg.APImage,
+		ServerPassword: serverPassword,
+		AdminPassword:  adminPassword,
 	})
 	if err != nil {
+		s.log.Error("container create failed", "session_id", sessionID, "err", err)
+		_ = s.db.UpdateStatus(sessionID, "crashed", nil)
+		s.webhook.Send(ctx, webhook.Payload{
+			Event:     "container.crashed",
+			SessionID: sessionID,
+			Port:      port,
+			Error:     err.Error(),
+		})
+		return
+	}
+
+	if tarData != nil {
+		if err := s.docker.PutArchive(ctx, containerID, tarData); err != nil {
+			s.log.Error("put archive failed", "session_id", sessionID, "err", err)
+			_ = s.db.UpdateStatus(sessionID, "crashed", nil)
+			s.webhook.Send(ctx, webhook.Payload{
+				Event:     "container.crashed",
+				SessionID: sessionID,
+				Port:      port,
+				Error:     err.Error(),
+			})
+			return
+		}
+	}
+
+	if err := s.docker.Start(ctx, containerID, sessionID, port); err != nil {
 		s.log.Error("container start failed", "session_id", sessionID, "err", err)
 		_ = s.db.UpdateStatus(sessionID, "crashed", nil)
-		s.pool.Release(port)
 		s.webhook.Send(ctx, webhook.Payload{
 			Event:     "container.crashed",
 			SessionID: sessionID,
@@ -121,6 +234,88 @@ func (s *Service) startContainer(sessionID string, port int) {
 
 	_ = s.db.UpdateStatus(sessionID, "starting", &containerID)
 	s.log.Info("container created", "session_id", sessionID, "container_id", containerID, "port", port)
+}
+
+// buildDataTar downloads apworld and YAML files from Minio and returns a tar archive
+// ready to be uploaded into the container at /data. Returns the number of files written.
+// All entries are owned by UID/GID 1000 (bridge user) so the bridge process can write to them.
+func (s *Service) buildDataTar(ctx context.Context, sessionID string) (*bytes.Buffer, int, error) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	written := 0
+
+	// Create directories with bridge user ownership so the bridge process can write to them.
+	for _, dir := range []string{"worlds/", "yamls/", "saves/", "output/"} {
+		if err := tw.WriteHeader(&tar.Header{
+			Typeflag: tar.TypeDir,
+			Name:     dir,
+			Mode:     0755,
+			Uid:      1000,
+			Gid:      1000,
+		}); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	manifest, err := s.storage.ReadManifest(ctx, sessionID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("read manifest: %w", err)
+	}
+
+	for _, ref := range manifest.Apworlds {
+		data, err := s.storage.DownloadApworld(ctx, ref.Hash)
+		if err != nil {
+			return nil, 0, fmt.Errorf("download apworld %s: %w", ref.Filename, err)
+		}
+		if err := tw.WriteHeader(&tar.Header{
+			Name: "worlds/" + ref.Filename, Mode: 0644, Size: int64(len(data)), Uid: 1000, Gid: 1000,
+		}); err != nil {
+			return nil, 0, err
+		}
+		if _, err := tw.Write(data); err != nil {
+			return nil, 0, err
+		}
+		written++
+	}
+
+	yamls, err := s.storage.ListSessionYamls(ctx, sessionID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list yamls: %w", err)
+	}
+	for _, name := range yamls {
+		data, err := s.storage.DownloadSessionYaml(ctx, sessionID, name)
+		if err != nil {
+			return nil, 0, fmt.Errorf("download yaml %s: %w", name, err)
+		}
+		if err := tw.WriteHeader(&tar.Header{
+			Name: "yamls/" + name, Mode: 0644, Size: int64(len(data)), Uid: 1000, Gid: 1000,
+		}); err != nil {
+			return nil, 0, err
+		}
+		if _, err := tw.Write(data); err != nil {
+			return nil, 0, err
+		}
+		written++
+	}
+
+	// Inject the Bridge observer slot so the bridge WS client can connect to the AP server.
+	// The Archipelago game type is a TextOnly spectator slot; it needs explicit game options
+	// so that Generate.roll_settings does not raise "No game options found".
+	bridgeYaml := []byte("name: Bridge\ngame: Archipelago\nArchipelago:\n  progression_balancing: 0\n  accessibility: items\n")
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "yamls/_bridge_observer.yaml", Mode: 0644, Size: int64(len(bridgeYaml)), Uid: 1000, Gid: 1000,
+	}); err != nil {
+		return nil, 0, err
+	}
+	if _, err := tw.Write(bridgeYaml); err != nil {
+		return nil, 0, err
+	}
+	written++
+
+	if err := tw.Close(); err != nil {
+		return nil, 0, err
+	}
+	return &buf, written, nil
 }
 
 // HandleDockerEvent processes events from the Docker event stream.
@@ -142,7 +337,6 @@ func (s *Service) HandleDockerEvent(ctx context.Context, event docker.Event) {
 
 	case docker.EventDie:
 		_ = s.db.UpdateStatus(event.SessionID, "crashed", &event.ContainerID)
-		s.pool.Release(c.Port)
 		s.webhook.Send(ctx, webhook.Payload{
 			Event:     "container.crashed",
 			SessionID: event.SessionID,
@@ -204,7 +398,7 @@ func (s *Service) Remove(ctx context.Context, sessionID string) error {
 	return s.db.Delete(sessionID)
 }
 
-func (s *Service) Get(sessionID string) (*db.Container, error) {
+func (s *Service) Get(ctx context.Context, sessionID string) (*db.Container, error) {
 	c, err := s.db.Get(sessionID)
 	if err != nil {
 		return nil, err
@@ -212,9 +406,48 @@ func (s *Service) Get(sessionID string) (*db.Container, error) {
 	if c == nil {
 		return nil, ErrNotFound
 	}
+	s.syncStatus(ctx, c)
 	return c, nil
 }
 
 func (s *Service) List() ([]*db.Container, error) {
 	return s.db.List()
+}
+
+// syncStatus queries Docker for the real state of a single container and updates the record in-place.
+func (s *Service) syncStatus(ctx context.Context, c *db.Container) {
+	if c.ContainerID == nil {
+		return
+	}
+	info, err := s.docker.Inspect(ctx, *c.ContainerID)
+	if err != nil {
+		s.log.Warn("inspect failed", "session_id", c.SessionID, "err", err)
+		return
+	}
+	var live string
+	if info == nil {
+		live = "crashed"
+	} else {
+		live = dockerStatusToApp(*info)
+	}
+	if live != c.Status {
+		c.Status = live
+		_ = s.db.UpdateStatus(c.SessionID, live, c.ContainerID)
+	}
+}
+
+func dockerStatusToApp(info docker.ContainerStatus) string {
+	switch info.Status {
+	case "running", "restarting":
+		return "running"
+	case "created":
+		return "starting"
+	case "exited", "dead":
+		if info.ExitCode == 0 {
+			return "stopped"
+		}
+		return "crashed"
+	default:
+		return info.Status
+	}
 }

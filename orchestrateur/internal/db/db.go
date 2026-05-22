@@ -21,6 +21,22 @@ CREATE TABLE IF NOT EXISTS containers (
 	created_at   DATETIME NOT NULL,
 	updated_at   DATETIME NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS sessions (
+	session_id          TEXT PRIMARY KEY,
+	status              TEXT NOT NULL DEFAULT 'pending',
+	bridge_container_id TEXT,
+	ap_container_id     TEXT,
+	bridge_port         INTEGER,
+	ap_port             INTEGER,
+	server_password     TEXT,
+	admin_password      TEXT,
+	output_file         TEXT,
+	generation_job_id   TEXT,
+	status_deadline     DATETIME,
+	created_at          DATETIME NOT NULL,
+	updated_at          DATETIME NOT NULL
+);
 `
 
 func New(path string) (*DB, error) {

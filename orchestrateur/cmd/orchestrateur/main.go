@@ -1,3 +1,11 @@
+// @title           Archilan Orchestrateur API
+// @version         1.0
+// @description     Gestion des containers Bridge Archipelago — création, arrêt, suppression et monitoring.
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
+// @description     Bearer <API_KEY>
 package main
 
 import (
@@ -10,12 +18,14 @@ import (
 	"syscall"
 	"time"
 
+	_ "archilan.fr/orchestrateur/docs"
 	"archilan.fr/orchestrateur/internal/api"
 	"archilan.fr/orchestrateur/internal/config"
 	"archilan.fr/orchestrateur/internal/db"
 	"archilan.fr/orchestrateur/internal/docker"
 	"archilan.fr/orchestrateur/internal/portpool"
 	"archilan.fr/orchestrateur/internal/service"
+	"archilan.fr/orchestrateur/internal/storage"
 	"archilan.fr/orchestrateur/internal/webhook"
 )
 
@@ -36,9 +46,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	var storageCl *storage.Client
+	if cfg.MinioEndpoint != "" {
+		sc, err := storage.New(storage.Config{
+			Endpoint:       cfg.MinioEndpoint,
+			AccessKey:      cfg.MinioAccessKey,
+			SecretKey:      cfg.MinioSecretKey,
+			UseSSL:         cfg.MinioUseSSL,
+			BucketApworlds: cfg.MinioBucketApworlds,
+			BucketSessions: cfg.MinioBucketSessions,
+		})
+		if err != nil {
+			log.Error("storage init failed", "err", err)
+			os.Exit(1)
+		}
+		storageCl = sc
+		log.Info("minio storage connected", "endpoint", cfg.MinioEndpoint)
+	}
+
 	pool := portpool.New(cfg.PortRangeStart, cfg.PortRangeEnd)
 	webhookSender := webhook.New(cfg.WebhookURL, cfg.WebhookSecret, log)
-	svc := service.New(database, dockerClient, pool, webhookSender, cfg, log)
+	svc := service.New(database, dockerClient, pool, webhookSender, storageCl, cfg, log)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -47,6 +75,8 @@ func main() {
 		log.Error("recovery failed", "err", err)
 		os.Exit(1)
 	}
+
+	go svc.RunSweeper(ctx)
 
 	// Watch Docker events in background.
 	go func() {

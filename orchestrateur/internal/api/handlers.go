@@ -3,10 +3,13 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
+	"archilan.fr/orchestrateur/internal/db"
 	"archilan.fr/orchestrateur/internal/service"
 )
 
@@ -17,15 +20,123 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
+	writeJSON(w, status, ErrorResponse{Error: msg})
 }
 
-func handleHealth() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+func toResponse(c *db.Container) ContainerResponse {
+	return ContainerResponse{
+		SessionID:   c.SessionID,
+		Port:        c.Port,
+		Status:      c.Status,
+		ContainerID: c.ContainerID,
+		Image:       c.Image,
+		CreatedAt:   c.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   c.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
+// handleHealth godoc
+// @Summary     Health check
+// @Description Returns ok when the service is up
+// @Tags        system
+// @Produce     json
+// @Success     200 {object} HealthResponse
+// @Router      /health [get]
+func handleHealth() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+	}
+}
+
+// handleUploadApworld godoc
+// @Summary     Upload an apworld and generate its YAML template
+// @Description Stores the apworld in Minio, runs a one-shot Archipelago container to generate
+// @Description the default YAML template, stores it, and returns both the hash and the YAML.
+// @Tags        apworlds
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       file formData file true "The .apworld file"
+// @Success     201 {object} UploadApworldResponse
+// @Failure     400 {object} ErrorResponse
+// @Failure     500 {object} ErrorResponse
+// @Failure     503 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /apworlds [post]
+func handleUploadApworld(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(64 << 20); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid multipart form")
+			return
+		}
+
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "file is required")
+			return
+		}
+		defer file.Close()
+
+		data, err := io.ReadAll(file)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to read file")
+			return
+		}
+
+		hash, yamlData, err := svc.UploadApworld(r.Context(), data)
+		if errors.Is(err, service.ErrStorageNotConfigured) {
+			writeError(w, http.StatusServiceUnavailable, "storage not configured")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusCreated, UploadApworldResponse{
+			Hash: hash,
+			Yaml: string(yamlData),
+		})
+	}
+}
+
+// handleGetApworldTemplate godoc
+// @Summary     Get apworld default YAML template
+// @Description Returns the default YAML template for the given apworld hash
+// @Tags        apworlds
+// @Param       hash path string true "Apworld SHA-256 hash"
+// @Produce     plain
+// @Success     200 {string} string
+// @Failure     404 {object} ErrorResponse
+// @Failure     500 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /apworlds/{hash}/yaml-template [get]
+func handleGetApworldTemplate(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		hash := chi.URLParam(r, "hash")
+		data, err := svc.GetApworldTemplate(r.Context(), hash)
+		if errors.Is(err, service.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "template not found")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	}
+}
+
+// handleListContainers godoc
+// @Summary     List containers
+// @Description Returns all managed Bridge containers
+// @Tags        containers
+// @Produce     json
+// @Success     200 {object} ContainersResponse
+// @Failure     500 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /containers [get]
 func handleListContainers(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		containers, err := svc.List()
@@ -33,14 +144,29 @@ func handleListContainers(svc *service.Service) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"containers": containers})
+		resp := ContainersResponse{Containers: make([]ContainerResponse, 0, len(containers))}
+		for _, c := range containers {
+			resp.Containers = append(resp.Containers, toResponse(c))
+		}
+		writeJSON(w, http.StatusOK, resp)
 	}
 }
 
+// handleGetContainer godoc
+// @Summary     Get container
+// @Description Returns a single managed Bridge container by session ID
+// @Tags        containers
+// @Produce     json
+// @Param       sessionId path     string true "Session ID"
+// @Success     200       {object} ContainerResponse
+// @Failure     404       {object} ErrorResponse
+// @Failure     500       {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /containers/{sessionId} [get]
 func handleGetContainer(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := chi.URLParam(r, "sessionId")
-		c, err := svc.Get(sessionID)
+		c, err := svc.Get(r.Context(), sessionID)
 		if errors.Is(err, service.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "session not found")
 			return
@@ -49,23 +175,40 @@ func handleGetContainer(svc *service.Service) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		writeJSON(w, http.StatusOK, c)
+		writeJSON(w, http.StatusOK, toResponse(c))
 	}
 }
 
-type createRequest struct {
-	SessionID string `json:"sessionId"`
-}
-
+// handleCreateContainer godoc
+// @Summary     Create container
+// @Description Allocates a port, starts a Bridge container, and records it. Returns immediately; webhook fires when container is ready.
+// @Tags        containers
+// @Accept      json
+// @Produce     json
+// @Param       body body     CreateContainerRequest true "Session info"
+// @Success     202  {object} CreateContainerResponse
+// @Failure     400  {object} ErrorResponse
+// @Failure     409  {object} ErrorResponse "Session already exists"
+// @Failure     503  {object} ErrorResponse "Port pool exhausted"
+// @Security    BearerAuth
+// @Router      /containers [post]
 func handleCreateContainer(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req createRequest
+		var req CreateContainerRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.SessionID == "" {
 			writeError(w, http.StatusBadRequest, "sessionId is required")
 			return
 		}
+		if req.AdminPassword == "" {
+			writeError(w, http.StatusBadRequest, "adminPassword is required")
+			return
+		}
 
-		port, err := svc.Create(r.Context(), service.CreateRequest{SessionID: req.SessionID})
+		port, err := svc.Create(r.Context(), service.CreateRequest{
+			SessionID:      req.SessionID,
+			ServerPassword: req.ServerPassword,
+			AdminPassword:  req.AdminPassword,
+		})
 		if errors.Is(err, service.ErrAlreadyExists) {
 			writeError(w, http.StatusConflict, "session already exists")
 			return
@@ -79,14 +222,24 @@ func handleCreateContainer(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		writeJSON(w, http.StatusAccepted, map[string]any{
-			"sessionId": req.SessionID,
-			"port":      port,
-			"status":    "starting",
+		writeJSON(w, http.StatusAccepted, CreateContainerResponse{
+			SessionID: req.SessionID,
+			Port:      port,
+			Status:    "starting",
 		})
 	}
 }
 
+// handleStopContainer godoc
+// @Summary     Stop container
+// @Description Sends SIGTERM to a running Bridge container
+// @Tags        containers
+// @Param       sessionId path string true "Session ID"
+// @Success     204
+// @Failure     404 {object} ErrorResponse
+// @Failure     500 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /containers/{sessionId}/stop [post]
 func handleStopContainer(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := chi.URLParam(r, "sessionId")
@@ -102,6 +255,16 @@ func handleStopContainer(svc *service.Service) http.HandlerFunc {
 	}
 }
 
+// handleReloadContainer godoc
+// @Summary     Reload container
+// @Description Restarts a Bridge container
+// @Tags        containers
+// @Param       sessionId path string true "Session ID"
+// @Success     204
+// @Failure     404 {object} ErrorResponse
+// @Failure     500 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /containers/{sessionId}/reload [post]
 func handleReloadContainer(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := chi.URLParam(r, "sessionId")
@@ -117,6 +280,16 @@ func handleReloadContainer(svc *service.Service) http.HandlerFunc {
 	}
 }
 
+// handleRemoveContainer godoc
+// @Summary     Remove container
+// @Description Force-removes a Bridge container and releases its port
+// @Tags        containers
+// @Param       sessionId path string true "Session ID"
+// @Success     204
+// @Failure     404 {object} ErrorResponse
+// @Failure     500 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /containers/{sessionId} [delete]
 func handleRemoveContainer(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := chi.URLParam(r, "sessionId")
