@@ -97,9 +97,29 @@ fi
 git_ctx=""
 if [ $fail -eq 0 ]; then
     uncommitted=$(git -C "$REPO_ROOT" status --short 2>/dev/null | wc -l | tr -d ' ')
+    branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null)
+
     if [ "$uncommitted" -gt 0 ]; then
-        branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null)
-        git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche '${branch}'. Effectue le workflow git maintenant : analyse les changements (git diff HEAD), regroupe-les en commits conventionnels logiques avec des messages descriptifs, puis push vers l'origin. Si tu es sur une branche feature, propose de créer une PR vers main."
+        case "$branch" in
+            feature/*)
+                git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche feature '${branch}'. Effectue le workflow git : analyse les changements (git diff HEAD), crée des commits conventionnels logiques avec des messages descriptifs, push vers origin, puis ouvre une PR vers 'develop'."
+                ;;
+            hotfix/*)
+                git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche hotfix '${branch}'. Effectue le workflow git : crée des commits conventionnels, push vers origin, puis ouvre une PR vers 'main' ET une PR vers 'develop' (le hotfix doit merger dans les deux)."
+                ;;
+            release/*)
+                git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche release '${branch}'. Effectue le workflow git : crée des commits conventionnels, push vers origin, puis ouvre une PR vers 'main' et une PR vers 'develop'."
+                ;;
+            develop)
+                git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur 'develop'. Rappel Gitflow : 'develop' ne doit recevoir que des merges de branches feature/hotfix/release, pas de commits directs. Si ce travail correspond à une story BMAD, crée une branche feature/* et commite là-bas."
+                ;;
+            main)
+                git_ctx="ATTENTION : tu es sur 'main' avec des changements non commités. Selon le Gitflow du projet, 'main' ne reçoit que des merges de release/* ou hotfix/* via PR. Ne commite pas directement sur main — crée une branche appropriée."
+                ;;
+            *)
+                git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche '${branch}'. Effectue le workflow git : analyse les changements (git diff HEAD), crée des commits conventionnels avec des messages descriptifs, puis push vers origin."
+                ;;
+        esac
     fi
 fi
 
