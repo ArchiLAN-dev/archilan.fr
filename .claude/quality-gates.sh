@@ -93,28 +93,27 @@ else
     header="❌ Quality gates : ${pass} OK, ${fail} EN ÉCHEC — corriger avant de continuer"
 fi
 
-# ── Auto-commit when all gates are green ──────────────────────────────────────
-commit_line=""
+# ── Ask Claude to run the git workflow when all gates are green ────────────────
+git_ctx=""
 if [ $fail -eq 0 ]; then
     uncommitted=$(git -C "$REPO_ROOT" status --short 2>/dev/null | wc -l | tr -d ' ')
     if [ "$uncommitted" -gt 0 ]; then
-        dirs=$(git -C "$REPO_ROOT" status --short \
-            | awk '{print $NF}' | cut -d/ -f1 | sort -u \
-            | paste -sd ', ' -)
-        commit_msg="chore(session): ${dirs} — quality gates ✅"
-        git -C "$REPO_ROOT" add -A 2>/dev/null
-        if git -C "$REPO_ROOT" commit -m "$commit_msg" 2>/dev/null; then
-            sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null)
-            commit_line="📦 Commit : ${sha} — ${commit_msg}"
-        else
-            commit_line="⚠️ Auto-commit échoué (rien à committer ou hook bloquant)"
-        fi
+        branch=$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null)
+        git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche '${branch}'. Effectue le workflow git maintenant : analyse les changements (git diff HEAD), regroupe-les en commits conventionnels logiques avec des messages descriptifs, puis push vers l'origin. Si tu es sur une branche feature, propose de créer une PR vers main."
     fi
 fi
 
+# ── Emit JSON (systemMessage + optional additionalContext) ─────────────────────
 msg="${header}\n\n${details}"
-if [ -n "$commit_line" ]; then
-    msg="${msg}${commit_line}\n"
-fi
-printf '{"systemMessage": %s}\n' \
-    "$(printf '%s' "$msg" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+printf '%s' "$msg" | GATE_CTX="$git_ctx" python3 -c '
+import json, sys, os
+msg = sys.stdin.read()
+ctx = os.environ.get("GATE_CTX", "")
+output = {"systemMessage": msg}
+if ctx:
+    output["hookSpecificOutput"] = {
+        "hookEventName": "Stop",
+        "additionalContext": ctx
+    }
+print(json.dumps(output))
+'
