@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import signal
-import sys
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
 
 import pytest
 

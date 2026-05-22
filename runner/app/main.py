@@ -541,6 +541,36 @@ async def launch(request: Request, session_id: str) -> JSONResponse:
     return JSONResponse(result)
 
 
+@app.post("/sessions/{session_id}/launch-from-file", dependencies=[Depends(_require_api_key)])
+async def launch_from_file(request: Request, session_id: str) -> JSONResponse:
+    """Launch an Archipelago server from a pre-generated seed file without running generation."""
+    body: dict[str, Any] = await _json_body(request)
+    output_file = body.get("outputFile", "")
+    if not isinstance(output_file, str) or not output_file.strip():
+        return JSONResponse({"error": "invalid_request", "details": ["outputFile is required"]}, status_code=422)
+
+    bridge_config_raw = body.get("bridgeConfig")
+    bridge_env: dict[str, str] | None = None
+    if isinstance(bridge_config_raw, dict):
+        bridge_env = {k: v for k, v in bridge_config_raw.items() if isinstance(k, str) and isinstance(v, str)} or None
+
+    # Register session as pre-generated so launch_server can proceed directly.
+    session_store.create(session_id)
+    session_store.update(session_id, status="generated", outputFile=output_file)
+
+    result = await launch_server(session_id, session_store, port_pool, docker_manager, image=ARCHIPELAGO_SERVER_IMAGE, workspace_volume=ARCHIPELAGO_WORKSPACE_VOLUME or None, bridge_env=bridge_env)
+    if "error" in result:
+        err = result["error"]
+        if err in ("already_running", "not_ready"):
+            return JSONResponse(result, status_code=409)
+        return JSONResponse(result, status_code=503)
+    logger.info(
+        "server launched from file",
+        extra={"request_id": getattr(request.state, "request_id", "-"), "session_id": session_id, "outputFile": output_file},
+    )
+    return JSONResponse(result)
+
+
 @app.post("/sessions/{session_id}/restart", dependencies=[Depends(_require_api_key)])
 async def restart(request: Request, session_id: str) -> JSONResponse:
     body: dict[str, Any] = await _json_body(request)

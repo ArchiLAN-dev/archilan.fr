@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pathlib
 
-import pytest
 from fastapi.testclient import TestClient
 
 API_KEY = "test-secret"

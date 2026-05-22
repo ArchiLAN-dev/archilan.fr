@@ -44,7 +44,7 @@ async def _health_check_loop(
         port = session.get("containerPort")
         if port is None:
             break
-        ok = _tcp_ping("127.0.0.1", port)
+        ok = _tcp_ping(os.environ.get("HEALTH_CHECK_HOST", "host.docker.internal"), port)
         if ok:
             failures = 0
         else:
@@ -55,7 +55,10 @@ async def _health_check_loop(
                 if container_id:
                     docker_manager.stop_container(container_id)
                 port_pool.release(port)
-                store.update(session_id, status="crashed", containerPort=None, containerId=None)
+                bridge_port = session.get("containerBridgePort")
+                if bridge_port is not None:
+                    port_pool.release(bridge_port)
+                store.update(session_id, status="crashed", containerPort=None, containerBridgePort=None, containerId=None)
                 logger.error("session %s crashed after %d consecutive health check failures", session_id, failures)
                 await notify_status(session_id, "crashed")
                 break
@@ -85,6 +88,11 @@ async def launch_server(
     if port is None:
         return {"error": "no_ports_available"}
 
+    bridge_port = port_pool.allocate()
+    if bridge_port is None:
+        port_pool.release(port)
+        return {"error": "no_ports_available"}
+
     output_file: str = session["outputFile"]
     output_dir = os.path.dirname(output_file)
     password = secrets.token_urlsafe(12)
@@ -93,6 +101,7 @@ async def launch_server(
         container = docker_manager.run_container(
             image=image,
             host_port=port,
+            bridge_port=bridge_port,
             output_dir=output_dir,
             password=password,
             workspace_volume=workspace_volume,
@@ -101,6 +110,7 @@ async def launch_server(
         container_id = str(container.id)
     except Exception as exc:
         port_pool.release(port)
+        port_pool.release(bridge_port)
         logger.error("failed to start container for session %s: %s", session_id, exc)
         return {"error": "container_start_failed", "details": str(exc)}
 
@@ -108,6 +118,7 @@ async def launch_server(
         session_id,
         status="running",
         containerPort=port,
+        containerBridgePort=bridge_port,
         containerHost="0.0.0.0",
         serverPassword=password,
         containerId=container_id,
@@ -119,6 +130,7 @@ async def launch_server(
     return {
         "containerHost": "0.0.0.0",
         "containerPort": port,
+        "containerBridgePort": bridge_port,
         "serverPassword": password,
     }
 
@@ -135,13 +147,16 @@ async def stop_server(
 
     container_id = session.get("containerId")
     port = session.get("containerPort")
+    bridge_port = session.get("containerBridgePort")
 
     if container_id:
         docker_manager.stop_container(container_id)
     if port is not None:
         port_pool.release(port)
+    if bridge_port is not None:
+        port_pool.release(bridge_port)
 
-    store.update(session_id, status="stopped", containerPort=None, containerId=None, serverPassword=None)
+    store.update(session_id, status="stopped", containerPort=None, containerBridgePort=None, containerId=None, serverPassword=None)
     return {"status": "stopped"}
 
 
@@ -167,12 +182,15 @@ async def restart_server(
 
     container_id = session.get("containerId")
     current_port = session.get("containerPort")
+    current_bridge_port = session.get("containerBridgePort")
 
     if container_id:
         docker_manager.stop_container(container_id)
     if current_port is not None:
         port_pool.release(current_port)
+    if current_bridge_port is not None:
+        port_pool.release(current_bridge_port)
 
-    store.update(session_id, status="generated", containerPort=None, containerId=None, serverPassword=None)
+    store.update(session_id, status="generated", containerPort=None, containerBridgePort=None, containerId=None, serverPassword=None)
 
     return await launch_server(session_id, store, port_pool, docker_manager, image=image, workspace_volume=workspace_volume, bridge_env=bridge_env)
