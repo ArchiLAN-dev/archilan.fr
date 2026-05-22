@@ -5,6 +5,8 @@ on:
     paths:
       - 'api/**'
       - 'bridge/**'
+      - 'orchestrateur/**'
+      - 'frontend/**'
       - '.github/workflows/backend.yml'
   push:
     branches:
@@ -12,6 +14,8 @@ on:
     paths:
       - 'api/**'
       - 'bridge/**'
+      - 'orchestrateur/**'
+      - 'frontend/**'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
 
@@ -103,6 +107,64 @@ jobs:
 
       - name: Bridge script entry point smoke test
         run: python bridge/bridge.py --check-imports
+
+  orchestrateur:
+    name: Orchestrateur (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orchestrateur
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: orchestrateur/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
 
   bridge-docker:
     name: Bridge Docker
