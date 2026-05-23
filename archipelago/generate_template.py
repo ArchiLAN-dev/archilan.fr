@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Generate Archipelago YAML template for a given game."""
 import argparse
+import atexit
 import importlib
 import importlib.abc
 import importlib.machinery
 import json as _json
 import os
 import pathlib
+import shutil
 import sys
+import tempfile
 import traceback
 import types
 import zipfile
@@ -213,14 +216,23 @@ if args.world_directory:
         if world_mod_name in sys.modules:
             continue
 
-        # Insert at position 0 so the custom apworld ZIP takes priority over any
-        # built-in world with the same name in ARCH_SRC/worlds (e.g. soe, pokemon_emerald).
-        _worlds_stub.__path__.insert(0, str(_apw))
+        # Extract to a temp directory so __file__-based open() calls work.
+        # Loading the ZIP directly via zipimport sets __file__ to a path inside
+        # the archive (e.g. /tmp/xxx.apworld/raft/module.pyc), which is not a
+        # real filesystem path — open() on it fails with NotADirectoryError.
+        _tmp_dir = tempfile.mkdtemp(prefix="apworld_")
+        atexit.register(shutil.rmtree, _tmp_dir, True)
+        with zipfile.ZipFile(str(_apw)) as _zf:
+            _zf.extractall(_tmp_dir)
+
+        # Insert at position 0 so the custom apworld takes priority over any
+        # built-in world with the same name in ARCH_SRC/worlds.
+        _worlds_stub.__path__.insert(0, _tmp_dir)
         try:
             importlib.import_module(world_mod_name)
             _loaded_pkg_names.append(pkg_name)
         except Exception as exc:
-            _worlds_stub.__path__.remove(str(_apw))
+            _worlds_stub.__path__.remove(_tmp_dir)
             print(f"Warning: failed to load {_apw.name} ({pkg_name}): {exc}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
 

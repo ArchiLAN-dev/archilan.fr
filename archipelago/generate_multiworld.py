@@ -9,6 +9,7 @@ Python 3.12 and cannot load them).
 Stubs out client-only third-party C extensions that apworlds import at module
 level but are never needed server-side (dolphin_memory_engine, gclib, …).
 """
+import atexit
 import importlib.abc
 import importlib.machinery
 import json as _json
@@ -171,11 +172,15 @@ if __name__ == "__main__":
             _mod = f"worlds.{_pkg}"
             if _mod in sys.modules:
                 continue
-            _worlds_pkg.__path__.append(str(_apw))
+            _tmp_dir = tempfile.mkdtemp(prefix="apworld_")
+            atexit.register(shutil.rmtree, _tmp_dir, True)
+            with zipfile.ZipFile(str(_apw)) as _zf2:
+                _zf2.extractall(_tmp_dir)
+            _worlds_pkg.__path__.append(_tmp_dir)
             try:
                 importlib.import_module(_mod)
             except Exception as _e:
-                _worlds_pkg.__path__.remove(str(_apw))
+                _worlds_pkg.__path__.remove(_tmp_dir)
                 print(f"Warning: failed to load {_apw.name} ({_pkg}): {_e}", file=sys.stderr)
 
     # Consume --world_directory and strip it from sys.argv so Generate.main()
