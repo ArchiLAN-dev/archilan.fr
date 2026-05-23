@@ -45,6 +45,21 @@ final readonly class AdminEventCoverImageController
             );
         }
 
+        if (!$file->isValid()) {
+            $uploadError = $file->getError();
+            if (\UPLOAD_ERR_INI_SIZE === $uploadError || \UPLOAD_ERR_FORM_SIZE === $uploadError) {
+                return new JsonResponse(
+                    ['error' => ['code' => 'image_too_large', 'message' => "L'image ne peut pas dépasser 10 Mo."]],
+                    422,
+                );
+            }
+
+            return new JsonResponse(
+                ['error' => ['code' => 'upload_error', 'message' => 'Le fichier uploadé est invalide.']],
+                422,
+            );
+        }
+
         if ($file->getSize() > self::MAX_SIZE_BYTES) {
             return new JsonResponse(
                 ['error' => ['code' => 'image_too_large', 'message' => "L'image ne peut pas dépasser 10 Mo."]],

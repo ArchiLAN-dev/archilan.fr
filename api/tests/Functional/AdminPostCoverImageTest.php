@@ -93,8 +93,8 @@ final class AdminPostCoverImageTest extends FunctionalTestCase
         $this->loginAs($admin);
         $postId = $this->createPost();
 
-        $tmpFile = $this->createTempImage('image/jpeg', 10 * 1024 * 1024 + 100);
-        $uploadedFile = new UploadedFile($tmpFile, 'cover.jpg', 'image/jpeg', null, true);
+        $tmpFile = $this->createTempImage('image/jpeg');
+        $uploadedFile = new UploadedFile($tmpFile, 'cover.jpg', 'image/jpeg', \UPLOAD_ERR_INI_SIZE, true);
 
         $this->client->request('POST', sprintf('/api/v1/admin/posts/%s/cover-image', $postId), [], ['file' => $uploadedFile]);
 

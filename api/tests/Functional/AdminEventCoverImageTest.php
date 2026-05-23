@@ -95,8 +95,8 @@ final class AdminEventCoverImageTest extends FunctionalTestCase
         $this->loginAs($admin);
         $eventId = $this->createEventViaApi();
 
-        $tmpFile = $this->createTempImage('image/jpeg', 10 * 1024 * 1024 + 100);
-        $uploadedFile = new UploadedFile($tmpFile, 'cover.jpg', 'image/jpeg', null, true);
+        $tmpFile = $this->createTempImage('image/jpeg');
+        $uploadedFile = new UploadedFile($tmpFile, 'cover.jpg', 'image/jpeg', \UPLOAD_ERR_INI_SIZE, true);
 
         $this->client->request('POST', sprintf('/api/v1/admin/events/%s/cover-image', $eventId), [], ['file' => $uploadedFile]);
 
