@@ -44,6 +44,15 @@ _orjson.loads = _json.loads  # type: ignore[attr-defined]
 _orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
 sys.modules["orjson"] = _orjson
 
+# pkg_resources: setuptools 71+ no longer ships it as a standalone top-level
+# package. Pre-populate sys.modules from pip's vendored copy so apworlds that
+# call pkg_resources.resource_listdir() get the real implementation.
+try:
+    import pkg_resources  # noqa: F401
+except ImportError:
+    from pip._vendor import pkg_resources as _pr  # type: ignore[no-redef]
+    sys.modules["pkg_resources"] = _pr
+
 # ─── Source tree ──────────────────────────────────────────────────────────────
 sys.path.insert(0, ARCH_SRC)
 
@@ -117,7 +126,7 @@ class _Stub:
     def __repr__(self): return "stub"
     def __bytes__(self): return b""
     def __hash__(self): return 0
-    def __iter__(self): return iter([])
+    def __iter__(self): return iter([_Stub()])
     def __len__(self): return 0
     def items(self): return {}.items()
     def values(self): return {}.values()

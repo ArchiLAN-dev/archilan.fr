@@ -8,6 +8,7 @@ import json as _json
 import os
 import pathlib
 import sys
+import traceback
 import types
 import zipfile
 
@@ -37,6 +38,16 @@ _orjson = types.ModuleType("orjson")
 _orjson.loads = _json.loads  # type: ignore[attr-defined]
 _orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
 sys.modules["orjson"] = _orjson
+
+# pkg_resources: setuptools 71+ no longer ships it as a standalone top-level
+# package (removed from site-packages). Pre-populate sys.modules from pip's
+# vendored copy so apworlds that call pkg_resources.resource_listdir() (e.g.
+# pokemon_emerald) get the real implementation instead of an auto-stub.
+try:
+    import pkg_resources  # noqa: F401 — already installed (older setuptools)
+except ImportError:
+    from pip._vendor import pkg_resources as _pr  # type: ignore[no-redef]
+    sys.modules["pkg_resources"] = _pr
 
 # ─── Worlds stub + source tree ────────────────────────────────────────────────
 # Inject a stub `worlds` package so importing worlds.AutoWorld does NOT trigger
@@ -153,7 +164,7 @@ class _Stub:
     def __repr__(self): return "stub"
     def __bytes__(self): return b""
     def __hash__(self): return 0
-    def __iter__(self): return iter([])
+    def __iter__(self): return iter([_Stub()])
     def __len__(self): return 0
     def items(self): return {}.items()
     def values(self): return {}.values()
@@ -202,13 +213,16 @@ if args.world_directory:
         if world_mod_name in sys.modules:
             continue
 
-        _worlds_stub.__path__.append(str(_apw))
+        # Insert at position 0 so the custom apworld ZIP takes priority over any
+        # built-in world with the same name in ARCH_SRC/worlds (e.g. soe, pokemon_emerald).
+        _worlds_stub.__path__.insert(0, str(_apw))
         try:
             importlib.import_module(world_mod_name)
             _loaded_pkg_names.append(pkg_name)
         except Exception as exc:
             _worlds_stub.__path__.remove(str(_apw))
             print(f"Warning: failed to load {_apw.name} ({pkg_name}): {exc}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
 # ── Pick the game registered by the apworld ──────────────────────────────────
 # Filter by __module__ to exclude built-in worlds pulled in as transitive imports
