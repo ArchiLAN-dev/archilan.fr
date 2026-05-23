@@ -45,17 +45,17 @@ final readonly class AdminEventCoverImageController
             );
         }
 
-        $mime = $file->getMimeType() ?? '';
-        if (!array_key_exists($mime, self::ALLOWED_MIMES)) {
+        if ($file->getSize() > self::MAX_SIZE_BYTES) {
             return new JsonResponse(
-                ['error' => ['code' => 'image_invalid_type', 'message' => 'Type de fichier non supporté. Utilisez JPEG, PNG ou WebP.']],
+                ['error' => ['code' => 'image_too_large', 'message' => "L'image ne peut pas dépasser 10 Mo."]],
                 422,
             );
         }
 
-        if ($file->getSize() > self::MAX_SIZE_BYTES) {
+        $mime = $file->getMimeType() ?? '';
+        if (!array_key_exists($mime, self::ALLOWED_MIMES)) {
             return new JsonResponse(
-                ['error' => ['code' => 'image_too_large', 'message' => "L'image ne peut pas dépasser 10 Mo."]],
+                ['error' => ['code' => 'image_invalid_type', 'message' => 'Type de fichier non supporté. Utilisez JPEG, PNG ou WebP.']],
                 422,
             );
         }
