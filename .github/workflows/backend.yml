@@ -170,7 +170,7 @@ jobs:
     name: Bridge Docker
     needs: bridge
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && github.event_name == 'push'
 
     steps:
       - name: Checkout
@@ -190,7 +190,7 @@ jobs:
           file: bridge/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/bridge:latest
+            ghcr.io/${{ github.repository_owner }}/bridge:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
             ghcr.io/${{ github.repository_owner }}/bridge:${{ github.sha }}
 
   bridge-deploy:
