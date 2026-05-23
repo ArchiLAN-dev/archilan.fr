@@ -11,6 +11,7 @@ import (
 
 	"archilan.fr/orchestrateur/internal/db"
 	"archilan.fr/orchestrateur/internal/service"
+	"archilan.fr/orchestrateur/internal/templateparser"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -92,9 +93,22 @@ func handleUploadApworld(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
+		parsed := templateparser.Parse(yamlData)
+		apiOptions := make([]TemplateOption, len(parsed))
+		for i, o := range parsed {
+			apiOptions[i] = TemplateOption{
+				Key:          o.Key,
+				Description:  o.Description,
+				Type:         o.Type,
+				DefaultValue: o.DefaultValue,
+				ValidValues:  o.ValidValues,
+				RangeMin:     o.RangeMin,
+				RangeMax:     o.RangeMax,
+			}
+		}
 		writeJSON(w, http.StatusCreated, UploadApworldResponse{
-			Hash: hash,
-			Yaml: string(yamlData),
+			Hash:    hash,
+			Options: apiOptions,
 		})
 	}
 }
@@ -109,7 +123,7 @@ func handleUploadApworld(svc *service.Service) http.HandlerFunc {
 // @Failure     404 {object} ErrorResponse
 // @Failure     500 {object} ErrorResponse
 // @Security    BearerAuth
-// @Router      /apworlds/{hash}/yaml-template [get]
+// @Router      /apworlds/{hash}/yaml [get]
 func handleGetApworldTemplate(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		hash := chi.URLParam(r, "hash")

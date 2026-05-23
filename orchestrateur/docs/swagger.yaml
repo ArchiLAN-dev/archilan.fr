@@ -1,6 +1,38 @@
 basePath: /
 definitions:
-  internal_api.ContainerResponse:
+  api.ConfigureResponse:
+    properties:
+      slots:
+        items:
+          $ref: '#/definitions/api.ConfigureSlotResponse'
+        type: array
+      valid:
+        type: boolean
+    type: object
+  api.ConfigureSessionRequest:
+    properties:
+      slots:
+        items:
+          $ref: '#/definitions/api.ConfigureSlotEntry'
+        type: array
+    type: object
+  api.ConfigureSlotEntry:
+    properties:
+      apworldHash:
+        type: string
+      playerYaml:
+        type: string
+    type: object
+  api.ConfigureSlotResponse:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      playerName:
+        type: string
+    type: object
+  api.ContainerResponse:
     properties:
       containerId:
         type: string
@@ -18,14 +50,14 @@ definitions:
       updatedAt:
         type: string
     type: object
-  internal_api.ContainersResponse:
+  api.ContainersResponse:
     properties:
       containers:
         items:
-          $ref: '#/definitions/internal_api.ContainerResponse'
+          $ref: '#/definitions/api.ContainerResponse'
         type: array
     type: object
-  internal_api.CreateContainerRequest:
+  api.CreateContainerRequest:
     properties:
       adminPassword:
         description: required
@@ -39,7 +71,7 @@ definitions:
         example: weekly-run-2026-05-20
         type: string
     type: object
-  internal_api.CreateContainerResponse:
+  api.CreateContainerResponse:
     properties:
       port:
         example: 25000
@@ -51,33 +83,77 @@ definitions:
         example: starting
         type: string
     type: object
-  internal_api.ErrorResponse:
+  api.ErrorResponse:
     properties:
       error:
         example: session not found
         type: string
     type: object
-  internal_api.GenerateSessionRequest:
+  api.GenerateSessionRequest:
     properties:
       adminPassword:
         type: string
       seed:
         type: string
     type: object
-  internal_api.HealthResponse:
+  api.HealthResponse:
     properties:
       status:
         example: ok
         type: string
     type: object
-  internal_api.LaunchSessionRequest:
+  api.LaunchSessionRequest:
     properties:
       adminPassword:
         type: string
       serverPassword:
         type: string
     type: object
-  internal_api.SessionResponse:
+  api.PreflightRequest:
+    properties:
+      slots:
+        items:
+          $ref: '#/definitions/api.PreflightSlot'
+        type: array
+    type: object
+  api.PreflightResponse:
+    properties:
+      slots:
+        items:
+          $ref: '#/definitions/api.PreflightSlotResult'
+        type: array
+      valid:
+        type: boolean
+    type: object
+  api.PreflightSlot:
+    properties:
+      apworldStorageKey:
+        type: string
+      archipelagoGameName:
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/api.SlotOption'
+        type: array
+      playerName:
+        type: string
+      playerYaml:
+        type: string
+      slotId:
+        type: string
+    type: object
+  api.PreflightSlotResult:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      proposedName:
+        type: string
+      slotId:
+        type: string
+    type: object
+  api.SessionResponse:
     properties:
       apPort:
         type: integer
@@ -96,13 +172,43 @@ definitions:
       updatedAt:
         type: string
     type: object
-  internal_api.UploadApworldResponse:
+  api.SlotOption:
+    properties:
+      currentValue: {}
+      defaultValue: {}
+      key:
+        type: string
+      required:
+        type: boolean
+    type: object
+  api.TemplateOption:
+    properties:
+      defaultValue: {}
+      description:
+        type: string
+      key:
+        type: string
+      rangeMax:
+        type: integer
+      rangeMin:
+        type: integer
+      type:
+        description: range | choice | toggle | text
+        type: string
+      validValues:
+        items:
+          type: string
+        type: array
+    type: object
+  api.UploadApworldResponse:
     properties:
       hash:
         example: 0fd8936279e053df96110fcb7898447a9fb8655343b8f26c22108d79a73b4e21
         type: string
-      yaml:
-        type: string
+      options:
+        items:
+          $ref: '#/definitions/api.TemplateOption'
+        type: array
     type: object
 info:
   contact: {}
@@ -130,25 +236,25 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_api.UploadApworldResponse'
+            $ref: '#/definitions/api.UploadApworldResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "503":
           description: Service Unavailable
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Upload an apworld and generate its YAML template
       tags:
       - apworlds
-  /apworlds/{hash}/yaml-template:
+  /apworlds/{hash}/yaml:
     get:
       description: Returns the default YAML template for the given apworld hash
       parameters:
@@ -167,11 +273,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get apworld default YAML template
@@ -186,11 +292,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_api.ContainersResponse'
+            $ref: '#/definitions/api.ContainersResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: List containers
@@ -207,26 +313,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_api.CreateContainerRequest'
+          $ref: '#/definitions/api.CreateContainerRequest'
       produces:
       - application/json
       responses:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/internal_api.CreateContainerResponse'
+            $ref: '#/definitions/api.CreateContainerResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "409":
           description: Session already exists
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "503":
           description: Port pool exhausted
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Create container
@@ -247,11 +353,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Remove container
@@ -271,15 +377,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_api.ContainerResponse'
+            $ref: '#/definitions/api.ContainerResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get container
@@ -300,11 +406,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Reload container
@@ -325,11 +431,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Stop container
@@ -344,7 +450,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_api.HealthResponse'
+            $ref: '#/definitions/api.HealthResponse'
       summary: Health check
       tags:
       - system
@@ -364,11 +470,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Delete session
@@ -388,18 +494,62 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_api.SessionResponse'
+            $ref: '#/definitions/api.SessionResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Get session
+      tags:
+      - sessions
+  /sessions/{sessionId}/configure:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Validates slot definitions, uploads player YAMLs and manifest to storage,
+        and upserts the session as "draft". Idempotent: safe to call multiple times.
+        Does NOT persist anything if any slot fails validation.
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Slot definitions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.ConfigureSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ConfigureResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "409":
+          description: Session is generating, launching, or running
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "503":
+          description: Storage not configured
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Configure (draft) a session
       tags:
       - sessions
   /sessions/{sessionId}/generate:
@@ -421,7 +571,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_api.GenerateSessionRequest'
+          $ref: '#/definitions/api.GenerateSessionRequest'
       produces:
       - application/json
       responses:
@@ -430,15 +580,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "409":
           description: Already in progress
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "503":
           description: Storage not configured
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Start multiworld generation
@@ -462,7 +612,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_api.LaunchSessionRequest'
+          $ref: '#/definitions/api.LaunchSessionRequest'
       produces:
       - application/json
       responses:
@@ -471,15 +621,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "409":
           description: Not ready
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Launch a generated session
@@ -520,14 +670,49 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Launch session from a pre-built .archipelago file
+      tags:
+      - sessions
+  /sessions/{sessionId}/preflight:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Validates slot data (playerYaml, required options) and returns proposed slot names.
+        Stateless — does not create or modify any session record.
+      parameters:
+      - description: Session ID (informational only)
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Slot list
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.PreflightRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PreflightResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Validate slots before generation
       tags:
       - sessions
   /sessions/{sessionId}/restart:
@@ -550,15 +735,15 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "409":
           description: Not ready (no output file or wrong state)
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Restart a crashed session
@@ -580,11 +765,11 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/internal_api.ErrorResponse'
+            $ref: '#/definitions/api.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Stop a running session

@@ -30,10 +30,21 @@ type CreateContainerResponse struct {
 	Status    string `json:"status"    example:"starting"`
 }
 
+// TemplateOption is a parsed game-specific option from an Archipelago YAML template.
+type TemplateOption struct {
+	Key          string   `json:"key"`
+	Description  string   `json:"description"`
+	Type         string   `json:"type"` // range | choice | toggle | text
+	DefaultValue any      `json:"defaultValue"`
+	ValidValues  []string `json:"validValues,omitempty"`
+	RangeMin     *int     `json:"rangeMin,omitempty"`
+	RangeMax     *int     `json:"rangeMax,omitempty"`
+}
+
 // UploadApworldResponse is returned on successful apworld upload.
 type UploadApworldResponse struct {
-	Hash string `json:"hash" example:"0fd8936279e053df96110fcb7898447a9fb8655343b8f26c22108d79a73b4e21"`
-	Yaml string `json:"yaml"`
+	Hash    string           `json:"hash"    example:"0fd8936279e053df96110fcb7898447a9fb8655343b8f26c22108d79a73b4e21"`
+	Options []TemplateOption `json:"options"`
 }
 
 // ErrorResponse is returned on error.
@@ -105,4 +116,27 @@ type PreflightSlotResult struct {
 type PreflightResponse struct {
 	Valid bool                  `json:"valid"`
 	Slots []PreflightSlotResult `json:"slots"`
+}
+
+// ConfigureSlotEntry is one slot entry in a configure request.
+type ConfigureSlotEntry struct {
+	ApworldHash string `json:"apworldHash"`
+	PlayerYaml  string `json:"playerYaml"`
+}
+
+// ConfigureSessionRequest is the body for POST /sessions/{sessionId}/configure.
+type ConfigureSessionRequest struct {
+	Slots []ConfigureSlotEntry `json:"slots"`
+}
+
+// ConfigureSlotResponse is the per-slot result returned by POST /sessions/{sessionId}/configure.
+type ConfigureSlotResponse struct {
+	PlayerName string   `json:"playerName"`
+	Errors     []string `json:"errors"`
+}
+
+// ConfigureResponse is returned by POST /sessions/{sessionId}/configure.
+type ConfigureResponse struct {
+	Valid bool                    `json:"valid"`
+	Slots []ConfigureSlotResponse `json:"slots"`
 }

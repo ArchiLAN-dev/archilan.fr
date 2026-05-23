@@ -42,8 +42,19 @@ from pathlib import Path
 
 AP_SRC = "/app/ArchipelagoSrc"
 OFFICIAL_APWORLDS = pathlib.Path("/app/Archipelago/Archipelago/lib/worlds")
-APWORLDS_IN = pathlib.Path("/apworlds")            # prod: per-session copy
-APWORLDS_DEV = pathlib.Path("/arch_workspace/apworlds")  # dev: workspace volume
+
+# Apworld search paths derived from ARCHIPELAGO_OUTPUT_DIR.
+# Structure: /workspace/{sessionId}/output  →  /workspace/{sessionId}/apworlds  (session-specific)
+#                                           →  /workspace/apworlds               (shared workspace pool)
+# Fallback for legacy bind-mount setups where no env var is set:
+#   /archipelago/output  →  /apworlds (runner copies per-session apworlds there)
+_OUTPUT_DIR_ENV = os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/archipelago/output")
+_SESSION_DIR = pathlib.Path(os.path.dirname(_OUTPUT_DIR_ENV))
+_WORKSPACE_DIR = pathlib.Path(os.path.dirname(str(_SESSION_DIR)))
+APWORLDS_SESSION = _SESSION_DIR / "apworlds"          # session-specific custom worlds
+APWORLDS_POOL = _WORKSPACE_DIR / "apworlds"           # shared workspace pool
+APWORLDS_IN = pathlib.Path("/apworlds")               # legacy: bind-mount per-session copy
+APWORLDS_DEV = pathlib.Path("/arch_workspace/apworlds")  # dev: workspace volume bind-mount
 
 if AP_SRC not in sys.path:
     sys.path.insert(0, AP_SRC)
@@ -203,10 +214,12 @@ def _load_apworlds_from(apworld_dir: pathlib.Path) -> None:
             print(f"Warning: failed to load {apw.name} ({pkg}): {e}", file=sys.stderr)
 
 
-# Load official apworlds then custom apworlds (prod: /apworlds, dev: /arch_workspace/apworlds)
+# Load official apworlds, then custom apworlds (dev + prod + session-specific).
 _load_apworlds_from(OFFICIAL_APWORLDS)
-_load_apworlds_from(APWORLDS_IN)
 _load_apworlds_from(APWORLDS_DEV)
+_load_apworlds_from(APWORLDS_IN)
+_load_apworlds_from(APWORLDS_POOL)
+_load_apworlds_from(APWORLDS_SESSION)
 
 # Rebuild network_data_package to include late-loaded worlds
 _worlds_pkg.network_data_package["games"].update({
@@ -243,7 +256,12 @@ def load_apsave(path: str) -> dict:
 
 def load_archipelago(path: str) -> dict:
     with open(path, "rb") as f:
-        return pickle.loads(zlib.decompress(f.read()[1:]))
+        data = f.read()
+    if path.endswith(".zip"):
+        with zipfile.ZipFile(__import__("io").BytesIO(data)) as zf:
+            arch_name = next((n for n in zf.namelist() if n.endswith(".archipelago")), None)
+            data = zf.read(arch_name if arch_name else zf.namelist()[0])
+    return pickle.loads(zlib.decompress(data[1:]))
 
 
 # ---------------------------------------------------------------------------
@@ -510,11 +528,20 @@ def main() -> None:
             except Exception as exc:
                 print(json.dumps({"error": str(exc)}), flush=True)
     else:
-        # One-shot mode: read state from stdin (piped by bridge) or fall back to --apsave.
+        # One-shot mode: read state from env var, stdin, or fall back to --apsave.
         checked_ids: set[int] = set()
         received_items: list = []
         state_from_stdin = False
-        if not sys.stdin.isatty():
+        state_env = os.environ.get("REACHABLE_STATE_JSON")
+        if state_env:
+            try:
+                req = json.loads(state_env)
+                checked_ids = set(req.get("checked_locations", []))
+                received_items = req.get("received_items", [])
+                state_from_stdin = True
+            except (json.JSONDecodeError, Exception):
+                pass
+        if not state_from_stdin and not sys.stdin.isatty():
             line = sys.stdin.readline().strip()
             if line:
                 try:

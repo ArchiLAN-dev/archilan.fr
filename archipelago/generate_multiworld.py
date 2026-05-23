@@ -211,3 +211,12 @@ if __name__ == "__main__":
 
     erargs, seed = Generate.main()
     ERmain(erargs, seed)
+
+    # Print the generated output filename to stdout for the orchestrator to capture.
+    _out_dir = pathlib.Path(getattr(erargs, "outputpath", "/data/output"))
+    _out_files = sorted(_out_dir.glob("*.zip")) or sorted(_out_dir.glob("*.archipelago"))
+    if _out_files:
+        print(_out_files[0].name, flush=True)
+    else:
+        print(f"ERROR: no output file found in {_out_dir}", file=sys.stderr)
+        sys.exit(1)

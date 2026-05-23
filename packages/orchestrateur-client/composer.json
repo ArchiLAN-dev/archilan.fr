@@ -1,0 +1,31 @@
+{
+    "name": "archilan/orchestrateur-client",
+    "description": "PHP client for the Archilan orchestrateur REST API.",
+    "type": "library",
+    "version": "1.0.0",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.2",
+        "symfony/http-client-contracts": "^3.0",
+        "symfony/mime": "^6.4|^7.0",
+        "symfony/yaml": "^6.4|^7.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.0",
+        "symfony/http-client": "^6.4|^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Archilan\\OrchestratorClient\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Archilan\\OrchestratorClient\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
