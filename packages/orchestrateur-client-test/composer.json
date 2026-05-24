@@ -1,0 +1,20 @@
+{
+    "name": "archilan/orchestrateur-client-test",
+    "description": "Sandbox for testing the orchestrateur PHP client.",
+    "type": "project",
+    "license": "proprietary",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../orchestrateur-client"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "archilan/orchestrateur-client": ">=1",
+        "symfony/http-client": "^7.0"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

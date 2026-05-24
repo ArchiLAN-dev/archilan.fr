@@ -1,6 +1,5 @@
 aiohttp>=3.9
 websockets>=12.0
-boto3>=1.34
 aiodocker>=0.21
 kubernetes_asyncio>=26.0
 fastapi>=0.115

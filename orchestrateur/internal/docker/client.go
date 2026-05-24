@@ -403,6 +403,52 @@ func (c *Client) containerLogs(ctx context.Context, containerID string, stdout, 
 	return out.Bytes(), nil
 }
 
+// IntrospectOptions runs a one-shot Archipelago container to classify option types for
+// the apworld. Returns the raw JSON bytes: {"options": {"key": {"type": "...", ...}}}.
+func (c *Client) IntrospectOptions(ctx context.Context, apworldData []byte, hash string) ([]byte, error) {
+	var tarBuf bytes.Buffer
+	tw := tar.NewWriter(&tarBuf)
+	_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: "worlds/", Mode: 0755})
+	filename := hash + ".apworld"
+	_ = tw.WriteHeader(&tar.Header{Name: "worlds/" + filename, Mode: 0644, Size: int64(len(apworldData))})
+	_, _ = tw.Write(apworldData)
+	_ = tw.Close()
+
+	cmd := []string{
+		"python3", "/usr/local/bin/introspect_options.py",
+		"--world_directory", "/tmp/worlds",
+	}
+	containerID, err := c.createOneShot(ctx, c.cfg.APImage, cmd)
+	if err != nil {
+		return nil, fmt.Errorf("create introspect container: %w", err)
+	}
+	defer func() { _ = c.Remove(ctx, containerID) }()
+
+	if err := c.putArchiveTo(ctx, containerID, "/tmp", &tarBuf); err != nil {
+		return nil, fmt.Errorf("copy apworld to introspect container: %w", err)
+	}
+
+	if err := c.startContainer(ctx, containerID); err != nil {
+		return nil, fmt.Errorf("start introspect container: %w", err)
+	}
+
+	exitCode, err := c.waitContainer(ctx, containerID)
+	if err != nil {
+		return nil, fmt.Errorf("wait for introspect container: %w", err)
+	}
+
+	if exitCode != 0 {
+		stderr, _ := c.containerLogs(ctx, containerID, false, true)
+		return nil, fmt.Errorf("introspect_options exited %d: %s", exitCode, bytes.TrimSpace(stderr))
+	}
+
+	out, err := c.containerLogs(ctx, containerID, true, false)
+	if err != nil {
+		return nil, fmt.Errorf("read introspect output: %w", err)
+	}
+	return bytes.TrimSpace(out), nil
+}
+
 // GenerateTemplate runs a one-shot Archipelago container to produce the default YAML
 // template for the apworld. The game name is auto-detected by generate_template.py.
 func (c *Client) GenerateTemplate(ctx context.Context, apworldData []byte, hash string) ([]byte, error) {
@@ -499,6 +545,7 @@ type sessionHostConfig struct {
 func (c *Client) GenerateMultiworld(ctx context.Context, sessionID, seed string, tarData io.Reader) (outputFile string, jobID string, err error) {
 	cmd := []string{
 		"python3", "/usr/local/bin/generate_multiworld.py",
+		"--player_files_path", "/data/yamls",
 		"--outputpath", "/data/output",
 		"--world_directory", "/data/worlds",
 	}
@@ -722,10 +769,9 @@ func (c *Client) InjectFileToVolume(ctx context.Context, sessionID, filename str
 	return c.putArchiveTo(ctx, containerID, "/data", &tarBuf)
 }
 
-// WaitForPort probes localhost:{port} via TCP every 2 seconds until it succeeds or timeout elapses.
-func (c *Client) WaitForPort(ctx context.Context, port int, timeout time.Duration) bool {
+// WaitForAddress probes addr via TCP every 2 seconds until it succeeds or timeout elapses.
+func (c *Client) WaitForAddress(ctx context.Context, addr string, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
-	addr := fmt.Sprintf("localhost:%d", port)
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
 		if err == nil {

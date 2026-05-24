@@ -181,6 +181,28 @@ class StateManager:
         ps = self._states.get(slot_index)
         return list(ps._hints) if ps else []
 
+    def apply_saved_states(self, saved: dict[int, PlayerState]) -> None:
+        """Merge a dict of saved PlayerStates into current in-memory state."""
+        for slot_id, saved_ps in saved.items():
+            ps = self.ensure_slot(slot_id)
+            if saved_ps._checked_locations:
+                ps._checked_locations.update(saved_ps._checked_locations)
+                ps.checks_done = len(ps._checked_locations)
+            if saved_ps.items_received > ps.items_received:
+                ps._received_items = saved_ps._received_items
+                ps.items_received = saved_ps.items_received
+            if saved_ps.client_status > ps.client_status:
+                ps.client_status = saved_ps.client_status
+                if saved_ps.client_status == 30 and ps.goal_reached_at is None:
+                    ps.goal_reached_at = saved_ps.goal_reached_at
+            # Hints: apsave is authoritative (includes status updates set by other clients)
+            # hint_cost intentionally NOT overwritten - it's set by apply_hint_cost_for_slot
+            # from the RoomInfo WS packet; the apsave only stores the default (0).
+            if saved_ps._hints:
+                ps._hints = saved_ps._hints
+                ps.hints_used = saved_ps.hints_used
+                ps.hint_points_per_check = saved_ps.hint_points_per_check
+
     def merge_state_from_save(self) -> None:
         """Sync checks_done, items_received and client_status from the .apsave if it changed."""
         if not self._save_dir:
@@ -197,25 +219,7 @@ class StateManager:
             self._save_mtime = mtime
             self._log.info("merge_state_from_save: reading %s", latest)
             saved = load_save_state(self._save_dir)
-            for slot_id, saved_ps in saved.items():
-                ps = self.ensure_slot(slot_id)
-                if saved_ps._checked_locations:
-                    ps._checked_locations.update(saved_ps._checked_locations)
-                    ps.checks_done = len(ps._checked_locations)
-                if saved_ps.items_received > ps.items_received:
-                    ps._received_items = saved_ps._received_items
-                    ps.items_received = saved_ps.items_received
-                if saved_ps.client_status > ps.client_status:
-                    ps.client_status = saved_ps.client_status
-                    if saved_ps.client_status == 30 and ps.goal_reached_at is None:
-                        ps.goal_reached_at = saved_ps.goal_reached_at
-                # Hints: apsave is authoritative (includes status updates set by other clients)
-                # hint_cost intentionally NOT overwritten - it's set by apply_hint_cost_for_slot
-                # from the RoomInfo WS packet; the apsave only stores the default (0).
-                if saved_ps._hints:
-                    ps._hints = saved_ps._hints
-                    ps.hints_used = saved_ps.hints_used
-                    ps.hint_points_per_check = saved_ps.hint_points_per_check
+            self.apply_saved_states(saved)
             self._log.info(
                 "merge_state_from_save: done - statuses=%s",
                 {s: p.client_status for s, p in self._states.items()},

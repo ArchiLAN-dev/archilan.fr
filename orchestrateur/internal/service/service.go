@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"time"
 
 	"archilan.fr/orchestrateur/internal/config"
@@ -79,7 +81,75 @@ func (s *Service) UploadApworld(ctx context.Context, data []byte) (hash string, 
 		return hash, yamlData, fmt.Errorf("upload template: %w", err)
 	}
 
+	game := extractApworldGame(yamlData)
+	if metaErr := s.storage.UploadApworldMeta(ctx, storage.ApworldMeta{
+		Hash: hash,
+		Game: game,
+	}); metaErr != nil {
+		s.log.Warn("failed to store apworld metadata", "hash", hash, "err", metaErr)
+	}
+
+	// Run option type introspection in background; failure is non-fatal.
+	go func() {
+		bgCtx := context.Background()
+		typesJSON, intrErr := s.docker.IntrospectOptions(bgCtx, data, hash)
+		if intrErr != nil {
+			s.log.Warn("failed to introspect option types", "hash", hash, "err", intrErr)
+			return
+		}
+		if storeErr := s.storage.UploadApworldOptionTypes(bgCtx, hash, typesJSON); storeErr != nil {
+			s.log.Warn("failed to store option types", "hash", hash, "err", storeErr)
+		}
+	}()
+
 	return hash, yamlData, nil
+}
+
+// OptionTypeOverride is the type classification for one option from Python introspection.
+type OptionTypeOverride struct {
+	Type           string         `json:"type"`
+	DefaultWeights map[string]int `json:"defaultWeights,omitempty"`
+}
+
+// GetApworldOptionTypes returns introspected type overrides for an apworld's options.
+// Returns nil (no error) if storage is not configured or the types file does not exist yet.
+func (s *Service) GetApworldOptionTypes(ctx context.Context, hash string) map[string]OptionTypeOverride {
+	if s.storage == nil {
+		return nil
+	}
+	raw, found, err := s.storage.DownloadApworldOptionTypes(ctx, hash)
+	if err != nil || !found {
+		return nil
+	}
+	var parsed struct {
+		Options map[string]OptionTypeOverride `json:"options"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil
+	}
+	return parsed.Options
+}
+
+// ListApworlds returns metadata for all uploaded apworlds that have a .json sidecar.
+func (s *Service) ListApworlds(ctx context.Context) ([]storage.ApworldMeta, error) {
+	if s.storage == nil {
+		return nil, ErrStorageNotConfigured
+	}
+	return s.storage.ListApworlds(ctx)
+}
+
+// extractApworldGame reads the game name from the `game:` line of a YAML template.
+func extractApworldGame(yamlData []byte) string {
+	for _, line := range strings.Split(string(yamlData), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "game:") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				return strings.TrimSpace(parts[1])
+			}
+		}
+	}
+	return ""
 }
 
 // GetApworldTemplate returns the default YAML template for an apworld.

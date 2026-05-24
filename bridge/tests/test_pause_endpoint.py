@@ -27,10 +27,6 @@ def _config(**overrides: object) -> Config:
     defaults: dict[str, object] = {
         "internal_token": "test-token",
         "ap_pid_file": "/tmp/test-ap.pid",
-        "storage_endpoint": "http://minio.test:9000",
-        "storage_access_key": "minioadmin",
-        "storage_secret_key": "minioadmin",
-        "storage_bucket": "test-bucket",
     }
     defaults.update(overrides)
     return Config(  # type: ignore[arg-type]
@@ -218,12 +214,11 @@ async def test_pause_flow_failed_save_broadcasts_lifecycle(tmp_path: object) -> 
     assert b["type"] == "lifecycle"
     assert b["event"] == "paused"
     assert b["failedSave"] is True
-    assert b["saveKey"] is None
 
 
 @pytest.mark.asyncio
-async def test_pause_flow_successful_save_uploads_and_kills(tmp_path: object) -> None:
-    """When a save is found, storage upload is attempted and AP is killed."""
+async def test_pause_flow_successful_save_kills_ap(tmp_path: object) -> None:
+    """When a save is found, AP is killed and paused event is broadcast without saveKey."""
     save_file = str(tmp_path / "game.apsave")
     with open(save_file, "wb") as fh:
         fh.write(b"save")
@@ -241,12 +236,11 @@ async def test_pause_flow_successful_save_uploads_and_kills(tmp_path: object) ->
         broadcasts.append({"type": event_type, **payload})
 
     with patch.object(_rest, "_poll_for_save", new=AsyncMock(return_value=save_file)):
-        with patch.object(_rest, "_upload_save", new=AsyncMock(return_value="20260519T143000.apsave")):
-            with patch.object(_rest, "_kill_ap", new=_mock_kill):
-                await _rest._pause_flow(ap_client, PauseResumeCoordinator(), _mock_broadcast)
+        with patch.object(_rest, "_kill_ap", new=_mock_kill):
+            await _rest._pause_flow(ap_client, PauseResumeCoordinator(), _mock_broadcast)
 
     assert len(kill_called) == 1
     assert len(broadcasts) == 1
     assert broadcasts[0]["event"] == "paused"
     assert broadcasts[0]["failedSave"] is False
-    assert broadcasts[0]["saveKey"] == "20260519T143000.apsave"
+    assert "saveKey" not in broadcasts[0]

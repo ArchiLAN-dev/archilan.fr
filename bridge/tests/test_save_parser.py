@@ -1,6 +1,7 @@
 """Tests for .apsave parsing (AC #8, #13)."""
 from __future__ import annotations
 
+import json
 import os
 import pickle
 import zlib
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from bridge.bridge import load_save_state
+from bridge.core.save_parser import load_save_state_from_json
 
 
 def _write_apsave(tmp_path: Path, data: dict) -> str:
@@ -98,6 +100,79 @@ def test_multiple_slots(tmp_path: Path, slots: dict, expected_counts: dict) -> N
 
     for slot, expected in expected_counts.items():
         assert result[slot].checks_done == expected
+
+
+# ---------------------------------------------------------------------------
+# load_save_state_from_json (Docker path)
+# ---------------------------------------------------------------------------
+
+def test_load_from_json_basic() -> None:
+    payload = {
+        "1": {
+            "checked_locations": [100, 101, 102],
+            "received_items": [[500, 2, 100], [501, 2, 101]],
+            "client_status": 20,
+            "hints": [],
+            "hints_used": 0,
+            "location_check_points": 1,
+        }
+    }
+    result = load_save_state_from_json(json.dumps(payload))
+    assert 1 in result
+    ps = result[1]
+    assert ps.checks_done == 3
+    assert ps._checked_locations == {100, 101, 102}
+    assert ps.items_received == 2
+    assert ps.client_status == 20
+
+
+def test_load_from_json_goal_status() -> None:
+    payload = {
+        "2": {
+            "checked_locations": list(range(47)),
+            "received_items": [],
+            "client_status": 30,
+            "hints": [],
+            "hints_used": 0,
+            "location_check_points": 1,
+        }
+    }
+    result = load_save_state_from_json(json.dumps(payload))
+    assert result[2].client_status == 30
+    assert result[2].goal_reached_at is not None
+
+
+def test_load_from_json_with_hints() -> None:
+    payload = {
+        "1": {
+            "checked_locations": [],
+            "received_items": [],
+            "client_status": 0,
+            "hints": [
+                {"receiving_player": 1, "finding_player": 2, "location": 81000,
+                 "item": 123456, "entrance": "", "item_flags": 1, "status": 0}
+            ],
+            "hints_used": 1,
+            "location_check_points": 2,
+        }
+    }
+    result = load_save_state_from_json(json.dumps(payload))
+    ps = result[1]
+    assert len(ps._hints) == 1
+    assert ps._hints[0].location_id == 81000
+    assert ps._hints[0].item_id == 123456
+    assert ps.hints_used == 1
+    assert ps.hint_points_per_check == 2
+
+
+def test_load_from_json_error_key_returns_empty() -> None:
+    result = load_save_state_from_json(json.dumps({"error": "no .apsave file found"}))
+    assert result == {}
+
+
+def test_load_from_json_invalid_json_returns_empty() -> None:
+    result = load_save_state_from_json("not json at all")
+    assert result == {}
 
 
 def test_latest_file_selected_by_mtime(tmp_path: Path) -> None:

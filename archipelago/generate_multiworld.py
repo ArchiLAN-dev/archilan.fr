@@ -9,6 +9,7 @@ Python 3.12 and cannot load them).
 Stubs out client-only third-party C extensions that apworlds import at module
 level but are never needed server-side (dolphin_memory_engine, gclib, …).
 """
+import atexit
 import importlib.abc
 import importlib.machinery
 import json as _json
@@ -44,8 +45,28 @@ _orjson.loads = _json.loads  # type: ignore[attr-defined]
 _orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
 sys.modules["orjson"] = _orjson
 
+# pkg_resources: setuptools 71+ no longer ships it as a standalone top-level
+# package. Pre-populate sys.modules from pip's vendored copy so apworlds that
+# call pkg_resources.resource_listdir() get the real implementation.
+try:
+    import pkg_resources  # noqa: F401
+except ImportError:
+    from pip._vendor import pkg_resources as _pr  # type: ignore[no-redef]
+    sys.modules["pkg_resources"] = _pr
+
 # ─── Source tree ──────────────────────────────────────────────────────────────
 sys.path.insert(0, ARCH_SRC)
+
+# ─── Pre-stub worlds package ──────────────────────────────────────────────────
+# Inject a stub `worlds` package BEFORE anything can trigger worlds/__init__.py.
+# worlds/__init__.py auto-loads ALL built-in worlds and calls get_data_package_data()
+# on each. Worlds with stubbed C extensions register _Stub objects in their data,
+# which are not JSON-serializable and crash data_package_checksum(). With this stub
+# worlds/__init__.py never runs; worlds are loaded individually below.
+_worlds_stub = types.ModuleType("worlds")
+_worlds_stub.__path__ = [f"{ARCH_SRC}/worlds"]
+_worlds_stub.__package__ = "worlds"
+sys.modules["worlds"] = _worlds_stub
 
 # ─── Auto-stub: silence client-only third-party imports ──────────────────────
 _ARCHIP_ROOTS = frozenset({
@@ -139,11 +160,21 @@ class _AutoStubFinder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 
 sys.meta_path.append(_AutoStubFinder())
 
+# Populate the worlds stub now that _AutoStubFinder is in place so transitive
+# imports from AutoWorld.py are stubbed correctly.
+from worlds.AutoWorld import AutoWorldRegister, World  # noqa: E402
+_worlds_stub.AutoWorldRegister = AutoWorldRegister
+_worlds_stub.World = World
+_worlds_stub.local_folder = f"{ARCH_SRC}/worlds"
+_worlds_stub.user_folder = None
+_worlds_stub.failed_world_loads = []
+_worlds_stub.network_data_package = {"games": {}}
+
 # ─── Run generation ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import Generate
-    import worlds as _worlds_pkg
     from Main import main as ERmain
+    _worlds_pkg = sys.modules["worlds"]
 
     def _load_apworlds_from(apworld_dir: pathlib.Path) -> None:
         if not apworld_dir.is_dir():
@@ -162,11 +193,15 @@ if __name__ == "__main__":
             _mod = f"worlds.{_pkg}"
             if _mod in sys.modules:
                 continue
-            _worlds_pkg.__path__.append(str(_apw))
+            _tmp_dir = tempfile.mkdtemp(prefix="apworld_")
+            atexit.register(shutil.rmtree, _tmp_dir, True)
+            with zipfile.ZipFile(str(_apw)) as _zf2:
+                _zf2.extractall(_tmp_dir)
+            _worlds_pkg.__path__.append(_tmp_dir)
             try:
                 importlib.import_module(_mod)
             except Exception as _e:
-                _worlds_pkg.__path__.remove(str(_apw))
+                _worlds_pkg.__path__.remove(_tmp_dir)
                 print(f"Warning: failed to load {_apw.name} ({_pkg}): {_e}", file=sys.stderr)
 
     # Consume --world_directory and strip it from sys.argv so Generate.main()
@@ -200,14 +235,26 @@ if __name__ == "__main__":
 
     _load_apworlds_from(_combined)
 
-    # Rebuild network_data_package to include worlds loaded after initial import
-    _worlds_pkg.network_data_package["games"].update({
-        cls.game: cls.get_data_package_data()
-        for cls in _worlds_pkg.AutoWorldRegister.world_types.values()
-    })
+    # Rebuild network_data_package with only successfully loaded worlds.
+    # Per-world try-except guards against worlds that loaded with C-extension stubs
+    # producing non-JSON-serializable values in get_data_package_data().
+    for _cls in _worlds_pkg.AutoWorldRegister.world_types.values():
+        try:
+            _worlds_pkg.network_data_package["games"][_cls.game] = _cls.get_data_package_data()
+        except Exception as _e:
+            print(f"Warning: data package for {_cls.game} skipped: {_e}", file=sys.stderr)
 
     print(f"DEBUG worlds loaded: {sorted(__import__('worlds').AutoWorldRegister.world_types)}",
           file=sys.stderr)
 
     erargs, seed = Generate.main()
     ERmain(erargs, seed)
+
+    # Print the generated output filename to stdout for the orchestrator to capture.
+    _out_dir = pathlib.Path(getattr(erargs, "outputpath", "/data/output"))
+    _out_files = sorted(_out_dir.glob("*.zip")) or sorted(_out_dir.glob("*.archipelago"))
+    if _out_files:
+        print(_out_files[0].name, flush=True)
+    else:
+        print(f"ERROR: no output file found in {_out_dir}", file=sys.stderr)
+        sys.exit(1)

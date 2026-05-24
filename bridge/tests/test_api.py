@@ -165,6 +165,40 @@ async def test_post_command_forwards_to_ws() -> None:
     assert packets[0]["text"] == "/release Alice"
 
 
+@pytest.mark.asyncio
+async def test_post_command_with_admin_password_sends_login_first() -> None:
+    app, state, ap_client = _make_app()
+    ap_client.ws_connected = True
+    ap_client._ws = AsyncMock()
+    ap_client._ws.send = AsyncMock()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.post(
+            "/commands",
+            json={"command": "!forcegoal Alice"},
+            headers={"X-Ap-Admin-Password": "secret"},
+        )
+
+    assert ap_client._ws.send.call_count == 2
+    login_payload = json.loads(ap_client._ws.send.call_args_list[0][0][0])
+    assert login_payload[0]["text"] == "!admin login secret"
+    cmd_payload = json.loads(ap_client._ws.send.call_args_list[1][0][0])
+    assert cmd_payload[0]["text"] == "!forcegoal Alice"
+
+
+@pytest.mark.asyncio
+async def test_post_command_without_admin_password_sends_one_message() -> None:
+    app, state, ap_client = _make_app()
+    ap_client.ws_connected = True
+    ap_client._ws = AsyncMock()
+    ap_client._ws.send = AsyncMock()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await client.post("/commands", json={"command": "/say hello"})
+
+    assert ap_client._ws.send.call_count == 1
+
+
 # ---------------------------------------------------------------------------
 # GET /hints/{slot} (legacy route)
 # ---------------------------------------------------------------------------

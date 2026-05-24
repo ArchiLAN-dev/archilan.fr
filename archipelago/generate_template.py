@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Generate Archipelago YAML template for a given game."""
 import argparse
+import atexit
 import importlib
 import importlib.abc
 import importlib.machinery
 import json as _json
 import os
 import pathlib
+import shutil
 import sys
+import tempfile
+import traceback
 import types
 import zipfile
 
@@ -38,6 +42,16 @@ _orjson.loads = _json.loads  # type: ignore[attr-defined]
 _orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
 sys.modules["orjson"] = _orjson
 
+# pkg_resources: setuptools 71+ no longer ships it as a standalone top-level
+# package (removed from site-packages). Pre-populate sys.modules from pip's
+# vendored copy so apworlds that call pkg_resources.resource_listdir() (e.g.
+# pokemon_emerald) get the real implementation instead of an auto-stub.
+try:
+    import pkg_resources  # noqa: F401 — already installed (older setuptools)
+except ImportError:
+    from pip._vendor import pkg_resources as _pr  # type: ignore[no-redef]
+    sys.modules["pkg_resources"] = _pr
+
 # ─── Worlds stub + source tree ────────────────────────────────────────────────
 # Inject a stub `worlds` package so importing worlds.AutoWorld does NOT trigger
 # worlds/__init__.py's auto-loading of all games (which causes Logic Mixin
@@ -49,17 +63,29 @@ sys.modules["worlds"] = _worlds_stub
 sys.path.insert(0, ARCH_SRC)
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--game", required=True)
 parser.add_argument("--outputpath", required=True)
 parser.add_argument("--world_directory", default=None)
 args = parser.parse_args()
 
 # Load framework without triggering worlds/__init__.py
 from worlds.AutoWorld import AutoWorldRegister, World  # noqa: E402
+from Utils import local_path, user_path  # noqa: E402
 
 # Expose on the stub so other modules can do `from worlds import AutoWorldRegister`
 _worlds_stub.AutoWorldRegister = AutoWorldRegister
 _worlds_stub.World = World
+
+# Expose worlds/__init__.py public symbols that apworlds import directly.
+# Without these, apworlds doing `from worlds import user_folder` crash with
+# ImportError even though their logic doesn't actually use the value.
+_worlds_stub.local_folder = f"{ARCH_SRC}/worlds"
+_user_folder = user_path("worlds") if user_path() != local_path() else user_path("custom_worlds")
+try:
+    os.makedirs(_user_folder, exist_ok=True)
+except OSError:
+    _user_folder = None
+_worlds_stub.user_folder = _user_folder
+_worlds_stub.failed_world_loads = []
 
 # ─── Auto-stub: silence client-only third-party imports ──────────────────────
 # Appended to the END of sys.meta_path so real finders get first priority.
@@ -141,7 +167,7 @@ class _Stub:
     def __repr__(self): return "stub"
     def __bytes__(self): return b""
     def __hash__(self): return 0
-    def __iter__(self): return iter([])
+    def __iter__(self): return iter([_Stub()])
     def __len__(self): return 0
     def items(self): return {}.items()
     def values(self): return {}.values()
@@ -164,6 +190,9 @@ class _AutoStubFinder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 sys.meta_path.append(_AutoStubFinder())
 
 # ── Phase 1: load custom apworlds ────────────────────────────────────────────
+# Track pkg_names of apworlds we successfully load so we can filter by __module__.
+_loaded_pkg_names: list[str] = []
+
 # Strategy: add the apworld ZIP to _worlds_stub.__path__ then import as
 # worlds.<pkg_name>. This makes importlib.resources.files("worlds.<pkg_name>")
 # work correctly for apworlds that call it at module level.
@@ -187,38 +216,44 @@ if args.world_directory:
         if world_mod_name in sys.modules:
             continue
 
-        _worlds_stub.__path__.append(str(_apw))
+        # Extract to a temp directory so __file__-based open() calls work.
+        # Loading the ZIP directly via zipimport sets __file__ to a path inside
+        # the archive (e.g. /tmp/xxx.apworld/raft/module.pyc), which is not a
+        # real filesystem path — open() on it fails with NotADirectoryError.
+        _tmp_dir = tempfile.mkdtemp(prefix="apworld_")
+        atexit.register(shutil.rmtree, _tmp_dir, True)
+        with zipfile.ZipFile(str(_apw)) as _zf:
+            _zf.extractall(_tmp_dir)
+
+        # Insert at position 0 so the custom apworld takes priority over any
+        # built-in world with the same name in ARCH_SRC/worlds.
+        _worlds_stub.__path__.insert(0, _tmp_dir)
         try:
             importlib.import_module(world_mod_name)
+            _loaded_pkg_names.append(pkg_name)
         except Exception as exc:
-            _worlds_stub.__path__.remove(str(_apw))
+            _worlds_stub.__path__.remove(_tmp_dir)
             print(f"Warning: failed to load {_apw.name} ({pkg_name}): {exc}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
-# ── Phase 2: fall back to built-in source worlds if game not yet registered ──
-if args.game not in AutoWorldRegister.world_types:
-    worlds_dir = pathlib.Path(f"{ARCH_SRC}/worlds")
-    for world_dir in sorted(worlds_dir.iterdir()):
-        if not world_dir.is_dir() or world_dir.name.startswith("_"):
-            continue
-        mod_name = f"worlds.{world_dir.name}"
-        if mod_name in sys.modules:
-            continue
-        try:
-            importlib.import_module(mod_name)
-        except Exception:
-            pass
-        if args.game in AutoWorldRegister.world_types:
-            break
-
-if args.game not in AutoWorldRegister.world_types:
-    print(f"Game '{args.game}' not found. Available: {sorted(AutoWorldRegister.world_types)}", file=sys.stderr)
+# ── Pick the game registered by the apworld ──────────────────────────────────
+# Filter by __module__ to exclude built-in worlds pulled in as transitive imports
+# (e.g. an apworld that imports worlds.archipelago would also register "Archipelago").
+_apworld_prefixes = tuple(f"worlds.{p}" for p in _loaded_pkg_names)
+apworld_games = [
+    g for g, cls in AutoWorldRegister.world_types.items()
+    if getattr(cls, "__module__", "").startswith(_apworld_prefixes)
+]
+if not apworld_games:
+    print("No game registered from the apworld(s) in --world_directory", file=sys.stderr)
     sys.exit(1)
+game = apworld_games[0]
 
 # ── Generate template via Archipelago's official template engine ─────────────
 # Filter world_types to only the target game so the function outputs one file.
 _all_world_types = dict(AutoWorldRegister.world_types)
 AutoWorldRegister.world_types.clear()
-AutoWorldRegister.world_types[args.game] = _all_world_types[args.game]
+AutoWorldRegister.world_types[game] = _all_world_types[game]
 
 output = pathlib.Path(args.outputpath)
 output.mkdir(parents=True, exist_ok=True)
@@ -233,5 +268,5 @@ yaml_files = sorted(output.glob("*.yaml"))
 if yaml_files:
     print(yaml_files[0].read_text(encoding="utf-8"))
 else:
-    print(f"No template generated for '{args.game}'", file=sys.stderr)
+    print(f"No template generated for '{game}'", file=sys.stderr)
     sys.exit(1)

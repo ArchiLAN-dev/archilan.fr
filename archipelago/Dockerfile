@@ -1,7 +1,6 @@
 ARG ARCHIPELAGO_VERSION=0.6.7
 
-# Python 3.13 - needed to load custom apworlds compiled for Python 3.13
-# The ArchipelagoGenerate binary has its own embedded Python 3.12 and is unaffected
+# Python 3.13 - matches the version bundled in Archipelago 0.6.7 (pyc magic 3571)
 FROM python:3.13-slim
 
 ARG ARCHIPELAGO_VERSION
@@ -44,14 +43,24 @@ RUN pip install --no-cache-dir \
 COPY archipelago/generate_template.py /usr/local/bin/generate_template.py
 RUN chmod +x /usr/local/bin/generate_template.py
 
+COPY archipelago/introspect_options.py /usr/local/bin/introspect_options.py
+RUN chmod +x /usr/local/bin/introspect_options.py
+
 COPY archipelago/generate_multiworld.py /usr/local/bin/generate_multiworld.py
 RUN chmod +x /usr/local/bin/generate_multiworld.py
+
+COPY archipelago/ap_server.sh /ap_server.sh
+RUN chmod +x /ap_server.sh
 
 # Bridge - real-time observer service (copied from bridge/ at repo root)
 COPY bridge/ /bridge/
 
 # Headless reachability checker script
 COPY archipelago/reachable.py /reachable/reachable.py
+
+# Save state reader script (parses .apsave files using AP Python env)
+COPY archipelago/read_save.py /readsave/read_save.py
+RUN chmod +x /readsave/read_save.py
 
 # Entrypoint: starts ArchipelagoServer + Bridge.py when run as a server container
 COPY archipelago/entrypoint.sh /entrypoint.sh

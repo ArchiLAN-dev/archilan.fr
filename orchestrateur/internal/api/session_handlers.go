@@ -269,3 +269,68 @@ func handleDeleteSession(svc *service.Service) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// handleConfigureSession godoc
+// @Summary     Configure (draft) a session
+// @Description Validates slot definitions, uploads player YAMLs and manifest to storage,
+// @Description and upserts the session as "draft". Idempotent: safe to call multiple times.
+// @Description Does NOT persist anything if any slot fails validation.
+// @Tags        sessions
+// @Accept      json
+// @Produce     json
+// @Param       sessionId path     string                 true "Session ID"
+// @Param       body      body     ConfigureSessionRequest true "Slot definitions"
+// @Success     200       {object} ConfigureResponse
+// @Failure     400       {object} ErrorResponse
+// @Failure     409       {object} ErrorResponse "Session is generating, launching, or running"
+// @Failure     503       {object} ErrorResponse "Storage not configured"
+// @Security    BearerAuth
+// @Router      /sessions/{sessionId}/configure [post]
+func handleConfigureSession(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessionID := chi.URLParam(r, "sessionId")
+
+		var req ConfigureSessionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		if len(req.Slots) == 0 {
+			writeError(w, http.StatusBadRequest, "slots is required and must not be empty")
+			return
+		}
+
+		inputs := make([]service.ConfigureSlotInput, 0, len(req.Slots))
+		for _, s := range req.Slots {
+			input := service.ConfigureSlotInput{
+				ApworldHash: s.ApworldHash,
+				PlayerYaml:  s.PlayerYaml,
+			}
+			if s.Options != nil {
+				input.Options = &service.SlotOptionsPayload{
+					PlayerName: s.Options.PlayerName,
+					Values:     s.Options.Values,
+				}
+			}
+			inputs = append(inputs, input)
+		}
+
+		result, err := svc.ConfigureSession(r.Context(), service.ConfigureRequest{
+			SessionID: sessionID,
+			Slots:     inputs,
+		})
+		if err != nil {
+			writeSessionError(w, err)
+			return
+		}
+
+		slots := make([]ConfigureSlotResponse, 0, len(result.Slots))
+		for _, s := range result.Slots {
+			slots = append(slots, ConfigureSlotResponse{
+				PlayerName: s.PlayerName,
+				Errors:     s.Errors,
+			})
+		}
+		writeJSON(w, http.StatusOK, ConfigureResponse{Valid: result.Valid, Slots: slots})
+	}
+}

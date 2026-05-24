@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import collections
+import glob as _glob
 import json
 import logging
+import re
 import uuid
+import zipfile
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any
@@ -45,9 +49,9 @@ _CLIENT_STATUS_NAMES: dict[int, str] = {
 }
 
 _SLOT_TYPE_NAMES: dict[int, str] = {
+    0: "spectator",
     1: "player",
-    2: "spectator",
-    3: "group",
+    2: "group",
 }
 
 # AP permission bitmask → named string
@@ -73,6 +77,13 @@ class DataPackageStore:
         self._slot_games: dict[int, str] = {}
         self._slot_aliases: dict[int, str] = {}
         self._slot_types: dict[int, str] = {}
+        self._item_flags: dict[int, int] = {}
+
+    def record_item_flags(self, item_id: int, flags: int) -> None:
+        self._item_flags[item_id] = flags
+
+    def resolve_item_flags(self, item_id: int) -> int:
+        return self._item_flags.get(item_id, 0)
 
     def handle_connected(self, packet: dict[str, Any]) -> None:
         for p in packet.get("players", []):
@@ -110,6 +121,18 @@ class DataPackageStore:
             if alias == name:
                 return slot
         return 0
+
+    def item_id_by_name(self, game: str, name: str) -> int | None:
+        for id_, n in self._item_names.get(game, {}).items():
+            if n == name:
+                return id_
+        return None
+
+    def location_id_by_name(self, game: str, name: str) -> int | None:
+        for id_, n in self._location_names.get(game, {}).items():
+            if n == name:
+                return id_
+        return None
 
     def resolve_hint_names(self, hint: HintInfo) -> HintInfo:
         return HintInfo(
@@ -184,8 +207,17 @@ class ArchipelagoClient:
         self._death_link_active: bool = False
         self._race_mode: bool = False
 
+        # Spoiler-derived placements: finder_slot → {location_id → (item_id, receiver_slot)}
+        self._placements: dict[int, dict[int, tuple[int, int]]] = {}
+
         # Per-slot connection tracking (populated from Join/Part PrintJSON)
         self._connected_slots: set[int] = set()
+
+        # Seed metadata
+        self._seed_name: str = ""
+
+        # Circular buffer of the last 200 feed events (PrintJSON + DeathLink bounces)
+        self._feed_events: collections.deque[dict[str, Any]] = collections.deque(maxlen=200)
 
     # ------------------------------------------------------------------
     # Read-only views for WsServer snapshot
@@ -194,6 +226,7 @@ class ArchipelagoClient:
     def get_room_dict(self) -> dict[str, Any]:
         return {
             "sessionId": self._config.session_id,
+            "seedName": self._seed_name or None,
             "slotCount": len(self._state.get_all()),
             "hintCostPercent": self._state._hint_cost_pct,
             "locationCheckPoints": self._state._location_check_points,
@@ -204,6 +237,27 @@ class ArchipelagoClient:
             "raceMode": self._race_mode,
             "wsConnected": self.ws_connected,
         }
+
+    def get_feed(self, limit: int = 50) -> list[dict[str, Any]]:
+        limit = min(max(1, limit), 200)
+        events = list(self._feed_events)
+        return events[-limit:]
+
+    def get_data_package(self, game: str) -> dict[str, Any] | None:
+        items = self._store._item_names.get(game)
+        locations = self._store._location_names.get(game)
+        if items is None and locations is None:
+            return None
+        return {
+            "game": game,
+            "items": {str(k): v for k, v in (items or {}).items()},
+            "locations": {str(k): v for k, v in (locations or {}).items()},
+        }
+
+    def list_data_package_games(self) -> list[str]:
+        return sorted(
+            set(self._store._item_names) | set(self._store._location_names)
+        )
 
     def get_slots_summary(self) -> list[dict[str, Any]]:
         result = []
@@ -257,6 +311,7 @@ class ArchipelagoClient:
             for packet in first_packets:
                 if packet.get("cmd") == "RoomInfo":
                     games_in_session = packet.get("games", [])
+                    self._seed_name = str(packet.get("seed_name", "") or "")
                     self._log.info("RoomInfo received - games: %s", games_in_session)
                     self._state.handle_room_info(packet)
                     self._handle_room_info_permissions(packet)
@@ -266,6 +321,8 @@ class ArchipelagoClient:
                 await ws.send(json.dumps([{"cmd": "GetDataPackage", "games": games_in_session}]))
 
             first_slot = self._config.slot_names[0] if self._config.slot_names else {}
+            # "Bridge" slot is injected by the orchestrateur into every session's yamls,
+            # giving the bridge a TextOnly observer slot in the generated multiworld.
             connect_name = first_slot.get("name", "Bridge")
             connect_game = first_slot.get("game", "Archipelago")
 
@@ -316,10 +373,18 @@ class ArchipelagoClient:
             raise RuntimeError(f"ConnectionRefused: {errors}")
 
         elif cmd == "RoomInfo":
+            self._seed_name = str(packet.get("seed_name", "") or "")
             self._log.info("RoomInfo received (reconnect)")
             self._state.handle_room_info(packet)
             self._handle_room_info_permissions(packet)
             await self._broadcast_state_changed()
+
+        elif cmd == "InvalidPacket":
+            self._log.warning(
+                "AP server reported invalid packet: cmd=%s text=%s",
+                packet.get("original_cmd", "?"),
+                packet.get("text", ""),
+            )
 
         elif cmd == "RoomUpdate":
             self._handle_room_update(packet)
@@ -358,6 +423,12 @@ class ArchipelagoClient:
             self._recompute_event.set()
             await self._broadcast_state_changed()
 
+        elif cmd == "Retrieved":
+            keys: dict[str, Any] = packet.get("keys", {})
+            if "_read_race_mode" in keys:
+                self._race_mode = bool(keys["_read_race_mode"])
+                self._log.info("race_mode: %s", self._race_mode)
+
         elif cmd == "Bounced":
             await self._handle_bounced(packet)
 
@@ -375,8 +446,6 @@ class ArchipelagoClient:
         self._log.info("Connected received - slot=%d players=%d", self._my_slot, len(players))
         self._store.handle_connected(packet)
 
-        if self._config.ap_admin_password and self._ws is not None:
-            await self._ws.send(json.dumps([{"cmd": "Say", "text": f"!admin login {self._config.ap_admin_password}"}]))
 
         for slot_str, info in slot_info.items():
             if isinstance(info, dict):
@@ -410,13 +479,20 @@ class ArchipelagoClient:
             if ps.client_status == 0 and ps.checks_done > 0:
                 self._state.update_client_status(slot_id, 20)
 
+        if not self._placements:
+            self._load_spoiler()
+
+        # Request race_mode from AP data storage (not included in RoomInfo)
+        if self._ws is not None:
+            await self._ws.send(json.dumps([{"cmd": "Get", "keys": ["_read_race_mode"]}]))
+
         await self._broadcast_state_changed()
 
     async def _handle_print_json(self, packet: dict[str, Any]) -> None:
         msg_type = packet.get("type", "")
         state_changed = False
 
-        if msg_type == "ItemSend":
+        if msg_type in ("ItemSend", "ItemCheat"):
             self._track_item_send(packet)
             state_changed = True
         elif msg_type == "Goal":
@@ -437,6 +513,7 @@ class ArchipelagoClient:
                 state_changed = True
 
         event = _build_feed_event(packet, self._store)
+        self._feed_events.append(event)
         await self._broadcast("feed", {
             "sessionId": self._config.session_id,
             "event": event,
@@ -466,6 +543,12 @@ class ArchipelagoClient:
                             int(it.get("location", 0)),
                         )
                 self._recompute_event.set()
+        for it in items:
+            if isinstance(it, dict):
+                item_id = int(it.get("item", 0))
+                flags = int(it.get("flags", 0))
+                if item_id and flags:
+                    self._store.record_item_flags(item_id, flags)
         if items:
             await self._broadcast_state_changed()
 
@@ -479,14 +562,16 @@ class ArchipelagoClient:
         cause = data.get("cause")
         self._death_link_active = True
 
+        death_event: dict[str, Any] = {
+            "type": "death_link",
+            "source": source,
+            "cause": cause if isinstance(cause, str) else None,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._feed_events.append(death_event)
         await self._broadcast("feed", {
             "sessionId": self._config.session_id,
-            "event": {
-                "type": "death_link",
-                "source": source,
-                "cause": cause if isinstance(cause, str) else None,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
+            "event": death_event,
         })
 
     # ------------------------------------------------------------------
@@ -568,6 +653,63 @@ class ArchipelagoClient:
             return
         ps._hints = [self._store.resolve_hint_names(h) for h in ps._hints]
 
+    # ------------------------------------------------------------------
+    # Spoiler-based placement lookup
+    # ------------------------------------------------------------------
+
+    def _load_spoiler(self) -> None:
+        """Parse AP spoiler files from all zips in the output dir to build placement map."""
+        output_dir = self._config.save_dir
+        zips = _glob.glob(f"{output_dir}/*.zip")
+        if not zips:
+            self._log.warning("spoiler: no zip in %s", output_dir)
+            return
+
+        pattern = re.compile(r"^(.+) \((.+)\): (.+) \((.+)\)$")
+        placements: dict[int, dict[int, tuple[int, int]]] = {}
+        total_count = 0
+
+        for zip_path in zips:
+            try:
+                with zipfile.ZipFile(zip_path) as z:
+                    spoiler_names = [n for n in z.namelist() if n.endswith("_Spoiler.txt")]
+                    if not spoiler_names:
+                        continue
+                    text = z.read(spoiler_names[0]).decode("utf-8", errors="replace")
+            except Exception as exc:
+                self._log.warning("spoiler: failed to read %s: %s", zip_path, exc)
+                continue
+
+            count = 0
+            for line in text.splitlines():
+                m = pattern.match(line.strip())
+                if not m:
+                    continue
+                loc_name, finder_name, item_name, receiver_name = m.groups()
+                finder_slot = self._store.slot_by_alias(finder_name)
+                receiver_slot = self._store.slot_by_alias(receiver_name)
+                if not finder_slot or not receiver_slot:
+                    continue
+                finder_game = self._store._slot_games.get(finder_slot, "")
+                receiver_game = self._store._slot_games.get(receiver_slot, "")
+                location_id = self._store.location_id_by_name(finder_game, loc_name)
+                item_id = self._store.item_id_by_name(receiver_game, item_name)
+                if location_id is None or item_id is None:
+                    continue
+                placements.setdefault(finder_slot, {})[location_id] = (item_id, receiver_slot)
+                count += 1
+            if count:
+                self._log.info("spoiler: loaded %d placements from %s", count, zip_path)
+                total_count += count
+
+        self._placements = placements
+        if not total_count:
+            self._log.warning("spoiler: no placements resolved (player name mismatch?)")
+
+    def get_placement(self, finder_slot: int, location_id: int) -> tuple[int, int] | None:
+        """Return (item_id, receiver_slot) for a location, or None if unknown."""
+        return self._placements.get(finder_slot, {}).get(location_id)
+
     async def _track_hint(self, packet: dict[str, Any]) -> None:
         receiving_player = int(packet.get("receiving", 0))
         net_item = packet.get("item", {})
@@ -581,6 +723,9 @@ class ArchipelagoClient:
 
         if not (item_id and location_id and receiving_player):
             return
+
+        if item_flags:
+            self._store.record_item_flags(item_id, item_flags)
 
         status_raw = packet.get("status", None)
         if status_raw is not None:
@@ -629,13 +774,27 @@ class ArchipelagoClient:
         await self._broadcast("hints_changed", {
             "sessionId": self._config.session_id,
             "slot": slot,
-            "hints": [h.to_dict() for h in hints],
-            "budget": {
-                "hintsUsed": ps.hints_used if ps else 0,
-                "pointsAvailable": ps.hint_points_available if ps else 0,
-                "costPerHint": ps.hint_cost if ps else 0,
-                "pointsPerCheck": ps.hint_points_per_check if ps else 1,
-            },
+            "hints": [
+                {
+                    "receivingPlayer": h.receiving_player,
+                    "receivingPlayerName": h.receiving_player_name,
+                    "findingPlayer": h.finding_player,
+                    "findingPlayerName": h.finding_player_name,
+                    "locationId": h.location_id,
+                    "locationName": h.location_name,
+                    "itemId": h.item_id,
+                    "itemName": h.item_name,
+                    "itemFlags": h.item_flags,
+                    "entrance": h.entrance,
+                    "found": h.found,
+                    "status": h.status,
+                    "statusName": h.status_name,
+                }
+                for h in hints
+            ],
+            "hintsUsed": ps.hints_used if ps else 0,
+            "hintPointsAvailable": ps.hint_points_available if ps else 0,
+            "hintCost": ps.hint_cost if ps else 0,
         })
 
     # ------------------------------------------------------------------

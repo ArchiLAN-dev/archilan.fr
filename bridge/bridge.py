@@ -14,9 +14,6 @@ if __package__ in {None, ""}:
     sys.path.insert(0, repo_root)
 
 from bridge.adapters.docker_runtime import DockerRuntimeAdapter
-from bridge.adapters.kubernetes_runtime import KubernetesRuntimeAdapter
-from bridge.adapters.subprocess_runtime import SubprocessRuntimeAdapter
-from bridge.ports.runtime import RuntimeAdapter
 from bridge.core.ap_client import ArchipelagoClient, DataPackageStore
 from bridge.core.config import Config
 from bridge.core.coordinator import PauseResumeCoordinator
@@ -28,8 +25,7 @@ from bridge.core.loops import (
     setup_logging,
 )
 from bridge.core.rest import create_app
-from bridge.core.rest_operator import OperatorState
-from bridge.core.save_parser import load_save_state
+from bridge.core.save_parser import load_save_state, load_save_state_from_json
 from bridge.core.state import StateManager
 from bridge.core.ws_server import WsServer
 
@@ -42,7 +38,6 @@ __all__ = [
     "ArchipelagoClient",
     "DataPackageStore",
     "WsServer",
-    "OperatorState",
     "create_app",
     "setup_logging",
 ]
@@ -54,7 +49,24 @@ async def _main() -> None:
 
     log = logging.getLogger(__name__)
 
-    initial_state = load_save_state(config.save_dir)
+    runtime: DockerRuntimeAdapter | None = None
+    if config.runtime == "docker":
+        runtime = DockerRuntimeAdapter(config)
+
+    if runtime is not None and hasattr(runtime, "run_save_parse"):
+        try:
+            output = await asyncio.wait_for(
+                runtime.run_save_parse(save_dir=config.save_dir),
+                timeout=60.0,
+            )
+            initial_state = load_save_state_from_json(output)
+            log.info("initial state loaded via Docker save parse: %d slot(s)", len(initial_state))
+        except Exception as exc:
+            log.warning("Docker save parse failed at startup: %s - falling back to local parse", exc)
+            initial_state = load_save_state(config.save_dir)
+    else:
+        initial_state = load_save_state(config.save_dir)
+
     goals_file = os.path.join(config.save_dir, "bridge_goals.json")
     state = StateManager(initial_state, goals_file=goals_file, save_dir=config.save_dir)
 
@@ -69,23 +81,12 @@ async def _main() -> None:
         request_approve_restart=ws_server.request_approve_restart,
     )
 
-    runtime: RuntimeAdapter
-    if config.runtime == "docker":
-        runtime = DockerRuntimeAdapter(config)
-    elif config.runtime == "kubernetes":
-        runtime = KubernetesRuntimeAdapter(config)
-    else:
-        runtime = SubprocessRuntimeAdapter(config)
-
-    operator_state = OperatorState(config, runtime)
-    operator_state.broadcast = ws_server.broadcast
-
     reachable_semaphore = asyncio.Semaphore(1)
     app = create_app(
         state, ap_client, reachable_semaphore,
         coordinator=coordinator,
         ws_server=ws_server,
-        operator_state=operator_state,
+        runtime=runtime,
     )
 
     uv_config = uvicorn.Config(
@@ -100,10 +101,10 @@ async def _main() -> None:
     log.info("REST+WS API listening on port %d", config.rest_port)
 
     _sweep_task = asyncio.create_task(
-        _reachable_sweep_loop(state, ws_server.broadcast, config.session_id, reachable_semaphore, recompute_event)
+        _reachable_sweep_loop(state, ws_server.broadcast, config.session_id, reachable_semaphore, recompute_event, runtime=runtime)
     )
     _reconcile_task = asyncio.create_task(
-        _apsave_reconcile_loop(state, ws_server.broadcast, config.session_id, recompute_event)
+        _apsave_reconcile_loop(state, ws_server.broadcast, config.session_id, recompute_event, runtime=runtime)
     )
     _heartbeat_task = asyncio.create_task(
         _ws_heartbeat_loop(ws_server.broadcast, config.session_id)

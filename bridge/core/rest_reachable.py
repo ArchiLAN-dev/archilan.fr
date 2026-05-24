@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from .ap_client import ArchipelagoClient
-from .deps import get_ap_client, get_bridge_state, get_semaphore
+from .deps import get_ap_client, get_bridge_state, get_runtime, get_semaphore
 from .reachable import _compute_reachable, _reachable_cache
 from .schemas import ItemLocationResponse, ItemLocationsResponse
 from .state import StateManager
@@ -31,9 +31,10 @@ async def get_reachable(
     state: StateManager = Depends(get_bridge_state),
     ap_client: ArchipelagoClient = Depends(get_ap_client),
     semaphore: asyncio.Semaphore = Depends(get_semaphore),
+    runtime: Any = Depends(get_runtime),
 ) -> dict[str, Any]:
     state.merge_state_from_save()
-    result, err_msg = await _compute_reachable(slot, state, semaphore, log)
+    result, err_msg = await _compute_reachable(slot, state, semaphore, log, runtime)
 
     if result is None:
         status = 504 if "timed out" in err_msg else 500
@@ -60,6 +61,7 @@ async def get_item_locations(
     state: StateManager = Depends(get_bridge_state),
     ap_client: ArchipelagoClient = Depends(get_ap_client),
     semaphore: asyncio.Semaphore = Depends(get_semaphore),
+    runtime: Any = Depends(get_runtime),
 ) -> ItemLocationsResponse:
     state.merge_state_from_save()
 
@@ -67,7 +69,7 @@ async def get_item_locations(
     # all games are visible, not just slots that previously called /reachable/{slot}.
     for s in list(state._states.keys()):
         if s not in _reachable_cache:
-            await _compute_reachable(s, state, semaphore, log)
+            await _compute_reachable(s, state, semaphore, log, runtime)
 
     locations: list[ItemLocationResponse] = []
     for sender_slot, (_, result) in _reachable_cache.items():

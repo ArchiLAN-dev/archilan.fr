@@ -151,16 +151,16 @@ export function AdminSlotReachabilityPage({
           `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/item-locations`,
         );
         if (!res.ok) return;
-        const json = (await res.json()) as { data: { locations: Array<{ item_id: number; location_name: string; finding_player: number; finding_player_name: string; check_status: string }> } };
+        const json = (await res.json()) as { data: { locations: Array<{ itemId: number; locationName: string; findingPlayer: number; findingPlayerName: string; checkStatus: string }> } };
         const map: Record<number, ItemLocation[]> = {};
         for (const loc of json.data.locations) {
-          const locs = map[loc.item_id] ?? [];
+          const locs = map[loc.itemId] ?? [];
           locs.push({
-            locationName: loc.location_name,
-            gameName: loc.finding_player === currentSlotNum ? null : loc.finding_player_name,
-            checkStatus: (loc.check_status as ItemLocation["checkStatus"]) ?? null,
+            locationName: loc.locationName,
+            gameName: loc.findingPlayer === currentSlotNum ? null : loc.findingPlayerName,
+            checkStatus: (loc.checkStatus as ItemLocation["checkStatus"]) ?? null,
           });
-          map[loc.item_id] = locs;
+          map[loc.itemId] = locs;
         }
         setItemLocations(map);
       } catch { /* non-critical */ }
@@ -623,7 +623,7 @@ export function AdminSlotReachabilityPage({
                   checks={state.data.reachable_unchecked}
                   currentSlot={Number(slotIndex)}
                   emptyMessage="Aucun check faisable avec les items actuels."
-                  hintCost={hints?.hint_cost ?? 0}
+                  hintCost={hints?.hintCost ?? 0}
                   hintFree={hintFree}
                   onHintRequest={handleHintLocation}
                   title="Checks faisables maintenant"
@@ -633,7 +633,7 @@ export function AdminSlotReachabilityPage({
                   checks={state.data.unreachable_unchecked}
                   currentSlot={Number(slotIndex)}
                   emptyMessage="Tous les checks sont faisables !"
-                  hintCost={hints?.hint_cost ?? 0}
+                  hintCost={hints?.hintCost ?? 0}
                   hintFree={hintFree}
                   onHintRequest={handleHintLocation}
                   title="Checks non faisables"
@@ -900,7 +900,7 @@ export function AdminSlotReachabilityPage({
                 />
                 <ItemListPanel
                   emptyMessage="Tous les items ont été reçus !"
-                  hintCost={hints?.hint_cost ?? 0}
+                  hintCost={hints?.hintCost ?? 0}
                   hintFree={hintFree}
                   itemLocations={itemLocations}
                   items={state.data.items_not_received ?? []}
