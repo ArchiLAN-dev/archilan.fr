@@ -6,9 +6,13 @@ namespace Archilan\OrchestratorClient\Sessions\Yaml\Option;
 
 final readonly class ToggleOption implements OptionValue
 {
+    /**
+     * @param bool|list<Weighted> $value Pass a bool for a fixed value, or a list of Weighted
+     *                                   for a probabilistic distribution (keys: 'true'/'false').
+     */
     public function __construct(
         public string $key,
-        public bool $value,
+        public bool|array $value,
     ) {
     }
 
@@ -17,8 +21,18 @@ final readonly class ToggleOption implements OptionValue
         return $this->key;
     }
 
-    public function jsonSerialize(): int
+    /** @return int|array<string, int> */
+    public function jsonSerialize(): int|array
     {
-        return $this->value ? 1 : 0;
+        if (\is_bool($this->value)) {
+            return $this->value ? 1 : 0;
+        }
+
+        $weights = [];
+        foreach ($this->value as $w) {
+            $weights[$w->value ? 'true' : 'false'] = $w->weight;
+        }
+
+        return $weights;
     }
 }

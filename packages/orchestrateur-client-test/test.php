@@ -14,6 +14,9 @@ use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightRequest;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightSlot;
+use Archilan\OrchestratorClient\Sessions\Request\SlotOptions;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\ToggleOption;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\Weighted;
 use Archilan\OrchestratorClient\Sessions\Yaml\PlayerYaml;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -74,6 +77,21 @@ function probe(
     }
 }
 
+
+$hashLuigiMansion = '0fd8936279e053df96110fcb7898447a9fb8655343b8f26c22108d79a73b4e21';
+$options = $client->apworlds()->getOptions($hashLuigiMansion);
+
+//$client->sessions()->generate('salut-ca-va', 'password');
+$client->sessions()->launch('salut-ca-va', 'password');
+die();
+$result = $client->sessions()->configure('salut-ca-va', new ConfigureRequest([
+    ConfigureSlot::fromOptions($hashLuigiMansion, new SlotOptions('MasterKafey_LM', [
+        new ToggleOption('toadsanity', true)
+    ]))
+]));
+dump($result);
+die();
+
 // ─── 0. Raw HTTP probes ───────────────────────────────────────────────────────
 section('Raw HTTP probes (bypass PHP client)');
 probe($rawHttp, 'GET', "$baseUrl/health", $apiKey);
@@ -82,22 +100,41 @@ probe($rawHttp, 'POST', "$baseUrl/sessions/probe-test/generate", $apiKey, ['admi
 probe($rawHttp, 'POST', "$baseUrl/sessions/probe-test/preflight", $apiKey, ['slots' => []]);
 probe($rawHttp, 'POST', "$baseUrl/sessions/probe-test/configure", $apiKey, ['slots' => []]);
 
+// ─── Apworlds — upload ────────────────────────────────────────────────────────
+section('Apworlds — upload()');
 $dir = 'C:/ProgramData/Archipelago/lib/worlds/';
 $directory = scandir($dir);
+$e2eApworldHash = null;   // captured from paint.apworld upload for the e2e test
 foreach ($directory as $file) {
-    if (!str_ends_with($file, '.apworld') || !in_array($file, ['soe.apworld', 'pokemon_emerald.apworld', 'stardew_valley.apworld'])) {
+    if (!str_ends_with($file, '.apworld')) {
         continue;
     }
     $content = file_get_contents($dir . $file);
 
     try {
-        $client->apworlds()->upload($content, $file);
+        $result = $client->apworlds()->upload($content, $file);
         ok("Uploaded: $file");
+        if ('paint.apworld' === $file) {
+            $e2eApworldHash = $result->hash;
+        }
     } catch (\Throwable $exception) {
-        err("Exeception:" . $file . ':' . $exception->getMessage());
+        err("Exception: $file: " . $exception->getMessage());
     }
 }
 
+
+// ─── Apworlds — iterate ───────────────────────────────────────────────────────
+section('Apworlds — iterate');
+try {
+    $count = 0;
+    foreach ($client->apworlds() as $aw) {
+        ++$count;
+        echo "    [{$aw->game}] {$aw->hash}\n";
+    }
+    ok("{$count} apworld(s) in storage");
+} catch (\Throwable $e) {
+    err('iterate failed: ' . $e->getMessage());
+}
 
 // ─── 1. Sessions — get inexistante → SessionNotFoundException ────────────────
 section('Sessions — get() on unknown session');
@@ -168,28 +205,29 @@ try {
 // ─── 4a. ConfigureSlot — invalid hash format caught client-side ──────────────
 section('ConfigureSlot — invalid hash → InvalidArgumentException');
 try {
-    new ConfigureSlot(
-        apworldHash: 'not-a-sha256',
-        playerYaml: new PlayerYaml(name: 'Jean', game: 'Test'),
-    );
+    ConfigureSlot::fromYaml('not-a-sha256', new PlayerYaml(name: 'Jean', game: 'Test'));
     err('Expected InvalidArgumentException but nothing was thrown');
 } catch (\InvalidArgumentException $e) {
     ok('InvalidArgumentException caught: ' . $e->getMessage());
 }
 
 // ─── 4b. Sessions — configure (storage validation errors) ────────────────────
+// Use a fresh session ID — configure must be called BEFORE generate.
+// $sessionId was already generated above, so configure on it would return
+// ConflictException(already_in_progress) rather than validation errors.
 section('Sessions — configure() with unknown apworld hash → validation errors');
+$configureSessionId = 'test-configure-' . time();
 try {
     $result = $client->sessions()->configure(
-        $sessionId,
+        $configureSessionId,
         new ConfigureRequest([
-            new ConfigureSlot(
-                apworldHash: str_repeat('a', 64),   // valid format, unknown in storage
-                playerYaml: new PlayerYaml(name: 'Jean', game: 'A Link to the Past'),
+            ConfigureSlot::fromYaml(
+                str_repeat('a', 64),   // valid format, unknown in storage
+                new PlayerYaml(name: 'Jean', game: 'A Link to the Past'),
             ),
-            new ConfigureSlot(
-                apworldHash: str_repeat('b', 64),   // valid format, unknown in storage
-                playerYaml: new PlayerYaml(name: 'Bob', game: 'Clique'),
+            ConfigureSlot::fromYaml(
+                str_repeat('b', 64),   // valid format, unknown in storage
+                new PlayerYaml(name: 'Bob', game: 'Clique'),
             ),
         ]),
     );
@@ -211,11 +249,38 @@ try {
     err('configure failed: ' . get_class($e) . ' — ' . $e->getMessage());
 }
 
-// ─── 5. End-to-end: generate → poll → launch → poll → check ─────────────────
-section('End-to-end: generate → wait → launch → wait → status check');
+// ─── 5. End-to-end: configure → generate → poll → launch → poll → check ──────
+section('End-to-end: configure → generate → wait → launch → wait → status check');
 $e2eSessionId = 'test-e2e-' . time();
 
-// 4a. Generate
+// 5a. Configure slots (must be done BEFORE generate)
+if (null === $e2eApworldHash) {
+    err('paint.apworld hash not captured — skipping e2e configure step');
+} else {
+    try {
+        $cfgResult = $client->sessions()->configure(
+            $e2eSessionId,
+            new ConfigureRequest([
+                ConfigureSlot::fromYaml(
+                    $e2eApworldHash,
+                    new PlayerYaml(name: 'TestPlayer', game: 'Paint'),
+                ),
+            ]),
+        );
+        if ($cfgResult->valid) {
+            ok("configure({$e2eSessionId}) → valid, paint slot accepted");
+        } else {
+            $errs = implode(', ', $cfgResult->slots[0]->errors ?? []);
+            err("configure({$e2eSessionId}) → invalid: {$errs}");
+            goto cleanup;
+        }
+    } catch (OrchestratorException $e) {
+        err('configure failed: ' . get_class($e) . ' — ' . $e->getMessage());
+        goto cleanup;
+    }
+}
+
+// 5b. Generate
 try {
     $client->sessions()->generate($e2eSessionId, 'adminpassword');
     ok("generate({$e2eSessionId}) → 202");
@@ -315,7 +380,7 @@ if ($runningOk) {
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
 cleanup:
 section("Cleanup — delete sessions");
-foreach ([$sessionId, $e2eSessionId] as $sid) {
+foreach ([$sessionId, $configureSessionId, $e2eSessionId] as $sid) {
     try {
         $client->sessions()->delete($sid);
         ok("delete({$sid}) → 204");

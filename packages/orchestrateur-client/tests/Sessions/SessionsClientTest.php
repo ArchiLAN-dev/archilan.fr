@@ -9,6 +9,11 @@ use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightRequest;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightSlot;
+use Archilan\OrchestratorClient\Sessions\Request\SlotOptions;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\ChoiceOption;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\RangeOption;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\ToggleOption;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\Weighted;
 use Archilan\OrchestratorClient\Sessions\Response\ConfigureResult;
 use Archilan\OrchestratorClient\Sessions\Response\PreflightResult;
 use Archilan\OrchestratorClient\Sessions\Response\SessionResponse;
@@ -137,8 +142,8 @@ final class SessionsClientTest extends TestCase
 
         $hash = str_repeat('a', 64);
         $request = new ConfigureRequest([
-            new ConfigureSlot(apworldHash: $hash, playerYaml: new PlayerYaml('Peach', 'Super Mario World')),
-            new ConfigureSlot(apworldHash: $hash, playerYaml: new PlayerYaml('Link', 'A Link to the Past')),
+            ConfigureSlot::fromYaml($hash, new PlayerYaml('Peach', 'Super Mario World')),
+            ConfigureSlot::fromYaml($hash, new PlayerYaml('Link', 'A Link to the Past')),
         ]);
         $result = $client->configure('abc', $request);
 
@@ -179,10 +184,7 @@ final class SessionsClientTest extends TestCase
         $client = new SessionsClient(new HttpTransport($mock, 'http://localhost:8000', 'key'));
 
         $result = $client->configure('s1', new ConfigureRequest([
-            new ConfigureSlot(
-                apworldHash: $validHash,
-                playerYaml: new PlayerYaml('Samus', 'Super Metroid'),
-            ),
+            ConfigureSlot::fromYaml($validHash, new PlayerYaml('Samus', 'Super Metroid')),
         ]));
 
         $this->assertTrue($called);
@@ -192,7 +194,52 @@ final class SessionsClientTest extends TestCase
     public function testConfigureSlot_invalidHash_throwsInvalidArgumentException(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        new ConfigureSlot(apworldHash: 'tooshort', playerYaml: new PlayerYaml('Jean', 'Timespinner'));
+        ConfigureSlot::fromYaml('tooshort', new PlayerYaml('Jean', 'Timespinner'));
+    }
+
+    public function testConfigureSlot_fromOptions_sendsOptionsPayload(): void
+    {
+        $hash = str_repeat('c', 64);
+        $body = json_encode([
+            'valid' => true,
+            'slots' => [['playerName' => 'Jean', 'errors' => []]],
+        ]) ?: '';
+        $decoded = null;
+        $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$decoded, $body): MockResponse {
+            $decoded = json_decode($options['body'] ?? '{}', true);
+
+            return new MockResponse($body, ['http_code' => 200]);
+        });
+        $client = new SessionsClient(new HttpTransport($mock, 'http://localhost:8000', 'key'));
+
+        $client->configure('s1', new ConfigureRequest([
+            ConfigureSlot::fromOptions($hash, new SlotOptions('Jean', [
+                new ChoiceOption('goal', 'beat_the_king'),
+                new RangeOption('trap_percentage', 25),
+                new ToggleOption('death_link', false),
+                new ChoiceOption('filler_weights', [new Weighted('Coins', 25), new Weighted('Bars', 75)]),
+            ])),
+        ]));
+
+        $this->assertIsArray($decoded);
+        /** @var array{slots: array<array<string, mixed>>} $decoded */
+        $slot = $decoded['slots'][0];
+        $this->assertSame($hash, $slot['apworldHash']);
+        $this->assertArrayNotHasKey('playerYaml', $slot);
+        $this->assertArrayHasKey('options', $slot);
+        /** @var array{playerName: string, values: array<string, mixed>} $options */
+        $options = $slot['options'];
+        $this->assertSame('Jean', $options['playerName']);
+        $this->assertSame('beat_the_king', $options['values']['goal']);
+        $this->assertSame(25, $options['values']['trap_percentage']);
+        $this->assertSame(0, $options['values']['death_link']);
+        $this->assertSame(['Coins' => 25, 'Bars' => 75], $options['values']['filler_weights']);
+    }
+
+    public function testConfigureSlot_fromOptions_invalidHash_throwsInvalidArgumentException(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ConfigureSlot::fromOptions('bad-hash', new SlotOptions('Jean'));
     }
 
     public function testLaunchFromFile_sendsMultipart(): void

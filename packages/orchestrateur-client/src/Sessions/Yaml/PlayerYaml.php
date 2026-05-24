@@ -37,11 +37,11 @@ final readonly class PlayerYaml
             $data['description'] = $this->description;
         }
 
-        if ([] !== $this->options) {
-            $gameSection = [];
-            foreach ($this->options as $option) {
-                $gameSection[$option->getKey()] = $option->jsonSerialize();
-            }
+        $gameSection = [];
+        foreach ($this->options as $option) {
+            $gameSection[$option->getKey()] = $option->jsonSerialize();
+        }
+        if ([] !== $gameSection) {
             $data[$this->game] = $gameSection;
         }
 

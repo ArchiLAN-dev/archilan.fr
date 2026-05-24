@@ -9,7 +9,7 @@ use Archilan\OrchestratorClient\Sessions\Yaml\Option\ItemDictOption;
 use Archilan\OrchestratorClient\Sessions\Yaml\Option\ItemListOption;
 use Archilan\OrchestratorClient\Sessions\Yaml\Option\RangeOption;
 use Archilan\OrchestratorClient\Sessions\Yaml\Option\ToggleOption;
-use Archilan\OrchestratorClient\Sessions\Yaml\Option\WeightedOption;
+use Archilan\OrchestratorClient\Sessions\Yaml\Option\Weighted;
 use Archilan\OrchestratorClient\Sessions\Yaml\PlayerYaml;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Yaml\Yaml;
@@ -44,7 +44,7 @@ final class PlayerYamlTest extends TestCase
                 new ToggleOption('swordless', false),
                 new ItemListOption('local_items', ['Bombos', 'Ether']),
                 new ItemDictOption('start_inventory', ['Pegasus Boots' => 1]),
-                new WeightedOption('smallkey_shuffle', ['original_dungeon' => 1, 'any_world' => 2]),
+                new ChoiceOption('smallkey_shuffle', [new Weighted('original_dungeon', 1), new Weighted('any_world', 2)]),
             ],
         );
 
@@ -112,9 +112,21 @@ final class PlayerYamlTest extends TestCase
         $this->assertSame(0, (new ToggleOption('key', false))->jsonSerialize());
     }
 
-    public function testWeightedOption_returnsWeights(): void
+    public function testToggleOption_weighted(): void
     {
-        $option = new WeightedOption('goal', ['ganon' => 3, 'fast_ganon' => 1]);
+        $option = new ToggleOption('swordless', [new Weighted(true, 70), new Weighted(false, 30)]);
+        $this->assertSame(['true' => 70, 'false' => 30], $option->jsonSerialize());
+    }
+
+    public function testChoiceOption_weighted(): void
+    {
+        $option = new ChoiceOption('goal', [new Weighted('ganon', 3), new Weighted('fast_ganon', 1)]);
         $this->assertSame(['ganon' => 3, 'fast_ganon' => 1], $option->jsonSerialize());
+    }
+
+    public function testRangeOption_weighted(): void
+    {
+        $option = new RangeOption('logic_percent', [new Weighted(80, 50), new Weighted(95, 10)]);
+        $this->assertSame(['80' => 50, '95' => 10], $option->jsonSerialize());
     }
 }

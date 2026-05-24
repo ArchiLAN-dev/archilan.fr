@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Archilan\OrchestratorClient\Sessions\Yaml\Option;
 
-/**
- * Represents a Choice, TextChoice, or FreeText option with a single direct value.
- * For weighted choices use WeightedOption instead.
- */
 final readonly class ChoiceOption implements OptionValue
 {
+    /**
+     * @param string|list<Weighted> $value Pass a string for a fixed value, or a list of Weighted
+     *                                     for a probabilistic distribution.
+     */
     public function __construct(
         public string $key,
-        public string $value,
+        public string|array $value,
     ) {
     }
 
@@ -21,8 +21,18 @@ final readonly class ChoiceOption implements OptionValue
         return $this->key;
     }
 
-    public function jsonSerialize(): string
+    /** @return string|array<string, int> */
+    public function jsonSerialize(): string|array
     {
-        return $this->value;
+        if (\is_string($this->value)) {
+            return $this->value;
+        }
+
+        $weights = [];
+        foreach ($this->value as $w) {
+            $weights[(string) $w->value] = $w->weight;
+        }
+
+        return $weights;
     }
 }

@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Archilan\OrchestratorClient\Tests\Apworlds;
 
 use Archilan\OrchestratorClient\Apworlds\ApworldsClient;
+use Archilan\OrchestratorClient\Apworlds\Response\ChoiceTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\TemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\TextTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\ToggleTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\UploadApworldResult;
 use Archilan\OrchestratorClient\Http\HttpTransport;
 use PHPUnit\Framework\TestCase;
@@ -38,12 +42,13 @@ final class ApworldsClientTest extends TestCase
         $this->assertInstanceOf(UploadApworldResult::class, $result);
         $this->assertSame('deadbeef', $result->hash);
         $this->assertCount(1, $result->options);
-        $this->assertInstanceOf(TemplateOption::class, $result->options[0]);
-        $this->assertSame('logic_percent', $result->options[0]->key);
-        $this->assertSame('range', $result->options[0]->type);
-        $this->assertSame(80, $result->options[0]->defaultValue);
-        $this->assertSame(50, $result->options[0]->rangeMin);
-        $this->assertSame(95, $result->options[0]->rangeMax);
+
+        $opt = $result->options[0];
+        $this->assertInstanceOf(RangeTemplateOption::class, $opt);
+        $this->assertSame('logic_percent', $opt->key);
+        $this->assertSame(80, $opt->default);
+        $this->assertSame(50, $opt->rangeMin);
+        $this->assertSame(95, $opt->rangeMax);
     }
 
     public function testUpload_choiceOption(): void
@@ -51,29 +56,32 @@ final class ApworldsClientTest extends TestCase
         $body = $this->uploadBody('abc123', [
             ['key' => 'smallkey_shuffle', 'description' => 'Where keys go.',
              'type' => 'choice', 'defaultValue' => 'original_dungeon',
-             'validValues' => ['original_dungeon', 'any_world', 'own_world']],
+             'validValues' => ['original_dungeon', 'any_world', 'own_world'],
+             'weights' => ['original_dungeon' => 50, 'any_world' => 0, 'own_world' => 0]],
         ]);
         $client = $this->client(new MockResponse($body, ['http_code' => 201]));
         $result = $client->upload('binary-data', 'game.apworld');
 
         $opt = $result->options[0];
-        $this->assertSame('choice', $opt->type);
-        $this->assertSame('original_dungeon', $opt->defaultValue);
+        $this->assertInstanceOf(ChoiceTemplateOption::class, $opt);
+        $this->assertSame('original_dungeon', $opt->default);
         $this->assertSame(['original_dungeon', 'any_world', 'own_world'], $opt->validValues);
+        $this->assertSame(['original_dungeon' => 50, 'any_world' => 0, 'own_world' => 0], $opt->weights);
     }
 
     public function testUpload_toggleOption(): void
     {
         $body = $this->uploadBody('abc123', [
             ['key' => 'swordless', 'description' => 'No swords.', 'type' => 'toggle',
-             'defaultValue' => false],
+             'defaultValue' => false, 'weights' => ['false' => 50, 'true' => 0]],
         ]);
         $client = $this->client(new MockResponse($body, ['http_code' => 201]));
         $result = $client->upload('binary-data', 'game.apworld');
 
         $opt = $result->options[0];
-        $this->assertSame('toggle', $opt->type);
-        $this->assertFalse($opt->defaultValue);
+        $this->assertInstanceOf(ToggleTemplateOption::class, $opt);
+        $this->assertFalse($opt->default);
+        $this->assertSame(['false' => 50, 'true' => 0], $opt->weights);
     }
 
     public function testUpload_emptyOptions(): void
@@ -106,17 +114,29 @@ final class ApworldsClientTest extends TestCase
     {
         $body = $this->uploadBody('abc123', [
             ['key' => 'disable_forced_camera', 'description' => 'Lock camera.', 'type' => 'toggle',
-             'defaultValue' => true],
+             'defaultValue' => true, 'weights' => ['false' => 0, 'true' => 50]],
         ]);
         $client = $this->client(new MockResponse($body, ['http_code' => 201]));
         $result = $client->upload('binary-data', 'game.apworld');
 
         $opt = $result->options[0];
-        $this->assertSame('toggle', $opt->type);
-        $this->assertTrue($opt->defaultValue);
-        $this->assertNull($opt->validValues);
-        $this->assertNull($opt->rangeMin);
-        $this->assertNull($opt->rangeMax);
+        $this->assertInstanceOf(ToggleTemplateOption::class, $opt);
+        $this->assertTrue($opt->default);
+        $this->assertSame(['false' => 0, 'true' => 50], $opt->weights);
+    }
+
+    public function testUpload_choiceOption_noWeightsField_defaultsToEmpty(): void
+    {
+        $body = $this->uploadBody('abc123', [
+            ['key' => 'some_choice', 'description' => 'Desc.', 'type' => 'choice',
+             'defaultValue' => 'a', 'validValues' => ['a', 'b']],
+        ]);
+        $client = $this->client(new MockResponse($body, ['http_code' => 201]));
+        $result = $client->upload('binary-data', 'game.apworld');
+
+        $opt = $result->options[0];
+        $this->assertInstanceOf(ChoiceTemplateOption::class, $opt);
+        $this->assertSame([], $opt->weights);
     }
 
     public function testUpload_rangeNullDefault(): void
@@ -130,8 +150,8 @@ final class ApworldsClientTest extends TestCase
         $result = $client->upload('binary-data', 'game.apworld');
 
         $opt = $result->options[0];
-        $this->assertSame('range', $opt->type);
-        $this->assertNull($opt->defaultValue);
+        $this->assertInstanceOf(RangeTemplateOption::class, $opt);
+        $this->assertNull($opt->default);
         $this->assertSame(1, $opt->rangeMin);
         $this->assertSame(9999999, $opt->rangeMax);
     }
@@ -147,11 +167,8 @@ final class ApworldsClientTest extends TestCase
         $result = $client->upload('binary-data', 'game.apworld');
 
         $opt = $result->options[0];
-        $this->assertSame('text', $opt->type);
-        $this->assertNull($opt->defaultValue);
-        $this->assertNull($opt->validValues);
-        $this->assertNull($opt->rangeMin);
-        $this->assertNull($opt->rangeMax);
+        $this->assertInstanceOf(TextTemplateOption::class, $opt);
+        $this->assertNull($opt->default);
     }
 
     public function testUpload_choiceWithRandomAsOption(): void
@@ -166,8 +183,8 @@ final class ApworldsClientTest extends TestCase
         $result = $client->upload('binary-data', 'game.apworld');
 
         $opt = $result->options[0];
-        $this->assertSame('choice', $opt->type);
-        $this->assertSame('random', $opt->defaultValue);
+        $this->assertInstanceOf(ChoiceTemplateOption::class, $opt);
+        $this->assertSame('random', $opt->default);
         $this->assertSame(['red', 'blue', 'random'], $opt->validValues);
     }
 
@@ -186,20 +203,17 @@ final class ApworldsClientTest extends TestCase
         $this->assertSame($desc, $opt->description);
     }
 
-    public function testUpload_omittedOptionalFields_defaultToNull(): void
+    public function testUpload_choiceOption_hasNoRangeFields(): void
     {
-        // Simulates the Go omitempty behaviour: validValues/rangeMin/rangeMax absent when nil
+        // A ChoiceTemplateOption structurally cannot have range fields — verified by instanceof
         $body = json_encode(['hash' => 'abc', 'options' => [
             ['key' => 'some_option', 'description' => 'Desc.', 'type' => 'choice',
              'defaultValue' => 'foo', 'validValues' => ['foo', 'bar']],
-            // rangeMin/rangeMax intentionally absent (omitempty)
         ]]) ?: '';
         $client = $this->client(new MockResponse($body, ['http_code' => 201]));
         $result = $client->upload('binary-data', 'game.apworld');
 
-        $opt = $result->options[0];
-        $this->assertNull($opt->rangeMin);
-        $this->assertNull($opt->rangeMax);
+        $this->assertInstanceOf(ChoiceTemplateOption::class, $result->options[0]);
     }
 
     public function testGetYamlTemplate_returnsRawYaml(): void
