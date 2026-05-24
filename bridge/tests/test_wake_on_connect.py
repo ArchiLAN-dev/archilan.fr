@@ -25,10 +25,6 @@ def _config(**overrides: object) -> Config:
         "internal_token": "test-token",
         "ap_pid_file": "/tmp/test-ap.pid",
         "ap_launch_cmd": "python multiserver.py",
-        "storage_endpoint": "http://minio.test:9000",
-        "storage_access_key": "minioadmin",
-        "storage_secret_key": "minioadmin",
-        "storage_bucket": "test-bucket",
     }
     defaults.update(overrides)
     return Config(  # type: ignore[arg-type]
@@ -150,7 +146,6 @@ async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: objec
 
     with pytest.MonkeyPatch().context() as mp:
         mp.setattr(_rest, "_poll_for_save", AsyncMock(return_value=save_file))
-        mp.setattr(_rest, "_upload_save", AsyncMock(return_value="20260519T143000.apsave"))
         mp.setattr(_rest, "_kill_ap", AsyncMock())
 
         port = await _free_port()
@@ -166,7 +161,7 @@ async def test_pause_flow_starts_wake_task_and_resume_cancels_it(tmp_path: objec
         mp.setattr(_rest, "_launch_ap", AsyncMock(return_value=AsyncMock(returncode=None)))
         mp.setattr(_rest, "_wait_for_ap_health", AsyncMock(return_value=True))
 
-        await _rest._resume_flow(ap_client, last_save_key=None, coordinator=coordinator, broadcast=mock_broadcast)
+        await _rest._resume_flow(ap_client, coordinator=coordinator, broadcast=mock_broadcast)
 
     assert coordinator.wake_task is None
 

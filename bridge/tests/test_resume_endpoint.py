@@ -27,10 +27,6 @@ def _config(**overrides: object) -> Config:
         "internal_token": "test-token",
         "ap_pid_file": "/tmp/test-ap.pid",
         "ap_launch_cmd": "python multiserver.py",
-        "storage_endpoint": "http://minio.test:9000",
-        "storage_access_key": "minioadmin",
-        "storage_secret_key": "minioadmin",
-        "storage_bucket": "test-bucket",
     }
     defaults.update(overrides)
     return Config(  # type: ignore[arg-type]
@@ -76,7 +72,6 @@ async def test_resume_valid_token_returns_200() -> None:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             resp = await client.post(
                 "/resume",
-                json={"saveKey": "20260519T143000.apsave"},
                 headers={"Authorization": "Bearer test-token"},
             )
             assert resp.status_code == 200
@@ -172,40 +167,10 @@ async def test_resume_flow_uses_local_save_if_available(tmp_path: object) -> Non
 
     with patch.object(_rest, "_launch_ap", new=_mock_launch):
         with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=True)):
-            await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
+            await _rest._resume_flow(ap_client, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
 
     assert launched == [save_file]
     assert "restarted" in broadcasts
-
-
-@pytest.mark.asyncio
-async def test_resume_flow_falls_back_to_storage_when_no_local_save(tmp_path: object) -> None:
-    _, ap_client = _make_app(config=_config(save_dir=str(tmp_path)))
-
-    save_key = "20260519T143000.apsave"
-    downloaded: list[str] = []
-    launched: list[str] = []
-
-    async def _mock_download(client: ArchipelagoClient, key: str) -> str:
-        downloaded.append(key)
-        path = str(tmp_path / "downloaded.apsave")
-        with open(path, "wb") as f:
-            f.write(b"save")
-        return path
-
-    async def _mock_launch(client: ArchipelagoClient, save_path: str) -> MagicMock:
-        launched.append(save_path)
-        proc = MagicMock()
-        proc.returncode = None
-        return proc
-
-    with patch.object(_rest, "_download_save_from_storage", new=_mock_download):
-        with patch.object(_rest, "_launch_ap", new=_mock_launch):
-            with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=True)):
-                await _rest._resume_flow(ap_client, last_save_key=save_key, coordinator=PauseResumeCoordinator(), broadcast=AsyncMock())
-
-    assert downloaded == [save_key]
-    assert len(launched) == 1
 
 
 @pytest.mark.asyncio
@@ -223,7 +188,7 @@ async def test_resume_flow_stops_if_no_save_available(tmp_path: object) -> None:
         broadcasts.append(payload.get("event", ""))
 
     with patch.object(_rest, "_launch_ap", new=_mock_launch):
-        await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
+        await _rest._resume_flow(ap_client, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
 
     assert not launch_called
     assert "restart_failed" in broadcasts
@@ -253,7 +218,7 @@ async def test_resume_flow_kills_ap_on_health_check_failure(tmp_path: object) ->
 
     with patch.object(_rest, "_launch_ap", new=AsyncMock(return_value=mock_proc)):
         with patch.object(_rest, "_wait_for_ap_health", new=AsyncMock(return_value=False)):
-            await _rest._resume_flow(ap_client, last_save_key=None, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
+            await _rest._resume_flow(ap_client, coordinator=PauseResumeCoordinator(), broadcast=_mock_broadcast)
 
     assert "restart_failed" in broadcasts
     assert killed is True

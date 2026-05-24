@@ -6,6 +6,8 @@ import json
 import logging
 import os
 import sys
+from typing import Any
+
 from .state import StateManager
 
 _reachable_cache: dict[int, tuple[tuple, dict]] = {}
@@ -18,8 +20,8 @@ async def _start_daemon(slot: int, arch_file: str, log: logging.Logger) -> None:
     """Start reachable.py in --daemon mode for a slot and wait for it to signal ready."""
     event = asyncio.Event()
     _daemon_ready_events[slot] = event
-    output_dir = os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/archipelago/output")
-    yamls_dir = os.path.join(os.path.dirname(output_dir), "yamls")
+    output_dir = os.environ.get("AP_OUTPUT_DIR", os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/data/output"))
+    yamls_dir = os.environ.get("AP_YAMLS_DIR", os.path.join(os.path.dirname(output_dir), "yamls"))
     cmd = [
         sys.executable, "/reachable/reachable.py",
         "--archipelago", arch_file,
@@ -55,6 +57,7 @@ async def _compute_reachable(
     state: StateManager,
     semaphore: asyncio.Semaphore,
     log: logging.Logger,
+    runtime: Any = None,
 ) -> tuple[dict | None, str]:
     """Run reachability for a slot. Returns (result_dict, error_msg).
 
@@ -62,12 +65,16 @@ async def _compute_reachable(
     """
     ps = state._states.get(slot)
 
-    output_dir = os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/archipelago/output")
-    arch_files = glob.glob(f"{output_dir}/*.archipelago") or glob.glob(f"{output_dir}/*.zip")
+    output_dir = os.environ.get("AP_OUTPUT_DIR", os.environ.get("ARCHIPELAGO_OUTPUT_DIR", "/data/output"))
+    arch_files = sorted(
+        glob.glob(f"{output_dir}/*.archipelago") or glob.glob(f"{output_dir}/*.zip"),
+        key=os.path.getmtime,
+        reverse=True,
+    )
     if not arch_files:
         return None, "no .archipelago file"
 
-    yamls_dir = os.path.join(os.path.dirname(output_dir), "yamls")
+    yamls_dir = os.environ.get("AP_YAMLS_DIR", os.path.join(os.path.dirname(output_dir), "yamls"))
 
     checks_done = len(ps._checked_locations) if ps else 0
     items_received = len(ps._received_items) if ps else 0
@@ -82,16 +89,43 @@ async def _compute_reachable(
     state_payload = json.dumps({
         "checked_locations": list(ps._checked_locations) if ps else [],
         "received_items": list(ps._received_items) if ps else [],
-    }) + "\n"
+    })
 
     async with semaphore:
+        # Docker mode: delegate to ephemeral AP container via runtime adapter.
+        if runtime is not None and hasattr(runtime, "run_reachable"):
+            try:
+                output = await asyncio.wait_for(
+                    runtime.run_reachable(
+                        slot=slot,
+                        arch_file=arch_files[0],
+                        yamls_dir=yamls_dir,
+                        state_json=state_payload,
+                    ),
+                    timeout=120.0,
+                )
+            except asyncio.TimeoutError:
+                return None, "reachability check timed out"
+            except Exception as exc:
+                return None, str(exc)
+            try:
+                result = json.loads(output)
+            except json.JSONDecodeError:
+                return None, "invalid JSON from reachable.py"
+            _reachable_cache[slot] = (cache_key, result)
+            log.info("reachable: docker slot=%d reachable=%d",
+                     slot, result.get("counts", {}).get("reachable_now", 0))
+            return result, ""
+
+        # Subprocess / daemon path (non-Docker mode).
+        state_payload_nl = state_payload + "\n"
         daemon_proc = _reachable_daemons.get(slot)
         daemon_event = _daemon_ready_events.get(slot)
         if (daemon_proc and daemon_proc.returncode is None
                 and daemon_event and daemon_event.is_set()):
             try:
                 assert daemon_proc.stdin is not None and daemon_proc.stdout is not None
-                daemon_proc.stdin.write(state_payload.encode())
+                daemon_proc.stdin.write(state_payload_nl.encode())
                 await daemon_proc.stdin.drain()
                 resp = await asyncio.wait_for(daemon_proc.stdout.readline(), timeout=10.0)
                 result = json.loads(resp.decode())
@@ -121,7 +155,7 @@ async def _compute_reachable(
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(input=state_payload.encode()), timeout=120.0
+                proc.communicate(input=state_payload_nl.encode()), timeout=120.0
             )
         except asyncio.TimeoutError:
             return None, "reachability check timed out"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import glob
+import json
 import logging
 import os
 import pickle
@@ -58,6 +59,62 @@ def _extract_hints(raw_hints: set) -> list[HintInfo]:
         except Exception:
             pass
     return result
+
+
+def load_save_state_from_json(json_str: str) -> dict[int, PlayerState]:
+    """Parse JSON output from read_save.py (Docker path) into PlayerState per slot."""
+    log = logging.getLogger(__name__)
+    try:
+        data: dict[str, Any] = json.loads(json_str)
+        if "error" in data:
+            log.warning("read_save.py reported error: %s", data["error"])
+            return {}
+
+        states: dict[int, PlayerState] = {}
+        for slot_str, info in data.items():
+            try:
+                slot = int(slot_str)
+                ps = PlayerState(slot_index=slot)
+                ps._checked_locations = {int(x) for x in info.get("checked_locations", [])}
+                ps.checks_done = len(ps._checked_locations)
+                ps.client_status = int(info.get("client_status", 0))
+                if ps.client_status == 30:
+                    ps.goal_reached_at = datetime.now(timezone.utc).isoformat()
+                ps._received_items = [
+                    (int(item[0]), int(item[1]), int(item[2]))
+                    for item in info.get("received_items", [])
+                ]
+                ps.items_received = len(ps._received_items)
+                ps.hints_used = int(info.get("hints_used", 0))
+                ps.hint_points_per_check = int(info.get("location_check_points", 1))
+                hints: list[HintInfo] = []
+                for h in info.get("hints", []):
+                    try:
+                        hints.append(HintInfo(
+                            receiving_player=int(h.get("receiving_player", 0)),
+                            finding_player=int(h.get("finding_player", 0)),
+                            location_id=int(h.get("location", 0)),
+                            item_id=int(h.get("item", 0)),
+                            entrance=str(h.get("entrance", "")),
+                            item_flags=int(h.get("item_flags", 0)),
+                            status=int(h.get("status", 0)),
+                        ))
+                    except Exception:
+                        pass
+                ps._hints = hints
+                states[slot] = ps
+            except Exception as exc:
+                log.warning("load_save_state_from_json: slot %s failed: %s", slot_str, exc)
+
+        log.info(
+            "save state loaded from JSON: %d slot(s) - statuses: %s",
+            len(states),
+            {s: p.client_status for s, p in states.items()},
+        )
+        return states
+    except Exception as exc:
+        log.warning("load_save_state_from_json failed: %s", exc)
+        return {}
 
 
 def load_save_state(save_dir: str) -> dict[int, PlayerState]:

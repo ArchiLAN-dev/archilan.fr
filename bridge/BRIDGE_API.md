@@ -287,7 +287,7 @@ Errors: `404 not_found`
 
 ---
 
-#### `GET /operator/apworlds/{filename}/yaml-template`
+#### `GET /operator/apworlds/{filename}/yaml`
 Generate the default YAML configuration template for a game. Invokes AP's
 template generator; synchronous, typically < 2 s.
 

@@ -25,13 +25,20 @@ class DeathLinkRequest(BaseModel):
     cause: str | None = None
 
 
-class ResumeRequest(BaseModel):
-    saveKey: str | None = None
-
-
 class HintRequest(BaseModel):
     locationId: int
     free: bool = False
+
+
+class HintStatusUpdateRequest(BaseModel):
+    status: int
+
+    @field_validator("status")
+    @classmethod
+    def valid_status(cls, v: int) -> int:
+        if v not in {0, 10, 20, 30, 40}:
+            raise ValueError("status must be one of: 0, 10, 20, 30, 40")
+        return v
 
 
 class ServerStartRequest(BaseModel):
@@ -101,55 +108,6 @@ class HintOkResponse(BaseModel):
     free: bool
 
 
-class ApworldInfo(BaseModel):
-    filename: str
-    game: str | None = None
-    version: str | None = None
-
-
-class ApworldsResponse(BaseModel):
-    apworlds: list[ApworldInfo]
-
-
-class GenerateResponse(BaseModel):
-    jobId: str
-
-
-class GenerationJobResponse(BaseModel):
-    jobId: str
-    status: str
-    startedAt: str | None = None
-    finishedAt: str | None = None
-    progress: str | None = None
-    seed: int | None = None
-    seedFile: str | None = None
-    spoilerFile: str | None = None
-    raceMode: bool | None = None
-    error: str | None = None
-    message: str | None = None
-
-
-class ServerInfoResponse(BaseModel):
-    running: bool
-    handle: str | None
-    pid: int | None
-    port: int | None
-    seedFile: str | None
-    startedAt: str | None
-
-
-class ServerStartResponse(BaseModel):
-    ok: bool
-    handle: str
-    pid: int | None
-    port: int
-
-
-class YamlTemplateResponse(BaseModel):
-    game: str
-    filename: str
-    yaml: str
-
 
 class ItemLocationResponse(BaseModel):
     itemId: int
@@ -164,3 +122,56 @@ class ItemLocationResponse(BaseModel):
 class ItemLocationsResponse(BaseModel):
     slot: int
     locations: list[ItemLocationResponse]
+
+
+# ---------------------------------------------------------------------------
+# Checks endpoint
+# ---------------------------------------------------------------------------
+
+class CheckItemContent(BaseModel):
+    id: int
+    name: str
+    flags: int
+    receivingSlot: int
+    receivingPlayerName: str
+
+
+class CheckLocation(BaseModel):
+    locationId: int
+    locationName: str
+    checked: bool
+    item: CheckItemContent | None = None
+
+
+class ChecksResponse(BaseModel):
+    slot: int
+    total: int
+    checkedCount: int
+    locations: list[CheckLocation]
+
+
+# ---------------------------------------------------------------------------
+# Slot items endpoint
+# ---------------------------------------------------------------------------
+
+class SlotItemFoundAt(BaseModel):
+    findingSlot: int
+    findingPlayerName: str
+    locationId: int
+    locationName: str
+    checked: bool
+
+
+class SlotItem(BaseModel):
+    id: int
+    name: str
+    flags: int
+    received: bool
+    foundAt: SlotItemFoundAt | None = None
+
+
+class SlotItemsResponse(BaseModel):
+    slot: int
+    totalOwned: int
+    receivedCount: int
+    items: list[SlotItem]
