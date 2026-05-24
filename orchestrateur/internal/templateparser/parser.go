@@ -15,28 +15,9 @@ type Option struct {
 	Type         string // range | choice | toggle | text
 	DefaultValue any
 	ValidValues  []string
+	Weights      map[string]int // non-nil for choice and toggle options
 	RangeMin     *int
 	RangeMax     *int
-}
-
-// universalOptions are always available in every game — excluded from the response
-// since the PHP client exposes them as typed fields on PlayerYaml.
-var universalOptions = map[string]bool{
-	"progression_balancing": true,
-	"accessibility":         true,
-	"local_items":           true,
-	"non_local_items":       true,
-	"start_inventory":       true,
-	"start_hints":           true,
-	"start_location_hints":  true,
-	"exclude_locations":     true,
-	"priority_locations":    true,
-	"item_links":            true,
-	"plando_items":          true,
-	"plando_connections":    true,
-	"plando_bosses":         true,
-	"plando_texts":          true,
-	"triggers":              true,
 }
 
 var topLevelKeys = map[string]bool{
@@ -50,9 +31,9 @@ var (
 	equivalentRe = regexp.MustCompile(`equivalent to (-?\d+)`)
 )
 
-// Parse extracts game-specific options from an Archipelago YAML template.
-// Comments at indent-4 (under the option key) are used as descriptions.
-// Universal options and top-level keys are excluded.
+// Parse extracts all game options from an Archipelago YAML template, including
+// universal options (progression_balancing, accessibility, etc.).
+// Top-level keys (name, game, description, requires) are excluded.
 func Parse(data []byte) []Option {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 
@@ -66,9 +47,7 @@ func Parse(data []byte) []Option {
 		if curKey == "" {
 			return
 		}
-		if !universalOptions[curKey] {
-			result = append(result, buildOption(curKey, curComments, curValues))
-		}
+		result = append(result, buildOption(curKey, curComments, curValues))
 		curKey = ""
 		curComments = nil
 		curValues = nil
@@ -133,7 +112,7 @@ func buildOption(key string, comments []string, values []string) Option {
 		rangeMax = &v
 	}
 
-	optType, defaultVal, validVals := inferType(values, rangeMin, rangeMax)
+	optType, defaultVal, validVals, weights := inferType(values, rangeMin, rangeMax)
 
 	opt := Option{
 		Key:          key,
@@ -141,6 +120,7 @@ func buildOption(key string, comments []string, values []string) Option {
 		Type:         optType,
 		DefaultValue: defaultVal,
 		ValidValues:  validVals,
+		Weights:      weights,
 	}
 	if rangeMin != nil {
 		opt.RangeMin = rangeMin
@@ -208,15 +188,15 @@ func parseValueLines(values []string) []valuePair {
 	return pairs
 }
 
-func inferType(values []string, rangeMin, rangeMax *int) (string, any, []string) {
+func inferType(values []string, rangeMin, rangeMax *int) (string, any, []string, map[string]int) {
 	pairs := parseValueLines(values)
 	if len(pairs) == 0 {
-		return "text", nil, nil
+		return "text", nil, nil, nil
 	}
 
 	// Explicit range bounds from comments → always range regardless of keys.
 	if rangeMin != nil {
-		return "range", rangeDefault(pairs), nil
+		return "range", rangeDefault(pairs), nil, nil
 	}
 
 	// Partition into random* and concrete keys.
@@ -229,7 +209,7 @@ func inferType(values []string, rangeMin, rangeMax *int) (string, any, []string)
 
 	// All keys are random* → free-form seed / untyped field.
 	if len(nonRandom) == 0 {
-		return "text", nil, nil
+		return "text", nil, nil, nil
 	}
 
 	// Range: all non-random keys are integers (numeric weighted range).
@@ -241,7 +221,7 @@ func inferType(values []string, rangeMin, rangeMax *int) (string, any, []string)
 		}
 	}
 	if allInts {
-		return "range", rangeDefault(pairs), nil
+		return "range", rangeDefault(pairs), nil, nil
 	}
 
 	// Toggle: exactly true + false among non-random keys.
@@ -251,27 +231,30 @@ func inferType(values []string, rangeMin, rangeMax *int) (string, any, []string)
 	}
 	if keySet["true"] && keySet["false"] && len(keySet) == 2 && len(pairs) == len(nonRandom) {
 		var def bool
+		weights := make(map[string]int, 2)
 		for _, p := range nonRandom {
+			weights[p.key] = p.weight
 			if p.key == "true" && p.weight > 0 {
 				def = true
-				break
 			}
 		}
-		return "toggle", def, nil
+		return "toggle", def, nil, weights
 	}
 
 	// Choice: string keys (may include random as a selectable option).
 	var validVals []string
 	var def any
 	best := -1
+	weights := make(map[string]int, len(pairs))
 	for _, p := range pairs {
 		validVals = append(validVals, p.key)
+		weights[p.key] = p.weight
 		if p.weight > best {
 			best = p.weight
 			def = p.key
 		}
 	}
-	return "choice", def, validVals
+	return "choice", def, validVals, weights
 }
 
 func rangeDefault(pairs []valuePair) any {

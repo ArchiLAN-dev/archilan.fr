@@ -31,14 +31,39 @@ type CreateContainerResponse struct {
 }
 
 // TemplateOption is a parsed game-specific option from an Archipelago YAML template.
+//
+// Type values:
+//   - "range"   — numeric range; DefaultValue is int, RangeMin/RangeMax set.
+//   - "choice"  — enumerated string; DefaultValue is string, ValidValues lists choices.
+//   - "toggle"  — boolean flag; DefaultValue is bool.
+//   - "text"    — free-form string; DefaultValue is nil or string.
+//   - "weights" — each item in ValidValues receives an independent weight (0–100);
+//     DefaultValue is map[string]int of item → default weight.
 type TemplateOption struct {
-	Key          string   `json:"key"`
-	Description  string   `json:"description"`
-	Type         string   `json:"type"` // range | choice | toggle | text
-	DefaultValue any      `json:"defaultValue"`
-	ValidValues  []string `json:"validValues,omitempty"`
-	RangeMin     *int     `json:"rangeMin,omitempty"`
-	RangeMax     *int     `json:"rangeMax,omitempty"`
+	Key          string         `json:"key"`
+	Description  string         `json:"description"`
+	Type         string         `json:"type"`
+	DefaultValue any            `json:"defaultValue"`
+	ValidValues  []string       `json:"validValues,omitempty"`
+	Weights      map[string]int `json:"weights,omitempty"`
+	RangeMin     *int           `json:"rangeMin,omitempty"`
+	RangeMax     *int           `json:"rangeMax,omitempty"`
+}
+
+// ApworldEntry represents a single uploaded apworld with its game metadata.
+type ApworldEntry struct {
+	Hash string `json:"hash"`
+	Game string `json:"game"`
+}
+
+// ApworldListResponse is returned by GET /apworlds.
+type ApworldListResponse struct {
+	Apworlds []ApworldEntry `json:"apworlds"`
+}
+
+// ApworldOptionsResponse is returned by GET /apworlds/{hash}/options.
+type ApworldOptionsResponse struct {
+	Options []TemplateOption `json:"options"`
 }
 
 // UploadApworldResponse is returned on successful apworld upload.
@@ -118,10 +143,19 @@ type PreflightResponse struct {
 	Slots []PreflightSlotResult `json:"slots"`
 }
 
+// SlotOptionsPayload carries structured slot options for server-side YAML generation.
+// Values may be scalars (string, int/float, bool) or nested maps for weights options.
+type SlotOptionsPayload struct {
+	PlayerName string         `json:"playerName"`
+	Values     map[string]any `json:"values"`
+}
+
 // ConfigureSlotEntry is one slot entry in a configure request.
+// Either PlayerYaml or Options must be set; Options takes priority when both are present.
 type ConfigureSlotEntry struct {
-	ApworldHash string `json:"apworldHash"`
-	PlayerYaml  string `json:"playerYaml"`
+	ApworldHash string              `json:"apworldHash"`
+	PlayerYaml  string              `json:"playerYaml,omitempty"`
+	Options     *SlotOptionsPayload `json:"options,omitempty"`
 }
 
 // ConfigureSessionRequest is the body for POST /sessions/{sessionId}/configure.

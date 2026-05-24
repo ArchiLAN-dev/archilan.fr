@@ -102,6 +102,7 @@ func handleUploadApworld(svc *service.Service) http.HandlerFunc {
 				Type:         o.Type,
 				DefaultValue: o.DefaultValue,
 				ValidValues:  o.ValidValues,
+				Weights:      o.Weights,
 				RangeMin:     o.RangeMin,
 				RangeMax:     o.RangeMax,
 			}
@@ -110,6 +111,37 @@ func handleUploadApworld(svc *service.Service) http.HandlerFunc {
 			Hash:    hash,
 			Options: apiOptions,
 		})
+	}
+}
+
+// handleListApworlds godoc
+// @Summary     List uploaded apworlds
+// @Description Returns all apworlds stored in Minio with their game name and version
+// @Tags        apworlds
+// @Produce     json
+// @Success     200 {object} ApworldListResponse
+// @Failure     503 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /apworlds [get]
+func handleListApworlds(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		entries, err := svc.ListApworlds(r.Context())
+		if errors.Is(err, service.ErrStorageNotConfigured) {
+			writeError(w, http.StatusServiceUnavailable, "storage not configured")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		resp := ApworldListResponse{Apworlds: make([]ApworldEntry, 0, len(entries))}
+		for _, e := range entries {
+			resp.Apworlds = append(resp.Apworlds, ApworldEntry{
+				Hash: e.Hash,
+				Game: e.Game,
+			})
+		}
+		writeJSON(w, http.StatusOK, resp)
 	}
 }
 
@@ -139,6 +171,58 @@ func handleGetApworldTemplate(svc *service.Service) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(data)
+	}
+}
+
+// handleGetApworldOptions godoc
+// @Summary     Get apworld parsed options
+// @Description Returns the structured game options extracted from the stored YAML template
+// @Tags        apworlds
+// @Param       hash path string true "Apworld SHA-256 hash"
+// @Produce     json
+// @Success     200 {object} ApworldOptionsResponse
+// @Failure     404 {object} ErrorResponse
+// @Failure     500 {object} ErrorResponse
+// @Security    BearerAuth
+// @Router      /apworlds/{hash}/options [get]
+func handleGetApworldOptions(svc *service.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		hash := chi.URLParam(r, "hash")
+		data, err := svc.GetApworldTemplate(r.Context(), hash)
+		if errors.Is(err, service.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "template not found")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		parsed := templateparser.Parse(data)
+		overrides := svc.GetApworldOptionTypes(r.Context(), hash)
+
+		opts := make([]TemplateOption, len(parsed))
+		for i, o := range parsed {
+			opt := TemplateOption{
+				Key:          o.Key,
+				Description:  o.Description,
+				Type:         o.Type,
+				DefaultValue: o.DefaultValue,
+				ValidValues:  o.ValidValues,
+				Weights:      o.Weights,
+				RangeMin:     o.RangeMin,
+				RangeMax:     o.RangeMax,
+			}
+			if ov, ok := overrides[o.Key]; ok {
+				opt.Type = ov.Type
+				opt.Weights = nil // weights don't apply to the introspected weights type
+				if ov.Type == "weights" && ov.DefaultWeights != nil {
+					opt.DefaultValue = ov.DefaultWeights
+				}
+			}
+			opts[i] = opt
+		}
+		writeJSON(w, http.StatusOK, ApworldOptionsResponse{Options: opts})
 	}
 }
 

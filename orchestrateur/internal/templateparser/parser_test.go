@@ -71,12 +71,21 @@ Paint:
 
 func ptr(n int) *int { return &n }
 
-func TestParse_excludesUniversalOptions(t *testing.T) {
+func TestParse_includesUniversalOptions(t *testing.T) {
 	opts := templateparser.Parse([]byte(paintTemplate))
-	for _, o := range opts {
-		if o.Key == "progression_balancing" || o.Key == "accessibility" {
-			t.Errorf("universal option %q should be excluded", o.Key)
+	find := func(key string) bool {
+		for _, o := range opts {
+			if o.Key == key {
+				return true
+			}
 		}
+		return false
+	}
+	if !find("progression_balancing") {
+		t.Error("progression_balancing should be included")
+	}
+	if !find("accessibility") {
+		t.Error("accessibility should be included")
 	}
 }
 
@@ -183,6 +192,15 @@ func TestParse_quotedBooleans_detectedAsToggle(t *testing.T) {
 	if opt.DefaultValue != false {
 		t.Errorf("DefaultValue: got %v, want false", opt.DefaultValue)
 	}
+	if opt.Weights == nil {
+		t.Fatal("Weights should be non-nil for toggle option")
+	}
+	if opt.Weights["false"] != 50 {
+		t.Errorf("false weight: got %d, want 50", opt.Weights["false"])
+	}
+	if opt.Weights["true"] != 0 {
+		t.Errorf("true weight: got %d, want 0", opt.Weights["true"])
+	}
 }
 
 func TestParse_stringKeysWithRandom_detectedAsChoice(t *testing.T) {
@@ -216,8 +234,52 @@ func TestParse_onlyRandomKeys_detectedAsText(t *testing.T) {
 	}
 }
 
+func TestParse_choiceOption_hasWeights(t *testing.T) {
+	opts := templateparser.Parse([]byte(paintTemplate))
+	opt := findOpt(opts, "smallkey_shuffle")
+	if opt == nil {
+		t.Fatal("smallkey_shuffle not found")
+	}
+	if opt.Weights == nil {
+		t.Fatal("Weights should be non-nil for choice option")
+	}
+	if opt.Weights["original_dungeon"] != 50 {
+		t.Errorf("original_dungeon weight: got %d, want 50", opt.Weights["original_dungeon"])
+	}
+	if opt.Weights["any_world"] != 0 {
+		t.Errorf("any_world weight: got %d, want 0", opt.Weights["any_world"])
+	}
+}
+
+func TestParse_toggleOption_hasWeights(t *testing.T) {
+	opts := templateparser.Parse([]byte(paintTemplate))
+	opt := findOpt(opts, "swordless")
+	if opt == nil {
+		t.Fatal("swordless not found")
+	}
+	if opt.Weights == nil {
+		t.Fatal("Weights should be non-nil for toggle option")
+	}
+	if opt.Weights["false"] != 50 {
+		t.Errorf("false weight: got %d, want 50", opt.Weights["false"])
+	}
+	if opt.Weights["true"] != 0 {
+		t.Errorf("true weight: got %d, want 0", opt.Weights["true"])
+	}
+}
+
+func TestParse_rangeOption_hasNoWeights(t *testing.T) {
+	opts := templateparser.Parse([]byte(paintTemplate))
+	opt := findOpt(opts, "logic_percent")
+	if opt == nil {
+		t.Fatal("logic_percent not found")
+	}
+	if opt.Weights != nil {
+		t.Errorf("Weights should be nil for range option, got %v", opt.Weights)
+	}
+}
+
 func TestParse_rangeDefault_fromEquivalentComment(t *testing.T) {
-	// progression_balancing is universal and excluded, use a custom fixture
 	tmpl := `game: Foo
 Foo:
   my_range:
