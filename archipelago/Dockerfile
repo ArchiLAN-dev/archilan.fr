@@ -1,8 +1,7 @@
 ARG ARCHIPELAGO_VERSION=0.6.7
 
-# Python 3.12 - matches the version bundled in Archipelago 0.6.7 Windows binary
-# Ensures apworld compatibility (same runtime as local Archipelago install)
-FROM python:3.12-slim
+# Python 3.13 - matches the version bundled in Archipelago 0.6.7 (pyc magic 3571)
+FROM python:3.13-slim
 
 ARG ARCHIPELAGO_VERSION
 
@@ -43,6 +42,9 @@ RUN pip install --no-cache-dir \
 
 COPY archipelago/generate_template.py /usr/local/bin/generate_template.py
 RUN chmod +x /usr/local/bin/generate_template.py
+
+COPY archipelago/introspect_options.py /usr/local/bin/introspect_options.py
+RUN chmod +x /usr/local/bin/introspect_options.py
 
 COPY archipelago/generate_multiworld.py /usr/local/bin/generate_multiworld.py
 RUN chmod +x /usr/local/bin/generate_multiworld.py

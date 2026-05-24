@@ -9,6 +9,18 @@ if [ -z "$REPO_ROOT" ]; then
     exit 0
 fi
 
+# Windows compat: python3 may only be available as `py -3`
+# Use an array so multi-word commands (py -3) expand correctly.
+if command -v python3 &>/dev/null; then
+    PYTHON3_CMD=(python3)
+elif command -v py &>/dev/null; then
+    PYTHON3_CMD=(py -3)
+elif command -v python &>/dev/null; then
+    PYTHON3_CMD=(python)
+else
+    PYTHON3_CMD=(python3)
+fi
+
 # Directories with uncommitted changes (staged or unstaged)
 changed=$(git -C "$REPO_ROOT" status --short 2>/dev/null \
     | awk '{print $NF}' \
@@ -69,16 +81,16 @@ fi
 # ── Bridge (Python) ───────────────────────────────────────────────────────────
 if has_change "bridge"; then
     D="$REPO_ROOT/bridge"
-    gate "ruff"      "$D" python -m ruff check .
-    gate "pytest"    "$D" python -m pytest
-    gate "mypy"      "$REPO_ROOT" python -m mypy bridge/ --config-file bridge/pyproject.toml
+    gate "ruff"      "$D" "${PYTHON3_CMD[@]}" -m ruff check .
+    gate "pytest"    "$D" "${PYTHON3_CMD[@]}" -m pytest
+    gate "mypy"      "$REPO_ROOT" "${PYTHON3_CMD[@]}" -m mypy bridge/ --config-file bridge/pyproject.toml
 fi
 
 # ── Runner (Python) ───────────────────────────────────────────────────────────
 if has_change "runner"; then
     D="$REPO_ROOT/runner"
-    gate "ruff (runner)"   "$D" python -m ruff check .
-    gate "pytest (runner)" "$D" python -m pytest
+    gate "ruff (runner)"   "$D" "${PYTHON3_CMD[@]}" -m ruff check .
+    gate "pytest (runner)" "$D" "${PYTHON3_CMD[@]}" -m pytest
 fi
 
 # ── Report ────────────────────────────────────────────────────────────────────
@@ -125,7 +137,7 @@ fi
 
 # ── Emit JSON (systemMessage + optional additionalContext) ─────────────────────
 msg="${header}\n\n${details}"
-printf '%s' "$msg" | GATE_CTX="$git_ctx" python3 -c '
+printf '%s' "$msg" | GATE_CTX="$git_ctx" "${PYTHON3_CMD[@]}" -c '
 import json, sys, os
 msg = sys.stdin.read()
 ctx = os.environ.get("GATE_CTX", "")
