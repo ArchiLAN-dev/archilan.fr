@@ -128,7 +128,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
       return fetchWeeklyEntryPatches(run.weeklyRunId, patchEntryId);
     },
     staleTime: DEFAULT_STALE_TIME,
-    enabled: run.myEntry !== null && run.myEntry.connectionInfo !== null,
+    enabled: run.myEntry !== null,
   });
 
   // Subscribe to Mercure for real-time leaderboard updates
@@ -195,6 +195,25 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
   const { myEntry } = run;
   const isActive = run.status === "active";
 
+  const patchSection = patches.length > 0 && myEntry !== null ? (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Fichiers patch
+      </p>
+      {patches.map((filename) => (
+        <a
+          key={filename}
+          className="inline-flex w-fit items-center gap-1.5 text-sm text-accent-text hover:underline"
+          download={filename}
+          href={`${env.apiBaseUrl}/weekly-runs/${run.weeklyRunId}/entries/${myEntry.entryId}/patches/${filename}`}
+        >
+          <Download aria-hidden="true" className="size-3.5" />
+          {filename}
+        </a>
+      ))}
+    </div>
+  ) : null;
+
   return (
     <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 md:p-6">
       {/* Header */}
@@ -252,14 +271,17 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
           )}
 
           {myEntry !== null && myEntry.connectionInfo === null && (
-            <button
-              className="rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
-              disabled={actionLoading}
-              onClick={() => void handleLaunch()}
-              type="button"
-            >
-              {actionLoading ? "Lancement…" : "Lancer ma partie"}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                className="w-fit rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                disabled={actionLoading}
+                onClick={() => void handleLaunch()}
+                type="button"
+              >
+                {actionLoading ? "Lancement…" : "Lancer ma partie"}
+              </button>
+              {patchSection}
+            </div>
           )}
 
           {myEntry !== null && myEntry.connectionInfo !== null && (
@@ -269,24 +291,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
                 password={myEntry.connectionInfo.password}
                 port={myEntry.connectionInfo.port}
               />
-              {patches.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Fichiers patch
-                  </p>
-                  {patches.map((filename) => (
-                    <a
-                      key={filename}
-                      className="inline-flex w-fit items-center gap-1.5 text-sm text-accent-text hover:underline"
-                      download={filename}
-                      href={`${env.apiBaseUrl}/weekly-runs/${run.weeklyRunId}/entries/${myEntry.entryId}/patches/${filename}`}
-                    >
-                      <Download aria-hidden="true" className="size-3.5" />
-                      {filename}
-                    </a>
-                  ))}
-                </div>
-              )}
+              {patchSection}
               <Link
                 className="inline-flex w-fit items-center gap-1.5 rounded border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent hover:text-foreground"
                 href={`/runs-hebdo/${run.weeklyRunId}/ma-run`}
