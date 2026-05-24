@@ -5,8 +5,15 @@
     "license": "proprietary",
     "minimum-stability": "stable",
     "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../packages/orchestrateur-client"
+        }
+    ],
     "require": {
         "php": ">=8.3",
+        "archilan/orchestrateur-client": ">=1",
         "ext-ctype": "*",
         "ext-iconv": "*",
         "aws/aws-sdk-php": "^3.381.2",

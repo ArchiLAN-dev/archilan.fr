@@ -109,6 +109,13 @@ services:
             $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
             $runnerApiKey: '%env(RUNNER_API_KEY)%'
 
+    archilan.orchestrateur_client:
+        class: Archilan\OrchestratorClient\OrchestratorClient
+        arguments:
+            $baseUrl: '%env(RUNNER_BASE_URL)%'
+            $apiKey: '%env(ORCHESTRATEUR_API_KEY)%'
+            $httpClient: '@http_client'
+
     App\Sessions\Infrastructure\DockerPortScannerInterface: '@App\Sessions\Infrastructure\DockerPortScanner'
 
     App\Sessions\Infrastructure\PortPool:

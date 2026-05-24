@@ -4,8 +4,45 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "56dae9329b7b3e2ae768904ee593c7b9",
+    "content-hash": "43d3288b08ead78fcb876a5d9fe85416",
     "packages": [
+        {
+            "name": "archilan/orchestrateur-client",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "../packages/orchestrateur-client",
+                "reference": "1330766ab16bc391d08cfd6144b8719985db0fc8"
+            },
+            "require": {
+                "php": "^8.2",
+                "symfony/http-client-contracts": "^3.0",
+                "symfony/mime": "^6.4|^7.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^11.0",
+                "symfony/http-client": "^6.4|^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Archilan\\OrchestratorClient\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Archilan\\OrchestratorClient\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "PHP client for the Archilan orchestrateur REST API.",
+            "transport-options": {
+                "relative": true
+            }
+        },
         {
             "name": "aws/aws-crt-php",
             "version": "v1.2.7",
