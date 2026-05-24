@@ -34,8 +34,10 @@ func NewRouter(cfg *config.Config, svc *service.Service) http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware(cfg.APIKey))
 
+		r.Get("/apworlds", handleListApworlds(svc))
 		r.Post("/apworlds", handleUploadApworld(svc))
-		r.Get("/apworlds/{hash}/yaml-template", handleGetApworldTemplate(svc))
+		r.Get("/apworlds/{hash}/yaml", handleGetApworldTemplate(svc))
+		r.Get("/apworlds/{hash}/options", handleGetApworldOptions(svc))
 
 		r.Get("/containers", handleListContainers(svc))
 		r.Post("/containers", handleCreateContainer(svc))
@@ -45,6 +47,7 @@ func NewRouter(cfg *config.Config, svc *service.Service) http.Handler {
 		r.Post("/containers/{sessionId}/stop", handleStopContainer(svc))
 		r.Post("/containers/{sessionId}/reload", handleReloadContainer(svc))
 
+		r.Post("/sessions/{sessionId}/configure", handleConfigureSession(svc))
 		r.Post("/sessions/{sessionId}/preflight", handlePreflight())
 		r.Post("/sessions/{sessionId}/generate", handleGenerateSession(svc))
 		r.Post("/sessions/{sessionId}/launch", handleLaunchSession(svc))
