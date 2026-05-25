@@ -277,6 +277,25 @@ class ArchipelagoClient:
             })
         return result
 
+    def get_slot_detail(self, slot: int) -> dict[str, Any] | None:
+        ps = self._state._states.get(slot)
+        if ps is None:
+            return None
+        return {
+            "slot": slot,
+            "name": ps.slot_name,
+            "game": self._store._slot_games.get(slot, ""),
+            "type": self._store._slot_types.get(slot, "player"),
+            "status": _CLIENT_STATUS_NAMES.get(ps.client_status, "idle"),
+            "connected": slot in self._connected_slots,
+            "checksDone": ps.checks_done,
+            "checksTotal": ps.checks_total,
+            "itemsReceived": ps.items_received,
+            "goalReachedAt": ps.goal_reached_at,
+            "reachableNow": ps.reachable_now,
+            "budget": ps.hint_points_available,
+        }
+
     # ------------------------------------------------------------------
     # Commands
     # ------------------------------------------------------------------

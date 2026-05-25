@@ -12,7 +12,7 @@ use Archilan\BridgeClient\Exception\NotFoundException;
 use Symfony\Component\HttpClient\HttpClient;
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-$baseUrl    = 'http://localhost:8080';
+$baseUrl    = 'http://localhost:25004';
 $adminToken = 'dev_bridge_token_change_me';
 
 $client = new BridgeClient(
@@ -97,8 +97,13 @@ try {
     ok(count($slots) . ' slot(s)');
     foreach ($slots as $slot) {
         $connected = $slot->connected ? '🟢' : '⚫';
-        echo "    {$connected} [{$slot->slot}] {$slot->name} ({$slot->game}) — {$slot->checksDone}/{$slot->checksTotal} checks\n";
-        $slotIndex ??= $slot->slot;
+        echo "    {$connected} [{$slot->slot}] {$slot->name} ({$slot->game}) [{$slot->type}] — {$slot->checksDone}/{$slot->checksTotal} checks\n";
+        // Prefer a real player slot for per-slot tests (not spectator/group)
+        if ($slot->type === 'player') {
+            $slotIndex = $slot->slot;
+        } elseif ($slotIndex === null) {
+            $slotIndex = $slot->slot;
+        }
     }
 } catch (BridgeException $e) {
     err('list() failed: ' . $e->getMessage());
@@ -228,6 +233,15 @@ try {
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 admin_section:
+// Trigger reachability for the player slot so /spheres has cached data
+if (null !== $slotIndex) {
+    try {
+        $client->slots()->reachable($slotIndex);
+    } catch (BridgeException) {
+        // reachable may fail (500 if world not supported) — spheres still returns cached=false
+    }
+}
+
 section('Admin — spheres()');
 try {
     $spheres = $client->admin()->spheres();

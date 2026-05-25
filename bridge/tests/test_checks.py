@@ -245,3 +245,149 @@ async def test_items_admin_flags_populated_from_store() -> None:
         resp = await c.get("/slots/1/items", headers=AUTH)
     item = resp.json()["items"][0]
     assert item["flags"] == 1
+
+
+# ---------------------------------------------------------------------------
+# GET /slots/{slot} — single slot detail
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_slot_detail_not_found() -> None:
+    app, _, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/99")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_slot_detail_returns_budget_and_fields() -> None:
+    app, state, ap_client = _make_app()
+    _populate(ap_client)
+    state.set_slot_name(1, "Alice")
+    ps = state.ensure_slot(1)
+    state.set_checks_total(1, 10)
+    state.add_location_checks(1, [201, 202])
+    ps.hint_points_per_check = 2
+    ps.hints_used = 1
+    ps.hint_cost = 2
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["slot"] == 1
+    assert data["name"] == "Alice"
+    assert data["game"] == "HK"
+    assert data["checksDone"] == 2
+    assert data["checksTotal"] == 10
+    # budget = checks_done * hint_points_per_check - hints_used * hint_cost = 2*2 - 1*2 = 2
+    assert data["budget"] == 2
+    assert data["goalReachedAt"] is None
+
+
+# ---------------------------------------------------------------------------
+# GET /slots/{slot}/items/missing — admin only
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_missing_items_requires_auth() -> None:
+    app, state, ap_client = _make_app()
+    _populate(ap_client)
+    state.ensure_slot(1)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1/items/missing")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_missing_items_returns_unreceived() -> None:
+    app, state, ap_client = _make_app()
+    _populate(ap_client)
+    # Alice owns: Grub at slot1/Fungal (received), Charm at slot2/LinkHouse (not received)
+    ap_client._placements = {
+        1: {201: (101, 1)},   # slot1/Fungal → Grub → Alice
+        2: {401: (102, 1)},   # slot2/LinkHouse → Charm → Alice
+    }
+    ps = state.ensure_slot(1)
+    ps._received_items = [(101, 1, 201)]  # Grub received
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1/items/missing", headers=AUTH)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["slot"] == 1
+    assert len(data["missing"]) == 1
+    m = data["missing"][0]
+    assert m["itemId"] == 102
+    assert m["itemName"] == "Charm"
+    assert m["locationId"] == 401
+    assert m["locationName"] == "Link House"
+    assert m["receivingSlot"] == 1
+    assert m["receivingPlayerName"] == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_missing_items_empty_when_all_received() -> None:
+    app, state, ap_client = _make_app()
+    _populate(ap_client)
+    ap_client._placements = {1: {201: (101, 1)}}
+    ps = state.ensure_slot(1)
+    ps._received_items = [(101, 1, 201)]
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1/items/missing", headers=AUTH)
+    assert resp.json()["missing"] == []
+
+
+# ---------------------------------------------------------------------------
+# GET /slots/{slot}/spoiler — admin only
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_slot_spoiler_requires_auth() -> None:
+    app, state, ap_client = _make_app()
+    _populate(ap_client)
+    state.ensure_slot(1)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1/spoiler")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_slot_spoiler_lists_all_placements_in_world() -> None:
+    app, state, ap_client = _make_app()
+    _populate(ap_client)
+    # Slot 1 world: Fungal → Grub (Alice), City → Sword (Bob)
+    ap_client._placements = {
+        1: {
+            201: (101, 1),  # Fungal → Grub → Alice
+            202: (301, 2),  # City → Sword → Bob
+        }
+    }
+    state.ensure_slot(1)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1/spoiler", headers=AUTH)
+    assert resp.status_code == 200
+    data = resp.json()
+    placements = {p["locationId"]: p for p in data["placements"]}
+
+    assert placements[201]["itemName"] == "Grub"
+    assert placements[201]["receivingSlot"] == 1
+    assert placements[201]["receivingPlayerName"] == "Alice"
+
+    assert placements[202]["itemName"] == "Sword"
+    assert placements[202]["receivingSlot"] == 2
+    assert placements[202]["receivingPlayerName"] == "Bob"
+
+
+@pytest.mark.asyncio
+async def test_slot_spoiler_empty_when_no_placements() -> None:
+    app, _, ap_client = _make_app()
+    _populate(ap_client)
+    ap_client._placements = {}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/slots/1/spoiler", headers=AUTH)
+    assert resp.status_code == 200
+    assert resp.json()["placements"] == []

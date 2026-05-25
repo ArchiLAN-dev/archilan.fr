@@ -175,3 +175,58 @@ class SlotItemsResponse(BaseModel):
     totalOwned: int
     receivedCount: int
     items: list[SlotItem]
+
+
+# ---------------------------------------------------------------------------
+# Slot detail endpoint
+# ---------------------------------------------------------------------------
+
+class SlotDetailResponse(BaseModel):
+    slot: int
+    name: str
+    game: str
+    type: str
+    status: str
+    connected: bool
+    checksDone: int
+    checksTotal: int
+    itemsReceived: int
+    goalReachedAt: str | None = None
+    reachableNow: int | None = None
+    budget: int
+
+
+# ---------------------------------------------------------------------------
+# Spoiler / missing-items endpoints
+# ---------------------------------------------------------------------------
+
+class LocationPlacementResponse(BaseModel):
+    locationId: int
+    locationName: str
+    itemId: int
+    itemName: str
+    receivingSlot: int
+    receivingPlayerName: str
+
+
+class MissingItemsResponse(BaseModel):
+    slot: int
+    missing: list[LocationPlacementResponse]
+
+
+class SlotSpoilerResponse(BaseModel):
+    placements: list[LocationPlacementResponse]
+
+
+# ---------------------------------------------------------------------------
+# Spheres endpoint
+# ---------------------------------------------------------------------------
+
+class SphereResponse(BaseModel):
+    index: int
+    locations: list[LocationPlacementResponse]
+
+
+class SpheresResponse(BaseModel):
+    cached: bool
+    spheres: list[SphereResponse]

@@ -5,14 +5,17 @@ import logging
 from fastapi import APIRouter, Depends
 
 from .ap_client import ArchipelagoClient
-from .deps import get_ap_client, get_bridge_state, is_authorized
+from .deps import get_ap_client, get_bridge_state, is_authorized, require_auth
 from .schemas import (
     CheckItemContent,
     CheckLocation,
     ChecksResponse,
+    LocationPlacementResponse,
+    MissingItemsResponse,
     SlotItem,
     SlotItemFoundAt,
     SlotItemsResponse,
+    SlotSpoilerResponse,
 )
 from .state import StateManager
 
@@ -139,3 +142,56 @@ async def get_slot_items(
         receivedCount=len(received_items),
         items=received_items,
     )
+
+
+@router.get("/slots/{slot}/items/missing", response_model=MissingItemsResponse, dependencies=[Depends(require_auth)])
+async def get_slot_missing_items(
+    slot: int,
+    state: StateManager = Depends(get_bridge_state),
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> MissingItemsResponse:
+    """List items that belong to this slot but have not yet been received."""
+    ps = state._states.get(slot)
+    received_set: set[tuple[int, int, int]] = set(ps._received_items) if ps else set()
+
+    missing: list[LocationPlacementResponse] = []
+    for finding_slot, loc_map in ap_client._placements.items():
+        for location_id, (item_id, receiver_slot) in loc_map.items():
+            if receiver_slot != slot:
+                continue
+            if (item_id, finding_slot, location_id) in received_set:
+                continue
+            missing.append(LocationPlacementResponse(
+                locationId=location_id,
+                locationName=ap_client._store.resolve_location(location_id, finding_slot),
+                itemId=item_id,
+                itemName=ap_client._store.resolve_item(item_id, slot),
+                receivingSlot=slot,
+                receivingPlayerName=ap_client._store.resolve_player(slot),
+            ))
+
+    missing.sort(key=lambda p: p.locationName)
+    return MissingItemsResponse(slot=slot, missing=missing)
+
+
+@router.get("/slots/{slot}/spoiler", response_model=SlotSpoilerResponse, dependencies=[Depends(require_auth)])
+async def get_slot_spoiler(
+    slot: int,
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> SlotSpoilerResponse:
+    """List all item placements in this slot's world (what items the slot's locations send)."""
+    loc_map = ap_client._placements.get(slot, {})
+
+    placements: list[LocationPlacementResponse] = []
+    for location_id, (item_id, receiver_slot) in loc_map.items():
+        placements.append(LocationPlacementResponse(
+            locationId=location_id,
+            locationName=ap_client._store.resolve_location(location_id, slot),
+            itemId=item_id,
+            itemName=ap_client._store.resolve_item(item_id, receiver_slot),
+            receivingSlot=receiver_slot,
+            receivingPlayerName=ap_client._store.resolve_player(receiver_slot),
+        ))
+
+    placements.sort(key=lambda p: p.locationName)
+    return SlotSpoilerResponse(placements=placements)

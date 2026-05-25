@@ -441,3 +441,95 @@ async def test_get_item_locations_filters_out_other_slots_items() -> None:
 
     assert len(data["locations"]) == 1
     assert data["locations"][0]["locationName"] == "Loc for Alice"
+
+
+# ---------------------------------------------------------------------------
+# GET /spheres — admin only
+# ---------------------------------------------------------------------------
+
+AUTH_HDR = {"Authorization": "Bearer test-token"}
+
+
+def _sphere_loc(loc_id: int, loc_name: str, item_id: int, item_name: str, recv_slot: int) -> dict:
+    return {
+        "id": loc_id,
+        "name": loc_name,
+        "item": {
+            "id": item_id,
+            "name": item_name,
+            "flags": 0,
+            "slot": recv_slot,
+            "slot_name": f"Player {recv_slot}",
+        },
+        "check_status": "reachable",
+    }
+
+
+@pytest.mark.asyncio
+async def test_spheres_requires_auth() -> None:
+    _reachable_cache.clear()
+    app, _, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/spheres")
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_spheres_returns_not_cached_when_cache_empty() -> None:
+    _reachable_cache.clear()
+    app, _, _ = _make_app()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/spheres", headers=AUTH_HDR)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["cached"] is False
+    assert data["spheres"] == []
+
+
+@pytest.mark.asyncio
+async def test_spheres_aggregates_from_cache() -> None:
+    _reachable_cache.clear()
+
+    app, _, ap_client = _make_app()
+    ap_client._store.handle_connected({
+        "players": [{"slot": 1, "alias": "Alice"}],
+        "slot_info": {"1": {"game": "HK"}},
+    })
+    _seed_reachable_cache(1, {
+        "spheres": [
+            {
+                "index": 0,
+                "status": "current",
+                "counts": {"total": 2, "checked": 0, "reachable": 2, "blocked": 0},
+                "locations": [
+                    _sphere_loc(8003, "Fungal Wastes", 8149, "Grub", 1),
+                    _sphere_loc(8004, "Crossroads", 8150, "Mask Shard", 1),
+                ],
+            },
+            {
+                "index": 1,
+                "status": "future",
+                "counts": {"total": 1, "checked": 0, "reachable": 0, "blocked": 1},
+                "locations": [
+                    _sphere_loc(8010, "City of Tears", 8200, "Crystal Heart", 1),
+                ],
+            },
+        ],
+    })
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.get("/spheres", headers=AUTH_HDR)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["cached"] is True
+    assert len(data["spheres"]) == 2
+
+    s0 = data["spheres"][0]
+    assert s0["index"] == 0
+    assert len(s0["locations"]) == 2
+    loc_names = {loc["locationName"] for loc in s0["locations"]}
+    assert loc_names == {"Fungal Wastes", "Crossroads"}
+
+    s1 = data["spheres"][1]
+    assert s1["index"] == 1
+    assert s1["locations"][0]["locationName"] == "City of Tears"
