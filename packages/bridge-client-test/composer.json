@@ -1,0 +1,20 @@
+{
+    "name": "archilan/bridge-client-test",
+    "description": "Sandbox for testing the Bridge PHP client.",
+    "type": "project",
+    "license": "proprietary",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../bridge-client"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "archilan/bridge-client": ">=1",
+        "symfony/http-client": "^7.0"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

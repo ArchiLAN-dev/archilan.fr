@@ -9,13 +9,18 @@
         {
             "type": "path",
             "url": "../packages/orchestrateur-client"
+        },
+        {
+            "type": "path",
+            "url": "../packages/bridge-client"
         }
     ],
     "require": {
         "php": ">=8.3",
-        "archilan/orchestrateur-client": ">=1",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "archilan/bridge-client": "^1.0",
+        "archilan/orchestrateur-client": ">=1",
         "aws/aws-sdk-php": "^3.381.2",
         "doctrine/doctrine-bundle": "^3.2.2",
         "doctrine/doctrine-migrations-bundle": "^4.0",

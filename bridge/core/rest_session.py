@@ -15,7 +15,17 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from .ap_client import ArchipelagoClient
 from .coordinator import PauseResumeCoordinator
 from .deps import BroadcastFn, get_ap_client, get_bridge_state, get_broadcast, get_coordinator, require_auth
-from .schemas import CommandRequest, DeathLinkRequest, HealthResponse, OkResponse
+from .reachable import _reachable_cache
+from .schemas import (
+    CommandRequest,
+    DeathLinkRequest,
+    HealthResponse,
+    LocationPlacementResponse,
+    OkResponse,
+    SlotDetailResponse,
+    SphereResponse,
+    SpheresResponse,
+)
 from .state import StateManager
 from .wake_on_connect import WakeOnConnectServer
 
@@ -369,6 +379,51 @@ async def get_data_package_game(
     if result is None:
         raise HTTPException(status_code=404, detail=f"game '{game}' not in data package")
     return result
+
+
+@router.get("/slots/{slot}", response_model=SlotDetailResponse)
+async def get_slot_detail(
+    slot: int,
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> SlotDetailResponse:
+    detail = ap_client.get_slot_detail(slot)
+    if detail is None:
+        raise HTTPException(status_code=404, detail=f"slot {slot} not found")
+    return SlotDetailResponse(**detail)
+
+
+@router.get("/spheres", response_model=SpheresResponse, dependencies=[Depends(require_auth)])
+async def get_spheres(
+    ap_client: ArchipelagoClient = Depends(get_ap_client),
+) -> SpheresResponse:
+    if not _reachable_cache:
+        return SpheresResponse(cached=False, spheres=[])
+
+    sphere_map: dict[int, list[LocationPlacementResponse]] = {}
+    for _slot, (_, result) in _reachable_cache.items():
+        for sphere_data in result.get("spheres", []):
+            idx = int(sphere_data.get("index", 0))
+            if idx not in sphere_map:
+                sphere_map[idx] = []
+            for loc in sphere_data.get("locations", []):
+                item = loc.get("item") or {}
+                receiver_slot = int(item.get("slot", 0))
+                sphere_map[idx].append(LocationPlacementResponse(
+                    locationId=int(loc.get("id", 0)),
+                    locationName=str(loc.get("name", "")),
+                    itemId=int(item.get("id", 0)),
+                    itemName=str(item.get("name", "")),
+                    receivingSlot=receiver_slot,
+                    receivingPlayerName=str(
+                        item.get("slot_name")
+                        or ap_client._store.resolve_player(receiver_slot)
+                    ),
+                ))
+
+    return SpheresResponse(
+        cached=True,
+        spheres=[SphereResponse(index=i, locations=locs) for i, locs in sorted(sphere_map.items())],
+    )
 
 
 # ---------------------------------------------------------------------------
