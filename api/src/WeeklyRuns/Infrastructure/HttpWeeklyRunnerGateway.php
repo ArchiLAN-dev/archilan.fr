@@ -32,7 +32,7 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
         // MIGRATION GAP: launchFromSeed is incompatible with the OrchestratorClient API.
         // Old API: sync, sends server-side outputFile path + bridgeConfig env vars, returns connection info.
         // New API: async (202), multipart file contents + adminPassword, no bridgeConfig injection.
-        // Tracked in story 25.2 / dedicated gap story. Kept on old HTTP client until resolved.
+        // Dedicated gap story needed before weekly runs can use OrchestratorClient.
         $data = $this->post(
             "/sessions/{$weeklyEntryId}/launch-from-file",
             [

@@ -53,13 +53,17 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             $result = $this->client->apworlds()->upload($fileContents, $filename);
 
             // Resolve archipelagoGameName: upload response only returns hash + options,
-            // so we fetch the apworld list and match by hash.
+            // so we fetch the apworld list and match by hash. Non-fatal if list() fails.
             $archipelagoGameName = '';
-            foreach ($this->client->apworlds()->list() as $entry) {
-                if ($entry->hash === $result->hash) {
-                    $archipelagoGameName = $entry->game;
-                    break;
+            try {
+                foreach ($this->client->apworlds()->list() as $entry) {
+                    if ($entry->hash === $result->hash) {
+                        $archipelagoGameName = $entry->game;
+                        break;
+                    }
                 }
+            } catch (\Throwable $e) {
+                $this->logger->warning('runner.apworld_list_failed', ['hash' => $result->hash, 'error' => $e->getMessage()]);
             }
 
             // Fetch the default YAML template; non-fatal if it fails
