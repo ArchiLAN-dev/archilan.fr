@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\WeeklyRuns;
 
 use App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway;
+use Archilan\OrchestratorClient\OrchestratorClient;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -14,7 +15,14 @@ final class HttpWeeklyRunnerGatewayTest extends TestCase
 {
     private function makeGateway(MockHttpClient $client, string $publicHost = 'runner.example.com'): HttpWeeklyRunnerGateway
     {
+        $orchestrateur = new OrchestratorClient(
+            baseUrl: 'http://orchestrateur.test',
+            apiKey: 'test-key',
+            httpClient: new MockHttpClient(),
+        );
+
         return new HttpWeeklyRunnerGateway(
+            client: $orchestrateur,
             httpClient: $client,
             logger: new NullLogger(),
             runnerBaseUrl: 'http://runner.internal',

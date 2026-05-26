@@ -73,6 +73,7 @@ services:
 
     App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway:
         arguments:
+            $client: '@archilan.orchestrateur_client'
             $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
             $runnerApiKey: '%env(RUNNER_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
@@ -106,8 +107,7 @@ services:
 
     App\Sessions\Infrastructure\RunnerGateway:
         arguments:
-            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
-            $runnerApiKey: '%env(RUNNER_API_KEY)%'
+            $client: '@archilan.orchestrateur_client'
 
     archilan.orchestrateur_client:
         class: Archilan\OrchestratorClient\OrchestratorClient

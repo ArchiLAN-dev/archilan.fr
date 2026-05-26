@@ -47,34 +47,4 @@ final class NullRunnerGateway implements RunnerGatewayInterface
 
         return ['valid' => $valid, 'slots' => $proposed];
     }
-
-    public function writeYamls(string $sessionId, array $slots): array
-    {
-        return ['files' => []];
-    }
-
-    public function generate(string $sessionId): array
-    {
-        return ['sessionId' => $sessionId, 'status' => 'generating'];
-    }
-
-    public function launch(string $sessionId): array
-    {
-        return ['sessionId' => $sessionId, 'status' => 'running'];
-    }
-
-    public function restart(string $sessionId): array
-    {
-        return ['sessionId' => $sessionId, 'status' => 'running'];
-    }
-
-    public function stop(string $sessionId): array
-    {
-        return ['sessionId' => $sessionId, 'status' => 'stopped'];
-    }
-
-    public function getYamlsZip(string $sessionId): ?string
-    {
-        return null;
-    }
 }

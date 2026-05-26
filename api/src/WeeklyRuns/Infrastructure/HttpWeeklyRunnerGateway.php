@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Infrastructure;
 
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
+use Archilan\OrchestratorClient\OrchestratorClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
     public function __construct(
+        private OrchestratorClient $client,
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
         private string $runnerBaseUrl,
@@ -27,6 +29,10 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
         string $weeklyEntryId,
         string $seedFilePath,
     ): array {
+        // MIGRATION GAP: launchFromSeed is incompatible with the OrchestratorClient API.
+        // Old API: sync, sends server-side outputFile path + bridgeConfig env vars, returns connection info.
+        // New API: async (202), multipart file contents + adminPassword, no bridgeConfig injection.
+        // Tracked in story 25.2 / dedicated gap story. Kept on old HTTP client until resolved.
         $data = $this->post(
             "/sessions/{$weeklyEntryId}/launch-from-file",
             [
@@ -74,10 +80,10 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
 
     public function terminate(string $externalSessionId): void
     {
-        $result = $this->delete("/sessions/{$externalSessionId}");
-        if (isset($result['error'])) {
-            $errorMsg = is_string($result['error']) ? $result['error'] : 'unknown';
-            throw new \RuntimeException('Runner terminate failed: '.$errorMsg);
+        try {
+            $this->client->sessions()->delete($externalSessionId);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Runner terminate failed: '.$e->getMessage(), previous: $e);
         }
     }
 
@@ -98,22 +104,6 @@ final readonly class HttpWeeklyRunnerGateway implements WeeklyRunnerGatewayInter
                 'json' => $body,
                 'headers' => ['x-api-key' => $this->runnerApiKey],
                 'timeout' => $timeout,
-            ]);
-
-            return $this->toStringKeyedArray($response->toArray(false));
-        } catch (\Throwable $e) {
-            $this->logger->error('weekly_runner.request_failed', ['path' => $path, 'error' => $e->getMessage()]);
-
-            return ['error' => 'runner_unavailable'];
-        }
-    }
-
-    /** @return array<string, mixed> */
-    private function delete(string $path): array
-    {
-        try {
-            $response = $this->httpClient->request('DELETE', $this->url($path), [
-                'headers' => ['x-api-key' => $this->runnerApiKey],
             ]);
 
             return $this->toStringKeyedArray($response->toArray(false));
