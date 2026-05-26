@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b9c960fd5ae7066dca724f7ae2af3bc1",
+    "content-hash": "0267ea26996dab09b958d999891404cf",
     "packages": [
         {
             "name": "archilan/bridge-client",
@@ -12,11 +12,12 @@
             "dist": {
                 "type": "path",
                 "url": "../packages/bridge-client",
-                "reference": "142bf66eb82918929b0699ef69e37b3d7c751cf4"
+                "reference": "c1cbd0c3f530e74b31760c510c4e25024e6b114a"
             },
             "require": {
                 "php": "^8.2",
-                "symfony/http-client-contracts": "^3.0"
+                "symfony/http-client-contracts": "^3.0",
+                "textalk/websocket": "^1.6"
             },
             "require-dev": {
                 "phpstan/phpstan": "^2.0",
@@ -38,6 +39,42 @@
                 "proprietary"
             ],
             "description": "PHP client for the Archilan Bridge REST API.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "archilan/bridge-client-bundle",
+            "version": "dev-feature/epic-25-story-1-migrate-orchestrateur-gateways",
+            "dist": {
+                "type": "path",
+                "url": "../packages/bridge-client-bundle",
+                "reference": "70492c0c7dfc80b2abc0f0d108f0a1e8ab2a8e2a"
+            },
+            "require": {
+                "archilan/bridge-client": "*",
+                "php": "^8.2",
+                "symfony/config": "^6.4|^7.0",
+                "symfony/console": "^6.4|^7.0",
+                "symfony/dependency-injection": "^6.4|^7.0",
+                "symfony/http-kernel": "^6.4|^7.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-symfony": "^2.0",
+                "symfony/http-client": "^6.4|^7.0",
+                "symfony/http-client-contracts": "^3.0"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "Archilan\\BridgeClientBundle\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Symfony bundle — autoconfigures the Archilan bridge WebSocket dispatcher.",
             "transport-options": {
                 "relative": true
             }
@@ -2449,6 +2486,113 @@
             "time": "2026-01-25T14:56:51+00:00"
         },
         {
+            "name": "phrity/net-uri",
+            "version": "1.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-net-uri.git",
+                "reference": "3f458e0c4d1ddc0e218d7a5b9420127c63925f43"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-net-uri/zipball/3f458e0c4d1ddc0e218d7a5b9420127c63925f43",
+                "reference": "3f458e0c4d1ddc0e218d7a5b9420127c63925f43",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.4 | ^8.0",
+                "psr/http-factory": "^1.0",
+                "psr/http-message": "^1.0 | ^2.0"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^2.0",
+                "phpunit/phpunit": "^9.0 | ^10.0",
+                "squizlabs/php_codesniffer": "^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Net\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "PSR-7 Uri and PSR-17 UriFactory implementation",
+            "homepage": "https://phrity.sirn.se/net-uri",
+            "keywords": [
+                "psr-17",
+                "psr-7",
+                "uri",
+                "uri factory"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-net-uri/issues",
+                "source": "https://github.com/sirn-se/phrity-net-uri/tree/1.3.0"
+            },
+            "time": "2023-08-21T10:33:06+00:00"
+        },
+        {
+            "name": "phrity/util-errorhandler",
+            "version": "1.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/sirn-se/phrity-util-errorhandler.git",
+                "reference": "70a669cc22db2eed6a109ec66fd95168a4332c9b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/sirn-se/phrity-util-errorhandler/zipball/70a669cc22db2eed6a109ec66fd95168a4332c9b",
+                "reference": "70a669cc22db2eed6a109ec66fd95168a4332c9b",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0",
+                "robiningelbrecht/phpunit-coverage-tools": "^1.9",
+                "squizlabs/php_codesniffer": "^3.5 || ^4.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Phrity\\Util\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sören Jensen",
+                    "email": "sirn@sirn.se",
+                    "homepage": "https://phrity.sirn.se"
+                }
+            ],
+            "description": "Inline error handler; catch and resolve errors for code block.",
+            "homepage": "https://phrity.sirn.se/util-errorhandler",
+            "keywords": [
+                "error",
+                "warning"
+            ],
+            "support": {
+                "issues": "https://github.com/sirn-se/phrity-util-errorhandler/issues",
+                "source": "https://github.com/sirn-se/phrity-util-errorhandler/tree/1.2.2"
+            },
+            "time": "2025-12-05T21:25:36+00:00"
+        },
+        {
             "name": "psr/cache",
             "version": "3.0.0",
             "source": {
@@ -2757,16 +2901,16 @@
         },
         {
             "name": "psr/http-message",
-            "version": "2.0",
+            "version": "1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-fig/http-message.git",
-                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71"
+                "reference": "cb6ce4845ce34a8ad9e68117c10ee90a29919eba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71",
-                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "url": "https://api.github.com/repos/php-fig/http-message/zipball/cb6ce4845ce34a8ad9e68117c10ee90a29919eba",
+                "reference": "cb6ce4845ce34a8ad9e68117c10ee90a29919eba",
                 "shasum": ""
             },
             "require": {
@@ -2775,7 +2919,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "2.0.x-dev"
+                    "dev-master": "1.1.x-dev"
                 }
             },
             "autoload": {
@@ -2790,7 +2934,7 @@
             "authors": [
                 {
                     "name": "PHP-FIG",
-                    "homepage": "https://www.php-fig.org/"
+                    "homepage": "http://www.php-fig.org/"
                 }
             ],
             "description": "Common interface for HTTP messages",
@@ -2804,9 +2948,9 @@
                 "response"
             ],
             "support": {
-                "source": "https://github.com/php-fig/http-message/tree/2.0"
+                "source": "https://github.com/php-fig/http-message/tree/1.1"
             },
-            "time": "2023-04-04T09:54:51+00:00"
+            "time": "2023-04-04T09:50:52+00:00"
         },
         {
             "name": "psr/link",
@@ -4767,16 +4911,16 @@
         },
         {
             "name": "symfony/http-kernel",
-            "version": "v7.4.11",
+            "version": "v7.4.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-kernel.git",
-                "reference": "eb9d68199af3fcfb3fb4d2e227367b68f8c1bb88"
+                "reference": "7922b53e70d2ba2027af8bb6a59d91eb3541ea4d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-kernel/zipball/eb9d68199af3fcfb3fb4d2e227367b68f8c1bb88",
-                "reference": "eb9d68199af3fcfb3fb4d2e227367b68f8c1bb88",
+                "url": "https://api.github.com/repos/symfony/http-kernel/zipball/7922b53e70d2ba2027af8bb6a59d91eb3541ea4d",
+                "reference": "7922b53e70d2ba2027af8bb6a59d91eb3541ea4d",
                 "shasum": ""
             },
             "require": {
@@ -4862,7 +5006,7 @@
             "description": "Provides a structured process for converting a Request into a Response",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/http-kernel/tree/v7.4.11"
+                "source": "https://github.com/symfony/http-kernel/tree/v7.4.12"
             },
             "funding": [
                 {
@@ -4882,7 +5026,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-13T17:55:00+00:00"
+            "time": "2026-05-20T09:27:11+00:00"
         },
         {
             "name": "symfony/mailer",
@@ -5557,16 +5701,16 @@
         },
         {
             "name": "symfony/polyfill-intl-grapheme",
-            "version": "v1.37.0",
+            "version": "v1.38.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-grapheme.git",
-                "reference": "4864388bfbd3001ce88e234fab652acd91fdc57e"
+                "reference": "e9247d281d694a5120554d9afaf54e070e88a603"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/4864388bfbd3001ce88e234fab652acd91fdc57e",
-                "reference": "4864388bfbd3001ce88e234fab652acd91fdc57e",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-grapheme/zipball/e9247d281d694a5120554d9afaf54e070e88a603",
+                "reference": "e9247d281d694a5120554d9afaf54e070e88a603",
                 "shasum": ""
             },
             "require": {
@@ -5615,7 +5759,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.37.0"
+                "source": "https://github.com/symfony/polyfill-intl-grapheme/tree/v1.38.1"
             },
             "funding": [
                 {
@@ -5635,7 +5779,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-26T13:13:48+00:00"
+            "time": "2026-05-26T05:58:03+00:00"
         },
         {
             "name": "symfony/polyfill-intl-idn",
@@ -5726,16 +5870,16 @@
         },
         {
             "name": "symfony/polyfill-intl-normalizer",
-            "version": "v1.37.0",
+            "version": "v1.38.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-normalizer.git",
-                "reference": "3833d7255cc303546435cb650316bff708a1c75c"
+                "reference": "2d446c214bdbe5b71bde5011b060a05fece3ae6b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/3833d7255cc303546435cb650316bff708a1c75c",
-                "reference": "3833d7255cc303546435cb650316bff708a1c75c",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-normalizer/zipball/2d446c214bdbe5b71bde5011b060a05fece3ae6b",
+                "reference": "2d446c214bdbe5b71bde5011b060a05fece3ae6b",
                 "shasum": ""
             },
             "require": {
@@ -5787,7 +5931,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.37.0"
+                "source": "https://github.com/symfony/polyfill-intl-normalizer/tree/v1.38.0"
             },
             "funding": [
                 {
@@ -5807,20 +5951,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-09T11:45:10+00:00"
+            "time": "2026-05-25T13:48:31+00:00"
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.37.0",
+            "version": "v1.38.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
-                "reference": "6a21eb99c6973357967f6ce3708cd55a6bec6315"
+                "reference": "14c5439eec4ccff081ac14eca2dc57feb2a66d92"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/6a21eb99c6973357967f6ce3708cd55a6bec6315",
-                "reference": "6a21eb99c6973357967f6ce3708cd55a6bec6315",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/14c5439eec4ccff081ac14eca2dc57feb2a66d92",
+                "reference": "14c5439eec4ccff081ac14eca2dc57feb2a66d92",
                 "shasum": ""
             },
             "require": {
@@ -5872,7 +6016,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.37.0"
+                "source": "https://github.com/symfony/polyfill-mbstring/tree/v1.38.1"
             },
             "funding": [
                 {
@@ -5892,20 +6036,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-10T17:25:58+00:00"
+            "time": "2026-05-26T12:51:13+00:00"
         },
         {
             "name": "symfony/polyfill-php83",
-            "version": "v1.37.0",
+            "version": "v1.38.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php83.git",
-                "reference": "3600c2cb22399e25bb226e4a135ce91eeb2a6149"
+                "reference": "8339098cae28673c15cce00d80734af0453054e2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/3600c2cb22399e25bb226e4a135ce91eeb2a6149",
-                "reference": "3600c2cb22399e25bb226e4a135ce91eeb2a6149",
+                "url": "https://api.github.com/repos/symfony/polyfill-php83/zipball/8339098cae28673c15cce00d80734af0453054e2",
+                "reference": "8339098cae28673c15cce00d80734af0453054e2",
                 "shasum": ""
             },
             "require": {
@@ -5952,7 +6096,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php83/tree/v1.37.0"
+                "source": "https://github.com/symfony/polyfill-php83/tree/v1.38.1"
             },
             "funding": [
                 {
@@ -5972,7 +6116,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-10T17:25:58+00:00"
+            "time": "2026-05-26T12:51:13+00:00"
         },
         {
             "name": "symfony/polyfill-php84",
@@ -6056,16 +6200,16 @@
         },
         {
             "name": "symfony/polyfill-php85",
-            "version": "v1.37.0",
+            "version": "v1.38.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-php85.git",
-                "reference": "fcfa4973a9917cef23f2e38774da74a2b7d115ee"
+                "reference": "ba2ba04f3352cfa2dcbbcb90aee13ed967f505b1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-php85/zipball/fcfa4973a9917cef23f2e38774da74a2b7d115ee",
-                "reference": "fcfa4973a9917cef23f2e38774da74a2b7d115ee",
+                "url": "https://api.github.com/repos/symfony/polyfill-php85/zipball/ba2ba04f3352cfa2dcbbcb90aee13ed967f505b1",
+                "reference": "ba2ba04f3352cfa2dcbbcb90aee13ed967f505b1",
                 "shasum": ""
             },
             "require": {
@@ -6112,7 +6256,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-php85/tree/v1.37.0"
+                "source": "https://github.com/symfony/polyfill-php85/tree/v1.38.1"
             },
             "funding": [
                 {
@@ -6132,7 +6276,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-26T13:10:57+00:00"
+            "time": "2026-05-26T02:25:22+00:00"
         },
         {
             "name": "symfony/property-access",
@@ -7874,6 +8018,57 @@
                 }
             ],
             "time": "2026-05-13T12:04:42+00:00"
+        },
+        {
+            "name": "textalk/websocket",
+            "version": "1.6.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Textalk/websocket-php.git",
+                "reference": "67de79745b1a357caf812bfc44e0abf481cee012"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Textalk/websocket-php/zipball/67de79745b1a357caf812bfc44e0abf481cee012",
+                "reference": "67de79745b1a357caf812bfc44e0abf481cee012",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.4 | ^8.0",
+                "phrity/net-uri": "^1.0",
+                "phrity/util-errorhandler": "^1.0",
+                "psr/http-message": "^1.0",
+                "psr/log": "^1.0 | ^2.0 | ^3.0"
+            },
+            "require-dev": {
+                "php-coveralls/php-coveralls": "^2.0",
+                "phpunit/phpunit": "^9.0",
+                "squizlabs/php_codesniffer": "^3.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "WebSocket\\": "lib"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "ISC"
+            ],
+            "authors": [
+                {
+                    "name": "Fredrik Liljegren"
+                },
+                {
+                    "name": "Sören Jensen"
+                }
+            ],
+            "description": "WebSocket client and server",
+            "support": {
+                "issues": "https://github.com/Textalk/websocket-php/issues",
+                "source": "https://github.com/Textalk/websocket-php/tree/1.6.3"
+            },
+            "time": "2022-11-07T18:59:33+00:00"
         },
         {
             "name": "webmozart/assert",
@@ -11356,7 +11551,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "archilan/bridge-client-bundle": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

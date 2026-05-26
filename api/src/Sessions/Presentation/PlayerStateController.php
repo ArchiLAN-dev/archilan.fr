@@ -9,6 +9,9 @@ use App\Sessions\Application\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
+use Archilan\BridgeClient\Slots\Response\Hint;
+use Archilan\BridgeClient\Slots\Response\ItemLocation;
+use Archilan\BridgeClientBundle\Bridge\BridgeClientPool;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
@@ -24,9 +27,11 @@ final readonly class PlayerStateController
         private SessionQuery $sessionQuery,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
+        private BridgeClientPool $bridgeClientPool,
     ) {
     }
 
+    // BRIDGE CLIENT GAP: /state endpoint not available in bridge-client; kept on raw HTTP.
     #[Route('/api/v1/sessions/{runId}/players', methods: ['GET'])]
     public function players(Request $request, string $runId): JsonResponse
     {
@@ -182,13 +187,34 @@ final readonly class PlayerStateController
         }
 
         try {
-            $response = $this->httpClient->request(
-                'GET',
-                sprintf('http://%s:%d/hints/%d', $host, $bridgePort, $slotIndex),
-                ['timeout' => 5],
-            );
+            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $response = $bridge->slots()->hints($slotIndex);
 
-            return new JsonResponse(['data' => $response->toArray()]);
+            $hints = array_map(static function (Hint $h): array {
+                return [
+                    'receivingPlayer' => $h->receivingSlot,
+                    'receivingPlayerName' => $h->receivingPlayerName,
+                    'findingPlayer' => $h->findingSlot,
+                    'findingPlayerName' => $h->findingPlayerName,
+                    'locationId' => $h->locationId,
+                    'locationName' => $h->locationName,
+                    'itemId' => $h->itemId,
+                    'itemName' => $h->itemName,
+                    'itemFlags' => $h->itemFlags,
+                    'entrance' => $h->entrance,
+                    'status' => $h->status->value,
+                    'statusName' => $h->status->label(),
+                    'found' => $h->found,
+                ];
+            }, $response->hints);
+
+            return new JsonResponse(['data' => [
+                'slot' => $response->slot,
+                'hints' => $hints,
+                'hintsUsed' => $response->hintsUsed,
+                'hintPointsAvailable' => $response->hintPointsAvailable,
+                'hintCost' => $response->hintCost,
+            ]]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
@@ -270,16 +296,14 @@ final readonly class PlayerStateController
         }
 
         try {
-            $response = $this->httpClient->request(
-                'POST',
-                sprintf('http://%s:%d/hints/%d/request', $host, $bridgePort, $slotIndex),
-                [
-                    'timeout' => 5,
-                    'json' => ['locationId' => $locationId, 'free' => $free],
-                ],
-            );
+            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $response = $bridge->slots()->requestHint($slotIndex, $locationId, $free);
 
-            return new JsonResponse(['data' => $response->toArray()]);
+            return new JsonResponse(['data' => [
+                'slot' => $response->slot,
+                'locationId' => $response->locationId,
+                'free' => $response->free,
+            ]]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
@@ -314,18 +338,32 @@ final readonly class PlayerStateController
         }
 
         try {
-            $response = $this->httpClient->request(
-                'GET',
-                sprintf('http://%s:%d/item-locations/%d', $host, $bridgePort, $slotIndex),
-                ['timeout' => 5],
-            );
+            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $response = $bridge->slots()->itemLocations($slotIndex);
 
-            return new JsonResponse(['data' => $response->toArray()]);
+            $locations = array_map(static function (ItemLocation $loc): array {
+                return [
+                    'itemId' => $loc->itemId,
+                    'itemName' => $loc->itemName,
+                    'locationId' => $loc->locationId,
+                    'locationName' => $loc->locationName,
+                    'findingPlayer' => $loc->findingSlot,
+                    'findingPlayerName' => $loc->findingPlayerName,
+                    'checkStatus' => $loc->checkStatus,
+                ];
+            }, $response->locations);
+
+            return new JsonResponse(['data' => [
+                'slot' => $response->slot,
+                'locations' => $locations,
+            ]]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
     }
 
+    // BRIDGE CLIENT GAP: ReachableResponse reads camelCase keys but bridge returns snake_case;
+    // kept on raw HTTP until the package is updated to handle snake_case normalization.
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/reachable', methods: ['GET'])]
     public function slotReachable(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {

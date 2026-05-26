@@ -13,6 +13,10 @@
         {
             "type": "path",
             "url": "../packages/bridge-client"
+        },
+        {
+            "type": "path",
+            "url": "../packages/bridge-client-bundle"
         }
     ],
     "require": {
@@ -20,6 +24,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "archilan/bridge-client": "^1.0",
+        "archilan/bridge-client-bundle": "*@dev",
         "archilan/orchestrateur-client": ">=1",
         "aws/aws-sdk-php": "^3.381.2",
         "doctrine/doctrine-bundle": "^3.2.2",
