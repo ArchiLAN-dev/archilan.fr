@@ -300,6 +300,7 @@ final readonly class PlayerStateController
             $response = $bridge->slots()->requestHint($slotIndex, $locationId, $free);
 
             return new JsonResponse(['data' => [
+                'ok' => true,
                 'slot' => $response->slot,
                 'locationId' => $response->locationId,
                 'free' => $response->free,

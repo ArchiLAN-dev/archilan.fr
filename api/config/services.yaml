@@ -109,6 +109,17 @@ services:
         arguments:
             $client: '@archilan.orchestrateur_client'
 
+    archi_bridge.http_client:
+        class: Symfony\Contracts\HttpClient\HttpClientInterface
+        factory: ['@http_client', 'withOptions']
+        arguments:
+            - { timeout: 5 }
+
+    Archilan\BridgeClientBundle\Bridge\BridgeClientFactory:
+        arguments:
+            $adminToken: '%archi_bridge.admin_token%'
+            $httpClient: '@archi_bridge.http_client'
+
     archilan.orchestrateur_client:
         class: Archilan\OrchestratorClient\OrchestratorClient
         arguments:
