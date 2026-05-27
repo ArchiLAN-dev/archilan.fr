@@ -43,7 +43,13 @@ type Manifest struct {
 }
 
 func New(cfg Config) (*Client, error) {
-	mc, err := minio.New(cfg.Endpoint, &minio.Options{
+	endpoint := cfg.Endpoint
+	if idx := strings.Index(endpoint, "://"); idx >= 0 {
+		endpoint = endpoint[idx+3:]
+	}
+	endpoint = strings.TrimRight(endpoint, "/")
+
+	mc, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
 	})
