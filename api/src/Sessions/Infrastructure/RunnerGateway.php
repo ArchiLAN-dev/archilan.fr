@@ -146,7 +146,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         try {
             $response = $this->client->sessions()->get($sessionId);
 
-            return ['status' => $response->status, 'bridgePort' => $response->bridgePort];
+            return ['status' => $response->status, 'bridgePort' => $response->bridgePort, 'apPort' => $response->apPort];
         } catch (\Archilan\OrchestratorClient\Exception\SessionNotFoundException) {
             return null;
         } catch (\Throwable $e) {

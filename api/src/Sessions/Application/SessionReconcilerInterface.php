@@ -10,5 +10,5 @@ interface SessionReconcilerInterface
     public function transition(string $sessionId, string $newStatus): array;
 
     /** @return array<string, mixed> */
-    public function transitionToRunningFromOrchestrateur(string $sessionId, int $port): array;
+    public function transitionToRunningFromOrchestrateur(string $sessionId, int $apPort, ?int $bridgePort): array;
 }

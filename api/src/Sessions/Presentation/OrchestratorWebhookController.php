@@ -53,9 +53,11 @@ final readonly class OrchestratorWebhookController
 
         if ('session.ready' === $event) {
             $portRaw = $body['port'] ?? null;
-            $port = is_int($portRaw) ? $portRaw : 0;
+            $apPort = is_int($portRaw) ? $portRaw : 0;
+            $bridgePortRaw = $body['bridgePort'] ?? null;
+            $bridgePort = is_int($bridgePortRaw) ? $bridgePortRaw : null;
 
-            $result = $this->sessionLifecycleManager->transitionToRunningFromOrchestrateur($sessionId, $port);
+            $result = $this->sessionLifecycleManager->transitionToRunningFromOrchestrateur($sessionId, $apPort, $bridgePort);
             if (!($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }

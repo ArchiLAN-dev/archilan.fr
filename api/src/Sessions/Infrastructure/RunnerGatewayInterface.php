@@ -39,7 +39,7 @@ interface RunnerGatewayInterface
     /**
      * Returns the orchestrateur's view of the session, or null if the session is unknown.
      *
-     * @return array{status: string, bridgePort: ?int}|null
+     * @return array{status: string, bridgePort: ?int, apPort: ?int}|null
      */
     public function getSessionInfo(string $sessionId): ?array;
 }

@@ -252,7 +252,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
      *
      * @return array<string, mixed>
      */
-    public function transitionToRunningFromOrchestrateur(string $sessionId, int $port): array
+    public function transitionToRunningFromOrchestrateur(string $sessionId, int $apPort, ?int $bridgePort): array
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
@@ -263,7 +263,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $password = $session->getPassword() ?? '';
         $serverPassword = $session->getAdminPassword();
 
-        return $this->transition($sessionId, Session::STATUS_RUNNING, $host, $port, $password, null, null, null, null, $serverPassword);
+        return $this->transition($sessionId, Session::STATUS_RUNNING, $host, $apPort, $password, null, $bridgePort, null, null, $serverPassword);
     }
 
     private function dispatchRunningNotifications(Session $session): void

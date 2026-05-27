@@ -44,10 +44,10 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         $lifecycleManager = $this->createMock(SessionReconcilerInterface::class);
         $lifecycleManager->expects($this->once())
             ->method('transitionToRunningFromOrchestrateur')
-            ->with($session->getId(), 38281);
+            ->with($session->getId(), 48281, 38281);
 
         $gateway = $this->createStub(RunnerGatewayInterface::class);
-        $gateway->method('getSessionInfo')->willReturn(['status' => 'running', 'bridgePort' => 38281]);
+        $gateway->method('getSessionInfo')->willReturn(['status' => 'running', 'bridgePort' => 38281, 'apPort' => 48281]);
 
         $this->makeHandler($sessions, $lifecycleManager, $gateway)(new CleanupStaleSessionsTask());
     }
@@ -64,7 +64,7 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         $reconciler->expects($this->never())->method('transitionToRunningFromOrchestrateur');
 
         $gateway = $this->createStub(RunnerGatewayInterface::class);
-        $gateway->method('getSessionInfo')->willReturn(['status' => 'running', 'bridgePort' => null]);
+        $gateway->method('getSessionInfo')->willReturn(['status' => 'running', 'bridgePort' => null, 'apPort' => null]);
 
         $hub = $this->createStub(HubInterface::class);
 

@@ -55,8 +55,8 @@ final readonly class CleanupStaleSessionsHandler
                         continue;
                     }
 
-                    if ('running' === $info['status'] && Session::STATUS_LAUNCHING === $previous && null !== $info['bridgePort']) {
-                        $this->sessionReconciler->transitionToRunningFromOrchestrateur($session->getId(), $info['bridgePort']);
+                    if ('running' === $info['status'] && Session::STATUS_LAUNCHING === $previous && null !== $info['apPort']) {
+                        $this->sessionReconciler->transitionToRunningFromOrchestrateur($session->getId(), $info['apPort'], $info['bridgePort']);
                         $this->logger->info('session.cleanup.reconciled', [
                             'sessionId' => $session->getId(),
                             'from' => $previous,
