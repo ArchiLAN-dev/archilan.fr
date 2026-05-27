@@ -38,6 +38,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
+        private string $runnerPublicHost = 'localhost',
     ) {
     }
 
@@ -259,7 +260,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
-        $host = $session->getHost() ?? '';
+        $host = $this->runnerPublicHost;
         $password = $session->getPassword() ?? '';
         $serverPassword = $session->getAdminPassword();
 

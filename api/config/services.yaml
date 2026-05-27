@@ -137,6 +137,10 @@ services:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
+    App\Sessions\Application\SessionLifecycleManager:
+        arguments:
+            $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+
     App\Sessions\Presentation\OrchestratorWebhookController:
         arguments:
             $orchestrateurWebhookSecret: '%env(ORCHESTRATEUR_WEBHOOK_SECRET)%'
