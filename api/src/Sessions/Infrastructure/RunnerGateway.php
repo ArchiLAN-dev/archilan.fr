@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace App\Sessions\Infrastructure;
 
 use Archilan\OrchestratorClient\OrchestratorClient;
+use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
+use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightRequest;
 use Archilan\OrchestratorClient\Sessions\Request\PreflightSlot;
 use Archilan\OrchestratorClient\Sessions\Response\PreflightSlotResult;
+use Archilan\OrchestratorClient\Sessions\Yaml\PlayerYaml;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 final readonly class RunnerGateway implements RunnerGatewayInterface
 {
@@ -85,5 +90,80 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
 
             return ['error' => 'runner_unavailable'];
         }
+    }
+
+    public function configureSession(string $sessionId, array $slots): array
+    {
+        try {
+            $configureSlots = [];
+            foreach ($slots as $slot) {
+                $configureSlots[] = ConfigureSlot::fromYaml($slot['apworldHash'], $this->buildPlayerYaml($slot['slotName'], $slot['playerYaml']));
+            }
+
+            $result = $this->client->sessions()->configure($sessionId, new ConfigureRequest($configureSlots));
+
+            $errors = [];
+            foreach ($result->slots as $slotResult) {
+                if ([] !== $slotResult->errors) {
+                    $errors[] = ['playerName' => $slotResult->playerName, 'errors' => array_values($slotResult->errors)];
+                }
+            }
+
+            return ['valid' => $result->valid, 'errors' => $errors];
+        } catch (\Throwable $e) {
+            $this->logger->error('runner.configure_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
+
+            return ['valid' => false, 'errors' => [['playerName' => '', 'errors' => ['Orchestrateur indisponible: '.$e->getMessage()]]]];
+        }
+    }
+
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null): void
+    {
+        $this->client->sessions()->generate($sessionId, $adminPassword, $seed);
+    }
+
+    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword): void
+    {
+        $this->client->sessions()->launch($sessionId, $adminPassword, $serverPassword);
+    }
+
+    public function stopSession(string $sessionId): void
+    {
+        try {
+            $this->client->sessions()->stop($sessionId);
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.stop_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
+        }
+    }
+
+    public function restartSession(string $sessionId): void
+    {
+        $this->client->sessions()->restart($sessionId);
+    }
+
+    private function buildPlayerYaml(string $slotName, string $rawYaml): PlayerYaml
+    {
+        try {
+            $parsed = Yaml::parse($rawYaml);
+        } catch (ParseException) {
+            $parsed = [];
+        }
+
+        if (!is_array($parsed)) {
+            $parsed = [];
+        }
+
+        $game = is_string($parsed['game'] ?? null) ? $parsed['game'] : '';
+
+        $gameSection = ('' !== $game && is_array($parsed[$game] ?? null)) ? $parsed[$game] : [];
+
+        $options = [];
+        foreach ($gameSection as $key => $value) {
+            if (is_string($key)) {
+                $options[] = new RawOptionValue($key, $value);
+            }
+        }
+
+        return new PlayerYaml($slotName, $game, $options);
     }
 }

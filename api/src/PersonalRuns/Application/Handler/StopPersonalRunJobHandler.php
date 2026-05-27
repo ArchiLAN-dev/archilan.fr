@@ -7,12 +7,11 @@ namespace App\PersonalRuns\Application\Handler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class StopPersonalRunJobHandler
@@ -20,7 +19,7 @@ final readonly class StopPersonalRunJobHandler
     public function __construct(
         private RunRepositoryInterface $runs,
         private SessionRepositoryInterface $sessions,
-        private MessageBusInterface $messageBus,
+        private RunnerGatewayInterface $runnerGateway,
         private LoggerInterface $logger,
     ) {
     }
@@ -48,10 +47,7 @@ final readonly class StopPersonalRunJobHandler
             return;
         }
 
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
-
-        $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+        $this->runnerGateway->stopSession($sessionId);
 
         $this->logger->info('personal_run.stop.dispatched', [
             'runId' => $job->personalRunId,

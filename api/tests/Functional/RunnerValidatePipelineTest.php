@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\Message\GenerateRunJob;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class RunnerValidatePipelineTest extends FunctionalTestCase
 {
@@ -25,6 +24,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
             $this->entityManager->getClassMetadata(SessionSlot::class),
             $this->entityManager->getClassMetadata(Registration::class),
             $this->entityManager->getClassMetadata(Game::class),
+            $this->entityManager->getClassMetadata(GameCatalogSync::class),
         ];
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
@@ -56,7 +56,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
 
     // ─── Happy path ───────────────────────────────────────────────────────────
 
-    public function testValidateTransitionsToValidatingAndDispatchesMessage(): void
+    public function testValidateTransitionsToReady(): void
     {
         $admin = $this->createAdmin();
         $this->loginAs($admin);
@@ -76,21 +76,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
-        self::assertSame('validating', $data['status']);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_generation');
-        self::assertCount(1, $transport->getSent());
-        /** @var GenerateRunJob $message */
-        $message = $transport->getSent()[0]->getMessage();
-        self::assertInstanceOf(GenerateRunJob::class, $message);
-        self::assertSame($session->getId(), $message->sessionId);
-        self::assertSame('validate', $message->phase);
-        self::assertCount(1, $message->slots);
-        self::assertSame('Alice_HK', $message->slots[0]['slotName']);
-        self::assertSame('Alice', $message->slots[0]['playerName']);
-        self::assertSame('Hollow Knight', $message->slots[0]['archipelagoGameName']);
-        self::assertSame("name: Alice\ngame: Hollow Knight\n", $message->slots[0]['playerYaml']);
+        self::assertSame('ready', $data['status']);
     }
 
     public function testValidateUpdatesSlotNamesInDb(): void
@@ -118,7 +104,6 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         $slots = $this->entityManager->getRepository(SessionSlot::class)
             ->findBy(['sessionId' => $session->getId()], ['slotOrder' => 'ASC']);
         self::assertCount(2, $slots);
-        // Both players play the same game → collision → Alice_HK1, Bob_HK
         self::assertSame('Alice_HK', $slots[0]->getSlotName());
         self::assertSame('Bob_HK', $slots[1]->getSlotName());
     }
@@ -129,7 +114,6 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         $this->loginAs($admin);
 
         $session = $this->persistSession('evt-001');
-        // Move to validating via PATCH
         $this->patchStatus($session->getId(), 'validating');
 
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/validate', $session->getId()));
@@ -147,86 +131,6 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         $this->patchStatus($session->getId(), 'ready');
 
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/validate', $session->getId()));
-
-        self::assertResponseIsSuccessful();
-        $data = $this->decodedJsonResponse()['data'];
-        self::assertIsArray($data);
-        self::assertSame('ready', $data['status']);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_generation');
-        self::assertCount(0, $transport->getSent());
-    }
-
-    // ─── Callback - validation errors ─────────────────────────────────────────
-
-    public function testCallbackWithErrorsTransitionsToDraftAndStoresErrors(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001');
-        $this->patchStatus($session->getId(), 'validating');
-
-        $this->sendCallback($session->getId(), [
-            'status' => 'draft',
-            'errors' => [
-                ['slotName' => 'Alice_HK', 'errors' => ['Le nom de jeu Archipelago est manquant.']],
-            ],
-        ]);
-
-        self::assertResponseIsSuccessful();
-        $data = $this->decodedJsonResponse()['data'];
-        self::assertIsArray($data);
-        self::assertSame('draft', $data['status']);
-
-        $this->entityManager->clear();
-        $refreshed = $this->entityManager->find(Session::class, $session->getId());
-        self::assertInstanceOf(Session::class, $refreshed);
-        self::assertNotNull($refreshed->getValidationErrors());
-        self::assertCount(1, $refreshed->getValidationErrors());
-        self::assertSame('Alice_HK', $refreshed->getValidationErrors()[0]['slotName']);
-    }
-
-    public function testValidationErrorsClearedOnReValidate(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        $player = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
-        $game = $this->makeGame('Hollow Knight', 'Hollow Knight');
-        $slotId = 'slot-hk-1';
-        $reg = $this->createRegistrationWithYaml($player->getId(), 'evt-001', $game->getId(), $slotId, 'yaml: x');
-        $session = $this->persistSession('evt-001');
-        $this->persistSessionSlot($session->getId(), $reg->getId(), $game->getId(), 'placeholder', 0, $slotId);
-
-        // Simulate a previous failed validation
-        $this->patchStatus($session->getId(), 'validating');
-        $this->sendCallback($session->getId(), [
-            'status' => 'draft',
-            'errors' => [['slotName' => 'Alice_HK', 'errors' => ['some error']]],
-        ]);
-
-        // Re-validate - re-login so admin cookie is set correctly after callback request
-        $this->loginAs($admin);
-        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/validate', $session->getId()));
-        self::assertResponseIsSuccessful();
-
-        $this->entityManager->clear();
-        $refreshed = $this->entityManager->find(Session::class, $session->getId());
-        self::assertInstanceOf(Session::class, $refreshed);
-        self::assertNull($refreshed->getValidationErrors());
-    }
-
-    // ─── Callback - ready ─────────────────────────────────────────────────────
-
-    public function testCallbackWithReadyTransitionsToReady(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001');
-        $this->patchStatus($session->getId(), 'validating');
-
-        $this->sendCallback($session->getId(), ['status' => 'ready']);
 
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse()['data'];
@@ -311,18 +215,5 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
             $body['password'] = 'secret';
         }
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/sessions/%s/status', $sessionId), $body);
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function sendCallback(string $sessionId, array $payload): void
-    {
-        $this->client->request(
-            'POST',
-            sprintf('/api/v1/internal/sessions/%s/runner-callback', $sessionId),
-            [],
-            [],
-            ['HTTP_X_INTERNAL_SECRET' => 'test-runner-secret', 'CONTENT_TYPE' => 'application/json'],
-            json_encode($payload, JSON_THROW_ON_ERROR),
-        );
     }
 }

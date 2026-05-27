@@ -12,8 +12,6 @@ use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Realtime\Infrastructure\SpyHub;
 use App\Registrations\Domain\Registration;
-use App\Sessions\Application\Message\RestartRunJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -299,7 +297,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testRunnerCallbackTransitionsSession(): void
+    public function testRunnerCallbackWithUnknownStatusReturnsOkWithoutTransition(): void
     {
         $admin = $this->createAdmin();
         $this->loginAs($admin);
@@ -311,89 +309,24 @@ final class SessionLifecycleTest extends FunctionalTestCase
         $sessionId = $createData['id'];
         self::assertIsString($sessionId);
 
+        // unknown lifecycle status → returns 200 OK but does NOT transition the session
         $this->callbackAs($sessionId, 'validating');
         self::assertResponseIsSuccessful();
-        $callbackResponse = $this->decodedJsonResponse();
-        $callbackData = $callbackResponse['data'];
+        $callbackData = $this->decodedJsonResponse()['data'];
         self::assertIsArray($callbackData);
-        self::assertSame('validating', $callbackData['status']);
+        self::assertSame(true, $callbackData['ok']);
+
+        // Session is still DRAFT
+        $this->entityManager->clear();
+        $session = $this->entityManager->find(Session::class, $sessionId);
+        self::assertInstanceOf(Session::class, $session);
+        self::assertSame(Session::STATUS_DRAFT, $session->getStatus());
     }
 
-    public function testRunnerCallbackSetsHostPortPasswordOnRunning(): void
+    public function testRunnerCallbackLogsStatusReturns404ForUnknownSession(): void
     {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', ['slots' => []]);
-        $createResponse = $this->decodedJsonResponse();
-        $createData = $createResponse['data'];
-        self::assertIsArray($createData);
-        $sessionId = $createData['id'];
-        self::assertIsString($sessionId);
-
-        foreach (['validating', 'ready', 'generating', 'generated', 'launching'] as $s) {
-            $this->callbackAs($sessionId, $s);
-        }
-
-        $this->callbackAs($sessionId, 'running', host: '10.0.0.1', port: 9042, password: 'supersecret');
-        self::assertResponseIsSuccessful();
-
-        $runningResponse = $this->decodedJsonResponse();
-        $data = $runningResponse['data'];
-        self::assertIsArray($data);
-        self::assertSame('running', $data['status']);
-        self::assertSame('10.0.0.1', $data['host']);
-        self::assertSame(9042, $data['port']);
-        self::assertSame('supersecret', $data['password']);
-        self::assertNotNull($data['startedAt']);
-    }
-
-    public function testRunnerCallbackRejectsRunningWithoutConnectionDetails(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', ['slots' => []]);
-        $createResponse = $this->decodedJsonResponse();
-        $createData = $createResponse['data'];
-        self::assertIsArray($createData);
-        $sessionId = $createData['id'];
-        self::assertIsString($sessionId);
-
-        foreach (['validating', 'ready', 'generating', 'generated', 'launching'] as $s) {
-            $this->callbackAs($sessionId, $s);
-        }
-
-        $this->callbackAs($sessionId, 'running');
-
-        self::assertResponseStatusCodeSame(409);
-        $errorResponse = $this->decodedJsonResponse();
-        $error = $errorResponse['error'];
-        self::assertIsArray($error);
-        self::assertSame('invalid_transition', $error['code']);
-    }
-
-    public function testRunnerCallbackReturns404ForUnknownSession(): void
-    {
-        $this->callbackAs('nonexistent', 'validating');
+        $this->callbackAs('nonexistent', 'logs');
         self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testRunnerCallbackReturns409ForInvalidTransition(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', ['slots' => []]);
-        $createResponse = $this->decodedJsonResponse();
-        $createData = $createResponse['data'];
-        self::assertIsArray($createData);
-        $sessionId = $createData['id'];
-        self::assertIsString($sessionId);
-
-        // draft → running not allowed
-        $this->callbackAs($sessionId, 'running');
-        self::assertResponseStatusCodeSame(409);
     }
 
     public function testStoppedAtIsSetOnTerminalTransitions(): void
@@ -730,7 +663,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
         self::assertIsArray($beforeSession);
         self::assertNull($beforeSession['notifiedAt']);
 
-        $this->callbackAs($sessionId, 'running', host: '10.0.0.1', port: 9042, password: 'secret');
+        $this->patchStatus($sessionId, 'running');
         self::assertResponseIsSuccessful();
 
         $this->client->jsonRequest('GET', sprintf('/api/v1/admin/sessions/%s', $sessionId));
@@ -765,7 +698,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
             $this->patchStatus($sessionId, $s);
         }
 
-        $this->callbackAs($sessionId, 'running', host: '10.0.0.1', port: 9042, password: 'secret');
+        $this->patchStatus($sessionId, 'running');
         self::assertResponseIsSuccessful();
 
         /** @var InMemoryTransport $transport */
@@ -810,118 +743,12 @@ final class SessionLifecycleTest extends FunctionalTestCase
 
         // Restart: crashed → launching → running (no new notification)
         $this->patchStatus($sessionId, 'launching');
-        $this->callbackAs($sessionId, 'running', host: '10.0.0.2', port: 9043, password: 'new-secret');
+        $this->patchStatus($sessionId, 'running');
         self::assertResponseIsSuccessful();
 
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.async');
         self::assertCount(0, $transport->getSent(), 'No notification should be re-sent after restart');
-    }
-
-    public function testRunnerCallbackStoresBridgePort(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', ['slots' => []]);
-        $createResponse = $this->decodedJsonResponse();
-        $createData = $createResponse['data'];
-        self::assertIsArray($createData);
-        $sessionId = $createData['id'];
-        self::assertIsString($sessionId);
-
-        foreach (['validating', 'ready', 'generating', 'generated', 'launching'] as $s) {
-            $this->patchStatus($sessionId, $s);
-        }
-
-        $this->callbackAs($sessionId, 'running', host: '10.0.0.1', port: 38281, password: 'secret', bridgePort: 5000);
-        self::assertResponseIsSuccessful();
-
-        $data = $this->decodedJsonResponse()['data'];
-        self::assertIsArray($data);
-        self::assertSame('running', $data['status']);
-        self::assertSame(38281, $data['port']);
-        self::assertSame(5000, $data['bridgePort']);
-    }
-
-    public function testStopOrchestrationDispatchesStopJobWithBothPorts(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        // Advance to launching via HTTP, then set running state directly with bridgePort via entity
-        $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', ['slots' => []]);
-        $createResponse = $this->decodedJsonResponse();
-        $createData = $createResponse['data'];
-        self::assertIsArray($createData);
-        $sessionId = $createData['id'];
-        self::assertIsString($sessionId);
-
-        foreach (['validating', 'ready', 'generating', 'generated', 'launching'] as $s) {
-            $this->patchStatus($sessionId, $s);
-        }
-
-        // Set running state with bridge_port directly via entity (bypasses HTTP to avoid transport noise)
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        self::assertInstanceOf(Session::class, $session);
-        $session->transition(Session::STATUS_RUNNING, new \DateTimeImmutable(), '10.0.0.1', 38281, 'secret', 5000);
-        $this->entityManager->flush();
-        $this->entityManager->clear();
-
-        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/stop', $sessionId));
-        self::assertResponseIsSuccessful('stop endpoint failed: '.$this->client->getResponse()->getContent());
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_server');
-        $sent = $transport->getSent();
-        $classes = array_map(static fn ($e) => $e->getMessage()::class, $sent);
-        $stopMessages = array_values(array_filter($sent, static fn ($e) => $e->getMessage() instanceof StopRunJob));
-        self::assertCount(1, $stopMessages, sprintf('Expected 1 StopRunJob, got %d messages of types: [%s]', count($sent), implode(', ', $classes)));
-        /** @var StopRunJob $stopJob */
-        $stopJob = $stopMessages[0]->getMessage();
-        self::assertSame($sessionId, $stopJob->sessionId);
-        self::assertSame(38281, $stopJob->port);
-        self::assertSame(5000, $stopJob->bridgePort);
-    }
-
-    public function testRestartOrchestrationDispatchesRestartJobWithBothPorts(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('POST', '/api/v1/admin/events/evt-001/sessions', ['slots' => []]);
-        $createResponse = $this->decodedJsonResponse();
-        $createData = $createResponse['data'];
-        self::assertIsArray($createData);
-        $sessionId = $createData['id'];
-        self::assertIsString($sessionId);
-
-        foreach (['validating', 'ready', 'generating', 'generated', 'launching'] as $s) {
-            $this->patchStatus($sessionId, $s);
-        }
-
-        // Set running state with bridge_port directly via entity, then crash it
-        $session = $this->entityManager->find(Session::class, $sessionId);
-        self::assertInstanceOf(Session::class, $session);
-        $session->transition(Session::STATUS_RUNNING, new \DateTimeImmutable(), '10.0.0.1', 38281, 'pw', 5000);
-        $session->transition(Session::STATUS_CRASHED, new \DateTimeImmutable());
-        $this->entityManager->flush();
-        $this->entityManager->clear();
-
-        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/restart', $sessionId));
-        self::assertResponseIsSuccessful();
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_server');
-        $sent = $transport->getSent();
-        $restartMessages = array_values(array_filter($sent, static fn ($e) => $e->getMessage() instanceof RestartRunJob));
-        self::assertCount(1, $restartMessages);
-        /** @var RestartRunJob $restartJob */
-        $restartJob = $restartMessages[0]->getMessage();
-        self::assertSame($sessionId, $restartJob->sessionId);
-        self::assertSame(38281, $restartJob->port);
-        self::assertSame(5000, $restartJob->bridgePort);
-        self::assertSame('pw', $restartJob->password);
     }
 
     public function testSessionCreationWithSlotIdPreservesIt(): void

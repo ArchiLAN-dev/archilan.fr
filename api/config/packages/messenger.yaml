@@ -18,16 +18,6 @@ framework:
                 options:
                     exchange:
                         name: async_failed
-            run_generation:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-                options:
-                    exchange:
-                        name: run_generation
-                retry_strategy:
-                    max_retries: 3
-                    delay: 2000
-                    multiplier: 2
-                    max_delay: 0
             run_server:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
@@ -47,11 +37,6 @@ framework:
             'App\Communications\Application\SessionRunningMessage': async
             'App\Events\Application\EventCapacityReachedMessage': async
             'App\Payments\Application\SyncHelloAssoFormMessage': async
-            'App\Shared\Application\Message\GenerateRunJob': run_generation
-            'App\Sessions\Application\Message\StartRunJob': run_server
-            'App\Sessions\Application\Message\StopRunJob': run_server
-            'App\Sessions\Application\Message\RestartRunJob': run_server
-            'App\Sessions\Application\Message\RunHealthCheckJob': run_server
             'App\Sessions\Application\Message\FetchLogsJob': run_server
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
             'App\PersonalRuns\Application\Message\LaunchPersonalRunJob': run_server
@@ -75,5 +60,4 @@ when@test:
         messenger:
             transports:
                 async: 'in-memory://'
-                run_generation: 'in-memory://'
                 run_server: 'in-memory://'

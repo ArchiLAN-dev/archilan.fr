@@ -127,18 +127,19 @@ services:
             $apiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $httpClient: '@http_client'
 
-    App\Sessions\Infrastructure\DockerPortScannerInterface: '@App\Sessions\Infrastructure\DockerPortScanner'
-
-    App\Sessions\Infrastructure\PortPool:
-        arguments:
-            $start: '%env(int:PORT_RANGE_START)%'
-            $end: '%env(int:PORT_RANGE_END)%'
-
     App\Sessions\Infrastructure\RunnerCallbackClient:
         arguments:
             $centralApiUrl: '%env(CENTRAL_API_URL)%'
             $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
             $runnerId: '%env(RUNNER_ID)%'
+
+    App\Sessions\Application\SessionOrchestrator:
+        arguments:
+            $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+
+    App\Sessions\Presentation\OrchestratorWebhookController:
+        arguments:
+            $orchestrateurWebhookSecret: '%env(ORCHESTRATEUR_WEBHOOK_SECRET)%'
 
     App\Sessions\Presentation\SessionOrchestrationController:
         arguments:
@@ -176,41 +177,6 @@ services:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'
         autowire: false
-
-    App\Sessions\Application\Handler\GenerateRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
-            $generateImage: '%env(ARCHIPELAGO_GENERATE_IMAGE)%'
-
-    App\Sessions\Application\Handler\StartRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-            $runnerHost: '%env(RUNNER_HOST)%'
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
-            $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
-            $symfonyInternalUrl: '%env(SYMFONY_INTERNAL_URL)%'
-            $mercureHubUrl: '%env(MERCURE_HUB_URL)%'
-            $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
-            $minioEndpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
-            $minioAccessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
-            $minioSecretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
-            $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
-            $serverImage: '%env(ARCHIPELAGO_SERVER_IMAGE)%'
-            $apworldVolumeName: '%env(ARCHIPELAGO_WORKSPACE_VOLUME)%'
-
-    App\Sessions\Application\Handler\RunHealthCheckJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-
-    App\Sessions\Application\Handler\StopRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-
-    App\Sessions\Application\Handler\RestartRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-            $runnerHost: '%env(RUNNER_HOST)%'
 
     App\Sessions\Application\Handler\FetchLogsJobHandler:
         arguments:
@@ -367,9 +333,6 @@ when@test:
 
         App\Shared\Infrastructure\NullMinioStorage:
             public: true
-
-        App\Sessions\Infrastructure\DockerPortScannerInterface:
-            class: App\Sessions\Infrastructure\NullDockerPortScanner
 
         App\Streaming\Infrastructure\TwitchApiClientInterface:
             class: App\Streaming\Infrastructure\NullTwitchApiClient

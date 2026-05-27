@@ -8,13 +8,11 @@ use App\PersonalRuns\Application\Handler\StopPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\Envelope;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 final class StopPersonalRunJobHandlerTest extends TestCase
 {
@@ -27,10 +25,10 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $logger->expects($this->once())->method('error')
             ->with('personal_run.stop.not_found', $this->arrayHasKey('runId'));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
+        $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
+        $runnerGateway->expects($this->never())->method('stopSession');
 
-        $this->makeHandler(runs: $runs, messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob('run-missing'));
+        $this->makeHandler(runs: $runs, runnerGateway: $runnerGateway, logger: $logger)(new StopPersonalRunJob('run-missing'));
     }
 
     public function testPersonalRunHasNoSessionLogsWarningAndReturns(): void
@@ -45,10 +43,10 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $logger->expects($this->once())->method('warning')
             ->with('personal_run.stop.no_session', $this->arrayHasKey('runId'));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
+        $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
+        $runnerGateway->expects($this->never())->method('stopSession');
 
-        $this->makeHandler(runs: $runs, messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, runnerGateway: $runnerGateway, logger: $logger)(new StopPersonalRunJob($run->getId()));
     }
 
     public function testSessionNotFoundLogsWarningAndReturns(): void
@@ -70,13 +68,13 @@ final class StopPersonalRunJobHandlerTest extends TestCase
                 $this->arrayHasKey('sessionId'),
             ));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
+        $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
+        $runnerGateway->expects($this->never())->method('stopSession');
 
-        $this->makeHandler(runs: $runs, sessions: $sessions, messageBus: $messageBus, logger: $logger)(new StopPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, sessions: $sessions, runnerGateway: $runnerGateway, logger: $logger)(new StopPersonalRunJob($run->getId()));
     }
 
-    public function testAllFoundDispatchesStopRunJob(): void
+    public function testAllFoundCallsStopSession(): void
     {
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
@@ -90,28 +88,22 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $sessions = $this->createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->once())->method('dispatch')
-            ->with($this->callback(static function (StopRunJob $job): bool {
-                return 'sess-1' === $job->sessionId
-                    && 0 === $job->port
-                    && 0 === $job->bridgePort;
-            }))
-            ->willReturn(new Envelope(new StopRunJob('sess-1', 0, 0)));
+        $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
+        $runnerGateway->expects($this->once())->method('stopSession')->with('sess-1');
 
-        $this->makeHandler(runs: $runs, sessions: $sessions, messageBus: $messageBus)(new StopPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, sessions: $sessions, runnerGateway: $runnerGateway)(new StopPersonalRunJob($run->getId()));
     }
 
     private function makeHandler(
         ?RunRepositoryInterface $runs = null,
         ?SessionRepositoryInterface $sessions = null,
-        ?MessageBusInterface $messageBus = null,
+        ?RunnerGatewayInterface $runnerGateway = null,
         ?LoggerInterface $logger = null,
     ): StopPersonalRunJobHandler {
         return new StopPersonalRunJobHandler(
             $runs ?? $this->createStub(RunRepositoryInterface::class),
             $sessions ?? $this->createStub(SessionRepositoryInterface::class),
-            $messageBus ?? $this->createStub(MessageBusInterface::class),
+            $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
             $logger ?? $this->createStub(LoggerInterface::class),
         );
     }

@@ -14,9 +14,9 @@ use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 final class LaunchPersonalRunJobHandlerTest extends TestCase
 {
@@ -29,10 +29,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
         $logger->expects($this->once())->method('error')
             ->with('personal_run.launch.not_found', $this->arrayHasKey('runId'));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
-
-        $this->makeHandler(runs: $runs, messageBus: $messageBus, logger: $logger)(new LaunchPersonalRunJob('run-missing'));
+        $this->makeHandler(runs: $runs, logger: $logger)(new LaunchPersonalRunJob('run-missing'));
     }
 
     public function testNoParticipantsLogsErrorAndReturns(): void
@@ -50,16 +47,13 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
         $logger->expects($this->once())->method('error')
             ->with('personal_run.launch.no_slots', $this->arrayHasKey('runId'));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
-
-        $this->makeHandler(runs: $runs, participants: $participants, messageBus: $messageBus, logger: $logger)(new LaunchPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, participants: $participants, logger: $logger)(new LaunchPersonalRunJob($run->getId()));
     }
 
     private function makeHandler(
         ?RunRepositoryInterface $runs = null,
         ?RunParticipantRepositoryInterface $participants = null,
-        ?MessageBusInterface $messageBus = null,
+        ?RunnerGatewayInterface $runnerGateway = null,
         ?LoggerInterface $logger = null,
     ): LaunchPersonalRunJobHandler {
         return new LaunchPersonalRunJobHandler(
@@ -70,7 +64,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             $this->createStub(SessionRepositoryInterface::class),
             $this->createStub(SessionSlotRepositoryInterface::class),
             new SlotNameGenerator(),
-            $messageBus ?? $this->createStub(MessageBusInterface::class),
+            $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
             $logger ?? $this->createStub(LoggerInterface::class),
         );
     }

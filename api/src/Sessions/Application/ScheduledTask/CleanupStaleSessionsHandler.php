@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\ScheduledTask;
 
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class CleanupStaleSessionsHandler
@@ -19,7 +18,7 @@ final readonly class CleanupStaleSessionsHandler
     public function __construct(
         private SessionRepositoryInterface $sessions,
         private HubInterface $mercureHub,
-        private MessageBusInterface $messageBus,
+        private RunnerGatewayInterface $runnerGateway,
         private LoggerInterface $logger,
     ) {
     }
@@ -43,9 +42,6 @@ final readonly class CleanupStaleSessionsHandler
                 ? Session::STATUS_CRASHED
                 : Session::STATUS_FAILED;
 
-            $port = $session->getPort() ?? 0;
-            $bridgePort = $session->getBridgePort() ?? 0;
-
             try {
                 $session->transition($newStatus, $now);
             } catch (\LogicException) {
@@ -61,7 +57,7 @@ final readonly class CleanupStaleSessionsHandler
             ]);
 
             if (Session::STATUS_RUNNING === $previous) {
-                $this->messageBus->dispatch(new StopRunJob($session->getId(), $port, $bridgePort));
+                $this->runnerGateway->stopSession($session->getId());
             }
 
             $cleaned[] = $session;

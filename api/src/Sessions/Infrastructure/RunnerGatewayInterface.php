@@ -20,4 +20,19 @@ interface RunnerGatewayInterface
      * @return array<string, mixed>
      */
     public function uploadApworld(string $fileContents, string $filename): array;
+
+    /**
+     * @param list<array{slotName: string, apworldHash: string, playerYaml: string}> $slots
+     *
+     * @return array{valid: bool, errors: list<array{playerName: string, errors: list<string>}>}
+     */
+    public function configureSession(string $sessionId, array $slots): array;
+
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null): void;
+
+    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword): void;
+
+    public function stopSession(string $sessionId): void;
+
+    public function restartSession(string $sessionId): void;
 }

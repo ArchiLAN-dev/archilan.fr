@@ -47,4 +47,25 @@ final class NullRunnerGateway implements RunnerGatewayInterface
 
         return ['valid' => $valid, 'slots' => $proposed];
     }
+
+    public function configureSession(string $sessionId, array $slots): array
+    {
+        return ['valid' => true, 'errors' => []];
+    }
+
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null): void
+    {
+    }
+
+    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword): void
+    {
+    }
+
+    public function stopSession(string $sessionId): void
+    {
+    }
+
+    public function restartSession(string $sessionId): void
+    {
+    }
 }

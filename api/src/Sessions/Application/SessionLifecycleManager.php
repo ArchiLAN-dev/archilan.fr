@@ -15,11 +15,11 @@ use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\ResumeRunJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -37,6 +37,7 @@ final readonly class SessionLifecycleManager
         private HubInterface $mercureHub,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
+        private RunnerGatewayInterface $runnerGateway,
     ) {
     }
 
@@ -212,8 +213,6 @@ final readonly class SessionLifecycleManager
         }
 
         $previous = $session->getStatus();
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->forceReset(new \DateTimeImmutable());
         $this->sessions->flush();
@@ -226,10 +225,45 @@ final readonly class SessionLifecycleManager
 
         $containerStatuses = [Session::STATUS_RUNNING, Session::STATUS_LAUNCHING, Session::STATUS_CRASHED];
         if (in_array($previous, $containerStatuses, true)) {
-            $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+            $this->runnerGateway->stopSession($sessionId);
         }
 
         return ['found' => true, 'session' => $session->payload()];
+    }
+
+    public function storePendingCredentials(
+        string $sessionId,
+        ?string $adminPassword = null,
+        ?string $host = null,
+        ?string $password = null,
+    ): void {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return;
+        }
+
+        $session->storePendingCredentials($adminPassword, $host, $password);
+        $this->sessions->flush();
+    }
+
+    /**
+     * Transitions a session to RUNNING using credentials pre-stored before launch.
+     * Called by the orchestrateur webhook on session.ready.
+     *
+     * @return array<string, mixed>
+     */
+    public function transitionToRunningFromOrchestrateur(string $sessionId, int $port): array
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return ['found' => false];
+        }
+
+        $host = $session->getHost() ?? '';
+        $password = $session->getPassword() ?? '';
+        $serverPassword = $session->getAdminPassword();
+
+        return $this->transition($sessionId, Session::STATUS_RUNNING, $host, $port, $password, null, null, null, null, $serverPassword);
     }
 
     private function dispatchRunningNotifications(Session $session): void
