@@ -75,7 +75,11 @@ final readonly class CleanupStaleSessionsHandler
                     sprintf('/sessions/%s', $session->getId()),
                     json_encode($session->payload(), JSON_THROW_ON_ERROR),
                 ));
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                $this->logger->error('session.cleanup.mercure_publish_failed', [
+                    'sessionId' => $session->getId(),
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 

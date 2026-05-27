@@ -7,6 +7,7 @@ namespace App\Sessions\Presentation;
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Sessions\Application\SessionOrchestrator;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -17,8 +18,12 @@ final readonly class OrchestratorWebhookController
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
         private SessionOrchestrator $sessionOrchestrator,
+        private LoggerInterface $logger,
         private string $orchestrateurWebhookSecret,
     ) {
+        if ('' === $this->orchestrateurWebhookSecret) {
+            throw new \LogicException('ORCHESTRATEUR_WEBHOOK_SECRET must not be empty.');
+        }
     }
 
     #[Route('/api/v1/internal/orchestrateur/webhook', methods: ['POST'])]
@@ -72,10 +77,6 @@ final readonly class OrchestratorWebhookController
 
     private function verifySignature(Request $request): bool
     {
-        if ('' === $this->orchestrateurWebhookSecret) {
-            return false;
-        }
-
         $signature = $request->headers->get('x-signature-256');
         if (null === $signature || '' === $signature) {
             return false;
@@ -107,7 +108,9 @@ final readonly class OrchestratorWebhookController
             }
 
             return $result;
-        } catch (\JsonException) {
+        } catch (\JsonException $e) {
+            $this->logger->warning('orchestrateur.webhook.invalid_json', ['error' => $e->getMessage()]);
+
             return [];
         }
     }

@@ -144,10 +144,25 @@ final readonly class LaunchPersonalRunJobHandler
             $messageSlots,
         );
 
-        $configureResult = $this->runnerGateway->configureSession($sessionId, $configureSlots);
+        try {
+            $configureResult = $this->runnerGateway->configureSession($sessionId, $configureSlots);
+        } catch (\Throwable $e) {
+            $this->logger->error('personal_run.launch.configure_failed', [
+                'runId' => $job->personalRunId,
+                'sessionId' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+            $session->transition(Session::STATUS_FAILED, $now);
+            $this->sessions->flush();
+
+            return;
+        }
 
         if ($configureResult['valid']) {
             $session->transition(Session::STATUS_READY, $now);
+            $this->sessions->flush();
+        } else {
+            $session->transition(Session::STATUS_FAILED, $now);
             $this->sessions->flush();
         }
 

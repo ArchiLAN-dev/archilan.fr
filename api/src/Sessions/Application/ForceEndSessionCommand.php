@@ -8,6 +8,8 @@ use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionNotFoundException;
+use App\Sessions\Domain\SessionNotRunningException;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -23,17 +25,20 @@ final readonly class ForceEndSessionCommand
     }
 
     /**
-     * @return array{found: bool, notRunning: bool, payload: array<string, mixed>}
+     * @return array<string, mixed>
+     *
+     * @throws SessionNotFoundException
+     * @throws SessionNotRunningException
      */
     public function execute(string $sessionId, string $actorId): array
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
-            return ['found' => false, 'notRunning' => false, 'payload' => []];
+            throw new SessionNotFoundException($sessionId);
         }
 
         if (Session::STATUS_RUNNING !== $session->getStatus()) {
-            return ['found' => true, 'notRunning' => true, 'payload' => []];
+            throw new SessionNotRunningException($sessionId);
         }
 
         $now = new \DateTimeImmutable();
@@ -56,6 +61,6 @@ final readonly class ForceEndSessionCommand
         $this->auditLogs->persist($log);
         $this->auditLogs->flush();
 
-        return ['found' => true, 'notRunning' => false, 'payload' => $session->payload()];
+        return $session->payload();
     }
 }

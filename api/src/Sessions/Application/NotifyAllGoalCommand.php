@@ -8,6 +8,7 @@ use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -22,18 +23,15 @@ final readonly class NotifyAllGoalCommand
     ) {
     }
 
-    /**
-     * @return array{found: bool, skipped: bool}
-     */
-    public function execute(string $sessionId): array
+    public function execute(string $sessionId): void
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
-            return ['found' => false, 'skipped' => false];
+            throw new SessionNotFoundException($sessionId);
         }
 
         if (Session::STATUS_RUNNING !== $session->getStatus()) {
-            return ['found' => true, 'skipped' => true];
+            return;
         }
 
         $now = new \DateTimeImmutable();
@@ -55,7 +53,5 @@ final readonly class NotifyAllGoalCommand
         );
         $this->auditLogs->persist($log);
         $this->auditLogs->flush();
-
-        return ['found' => true, 'skipped' => false];
     }
 }

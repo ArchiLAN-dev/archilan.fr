@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\NotifyAllGoalCommand;
+use App\Sessions\Domain\SessionNotFoundException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,12 +29,12 @@ final readonly class AllGoalController
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret runner invalide.', 401);
         }
 
-        $result = $this->notifyAllGoalCommand->execute($id);
-
-        if (!$result['found']) {
+        try {
+            $this->notifyAllGoalCommand->execute($id);
+        } catch (SessionNotFoundException) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        return new JsonResponse(['data' => ['ok' => true, 'skipped' => $result['skipped']]]);
+        return new JsonResponse(['data' => ['ok' => true]]);
     }
 }

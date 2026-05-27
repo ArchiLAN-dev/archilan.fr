@@ -45,6 +45,14 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
             'CONTENT_TYPE' => 'application/json',
         ], $body);
         self::assertResponseStatusCodeSame(401);
+
+        // Raw HMAC without "sha256=" prefix → 401 (prefix required by convention)
+        $rawHmac = hash_hmac('sha256', $body, self::WEBHOOK_SECRET);
+        $this->client->request('POST', self::WEBHOOK_URL, [], [], [
+            'HTTP_X_SIGNATURE_256' => $rawHmac,
+            'CONTENT_TYPE' => 'application/json',
+        ], $body);
+        self::assertResponseStatusCodeSame(401);
     }
 
     // ─── session.generated ────────────────────────────────────────────────────

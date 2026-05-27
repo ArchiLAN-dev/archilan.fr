@@ -288,12 +288,20 @@ final readonly class SessionOrchestrator
             return;
         }
 
-        if (Session::STATUS_READY === $session->getStatus()) {
-            $this->orchestrateGenerate($sessionId);
-            $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
-        } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
-            $this->orchestrateLaunch($sessionId);
-            $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+        try {
+            if (Session::STATUS_READY === $session->getStatus()) {
+                $this->orchestrateGenerate($sessionId);
+                $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
+            } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
+                $this->orchestrateLaunch($sessionId);
+                $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('session.auto_advance.failed', [
+                'sessionId' => $sessionId,
+                'status' => $session->getStatus(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
