@@ -141,6 +141,21 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         $this->client->sessions()->restart($sessionId);
     }
 
+    public function getSessionInfo(string $sessionId): ?array
+    {
+        try {
+            $response = $this->client->sessions()->get($sessionId);
+
+            return ['status' => $response->status, 'bridgePort' => $response->bridgePort];
+        } catch (\Archilan\OrchestratorClient\Exception\SessionNotFoundException) {
+            return null;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.get_session_info_failed', ['sessionId' => $sessionId, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     private function buildPlayerYaml(string $slotName, string $rawYaml): PlayerYaml
     {
         try {

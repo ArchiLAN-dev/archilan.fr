@@ -25,7 +25,7 @@ use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\MessageBusInterface;
 
-final readonly class SessionLifecycleManager
+final readonly class SessionLifecycleManager implements SessionReconcilerInterface
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,

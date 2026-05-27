@@ -35,4 +35,11 @@ interface RunnerGatewayInterface
     public function stopSession(string $sessionId): void;
 
     public function restartSession(string $sessionId): void;
+
+    /**
+     * Returns the orchestrateur's view of the session, or null if the session is unknown.
+     *
+     * @return array{status: string, bridgePort: ?int}|null
+     */
+    public function getSessionInfo(string $sessionId): ?array;
 }
