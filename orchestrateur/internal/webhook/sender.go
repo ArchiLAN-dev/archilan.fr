@@ -20,11 +20,12 @@ type Sender struct {
 }
 
 type Payload struct {
-	Event     string    `json:"event"`
-	SessionID string    `json:"sessionId"`
-	Port      int       `json:"port,omitempty"`
-	Error     string    `json:"error,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
+	Event      string    `json:"event"`
+	SessionID  string    `json:"sessionId"`
+	Port       int       `json:"port,omitempty"`       // AP server port (players connect here)
+	BridgePort int       `json:"bridgePort,omitempty"` // Bridge container port (internal)
+	Error      string    `json:"error,omitempty"`
+	Timestamp  time.Time `json:"timestamp"`
 }
 
 func New(url, secret string, log *slog.Logger) *Sender {

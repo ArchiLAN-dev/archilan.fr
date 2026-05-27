@@ -221,9 +221,10 @@ func (s *Service) startSession(sessionID string, bridgePort, apPort int, serverP
 
 	// 7. Fire session.ready webhook
 	s.webhook.Send(ctx, webhook.Payload{
-		Event:     "session.ready",
-		SessionID: sessionID,
-		Port:      bridgePort,
+		Event:      "session.ready",
+		SessionID:  sessionID,
+		Port:       apPort,
+		BridgePort: bridgePort,
 	})
 	s.log.Info("session running", "session_id", sessionID, "bridge_port", bridgePort, "ap_port", apPort)
 }
