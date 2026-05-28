@@ -251,6 +251,10 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
      * Transitions a session to RUNNING using credentials pre-stored before launch.
      * Called by the orchestrateur webhook on session.ready.
      *
+     * If the session was marked CRASHED by the cleanup handler before the webhook
+     * arrived (a timing race), step it through LAUNCHING first so the state
+     * machine allows the RUNNING transition.
+     *
      * @return array<string, mixed>
      */
     public function transitionToRunningFromOrchestrateur(string $sessionId, int $apPort, ?int $bridgePort): array
@@ -258,6 +262,22 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
             return ['found' => false];
+        }
+
+        if (Session::STATUS_CRASHED === $session->getStatus()) {
+            $now = new \DateTimeImmutable();
+            try {
+                $session->transition(Session::STATUS_LAUNCHING, $now);
+                $this->sessions->flush();
+            } catch (\LogicException $e) {
+                $this->logger->warning('session.transition.rejected', [
+                    'sessionId' => $sessionId,
+                    'from' => 'crashed',
+                    'to' => Session::STATUS_LAUNCHING,
+                ]);
+
+                return ['found' => true, 'errors' => [$e->getMessage()]];
+            }
         }
 
         $host = $this->runnerPublicHost;

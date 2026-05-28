@@ -67,8 +67,10 @@ services:
             BRIDGE_NETWORK: archilan_default
             WEBHOOK_URL: ${ORCHESTRATEUR_WEBHOOK_URL:-}
             WEBHOOK_SECRET: ${ORCHESTRATEUR_WEBHOOK_SECRET:-}
+            CENTRAL_API_URL: ${CENTRAL_API_URL:-}
+            CENTRAL_API_SECRET: ${CENTRAL_API_SECRET:-}
             CORS_ORIGINS: ${CORS_ORIGINS:-*}
-            MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+            MINIO_ENDPOINT: ${ORCHESTRATEUR_MINIO_ENDPOINT:-minio:9000}
             MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
             MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
             MINIO_USE_SSL: ${MINIO_USE_SSL:-false}

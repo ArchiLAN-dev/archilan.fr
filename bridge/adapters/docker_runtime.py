@@ -46,7 +46,10 @@ class DockerRuntimeAdapter:
             "Image": self._config.ap_image,
             "Entrypoint": ["python"],
             "Cmd": cmd,
-            "Env": [f"REACHABLE_STATE_JSON={state_json}"],
+            "Env": [
+                f"REACHABLE_STATE_JSON={state_json}",
+                f"AP_WORLDS_DIR={self._config.ap_worlds_dir}",
+            ],
             "HostConfig": {
                 "Binds": [self._volume_bind()],
             },

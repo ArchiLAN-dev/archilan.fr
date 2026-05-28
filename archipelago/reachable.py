@@ -220,6 +220,10 @@ _load_apworlds_from(APWORLDS_DEV)
 _load_apworlds_from(APWORLDS_IN)
 _load_apworlds_from(APWORLDS_POOL)
 _load_apworlds_from(APWORLDS_SESSION)
+# AP_WORLDS_DIR overrides the derived session path (set by bridge docker runtime adapter)
+_AP_WORLDS_DIR_ENV = os.environ.get("AP_WORLDS_DIR")
+if _AP_WORLDS_DIR_ENV:
+    _load_apworlds_from(pathlib.Path(_AP_WORLDS_DIR_ENV))
 
 # Rebuild network_data_package to include late-loaded worlds
 _worlds_pkg.network_data_package["games"].update({

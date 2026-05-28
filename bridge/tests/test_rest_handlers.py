@@ -113,7 +113,7 @@ async def test_post_command_ws_disconnected_returns_503() -> None:
 async def test_request_hint_success_free() -> None:
     app, _, ap_client = _make_app()
     ap_client.ws_connected = True
-    ap_client.send_command = AsyncMock()
+    ap_client.send_admin_command = AsyncMock()
     ap_client._broadcast_hints = AsyncMock()
     # Populate store so location name lookup succeeds
     ap_client._store._slot_games[1] = "TestGame"
@@ -131,7 +131,7 @@ async def test_request_hint_success_free() -> None:
         assert data["locationId"] == 42
         assert data["free"] is True
 
-    ap_client.send_command.assert_awaited_once()
+    ap_client.send_admin_command.assert_awaited_once()
 
 
 @pytest.mark.asyncio

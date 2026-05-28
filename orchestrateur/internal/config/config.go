@@ -22,6 +22,8 @@ type Config struct {
 	APImage        string
 	WebhookURL     string
 	WebhookSecret  string
+	CentralAPIURL    string
+	CentralAPISecret string
 	CORSOrigins    []string
 	MinioEndpoint       string
 	MinioAccessKey      string
@@ -50,6 +52,8 @@ func Load() *Config {
 		APImage:        env("AP_IMAGE", "archipelago:latest"),
 		WebhookURL:     env("WEBHOOK_URL", ""),
 		WebhookSecret:  env("WEBHOOK_SECRET", ""),
+		CentralAPIURL:    env("CENTRAL_API_URL", ""),
+		CentralAPISecret: env("CENTRAL_API_SECRET", ""),
 		CORSOrigins:    envList("CORS_ORIGINS", []string{"*"}),
 		MinioEndpoint:       env("MINIO_ENDPOINT", ""),
 		MinioAccessKey:      env("MINIO_ACCESS_KEY", ""),

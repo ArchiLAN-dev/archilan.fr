@@ -9,6 +9,8 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
+
 from .reachable import _compute_reachable
 from .save_parser import load_save_state_from_json
 from .state import StateManager
@@ -139,3 +141,21 @@ async def _ws_heartbeat_loop(broadcast: BroadcastFn, session_id: str) -> None:
             await broadcast("heartbeat", {"sessionId": session_id, "wsConnected": True})
         except Exception as exc:
             log.warning("heartbeat broadcast error: %s", exc)
+
+
+async def _api_heartbeat_loop(session_id: str, central_api_url: str, central_api_secret: str) -> None:
+    """Call the Symfony heartbeat endpoint every 30 s to keep lastHeartbeatAt fresh."""
+    if not central_api_url or not central_api_secret:
+        return
+    log = logging.getLogger(__name__)
+    url = f"{central_api_url.rstrip('/')}/api/v1/internal/sessions/{session_id}/heartbeat"
+    headers = {"X-Internal-Secret": central_api_secret}
+    async with httpx.AsyncClient(timeout=10) as client:
+        while True:
+            await asyncio.sleep(30)
+            try:
+                resp = await client.post(url, headers=headers)
+                if resp.status_code not in (200, 204):
+                    log.warning("api heartbeat: unexpected status %d", resp.status_code)
+            except Exception as exc:
+                log.warning("api heartbeat error: %s", exc)

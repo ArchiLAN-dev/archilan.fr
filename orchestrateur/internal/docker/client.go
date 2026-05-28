@@ -115,12 +115,14 @@ type createResponse struct {
 }
 
 type CreateConfig struct {
-	SessionID      string
-	Port           int
-	BridgeToken    string
-	APImage        string
-	ServerPassword string
-	AdminPassword  string
+	SessionID        string
+	Port             int
+	BridgeToken      string
+	APImage          string
+	ServerPassword   string
+	AdminPassword    string
+	CentralAPIURL    string
+	CentralAPISecret string
 }
 
 // Create creates a container but does not start it.
@@ -137,6 +139,8 @@ func (c *Client) Create(ctx context.Context, cfg CreateConfig) (string, error) {
 			fmt.Sprintf("AP_SERVER_HOST_PORT=%d", cfg.Port+c.cfg.APServerPortOffset),
 			fmt.Sprintf("AP_SERVER_PASSWORD=%s", cfg.ServerPassword),
 			fmt.Sprintf("AP_ADMIN_PASSWORD=%s", cfg.AdminPassword),
+			fmt.Sprintf("CENTRAL_API_URL=%s", cfg.CentralAPIURL),
+			fmt.Sprintf("CENTRAL_API_SECRET=%s", cfg.CentralAPISecret),
 			"REST_PORT=5000",
 			"SAVE_DIR=/data/output",
 			"AP_WORLDS_DIR=/data/worlds",
@@ -623,7 +627,8 @@ func (c *Client) GenerateMultiworld(ctx context.Context, sessionID, seed string,
 type APServerCreateConfig struct {
 	SessionID      string
 	APPort         int
-	ServerPassword string
+	ServerPassword string // AP join password (players use this)
+	AdminPassword  string // AP server admin password (enables !admin commands)
 	APImage        string
 	BridgeNetwork  string
 }
@@ -651,6 +656,7 @@ func (c *Client) CreateAPServer(ctx context.Context, cfg APServerCreateConfig) (
 		Cmd:   []string{"/ap_server.sh"},
 		Env: []string{
 			fmt.Sprintf("PASSWORD=%s", cfg.ServerPassword),
+			fmt.Sprintf("SERVER_PASSWORD=%s", cfg.AdminPassword),
 			"ARCHIPELAGO_OUTPUT_DIR=/data/output",
 		},
 		Labels: map[string]string{

@@ -304,6 +304,14 @@ class ArchipelagoClient:
         if self._ws is not None and self.ws_connected:
             await self._ws.send(json.dumps([{"cmd": "Say", "text": command}]))
 
+    async def send_admin_command(self, command: str) -> None:
+        """Send an admin command, authenticating first if an admin password is configured."""
+        if self._ws is None or not self.ws_connected:
+            return
+        if self._config.ap_admin_password:
+            await self._ws.send(json.dumps([{"cmd": "Say", "text": f"!admin login {self._config.ap_admin_password}"}]))
+        await self._ws.send(json.dumps([{"cmd": "Say", "text": command}]))
+
     async def send_packet(self, packet: dict[str, Any]) -> None:
         if self._ws is None or not self.ws_connected:
             raise RuntimeError("WebSocket not connected")

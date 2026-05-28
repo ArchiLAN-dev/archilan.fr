@@ -71,7 +71,7 @@ async def request_hint(
     placement = ap_client.get_placement(slot, body.locationId)
 
     try:
-        await ap_client.send_command(f"!admin /hint_location {player_name} {location_name}")
+        await ap_client.send_admin_command(f"!admin /hint_location {player_name} {location_name}")
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

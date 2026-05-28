@@ -20,6 +20,7 @@ from bridge.core.coordinator import PauseResumeCoordinator
 from bridge.core.domain import HintInfo, PlayerState
 from bridge.core.loops import (
     _apsave_reconcile_loop,
+    _api_heartbeat_loop,
     _reachable_sweep_loop,
     _ws_heartbeat_loop,
     setup_logging,
@@ -109,6 +110,9 @@ async def _main() -> None:
     _heartbeat_task = asyncio.create_task(
         _ws_heartbeat_loop(ws_server.broadcast, config.session_id)
     )
+    _api_heartbeat_task = asyncio.create_task(
+        _api_heartbeat_loop(config.session_id, config.central_api_url, config.central_api_secret)
+    )
 
     try:
         await ap_client.run_with_reconnect()
@@ -118,6 +122,7 @@ async def _main() -> None:
         _sweep_task.cancel()
         _reconcile_task.cancel()
         _heartbeat_task.cancel()
+        _api_heartbeat_task.cancel()
 
 
 if __name__ == "__main__":

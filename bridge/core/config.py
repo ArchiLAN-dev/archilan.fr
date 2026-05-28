@@ -22,6 +22,13 @@ class Config:
     runtime: str = "none"
     ap_image: str = ""    # AP Docker image (required when runtime="docker")
     ap_network: str = ""  # Docker network the bridge container is attached to
+    ap_worlds_dir: str = "/data/worlds"  # path to custom apworld files inside the session volume
+
+    ap_admin_password: str = ""  # AP server admin password (enables !admin commands)
+
+    # Symfony central API — for bridge→API heartbeat
+    central_api_url: str = ""
+    central_api_secret: str = ""
 
     # AP process management for pause/resume flow (subprocess runtime)
     ap_pid_file: str = "/tmp/ap.pid"
@@ -41,6 +48,10 @@ class Config:
             runtime=os.environ.get("AP_RUNTIME", "none"),
             ap_image=os.environ.get("AP_IMAGE", ""),
             ap_network=os.environ.get("AP_NETWORK", ""),
+            ap_worlds_dir=os.environ.get("AP_WORLDS_DIR", "/data/worlds"),
+            ap_admin_password=os.environ.get("AP_ADMIN_PASSWORD", ""),
+            central_api_url=os.environ.get("CENTRAL_API_URL", ""),
+            central_api_secret=os.environ.get("CENTRAL_API_SECRET", ""),
             ap_pid_file=os.environ.get("AP_PID_FILE", "/tmp/ap.pid"),
             ap_launch_cmd=os.environ.get("AP_LAUNCH_CMD", ""),
         )

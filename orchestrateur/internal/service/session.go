@@ -163,6 +163,7 @@ func (s *Service) startSession(sessionID string, bridgePort, apPort int, serverP
 		SessionID:      sessionID,
 		APPort:         apPort,
 		ServerPassword: serverPassword,
+		AdminPassword:  adminPassword,
 		APImage:        s.cfg.APImage,
 		BridgeNetwork:  s.cfg.BridgeNetwork,
 	})
@@ -191,12 +192,14 @@ func (s *Service) startSession(sessionID string, bridgePort, apPort int, serverP
 
 	// 4. Create Bridge container (volume already has data from generation step)
 	bridgeContainerID, err := s.docker.Create(ctx, docker.CreateConfig{
-		SessionID:      sessionID,
-		Port:           bridgePort,
-		BridgeToken:    s.cfg.BridgeToken,
-		APImage:        s.cfg.APImage,
-		ServerPassword: serverPassword,
-		AdminPassword:  adminPassword,
+		SessionID:        sessionID,
+		Port:             bridgePort,
+		BridgeToken:      s.cfg.BridgeToken,
+		APImage:          s.cfg.APImage,
+		ServerPassword:   serverPassword,
+		AdminPassword:    adminPassword,
+		CentralAPIURL:    s.cfg.CentralAPIURL,
+		CentralAPISecret: s.cfg.CentralAPISecret,
 	})
 	if err != nil {
 		_ = s.docker.Stop(ctx, apContainerID)
