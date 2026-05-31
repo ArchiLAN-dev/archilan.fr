@@ -1,6 +1,6 @@
 # Story 4.12: Plando Items Advanced Configuration in YAML Editor
 
-Status: review
+Status: done
 
 ## Story
 
@@ -357,6 +357,29 @@ Reuse constants already defined:
 - [Source: frontend/src/features/events/yaml-option-editor.tsx:808] — `ListField` pattern for location rows
 - [Source: frontend/src/features/events/yaml-option-editor.tsx:862] — `DictField` pattern for items dict
 - [Archipelago Plando Spec: https://archipelago.gg/tutorial/Archipelago/plando_en]
+
+## Review Findings
+
+### Decision Needed
+
+_Aucune — les deux décisions ont été tranchées par le source Archipelago (`Options.py`) :_
+- _Filtre empty-array global : CORRECT — AP traite clé absente et `[]` de manière identique pour toutes les options._
+- _`replacement_item: null` toujours sérialisé : CORRECT — `replacement_item` est une clé REQUISE (non Optional) dans le schema AP. L'omettre causerait une erreur de validation._
+
+### Patches
+
+- [x] [Review][Patch] **parsePlandoEntries ignores array form of `items`** — Fixed: added `Array.isArray(itemsRaw)` branch, each string mapped to qty=1. Confirmed by AP `Options.py:1641`. [archipelago-yaml.ts:parsePlandoEntries]
+
+- [x] [Review][Patch] **ItemLinkCard uses array index as React key for item pool, localItems, nonLocalItems** — Fixed: composite keys `pool-${entry.id}-${idx}`, `local-${entry.id}-${idx}`, `nonlocal-${entry.id}-${idx}`. [yaml-option-editor.tsx:ItemLinkCard]
+
+- [x] [Review][Patch] **`link_replacement` parsed with `=== true` (strict)** — Dismissed after AP source check: PyYAML converts YAML `true` to Python `bool True`. The schema `Or(None, bool)` rejects strings anyway. `=== true` is correct.
+
+### Deferred
+
+- [x] [Review][Defer] **`from_pool: null` treated as `true`** — `block["from_pool"] !== false` maps `null` to `true`. Only reachable from hand-edited YAML, not from our UI. Low impact. [archipelago-yaml.ts:parsePlandoEntries] - deferred, rare malformed input edge case
+- [x] [Review][Defer] **Module-level `_uid` counter never resets** — Pre-existing code, not introduced by this PR. IDs are UI-only (never persisted). [archipelago-yaml.ts] - deferred, pre-existing
+- [x] [Review][Defer] **world `""` serializes as empty string player name** — Possible when user selects "Nom du joueur" but doesn't type. No validation prevents saving. Low impact (AP would reject the invalid YAML at generation time). [yaml-option-editor.tsx:PlandoEntryCard] - deferred, UX validation gap
+- [x] [Review][Defer] **Entries silently dropped when all item names are empty** — `plando_items` entries where all items have blank names are excluded from serialized output without UI feedback. By design (avoid invalid output), but user gets no warning. [archipelago-yaml.ts:serializeOption] - deferred, UX improvement
 
 ## Dev Agent Record
 

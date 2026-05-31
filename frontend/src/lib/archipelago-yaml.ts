@@ -305,7 +305,10 @@ function parsePlandoEntries(value: unknown): PlandoItem[] {
     let itemRows: PlandoItemRow[] = [];
     if (typeof itemsRaw === "string") {
       itemRows = [{ id: uid(), name: itemsRaw, quantity: 1 }];
-    } else if (itemsRaw && typeof itemsRaw === "object" && !Array.isArray(itemsRaw)) {
+    } else if (Array.isArray(itemsRaw)) {
+      // AP accepts items as a plain list of strings (each placed once)
+      itemRows = itemsRaw.map((n) => ({ id: uid(), name: typeof n === "string" ? n : String(n ?? ""), quantity: 1 }));
+    } else if (itemsRaw && typeof itemsRaw === "object") {
       itemRows = Object.entries(itemsRaw as Record<string, unknown>).map(([name, qty]) => ({
         id: uid(), name, quantity: typeof qty === "number" ? qty : 1,
       }));

@@ -1420,7 +1420,7 @@ function ItemLinkCard({
         {!hasEverything && (
           <>
             {entry.itemPool.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={`pool-${entry.id}-${idx}`} className="flex items-center gap-2">
                 <input
                   className={INPUT_CLS}
                   disabled={readOnly}
@@ -1508,7 +1508,7 @@ function ItemLinkCard({
       <div className="grid gap-2">
         <p className={SUB_LABEL_CLS}>Local items</p>
         {entry.localItems.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-2">
+          <div key={`local-${entry.id}-${idx}`} className="flex items-center gap-2">
             <input
               className={INPUT_CLS}
               disabled={readOnly}
@@ -1543,7 +1543,7 @@ function ItemLinkCard({
       <div className="grid gap-2">
         <p className={SUB_LABEL_CLS}>Non-local items</p>
         {entry.nonLocalItems.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-2">
+          <div key={`nonlocal-${entry.id}-${idx}`} className="flex items-center gap-2">
             <input
               className={INPUT_CLS}
               disabled={readOnly}

@@ -1,6 +1,6 @@
 # Story 4.13: Item Links Advanced Configuration in YAML Editor
 
-Status: review
+Status: done
 
 ## Story
 
