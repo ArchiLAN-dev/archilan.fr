@@ -18,7 +18,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
 
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+RUN --mount=type=secret,id=composer_token \
+    COMPOSER_AUTH="{\"github-oauth\":{\"github.com\":\"$(cat /run/secrets/composer_token)\"}}" \
+    composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 COPY . .
 RUN composer run-script post-install-cmd --no-interaction 2>/dev/null || true \

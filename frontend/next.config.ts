@@ -8,6 +8,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   // Allow Next.js jest to transform these ESM-only packages (needed for msw/node in tests).
   transpilePackages: ["msw", "rettime", "until-async", "@open-draft/deferred-promise"],
   images: {
