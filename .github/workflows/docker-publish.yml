@@ -145,6 +145,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=${{ vars.NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN }}
+            NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=${{ vars.NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN || 'archilan' }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
