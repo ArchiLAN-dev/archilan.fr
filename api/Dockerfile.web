@@ -1,10 +1,9 @@
-FROM dunglas/frankenphp:latest-php8.4-alpine
+FROM dunglas/frankenphp:1.12.4-php8
 
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
 
-RUN install-php-extensions pdo_pgsql intl amqp opcache \
-    && apk add --no-cache rabbitmq-c postgresql-libs icu-libs
+RUN install-php-extensions pdo_pgsql intl amqp opcache
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
