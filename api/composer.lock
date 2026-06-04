@@ -4,15 +4,21 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0267ea26996dab09b958d999891404cf",
+    "content-hash": "99cbe7c7489cb2700379752c3151a4b0",
     "packages": [
         {
             "name": "archilan/bridge-client",
             "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client.git",
+                "reference": "39aa3c46da8b2e2bca99d10c8fc2e1cfcaf646b2"
+            },
             "dist": {
-                "type": "path",
-                "url": "../packages/bridge-client",
-                "reference": "c1cbd0c3f530e74b31760c510c4e25024e6b114a"
+                "type": "zip",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client/zipball/39aa3c46da8b2e2bca99d10c8fc2e1cfcaf646b2",
+                "reference": "39aa3c46da8b2e2bca99d10c8fc2e1cfcaf646b2",
+                "shasum": ""
             },
             "require": {
                 "php": "^8.2",
@@ -39,17 +45,21 @@
                 "proprietary"
             ],
             "description": "PHP client for the Archilan Bridge REST API.",
-            "transport-options": {
-                "relative": true
-            }
+            "time": "2026-06-04T18:15:38+00:00"
         },
         {
             "name": "archilan/bridge-client-bundle",
-            "version": "dev-feature/epic-25-story-1-migrate-orchestrateur-gateways",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client-bundle.git",
+                "reference": "d9695f80efcdf8507c129845ef493e243e6ff54f"
+            },
             "dist": {
-                "type": "path",
-                "url": "../packages/bridge-client-bundle",
-                "reference": "70492c0c7dfc80b2abc0f0d108f0a1e8ab2a8e2a"
+                "type": "zip",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client-bundle/zipball/d9695f80efcdf8507c129845ef493e243e6ff54f",
+                "reference": "d9695f80efcdf8507c129845ef493e243e6ff54f",
+                "shasum": ""
             },
             "require": {
                 "archilan/bridge-client": "*",
@@ -75,17 +85,21 @@
                 "proprietary"
             ],
             "description": "Symfony bundle — autoconfigures the Archilan bridge WebSocket dispatcher.",
-            "transport-options": {
-                "relative": true
-            }
+            "time": "2026-06-04T18:15:40+00:00"
         },
         {
             "name": "archilan/orchestrateur-client",
             "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:ArchiLAN-dev/archilan-orchestrateur-client.git",
+                "reference": "95e2c1949f7699bfcb807c820d2f50afec0668cb"
+            },
             "dist": {
-                "type": "path",
-                "url": "../packages/orchestrateur-client",
-                "reference": "d49ba7e850f902dfddeacccea4a746871912dfcc"
+                "type": "zip",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/95e2c1949f7699bfcb807c820d2f50afec0668cb",
+                "reference": "95e2c1949f7699bfcb807c820d2f50afec0668cb",
+                "shasum": ""
             },
             "require": {
                 "php": "^8.2",
@@ -113,9 +127,7 @@
                 "proprietary"
             ],
             "description": "PHP client for the Archilan orchestrateur REST API.",
-            "transport-options": {
-                "relative": true
-            }
+            "time": "2026-06-04T18:15:43+00:00"
         },
         {
             "name": "aws/aws-crt-php",
