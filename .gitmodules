@@ -1,0 +1,3 @@
+[submodule "archipelago"]
+	path = archipelago
+	url = git@github.com:MasterKafey/archilan-archipelago.git
