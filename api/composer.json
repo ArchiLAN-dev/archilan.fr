@@ -8,15 +8,15 @@
     "repositories": [
         {
             "type": "vcs",
-            "url": "git@github.com:MasterKafey/archilan-orchestrateur-client.git"
+            "url": "git@github.com:ArchiLAN-dev/archilan-orchestrateur-client.git"
         },
         {
             "type": "vcs",
-            "url": "git@github.com:MasterKafey/archilan-bridge-client.git"
+            "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client.git"
         },
         {
             "type": "vcs",
-            "url": "git@github.com:MasterKafey/archilan-bridge-client-bundle.git"
+            "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client-bundle.git"
         }
     ],
     "require": {
