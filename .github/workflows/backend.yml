@@ -54,7 +54,7 @@ jobs:
           restore-keys: ${{ runner.os }}-composer-
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-source --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: PHPStan
         run: composer phpstan
