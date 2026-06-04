@@ -7,16 +7,16 @@
     "prefer-stable": true,
     "repositories": [
         {
-            "type": "path",
-            "url": "../packages/orchestrateur-client"
+            "type": "vcs",
+            "url": "git@github.com:MasterKafey/archilan-orchestrateur-client.git"
         },
         {
-            "type": "path",
-            "url": "../packages/bridge-client"
+            "type": "vcs",
+            "url": "git@github.com:MasterKafey/archilan-bridge-client.git"
         },
         {
-            "type": "path",
-            "url": "../packages/bridge-client-bundle"
+            "type": "vcs",
+            "url": "git@github.com:MasterKafey/archilan-bridge-client-bundle.git"
         }
     ],
     "require": {
