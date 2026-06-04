@@ -8,9 +8,9 @@ use App\PersonalRuns\Application\Handler\StopPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

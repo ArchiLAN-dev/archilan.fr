@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Sessions;
 
 use App\Sessions\Application\PersonalRunAdvancerInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsHandler;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Sessions\Application\SessionReconcilerInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -185,6 +185,7 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         ?PersonalRunAdvancerInterface $personalRunAdvancer = null,
     ): CleanupStaleSessionsHandler {
         $reconciler ??= $this->createStub(SessionReconcilerInterface::class);
+
         return new CleanupStaleSessionsHandler(
             $sessions,
             $reconciler,
