@@ -1,0 +1,28 @@
+FROM dunglas/frankenphp:latest-php8.4-alpine
+
+RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
+
+RUN install-php-extensions pdo_pgsql intl amqp opcache \
+    && apk add --no-cache rabbitmq-c postgresql-libs icu-libs
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN --mount=type=secret,id=composer_token \
+    COMPOSER_AUTH="{\"github-oauth\":{\"github.com\":\"$(cat /run/secrets/composer_token)\"}}" \
+    composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+COPY . .
+
+RUN APP_ENV=prod php bin/console cache:warmup
+
+ENV APP_ENV=prod \
+    APP_DEBUG=0 \
+    SERVER_NAME=":80"
+
+EXPOSE 80
+
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
