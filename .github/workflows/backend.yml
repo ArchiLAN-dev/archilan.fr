@@ -33,7 +33,7 @@ jobs:
         with:
           php-version: '8.4'
           extensions: ctype, iconv
-          coverage: none
+          coverage: pcov
           tools: composer:v2
 
       - name: Configure Composer GitHub token
@@ -65,5 +65,12 @@ jobs:
       - name: Architecture
         run: composer arch
 
-      - name: PHPUnit
-        run: composer test
+      - name: PHPUnit with coverage
+        run: composer test -- --coverage-clover coverage.xml --coverage-html coverage-html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: api/coverage-html/
+          retention-days: 30
