@@ -10,6 +10,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN
+ENV NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=$NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN
 RUN corepack enable pnpm && pnpm build
 
 FROM base AS runner
