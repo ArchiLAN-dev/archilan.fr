@@ -4,14 +4,12 @@ on:
   pull_request:
     paths:
       - 'api/**'
-      - 'bridge/**'
       - '.github/workflows/backend.yml'
   push:
     branches:
       - main
     paths:
       - 'api/**'
-      - 'bridge/**'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
 
@@ -28,15 +26,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
           extensions: ctype, iconv
-          coverage: none
+          coverage: pcov
           tools: composer:v2
+
+      - name: Configure Composer GitHub token
+        run: composer config -g github-oauth.github.com ${{ secrets.COMPOSER_GITHUB_TOKEN }}
 
       - name: Validate Composer
         run: composer validate
@@ -64,41 +65,12 @@ jobs:
       - name: Architecture
         run: composer arch
 
-      - name: PHPUnit
-        run: composer test
+      - name: PHPUnit with coverage
+        run: composer test -- --coverage-clover coverage.xml --coverage-html coverage-html
 
-  bridge:
-    name: Bridge
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         with:
-          python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: bridge/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r bridge/requirements.txt
-
-      - name: Ruff
-        run: python -m ruff check bridge/
-
-      - name: Mypy
-        run: python -m mypy bridge/ --config-file bridge/pyproject.toml
-
-      - name: Pytest
-        run: python -m pytest -c bridge/pyproject.toml bridge/tests
-
-      - name: Bridge module import smoke test
-        run: python -c "import bridge.bridge; print('import ok')"
-
-      - name: Bridge script syntax check
-        run: python -m py_compile bridge/bridge.py && echo "syntax ok"
-
-      - name: Bridge script entry point smoke test
-        run: python bridge/bridge.py --check-imports
+          name: coverage-report
+          path: api/coverage-html/
+          retention-days: 30

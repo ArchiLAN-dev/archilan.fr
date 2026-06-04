@@ -43,25 +43,25 @@ export type ReachabilityData = {
 export type ToastItem = { id: number; name: string; flags: number };
 
 export type HintEntry = {
-  receiving_player: number;
-  receiving_player_name: string;
-  finding_player: number;
-  finding_player_name: string;
-  location_id: number;
-  location_name: string;
-  item_id: number;
-  item_name: string;
-  item_flags: number;
+  receivingPlayer: number;
+  receivingPlayerName: string;
+  findingPlayer: number;
+  findingPlayerName: string;
+  locationId: number;
+  locationName: string;
+  itemId: number;
+  itemName: string;
+  itemFlags: number;
   entrance: string;
   found: boolean;
   status: number;
-  status_name: string;
+  statusName: string;
 };
 
 export type HintsData = {
   slot: number;
   hints: HintEntry[];
-  hints_used: number;
-  hint_points_available: number;
-  hint_cost: number;
+  hintsUsed: number;
+  hintPointsAvailable: number;
+  hintCost: number;
 };

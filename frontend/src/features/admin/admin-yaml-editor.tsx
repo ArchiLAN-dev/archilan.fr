@@ -114,8 +114,11 @@ function displayValue(option: GameOption): string {
   if (option.type === "toggle") return option.weightTrue >= option.weightFalse ? "true" : "false";
   if (option.type === "choice") return option.choices.find((choice) => choice.weight > 0)?.value ?? "";
   if (option.type === "range") return option.entries.find((entry) => entry.weight > 0)?.key ?? "";
-  if (option.kind === "list") return option.items.join(", ");
-  return option.entries.map((entry) => `${entry.k}:${entry.v}`).join(", ");
+  if (option.type === "plando_items") return `${option.entries.length} règle(s)`;
+  if (option.type === "item_links") return `${option.entries.length} lien(s)`;
+  if (option.type === "freeform" && option.kind === "list") return option.items.join(", ");
+  if (option.type === "freeform" && option.kind === "dict") return option.entries.map((entry) => `${entry.k}:${entry.v}`).join(", ");
+  return "";
 }
 
 function updateOptionValue(option: GameOption, key: string, value: string): GameOption {
@@ -138,14 +141,19 @@ function updateOptionValue(option: GameOption, key: string, value: string): Game
       entries: option.entries.map((entry) => ({ ...entry, weight: entry.key === value ? 50 : 0 })),
     };
   }
-  if (option.kind === "list") {
+  if (option.type === "plando_items") return option;
+  if (option.type === "item_links") return option;
+  if (option.type === "freeform" && option.kind === "list") {
     return { ...option, items: value.split(",").map((item) => item.trim()).filter(Boolean) };
   }
-  return {
-    ...option,
-    entries: value.split(",").map((pair, index) => {
-      const [k = "", v = ""] = pair.split(":");
-      return { id: `${option.key}-${index}`, k: k.trim(), v: v.trim() };
-    }),
-  };
+  if (option.type === "freeform" && option.kind === "dict") {
+    return {
+      ...option,
+      entries: value.split(",").map((pair, index) => {
+        const [k = "", v = ""] = pair.split(":");
+        return { id: `${option.key}-${index}`, k: k.trim(), v: v.trim() };
+      }),
+    };
+  }
+  return option;
 }

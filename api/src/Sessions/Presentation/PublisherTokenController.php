@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation;
 
-use App\Sessions\Application\SessionQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,7 +14,6 @@ final readonly class PublisherTokenController
 {
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
-        private SessionQuery $sessionQuery,
         private HubInterface $mercureHub,
         private string $centralApiSecret,
     ) {
@@ -28,12 +26,6 @@ final readonly class PublisherTokenController
 
         if ('' === $this->centralApiSecret || $provided !== $this->centralApiSecret) {
             return $this->apiAccessGuard->errorResponse('unauthorized', 'Secret invalide.', 401);
-        }
-
-        $session = $this->sessionQuery->findById($runId);
-
-        if (null === $session) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
         $ttl = 3600;

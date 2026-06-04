@@ -43,14 +43,20 @@ final class WeeklyEntry
         private ?int $connectionPort = null,
         #[ORM\Column(name: 'connection_password', type: Types::STRING, length: 120, nullable: true)]
         private ?string $connectionPassword = null,
+        #[ORM\Column(name: 'bridge_port', type: Types::INTEGER, nullable: true)]
+        private ?int $bridgePort = null,
     ) {
     }
 
     /**
      * @param array{host: string, port: int, password: string|null} $connectionInfo
      */
-    public function launch(string $externalSessionId, \DateTimeImmutable $launchedAt, array $connectionInfo): void
-    {
+    public function launch(
+        string $externalSessionId,
+        \DateTimeImmutable $launchedAt,
+        array $connectionInfo,
+        ?int $bridgePort = null,
+    ): void {
         if (null !== $this->externalSessionId) {
             throw new \DomainException('session_already_started');
         }
@@ -60,6 +66,7 @@ final class WeeklyEntry
         $this->connectionHost = $connectionInfo['host'];
         $this->connectionPort = $connectionInfo['port'];
         $this->connectionPassword = $connectionInfo['password'];
+        $this->bridgePort = $bridgePort;
         $this->updatedAt = $launchedAt;
     }
 
@@ -144,6 +151,11 @@ final class WeeklyEntry
             'port' => $this->connectionPort,
             'password' => $this->connectionPassword,
         ];
+    }
+
+    public function getBridgePort(): ?int
+    {
+        return $this->bridgePort;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

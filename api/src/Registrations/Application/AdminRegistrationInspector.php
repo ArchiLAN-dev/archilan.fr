@@ -4,28 +4,23 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventPrivateAccessLog;
+use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Payments\Application\HelloAssoPaymentLookup;
-use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 
 final readonly class AdminRegistrationInspector
 {
-    use EntityFinderTrait;
-
-    private string $privateAccessLogTable;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private Connection $connection,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
+        private UserRepositoryInterface $userRepository,
+        private GameRepositoryInterface $gameRepository,
+        private PrivateAccessGrantedQueryInterface $privateAccessGrantedQuery,
         private HelloAssoPaymentLookup $paymentLookup,
     ) {
-        $this->privateAccessLogTable = $entityManager->getClassMetadata(EventPrivateAccessLog::class)->getTableName();
     }
 
     /**
@@ -53,9 +48,9 @@ final readonly class AdminRegistrationInspector
      */
     public function inspect(string $eventId, string $registrationId): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return null;
         }
 
@@ -63,38 +58,24 @@ final readonly class AdminRegistrationInspector
             return null;
         }
 
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (null === $event) {
             return null;
         }
 
-        $user = $this->entityManager->find(User::class, $registration->getUserId());
+        $user = $this->userRepository->findById($registration->getUserId());
 
-        $qb = $this->connection->createQueryBuilder();
-        $privateAccessRaw = $qb->select('COUNT(l.id)')
-            ->from($this->privateAccessLogTable, 'l')
-            ->where($qb->expr()->and(
-                $qb->expr()->eq('l.event_id', ':eventId'),
-                $qb->expr()->eq('l.user_id', ':userId'),
-                $qb->expr()->eq('l.granted', ':granted'),
-            ))
-            ->setParameter('eventId', $eventId)
-            ->setParameter('userId', $registration->getUserId())
-            ->setParameter('granted', true)
-            ->executeQuery()
-            ->fetchOne();
-
-        $privateAccessCount = (false !== $privateAccessRaw && is_numeric($privateAccessRaw)) ? (int) $privateAccessRaw : 0;
+        $privateAccessCount = $this->privateAccessGrantedQuery->countGrantedForUser($eventId, $registration->getUserId());
 
         $slots = $registration->getGameSlots();
+        /** @var list<string> $uniqueGameIds */
         $uniqueGameIds = array_values(array_unique(array_column($slots, 'gameId')));
 
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $uniqueGameIds) {
-            /** @var list<Game> $games */
-            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $uniqueGameIds]);
+            $games = $this->gameRepository->findByIds($uniqueGameIds);
 
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;

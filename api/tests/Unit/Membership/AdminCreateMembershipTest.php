@@ -7,8 +7,7 @@ namespace App\Tests\Unit\Membership;
 use App\Membership\Application\AdminCreateMembership;
 use App\Membership\Application\UserRoleGatewayInterface;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\EntityRepository;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -17,64 +16,61 @@ final class AdminCreateMembershipTest extends TestCase
 {
     public function testCreateExpiresExistingActiveMembershipBeforeInsertingNew(): void
     {
-        $em = $this->createMock(EntityManagerInterface::class);
-        $gateway = $this->createStub(UserRoleGatewayInterface::class);
-        $bus = $this->createStub(MessageBusInterface::class);
-        $logger = $this->createStub(LoggerInterface::class);
-
-        $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => null, 'roles' => []]);
-
         $now = new \DateTimeImmutable();
         $existingMembership = Membership::create('user-id', $now->modify('-1 year'), $now, 'admin', null, null, $now->modify('-1 year'));
 
-        $repo = $this->createStub(EntityRepository::class);
-        $repo->method('findOneBy')->willReturn($existingMembership);
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->method('findActiveByUserId')->willReturn($existingMembership);
+        $memberships->expects($this->once())->method('flush');
+        $memberships->expects($this->once())->method('save');
 
-        $em->method('getRepository')->willReturn($repo);
-        $em->expects($this->exactly(2))->method('flush');
-        $em->expects($this->once())->method('persist');
+        $gateway = $this->createStub(UserRoleGatewayInterface::class);
+        $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => null, 'roles' => []]);
 
-        $service = new AdminCreateMembership($em, $gateway, $bus, $logger);
+        $service = new AdminCreateMembership(
+            $memberships,
+            $gateway,
+            $this->createStub(MessageBusInterface::class),
+            $this->createStub(LoggerInterface::class),
+        );
         $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), null);
 
         self::assertSame('expired', $existingMembership->getStatus());
     }
 
-    public function testCreateWithNoExistingMembershipFlushesOnce(): void
+    public function testCreateWithNoExistingMembershipSavesOnce(): void
     {
-        $em = $this->createMock(EntityManagerInterface::class);
-        $gateway = $this->createStub(UserRoleGatewayInterface::class);
-        $bus = $this->createStub(MessageBusInterface::class);
-        $logger = $this->createStub(LoggerInterface::class);
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->method('findActiveByUserId')->willReturn(null);
+        $memberships->expects($this->never())->method('flush');
+        $memberships->expects($this->once())->method('save');
 
+        $gateway = $this->createStub(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => null, 'roles' => []]);
 
-        $repo = $this->createStub(EntityRepository::class);
-        $repo->method('findOneBy')->willReturn(null);
-
-        $em->method('getRepository')->willReturn($repo);
-        $em->expects($this->once())->method('flush');
-        $em->expects($this->once())->method('persist');
-
-        $service = new AdminCreateMembership($em, $gateway, $bus, $logger);
+        $service = new AdminCreateMembership(
+            $memberships,
+            $gateway,
+            $this->createStub(MessageBusInterface::class),
+            $this->createStub(LoggerInterface::class),
+        );
         $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), null);
     }
 
     public function testCreateReturnsEntityDataWithActiveStatus(): void
     {
-        $em = $this->createMock(EntityManagerInterface::class);
-        $gateway = $this->createStub(UserRoleGatewayInterface::class);
-        $bus = $this->createStub(MessageBusInterface::class);
-        $logger = $this->createStub(LoggerInterface::class);
+        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships->method('findActiveByUserId')->willReturn(null);
 
+        $gateway = $this->createStub(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => null, 'roles' => []]);
 
-        $repo = $this->createStub(EntityRepository::class);
-        $repo->method('findOneBy')->willReturn(null);
-
-        $em->method('getRepository')->willReturn($repo);
-
-        $service = new AdminCreateMembership($em, $gateway, $bus, $logger);
+        $service = new AdminCreateMembership(
+            $memberships,
+            $gateway,
+            $this->createStub(MessageBusInterface::class),
+            $this->createStub(LoggerInterface::class),
+        );
         $result = $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), 'note');
 
         self::assertSame('active', $result['status']);

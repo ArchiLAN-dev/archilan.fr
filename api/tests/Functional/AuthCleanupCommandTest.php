@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
+use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -19,7 +19,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 final class AuthCleanupCommandTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
-    private RefreshTokenRepository $repository;
+    private DoctrineRefreshTokenRepository $repository;
     private string $userId;
 
     protected function setUp(): void
@@ -30,7 +30,7 @@ final class AuthCleanupCommandTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
 
-        $this->repository = new RefreshTokenRepository($em, $em->getConnection());
+        $this->repository = new DoctrineRefreshTokenRepository($em, $em->getConnection());
 
         $metadata = [
             $this->em->getClassMetadata(User::class),

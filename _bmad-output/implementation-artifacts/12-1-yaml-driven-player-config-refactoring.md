@@ -34,7 +34,7 @@ Story 3.10 introduced the `.apworld` upload pipeline: `defaultYaml` is auto-extr
 - `configureYamlTemplate()` and `defaultYamlValues` field - already removed from domain, application, controller, and frontend
 - `YamlTemplateSection` component in admin game editor - already removed
 - `OptionsSection` component in admin game editor - **already removed**
-- `PATCH /admin/games/{gameId}/yaml-template` route - already removed
+- `PATCH /admin/games/{gameId}/yaml` route - already removed
 - `defaultYamlValues`/`yamlPreview` from API payload - already removed
 
 ---

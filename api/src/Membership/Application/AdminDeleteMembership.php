@@ -6,14 +6,14 @@ namespace App\Membership\Application;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class AdminDeleteMembership
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private MembershipRepositoryInterface $memberships,
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
@@ -22,7 +22,7 @@ final readonly class AdminDeleteMembership
 
     public function delete(string $membershipId): bool
     {
-        $membership = $this->entityManager->find(Membership::class, $membershipId);
+        $membership = $this->memberships->findById($membershipId);
         if (!$membership instanceof Membership) {
             return false;
         }
@@ -32,7 +32,7 @@ final readonly class AdminDeleteMembership
         $userId = $membership->getUserId();
 
         $membership->cancel($now);
-        $this->entityManager->flush();
+        $this->memberships->flush();
 
         if ($wasActive) {
             $discordInfo = $this->userRoleGateway->getUserDiscordInfo($userId);

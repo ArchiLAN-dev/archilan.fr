@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pathlib
 
-import pytest
 import yaml
 from fastapi.testclient import TestClient
 

@@ -42,12 +42,14 @@ final class ApworldVersionCheckerTest extends TestCase
     {
         return [
             new MockResponse(
-                (string) json_encode([
+                (string) json_encode([[
                     'tag_name' => $tag,
                     'published_at' => $publishedAt,
                     'html_url' => 'https://github.com/nicholasb/hollow-knight/releases/tag/'.$tag,
                     'assets' => $assets,
-                ]),
+                    'draft' => false,
+                    'prerelease' => false,
+                ]]),
                 ['response_headers' => ['x-ratelimit-remaining' => [(string) $rateLimitRemaining]]],
             ),
         ];
@@ -75,14 +77,16 @@ final class ApworldVersionCheckerTest extends TestCase
     public function testCheckReturnsVersionInfoWhenTagHasNoPrefix(): void
     {
         $game = $this->makeGame('https://github.com/nicholasb/hollow-knight', '1.2.0');
-        $mock = new MockHttpClient($this->releaseResponse('1.2.0', '2026-01-01T00:00:00Z'));
+        $mock = new MockHttpClient($this->releaseResponse('1.2.0', '2026-01-01T00:00:00Z', [
+            ['name' => 'hollow-knight.apworld', 'browser_download_url' => 'https://example.com/hk.apworld'],
+        ]));
 
         $checker = new ApworldVersionChecker($mock, new NullLogger(), 'ghp_test_token');
         $info = $checker->check($game);
 
         self::assertInstanceOf(ApworldVersionInfo::class, $info);
         self::assertSame('1.2.0', $info->latestTag);
-        self::assertNull($info->assetName);
+        self::assertSame('hollow-knight.apworld', $info->assetName);
         self::assertSame(Game::UPDATE_STATUS_UP_TO_DATE, $info->updateStatus);
         self::assertFalse($info->isNewer);
     }
@@ -126,7 +130,9 @@ final class ApworldVersionCheckerTest extends TestCase
     public function testCheckThrowsGithubRateLimitExceptionWhenRateLimitLow(): void
     {
         $game = $this->makeGame('https://github.com/nicholasb/hollow-knight');
-        $mock = new MockHttpClient($this->releaseResponse('v1.0.0', '2026-01-01T00:00:00Z', [], 5));
+        $mock = new MockHttpClient($this->releaseResponse('v1.0.0', '2026-01-01T00:00:00Z', [
+            ['name' => 'hollow-knight.apworld', 'browser_download_url' => 'https://example.com/hk.apworld'],
+        ], 5));
 
         $checker = new ApworldVersionChecker($mock, new NullLogger(), 'ghp_test_token');
 

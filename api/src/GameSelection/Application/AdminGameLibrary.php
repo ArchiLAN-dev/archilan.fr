@@ -7,19 +7,17 @@ namespace App\GameSelection\Application;
 use App\CatalogSync\Application\ApworldVersionChecker;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
-use App\Shared\Application\EntityFinderTrait;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminGameLibrary
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private GameRepositoryInterface $gameRepository,
+        private AdminGameListQueryInterface $adminGameListQuery,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
         private MinioStorageInterface $minioStorage,
@@ -29,14 +27,20 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return array{items: list<array<string, mixed>>, total: int, page: int, perPage: int, totalPages: int}
      */
-    public function list(): array
+    public function list(int $page = 1, int $perPage = 50, string $search = '', ?string $availability = null, ?bool $yamlReady = null): array
     {
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC'], 500);
+        $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady);
+        $totalPages = $result['total'] > 0 ? (int) ceil($result['total'] / $perPage) : 1;
 
-        return array_map(fn (Game $game): array => $this->payload($game), $games);
+        return [
+            'items' => $result['items'],
+            'total' => $result['total'],
+            'page' => $page,
+            'perPage' => $perPage,
+            'totalPages' => $totalPages,
+        ];
     }
 
     /**
@@ -44,7 +48,7 @@ final readonly class AdminGameLibrary
      */
     public function detail(string $gameId): ?array
     {
-        $game = $this->entityManager->find(Game::class, $gameId);
+        $game = $this->gameRepository->findById($gameId);
 
         return $game instanceof Game ? $this->detailPayload($game) : null;
     }
@@ -75,16 +79,14 @@ final readonly class AdminGameLibrary
             new \DateTimeImmutable(),
         );
 
-        $this->entityManager->persist($game);
-
         $catalogParsed = $this->parseCatalogSync($input);
         if ($this->hasCatalogSyncData($catalogParsed)) {
             $sync = new GameCatalogSync($game);
             $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
-            $this->entityManager->persist($sync);
+            $game->setCatalogSync($sync);
         }
 
-        $this->entityManager->flush();
+        $this->gameRepository->save($game);
 
         $this->logger->info('game.created', ['gameId' => $game->getId(), 'name' => $game->getName()]);
 
@@ -98,9 +100,8 @@ final readonly class AdminGameLibrary
      */
     public function update(string $gameId, array $input): array
     {
-        try {
-            $game = $this->findOrFail(Game::class, $gameId);
-        } catch (\RuntimeException) {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -133,13 +134,13 @@ final readonly class AdminGameLibrary
             if ($this->hasCatalogSyncData($catalogParsed)) {
                 $sync = new GameCatalogSync($game);
                 $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
-                $this->entityManager->persist($sync);
+                $game->setCatalogSync($sync);
             }
         } else {
             $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
         }
 
-        $this->entityManager->flush();
+        $this->gameRepository->save($game);
 
         $this->logger->info('game.updated', ['gameId' => $gameId]);
 
@@ -151,9 +152,8 @@ final readonly class AdminGameLibrary
      */
     public function configureApworld(string $gameId, string $fileContents, string $filename): array
     {
-        try {
-            $game = $this->findOrFail(Game::class, $gameId);
-        } catch (\RuntimeException) {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -217,7 +217,7 @@ final readonly class AdminGameLibrary
 
         $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, new \DateTimeImmutable());
         $game->setApworldMinioKey($minioKey);
-        $this->entityManager->flush();
+        $this->gameRepository->save($game);
 
         $this->logger->info('game.apworld_configured', ['gameId' => $gameId, 'hash' => $hash, 'archipelagoGameName' => $archipelagoGameName]);
 
@@ -229,28 +229,29 @@ final readonly class AdminGameLibrary
      */
     public function listGithubAssets(string $gameId): array
     {
-        try {
-            $game = $this->findOrFail(Game::class, $gameId);
-        } catch (\RuntimeException) {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
             return ['found' => false, 'errors' => []];
         }
 
-        if (null === $game->getCatalogSync()?->getApworldSourceUrl()) {
+        $sourceUrl = $game->getCatalogSync()?->getApworldSourceUrl();
+
+        if (null === $sourceUrl) {
             return ['found' => true, 'errors' => ['github' => ['Aucune URL source APWorld configurée pour ce jeu.']]];
         }
 
-        if (!$this->apworldVersionChecker->isAvailable()) {
+        if (!$this->apworldVersionChecker->isAvailable() && !$this->apworldVersionChecker->isDirectApworldUrl($sourceUrl)) {
             return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré.']]];
         }
 
         try {
             $assets = $this->apworldVersionChecker->listAssets($game);
         } catch (\Throwable $e) {
-            return ['found' => true, 'errors' => ['github' => ['Impossible de contacter GitHub : '.$e->getMessage()]]];
+            return ['found' => true, 'errors' => ['github' => ['Impossible de contacter la source : '.$e->getMessage()]]];
         }
 
         if (null === $assets) {
-            return ['found' => true, 'errors' => ['github' => ['Aucune release trouvée pour cette URL GitHub.']]];
+            return ['found' => true, 'errors' => ['github' => ['Aucune release trouvée pour cette URL.']]];
         }
 
         return ['found' => true, 'assets' => $assets, 'errors' => []];
@@ -261,9 +262,8 @@ final readonly class AdminGameLibrary
      */
     public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null): array
     {
-        try {
-            $game = $this->findOrFail(Game::class, $gameId);
-        } catch (\RuntimeException) {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -273,7 +273,7 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['github' => ['Aucune URL source APWorld configurée pour ce jeu.']]];
         }
 
-        if (!$this->apworldVersionChecker->isAvailable()) {
+        if (!$this->apworldVersionChecker->isAvailable() && !$this->apworldVersionChecker->isDirectApworldUrl($sourceUrl)) {
             return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré - impossible de télécharger depuis GitHub.']]];
         }
 
@@ -285,7 +285,7 @@ final readonly class AdminGameLibrary
         } else {
             try {
                 $info = $this->apworldVersionChecker->check($game);
-                $this->entityManager->flush();
+                $this->gameRepository->save($game);
             } catch (\Throwable $e) {
                 $this->logger->error('github.check_failed', ['gameId' => $gameId, 'message' => $e->getMessage()]);
 
@@ -320,8 +320,8 @@ final readonly class AdminGameLibrary
         }
 
         if (null !== $latestTag) {
-            $game->getCatalogSync()->setApworldDeployedVersion($latestTag);
-            $this->entityManager->flush();
+            $game->getCatalogSync()?->setApworldDeployedVersion($latestTag);
+            $this->gameRepository->save($game);
         }
 
         $this->logger->info('game.apworld_imported_from_github', [
@@ -338,9 +338,8 @@ final readonly class AdminGameLibrary
      */
     public function remove(string $gameId): array
     {
-        try {
-            $game = $this->findOrFail(Game::class, $gameId);
-        } catch (\RuntimeException) {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -348,8 +347,7 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['game' => ['Ce jeu est déjà utilisé et ne peut pas être supprimé.']]];
         }
 
-        $this->entityManager->remove($game);
-        $this->entityManager->flush();
+        $this->gameRepository->remove($game);
 
         $this->logger->info('game.removed', ['gameId' => $gameId]);
 
@@ -412,7 +410,7 @@ final readonly class AdminGameLibrary
             return;
         }
 
-        $existing = $this->entityManager->getRepository(Game::class)->findOneBy(['slug' => $slug]);
+        $existing = $this->gameRepository->findBySlug($slug);
 
         if ($existing instanceof Game && $existing->getId() !== $currentGameId) {
             $errors['slug'][] = 'Ce slug est déjà utilisé.';
@@ -482,8 +480,9 @@ final readonly class AdminGameLibrary
             ? trim($input['catalog_sheet_name'])
             : null;
 
-        $apworldSourceUrl = is_string($input['apworld_source_url'] ?? null) && '' !== trim($input['apworld_source_url'])
-            ? trim($input['apworld_source_url'])
+        $rawSourceUrl = is_string($input['apworld_source_url'] ?? null) ? trim($input['apworld_source_url']) : '';
+        $apworldSourceUrl = '' !== $rawSourceUrl
+            ? (Game::normalizeApworldSourceUrl($rawSourceUrl) ?? $rawSourceUrl)
             : null;
 
         $apworldDeployedVersion = is_string($input['apworld_deployed_version'] ?? null) && '' !== trim($input['apworld_deployed_version'])

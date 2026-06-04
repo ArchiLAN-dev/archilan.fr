@@ -6,9 +6,9 @@ namespace App\Identity\Application;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Identity\Infrastructure\DiscordOAuthClientInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -16,7 +16,7 @@ final readonly class LinkDiscordToAccount
 {
     public function __construct(
         private DiscordOAuthClientInterface $discordClient,
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private LoggerInterface $logger,
         private MessageBusInterface $bus,
         private string $discordRedirectUriLink,
@@ -28,7 +28,7 @@ final readonly class LinkDiscordToAccount
      */
     public function link(string $userId, string $code): array
     {
-        $user = $this->entityManager->find(User::class, $userId);
+        $user = $this->userRepository->findById($userId);
         if (!$user instanceof User) {
             return ['outcome' => 'discord_error'];
         }
@@ -58,7 +58,7 @@ final readonly class LinkDiscordToAccount
         $user->linkDiscord($discordId, $discordUsername, $now);
 
         try {
-            $this->entityManager->flush();
+            $this->userRepository->save($user);
         } catch (UniqueConstraintViolationException) {
             return ['outcome' => 'discord_already_used'];
         }

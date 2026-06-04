@@ -115,7 +115,49 @@ export type FreeformDictOption = {
 
 export type FreeformOption = FreeformListOption | FreeformDictOption;
 
-export type GameOption = TextOption | ToggleOption | ChoiceOption | RangeOption | FreeformOption;
+export type PlandoItemRow = { id: string; name: string; quantity: number };
+export type PlandoLocationRow = { id: string; value: string };
+
+// world: "own" → false, "any" → true, "random" → null, other string → player name
+export type PlandoItem = {
+  id: string;
+  items: PlandoItemRow[];
+  locations: PlandoLocationRow[];
+  world: string;
+  fromPool: boolean;
+  force: "true" | "false" | "silent";
+  percentage: number;
+};
+
+export type PlandoItemsOption = {
+  type: "plando_items";
+  key: string;
+  label: string;
+  entries: PlandoItem[];
+  description?: string;
+  category?: string;
+};
+
+export type ItemLinkEntry = {
+  id: string;
+  name: string;
+  itemPool: string[];
+  replacementItem: string | null;
+  linkReplacement: boolean;
+  localItems: string[];
+  nonLocalItems: string[];
+};
+
+export type ItemLinksOption = {
+  type: "item_links";
+  key: string;
+  label: string;
+  entries: ItemLinkEntry[];
+  description?: string;
+  category?: string;
+};
+
+export type GameOption = TextOption | ToggleOption | ChoiceOption | RangeOption | FreeformOption | PlandoItemsOption | ItemLinksOption;
 
 export type ParsedYaml = {
   rawDoc: Record<string, unknown>;
@@ -251,6 +293,94 @@ function parseCategories(yamlStr: string, gameName: string): Map<string, string>
   return result;
 }
 
+// ─── Plando items parsing ─────────────────────────────────────────────────────
+
+function parsePlandoEntries(value: unknown): PlandoItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const block = raw as Record<string, unknown>;
+
+    const itemsRaw = block["items"] ?? block["item"];
+    let itemRows: PlandoItemRow[] = [];
+    if (typeof itemsRaw === "string") {
+      itemRows = [{ id: uid(), name: itemsRaw, quantity: 1 }];
+    } else if (Array.isArray(itemsRaw)) {
+      // AP accepts items as a plain list of strings (each placed once)
+      itemRows = itemsRaw.map((n) => ({ id: uid(), name: typeof n === "string" ? n : String(n ?? ""), quantity: 1 }));
+    } else if (itemsRaw && typeof itemsRaw === "object") {
+      itemRows = Object.entries(itemsRaw as Record<string, unknown>).map(([name, qty]) => ({
+        id: uid(), name, quantity: typeof qty === "number" ? qty : 1,
+      }));
+    }
+
+    const locsRaw = block["locations"] ?? block["location"];
+    let locationRows: PlandoLocationRow[] = [];
+    if (typeof locsRaw === "string") {
+      locationRows = [{ id: uid(), value: locsRaw }];
+    } else if (Array.isArray(locsRaw)) {
+      locationRows = locsRaw.map((l) => ({ id: uid(), value: typeof l === "string" ? l : String(l ?? "") }));
+    }
+
+    const worldRaw = block["world"];
+    let world = "own";
+    if (worldRaw === true) world = "any";
+    else if (worldRaw === null) world = "random";
+    else if (typeof worldRaw === "string") world = worldRaw;
+
+    const forceRaw = block["force"];
+    let force: "true" | "false" | "silent" = "silent";
+    if (forceRaw === true || forceRaw === "true") force = "true";
+    else if (forceRaw === false || forceRaw === "false") force = "false";
+
+    const fromPool = block["from_pool"] !== false;
+
+    const percentage =
+      typeof block["percentage"] === "number"
+        ? Math.max(0, Math.min(100, Math.round(block["percentage"])))
+        : 100;
+
+    return [{ id: uid(), items: itemRows, locations: locationRows, world, fromPool, force, percentage }];
+  });
+}
+
+// ─── Item links parsing ───────────────────────────────────────────────────────
+
+function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const block = raw as Record<string, unknown>;
+
+    const name = typeof block["name"] === "string" ? block["name"] : "";
+
+    const poolRaw = block["item_pool"];
+    const itemPool: string[] = Array.isArray(poolRaw)
+      ? poolRaw.map((i) => (typeof i === "string" ? i : String(i ?? "")))
+      : [];
+
+    const repRaw = block["replacement_item"];
+    const replacementItem =
+      repRaw === null || repRaw === undefined
+        ? null
+        : typeof repRaw === "string"
+          ? repRaw
+          : null;
+
+    const linkReplacement = block["link_replacement"] === true;
+
+    const localItems: string[] = Array.isArray(block["local_items"])
+      ? (block["local_items"] as unknown[]).map((i) => (typeof i === "string" ? i : String(i ?? "")))
+      : [];
+
+    const nonLocalItems: string[] = Array.isArray(block["non_local_items"])
+      ? (block["non_local_items"] as unknown[]).map((i) => (typeof i === "string" ? i : String(i ?? "")))
+      : [];
+
+    return [{ id: uid(), name, itemPool, replacementItem, linkReplacement, localItems, nonLocalItems }];
+  });
+}
+
 // ─── Option type detection ────────────────────────────────────────────────────
 
 function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
@@ -270,6 +400,24 @@ function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
       };
     }
     return { type: "text", key, label, value: String(value ?? ""), description };
+  }
+
+  // Plando items: array of structured blocks — must check before generic Array.isArray
+  if (key === "plando_items") {
+    return {
+      type: "plando_items", key, label,
+      entries: parsePlandoEntries(value),
+      description,
+    };
+  }
+
+  // Item links: array of structured blocks — must check before generic Array.isArray
+  if (key === "item_links") {
+    return {
+      type: "item_links", key, label,
+      entries: parseItemLinkEntries(value),
+      description,
+    };
   }
 
   // Array → freeform list
@@ -380,6 +528,14 @@ export function mergePlayerValues(base: ParsedYaml, player: ParsedYaml): ParsedY
       return { ...baseOpt, entries: [...mergedEntries, ...customEntries] };
     }
 
+    if (baseOpt.type === "plando_items" && playerOpt.type === "plando_items") {
+      return { ...baseOpt, entries: playerOpt.entries };
+    }
+
+    if (baseOpt.type === "item_links" && playerOpt.type === "item_links") {
+      return { ...baseOpt, entries: playerOpt.entries };
+    }
+
     if (
       baseOpt.type === "freeform" &&
       playerOpt.type === "freeform" &&
@@ -464,12 +620,65 @@ export function serializeToYaml(parsed: ParsedYaml): string {
       gameBlock[opt.key] = serialized;
     }
   }
+  // Remove empty arrays (e.g. plando_items: []) from game block
+  for (const k of Object.keys(gameBlock)) {
+    if (Array.isArray(gameBlock[k]) && (gameBlock[k] as unknown[]).length === 0) {
+      delete gameBlock[k];
+    }
+  }
+
   doc[parsed.gameName] = gameBlock;
 
   return yaml.dump(doc, { lineWidth: -1, noRefs: true, schema: yaml.CORE_SCHEMA });
 }
 
 function serializeOption(opt: GameOption): unknown {
+  if (opt.type === "plando_items") {
+    const out = opt.entries
+      .filter((e) => e.items.some((i) => i.name.trim() !== ""))
+      .map((e) => {
+        const itemsDict: Record<string, number> = {};
+        for (const i of e.items) {
+          if (i.name.trim()) itemsDict[i.name.trim()] = i.quantity;
+        }
+        const worldValue =
+          e.world === "own" ? false :
+          e.world === "any" ? true :
+          e.world === "random" ? null :
+          e.world;
+        const forceValue =
+          e.force === "true" ? true :
+          e.force === "false" ? false :
+          "silent";
+        const block: Record<string, unknown> = { items: itemsDict };
+        const locs = e.locations.map((l) => l.value).filter((v) => v.trim() !== "");
+        if (locs.length > 0) block["locations"] = locs;
+        block["world"] = worldValue;
+        block["from_pool"] = e.fromPool;
+        block["force"] = forceValue;
+        if (e.percentage !== 100) block["percentage"] = e.percentage;
+        return block;
+      });
+    return out;
+  }
+
+  if (opt.type === "item_links") {
+    return opt.entries
+      .filter((e) => e.name.trim() !== "")
+      .map((e) => {
+        const block: Record<string, unknown> = { name: e.name.trim() };
+        const pool = e.itemPool.filter((i) => i.trim() !== "");
+        if (pool.length > 0) block["item_pool"] = pool;
+        block["replacement_item"] = e.replacementItem;
+        if (e.linkReplacement) block["link_replacement"] = true;
+        const local = e.localItems.filter((i) => i.trim() !== "");
+        if (local.length > 0) block["local_items"] = local;
+        const nonLocal = e.nonLocalItems.filter((i) => i.trim() !== "");
+        if (nonLocal.length > 0) block["non_local_items"] = nonLocal;
+        return block;
+      });
+  }
+
   if (opt.type === "freeform") {
     if (opt.kind === "list") return opt.items.filter((item) => item.trim() !== "");
     const result: Record<string, unknown> = {};

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from typing import TYPE_CHECKING
 
@@ -62,6 +63,7 @@ class DockerManager:
         output_dir: str,
         password: str,
         container_port: int = 38281,
+        bridge_port: int | None = None,
         workspace_volume: str | None = None,
         workspace_root: str = "/workspace",
         extra_env: dict[str, str] | None = None,
@@ -73,6 +75,9 @@ class DockerManager:
         ARCHIPELAGO_OUTPUT_DIR.  This is required when the workspace is a named
         volume: the Docker daemon interprets plain paths as host bind-mount sources
         and the volume-internal path does not exist there.
+
+        When *bridge_port* is provided the bridge inside the container (port 5000)
+        is exposed on that host port, making the reachability and hints APIs available.
         """
         if self._client is None:
             raise RuntimeError("Docker not connected")
@@ -85,15 +90,25 @@ class DockerManager:
             volumes: dict[str, dict[str, str]] = {
                 workspace_volume: {"bind": "/workspace", "mode": "ro"}
             }
-            subpath = output_dir.removeprefix(workspace_root).lstrip("/")
+            # Support both Linux (/workspace/session/output) and Windows paths
+            # (C:\...\workspace\session\output) by splitting on the workspace dir name.
+            parts = re.split(r"[/\\]workspace[/\\]", output_dir, maxsplit=1)
+            if len(parts) == 2:
+                subpath = parts[1].replace("\\", "/").lstrip("/")
+            else:
+                subpath = output_dir.removeprefix(workspace_root).lstrip("/")
             env["ARCHIPELAGO_OUTPUT_DIR"] = f"/workspace/{subpath}"
         else:
             volumes = {output_dir: {"bind": "/archipelago/output", "mode": "ro"}}
 
+        ports: dict[str, int] = {f"{container_port}/tcp": host_port}
+        if bridge_port is not None:
+            ports["5000/tcp"] = bridge_port
+
         container = self._client.containers.run(
             image,
             detach=True,
-            ports={f"{container_port}/tcp": host_port},
+            ports=ports,
             volumes=volumes,
             environment=env,
             remove=True,

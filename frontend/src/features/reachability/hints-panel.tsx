@@ -35,22 +35,22 @@ function itemFlagClass(flags: number): string {
 }
 
 function HintRow({ hint }: { hint: HintEntry }) {
-  const status = STATUS_STYLES[hint.status_name] ?? STATUS_STYLES.unspecified;
+  const status = STATUS_STYLES[hint.statusName] ?? STATUS_STYLES.unspecified;
 
   return (
     <div className="card-glow grid gap-3 rounded border border-border bg-surface p-4 transition-colors hover:border-accent/40">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Package aria-hidden="true" className={`size-4 shrink-0 ${itemFlagClass(hint.item_flags)}`} />
-          <span className={`font-medium ${itemFlagClass(hint.item_flags)}`}>
-            {hint.item_name || `Item #${hint.item_id}`}
+          <Package aria-hidden="true" className={`size-4 shrink-0 ${itemFlagClass(hint.itemFlags)}`} />
+          <span className={`font-medium ${itemFlagClass(hint.itemFlags)}`}>
+            {hint.itemName || `Item #${hint.itemId}`}
           </span>
-          <span className={`text-xs ${itemFlagClass(hint.item_flags)}`}>
-            ({itemFlagLabel(hint.item_flags)})
+          <span className={`text-xs ${itemFlagClass(hint.itemFlags)}`}>
+            ({itemFlagLabel(hint.itemFlags)})
           </span>
         </div>
         <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-xs font-medium ${status.badge}`}>
-          <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot} ${hint.status_name === "found" ? "animate-pulse" : ""}`} />
+          <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot} ${hint.statusName === "found" ? "animate-pulse" : ""}`} />
           {status.label}
         </span>
       </div>
@@ -59,15 +59,15 @@ function HintRow({ hint }: { hint: HintEntry }) {
         <div className="flex items-center gap-2">
           <MapPin aria-hidden="true" className="size-3.5 shrink-0 text-accent-text" />
           <span className="font-mono text-xs text-foreground/80">
-            {hint.location_name || `Location #${hint.location_id}`}
+            {hint.locationName || `Location #${hint.locationId}`}
           </span>
         </div>
-        {hint.finding_player !== hint.receiving_player ? (
+        {hint.findingPlayer !== hint.receivingPlayer ? (
           <div className="flex items-center gap-2">
             <User aria-hidden="true" className="size-3.5 shrink-0 text-accent-text" />
             <span className="text-xs">
               dans le monde de{" "}
-              <span className="font-medium text-foreground/80">{hint.finding_player_name}</span>
+              <span className="font-medium text-foreground/80">{hint.findingPlayerName}</span>
             </span>
           </div>
         ) : null}
@@ -92,8 +92,8 @@ export function HintsPanel({
 }) {
   const [filter, setFilter] = useState<"all" | "pending" | "found">("all");
 
-  const totalPoints = data.hints_used * data.hint_cost + data.hint_points_available;
-  const budgetPct = totalPoints > 0 ? Math.round((data.hint_points_available / totalPoints) * 100) : 100;
+  const totalPoints = data.hintsUsed * data.hintCost + data.hintPointsAvailable;
+  const budgetPct = totalPoints > 0 ? Math.round((data.hintPointsAvailable / totalPoints) * 100) : 100;
 
   const filtered = data.hints.filter((h) => {
     if (filter === "found") return h.found;
@@ -129,7 +129,7 @@ export function HintsPanel({
               type="button"
             >
               <Lightbulb aria-hidden="true" className="size-3" />
-              {hintFree ? "Gratuit (admin)" : `Payant · ${data.hint_cost} pts`}
+              {hintFree ? "Gratuit (admin)" : `Payant · ${data.hintCost} pts`}
             </button>
           ) : null}
 
@@ -158,11 +158,11 @@ export function HintsPanel({
       <div className="rounded border border-amber-500/20 bg-amber-500/5 p-4">
         <div className="mb-2 flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
-            <span className="font-medium text-foreground">{data.hints_used}</span> indice{data.hints_used > 1 ? "s" : ""} demandé{data.hints_used > 1 ? "s" : ""}
-            {data.hint_cost > 0 ? ` · ${data.hint_cost} pts/indice` : ""}
+            <span className="font-medium text-foreground">{data.hintsUsed}</span> indice{data.hintsUsed > 1 ? "s" : ""} demandé{data.hintsUsed > 1 ? "s" : ""}
+            {data.hintCost > 0 ? ` · ${data.hintCost} pts/indice` : ""}
           </span>
           <span className="font-medium text-amber-400">
-            {data.hint_points_available} pts disponibles
+            {data.hintPointsAvailable} pts disponibles
           </span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
@@ -171,11 +171,11 @@ export function HintsPanel({
             style={{ width: `${budgetPct}%` }}
           />
         </div>
-        {data.hint_cost > 0 && data.hint_points_available >= data.hint_cost ? (
+        {data.hintCost > 0 && data.hintPointsAvailable >= data.hintCost ? (
           <p className="mt-1.5 text-xs text-muted-foreground">
             Prochain indice possible · encore{" "}
-            <span className="text-amber-400">{Math.floor(data.hint_points_available / data.hint_cost)}</span>{" "}
-            indice{Math.floor(data.hint_points_available / data.hint_cost) > 1 ? "s" : ""} possible{Math.floor(data.hint_points_available / data.hint_cost) > 1 ? "s" : ""}
+            <span className="text-amber-400">{Math.floor(data.hintPointsAvailable / data.hintCost)}</span>{" "}
+            indice{Math.floor(data.hintPointsAvailable / data.hintCost) > 1 ? "s" : ""} possible{Math.floor(data.hintPointsAvailable / data.hintCost) > 1 ? "s" : ""}
           </p>
         ) : null}
       </div>
@@ -191,7 +191,7 @@ export function HintsPanel({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((hint) => (
-            <HintRow hint={hint} key={`${hint.location_id}-${hint.item_id}`} />
+            <HintRow hint={hint} key={`${hint.locationId}-${hint.itemId}`} />
           ))}
         </div>
       )}

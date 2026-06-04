@@ -312,7 +312,6 @@ async def test_generation_with_apworld_urls_downloads_and_appends_flag(
     import json as json_mod
     urls_manifest.write_text(json_mod.dumps({"abc.apworld": "https://minio.example/abc.apworld"}), encoding="utf-8")
 
-    import urllib.error
     from unittest.mock import MagicMock
 
     fake_resp = MagicMock()
@@ -676,3 +675,142 @@ def test_generate_and_launch_seed_is_passed_to_run_generation(client: TestClient
     )
 
     assert received == ["99999"]
+
+
+# ─── launch-from-file endpoint ────────────────────────────────────────────────
+
+def test_launch_from_file_success(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
+        return {"containerHost": "runner.test", "containerPort": 38281, "serverPassword": "s3cr3t"}
+
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+
+    res = client.post(
+        "/sessions/sess-lff-ok/launch-from-file",
+        headers=HEADERS,
+        json={"outputFile": "/workspace/run-1/output/world.archipelago"},
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["containerHost"] == "runner.test"
+    assert body["containerPort"] == 38281
+    assert body["serverPassword"] == "s3cr3t"
+
+
+def test_launch_from_file_registers_session_as_generated(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    captured: list[dict] = []
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
+        session = store.get(session_id)
+        if session is not None:
+            captured.append(dict(session))
+        return {"containerHost": "0.0.0.0", "containerPort": 38281, "serverPassword": None}
+
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+
+    client.post(
+        "/sessions/sess-lff-state/launch-from-file",
+        headers=HEADERS,
+        json={"outputFile": "/workspace/run-1/output/world.archipelago"},
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["status"] == "generated"
+    assert captured[0]["outputFile"] == "/workspace/run-1/output/world.archipelago"
+
+
+def test_launch_from_file_missing_output_file_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+    monkeypatch.setattr(main_module, "session_store", SessionStore())
+
+    res = client.post(
+        "/sessions/sess-lff-nofile/launch-from-file",
+        headers=HEADERS,
+        json={},
+    )
+
+    assert res.status_code == 422
+    body = res.json()
+    assert body["error"] == "invalid_request"
+
+
+def test_launch_from_file_empty_output_file_returns_422(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+    monkeypatch.setattr(main_module, "session_store", SessionStore())
+
+    res = client.post(
+        "/sessions/sess-lff-empty/launch-from-file",
+        headers=HEADERS,
+        json={"outputFile": "   "},
+    )
+
+    assert res.status_code == 422
+
+
+def test_launch_from_file_launch_error_returns_503(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
+        return {"error": "no_ports_available"}
+
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+
+    res = client.post(
+        "/sessions/sess-lff-noport/launch-from-file",
+        headers=HEADERS,
+        json={"outputFile": "/workspace/run-1/output/world.archipelago"},
+    )
+
+    assert res.status_code == 503
+    assert res.json()["error"] == "no_ports_available"
+
+
+def test_launch_from_file_passes_bridge_config(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.main as main_module
+
+    fresh_store = SessionStore()
+    monkeypatch.setattr(main_module, "session_store", fresh_store)
+
+    captured_env: list[dict | None] = []
+
+    async def fake_launch_server(session_id, store, port_pool, docker_manager, *, image, workspace_volume=None, bridge_env=None):
+        captured_env.append(bridge_env)
+        return {"containerHost": "0.0.0.0", "containerPort": 38281, "serverPassword": None}
+
+    monkeypatch.setattr(main_module, "launch_server", fake_launch_server)
+
+    res = client.post(
+        "/sessions/sess-lff-bridge/launch-from-file",
+        headers=HEADERS,
+        json={
+            "outputFile": "/workspace/run-1/output/world.archipelago",
+            "bridgeConfig": {"BRIDGE_TOKEN": "tok123", "CENTRAL_URL": "https://api.example.com"},
+        },
+    )
+
+    assert res.status_code == 200
+    assert len(captured_env) == 1
+    assert captured_env[0] == {"BRIDGE_TOKEN": "tok123", "CENTRAL_URL": "https://api.example.com"}
+
+
+def test_launch_from_file_requires_api_key(client: TestClient) -> None:
+    res = client.post(
+        "/sessions/sess-lff-auth/launch-from-file",
+        json={"outputFile": "/workspace/run-1/output/world.archipelago"},
+    )
+
+    assert res.status_code == 401

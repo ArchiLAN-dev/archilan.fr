@@ -4,22 +4,25 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\ScheduledTask;
 
-use App\Sessions\Application\Message\StopRunJob;
+use App\Sessions\Application\PersonalRunAdvancerInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\SessionReconcilerInterface;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class CleanupStaleSessionsHandler
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
+        private SessionReconcilerInterface $sessionReconciler,
+        private PersonalRunAdvancerInterface $personalRunAdvancer,
         private HubInterface $mercureHub,
-        private MessageBusInterface $messageBus,
+        private RunnerGatewayInterface $runnerGateway,
         private LoggerInterface $logger,
     ) {
     }
@@ -28,8 +31,7 @@ final readonly class CleanupStaleSessionsHandler
     {
         $now = new \DateTimeImmutable();
 
-        /** @var list<Session> $candidates */
-        $candidates = $this->entityManager->getRepository(Session::class)->findBy(['status' => Session::STALE_STATUSES]);
+        $candidates = $this->sessions->findByStatuses(Session::STALE_STATUSES);
 
         /** @var list<Session> $cleaned */
         $cleaned = [];
@@ -40,12 +42,36 @@ final readonly class CleanupStaleSessionsHandler
             }
 
             $previous = $session->getStatus();
+
+            if (Session::STATUS_GENERATING === $previous || Session::STATUS_LAUNCHING === $previous) {
+                $info = $this->runnerGateway->getSessionInfo($session->getId());
+
+                if (null !== $info) {
+                    if ('generated' === $info['status'] && Session::STATUS_GENERATING === $previous) {
+                        $this->sessionReconciler->transition($session->getId(), Session::STATUS_GENERATED);
+                        $this->logger->info('session.cleanup.reconciled', [
+                            'sessionId' => $session->getId(),
+                            'from' => $previous,
+                            'to' => Session::STATUS_GENERATED,
+                        ]);
+                        continue;
+                    }
+
+                    if ('running' === $info['status'] && Session::STATUS_LAUNCHING === $previous && null !== $info['apPort']) {
+                        $this->sessionReconciler->transitionToRunningFromOrchestrateur($session->getId(), $info['apPort'], $info['bridgePort']);
+                        $this->logger->info('session.cleanup.reconciled', [
+                            'sessionId' => $session->getId(),
+                            'from' => $previous,
+                            'to' => Session::STATUS_RUNNING,
+                        ]);
+                        continue;
+                    }
+                }
+            }
+
             $newStatus = Session::STATUS_RUNNING === $previous
                 ? Session::STATUS_CRASHED
                 : Session::STATUS_FAILED;
-
-            $port = $session->getPort() ?? 0;
-            $bridgePort = $session->getBridgePort() ?? 0;
 
             try {
                 $session->transition($newStatus, $now);
@@ -61,9 +87,15 @@ final readonly class CleanupStaleSessionsHandler
                 'runnerId' => $session->getRunnerId(),
             ]);
 
-            // Running containers need an explicit stop so the runner cleans up Docker and releases ports.
             if (Session::STATUS_RUNNING === $previous) {
-                $this->messageBus->dispatch(new StopRunJob($session->getId(), $port, $bridgePort));
+                $this->personalRunAdvancer->markPersonalRunStopped($session->getId());
+
+                // Only call the runner stop for runner-managed sessions.
+                // Orchestrateur-managed sessions (runnerId = null) handle their own
+                // container lifecycle and the bridge is already gone at this point.
+                if (null !== $session->getRunnerId()) {
+                    $this->runnerGateway->stopSession($session->getId());
+                }
             }
 
             $cleaned[] = $session;
@@ -73,7 +105,7 @@ final readonly class CleanupStaleSessionsHandler
             return;
         }
 
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
         foreach ($cleaned as $session) {
             try {
@@ -81,7 +113,11 @@ final readonly class CleanupStaleSessionsHandler
                     sprintf('/sessions/%s', $session->getId()),
                     json_encode($session->payload(), JSON_THROW_ON_ERROR),
                 ));
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                $this->logger->error('session.cleanup.mercure_publish_failed', [
+                    'sessionId' => $session->getId(),
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 

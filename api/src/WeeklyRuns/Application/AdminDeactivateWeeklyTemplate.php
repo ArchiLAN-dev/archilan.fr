@@ -4,28 +4,27 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application;
 
-use App\WeeklyRuns\Domain\WeeklyTemplate;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
 use Symfony\Component\Clock\ClockInterface;
 
 final readonly class AdminDeactivateWeeklyTemplate
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private WeeklyTemplateRepositoryInterface $templates,
         private ClockInterface $clock,
     ) {
     }
 
     public function execute(string $templateId): bool
     {
-        $template = $this->entityManager->find(WeeklyTemplate::class, $templateId);
-        if (!$template instanceof WeeklyTemplate) {
+        $template = $this->templates->findById($templateId);
+        if (null === $template) {
             return false;
         }
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $template->deactivate($now);
-        $this->entityManager->flush();
+        $this->templates->flush();
 
         return true;
     }

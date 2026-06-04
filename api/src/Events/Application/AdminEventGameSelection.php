@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventGameSelection
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
+        private GameRepositoryInterface $gameRepository,
         private LoggerInterface $logger,
     ) {
     }
@@ -28,14 +27,13 @@ final readonly class AdminEventGameSelection
      */
     public function getConfig(string $eventId): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return null;
         }
 
-        /** @var list<Game> $allGames */
-        $allGames = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC'], 500);
+        $allGames = $this->gameRepository->findAllSortedByName();
 
         $gamesById = [];
         foreach ($allGames as $game) {
@@ -86,14 +84,14 @@ final readonly class AdminEventGameSelection
      */
     public function configure(string $eventId, array $input): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return ['found' => false, 'errors' => []];
         }
 
         $parsed = $this->parse($input);
-        $errors = $this->validate($parsed, $event);
+        $errors = $this->validate($parsed);
 
         if ([] !== $errors) {
             return ['found' => true, 'errors' => $errors];
@@ -110,7 +108,7 @@ final readonly class AdminEventGameSelection
             new \DateTimeImmutable(),
             $parsed['gameSelectionMax'],
         );
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         $this->logger->info('event.game_selection_configured', ['eventId' => $eventId, 'enabled' => $enabled, 'gameCount' => count($parsed['games'])]);
 
@@ -151,7 +149,7 @@ final readonly class AdminEventGameSelection
      *
      * @return array<string, list<string>>
      */
-    private function validate(array $parsed, Event $event): array
+    private function validate(array $parsed): array
     {
         $errors = new ValidationErrors();
 
@@ -176,7 +174,7 @@ final readonly class AdminEventGameSelection
             }
             $seenGameIds[] = $entry['gameId'];
 
-            $game = $this->entityManager->find(Game::class, $entry['gameId']);
+            $game = $this->gameRepository->findById($entry['gameId']);
 
             if (!$game instanceof Game) {
                 $errors->add($prefix.'.gameId', 'Jeu introuvable dans la bibliothèque.');

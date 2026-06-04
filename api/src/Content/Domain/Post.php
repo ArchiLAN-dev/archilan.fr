@@ -36,10 +36,6 @@ final class Post
         private array $body,
         #[ORM\Column(name: 'reading_time', type: 'string', length: 20)]
         private string $readingTime,
-        #[ORM\Column(name: 'related_event_slug', type: 'string', length: 120, nullable: true)]
-        private ?string $relatedEventSlug,
-        #[ORM\Column(name: 'vod_url', type: 'string', length: 500, nullable: true)]
-        private ?string $vodUrl,
         #[ORM\Column(name: 'cover_image_url', type: 'string', length: 2048, nullable: true)]
         private ?string $coverImageUrl,
         #[ORM\Column(name: 'published_at', type: 'datetimetz_immutable', nullable: true)]
@@ -63,8 +59,6 @@ final class Post
         string $excerpt,
         array $body,
         string $readingTime,
-        ?string $relatedEventSlug,
-        ?string $vodUrl,
         \DateTimeImmutable $now,
         ?string $coverImageUrl = null,
     ): self {
@@ -77,8 +71,6 @@ final class Post
             trim($excerpt),
             $body,
             trim($readingTime),
-            $relatedEventSlug,
-            $vodUrl,
             self::nullableTrim($coverImageUrl),
             null,
             $now,
@@ -95,8 +87,6 @@ final class Post
         string $excerpt,
         array $body,
         string $readingTime,
-        ?string $relatedEventSlug,
-        ?string $vodUrl,
         ?string $coverImageUrl,
         \DateTimeImmutable $now,
     ): void {
@@ -105,8 +95,6 @@ final class Post
         $this->excerpt = trim($excerpt);
         $this->body = $body;
         $this->readingTime = trim($readingTime);
-        $this->relatedEventSlug = $relatedEventSlug;
-        $this->vodUrl = $vodUrl;
         $this->coverImageUrl = self::nullableTrim($coverImageUrl);
         $this->updatedAt = $now;
     }
@@ -168,16 +156,6 @@ final class Post
     public function getReadingTime(): string
     {
         return $this->readingTime;
-    }
-
-    public function getRelatedEventSlug(): ?string
-    {
-        return $this->relatedEventSlug;
-    }
-
-    public function getVodUrl(): ?string
-    {
-        return $this->vodUrl;
     }
 
     public function getCoverImageUrl(): ?string

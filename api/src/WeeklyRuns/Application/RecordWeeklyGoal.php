@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application;
 
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -15,8 +17,9 @@ use Symfony\Component\Mercure\Update;
 final readonly class RecordWeeklyGoal
 {
     public function __construct(
-        private Connection $connection,
-        private EntityManagerInterface $entityManager,
+        private WeeklyEntryRepositoryInterface $entries,
+        private WeeklyRunRepositoryInterface $runs,
+        private UserRepositoryInterface $users,
         private HubInterface $mercureHub,
         private LoggerInterface $logger,
     ) {
@@ -31,9 +34,7 @@ final readonly class RecordWeeklyGoal
         int $itemsTotal,
         \DateTimeImmutable $goalReachedAt,
     ): ?array {
-        $entry = $this->entityManager->getRepository(WeeklyEntry::class)->findOneBy([
-            'externalSessionId' => $externalSessionId,
-        ]);
+        $entry = $this->entries->findByExternalSessionId($externalSessionId);
 
         if (!$entry instanceof WeeklyEntry) {
             $this->logger->warning('weekly_goal_callback.entry_not_found', [
@@ -47,7 +48,7 @@ final readonly class RecordWeeklyGoal
             return ['entryId' => $entry->getId()];
         }
 
-        $run = $this->entityManager->find(WeeklyRun::class, $entry->getWeeklyRunId());
+        $run = $this->runs->findById($entry->getWeeklyRunId());
         if (!$run instanceof WeeklyRun) {
             $this->logger->warning('weekly_goal_callback.run_not_found', [
                 'weeklyRunId' => $entry->getWeeklyRunId(),
@@ -58,17 +59,10 @@ final readonly class RecordWeeklyGoal
 
         $completionTimeSeconds = max(0, $goalReachedAt->getTimestamp() - $run->getStartedAt()->getTimestamp());
         $entry->recordGoal($goalReachedAt, $completionTimeSeconds, $checksTotal, $itemsTotal);
-        $this->entityManager->flush();
+        $this->entries->flush();
 
-        $userTable = $this->connection->quoteSingleIdentifier('user');
-        $userRow = $this->connection->createQueryBuilder()
-            ->select('u.display_name')
-            ->from($userTable, 'u')
-            ->where('u.id = :userId')
-            ->setParameter('userId', $entry->getUserId())
-            ->executeQuery()
-            ->fetchAssociative();
-        $displayName = (is_array($userRow) && is_string($userRow['display_name'])) ? $userRow['display_name'] : null;
+        $user = $this->users->findById($entry->getUserId());
+        $displayName = $user instanceof User ? $user->getDisplayName() : null;
 
         $payload = [
             'event' => 'goal_reached',

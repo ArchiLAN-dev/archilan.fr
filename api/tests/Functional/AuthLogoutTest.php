@@ -6,11 +6,11 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Application\RefreshTokenRepository;
 use App\Identity\Application\RegisterUser;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
+use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
 use App\Identity\Presentation\AuthController;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -20,7 +20,7 @@ final class AuthLogoutTest extends FunctionalTestCase
 {
     private EntityManagerInterface $em;
     private RefreshTokenFactory $factory;
-    private RefreshTokenRepository $repository;
+    private DoctrineRefreshTokenRepository $repository;
     private string $userId;
 
     protected function setUp(): void
@@ -29,7 +29,7 @@ final class AuthLogoutTest extends FunctionalTestCase
         $this->em = $this->entityManager;
 
         $this->factory = new RefreshTokenFactory();
-        $this->repository = new RefreshTokenRepository($this->em, $this->em->getConnection());
+        $this->repository = new DoctrineRefreshTokenRepository($this->em, $this->em->getConnection());
 
         $metadata = [
             $this->em->getClassMetadata(User::class),

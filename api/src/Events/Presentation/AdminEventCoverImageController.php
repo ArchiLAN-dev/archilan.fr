@@ -45,10 +45,17 @@ final readonly class AdminEventCoverImageController
             );
         }
 
-        $mime = $file->getMimeType() ?? '';
-        if (!array_key_exists($mime, self::ALLOWED_MIMES)) {
+        if (!$file->isValid()) {
+            $uploadError = $file->getError();
+            if (\UPLOAD_ERR_INI_SIZE === $uploadError || \UPLOAD_ERR_FORM_SIZE === $uploadError) {
+                return new JsonResponse(
+                    ['error' => ['code' => 'image_too_large', 'message' => "L'image ne peut pas dépasser 10 Mo."]],
+                    422,
+                );
+            }
+
             return new JsonResponse(
-                ['error' => ['code' => 'image_invalid_type', 'message' => 'Type de fichier non supporté. Utilisez JPEG, PNG ou WebP.']],
+                ['error' => ['code' => 'upload_error', 'message' => 'Le fichier uploadé est invalide.']],
                 422,
             );
         }
@@ -56,6 +63,14 @@ final readonly class AdminEventCoverImageController
         if ($file->getSize() > self::MAX_SIZE_BYTES) {
             return new JsonResponse(
                 ['error' => ['code' => 'image_too_large', 'message' => "L'image ne peut pas dépasser 10 Mo."]],
+                422,
+            );
+        }
+
+        $mime = $file->getMimeType() ?? '';
+        if (!array_key_exists($mime, self::ALLOWED_MIMES)) {
+            return new JsonResponse(
+                ['error' => ['code' => 'image_invalid_type', 'message' => 'Type de fichier non supporté. Utilisez JPEG, PNG ou WebP.']],
                 422,
             );
         }

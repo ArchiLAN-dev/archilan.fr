@@ -8,7 +8,7 @@ use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\DiscordStateToken;
 use App\Identity\Application\HandleDiscordAuthCallback;
 use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Application\RefreshTokenRepository;
+use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use App\Identity\Infrastructure\DiscordOAuthClientInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -23,7 +23,7 @@ final readonly class DiscordAuthController
         private HandleDiscordAuthCallback $handleCallback,
         private AuthSessionSigner $authSessionSigner,
         private RefreshTokenFactory $refreshTokenFactory,
-        private RefreshTokenRepository $refreshTokenRepository,
+        private RefreshTokenRepositoryInterface $refreshTokenRepository,
         private string $discordRedirectUriAuth,
         private string $siteUrl,
     ) {

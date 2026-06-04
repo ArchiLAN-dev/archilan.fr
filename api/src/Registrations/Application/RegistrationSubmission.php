@@ -5,21 +5,22 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Communications\Application\RegistrationConfirmationMessage;
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
+use App\Events\Domain\EventRepositoryInterface;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class RegistrationSubmission
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
+        private UserRepositoryInterface $userRepository,
+        private GameRepositoryInterface $gameRepository,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
     ) {
@@ -34,9 +35,9 @@ final readonly class RegistrationSubmission
      */
     public function submit(string $registrationId, string $userId): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return null;
         }
 
@@ -44,9 +45,9 @@ final readonly class RegistrationSubmission
             return null;
         }
 
-        try {
-            $event = $this->findOrFail(Event::class, $registration->getEventId());
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($registration->getEventId());
+
+        if (null === $event) {
             return null;
         }
 
@@ -63,11 +64,11 @@ final readonly class RegistrationSubmission
         if (!$alreadyConfirmed) {
             $now = new \DateTimeImmutable();
             $registration->confirm($now);
-            $this->entityManager->flush();
+            $this->registrationRepository->flush();
 
             $this->logger->info('registration.confirmed', ['registrationId' => $registrationId, 'userId' => $userId]);
 
-            $user = $this->entityManager->find(User::class, $userId);
+            $user = $this->userRepository->findById($userId);
             $selectedGameNames = $this->resolveGameNames($registration->getSelectedGameIds());
 
             $this->messageBus->dispatch(new RegistrationConfirmationMessage(
@@ -117,10 +118,9 @@ final readonly class RegistrationSubmission
             return [];
         }
 
+        /** @var list<string> $uniqueIds */
         $uniqueIds = array_values(array_unique($gameIds));
-
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $uniqueIds]);
+        $games = $this->gameRepository->findByIds($uniqueIds);
 
         /** @var array<string, string> $namesById */
         $namesById = [];

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Content\Application;
 
 use App\Content\Domain\Post;
+use App\Content\Domain\PostRepositoryInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class PublicPostCatalog
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private PostRepositoryInterface $postRepository,
         private MinioStorageInterface $minioStorage,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
@@ -19,25 +19,21 @@ final readonly class PublicPostCatalog
     }
 
     /**
-     * @return list<array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, relatedEventSlug: string|null, vodUrl: string|null, coverImageUrl: string|null}>
+     * @return list<array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}>
      */
     public function list(): array
     {
-        /** @var list<Post> $posts */
-        $posts = $this->entityManager->getRepository(Post::class)->findBy(['status' => Post::STATUS_PUBLISHED], ['publishedAt' => 'DESC'], 200);
+        $posts = $this->postRepository->findByStatus(Post::STATUS_PUBLISHED);
 
         return array_map(fn (Post $post): array => $this->payload($post), $posts);
     }
 
     /**
-     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, relatedEventSlug: string|null, vodUrl: string|null, coverImageUrl: string|null}|null
+     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}|null
      */
     public function get(string $slug): ?array
     {
-        $post = $this->entityManager->getRepository(Post::class)->findOneBy([
-            'slug' => $slug,
-            'status' => Post::STATUS_PUBLISHED,
-        ]);
+        $post = $this->postRepository->findBySlugAndStatus($slug, Post::STATUS_PUBLISHED);
 
         if (!$post instanceof Post) {
             return null;
@@ -47,7 +43,7 @@ final readonly class PublicPostCatalog
     }
 
     /**
-     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, relatedEventSlug: string|null, vodUrl: string|null, coverImageUrl: string|null}
+     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}
      */
     private function payload(Post $post): array
     {
@@ -60,8 +56,6 @@ final readonly class PublicPostCatalog
             'body' => $post->getBody(),
             'readingTime' => $post->getReadingTime(),
             'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM) ?? '',
-            'relatedEventSlug' => $post->getRelatedEventSlug(),
-            'vodUrl' => $post->getVodUrl(),
             'coverImageUrl' => $this->resolveCoverImageUrl($post),
         ];
     }

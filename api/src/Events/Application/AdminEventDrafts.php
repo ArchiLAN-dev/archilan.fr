@@ -5,19 +5,16 @@ declare(strict_types=1);
 namespace App\Events\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
 use App\Registrations\Application\RegistrationCounter;
-use App\Shared\Application\EntityFinderTrait;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventDrafts
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private LoggerInterface $logger,
         private MinioStorageInterface $minioStorage,
@@ -31,8 +28,7 @@ final readonly class AdminEventDrafts
      */
     public function list(): array
     {
-        /** @var list<Event> $events */
-        $events = $this->entityManager->getRepository(Event::class)->findBy([], ['startsAt' => 'ASC'], 500);
+        $events = $this->eventRepository->findAllSortedByStartsAt();
 
         return array_map(fn (Event $event): array => $this->payload($event), $events);
     }
@@ -42,9 +38,9 @@ final readonly class AdminEventDrafts
      */
     public function get(string $eventId): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return null;
         }
 
@@ -86,8 +82,7 @@ final readonly class AdminEventDrafts
         );
 
         $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], new \DateTimeImmutable());
-        $this->entityManager->persist($event);
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         $this->logger->info('event.created', ['eventId' => $event->getId(), 'title' => $event->getTitle()]);
 
@@ -101,9 +96,9 @@ final readonly class AdminEventDrafts
      */
     public function update(string $eventId, array $input): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -140,7 +135,7 @@ final readonly class AdminEventDrafts
             $event->clearCoverImageKey(new \DateTimeImmutable());
         }
         $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         $this->logger->info('event.updated', ['eventId' => $event->getId()]);
 
@@ -152,9 +147,9 @@ final readonly class AdminEventDrafts
      */
     public function transition(string $eventId, mixed $status): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -168,7 +163,7 @@ final readonly class AdminEventDrafts
             return ['found' => true, 'errors' => ['status' => ['Transition de statut invalide.']]];
         }
 
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         $this->logger->info('event.transition', ['eventId' => $event->getId(), 'to' => $event->getStatus()]);
 
@@ -180,9 +175,9 @@ final readonly class AdminEventDrafts
      */
     public function configurePrivateAccess(string $eventId, mixed $password): array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
             return ['found' => false, 'errors' => []];
         }
 
@@ -196,7 +191,7 @@ final readonly class AdminEventDrafts
 
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $event->configurePrivateAccessPassword($hash, new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->eventRepository->save($event);
 
         $this->logger->info('event.private_access_configured', ['eventId' => $event->getId()]);
 

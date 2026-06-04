@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\ForceEndSessionCommand;
+use App\Sessions\Domain\SessionNotFoundException;
+use App\Sessions\Domain\SessionNotRunningException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -29,16 +31,14 @@ final readonly class ForceEndController
             return $user;
         }
 
-        $result = $this->forceEndSessionCommand->execute($id, $user->getId());
-
-        if (!$result['found']) {
+        try {
+            $payload = $this->forceEndSessionCommand->execute($id, $user->getId());
+        } catch (SessionNotFoundException) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
-        }
-
-        if ($result['notRunning']) {
+        } catch (SessionNotRunningException) {
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        return new JsonResponse(['data' => $result['payload']]);
+        return new JsonResponse(['data' => $payload]);
     }
 }

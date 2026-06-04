@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\DiscordResyncAllUsers;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Domain\User;
+use App\Identity\Infrastructure\DbalDiscordResyncAllUsers;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\ClassMetadata;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Envelope;
@@ -100,19 +97,8 @@ final class DiscordResyncAllUsersTest extends TestCase
         ]);
     }
 
-    private function service(Connection $connection, MessageBusInterface $bus): DiscordResyncAllUsers
+    private function service(Connection $connection, MessageBusInterface $bus): DbalDiscordResyncAllUsers
     {
-        return new DiscordResyncAllUsers($connection, $this->entityManager(), $bus, new NullLogger());
-    }
-
-    private function entityManager(): EntityManagerInterface
-    {
-        $metadata = new ClassMetadata(User::class);
-        $metadata->setPrimaryTable(['name' => 'user']);
-
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects($this->once())->method('getClassMetadata')->with(User::class)->willReturn($metadata);
-
-        return $em;
+        return new DbalDiscordResyncAllUsers($connection, $bus, new NullLogger());
     }
 }

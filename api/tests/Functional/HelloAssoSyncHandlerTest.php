@@ -10,6 +10,8 @@ use App\Payments\Application\SyncHelloAssoFormHandler;
 use App\Payments\Application\SyncHelloAssoFormMessage;
 use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoSyncLog;
+use App\Payments\Infrastructure\DoctrineHelloAssoOrderRepository;
+use App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository;
 use App\Payments\Infrastructure\HelloAssoHttpClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -201,7 +203,10 @@ final class HelloAssoSyncHandlerTest extends KernelTestCase
             new MockHttpClient($responses),
         );
 
-        return new SyncHelloAssoFormHandler($client, $this->entityManager, $bus ?? new class implements MessageBusInterface {
+        $orderRepository = new DoctrineHelloAssoOrderRepository($this->entityManager);
+        $syncLogRepository = new DoctrineHelloAssoSyncLogRepository($this->entityManager);
+
+        return new SyncHelloAssoFormHandler($client, $orderRepository, $syncLogRepository, $bus ?? new class implements MessageBusInterface {
             public function dispatch(object $message, array $stamps = []): Envelope
             {
                 return new Envelope($message, $stamps);

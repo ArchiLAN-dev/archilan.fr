@@ -44,6 +44,7 @@ type PageState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "data"; data: ReachabilityData }
+  | { kind: "paused" }
   | { kind: "error"; message: string };
 
 // ─── Inline slot switcher (navigates to /runs/[runId]/progression/[slot]) ────
@@ -233,6 +234,10 @@ export function PersonalRunSlotDetailPage({
         `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/reachable`,
       );
       if (!res.ok) {
+        if (res.status === 409) {
+          if (!silent) setState({ kind: "paused" });
+          return;
+        }
         const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
         const msg = body.error?.message ?? `Erreur ${res.status}`;
         if (!silent) setState({ kind: "error", message: msg });
@@ -287,16 +292,16 @@ export function PersonalRunSlotDetailPage({
           `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/item-locations`,
         );
         if (!res.ok) return;
-        const json = (await res.json()) as { data: { locations: Array<{ item_id: number; location_name: string; finding_player: number; finding_player_name: string; check_status: string }> } };
+        const json = (await res.json()) as { data: { locations: Array<{ itemId: number; locationName: string; findingPlayer: number; findingPlayerName: string; checkStatus: string }> } };
         const map: Record<number, ItemLocation[]> = {};
         for (const loc of json.data.locations) {
-          const locs = map[loc.item_id] ?? [];
+          const locs = map[loc.itemId] ?? [];
           locs.push({
-            locationName: loc.location_name,
-            gameName: loc.finding_player === currentSlotNum ? null : loc.finding_player_name,
-            checkStatus: (loc.check_status as ItemLocation["checkStatus"]) ?? null,
+            locationName: loc.locationName,
+            gameName: loc.findingPlayer === currentSlotNum ? null : loc.findingPlayerName,
+            checkStatus: (loc.checkStatus as ItemLocation["checkStatus"]) ?? null,
           });
-          map[loc.item_id] = locs;
+          map[loc.itemId] = locs;
         }
         setItemLocations(map);
       } catch { /* non-critical */ }
@@ -703,6 +708,16 @@ export function PersonalRunSlotDetailPage({
           </div>
         ) : null}
 
+        {state.kind === "paused" ? (
+          <div className="flex items-start gap-3 rounded border border-border bg-surface p-4 text-sm text-muted-foreground">
+            <WifiOff aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-warm" />
+            <div>
+              <p className="font-medium text-foreground">Partie en pause</p>
+              <p className="mt-0.5">La session n&apos;est pas active. Redémarre la partie depuis la page principale pour accéder à ta progression en direct.</p>
+            </div>
+          </div>
+        ) : null}
+
         {state.kind === "error" ? (
           <div className="grid gap-4">
             <div className="flex items-start gap-3 rounded border border-danger/40 bg-danger/5 p-4 text-sm text-danger">
@@ -721,7 +736,7 @@ export function PersonalRunSlotDetailPage({
         ) : null}
 
         {/* Tab bar */}
-        <div className="-mx-4 flex items-stretch gap-0 border-b border-border bg-surface px-4">
+        <div className={`-mx-4 flex items-stretch gap-0 border-b border-border bg-surface px-4${state.kind === "paused" ? " hidden" : ""}`}>
           {TABS.map((tab) => {
             const data = state.kind === "data" ? state.data : null;
             const sub =
@@ -821,7 +836,7 @@ export function PersonalRunSlotDetailPage({
                     currentSlot={Number(slotIndex)}
                     emptyMessage="Aucun check faisable avec les items actuels."
                     hideSpoilers={hideSpoilers}
-                    hintCost={hints?.hint_cost ?? 0}
+                    hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
                     onHintRequest={isAdminUser ? handleHintLocation : undefined}
                     title="Checks faisables maintenant"
@@ -832,7 +847,7 @@ export function PersonalRunSlotDetailPage({
                     currentSlot={Number(slotIndex)}
                     emptyMessage="Tous les checks sont faisables !"
                     hideSpoilers={hideSpoilers}
-                    hintCost={hints?.hint_cost ?? 0}
+                    hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
                     onHintRequest={isAdminUser ? handleHintLocation : undefined}
                     title="Checks non faisables"
@@ -1101,7 +1116,7 @@ export function PersonalRunSlotDetailPage({
                 <ItemListPanel
                   emptyMessage="Tous les items ont été reçus !"
                   hideSpoilers={hideSpoilers}
-                  hintCost={hints?.hint_cost ?? 0}
+                  hintCost={hints?.hintCost ?? 0}
                   hintFree={isAdminUser ? hintFree : false}
                   itemLocations={itemLocations}
                   items={state.data.items_not_received ?? []}

@@ -18,6 +18,11 @@ import {
   type FreeformListOption,
   type GameOption,
   type ParsedYaml,
+  type ItemLinkEntry,
+  type ItemLinksOption,
+  type PlandoItem,
+  type PlandoItemRow,
+  type PlandoItemsOption,
   type RangeOption,
   type ToggleOption,
 } from "@/lib/archipelago-yaml";
@@ -499,6 +504,12 @@ function OptionField({
       {option.type === "freeform" && option.kind === "dict" && (
         <DictField option={option} readOnly={readOnly} onChange={onChange} />
       )}
+      {option.type === "plando_items" && (
+        <PlandoItemsField mode={mode} option={option} readOnly={readOnly} onChange={onChange} />
+      )}
+      {option.type === "item_links" && (
+        <ItemLinksField mode={mode} option={option} readOnly={readOnly} onChange={onChange} />
+      )}
       {option.type === "text" && (
         <input
           className="min-h-9 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
@@ -932,6 +943,636 @@ function DictField({
       {option.entries.length === 0 && readOnly && (
         <p className="text-xs italic text-muted-foreground">Aucune entrée</p>
       )}
+    </div>
+  );
+}
+
+// ─── Plando items ─────────────────────────────────────────────────────────────
+
+function PlandoItemsField({
+  mode,
+  option,
+  readOnly,
+  onChange,
+}: {
+  mode: Mode;
+  option: PlandoItemsOption;
+  readOnly: boolean;
+  onChange: (o: GameOption) => void;
+}) {
+  if (mode === "simple") {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Configurez les plando items en mode <strong>Avancé</strong>.
+      </p>
+    );
+  }
+
+  function updateEntry(updated: PlandoItem) {
+    onChange({ ...option, entries: option.entries.map((e) => (e.id === updated.id ? updated : e)) });
+  }
+
+  function removeEntry(id: string) {
+    onChange({ ...option, entries: option.entries.filter((e) => e.id !== id) });
+  }
+
+  function addEntry() {
+    const newEntry: PlandoItem = {
+      id: crypto.randomUUID(),
+      items: [],
+      locations: [],
+      world: "own",
+      fromPool: true,
+      force: "silent",
+      percentage: 100,
+    };
+    onChange({ ...option, entries: [...option.entries, newEntry] });
+  }
+
+  return (
+    <div className="grid gap-3">
+      {option.entries.map((entry, i) => (
+        <PlandoEntryCard
+          key={entry.id}
+          entry={entry}
+          index={i}
+          readOnly={readOnly}
+          onChange={updateEntry}
+          onRemove={removeEntry}
+        />
+      ))}
+      {!readOnly && (
+        <button className={ADD_BTN_CLS} type="button" onClick={addEntry}>
+          <Plus aria-hidden="true" className="size-3.5" />
+          Ajouter une règle
+        </button>
+      )}
+      {option.entries.length === 0 && readOnly && (
+        <p className="text-xs italic text-muted-foreground">Aucune règle plando</p>
+      )}
+    </div>
+  );
+}
+
+function PlandoEntryCard({
+  entry,
+  index,
+  readOnly,
+  onChange,
+  onRemove,
+}: {
+  entry: PlandoItem;
+  index: number;
+  readOnly: boolean;
+  onChange: (e: PlandoItem) => void;
+  onRemove: (id: string) => void;
+}) {
+  const isNamedWorld = entry.world !== "own" && entry.world !== "any" && entry.world !== "random";
+  const selectWorldValue = isNamedWorld ? "named" : entry.world;
+
+  function updateItem(itemId: string, field: keyof Omit<PlandoItemRow, "id">, val: string | number) {
+    onChange({
+      ...entry,
+      items: entry.items.map((i) => (i.id === itemId ? { ...i, [field]: val } : i)),
+    });
+  }
+
+  function addItem() {
+    onChange({ ...entry, items: [...entry.items, { id: crypto.randomUUID(), name: "", quantity: 1 }] });
+  }
+
+  function removeItem(itemId: string) {
+    onChange({ ...entry, items: entry.items.filter((i) => i.id !== itemId) });
+  }
+
+  function updateLocation(locId: string, val: string) {
+    onChange({
+      ...entry,
+      locations: entry.locations.map((l) => (l.id === locId ? { ...l, value: val } : l)),
+    });
+  }
+
+  function addLocation() {
+    onChange({ ...entry, locations: [...entry.locations, { id: crypto.randomUUID(), value: "" }] });
+  }
+
+  function removeLocation(locId: string) {
+    onChange({ ...entry, locations: entry.locations.filter((l) => l.id !== locId) });
+  }
+
+  function handleWorldSelect(val: string) {
+    if (val === "named") {
+      onChange({ ...entry, world: "" });
+    } else {
+      onChange({ ...entry, world: val });
+    }
+  }
+
+  const SUB_LABEL_CLS = "text-[11px] font-semibold uppercase tracking-widest text-muted-foreground";
+  const FIELD_LABEL_CLS = "text-sm text-foreground";
+
+  return (
+    <div className="rounded-lg border border-border p-3 grid gap-4">
+      <div className="flex items-center justify-between">
+        <span className={SUB_LABEL_CLS}>Règle plando #{index + 1}</span>
+        {!readOnly && (
+          <button
+            aria-label={`Supprimer la règle plando ${index + 1}`}
+            className={REMOVE_BTN_CLS}
+            type="button"
+            onClick={() => onRemove(entry.id)}
+          >
+            <X aria-hidden="true" className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Items */}
+      <div className="grid gap-2">
+        <p className={SUB_LABEL_CLS}>Items à placer</p>
+        {entry.items.map((item) => (
+          <div key={item.id} className="flex items-center gap-2">
+            <input
+              className={INPUT_CLS}
+              disabled={readOnly}
+              placeholder="Nom de l'item"
+              value={item.name}
+              onChange={(e) => updateItem(item.id, "name", e.target.value)}
+            />
+            <div className="shrink-0">
+              <NumberStepper
+                disabled={readOnly}
+                max={999}
+                min={1}
+                value={item.quantity}
+                onChange={(v) => updateItem(item.id, "quantity", v)}
+              />
+            </div>
+            {!readOnly && (
+              <button
+                aria-label="Supprimer l'item"
+                className={REMOVE_BTN_CLS}
+                type="button"
+                onClick={() => removeItem(item.id)}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readOnly && (
+          <button className={ADD_BTN_CLS} type="button" onClick={addItem}>
+            <Plus aria-hidden="true" className="size-3.5" />
+            Ajouter un item
+          </button>
+        )}
+        {entry.items.length === 0 && readOnly && (
+          <p className="text-xs italic text-muted-foreground">Aucun item</p>
+        )}
+      </div>
+
+      {/* Locations */}
+      <div className="grid gap-2">
+        <p className={SUB_LABEL_CLS}>Locations cibles</p>
+        {entry.locations.map((loc) => (
+          <div key={loc.id} className="flex items-center gap-2">
+            <input
+              className={INPUT_CLS}
+              disabled={readOnly}
+              placeholder="Nom de la location"
+              value={loc.value}
+              onChange={(e) => updateLocation(loc.id, e.target.value)}
+            />
+            {!readOnly && (
+              <button
+                aria-label="Supprimer la location"
+                className={REMOVE_BTN_CLS}
+                type="button"
+                onClick={() => removeLocation(loc.id)}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readOnly && (
+          <button className={ADD_BTN_CLS} type="button" onClick={addLocation}>
+            <Plus aria-hidden="true" className="size-3.5" />
+            Ajouter une location
+          </button>
+        )}
+        {entry.locations.length === 0 && readOnly && (
+          <p className="text-xs italic text-muted-foreground">Aucune location</p>
+        )}
+      </div>
+
+      {/* World */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>Monde cible</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="min-h-9 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={readOnly}
+            value={selectWorldValue}
+            onChange={(e) => handleWorldSelect(e.target.value)}
+          >
+            <option value="own">Mon monde (défaut)</option>
+            <option value="any">N&apos;importe quel autre monde</option>
+            <option value="random">Monde aléatoire</option>
+            <option value="named">Nom du joueur…</option>
+          </select>
+          {(selectWorldValue === "named" || isNamedWorld) && (
+            <input
+              className="min-h-9 flex-1 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={readOnly}
+              placeholder="Nom du joueur"
+              value={isNamedWorld ? entry.world : ""}
+              onChange={(e) => onChange({ ...entry, world: e.target.value })}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* From pool */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>From pool</p>
+        <div className="flex w-fit gap-0.5 rounded border border-border p-0.5">
+          {([true, false] as const).map((val) => (
+            <button
+              key={String(val)}
+              className={`cursor-pointer rounded px-4 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                entry.fromPool === val ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+              }`}
+              disabled={readOnly}
+              type="button"
+              onClick={() => onChange({ ...entry, fromPool: val })}
+            >
+              {val ? "Oui" : "Non"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Force */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>Force</p>
+        <select
+          className="min-h-9 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={readOnly}
+          value={entry.force}
+          onChange={(e) => onChange({ ...entry, force: e.target.value as PlandoItem["force"] })}
+        >
+          <option value="silent">Silencieux (défaut) — ignorer si impossible</option>
+          <option value="true">Strict — erreur si impossible</option>
+          <option value="false">Souple — warning si impossible</option>
+        </select>
+      </div>
+
+      {/* Percentage */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>Probabilité de déclenchement</p>
+        <div className="flex items-center gap-2">
+          <NumberStepper
+            disabled={readOnly}
+            max={100}
+            min={0}
+            value={entry.percentage}
+            onChange={(v) => onChange({ ...entry, percentage: v })}
+          />
+          <span className="text-sm text-muted-foreground">%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Item links ───────────────────────────────────────────────────────────────
+
+function ItemLinksField({
+  mode,
+  option,
+  readOnly,
+  onChange,
+}: {
+  mode: Mode;
+  option: ItemLinksOption;
+  readOnly: boolean;
+  onChange: (o: GameOption) => void;
+}) {
+  if (mode === "simple") {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Configurez les item links en mode <strong>Avancé</strong>.
+      </p>
+    );
+  }
+
+  function updateEntry(updated: ItemLinkEntry) {
+    onChange({ ...option, entries: option.entries.map((e) => (e.id === updated.id ? updated : e)) });
+  }
+
+  function removeEntry(id: string) {
+    onChange({ ...option, entries: option.entries.filter((e) => e.id !== id) });
+  }
+
+  function addEntry() {
+    const newEntry: ItemLinkEntry = {
+      id: crypto.randomUUID(),
+      name: "",
+      itemPool: [],
+      replacementItem: null,
+      linkReplacement: false,
+      localItems: [],
+      nonLocalItems: [],
+    };
+    onChange({ ...option, entries: [...option.entries, newEntry] });
+  }
+
+  return (
+    <div className="grid gap-3">
+      {option.entries.map((entry, i) => (
+        <ItemLinkCard
+          key={entry.id}
+          entry={entry}
+          index={i}
+          readOnly={readOnly}
+          onChange={updateEntry}
+          onRemove={removeEntry}
+        />
+      ))}
+      {!readOnly && (
+        <button className={ADD_BTN_CLS} type="button" onClick={addEntry}>
+          <Plus aria-hidden="true" className="size-3.5" />
+          Ajouter un lien
+        </button>
+      )}
+      {option.entries.length === 0 && readOnly && (
+        <p className="text-xs italic text-muted-foreground">Aucun item link</p>
+      )}
+    </div>
+  );
+}
+
+function ItemLinkCard({
+  entry,
+  index,
+  readOnly,
+  onChange,
+  onRemove,
+}: {
+  entry: ItemLinkEntry;
+  index: number;
+  readOnly: boolean;
+  onChange: (e: ItemLinkEntry) => void;
+  onRemove: (id: string) => void;
+}) {
+  const SUB_LABEL_CLS = "text-[11px] font-semibold uppercase tracking-widest text-muted-foreground";
+  const FIELD_LABEL_CLS = "text-sm text-foreground";
+
+  const hasEverything = entry.itemPool.includes("Everything");
+
+  function addPoolItem() {
+    onChange({ ...entry, itemPool: [...entry.itemPool, ""] });
+  }
+
+  function updatePoolItem(idx: number, val: string) {
+    onChange({ ...entry, itemPool: entry.itemPool.map((v, i) => (i === idx ? val : v)) });
+  }
+
+  function removePoolItem(idx: number) {
+    onChange({ ...entry, itemPool: entry.itemPool.filter((_, i) => i !== idx) });
+  }
+
+  function toggleEverything() {
+    if (hasEverything) {
+      onChange({ ...entry, itemPool: entry.itemPool.filter((i) => i !== "Everything") });
+    } else {
+      onChange({ ...entry, itemPool: ["Everything", ...entry.itemPool.filter((i) => i !== "Everything")] });
+    }
+  }
+
+  function addLocalItem() {
+    onChange({ ...entry, localItems: [...entry.localItems, ""] });
+  }
+
+  function updateLocalItem(idx: number, val: string) {
+    onChange({ ...entry, localItems: entry.localItems.map((v, i) => (i === idx ? val : v)) });
+  }
+
+  function removeLocalItem(idx: number) {
+    onChange({ ...entry, localItems: entry.localItems.filter((_, i) => i !== idx) });
+  }
+
+  function addNonLocalItem() {
+    onChange({ ...entry, nonLocalItems: [...entry.nonLocalItems, ""] });
+  }
+
+  function updateNonLocalItem(idx: number, val: string) {
+    onChange({ ...entry, nonLocalItems: entry.nonLocalItems.map((v, i) => (i === idx ? val : v)) });
+  }
+
+  function removeNonLocalItem(idx: number) {
+    onChange({ ...entry, nonLocalItems: entry.nonLocalItems.filter((_, i) => i !== idx) });
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-3 grid gap-4">
+      <div className="flex items-center justify-between">
+        <span className={SUB_LABEL_CLS}>Lien #{index + 1}</span>
+        {!readOnly && (
+          <button
+            aria-label={`Supprimer le lien ${index + 1}`}
+            className={REMOVE_BTN_CLS}
+            type="button"
+            onClick={() => onRemove(entry.id)}
+          >
+            <X aria-hidden="true" className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Name */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>Nom du groupe</p>
+        <input
+          className={INPUT_CLS}
+          disabled={readOnly}
+          placeholder="ex: rods"
+          value={entry.name}
+          onChange={(e) => onChange({ ...entry, name: e.target.value })}
+        />
+        <p className="text-xs text-muted-foreground">Les joueurs avec le même nom forment un groupe.</p>
+      </div>
+
+      {/* Item pool */}
+      <div className="grid gap-2">
+        <p className={SUB_LABEL_CLS}>Item pool</p>
+        <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <input
+            checked={hasEverything}
+            className="rounded"
+            disabled={readOnly}
+            type="checkbox"
+            onChange={toggleEverything}
+          />
+          Everything (partager tous les items)
+        </label>
+        {!hasEverything && (
+          <>
+            {entry.itemPool.map((item, idx) => (
+              <div key={`pool-${entry.id}-${idx}`} className="flex items-center gap-2">
+                <input
+                  className={INPUT_CLS}
+                  disabled={readOnly}
+                  placeholder="Nom de l'item"
+                  value={item}
+                  onChange={(e) => updatePoolItem(idx, e.target.value)}
+                />
+                {!readOnly && (
+                  <button
+                    aria-label="Supprimer l'item"
+                    className={REMOVE_BTN_CLS}
+                    type="button"
+                    onClick={() => removePoolItem(idx)}
+                  >
+                    <X aria-hidden="true" className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {!readOnly && (
+              <button className={ADD_BTN_CLS} type="button" onClick={addPoolItem}>
+                <Plus aria-hidden="true" className="size-3.5" />
+                Ajouter un item
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Replacement item */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>Item de remplacement</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-fit gap-0.5 rounded border border-border p-0.5">
+            {([true, false] as const).map((isNull) => {
+              const active = isNull ? entry.replacementItem === null : entry.replacementItem !== null;
+              return (
+                <button
+                  key={String(isNull)}
+                  className={`cursor-pointer rounded px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    active ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  disabled={readOnly}
+                  type="button"
+                  onClick={() => onChange({ ...entry, replacementItem: isNull ? null : "" })}
+                >
+                  {isNull ? "Filler auto" : "Spécifier"}
+                </button>
+              );
+            })}
+          </div>
+          {entry.replacementItem !== null && (
+            <input
+              className="min-h-9 flex-1 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={readOnly}
+              placeholder="Nom de l'item de remplacement"
+              value={entry.replacementItem}
+              onChange={(e) => onChange({ ...entry, replacementItem: e.target.value })}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Link replacement */}
+      <div className="grid gap-1.5">
+        <p className={FIELD_LABEL_CLS}>Link replacement</p>
+        <div className="flex w-fit gap-0.5 rounded border border-border p-0.5">
+          {([true, false] as const).map((val) => (
+            <button
+              key={String(val)}
+              className={`cursor-pointer rounded px-4 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                entry.linkReplacement === val ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+              }`}
+              disabled={readOnly}
+              type="button"
+              onClick={() => onChange({ ...entry, linkReplacement: val })}
+            >
+              {val ? "Oui" : "Non"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Local items */}
+      <div className="grid gap-2">
+        <p className={SUB_LABEL_CLS}>Local items</p>
+        {entry.localItems.map((item, idx) => (
+          <div key={`local-${entry.id}-${idx}`} className="flex items-center gap-2">
+            <input
+              className={INPUT_CLS}
+              disabled={readOnly}
+              placeholder="Nom de l'item"
+              value={item}
+              onChange={(e) => updateLocalItem(idx, e.target.value)}
+            />
+            {!readOnly && (
+              <button
+                aria-label="Supprimer"
+                className={REMOVE_BTN_CLS}
+                type="button"
+                onClick={() => removeLocalItem(idx)}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readOnly && (
+          <button className={ADD_BTN_CLS} type="button" onClick={addLocalItem}>
+            <Plus aria-hidden="true" className="size-3.5" />
+            Ajouter
+          </button>
+        )}
+        {entry.localItems.length === 0 && readOnly && (
+          <p className="text-xs italic text-muted-foreground">Aucun</p>
+        )}
+      </div>
+
+      {/* Non-local items */}
+      <div className="grid gap-2">
+        <p className={SUB_LABEL_CLS}>Non-local items</p>
+        {entry.nonLocalItems.map((item, idx) => (
+          <div key={`nonlocal-${entry.id}-${idx}`} className="flex items-center gap-2">
+            <input
+              className={INPUT_CLS}
+              disabled={readOnly}
+              placeholder="Nom de l'item"
+              value={item}
+              onChange={(e) => updateNonLocalItem(idx, e.target.value)}
+            />
+            {!readOnly && (
+              <button
+                aria-label="Supprimer"
+                className={REMOVE_BTN_CLS}
+                type="button"
+                onClick={() => removeNonLocalItem(idx)}
+              >
+                <X aria-hidden="true" className="size-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readOnly && (
+          <button className={ADD_BTN_CLS} type="button" onClick={addNonLocalItem}>
+            <Plus aria-hidden="true" className="size-3.5" />
+            Ajouter
+          </button>
+        )}
+        {entry.nonLocalItems.length === 0 && readOnly && (
+          <p className="text-xs italic text-muted-foreground">Aucun</p>
+        )}
+      </div>
     </div>
   );
 }

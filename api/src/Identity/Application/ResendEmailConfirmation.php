@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 
 final readonly class ResendEmailConfirmation
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private SendEmailConfirmation $sendEmailConfirmation,
     ) {
     }
 
     public function resend(string $userId, \DateTimeImmutable $now): void
     {
-        $user = $this->entityManager->find(User::class, $userId);
+        $user = $this->userRepository->findById($userId);
 
         if (!$user instanceof User || $user->isDeleted() || $user->isEmailVerified()) {
             return;

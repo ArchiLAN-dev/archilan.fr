@@ -6,14 +6,14 @@ namespace App\Identity\Application;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class UnlinkDiscordFromAccount
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private LoggerInterface $logger,
         private MessageBusInterface $bus,
     ) {
@@ -21,14 +21,14 @@ final readonly class UnlinkDiscordFromAccount
 
     public function unlink(string $userId): void
     {
-        $user = $this->entityManager->find(User::class, $userId);
+        $user = $this->userRepository->findById($userId);
         if (!$user instanceof User || !$user->isDiscordLinked()) {
             return;
         }
 
         $discordId = $user->getDiscordId();
         $user->unlinkDiscord(new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->userRepository->save($user);
 
         $this->logger->info('discord.unlinked', ['userId' => $user->getId()]);
 

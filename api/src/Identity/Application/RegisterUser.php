@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -14,7 +14,7 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 final readonly class RegisterUser
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private UserPasswordHasherInterface $passwordHasher,
         private LoggerInterface $logger,
         private SlugGenerator $slugGenerator,
@@ -54,8 +54,7 @@ final readonly class RegisterUser
         $user = User::register($email, $emailCanonical, $passwordHash, $now, $slug, $displayName);
 
         try {
-            $this->entityManager->persist($user);
-            $this->entityManager->flush();
+            $this->userRepository->save($user);
         } catch (UniqueConstraintViolationException) {
             return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];
         }
@@ -74,9 +73,7 @@ final readonly class RegisterUser
 
     private function emailExists(string $emailCanonical): bool
     {
-        return $this->entityManager
-            ->getRepository(User::class)
-            ->findOneBy(['emailCanonical' => $emailCanonical]) instanceof User;
+        return $this->userRepository->findByEmailCanonical($emailCanonical) instanceof User;
     }
 
     /**

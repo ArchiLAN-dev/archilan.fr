@@ -7,14 +7,9 @@ namespace App\Tests\Functional;
 use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use App\Sessions\Application\Message\RestartRunJob;
-use App\Sessions\Application\Message\StartRunJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\Message\GenerateRunJob;
 use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class RunnerGeneratePipelineTest extends FunctionalTestCase
 {
@@ -68,7 +63,7 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
-    public function testGenerateTransitionsToGeneratingAndDispatchesMessage(): void
+    public function testGenerateTransitionsToGenerating(): void
     {
         $admin = $this->createAdmin();
         $this->loginAs($admin);
@@ -77,54 +72,9 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/generate', $session->getId()));
 
         self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
+        $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertSame('generating', $data['status']);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_generation');
-        self::assertCount(1, $transport->getSent());
-        /** @var GenerateRunJob $message */
-        $message = $transport->getSent()[0]->getMessage();
-        self::assertInstanceOf(GenerateRunJob::class, $message);
-        self::assertSame($session->getId(), $message->sessionId);
-        self::assertSame('generate', $message->phase);
-    }
-
-    // ─── Generate callback ────────────────────────────────────────────────────
-
-    public function testCallbackGeneratedTransitionsToGenerated(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001', Session::STATUS_GENERATING);
-
-        $this->sendCallback($session->getId(), ['status' => 'generated']);
-
-        self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
-        self::assertIsArray($data);
-        self::assertSame('generated', $data['status']);
-    }
-
-    public function testCallbackFailedFromGeneratingTransitionsToFailed(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001', Session::STATUS_GENERATING);
-
-        $this->sendCallback($session->getId(), [
-            'status' => 'failed',
-            'errors' => ['World 1 is missing required options.'],
-        ]);
-
-        self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
-        self::assertIsArray($data);
-        self::assertSame('failed', $data['status']);
     }
 
     // ─── Launch endpoint ──────────────────────────────────────────────────────
@@ -151,7 +101,7 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
-    public function testLaunchTransitionsToLaunchingAndDispatchesMessage(): void
+    public function testLaunchTransitionsToLaunching(): void
     {
         $admin = $this->createAdmin();
         $this->loginAs($admin);
@@ -160,58 +110,9 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/launch', $session->getId()));
 
         self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
+        $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertSame('launching', $data['status']);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_server');
-        self::assertCount(1, $transport->getSent());
-        /** @var StartRunJob $message */
-        $message = $transport->getSent()[0]->getMessage();
-        self::assertInstanceOf(StartRunJob::class, $message);
-        self::assertSame($session->getId(), $message->sessionId);
-    }
-
-    // ─── Launch callback ──────────────────────────────────────────────────────
-
-    public function testCallbackRunningTransitionsToRunning(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001', Session::STATUS_LAUNCHING);
-
-        $this->sendCallback($session->getId(), [
-            'status' => 'running',
-            'host' => 'runner-local',
-            'port' => 38281,
-            'password' => 'secretpass',
-        ]);
-
-        self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
-        self::assertIsArray($data);
-        self::assertSame('running', $data['status']);
-        self::assertSame('runner-local', $data['host']);
-        self::assertSame(38281, $data['port']);
-        self::assertSame('secretpass', $data['password']);
-    }
-
-    public function testCallbackFailedFromLaunchingTransitionsToFailed(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001', Session::STATUS_LAUNCHING);
-
-        $this->sendCallback($session->getId(), ['status' => 'failed']);
-
-        self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
-        self::assertIsArray($data);
-        self::assertSame('failed', $data['status']);
     }
 
     // ─── Stop endpoint ────────────────────────────────────────────────────────
@@ -227,7 +128,7 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testStopTransitionsToStoppedAndDispatchesMessage(): void
+    public function testStopTransitionsToStopped(): void
     {
         $admin = $this->createAdmin();
         $this->loginAs($admin);
@@ -236,19 +137,9 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/stop', $session->getId()));
 
         self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
+        $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertSame('stopped', $data['status']);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_server');
-        self::assertCount(1, $transport->getSent());
-        /** @var StopRunJob $message */
-        $message = $transport->getSent()[0]->getMessage();
-        self::assertInstanceOf(StopRunJob::class, $message);
-        self::assertSame($session->getId(), $message->sessionId);
-        self::assertSame(38281, $message->port);
     }
 
     // ─── Restart endpoint ─────────────────────────────────────────────────────
@@ -275,7 +166,7 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(409);
     }
 
-    public function testRestartTransitionsToLaunchingAndDispatchesMessage(): void
+    public function testRestartTransitionsToLaunching(): void
     {
         $admin = $this->createAdmin();
         $this->loginAs($admin);
@@ -284,42 +175,9 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/restart', $session->getId()));
 
         self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
+        $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
         self::assertSame('launching', $data['status']);
-
-        /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.run_server');
-        self::assertCount(1, $transport->getSent());
-        /** @var RestartRunJob $message */
-        $message = $transport->getSent()[0]->getMessage();
-        self::assertInstanceOf(RestartRunJob::class, $message);
-        self::assertSame($session->getId(), $message->sessionId);
-        self::assertSame(38281, $message->port);
-        self::assertSame('secretpass', $message->password);
-    }
-
-    // ─── Restart callback ─────────────────────────────────────────────────────
-
-    public function testCallbackRunningFromLaunchingAfterRestartTransitionsToRunning(): void
-    {
-        $admin = $this->createAdmin();
-        $this->loginAs($admin);
-        $session = $this->persistSession('evt-001', Session::STATUS_LAUNCHING);
-
-        $this->sendCallback($session->getId(), [
-            'status' => 'running',
-            'host' => 'runner-local',
-            'port' => 38281,
-            'password' => 'secretpass',
-        ]);
-
-        self::assertResponseIsSuccessful();
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
-        self::assertIsArray($data);
-        self::assertSame('running', $data['status']);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -336,7 +194,6 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
         $this->entityManager->flush();
         $id = $session->getId();
 
-        // Walk the state machine to reach the target status.
         $path = $this->transitionPath($status);
         foreach ($path as $step) {
             $this->patchStatus($id, $step);
@@ -351,24 +208,38 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
 
     private function persistRunningSession(string $eventId): Session
     {
-        return $this->persistSession($eventId, Session::STATUS_RUNNING);
+        $now = new \DateTimeImmutable();
+        $session = Session::create(bin2hex(random_bytes(8)), $eventId, $now);
+        $session->transition(Session::STATUS_VALIDATING, $now);
+        $session->transition(Session::STATUS_READY, $now);
+        $session->transition(Session::STATUS_GENERATING, $now);
+        $session->transition(Session::STATUS_GENERATED, $now);
+        $session->transition(Session::STATUS_LAUNCHING, $now);
+        $session->transition(Session::STATUS_RUNNING, $now, '10.0.0.1', 38281, 'secretpass');
+        $this->entityManager->persist($session);
+        $this->entityManager->flush();
+
+        return $session;
     }
 
     private function persistCrashedSession(string $eventId): Session
     {
-        $running = $this->persistRunningSession($eventId);
-        $this->patchStatus($running->getId(), Session::STATUS_CRASHED);
+        $now = new \DateTimeImmutable();
+        $session = Session::create(bin2hex(random_bytes(8)), $eventId, $now);
+        $session->transition(Session::STATUS_VALIDATING, $now);
+        $session->transition(Session::STATUS_READY, $now);
+        $session->transition(Session::STATUS_GENERATING, $now);
+        $session->transition(Session::STATUS_GENERATED, $now);
+        $session->transition(Session::STATUS_LAUNCHING, $now);
+        $session->transition(Session::STATUS_RUNNING, $now, '10.0.0.1', 38281, 'secretpass');
+        $session->transition(Session::STATUS_CRASHED, $now);
+        $this->entityManager->persist($session);
+        $this->entityManager->flush();
 
-        $this->entityManager->clear();
-        $refreshed = $this->entityManager->find(Session::class, $running->getId());
-        self::assertInstanceOf(Session::class, $refreshed);
-
-        return $refreshed;
+        return $session;
     }
 
     /**
-     * Returns the ordered list of statuses to PATCH to reach $target from draft.
-     *
      * @return list<string>
      */
     private function transitionPath(string $target): array
@@ -401,18 +272,5 @@ final class RunnerGeneratePipelineTest extends FunctionalTestCase
             $body['password'] = $password;
         }
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/sessions/%s/status', $sessionId), $body);
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function sendCallback(string $sessionId, array $payload): void
-    {
-        $this->client->request(
-            'POST',
-            sprintf('/api/v1/internal/sessions/%s/runner-callback', $sessionId),
-            [],
-            [],
-            ['HTTP_X_INTERNAL_SECRET' => 'test-runner-secret', 'CONTENT_TYPE' => 'application/json'],
-            json_encode($payload, JSON_THROW_ON_ERROR),
-        );
     }
 }

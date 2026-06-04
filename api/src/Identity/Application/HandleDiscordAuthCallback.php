@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\Identity\Infrastructure\DiscordOAuthClientInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class HandleDiscordAuthCallback
 {
     public function __construct(
         private DiscordOAuthClientInterface $discordClient,
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
         private SlugGenerator $slugGenerator,
         private LoggerInterface $logger,
         private string $discordRedirectUriAuth,
@@ -48,9 +48,7 @@ final readonly class HandleDiscordAuthCallback
             return ['outcome' => 'no_verified_email'];
         }
 
-        $repo = $this->entityManager->getRepository(User::class);
-
-        $user = $repo->findOneBy(['discordId' => $discordId]);
+        $user = $this->userRepository->findByDiscordId($discordId);
         if ($user instanceof User) {
             $this->logger->info('discord.login', ['userId' => $user->getId()]);
 
@@ -58,7 +56,7 @@ final readonly class HandleDiscordAuthCallback
         }
 
         $emailCanonical = mb_strtolower(trim($email));
-        $existingByEmail = $repo->findOneBy(['emailCanonical' => $emailCanonical]);
+        $existingByEmail = $this->userRepository->findByEmailCanonical($emailCanonical);
         if ($existingByEmail instanceof User) {
             return ['outcome' => 'email_conflict'];
         }
@@ -72,8 +70,7 @@ final readonly class HandleDiscordAuthCallback
         $newUser->confirmEmail($now);
 
         try {
-            $this->entityManager->persist($newUser);
-            $this->entityManager->flush();
+            $this->userRepository->save($newUser);
         } catch (UniqueConstraintViolationException) {
             return ['outcome' => 'email_conflict'];
         }

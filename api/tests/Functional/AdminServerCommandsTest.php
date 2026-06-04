@@ -7,7 +7,6 @@ namespace App\Tests\Functional;
 use App\Identity\Domain\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Message\FetchLogsJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
@@ -156,13 +155,10 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.run_server');
         $enveloped = iterator_to_array($transport->get(), false);
-        self::assertCount(2, $enveloped);
+        self::assertCount(1, $enveloped);
 
         $messages = array_map(static fn ($e) => $e->getMessage(), $enveloped);
-        $stopJobs = array_filter($messages, static fn ($m) => $m instanceof StopRunJob);
         $archiveJobs = array_filter($messages, static fn ($m) => $m instanceof ArchiveRunJob);
-
-        self::assertCount(1, $stopJobs);
         self::assertCount(1, $archiveJobs);
 
         $log = $this->entityManager->getRepository(RunAuditLog::class)->findOneBy(['runId' => $session->getId()]);

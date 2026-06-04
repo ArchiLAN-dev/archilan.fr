@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\PrivacyRightsRequest;
+use App\Identity\Domain\PrivacyRightsRequestRepositoryInterface;
 use App\Identity\Domain\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class CreatePrivacyRightsRequest
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private PrivacyRightsRequestRepositoryInterface $requestRepository,
         private LoggerInterface $logger,
     ) {
     }
@@ -38,8 +38,7 @@ final readonly class CreatePrivacyRightsRequest
             new \DateTimeImmutable(),
         );
 
-        $this->entityManager->persist($request);
-        $this->entityManager->flush();
+        $this->requestRepository->save($request);
 
         $this->logger->info('privacy.request_created', ['userId' => $user->getId(), 'rightType' => $rightType, 'requestId' => $request->getId()]);
 

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"C:/Users/maste/Documents/archilan.fr/.claude/quality-gates.sh\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

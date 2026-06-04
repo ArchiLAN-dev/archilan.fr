@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\WeeklyRuns\Application\Handler\GenerateWeeklyRunsMessageHandler;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
+use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
-use Doctrine\ORM\EntityManagerInterface;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
 final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
@@ -21,128 +23,170 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        // A stable Monday in UTC for general tests.
         self::$defaultNow = new \DateTimeImmutable('2026-05-18T00:00:00', new \DateTimeZone('UTC'));
     }
 
     public function testInvokeSkipsTemplateWhenRunAlreadyExistsForCurrentWeek(): void
     {
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::never())->method('persist');
-        $em->expects(self::never())->method('flush');
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(true);
+        $runs->expects(self::never())->method('save');
+        $runs->expects(self::never())->method('flush');
 
-        $this->makeHandler($this->createConnectionReturning(['template-1'], 1), $em)
+        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator->expects(self::never())->method('generate');
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
     public function testInvokeCreatesWeeklyRunWhenNoneExistsForCurrentWeek(): void
     {
-        /** @var WeeklyRun|null $persisted */
-        $persisted = null;
+        /** @var WeeklyRun|null $saved */
+        $saved = null;
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::once())->method('persist')->willReturnCallback(static function (object $run) use (&$persisted): void {
-            $persisted = $run instanceof WeeklyRun ? $run : null;
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->expects(self::once())->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
+            $saved = $run;
         });
-        $em->expects(self::once())->method('flush');
+        $runs->expects(self::once())->method('flush');
 
-        $this->makeHandler($this->createConnectionReturning(['template-1'], 0), $em)
+        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator->method('generate')->willReturn('/workspace/run-1/output/world.archipelago');
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
 
-        self::assertInstanceOf(WeeklyRun::class, $persisted);
-        self::assertSame(WeeklyRun::STATUS_ACTIVE, $persisted->getStatus());
-        self::assertSame('template-1', $persisted->getTemplateId());
+        self::assertInstanceOf(WeeklyRun::class, $saved);
+        self::assertSame(WeeklyRun::STATUS_ACTIVE, $saved->getStatus());
+        self::assertSame('template-1', $saved->getTemplateId());
+        self::assertSame('/workspace/run-1/output/world.archipelago', $saved->getGeneratedSeedPath());
     }
 
     public function testInvokeSeedIsRandomPositiveInteger(): void
     {
-        /** @var WeeklyRun|null $persisted */
-        $persisted = null;
+        /** @var WeeklyRun|null $saved */
+        $saved = null;
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('persist')->willReturnCallback(static function (object $run) use (&$persisted): void {
-            $persisted = $run instanceof WeeklyRun ? $run : null;
+        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
+            $saved = $run;
         });
 
-        $this->makeHandler($this->createConnectionReturning(['template-1'], 0), $em)
+        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator->method('generate')->willReturn('/workspace/run-1/output/world.archipelago');
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
 
-        self::assertInstanceOf(WeeklyRun::class, $persisted);
-        self::assertMatchesRegularExpression('/^\d+$/', $persisted->getSeed());
-        self::assertGreaterThan(0, (int) $persisted->getSeed());
+        self::assertInstanceOf(WeeklyRun::class, $saved);
+        self::assertMatchesRegularExpression('/^\d+$/', $saved->getSeed());
+        self::assertGreaterThan(0, (int) $saved->getSeed());
     }
 
     public function testInvokeUsesIsoYearNotCalendarYearAtYearBoundary(): void
     {
         // 2027-01-01 is calendar year 2027 but ISO year 2026 (ISO week 53).
-        // format('Y') would give 2027, format('o') gives 2026 - the handler must use 'o'.
         $boundaryDate = new \DateTimeImmutable('2027-01-01T00:00:00', new \DateTimeZone('UTC'));
         $expectedYear = (int) $boundaryDate->format('o');
         $expectedWeek = (int) $boundaryDate->format('W');
 
-        /** @var WeeklyRun|null $persisted */
-        $persisted = null;
+        /** @var WeeklyRun|null $saved */
+        $saved = null;
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('persist')->willReturnCallback(static function (object $run) use (&$persisted): void {
-            $persisted = $run instanceof WeeklyRun ? $run : null;
+        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
+            $saved = $run;
         });
 
-        $this->makeHandler($this->createConnectionReturning(['template-1'], 0), $em, $boundaryDate)
+        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator->method('generate')->willReturn('/workspace/run-1/output/world.archipelago');
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator, $boundaryDate)
             ->__invoke(new GenerateWeeklyRunsMessage());
 
-        self::assertInstanceOf(WeeklyRun::class, $persisted);
-        self::assertSame($expectedYear, $persisted->getWeekYear());
-        self::assertSame($expectedWeek, $persisted->getWeekNumber());
-        // Specifically: ISO year must NOT equal calendar year for this boundary date.
-        self::assertNotSame((int) $boundaryDate->format('Y'), $persisted->getWeekYear());
+        self::assertInstanceOf(WeeklyRun::class, $saved);
+        self::assertSame($expectedYear, $saved->getWeekYear());
+        self::assertSame($expectedWeek, $saved->getWeekNumber());
+        self::assertNotSame((int) $boundaryDate->format('Y'), $saved->getWeekYear());
     }
 
-    public function testInvokeSkipsNonStringTemplateIds(): void
+    public function testInvokeSkipsTemplateWhenGameNotFound(): void
     {
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::never())->method('persist');
-        $em->expects(self::never())->method('flush');
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->expects(self::never())->method('save');
+        $runs->expects(self::never())->method('flush');
 
-        $this->makeHandler($this->createConnectionReturning([42, null], 0), $em)
+        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator->expects(self::never())->method('generate');
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), null, $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
-    private function makeHandler(
-        Connection $connection,
-        EntityManagerInterface $em,
-        ?\DateTimeImmutable $now = null,
-    ): GenerateWeeklyRunsMessageHandler {
-        return new GenerateWeeklyRunsMessageHandler(
-            $connection,
-            $em,
-            new MockClock($now ?? self::$defaultNow),
-        );
+    public function testInvokeThrowsAfterLoggingWhenGeneratorFails(): void
+    {
+        $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
+        $runs->method('existsByTemplateAndWeek')->willReturn(false);
+        $runs->expects(self::once())->method('save');
+        $runs->expects(self::never())->method('flush');
+
+        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator->method('generate')->willThrowException(new \RuntimeException('docker failed'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/docker failed/');
+
+        $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
+            ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
     /**
-     * @param list<mixed> $templateIds
+     * @param list<string> $templateIds
      */
-    private function createConnectionReturning(array $templateIds, int|false $count): Connection
+    private function makeTemplateRepo(array $templateIds): WeeklyTemplateRepositoryInterface
     {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchFirstColumn')->willReturn($templateIds);
-        $result->method('fetchOne')->willReturn($count);
+        $now = new \DateTimeImmutable();
+        $templates = array_map(
+            static fn (string $id) => new WeeklyTemplate($id, 'game-1', "name: ArchiLAN\ngame: Archipelago\n", null, null, true, $now, $now),
+            $templateIds,
+        );
 
-        $expr = $this->createStub(ExpressionBuilder::class);
+        $repo = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+        $repo->method('findAllActive')->willReturn($templates);
 
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturn($qb);
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
+        return $repo;
+    }
 
-        $connection = $this->createStub(Connection::class);
-        $connection->method('createQueryBuilder')->willReturn($qb);
+    private function makeGame(): Game
+    {
+        $game = $this->createStub(Game::class);
+        $game->method('getApworldStorageKey')->willReturn('apworlds/archipelago.apworld');
 
-        return $connection;
+        return $game;
+    }
+
+    private function makeHandler(
+        WeeklyRunRepositoryInterface $runs,
+        WeeklyTemplateRepositoryInterface $templates,
+        ?Game $game,
+        WeeklyRunGeneratorInterface $generator,
+        ?\DateTimeImmutable $now = null,
+    ): GenerateWeeklyRunsMessageHandler {
+        $games = $this->createStub(GameRepositoryInterface::class);
+        $games->method('findById')->willReturn($game);
+
+        return new GenerateWeeklyRunsMessageHandler(
+            $runs,
+            $templates,
+            $games,
+            $generator,
+            new MockClock($now ?? self::$defaultNow),
+            new NullLogger(),
+        );
     }
 }

@@ -4,39 +4,32 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Application\Handler\LaunchPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\SlotNameGenerator;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query;
-use Doctrine\ORM\QueryBuilder;
-use PHPUnit\Framework\MockObject\Stub;
+use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 final class LaunchPersonalRunJobHandlerTest extends TestCase
 {
-    private EntityManagerInterface&Stub $entityManager;
-
-    protected function setUp(): void
-    {
-        $this->entityManager = $this->createStub(EntityManagerInterface::class);
-    }
-
     public function testPersonalRunNotFoundLogsErrorAndReturns(): void
     {
-        $this->entityManager->method('find')->willReturn(null);
+        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn(null);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('error')
             ->with('personal_run.launch.not_found', $this->arrayHasKey('runId'));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
-
-        $this->makeHandler(messageBus: $messageBus, logger: $logger)(new LaunchPersonalRunJob('run-missing'));
+        $this->makeHandler(runs: $runs, logger: $logger)(new LaunchPersonalRunJob('run-missing'));
     }
 
     public function testNoParticipantsLogsErrorAndReturns(): void
@@ -44,38 +37,35 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
 
-        $this->entityManager->method('find')->willReturn($run);
+        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs->method('findById')->willReturn($run);
 
-        $query = $this->createStub(Query::class);
-        $query->method('getResult')->willReturn([]);
-
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturnSelf();
-        $qb->method('from')->willReturnSelf();
-        $qb->method('where')->willReturnSelf();
-        $qb->method('setParameter')->willReturnSelf();
-        $qb->method('getQuery')->willReturn($query);
-
-        $this->entityManager->method('createQueryBuilder')->willReturn($qb);
+        $participants = $this->createStub(RunParticipantRepositoryInterface::class);
+        $participants->method('findByRunId')->willReturn([]);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('error')
             ->with('personal_run.launch.no_slots', $this->arrayHasKey('runId'));
 
-        $messageBus = $this->createMock(MessageBusInterface::class);
-        $messageBus->expects($this->never())->method('dispatch');
-
-        $this->makeHandler(messageBus: $messageBus, logger: $logger)(new LaunchPersonalRunJob($run->getId()));
+        $this->makeHandler(runs: $runs, participants: $participants, logger: $logger)(new LaunchPersonalRunJob($run->getId()));
     }
 
     private function makeHandler(
-        ?MessageBusInterface $messageBus = null,
+        ?RunRepositoryInterface $runs = null,
+        ?RunParticipantRepositoryInterface $participants = null,
+        ?RunnerGatewayInterface $runnerGateway = null,
         ?LoggerInterface $logger = null,
     ): LaunchPersonalRunJobHandler {
         return new LaunchPersonalRunJobHandler(
-            $this->entityManager,
-            $messageBus ?? $this->createStub(MessageBusInterface::class),
+            $runs ?? $this->createStub(RunRepositoryInterface::class),
+            $participants ?? $this->createStub(RunParticipantRepositoryInterface::class),
+            $this->createStub(UserRepositoryInterface::class),
+            $this->createStub(GameRepositoryInterface::class),
+            $this->createStub(SessionRepositoryInterface::class),
+            $this->createStub(SessionSlotRepositoryInterface::class),
             new SlotNameGenerator(),
+            $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
+            $this->createStub(\App\Sessions\Application\PersonalRunAdvancerInterface::class),
             $logger ?? $this->createStub(LoggerInterface::class),
         );
     }

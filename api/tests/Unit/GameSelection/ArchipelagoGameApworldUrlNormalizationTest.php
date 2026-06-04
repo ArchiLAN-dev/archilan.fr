@@ -26,6 +26,14 @@ final class ArchipelagoGameApworldUrlNormalizationTest extends TestCase
             'query param preserved' => ['https://github.com/owner/repo?foo=bar', 'https://github.com/owner/repo?foo=bar'],
             'releases with query filter' => ['https://github.com/Happyhappyism/Archipelago/releases?q=%22ActRaiser%22&expanded=true', 'https://github.com/Happyhappyism/Archipelago/releases?q=%22ActRaiser%22&expanded=true'],
             'fragment stripped' => ['https://github.com/owner/repo#readme', 'https://github.com/owner/repo'],
+            'raw refs/heads direct apworld' => [
+                'https://github.com/ToxicFrog/mercs-ap/raw/refs/heads/main/release/mercenaries.apworld',
+                'https://raw.githubusercontent.com/ToxicFrog/mercs-ap/refs/heads/main/release/mercenaries.apworld',
+            ],
+            'raw commit sha direct apworld' => [
+                'https://github.com/owner/repo/raw/abc1234/path/game.apworld',
+                'https://raw.githubusercontent.com/owner/repo/abc1234/path/game.apworld',
+            ],
         ];
     }
 

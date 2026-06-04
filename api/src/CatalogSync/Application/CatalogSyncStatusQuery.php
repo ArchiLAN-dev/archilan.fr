@@ -6,13 +6,15 @@ namespace App\CatalogSync\Application;
 
 use App\CatalogSync\Domain\CatalogEntry;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\IgnoredCatalogEntry;
-use Doctrine\ORM\EntityManagerInterface;
+use App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface;
 
 final readonly class CatalogSyncStatusQuery
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private GameRepositoryInterface $gameRepository,
+        private IgnoredCatalogEntryRepositoryInterface $ignoredEntryRepository,
         private CatalogSyncService $catalogSyncService,
         private ApworldVersionChecker $apworldVersionChecker,
     ) {
@@ -45,11 +47,9 @@ final readonly class CatalogSyncStatusQuery
 
         $cachedAt = $this->catalogSyncService->getCachedAt();
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC']);
+        $games = $this->gameRepository->findAllSortedByName();
 
-        /** @var list<IgnoredCatalogEntry> $ignoredEntries */
-        $ignoredEntries = $this->entityManager->getRepository(IgnoredCatalogEntry::class)->findAll();
+        $ignoredEntries = $this->ignoredEntryRepository->findAll();
         $ignoredNames = array_flip(array_map(static fn (IgnoredCatalogEntry $e): string => $e->getName(), $ignoredEntries));
 
         $diff = $this->catalogSyncService->computeDiff($sheetEntries, $games);

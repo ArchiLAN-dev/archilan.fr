@@ -5,16 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Membership;
 
 use App\Membership\Application\Handler\CheckMembershipExpiryMessageHandler;
+use App\Membership\Application\MembershipExpiryCheckQueryInterface;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Membership\Application\Message\ExpireMembershipMessage;
 use App\Membership\Application\Message\MembershipReminderMessage;
 use App\Membership\Domain\Membership;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Query\Expression\ExpressionBuilder;
-use Doctrine\DBAL\Query\QueryBuilder;
-use Doctrine\DBAL\Result;
-use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -27,12 +23,13 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
         $bus->expects(self::exactly(2))->method('dispatch')->willReturn(new Envelope(new \stdClass()))
             ->with(self::callback(static fn (object $msg): bool => $msg instanceof ExpireMembershipMessage));
 
-        $em = $this->createStub(EntityManagerInterface::class);
-        $em->method('find')->willReturn(null);
+        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck->method('findExpiredActiveIds')->willReturn(['id-1', 'id-2']);
+        $expiryCheck->method('findPendingReminderIds')->willReturn([]);
 
         $handler = new CheckMembershipExpiryMessageHandler(
-            $this->createConnectionReturning(['id-1', 'id-2'], [], []),
-            $em,
+            $expiryCheck,
+            $this->createStub(MembershipRepositoryInterface::class),
             $bus,
         );
 
@@ -53,9 +50,16 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
 
         $callOrder = [];
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('find')->willReturn($membership);
-        $em->expects(self::once())->method('flush')->willReturnCallback(static function () use (&$callOrder): void {
+        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
+        $expiryCheck->method('findPendingReminderIds')
+            ->willReturnCallback(static function (\DateTimeImmutable $now, int $daysLeft): array {
+                return 30 === $daysLeft ? ['id-30'] : [];
+            });
+
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
+        $memberships->expects(self::once())->method('flush')->willReturnCallback(static function () use (&$callOrder): void {
             $callOrder[] = 'flush';
         });
 
@@ -69,8 +73,8 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             });
 
         $handler = new CheckMembershipExpiryMessageHandler(
-            $this->createConnectionReturning([], ['id-30'], []),
-            $em,
+            $expiryCheck,
+            $memberships,
             $bus,
         );
 
@@ -93,9 +97,16 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
 
         $callOrder = [];
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('find')->willReturn($membership);
-        $em->expects(self::once())->method('flush')->willReturnCallback(static function () use (&$callOrder): void {
+        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
+        $expiryCheck->method('findPendingReminderIds')
+            ->willReturnCallback(static function (\DateTimeImmutable $now, int $daysLeft): array {
+                return 7 === $daysLeft ? ['id-7'] : [];
+            });
+
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->method('findById')->willReturn($membership);
+        $memberships->expects(self::once())->method('flush')->willReturnCallback(static function () use (&$callOrder): void {
             $callOrder[] = 'flush';
         });
 
@@ -109,8 +120,8 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             });
 
         $handler = new CheckMembershipExpiryMessageHandler(
-            $this->createConnectionReturning([], [], ['id-7']),
-            $em,
+            $expiryCheck,
+            $memberships,
             $bus,
         );
 
@@ -121,67 +132,22 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
 
     public function testInvokeDoesNothingWhenNoMembershipsMatch(): void
     {
-        $typedDateParams = [];
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::never())->method('dispatch');
 
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->expects(self::never())->method('flush');
+        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
+        $expiryCheck->method('findPendingReminderIds')->willReturn([]);
+
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->expects(self::never())->method('flush');
 
         $handler = new CheckMembershipExpiryMessageHandler(
-            $this->createConnectionReturning([], [], [], $typedDateParams),
-            $em,
+            $expiryCheck,
+            $memberships,
             $bus,
         );
 
         $handler(new CheckMembershipExpiryMessage());
-
-        self::assertSame(['now', 'now', 'deadline', 'now', 'deadline'], $typedDateParams);
-    }
-
-    /**
-     * @param list<mixed>  $expiredIds
-     * @param list<mixed>  $reminder30Ids
-     * @param list<mixed>  $reminder7Ids
-     * @param list<string> $typedDateParams
-     */
-    private function createConnectionReturning(
-        array $expiredIds,
-        array $reminder30Ids,
-        array $reminder7Ids,
-        array &$typedDateParams = [],
-    ): Connection {
-        $result = $this->createStub(Result::class);
-        $result->method('fetchFirstColumn')->willReturnOnConsecutiveCalls(
-            $expiredIds,
-            $reminder30Ids,
-            $reminder7Ids,
-        );
-
-        $expr = $this->createStub(ExpressionBuilder::class);
-
-        $qb = $this->createStub(QueryBuilder::class);
-        $qb->method('select')->willReturn($qb);
-        $qb->method('from')->willReturn($qb);
-        $qb->method('where')->willReturn($qb);
-        $qb->method('andWhere')->willReturn($qb);
-        $qb->method('setParameter')->willReturnCallback(
-            static function (string $key, mixed $value, mixed $type = null) use ($qb, &$typedDateParams): QueryBuilder {
-                if (in_array($key, ['now', 'deadline'], true)) {
-                    self::assertInstanceOf(\DateTimeImmutable::class, $value);
-                    self::assertSame(Types::DATETIMETZ_IMMUTABLE, $type);
-                    $typedDateParams[] = $key;
-                }
-
-                return $qb;
-            },
-        );
-        $qb->method('expr')->willReturn($expr);
-        $qb->method('executeQuery')->willReturn($result);
-
-        $connection = $this->createStub(Connection::class);
-        $connection->method('createQueryBuilder')->willReturn($qb);
-
-        return $connection;
     }
 }

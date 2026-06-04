@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Application;
 
 use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
-use Doctrine\DBAL\Connection;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 
 final readonly class OptInToWeeklyRun
 {
     public function __construct(
-        private Connection $connection,
-        private EntityManagerInterface $entityManager,
+        private WeeklyRunRepositoryInterface $runs,
+        private WeeklyTemplateRepositoryInterface $templates,
+        private WeeklyEntryRepositoryInterface $entries,
         private ClockInterface $clock,
     ) {
     }
@@ -26,7 +28,7 @@ final readonly class OptInToWeeklyRun
      */
     public function execute(string $weeklyRunId, string $userId): array
     {
-        $run = $this->entityManager->find(WeeklyRun::class, $weeklyRunId);
+        $run = $this->runs->findById($weeklyRunId);
         if (!$run instanceof WeeklyRun) {
             throw new \DomainException('run_not_found');
         }
@@ -35,22 +37,12 @@ final readonly class OptInToWeeklyRun
             throw new \DomainException('run_not_active');
         }
 
-        $template = $this->entityManager->find(WeeklyTemplate::class, $run->getTemplateId());
+        $template = $this->templates->findById($run->getTemplateId());
         if (!$template instanceof WeeklyTemplate) {
             throw new \DomainException('run_not_found');
         }
 
-        $countRaw = $this->connection->createQueryBuilder()
-            ->select('COUNT(we.id)')
-            ->from('weekly_entries', 'we')
-            ->where('we.weekly_run_id = :runId')
-            ->andWhere('we.user_id = :userId')
-            ->setParameter('runId', $weeklyRunId)
-            ->setParameter('userId', $userId)
-            ->executeQuery()
-            ->fetchOne();
-
-        $existingCount = (false !== $countRaw && is_numeric($countRaw)) ? (int) $countRaw : 0;
+        $existingCount = $this->entries->countByRunAndUser($weeklyRunId, $userId);
 
         $maxAttempts = $template->getMaxAttempts();
         if (null !== $maxAttempts && $existingCount >= $maxAttempts) {
@@ -67,9 +59,8 @@ final readonly class OptInToWeeklyRun
             updatedAt: $now,
         );
 
-        $this->entityManager->persist($entry);
         try {
-            $this->entityManager->flush();
+            $this->entries->save($entry);
         } catch (UniqueConstraintViolationException) {
             throw new \DomainException('entry_conflict');
         }

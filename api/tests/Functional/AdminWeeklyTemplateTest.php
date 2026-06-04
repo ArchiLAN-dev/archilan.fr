@@ -226,6 +226,8 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
             ['key' => 'apworlds/'.$slug.'.apworld', 'id' => $game->getId()],
         );
 
+        $this->entityManager->refresh($game);
+
         return $game;
     }
 

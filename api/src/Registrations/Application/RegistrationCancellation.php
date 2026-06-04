@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace App\Registrations\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Realtime\Application\RealtimePublisher;
-use App\Registrations\Domain\Registration;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class RegistrationCancellation
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RegistrationRepositoryInterface $registrationRepository,
+        private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private RealtimePublisher $realtimePublisher,
         private LoggerInterface $logger,
@@ -31,9 +29,9 @@ final readonly class RegistrationCancellation
      */
     public function cancel(string $registrationId, string $userId): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrationRepository->findById($registrationId);
+
+        if (null === $registration) {
             return null;
         }
 
@@ -41,9 +39,9 @@ final readonly class RegistrationCancellation
             return null;
         }
 
-        try {
-            $event = $this->findOrFail(Event::class, $registration->getEventId());
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($registration->getEventId());
+
+        if (null === $event) {
             return null;
         }
 
@@ -57,7 +55,7 @@ final readonly class RegistrationCancellation
 
         $now = new \DateTimeImmutable();
         $registration->cancel($now);
-        $this->entityManager->flush();
+        $this->registrationRepository->flush();
 
         $this->logger->info('registration.cancelled', ['registrationId' => $registrationId, 'userId' => $userId, 'eventId' => $registration->getEventId()]);
 

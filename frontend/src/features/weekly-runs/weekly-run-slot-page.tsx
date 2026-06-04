@@ -26,11 +26,10 @@ import { FanfarePicker } from "@/features/reachability/fanfare-picker";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
-import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
+import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { fetchCurrentWeeklyRuns } from "./weekly-runs-api";
 
-// Weekly runs are solo sessions - the player is always slot 1
-const SLOT_INDEX = "1";
+type SlotInfo = { index: string; name: string };
 
 type PageState =
   | { kind: "idle" }
@@ -80,7 +79,7 @@ export function WeeklyRunSlotPage({
   });
   const run = runs.find((r) => r.weeklyRunId === weeklyRunId) ?? null;
   const myEntry = run?.myEntry ?? null;
-  const sessionId = myEntry?.externalSessionId ?? null;
+  const entryId = myEntry?.entryId ?? null;
 
   // Redirect unauthenticated users
   useEffect(() => {
@@ -88,6 +87,10 @@ export function WeeklyRunSlotPage({
       router.push(`/connexion?returnTo=${encodeURIComponent(`/runs-hebdo/${weeklyRunId}/ma-run`)}`);
     }
   }, [user, weeklyRunId, router]);
+
+  const entryBaseUrl = entryId
+    ? `${env.apiBaseUrl}/weekly-runs/${weeklyRunId}/entries/${entryId}`
+    : null;
 
   // ─── Tabs ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +117,28 @@ export function WeeklyRunSlotPage({
 
   // ─── State ─────────────────────────────────────────────────────────────────
 
+  const [slots, setSlots] = useState<SlotInfo[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const slotIndex = selectedSlot ?? null;
+
+  // Fetch available player slots (exclude Bridge/spectator slots)
+  useEffect(() => {
+    if (!entryBaseUrl) return;
+    apiFetch(`${entryBaseUrl}/players`)
+      .then((r) => r.json())
+      .then((json: { data?: { slots?: Record<string, { slot_name: string; type?: string }> } }) => {
+        const playerSlots = Object.entries(json.data?.slots ?? {})
+          .filter(([, s]) => s.type !== "spectator" && s.type !== "group" && s.slot_name !== "Bridge")
+          .map(([index, s]) => ({ index, name: s.slot_name }))
+          .sort((a, b) => Number(a.index) - Number(b.index));
+        setSlots(playerSlots);
+        if (playerSlots.length > 0 && selectedSlot === null) {
+          setSelectedSlot(playerSlots[0].index);
+        }
+      })
+      .catch(() => undefined);
+  }, [entryBaseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [state, setState] = useState<PageState>({ kind: "idle" });
   const [refreshing, setRefreshing] = useState(false);
   const [liveConnected, setLiveConnected] = useState(false);
@@ -123,7 +148,6 @@ export function WeeklyRunSlotPage({
   const [goalInfo, setGoalInfo] = useState<{ slotName: string; playerAlias?: string; gameName: string; checksPercent: number; itemsPercent: number } | null>(null);
   const [goalReachedBySSE, setGoalReachedBySSE] = useState(false);
   const goalReached = !!myEntry?.goalReachedAt || goalReachedBySSE;
-  const [itemLocations, setItemLocations] = useState<Record<number, ItemLocation[]>>({});
 
   const goalShownRef = useRef(false);
   const stateRef = useRef(state);
@@ -138,7 +162,7 @@ export function WeeklyRunSlotPage({
   // ─── Reachability fetch ────────────────────────────────────────────────────
 
   const fetchReachability = useCallback(async (silent = false) => {
-    if (!sessionId) return;
+    if (!entryBaseUrl || !slotIndex) return;
     if (silent) {
       if (refreshingRef.current) return;
       refreshingRef.current = true;
@@ -148,7 +172,7 @@ export function WeeklyRunSlotPage({
     }
     try {
       const res = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${sessionId}/slots/${SLOT_INDEX}/reachable`,
+        `${entryBaseUrl}/slots/${slotIndex}/reachable`,
       );
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -167,24 +191,24 @@ export function WeeklyRunSlotPage({
       refreshingRef.current = false;
       setRefreshing(false);
     }
-  }, [sessionId]);
+  }, [entryBaseUrl, slotIndex]);
 
   useLayoutEffect(() => {
     fetchReachabilityRef.current = fetchReachability;
   });
 
   useEffect(() => {
-    if (sessionId) void fetchReachabilityRef.current();
-  }, [sessionId]);
+    if (entryBaseUrl && slotIndex) void fetchReachabilityRef.current();
+  }, [entryBaseUrl, slotIndex]);
 
   // ─── Fetch hints ───────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!entryBaseUrl || !slotIndex) return;
     async function fetchHints(): Promise<void> {
       try {
         const res = await apiFetch(
-          `${env.apiBaseUrl}/sessions/${sessionId}/slots/${SLOT_INDEX}/hints`,
+          `${entryBaseUrl}/slots/${slotIndex}/hints`,
         );
         if (!res.ok) return;
         const json = (await res.json()) as { data: HintsData };
@@ -192,39 +216,12 @@ export function WeeklyRunSlotPage({
       } catch { /* non-critical */ }
     }
     void fetchHints();
-  }, [sessionId]);
-
-  // ─── Fetch item locations ─────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!sessionId) return;
-    async function fetchItemLocations(): Promise<void> {
-      try {
-        const res = await apiFetch(
-          `${env.apiBaseUrl}/sessions/${sessionId}/slots/${SLOT_INDEX}/item-locations`,
-        );
-        if (!res.ok) return;
-        const json = (await res.json()) as { data: { locations: Array<{ item_id: number; location_name: string; finding_player: number; finding_player_name: string; check_status: string }> } };
-        const map: Record<number, ItemLocation[]> = {};
-        for (const loc of json.data.locations) {
-          const locs = map[loc.item_id] ?? [];
-          locs.push({
-            locationName: loc.location_name,
-            gameName: loc.finding_player === 1 ? null : loc.finding_player_name,
-            checkStatus: (loc.check_status as ItemLocation["checkStatus"]) ?? null,
-          });
-          map[loc.item_id] = locs;
-        }
-        setItemLocations(map);
-      } catch { /* non-critical */ }
-    }
-    void fetchItemLocations();
-  }, [sessionId]);
+  }, [entryBaseUrl, slotIndex]);
 
   // ─── SSE: reachability ────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!entryBaseUrl || !slotIndex) return;
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -284,7 +281,7 @@ export function WeeklyRunSlotPage({
 
     async function init(): Promise<void> {
       const tokenRes = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${sessionId}/slots/${SLOT_INDEX}/reachable-token`,
+        `${entryBaseUrl}/slots/${slotIndex}/reachable-token`,
       );
       if (!tokenRes.ok || cancelled) return;
       const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
@@ -301,12 +298,12 @@ export function WeeklyRunSlotPage({
       esRef.current = null;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [sessionId]);
+  }, [entryBaseUrl, slotIndex]);
 
   // ─── SSE: hints ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!entryBaseUrl || !slotIndex) return;
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -338,7 +335,7 @@ export function WeeklyRunSlotPage({
 
     async function initHints(): Promise<void> {
       const tokenRes = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${sessionId}/slots/${SLOT_INDEX}/hints-token`,
+        `${entryBaseUrl}/slots/${slotIndex}/hints-token`,
       );
       if (!tokenRes.ok || cancelled) return;
       const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
@@ -355,14 +352,16 @@ export function WeeklyRunSlotPage({
       hintsEsRef.current = null;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [sessionId]);
+  }, [entryBaseUrl, slotIndex]);
 
   // ─── SSE: players state (goal detection) ─────────────────────────────────
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!entryBaseUrl) return;
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const slotKey = slotIndex ?? "1";
 
     function connectPlayers(token: string, hubUrl: string, topic: string): void {
       if (cancelled) return;
@@ -374,7 +373,7 @@ export function WeeklyRunSlotPage({
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data as string) as { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> };
-          const slot = data.slots?.["1"];
+          const slot = data.slots?.[slotKey];
           if (slot?.client_status === 30 && slot.goal_reached_at) {
             setGoalReachedBySSE(true);
           }
@@ -386,7 +385,7 @@ export function WeeklyRunSlotPage({
             const itemsTotal = d ? d.items_received.length + d.items_not_received.length : 0;
             const itemsPercent = d && itemsTotal > 0 ? Math.round((d.items_received.length / itemsTotal) * 100) : 0;
             setGoalInfo({
-              slotName: d?.player ?? "Slot 1",
+              slotName: d?.player ?? `Slot ${slotKey}`,
               playerAlias: user?.displayName ?? undefined,
               gameName: d?.game ?? "",
               checksPercent,
@@ -405,16 +404,16 @@ export function WeeklyRunSlotPage({
     }
 
     async function initPlayers(): Promise<void> {
-      const stateRes = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players`).catch(() => null);
+      const stateRes = await apiFetch(`${entryBaseUrl}/players`).catch(() => null);
       if (stateRes?.ok && !cancelled) {
         const stateJson = (await stateRes.json()) as { data: { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> } };
-        const slot = stateJson.data.slots?.["1"];
+        const slot = stateJson.data.slots?.[slotKey];
         if (slot?.client_status === 30 && slot.goal_reached_at) {
           setGoalReachedBySSE(true);
         }
       }
 
-      const tokenRes = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players-token`);
+      const tokenRes = await apiFetch(`${entryBaseUrl}/players-token`);
       if (!tokenRes.ok || cancelled) return;
       const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
       const { token, hubUrl, topic } = tokenJson.data;
@@ -428,7 +427,7 @@ export function WeeklyRunSlotPage({
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [entryBaseUrl, slotIndex]); // eslint-disable-line react-hooks/exhaustive-deps -- slotKey + initPlayers() captured via closure
 
   // ─── Disconnected indicator debounce ─────────────────────────────────────
 
@@ -491,7 +490,7 @@ export function WeeklyRunSlotPage({
     );
   }
 
-  if (!sessionId) {
+  if (!entryId) {
     return (
       <div className="mx-auto max-w-sm py-20 text-center">
         <Route aria-hidden className="mx-auto mb-4 size-10 text-muted-foreground/40" />
@@ -587,12 +586,27 @@ export function WeeklyRunSlotPage({
             </div>
           ) : null}
 
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link className="inline-flex items-center gap-1 hover:text-foreground" href={backHref}>
-              <ArrowLeft aria-hidden="true" className="size-3.5" />
-              Retour aux runs hebdo
-            </Link>
-          </nav>
+          <div className="flex items-center justify-between gap-3">
+            <nav className="text-sm text-muted-foreground">
+              <Link className="inline-flex items-center gap-1 hover:text-foreground" href={backHref}>
+                <ArrowLeft aria-hidden="true" className="size-3.5" />
+                Retour aux runs hebdo
+              </Link>
+            </nav>
+            {slots.length > 1 && (
+              <select
+                className="h-8 rounded border border-border bg-surface px-2 pr-7 text-xs text-foreground focus:border-accent-text focus:outline-none"
+                onChange={(e) => { setSelectedSlot(e.target.value); }}
+                value={slotIndex ?? ""}
+              >
+                {slots.map((s) => (
+                  <option key={s.index} value={s.index}>
+                    #{s.index} — {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </header>
 
         {state.kind === "loading" ? (
@@ -729,20 +743,20 @@ export function WeeklyRunSlotPage({
                 <div className="grid gap-6 lg:grid-cols-2">
                   <CheckListPanel
                     checks={state.data.reachable_unchecked}
-                    currentSlot={1}
+                    currentSlot={Number(slotIndex ?? 1)}
                     emptyMessage="Aucun check faisable avec les items actuels."
-                    hideSpoilers={false}
-                    hintCost={hints?.hint_cost ?? 0}
+                    hideSpoilers={true}
+                    hintCost={hints?.hintCost ?? 0}
                     hintFree={false}
                     title="Checks faisables maintenant"
                     variant="reachable"
                   />
                   <CheckListPanel
                     checks={state.data.unreachable_unchecked}
-                    currentSlot={1}
+                    currentSlot={Number(slotIndex ?? 1)}
                     emptyMessage="Tous les checks sont faisables !"
-                    hideSpoilers={false}
-                    hintCost={hints?.hint_cost ?? 0}
+                    hideSpoilers={true}
+                    hintCost={hints?.hintCost ?? 0}
                     hintFree={false}
                     title="Checks non faisables"
                     variant="unreachable"
@@ -753,22 +767,14 @@ export function WeeklyRunSlotPage({
 
             {/* Items tab */}
             {activeTab === "items" ? (
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid gap-6">
                 <ItemListPanel
                   emptyMessage="Aucun item reçu."
-                  hideSpoilers={false}
-                  itemLocations={itemLocations}
+                  hideSpoilers={true}
+                  itemLocations={{}}
                   items={state.data.items_received}
                   title="Items reçus"
                   variant="received"
-                />
-                <ItemListPanel
-                  emptyMessage="Tous les items ont été reçus !"
-                  hideSpoilers={false}
-                  itemLocations={itemLocations}
-                  items={state.data.items_not_received ?? []}
-                  title="Items non reçus"
-                  variant="not-received"
                 />
               </div>
             ) : null}

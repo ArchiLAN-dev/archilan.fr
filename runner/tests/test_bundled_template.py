@@ -3,7 +3,6 @@ from __future__ import annotations
 import pathlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 
 API_KEY = "test-secret"

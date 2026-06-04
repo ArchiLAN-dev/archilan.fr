@@ -5,36 +5,32 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
-use App\Sessions\Application\Message\RestartRunJob;
-use App\Sessions\Application\Message\StartRunJob;
-use App\Sessions\Application\Message\StopRunJob;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
-use App\Shared\Application\EntityFinderTrait;
-use App\Shared\Application\Message\GenerateRunJob;
-use App\Shared\Infrastructure\MinioStorageInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
-final readonly class SessionOrchestrator
+final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
+        private SessionSlotRepositoryInterface $slots,
+        private RegistrationRepositoryInterface $registrations,
+        private UserRepositoryInterface $users,
+        private GameRepositoryInterface $games,
+        private RunRepositoryInterface $runs,
         private RunnerGatewayInterface $runnerGateway,
         private SessionLifecycleManager $sessionLifecycleManager,
-        private MessageBusInterface $messageBus,
         private SlotNameGenerator $slotNameGenerator,
         private LoggerInterface $logger,
-        private MinioStorageInterface $minioStorage,
-        private string $minioApworldsBucket,
-        private int $minioPresignTtl,
+        private string $runnerPublicHost,
     ) {
     }
 
@@ -43,13 +39,9 @@ final readonly class SessionOrchestrator
      */
     public function listSessions(string $eventId): array
     {
-        /** @var list<Session> $sessions */
-        $sessions = $this->entityManager->getRepository(Session::class)->findBy(
-            ['eventId' => $eventId],
-            ['createdAt' => 'DESC'],
-        );
+        $sessionList = $this->sessions->findByEventId($eventId);
 
-        return array_map(static fn (Session $s) => $s->payload(), $sessions);
+        return array_map(static fn (Session $s) => $s->payload(), $sessionList);
     }
 
     /**
@@ -57,30 +49,28 @@ final readonly class SessionOrchestrator
      */
     public function getBuilder(string $eventId): array
     {
-        /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(
+        /** @var list<Registration> $regList */
+        $regList = $this->registrations->findBy(
             ['eventId' => $eventId, 'status' => Registration::STATUS_RESERVED],
             ['createdAt' => 'ASC'],
         );
 
-        if ([] === $registrations) {
+        if ([] === $regList) {
             return ['registrations' => []];
         }
 
-        /** @var list<string> $userIds */
-        $userIds = array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $registrations));
+        $userIds = array_values(array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $regList)));
 
-        /** @var list<User> $users */
-        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds]);
+        $usersList = $this->users->findByIds($userIds);
 
-        /** @var array<string, User> $usersById */
+        /** @var array<string, \App\Identity\Domain\User> $usersById */
         $usersById = [];
-        foreach ($users as $user) {
+        foreach ($usersList as $user) {
             $usersById[$user->getId()] = $user;
         }
 
         $allGameIds = [];
-        foreach ($registrations as $reg) {
+        foreach ($regList as $reg) {
             foreach ($reg->getGameSlots() as $slot) {
                 $allGameIds[$slot['gameId']] = true;
             }
@@ -89,15 +79,14 @@ final readonly class SessionOrchestrator
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $allGameIds) {
-            /** @var list<Game> $games */
-            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => array_keys($allGameIds)]);
-            foreach ($games as $game) {
+            $gamesList = $this->games->findByIds(array_keys($allGameIds));
+            foreach ($gamesList as $game) {
                 $gamesById[$game->getId()] = $game;
             }
         }
 
         $result = [];
-        foreach ($registrations as $reg) {
+        foreach ($regList as $reg) {
             $user = $usersById[$reg->getUserId()] ?? null;
             $playerName = $user?->getDisplayName() ?? $user?->getEmail() ?? $reg->getUserId();
 
@@ -180,17 +169,12 @@ final readonly class SessionOrchestrator
     }
 
     /**
-     * Auto-generate slot names, dispatch validate job, transition draft → validating.
-     * Already-ready sessions are treated as validated so callers can keep a
-     * validate-then-generate pipeline without exposing a separate UI step.
-     *
      * @return array<string, mixed>
      */
     public function orchestrateValidate(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -202,10 +186,7 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['La session doit être en état "draft" pour être validée.']];
         }
 
-        /** @var list<SessionSlot> $sessionSlots */
-        $sessionSlots = $this->entityManager
-            ->getRepository(SessionSlot::class)
-            ->findBy(['sessionId' => $sessionId], ['slotOrder' => 'ASC']);
+        $sessionSlots = $this->slots->findBySessionId($sessionId);
 
         if ([] === $sessionSlots) {
             return ['found' => true, 'errors' => ['La session ne contient aucun slot.']];
@@ -224,42 +205,54 @@ final readonly class SessionOrchestrator
             $slot->setSlotName($generatedNames[$i]);
         }
 
-        $messageSlots = [];
-        foreach ($enriched as $i => $data) {
-            $messageSlots[] = [
-                'slotName' => $generatedNames[$i],
-                'playerName' => $data['playerName'],
-                'archipelagoGameName' => $data['archipelagoGameName'],
-                'playerYaml' => $data['playerYaml'],
-            ];
-        }
-
-        // transition() flushes → slot name updates are included
         $transitionResult = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_VALIDATING);
         if (!($transitionResult['found'] ?? false) || isset($transitionResult['errors'])) {
             return $transitionResult;
         }
 
-        $this->messageBus->dispatch(new GenerateRunJob($sessionId, 'validate', $messageSlots));
+        $configureSlots = [];
+        foreach ($enriched as $i => $data) {
+            $configureSlots[] = [
+                'slotName' => $generatedNames[$i],
+                'apworldHash' => $data['apworldHash'],
+                'playerYaml' => $data['playerYaml'],
+            ];
+        }
+
+        $configureResult = $this->runnerGateway->configureSession($sessionId, $configureSlots);
+
+        if (!$configureResult['valid'] || [] !== $configureResult['errors']) {
+            $validationErrors = array_map(
+                static fn (array $e) => ['slotName' => $e['playerName'], 'errors' => $e['errors']],
+                $configureResult['errors'],
+            );
+            $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_DRAFT, validationErrors: $validationErrors);
+
+            $this->logger->warning('session.orchestrate.validate.configure_failed', [
+                'sessionId' => $sessionId,
+                'errors' => $configureResult['errors'],
+            ]);
+
+            return ['found' => true, 'errors' => $configureResult['errors']];
+        }
+
+        $readyResult = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_READY);
 
         $this->logger->info('session.orchestrate.validate', [
             'sessionId' => $sessionId,
-            'slotCount' => count($messageSlots),
+            'slotCount' => count($configureSlots),
         ]);
 
-        return ['found' => true, 'session' => $transitionResult['session']];
+        return $readyResult;
     }
 
     /**
-     * Transition ready → generating, dispatch GenerateRunJob{phase: generate}.
-     *
      * @return array<string, mixed>
      */
     public function orchestrateGenerate(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -272,60 +265,71 @@ final readonly class SessionOrchestrator
             return $result;
         }
 
-        $downloadUrls = $this->collectApworldDownloadUrls($sessionId);
+        $adminPassword = bin2hex(random_bytes(16));
+        $this->sessionLifecycleManager->storePendingCredentials($sessionId, adminPassword: $adminPassword);
 
-        $this->messageBus->dispatch(new GenerateRunJob(
-            $sessionId,
-            'generate',
-            apworldDownloadUrls: $downloadUrls,
-        ));
+        $this->runnerGateway->generateSession($sessionId, $adminPassword);
 
-        $this->logger->info('session.orchestrate.generate', [
-            'sessionId' => $sessionId,
-            'apworldUrlCount' => count($downloadUrls),
-        ]);
+        $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId]);
 
         return ['found' => true, 'session' => $result['session']];
     }
 
-    /**
-     * Auto-advance a personal run session through the pipeline.
-     * - ready     → triggers generate
-     * - generated → triggers launch
-     * No-op if the session doesn't belong to a personal run.
-     */
-    public function autoAdvancePersonalRun(string $sessionId): void
+    public function markPersonalRunStopped(string $sessionId): void
     {
-        $personalRun = $this->entityManager->getRepository(Run::class)->findOneBy(['sessionId' => $sessionId]);
+        $personalRun = $this->runs->findBySessionId($sessionId);
         if (!$personalRun instanceof Run) {
             return;
         }
 
         try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+            $personalRun->markStopped(new \DateTimeImmutable());
+            $this->runs->flush();
+            $this->logger->info('session.personal_run.marked_stopped', ['sessionId' => $sessionId]);
+        } catch (\Throwable $e) {
+            $this->logger->error('session.personal_run.mark_stopped_failed', [
+                'sessionId' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function autoAdvancePersonalRun(string $sessionId): void
+    {
+        $personalRun = $this->runs->findBySessionId($sessionId);
+        if (!$personalRun instanceof Run) {
             return;
         }
 
-        if (Session::STATUS_READY === $session->getStatus()) {
-            $this->orchestrateGenerate($sessionId);
-            $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
-        } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
-            $this->orchestrateLaunch($sessionId);
-            $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return;
+        }
+
+        try {
+            if (Session::STATUS_READY === $session->getStatus()) {
+                $this->orchestrateGenerate($sessionId);
+                $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
+            } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
+                $this->orchestrateLaunch($sessionId);
+                $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('session.auto_advance.failed', [
+                'sessionId' => $sessionId,
+                'status' => $session->getStatus(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
     /**
-     * Transition generated → launching, dispatch StartRunJob.
-     *
      * @return array<string, mixed>
      */
     public function orchestrateLaunch(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -333,12 +337,21 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['La session doit être en état "generated" pour être lancée.']];
         }
 
+        $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
+        $serverPassword = bin2hex(random_bytes(8));
+
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new StartRunJob($sessionId));
+        $this->sessionLifecycleManager->storePendingCredentials(
+            $sessionId,
+            host: $this->runnerPublicHost,
+            password: $serverPassword,
+        );
+
+        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword);
 
         $this->logger->info('session.orchestrate.launch', ['sessionId' => $sessionId]);
 
@@ -346,16 +359,12 @@ final readonly class SessionOrchestrator
     }
 
     /**
-     * Admin force-launch: bypass the "must be generated" guard.
-     * Allowed from any state that has generated output on disk.
-     *
      * @return array<string, mixed>
      */
     public function orchestrateForceLaunch(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -372,23 +381,22 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['Impossible de lancer le container depuis l\'état "'.$session->getStatus().'".']];
         }
 
-        $existingPort = $session->getPort();
-        $existingBridgePort = $session->getBridgePort();
+        $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
         $existingPassword = $session->getPassword();
-        $existingServerPwd = $session->getServerPassword();
+        $serverPassword = null !== $existingPassword && '' !== $existingPassword ? $existingPassword : bin2hex(random_bytes(8));
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new StartRunJob(
-            sessionId: $sessionId,
-            existingPort: $existingPort,
-            existingBridgePort: $existingBridgePort,
-            existingPassword: $existingPassword,
-            existingServerPassword: $existingServerPwd,
-        ));
+        $this->sessionLifecycleManager->storePendingCredentials(
+            $sessionId,
+            host: $this->runnerPublicHost,
+            password: $serverPassword,
+        );
+
+        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword);
 
         $this->logger->info('session.orchestrate.force_launch', [
             'sessionId' => $sessionId,
@@ -399,27 +407,21 @@ final readonly class SessionOrchestrator
     }
 
     /**
-     * Optimistically transition running → stopped, dispatch StopRunJob (best-effort cleanup).
-     *
      * @return array<string, mixed>
      */
     public function orchestrateStop(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
-
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_STOPPED);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+        $this->runnerGateway->stopSession($sessionId);
 
         $this->logger->info('session.orchestrate.stop', ['sessionId' => $sessionId]);
 
@@ -427,15 +429,12 @@ final readonly class SessionOrchestrator
     }
 
     /**
-     * Transition crashed → launching, dispatch RestartRunJob.
-     *
      * @return array<string, mixed>
      */
     public function orchestrateRestart(string $sessionId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false];
         }
 
@@ -443,17 +442,12 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['La session doit être en état "crashed" pour être relancée.']];
         }
 
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
-        $password = $session->getPassword() ?? '';
-        $serverPassword = $session->getServerPassword() ?? '';
-
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new RestartRunJob($sessionId, $port, $bridgePort, $password, $serverPassword));
+        $this->runnerGateway->restartSession($sessionId);
 
         $this->logger->info('session.orchestrate.restart', ['sessionId' => $sessionId]);
 
@@ -462,55 +456,50 @@ final readonly class SessionOrchestrator
 
     public function getYamlsZip(string $sessionId): null
     {
-        // YAMLs live on the runner filesystem; central API cannot access them directly.
         return null;
     }
 
     /**
      * @param list<SessionSlot> $sessionSlots
      *
-     * @return list<array{playerName: string, archipelagoGameName: string, playerYaml: string}>
+     * @return list<array{playerName: string, archipelagoGameName: string, playerYaml: string, apworldHash: string}>
      */
     private function enrichSlotsForValidation(array $sessionSlots): array
     {
-        $registrationIds = array_unique(array_map(
+        $registrationIds = array_values(array_unique(array_map(
             static fn (SessionSlot $s) => $s->getRegistrationId(),
             $sessionSlots,
-        ));
+        )));
 
-        /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
+        /** @var list<Registration> $regList */
+        $regList = $this->registrations->findBy(['id' => $registrationIds]);
 
         /** @var array<string, Registration> $regById */
         $regById = [];
-        foreach ($registrations as $reg) {
+        foreach ($regList as $reg) {
             $regById[$reg->getId()] = $reg;
         }
 
-        $userIds = array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $registrations));
+        $userIds = array_values(array_unique(array_map(static fn (Registration $r) => $r->getUserId(), $regList)));
 
-        /** @var list<User> $users */
-        $users = [] !== $userIds
-            ? $this->entityManager->getRepository(User::class)->findBy(['id' => $userIds])
-            : [];
+        $usersList = [] !== $userIds ? $this->users->findByIds($userIds) : [];
 
-        /** @var array<string, User> $userById */
+        /** @var array<string, \App\Identity\Domain\User> $userById */
         $userById = [];
-        foreach ($users as $user) {
+        foreach ($usersList as $user) {
             $userById[$user->getId()] = $user;
         }
 
-        $gameIds = array_unique(array_map(
+        $gameIds = array_values(array_unique(array_map(
             static fn (SessionSlot $s) => $s->getGameId(),
             $sessionSlots,
-        ));
+        )));
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
+        $gamesList = $this->games->findByIds($gameIds);
 
         /** @var array<string, Game> $gameById */
         $gameById = [];
-        foreach ($games as $game) {
+        foreach ($gamesList as $game) {
             $gameById[$game->getId()] = $game;
         }
 
@@ -529,43 +518,11 @@ final readonly class SessionOrchestrator
                 'playerName' => $playerName,
                 'archipelagoGameName' => $archipelagoGameName,
                 'playerYaml' => $playerYaml,
+                'apworldHash' => $game?->getApworldHash() ?? '',
             ];
         }
 
         return $result;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function collectApworldDownloadUrls(string $sessionId): array
-    {
-        $sessionSlots = $this->entityManager->getRepository(SessionSlot::class)
-            ->findBy(['sessionId' => $sessionId]);
-
-        $gameIds = array_unique(array_map(static fn (SessionSlot $s) => $s->getGameId(), $sessionSlots));
-
-        if ([] === $gameIds) {
-            return [];
-        }
-
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
-
-        $downloadUrls = [];
-
-        foreach ($games as $game) {
-            $minioKey = $game->getApworldMinioKey();
-            if (null !== $minioKey && !array_key_exists($minioKey, $downloadUrls)) {
-                $downloadUrls[$minioKey] = $this->minioStorage->presignedUrl(
-                    $this->minioApworldsBucket,
-                    $minioKey,
-                    $this->minioPresignTtl,
-                );
-            }
-        }
-
-        return $downloadUrls;
     }
 
     /**
@@ -608,37 +565,33 @@ final readonly class SessionOrchestrator
             return [];
         }
 
-        $registrationIds = array_unique(array_map(static fn (array $s): string => $s['registrationId'], $slots));
-        $gameIds = array_unique(array_map(static fn (array $s): string => $s['gameId'], $slots));
+        $registrationIds = array_values(array_unique(array_map(static fn (array $s): string => $s['registrationId'], $slots)));
+        $gameIds = array_values(array_unique(array_map(static fn (array $s): string => $s['gameId'], $slots)));
 
-        /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
+        /** @var list<Registration> $regList */
+        $regList = $this->registrations->findBy(['id' => $registrationIds]);
 
         /** @var array<string, Registration> $regById */
         $regById = [];
-        foreach ($registrations as $registration) {
+        foreach ($regList as $registration) {
             $regById[$registration->getId()] = $registration;
         }
 
-        /** @var list<User> $users */
-        $users = [] !== $registrations
-            ? $this->entityManager->getRepository(User::class)->findBy([
-                'id' => array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $registrations)),
-            ])
-            : [];
+        $userIds = array_values(array_unique(array_map(static fn (Registration $r): string => $r->getUserId(), $regList)));
 
-        /** @var array<string, User> $usersById */
+        $usersList = [] !== $regList ? $this->users->findByIds($userIds) : [];
+
+        /** @var array<string, \App\Identity\Domain\User> $usersById */
         $usersById = [];
-        foreach ($users as $user) {
+        foreach ($usersList as $user) {
             $usersById[$user->getId()] = $user;
         }
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
+        $gamesList = $this->games->findByIds($gameIds);
 
         /** @var array<string, Game> $gameById */
         $gameById = [];
-        foreach ($games as $game) {
+        foreach ($gamesList as $game) {
             $gameById[$game->getId()] = $game;
         }
 

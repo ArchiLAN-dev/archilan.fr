@@ -27,3 +27,8 @@ filterwarnings = ["ignore::RuntimeWarning"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+exclude = ["docs archipelago", "archipelago_runner.egg-info"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/main.py" = ["E402"]
+"tests/*.py" = ["E402"]

@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Identity\Application;
 
 use App\Identity\Domain\AdminCreationAudit;
+use App\Identity\Domain\AdminCreationAuditRepositoryInterface;
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -15,7 +16,8 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 final readonly class AdminCreateAdminAccount
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private UserRepositoryInterface $userRepository,
+        private AdminCreationAuditRepositoryInterface $auditRepository,
         private UserPasswordHasherInterface $passwordHasher,
         private LoggerInterface $logger,
         private SlugGenerator $slugGenerator,
@@ -68,9 +70,7 @@ final readonly class AdminCreateAdminAccount
         );
 
         try {
-            $this->entityManager->persist($admin);
-            $this->entityManager->persist(AdminCreationAudit::record($admin->getId(), $creator->getId(), $now));
-            $this->entityManager->flush();
+            $this->auditRepository->saveAdminWithAudit($admin, AdminCreationAudit::record($admin->getId(), $creator->getId(), $now));
         } catch (UniqueConstraintViolationException) {
             return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];
         }
@@ -82,9 +82,7 @@ final readonly class AdminCreateAdminAccount
 
     private function emailExists(string $emailCanonical): bool
     {
-        return $this->entityManager
-            ->getRepository(User::class)
-            ->findOneBy(['emailCanonical' => $emailCanonical]) instanceof User;
+        return $this->userRepository->findByEmailCanonical($emailCanonical) instanceof User;
     }
 
     /**

@@ -17,8 +17,6 @@ type AdminPost = {
   excerpt: string;
   body: string[];
   readingTime: string;
-  relatedEventSlug: string | null;
-  vodUrl: string | null;
   coverImageUrl: string | null;
   publishedAt: string | null;
   createdAt: string;

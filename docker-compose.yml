@@ -34,38 +34,55 @@ services:
         ports:
             - "3001:3001"
 
-    archipelago:
+    bridge-builder:
+        build:
+            context: .
+            dockerfile: bridge/Dockerfile
+        image: archilan-bridge:latest
+        entrypoint: ["true"]
+
+    archipelago-builder:
         build:
             context: .
             dockerfile: archipelago/Dockerfile
-        image: archipelago-server:latest
-        container_name: archilan-archipelago
-        restart: unless-stopped
-        command: ["tail", "-f", "/dev/null"]
-        volumes:
-            - workspace:/workspace
+        image: archipelago:latest
+        entrypoint: ["true"]
 
-    runner:
+    orchestrateur:
         build:
-            context: ./runner
-        container_name: archilan-runner
-        restart: unless-stopped
+            context: ./orchestrateur
+        container_name: archilan-orchestrateur
         depends_on:
-            - archipelago
+            - bridge-builder
+            - archipelago-builder
+        restart: unless-stopped
         environment:
-            RUNNER_API_KEY: ${RUNNER_API_KEY:-dev_runner_key_change_me}
+            API_KEY: ${ORCHESTRATEUR_API_KEY:-dev_orchestrateur_key_change_me}
+            BRIDGE_TOKEN: ${BRIDGE_TOKEN:-dev_bridge_token_change_me}
             PORT_RANGE_START: ${PORT_RANGE_START:-25000}
             PORT_RANGE_END: ${PORT_RANGE_END:-25099}
-            WORKSPACE_ROOT: /workspace
-            ARCHIPELAGO_GENERATE_CMD: ${ARCHIPELAGO_GENERATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_multiworld.py}
-            ARCHIPELAGO_TEMPLATE_CMD: ${ARCHIPELAGO_TEMPLATE_CMD:-docker exec archilan-archipelago python3 /usr/local/bin/generate_template.py}
-            ARCHIPELAGO_SERVER_IMAGE: archipelago-server:latest
-            ARCHIPELAGO_WORKSPACE_VOLUME: ${ARCHIPELAGO_WORKSPACE_VOLUME:-archilan_workspace}
+            DB_PATH: /data/orchestrateur.db
+            DOCKER_HOST: unix:///var/run/docker.sock
+            BRIDGE_IMAGE: ${BRIDGE_IMAGE:-archilan-bridge:latest}
+            BRIDGE_NETWORK: archilan_default
+            WEBHOOK_URL: ${ORCHESTRATEUR_WEBHOOK_URL:-}
+            WEBHOOK_SECRET: ${ORCHESTRATEUR_WEBHOOK_SECRET:-}
+            CENTRAL_API_URL: ${CENTRAL_API_URL:-}
+            CENTRAL_API_SECRET: ${CENTRAL_API_SECRET:-}
+            CORS_ORIGINS: ${CORS_ORIGINS:-*}
+            MINIO_ENDPOINT: ${ORCHESTRATEUR_MINIO_ENDPOINT:-minio:9000}
+            MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+            MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+            MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+            MINIO_BUCKET_APWORLDS: ${MINIO_BUCKET_APWORLDS:-apworlds}
+            MINIO_BUCKET_SESSIONS: ${MINIO_BUCKET_SESSIONS:-sessions}
+            AP_IMAGE: ${AP_IMAGE:-archipelago:latest}
+            AP_SERVER_PORT_OFFSET: ${AP_SERVER_PORT_OFFSET:-10000}
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
-            - workspace:/workspace
+            - orchestrateur-data:/data
         ports:
-            - "${RUNNER_PORT:-8001}:8000"
+            - "${ORCHESTRATEUR_PORT:-8001}:8000"
 
     rabbitmq:
         image: rabbitmq:4-management-alpine
@@ -94,7 +111,7 @@ services:
             - "${MAILPIT_UI_PORT:-8025}:8025"
 
     minio:
-        image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+        image: minio/minio:latest
         container_name: archilan-minio
         restart: unless-stopped
         command: server /data --console-address ":9001"
@@ -113,7 +130,7 @@ services:
             retries: 10
 
     createbuckets:
-        image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+        image: minio/mc:latest
         container_name: archilan-minio-init
         depends_on:
             minio:
@@ -122,6 +139,7 @@ services:
             /bin/sh -c "
             mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
             mc mb --ignore-existing local/apworlds;
+            mc mb --ignore-existing local/sessions;
             mc mb --ignore-existing local/media;
             "
 
@@ -140,7 +158,6 @@ services:
 #                condition: service_healthy
 #        volumes:
 #            - /var/run/docker.sock:/var/run/docker.sock
-#            - workspace:/workspace
 #        environment:
 #            APP_ENV: prod
 #            APP_DEBUG: 'false'
@@ -149,11 +166,9 @@ services:
 #            MESSENGER_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD:-archilan_dev_password}@rabbitmq:5672/%2f
 #            MESSENGER_FAILED_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD:-archilan_dev_password}@rabbitmq:5672/%2f
 #            DOCKER_HOST: unix:///var/run/docker.sock
-#            WORKSPACE_DIR: /workspace
-#            ARCHIPELAGO_WORKSPACE_VOLUME: ''
 
 volumes:
     postgres-data:
     rabbitmq-data:
     minio-data:
-    workspace:
+    orchestrateur-data:

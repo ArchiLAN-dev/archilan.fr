@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application;
 
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
 use App\PersonalRuns\Domain\Run;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 
 final readonly class PersonalRunGameConfig
 {
-    use EntityFinderTrait;
-
-    public function __construct(private EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private RunRepositoryInterface $runs,
+        private GameRepositoryInterface $games,
+    ) {
     }
 
     /**
@@ -25,9 +25,8 @@ final readonly class PersonalRunGameConfig
      */
     public function configure(string $runId, string $callerId, array $input): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
@@ -62,7 +61,7 @@ final readonly class PersonalRunGameConfig
         }
 
         $run->configureGames($games, new \DateTimeImmutable());
-        $this->entityManager->flush();
+        $this->runs->flush();
 
         return $this->result(found: true);
     }
@@ -109,7 +108,7 @@ final readonly class PersonalRunGameConfig
         $errors = new ValidationErrors();
 
         foreach ($games as $index => $entry) {
-            $game = $this->entityManager->find(Game::class, $entry['gameId']);
+            $game = $this->games->findById($entry['gameId']);
 
             if (!$game instanceof Game) {
                 $errors->add(sprintf('games.%d.gameId', $index), 'Jeu introuvable dans la bibliothèque.');

@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Payments\Application;
 
-use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\Payments\Domain\HelloAssoOrder;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
 
 final readonly class HelloAssoPaymentLookup
 {
-    use EntityFinderTrait;
-
-    public function __construct(private EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private EventRepositoryInterface $eventRepository,
+        private HelloAssoOrderRepositoryInterface $orderRepository,
+    ) {
     }
 
     /**
@@ -22,9 +21,8 @@ final readonly class HelloAssoPaymentLookup
      */
     public function findForEventAndEmail(string $eventId, string $payerEmail): ?array
     {
-        try {
-            $event = $this->findOrFail(Event::class, $eventId);
-        } catch (\RuntimeException) {
+        $event = $this->eventRepository->findById($eventId);
+        if (null === $event) {
             return null;
         }
 
@@ -34,12 +32,7 @@ final readonly class HelloAssoPaymentLookup
             return null;
         }
 
-        $results = $this->entityManager->getRepository(HelloAssoOrder::class)->findBy(
-            ['formSlug' => $formSlug, 'payerEmail' => $payerEmail],
-            ['syncedAt' => 'DESC'],
-            1,
-        );
-        /** @var HelloAssoOrder|null $order */
+        $results = $this->orderRepository->findByFormSlugAndPayerEmail($formSlug, $payerEmail, 1);
         $order = $results[0] ?? null;
 
         if (!$order instanceof HelloAssoOrder) {

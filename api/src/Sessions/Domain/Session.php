@@ -125,6 +125,9 @@ class Session
 
         #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
         private bool $restartFailed = false,
+
+        #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+        private ?string $adminPassword = null,
     ) {
     }
 
@@ -419,6 +422,27 @@ class Session
         return $this->restartFailed;
     }
 
+    public function getAdminPassword(): ?string
+    {
+        return $this->adminPassword;
+    }
+
+    public function storePendingCredentials(
+        ?string $adminPassword = null,
+        ?string $host = null,
+        ?string $password = null,
+    ): void {
+        if (null !== $adminPassword) {
+            $this->adminPassword = $adminPassword;
+        }
+        if (null !== $host) {
+            $this->host = $host;
+        }
+        if (null !== $password) {
+            $this->password = $password;
+        }
+    }
+
     public function setLastLogs(?string $logs): void
     {
         $this->lastLogs = $logs;
@@ -484,6 +508,7 @@ class Session
             'lastLogs' => $this->lastLogs,
             'archivedSavePath' => $this->archivedSavePath,
             'archivedSpoilerPath' => $this->archivedSpoilerPath,
+            'adminPassword' => $this->adminPassword,
         ];
     }
 }

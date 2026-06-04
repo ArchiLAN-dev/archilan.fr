@@ -7,7 +7,6 @@ namespace App\Tests\Functional;
 use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\Membership\Domain\Membership;
-use App\Shared\Infrastructure\NullMinioStorage;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
@@ -33,16 +32,15 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         $schemaTool->createSchema($metadata);
 
         $this->spy()->reset();
-        NullMinioStorage::reset();
     }
 
-    public function testLaunchSubstitutesDisplayNameInYaml(): void
+    public function testLaunchFromPreGeneratedSeedSucceeds(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER'], displayName: 'SkyPlayer');
         $this->createMembership($member->getId());
-        $game = $this->createGameWithApworld('Archipelago', 'archipelago', 'apworlds/archipelago.apworld');
+        $game = $this->createGame('Archipelago', 'archipelago');
         $template = $this->createTemplate($game->getId(), "name: ArchiLAN\ngame: Archipelago\n");
-        $run = $this->createRun($template->getId());
+        $run = $this->createRunWithSeed($template->getId());
         $entry = $this->createEntry($run->getId(), $member->getId());
 
         $this->loginAs($member);
@@ -57,11 +55,8 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         $spy = $this->spy();
         self::assertCount(1, $spy->launchCalls);
         $call = $spy->launchCalls[0];
-        self::assertSame('SkyPlayer', $call['playerName']);
-
-        $parsedYaml = \Symfony\Component\Yaml\Yaml::parse($call['yaml']);
-        self::assertIsArray($parsedYaml);
-        self::assertSame('SkyPlayer', $parsedYaml['name']);
+        self::assertSame($entry->getId(), $call['entryId']);
+        self::assertSame('abc123apworldhash', $call['apworldHash']);
 
         $this->client->jsonRequest('GET', '/api/v1/weekly-runs/current');
         self::assertResponseIsSuccessful();
@@ -78,13 +73,31 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         self::assertSame(38281, $connectionInfo['port']);
     }
 
+    public function testLaunchThrowsWhenRunNotGenerated(): void
+    {
+        $member = $this->createUser('member@test.com', ['ROLE_USER']);
+        $this->createMembership($member->getId());
+        $game = $this->createGame('Archipelago', 'archipelago');
+        $template = $this->createTemplate($game->getId(), "name: ArchiLAN\n");
+        $run = $this->createRun($template->getId());
+        $entry = $this->createEntry($run->getId(), $member->getId());
+
+        $this->loginAs($member);
+
+        $this->client->jsonRequest('POST', '/api/v1/weekly-runs/'.$run->getId().'/entries/'.$entry->getId().'/launch');
+
+        self::assertResponseStatusCodeSame(422);
+        $response = $this->decodedJsonResponse();
+        self::assertSame('run_not_generated', $response['error']);
+    }
+
     public function testLaunchAlreadyLaunchedReturns422(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER']);
         $this->createMembership($member->getId());
-        $game = $this->createGameWithApworld('Archipelago', 'archipelago', 'apworlds/archipelago.apworld');
+        $game = $this->createGame('Archipelago', 'archipelago');
         $template = $this->createTemplate($game->getId(), "name: ArchiLAN\ngame: Archipelago\n");
-        $run = $this->createRun($template->getId());
+        $run = $this->createRunWithSeed($template->getId());
         $now = new \DateTimeImmutable('2026-05-11T10:00:00+00:00');
         $entry = $this->createEntry($run->getId(), $member->getId(), launchedWith: 'session-abc', launchedAt: $now);
 
@@ -184,16 +197,6 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         self::assertCount(2, $participants);
     }
 
-    private function createGameWithApworld(string $name, string $slug, string $storageKey): Game
-    {
-        $game = $this->createGame($name, $slug);
-        $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
-        $game->configureApworld($storageKey, 'abc123hash', 'Archipelago', "name: ArchiLAN\n", $now);
-        $this->entityManager->flush();
-
-        return $game;
-    }
-
     private function createTemplate(string $gameId, string $yamlConfig): WeeklyTemplate
     {
         $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
@@ -227,6 +230,15 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
             createdAt: $now,
         );
         $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        return $run;
+    }
+
+    private function createRunWithSeed(string $templateId): WeeklyRun
+    {
+        $run = $this->createRun($templateId);
+        $run->markGenerated('abc123apworldhash');
         $this->entityManager->flush();
 
         return $run;

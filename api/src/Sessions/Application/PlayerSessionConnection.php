@@ -4,27 +4,23 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 
 final readonly class PlayerSessionConnection
 {
-    use EntityFinderTrait;
-
-    private string $sessionSlotTable;
-    private string $sessionTable;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private Connection $connection,
+        private RegistrationRepositoryInterface $registrations,
+        private PlayerConnectionQueryInterface $playerConnectionQuery,
+        private SessionRepositoryInterface $sessions,
+        private SessionSlotRepositoryInterface $slots,
+        private GameRepositoryInterface $games,
     ) {
-        $this->sessionSlotTable = $entityManager->getClassMetadata(SessionSlot::class)->getTableName();
-        $this->sessionTable = $entityManager->getClassMetadata(Session::class)->getTableName();
     }
 
     /**
@@ -38,9 +34,8 @@ final readonly class PlayerSessionConnection
      */
     public function getConnection(string $registrationId, string $userId): ?array
     {
-        try {
-            $registration = $this->findOrFail(Registration::class, $registrationId);
-        } catch (\RuntimeException) {
+        $registration = $this->registrations->findById($registrationId);
+        if (!$registration instanceof Registration) {
             return null;
         }
 
@@ -51,57 +46,28 @@ final readonly class PlayerSessionConnection
             return null;
         }
 
-        $qb = $this->connection->createQueryBuilder();
-        $rows = $qb->select('DISTINCT ss.session_id')
-            ->from($this->sessionSlotTable, 'ss')
-            ->where($qb->expr()->eq('ss.registration_id', ':registrationId'))
-            ->setParameter('registrationId', $registrationId)
-            ->executeQuery()
-            ->fetchFirstColumn();
+        $sessionId = $this->playerConnectionQuery->findLatestSessionIdByRegistrationId($registrationId);
 
-        /** @var list<string> $sessionIds */
-        $sessionIds = array_values(array_filter($rows, 'is_string'));
-
-        if ([] === $sessionIds) {
+        if (null === $sessionId) {
             return ['session' => null, 'slots' => []];
         }
 
-        $qb2 = $this->connection->createQueryBuilder();
-        $placeholders = array_map(fn (string $id) => $qb2->createNamedParameter($id), $sessionIds);
-        $sessionIdResult = $qb2->select('s.id')
-            ->from($this->sessionTable, 's')
-            ->where($qb2->expr()->in('s.id', $placeholders))
-            ->orderBy('s.created_at', 'DESC')
-            ->setMaxResults(1)
-            ->executeQuery()
-            ->fetchOne();
-
-        if (false === $sessionIdResult || !is_string($sessionIdResult)) {
-            return ['session' => null, 'slots' => []];
-        }
-
-        /** @var Session|null $session */
-        $session = $this->entityManager->find(Session::class, $sessionIdResult);
-
+        $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
             return ['session' => null, 'slots' => []];
         }
 
-        /** @var list<SessionSlot> $sessionSlots */
-        $sessionSlots = $this->entityManager
-            ->getRepository(SessionSlot::class)
-            ->findBy(['registrationId' => $registrationId, 'sessionId' => $session->getId()], ['slotOrder' => 'ASC']);
+        $sessionSlots = $this->slots->findByRegistrationAndSession($registrationId, $session->getId());
 
         $gameIds = array_values(array_unique(
             array_map(static fn (SessionSlot $s) => $s->getGameId(), $sessionSlots),
         ));
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
+        $foundGames = $this->games->findByIds($gameIds);
 
         /** @var array<string, string> $nameById */
         $nameById = [];
-        foreach ($games as $game) {
+        foreach ($foundGames as $game) {
             $nameById[$game->getId()] = $game->getName();
         }
 

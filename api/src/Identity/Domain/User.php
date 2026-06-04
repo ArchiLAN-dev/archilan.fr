@@ -174,6 +174,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return array_values(array_unique([...$this->roles, 'ROLE_USER']));
     }
 
+    /**
+     * ROLE_MEMBER persists even after the membership expires — it is NOT a live
+     * indicator of active membership. Use ApiAccessGuard::requireAuthenticatedMember()
+     * or isGranted('IS_MEMBER') for access control; never isGranted('ROLE_MEMBER').
+     */
     public function promoteToMember(\DateTimeImmutable $now): void
     {
         if ($this->isDeleted() || in_array('ROLE_ADMIN', $this->getRoles(), true)) {

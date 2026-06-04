@@ -15,6 +15,8 @@ use Doctrine\ORM\Tools\SchemaTool;
 final class WeeklyGoalCallbackTest extends FunctionalTestCase
 {
     private const GOOD_SECRET = 'test-runner-secret';
+    private const SESSION_ID = 'session-goal-test';
+    private const SLOT_ID = 2;
 
     protected function setUp(): void
     {
@@ -38,11 +40,11 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
     {
         $this->client->request(
             'POST',
-            '/api/v1/internal/weekly-runs/goal-callback',
+            '/api/v1/internal/sessions/'.self::SESSION_ID.'/slot-goal',
             [],
             [],
             ['HTTP_X_INTERNAL_SECRET' => 'wrong-secret', 'CONTENT_TYPE' => 'application/json'],
-            json_encode(['externalSessionId' => 'abc', 'checksTotal' => 1, 'itemsTotal' => 1, 'goalReachedAt' => '2026-05-12T10:00:00+00:00'], JSON_THROW_ON_ERROR),
+            $this->payload(),
         );
 
         self::assertResponseStatusCodeSame(401);
@@ -52,11 +54,11 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
     {
         $this->client->request(
             'POST',
-            '/api/v1/internal/weekly-runs/goal-callback',
+            '/api/v1/internal/sessions/'.self::SESSION_ID.'/slot-goal',
             [],
             [],
             ['CONTENT_TYPE' => 'application/json'],
-            json_encode(['externalSessionId' => 'abc', 'checksTotal' => 1, 'itemsTotal' => 1, 'goalReachedAt' => '2026-05-12T10:00:00+00:00'], JSON_THROW_ON_ERROR),
+            $this->payload(),
         );
 
         self::assertResponseStatusCodeSame(401);
@@ -66,11 +68,11 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
     {
         $this->client->request(
             'POST',
-            '/api/v1/internal/weekly-runs/goal-callback',
+            '/api/v1/internal/sessions/nonexistent/slot-goal',
             [],
             [],
             ['HTTP_X_INTERNAL_SECRET' => self::GOOD_SECRET, 'CONTENT_TYPE' => 'application/json'],
-            json_encode(['externalSessionId' => 'nonexistent', 'checksTotal' => 10, 'itemsTotal' => 20, 'goalReachedAt' => '2026-05-12T10:00:00+00:00'], JSON_THROW_ON_ERROR),
+            $this->payload(),
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -83,22 +85,15 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         $template = $this->createTemplate($game->getId());
         $startedAt = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
         $run = $this->createRun($template->getId(), $startedAt);
-        $entry = $this->createEntry($run->getId(), $member->getId(), 'session-goal-test');
-
-        $goalReachedAt = '2026-05-12T10:00:00+00:00';
+        $entry = $this->createEntry($run->getId(), $member->getId(), self::SESSION_ID);
 
         $this->client->request(
             'POST',
-            '/api/v1/internal/weekly-runs/goal-callback',
+            '/api/v1/internal/sessions/'.self::SESSION_ID.'/slot-goal',
             [],
             [],
             ['HTTP_X_INTERNAL_SECRET' => self::GOOD_SECRET, 'CONTENT_TYPE' => 'application/json'],
-            json_encode([
-                'externalSessionId' => 'session-goal-test',
-                'checksTotal' => 42,
-                'itemsTotal' => 87,
-                'goalReachedAt' => $goalReachedAt,
-            ], JSON_THROW_ON_ERROR),
+            $this->payload(checksTotal: 42, itemsTotal: 87),
         );
 
         self::assertResponseStatusCodeSame(200);
@@ -123,6 +118,37 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         self::assertSame(42, $eventData['checksTotal']);
     }
 
+    public function testCallbackAcceptsMicrosecondsFromPythonIsoformat(): void
+    {
+        $member = $this->createUser('member2@test.com', ['ROLE_USER']);
+        $game = $this->createGame('Archipelago2', 'archipelago2');
+        $template = $this->createTemplate($game->getId());
+        $run = $this->createRun($template->getId(), new \DateTimeImmutable('2026-05-11T00:00:00+00:00'));
+        $entry = $this->createEntry($run->getId(), $member->getId(), 'session-microseconds');
+
+        $payload = json_encode([
+            'slotId' => 1,
+            'checksTotal' => 10,
+            'itemsTotal' => 20,
+            'goalReachedAt' => '2026-05-12T10:00:00.123456+00:00', // Python isoformat with microseconds
+        ], JSON_THROW_ON_ERROR);
+
+        $this->client->request(
+            'POST',
+            '/api/v1/internal/sessions/session-microseconds/slot-goal',
+            [],
+            [],
+            ['HTTP_X_INTERNAL_SECRET' => self::GOOD_SECRET, 'CONTENT_TYPE' => 'application/json'],
+            $payload,
+        );
+
+        self::assertResponseStatusCodeSame(200);
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(WeeklyEntry::class, $entry->getId());
+        self::assertInstanceOf(WeeklyEntry::class, $refreshed);
+        self::assertNotNull($refreshed->getGoalReachedAt());
+    }
+
     public function testCallbackIdempotentSecondCallIsNoOp(): void
     {
         $member = $this->createUser('member@test.com', ['ROLE_USER']);
@@ -130,26 +156,30 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         $template = $this->createTemplate($game->getId());
         $startedAt = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
         $run = $this->createRun($template->getId(), $startedAt);
-        $this->createEntry($run->getId(), $member->getId(), 'session-idem-test');
-
-        $payload = json_encode([
-            'externalSessionId' => 'session-idem-test',
-            'checksTotal' => 10,
-            'itemsTotal' => 20,
-            'goalReachedAt' => '2026-05-12T10:00:00+00:00',
-        ], JSON_THROW_ON_ERROR);
+        $this->createEntry($run->getId(), $member->getId(), self::SESSION_ID);
 
         $headers = ['HTTP_X_INTERNAL_SECRET' => self::GOOD_SECRET, 'CONTENT_TYPE' => 'application/json'];
+        $url = '/api/v1/internal/sessions/'.self::SESSION_ID.'/slot-goal';
 
-        $this->client->request('POST', '/api/v1/internal/weekly-runs/goal-callback', [], [], $headers, $payload);
+        $this->client->request('POST', $url, [], [], $headers, $this->payload());
         self::assertResponseStatusCodeSame(200);
 
         $this->hub()->reset();
 
-        $this->client->request('POST', '/api/v1/internal/weekly-runs/goal-callback', [], [], $headers, $payload);
+        $this->client->request('POST', $url, [], [], $headers, $this->payload());
         self::assertResponseStatusCodeSame(200);
 
         self::assertCount(0, $this->hub()->published);
+    }
+
+    private function payload(int $checksTotal = 10, int $itemsTotal = 20): string
+    {
+        return json_encode([
+            'slotId' => self::SLOT_ID,
+            'checksTotal' => $checksTotal,
+            'itemsTotal' => $itemsTotal,
+            'goalReachedAt' => '2026-05-12T10:00:00+00:00',
+        ], JSON_THROW_ON_ERROR);
     }
 
     private function hub(): SpyHub

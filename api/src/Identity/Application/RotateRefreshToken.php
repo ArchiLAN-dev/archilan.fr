@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 final readonly class RotateRefreshToken
 {
     public function __construct(
-        private RefreshTokenRepository $refreshTokenRepository,
+        private RefreshTokenRepositoryInterface $refreshTokenRepository,
         private RefreshTokenFactory $refreshTokenFactory,
         private AuthenticateUser $authenticateUser,
         private LoggerInterface $logger,

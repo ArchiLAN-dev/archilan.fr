@@ -5,19 +5,20 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application;
 
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class PersonalRunGameSelection
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private RunRepositoryInterface $runs,
+        private RunParticipantRepositoryInterface $participants,
+        private GameRepositoryInterface $games,
         private LoggerInterface $logger,
     ) {
     }
@@ -27,29 +28,26 @@ final readonly class PersonalRunGameSelection
      */
     public function getMySlots(string $runId, string $userId): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
-        $participant = $this->loadParticipant($runId, $userId);
+        $participant = $this->loadParticipant($run, $userId);
         if (null === $participant) {
             return $this->result(found: true, authorized: false);
         }
 
         $existingSlots = $participant->getGameSlots();
-        $existingGameIds = array_unique(array_column($existingSlots, 'gameId'));
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(
-            ['availability' => [Game::AVAILABILITY_AVAILABLE, Game::AVAILABILITY_EXPERIMENTAL]],
-            ['name' => 'ASC'],
-        );
+        $allGames = $this->games->findByAvailabilitiesSortedByName([
+            Game::AVAILABILITY_AVAILABLE,
+            Game::AVAILABILITY_EXPERIMENTAL,
+        ]);
 
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
-        foreach ($games as $game) {
+        foreach ($allGames as $game) {
             $gamesById[$game->getId()] = $game;
         }
 
@@ -73,7 +71,7 @@ final readonly class PersonalRunGameSelection
             'defaultYaml' => $g->getDefaultYaml(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
-        ], $games);
+        ], $allGames);
 
         return $this->result(found: true, slots: $slots, availableGames: $availableGames);
     }
@@ -85,13 +83,12 @@ final readonly class PersonalRunGameSelection
      */
     public function saveMyGames(string $runId, string $userId, array $input): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->resultWithErrors(found: false);
         }
 
-        $participant = $this->loadParticipant($runId, $userId);
+        $participant = $this->loadParticipant($run, $userId);
         if (null === $participant) {
             return $this->resultWithErrors(found: true, authorized: false);
         }
@@ -117,10 +114,9 @@ final readonly class PersonalRunGameSelection
         /** @var array<string, Game> $gamesById */
         $gamesById = [];
         if ([] !== $gameIds) {
-            /** @var list<Game> $games */
-            $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => array_values(array_unique($gameIds))]);
+            $foundGames = $this->games->findByIds(array_values(array_unique($gameIds)));
 
-            foreach ($games as $game) {
+            foreach ($foundGames as $game) {
                 $gamesById[$game->getId()] = $game;
             }
         }
@@ -128,7 +124,7 @@ final readonly class PersonalRunGameSelection
         $newSlots = $this->diffSlots($participant->getGameSlots(), $gameIds, $gamesById);
         $participant->replaceSlots($newSlots);
 
-        $this->entityManager->flush();
+        $this->participants->flush();
 
         $this->logger->info('personal_run.game_selection_saved', ['runId' => $runId, 'userId' => $userId]);
 
@@ -140,13 +136,12 @@ final readonly class PersonalRunGameSelection
      */
     public function saveSlotYaml(string $runId, string $userId, string $slotId, string $playerYaml): array
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
             return $this->yamlResult(found: false);
         }
 
-        $participant = $this->loadParticipant($runId, $userId);
+        $participant = $this->loadParticipant($run, $userId);
         if (null === $participant) {
             return $this->yamlResult(found: true, authorized: false);
         }
@@ -160,9 +155,8 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, errors: ['slotId' => ['Slot introuvable.']]);
         }
 
-        try {
-            $game = $this->findOrFail(Game::class, $slot['gameId']);
-        } catch (\RuntimeException) {
+        $game = $this->games->findById($slot['gameId']);
+        if (!$game instanceof Game) {
             return $this->yamlResult(found: true, errors: ['gameId' => ['Jeu introuvable.']]);
         }
 
@@ -172,42 +166,27 @@ final readonly class PersonalRunGameSelection
 
         $participant->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
-        $this->entityManager->flush();
+        $this->participants->flush();
 
         $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
     }
 
-    private function loadParticipant(string $runId, string $userId): ?RunParticipant
+    private function loadParticipant(Run $run, string $userId): ?RunParticipant
     {
-        try {
-            $run = $this->findOrFail(Run::class, $runId);
-        } catch (\RuntimeException) {
-            return null;
-        }
-
         if ($run->isOwnedBy($userId)) {
-            $participant = $this->entityManager->find(RunParticipant::class, [
-                'runId' => $runId,
-                'userId' => $userId,
-            ]);
+            $participant = $this->participants->findByRunAndUser($run->getId(), $userId);
 
             if (!$participant instanceof RunParticipant) {
-                $participant = RunParticipant::create($runId, $userId, new \DateTimeImmutable());
-                $this->entityManager->persist($participant);
-                $this->entityManager->flush();
+                $participant = RunParticipant::create($run->getId(), $userId, new \DateTimeImmutable());
+                $this->participants->save($participant);
             }
 
             return $participant;
         }
 
-        $participant = $this->entityManager->find(RunParticipant::class, [
-            'runId' => $runId,
-            'userId' => $userId,
-        ]);
-
-        return $participant instanceof RunParticipant ? $participant : null;
+        return $this->participants->findByRunAndUser($run->getId(), $userId);
     }
 
     /**
@@ -220,7 +199,7 @@ final readonly class PersonalRunGameSelection
         $errors = new ValidationErrors();
 
         foreach ($gameIds as $index => $gameId) {
-            $game = $this->entityManager->find(Game::class, $gameId);
+            $game = $this->games->findById($gameId);
             if (!$game instanceof Game) {
                 $errors->add(sprintf('gameIds.%d', $index), 'Jeu introuvable dans la bibliothèque.');
             }

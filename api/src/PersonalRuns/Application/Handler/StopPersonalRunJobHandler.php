@@ -6,31 +6,28 @@ namespace App\PersonalRuns\Application\Handler;
 
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
-use App\Sessions\Application\Message\StopRunJob;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Domain\Session;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class StopPersonalRunJobHandler
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private MessageBusInterface $messageBus,
+        private RunRepositoryInterface $runs,
+        private SessionRepositoryInterface $sessions,
+        private RunnerGatewayInterface $runnerGateway,
         private LoggerInterface $logger,
     ) {
     }
 
     public function __invoke(StopPersonalRunJob $job): void
     {
-        try {
-            $run = $this->findOrFail(Run::class, $job->personalRunId);
-        } catch (\RuntimeException) {
+        $run = $this->runs->findById($job->personalRunId);
+        if (!$run instanceof Run) {
             $this->logger->error('personal_run.stop.not_found', ['runId' => $job->personalRunId]);
 
             return;
@@ -43,18 +40,14 @@ final readonly class StopPersonalRunJobHandler
             return;
         }
 
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             $this->logger->warning('personal_run.stop.session_not_found', ['runId' => $job->personalRunId, 'sessionId' => $sessionId]);
 
             return;
         }
 
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
-
-        $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+        $this->runnerGateway->stopSession($sessionId);
 
         $this->logger->info('personal_run.stop.dispatched', [
             'runId' => $job->personalRunId,

@@ -8,14 +8,14 @@ use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class ExpireMembership implements ExpireMembershipInterface
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private MembershipRepositoryInterface $memberships,
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
@@ -24,7 +24,7 @@ final readonly class ExpireMembership implements ExpireMembershipInterface
 
     public function expire(string $membershipId): void
     {
-        $membership = $this->entityManager->find(Membership::class, $membershipId);
+        $membership = $this->memberships->findById($membershipId);
         if (!$membership instanceof Membership) {
             return;
         }
@@ -38,7 +38,7 @@ final readonly class ExpireMembership implements ExpireMembershipInterface
         $membershipId = $membership->getId();
         $userId = $membership->getUserId();
 
-        $this->entityManager->flush();
+        $this->memberships->flush();
 
         $discordInfo = $this->userRoleGateway->getUserDiscordInfo($userId);
         if (null !== $discordInfo['discordId']) {

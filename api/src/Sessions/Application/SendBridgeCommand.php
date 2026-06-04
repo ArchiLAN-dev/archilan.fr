@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\Sessions\Domain\RunAuditLog;
+use App\Sessions\Domain\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class SendBridgeCommand
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
+        private RunAuditLogRepositoryInterface $auditLogs,
+        private SessionSlotRepositoryInterface $slots,
         private HttpClientInterface $httpClient,
     ) {
     }
@@ -26,9 +27,8 @@ final readonly class SendBridgeCommand
      */
     public function execute(string $sessionId, string $command, string $actorId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
             return ['found' => false, 'error' => null];
         }
 
@@ -43,11 +43,17 @@ final readonly class SendBridgeCommand
             return ['found' => true, 'error' => 'bridge_unavailable'];
         }
 
+        $adminPassword = $session->getAdminPassword();
+
         try {
             $bridgeResponse = $this->httpClient->request(
                 'POST',
                 sprintf('http://%s:%d/commands', $host, $bridgePort),
-                ['json' => ['command' => $command], 'timeout' => 3],
+                [
+                    'json' => ['command' => $command],
+                    'headers' => null !== $adminPassword ? ['X-Ap-Admin-Password' => $adminPassword] : [],
+                    'timeout' => 3,
+                ],
             );
             $bridgeStatus = $bridgeResponse->getStatusCode();
             if ($bridgeStatus < 200 || $bridgeStatus >= 300) {
@@ -65,11 +71,11 @@ final readonly class SendBridgeCommand
             ['command' => $command],
             new \DateTimeImmutable(),
         );
-        $this->entityManager->persist($log);
+        $this->auditLogs->persist($log);
 
         $this->maybeMarkSlotReleased($sessionId, $command);
 
-        $this->entityManager->flush();
+        $this->auditLogs->flush();
 
         return ['found' => true, 'error' => null];
     }
@@ -82,13 +88,9 @@ final readonly class SendBridgeCommand
 
         $slotName = $matches[2];
 
-        /** @var SessionSlot|null $slot */
-        $slot = $this->entityManager->getRepository(SessionSlot::class)->findOneBy([
-            'sessionId' => $sessionId,
-            'slotName' => $slotName,
-        ]);
+        $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
 
-        if (null === $slot) {
+        if (!$slot instanceof SessionSlot) {
             return;
         }
 

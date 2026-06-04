@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application;
 
-use App\WeeklyRuns\Domain\WeeklyTemplate;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
 
 final readonly class AdminWeeklyTemplateDetailQuery
 {
     public function __construct(
-        private Connection $connection,
-        private EntityManagerInterface $entityManager,
+        private WeeklyTemplateRepositoryInterface $templates,
+        private GameRepositoryInterface $games,
     ) {
     }
 
@@ -21,20 +21,13 @@ final readonly class AdminWeeklyTemplateDetailQuery
      */
     public function execute(string $templateId): ?array
     {
-        $template = $this->entityManager->find(WeeklyTemplate::class, $templateId);
-        if (!$template instanceof WeeklyTemplate) {
+        $template = $this->templates->findById($templateId);
+        if (null === $template) {
             return null;
         }
 
-        $gameRow = $this->connection->createQueryBuilder()
-            ->select('g.name')
-            ->from('game', 'g')
-            ->where('g.id = :gameId')
-            ->setParameter('gameId', $template->getGameId())
-            ->executeQuery()
-            ->fetchAssociative();
-
-        $gameName = (is_array($gameRow) && is_string($gameRow['name'])) ? $gameRow['name'] : '';
+        $game = $this->games->findById($template->getGameId());
+        $gameName = $game instanceof Game ? $game->getName() : '';
 
         return [
             'id' => $template->getId(),

@@ -6,6 +6,7 @@ import Link from "next/link";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { RichTextEditor } from "./rich-text-editor";
 
 type PostType = "news" | "recap" | "announcement";
 
@@ -18,8 +19,6 @@ type AdminPost = {
   excerpt: string;
   body: string[];
   readingTime: string;
-  relatedEventSlug: string | null;
-  vodUrl: string | null;
   coverImageUrl: string | null;
   coverImageKey: string | null;
 };
@@ -36,8 +35,6 @@ type FormValues = {
   excerpt: string;
   body: string;
   readingTime: string;
-  relatedEventSlug: string;
-  vodUrl: string;
   coverImageUrl: string;
 };
 
@@ -54,8 +51,6 @@ const EMPTY_FORM: FormValues = {
   excerpt: "",
   body: "",
   readingTime: "",
-  relatedEventSlug: "",
-  vodUrl: "",
   coverImageUrl: "",
 };
 
@@ -96,10 +91,8 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
             title: post.title,
             type: post.type,
             excerpt: post.excerpt,
-            body: post.body.join("\n"),
+            body: bodyToEditorHtml(post.body),
             readingTime: post.readingTime,
-            relatedEventSlug: post.relatedEventSlug ?? "",
-            vodUrl: post.vodUrl ?? "",
             coverImageUrl: post.coverImageKey ? "" : (post.coverImageUrl ?? ""),
           });
           if (post.coverImageKey) {
@@ -132,13 +125,8 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
       title: values.title.trim(),
       type: values.type,
       excerpt: values.excerpt.trim(),
-      body: values.body
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean),
+      body: [values.body],
       readingTime: values.readingTime.trim(),
-      relatedEventSlug: values.relatedEventSlug.trim() || null,
-      vodUrl: values.vodUrl.trim() || null,
       coverImageMode: coverMode,
       coverImageUrl: coverMode === "url" ? values.coverImageUrl.trim() || null : null,
     };
@@ -264,39 +252,25 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
             value={values.excerpt}
           />
 
-          <TextareaField
-            error={fieldErrors.body}
-            label="Corps (un paragraphe par ligne)"
-            onChange={(v) => setValues((prev) => ({ ...prev, body: v }))}
-            placeholder={"Premier paragraphe.\nDeuxième paragraphe."}
-            rows={8}
-            value={values.body}
-          />
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <TextField
-              error={fieldErrors.readingTime}
-              label="Temps de lecture"
-              onChange={(v) => setValues((prev) => ({ ...prev, readingTime: v }))}
-              placeholder="3 min"
-              type="text"
-              value={values.readingTime}
-            />
-            <TextField
-              label="Slug de l'événement lié (optionnel)"
-              onChange={(v) => setValues((prev) => ({ ...prev, relatedEventSlug: v }))}
-              placeholder="lan-printemps-2026"
-              type="text"
-              value={values.relatedEventSlug}
-            />
-            <TextField
-              label="URL VOD (optionnel)"
-              onChange={(v) => setValues((prev) => ({ ...prev, vodUrl: v }))}
-              placeholder="https://youtube.com/..."
-              type="url"
-              value={values.vodUrl}
+          <div className="grid gap-2">
+            <span className="text-sm font-medium text-foreground">Corps</span>
+            <RichTextEditor
+              error={fieldErrors.body}
+              onChange={(html) => setValues((prev) => ({ ...prev, body: html }))}
+              placeholder="Rédigez votre article…"
+              postId={postId}
+              value={values.body}
             />
           </div>
+
+          <TextField
+            error={fieldErrors.readingTime}
+            label="Temps de lecture"
+            onChange={(v) => setValues((prev) => ({ ...prev, readingTime: v }))}
+            placeholder="3 min"
+            type="text"
+            value={values.readingTime}
+          />
 
           <div className="grid gap-2">
             <div className="flex items-center gap-2">
@@ -434,44 +408,6 @@ function TextField({
   );
 }
 
-function TextareaField({
-  error,
-  label,
-  onChange,
-  placeholder,
-  rows,
-  value,
-}: {
-  error?: string;
-  label: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  rows: number;
-  value: string;
-}) {
-  const id = useId();
-  const errorId = `${id}-error`;
-
-  return (
-    <label className="grid gap-2 text-sm font-medium text-foreground">
-      {label}
-      <textarea
-        aria-describedby={error ? errorId : undefined}
-        aria-invalid={Boolean(error)}
-        className="border border-border bg-background px-3 py-2 outline-none focus:border-accent"
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        value={value}
-      />
-      {error ? (
-        <span className="text-xs text-danger" id={errorId}>
-          {error}
-        </span>
-      ) : null}
-    </label>
-  );
-}
 
 function TypeSelect({
   error,
@@ -508,6 +444,14 @@ function TypeSelect({
       ) : null}
     </label>
   );
+}
+
+function bodyToEditorHtml(body: string[]): string {
+  if (body.length === 0) return "";
+  // If the first item looks like HTML (from a WYSIWYG save), use it directly.
+  if (body[0].trimStart().startsWith("<")) return body[0];
+  // Otherwise convert plain-text paragraphs to HTML.
+  return body.map((p) => `<p>${p}</p>`).join("");
 }
 
 function isPostPayload(payload: unknown): payload is { data: AdminPost } {

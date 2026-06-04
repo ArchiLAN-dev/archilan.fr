@@ -34,7 +34,9 @@ export type WeeklyRunMyEntry = {
 export type CurrentWeeklyRun = {
   weeklyRunId: string;
   templateName: string | null;
+  yamlConfig: string | null;
   gameName: string;
+  coverImageUrl: string | null;
   weekNumber: number;
   weekYear: number;
   status: "active" | "finished";
@@ -180,6 +182,32 @@ function isWeeklyEntryPatchesPayload(v: unknown): v is { data: { files: string[]
   if (typeof data !== "object" || data === null || !("files" in data)) return false;
   const files: unknown = Reflect.get(data, "files");
   return Array.isArray(files) && files.every((f): f is string => typeof f === "string");
+}
+
+// ── Authenticated patch download ───────────────────────────────────────────────
+
+export async function downloadPatch(
+  weeklyRunId: string,
+  entryId: string,
+  filename: string,
+): Promise<void> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/weekly-runs/${weeklyRunId}/entries/${entryId}/patches/${encodeURIComponent(filename)}`,
+    );
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    // non-critical — user will notice the file didn't arrive
+  }
 }
 
 // ── Mercure goal event type guard ──────────────────────────────────────────────

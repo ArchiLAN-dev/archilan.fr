@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Membership\Application;
 
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Membership\Domain\MembershipRepositoryInterface;
 
 final readonly class AdminEditMembership
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private MembershipRepositoryInterface $memberships,
         private AdminMembershipListQuery $membershipQuery,
     ) {
     }
@@ -24,7 +24,7 @@ final readonly class AdminEditMembership
         ?\DateTimeImmutable $expiresAt,
         ?string $adminNote,
     ): ?array {
-        $membership = $this->entityManager->find(Membership::class, $membershipId);
+        $membership = $this->memberships->findById($membershipId);
         if (!$membership instanceof Membership) {
             return null;
         }
@@ -33,7 +33,7 @@ final readonly class AdminEditMembership
         $now = new \DateTimeImmutable();
 
         $membership->adminEdit($startedAt, $resolvedExpiresAt, $adminNote, $now);
-        $this->entityManager->flush();
+        $this->memberships->flush();
 
         return $this->membershipQuery->findById($membershipId);
     }

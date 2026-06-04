@@ -8,7 +8,7 @@ use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 
 final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    /** @var list<array{entryId: string, seed: string, apworldStorageKey: string, apworldDownloadUrl: string, playerName: string, yaml: string, archipelagoGameName: string}> */
+    /** @var list<array{entryId: string, apworldHash: string, seed: string}> */
     public array $launchCalls = [];
 
     public function reset(): void
@@ -17,31 +17,25 @@ final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
     }
 
     public function launchEntry(
-        string $weeklyEntryId,
+        string $entryId,
+        string $apworldHash,
+        string $templateYaml,
         string $seed,
-        string $apworldStorageKey,
-        string $apworldDownloadUrl,
-        string $playerName,
-        string $yaml,
-        string $archipelagoGameName,
     ): array {
         $this->launchCalls[] = [
-            'entryId' => $weeklyEntryId,
+            'entryId' => $entryId,
+            'apworldHash' => $apworldHash,
             'seed' => $seed,
-            'apworldStorageKey' => $apworldStorageKey,
-            'apworldDownloadUrl' => $apworldDownloadUrl,
-            'playerName' => $playerName,
-            'yaml' => $yaml,
-            'archipelagoGameName' => $archipelagoGameName,
         ];
 
         return [
-            'externalSessionId' => 'spy-session-'.$weeklyEntryId,
+            'externalSessionId' => 'spy-session-'.$entryId,
             'connectionInfo' => [
                 'host' => 'runner.test',
                 'port' => 38281,
                 'password' => null,
             ],
+            'bridgePort' => 5001,
         ];
     }
 

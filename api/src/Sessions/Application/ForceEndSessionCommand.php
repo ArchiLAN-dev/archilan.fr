@@ -5,46 +5,48 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\RunAuditLog;
+use App\Sessions\Domain\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Session;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionNotFoundException;
+use App\Sessions\Domain\SessionNotRunningException;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class ForceEndSessionCommand
 {
-    use EntityFinderTrait;
-
     public function __construct(
-        private EntityManagerInterface $entityManager,
+        private SessionRepositoryInterface $sessions,
+        private RunAuditLogRepositoryInterface $auditLogs,
         private MessageBusInterface $messageBus,
+        private RunnerGatewayInterface $runnerGateway,
     ) {
     }
 
     /**
-     * @return array{found: bool, notRunning: bool, payload: array<string, mixed>}
+     * @return array<string, mixed>
+     *
+     * @throws SessionNotFoundException
+     * @throws SessionNotRunningException
      */
     public function execute(string $sessionId, string $actorId): array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $sessionId);
-        } catch (\RuntimeException) {
-            return ['found' => false, 'notRunning' => false, 'payload' => []];
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            throw new SessionNotFoundException($sessionId);
         }
 
         if (Session::STATUS_RUNNING !== $session->getStatus()) {
-            return ['found' => true, 'notRunning' => true, 'payload' => []];
+            throw new SessionNotRunningException($sessionId);
         }
 
         $now = new \DateTimeImmutable();
-        $port = $session->getPort() ?? 0;
         $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->transition(Session::STATUS_FINISHED, $now);
-        $this->entityManager->flush();
+        $this->sessions->flush();
 
-        $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+        $this->runnerGateway->stopSession($sessionId);
         $this->messageBus->dispatch(new ArchiveRunJob($sessionId, $bridgePort));
 
         $log = new RunAuditLog(
@@ -55,9 +57,9 @@ final readonly class ForceEndSessionCommand
             null,
             $now,
         );
-        $this->entityManager->persist($log);
-        $this->entityManager->flush();
+        $this->auditLogs->persist($log);
+        $this->auditLogs->flush();
 
-        return ['found' => true, 'notRunning' => false, 'payload' => $session->payload()];
+        return $session->payload();
     }
 }

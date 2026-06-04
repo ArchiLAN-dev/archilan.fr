@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@source inline("text-warning border-warning bg-warning bg-warning/10 border-warning/50");
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -11,6 +13,7 @@
   --color-surface-2: #1a1840;
   --color-success: var(--color-success);
   --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
   --color-accent-warm: var(--color-accent-warm);
   --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Courier New", monospace;
@@ -85,6 +88,7 @@ html {
   --color-accent-text: #9580f5;
   --color-accent-text-hover: #b09cf8;
   --color-accent-warm: #e89420;
+  --color-warning: #e89420;
   --color-danger: #c4220c;
   --color-special: #e0246a;
   --color-text: #e8edf4;
@@ -245,6 +249,117 @@ html {
   0%   { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
   100% { opacity: 0; transform: translate(var(--cx, 0px), var(--cy, 0px)) rotate(var(--cr, 360deg)) scale(0); }
 }
+
+/* ── Rich text editor (Tiptap) ─────────────────────────────────── */
+.rich-editor .tiptap p.is-editor-empty:first-child::before {
+  color: var(--color-muted-foreground, #6b7280);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.rich-editor .tiptap {
+  color: var(--color-foreground);
+  line-height: 1.75;
+}
+
+.rich-editor .tiptap h2 {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.rich-editor .tiptap h3 {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  margin-top: 1rem;
+}
+
+.rich-editor .tiptap p {
+  margin-bottom: 0.75rem;
+}
+
+.rich-editor .tiptap strong { font-weight: 700; }
+.rich-editor .tiptap em { font-style: italic; }
+
+.rich-editor .tiptap code {
+  background: var(--color-surface-2);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+}
+
+.rich-editor .tiptap a {
+  color: var(--color-accent-text, #818cf8);
+  text-decoration: underline;
+}
+
+.rich-editor .tiptap ul,
+.rich-editor .tiptap ol {
+  margin-bottom: 0.75rem;
+  margin-left: 1.25rem;
+}
+
+.rich-editor .tiptap ul { list-style-type: disc; }
+.rich-editor .tiptap ol { list-style-type: decimal; }
+
+.rich-editor .tiptap li { margin-bottom: 0.25rem; }
+
+.rich-editor .tiptap blockquote {
+  border-left: 3px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  font-style: italic;
+  margin-bottom: 0.75rem;
+  padding-left: 1rem;
+}
+
+.rich-editor .tiptap hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1rem 0;
+}
+
+.rich-editor .tiptap img {
+  border-radius: 6px;
+  height: auto;
+  margin: 0.5rem 0;
+  max-width: 100%;
+}
+
+.rich-editor .tiptap .youtube-embed,
+.rich-editor .tiptap iframe {
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  margin: 0.75rem 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* ── Post body (public render of WYSIWYG HTML) ─────────────────── */
+.post-body { line-height: 1.75; }
+.post-body h2 { font-family: var(--font-heading); font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; margin-top: 1.5rem; color: var(--color-foreground); }
+.post-body h3 { font-family: var(--font-heading); font-size: 1.05rem; font-weight: 600; margin-bottom: 0.25rem; margin-top: 1.25rem; color: var(--color-foreground); }
+.post-body p { margin-bottom: 1rem; }
+.post-body strong { font-weight: 700; color: var(--color-foreground); }
+.post-body em { font-style: italic; }
+.post-body code { background: var(--color-surface-2); border-radius: 3px; font-family: var(--font-mono); font-size: 0.875em; padding: 0.1em 0.35em; }
+.post-body a { color: var(--color-accent-text, #818cf8); text-decoration: underline; }
+.post-body ul, .post-body ol { margin-bottom: 1rem; margin-left: 1.5rem; }
+.post-body ul { list-style-type: disc; }
+.post-body ol { list-style-type: decimal; }
+.post-body li { margin-bottom: 0.35rem; }
+.post-body blockquote { border-left: 3px solid var(--color-border); font-style: italic; margin-bottom: 1rem; padding-left: 1rem; }
+.post-body hr { border: none; border-top: 1px solid var(--color-border); margin: 1.5rem 0; }
+.post-body img { border-radius: 6px; height: auto; margin: 1rem 0; max-width: 100%; }
+.post-body iframe { aspect-ratio: 16 / 9; border-radius: 6px; margin: 1rem 0; max-width: 100%; width: 100%; }
+
+/* ── End rich text editor ──────────────────────────────────────── */
 
 @keyframes registration-feed-highlight {
   0% {

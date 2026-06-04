@@ -5,21 +5,31 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
-use App\Shared\Application\EntityFinderTrait;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Sessions\Domain\SessionSlotRepositoryInterface;
 
 final readonly class RunResultsQuery
 {
-    use EntityFinderTrait;
-
-    public function __construct(private EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private SessionRepositoryInterface $sessions,
+        private SessionSlotRepositoryInterface $slots,
+        private RunRepositoryInterface $runs,
+        private EventRepositoryInterface $events,
+        private RegistrationRepositoryInterface $registrations,
+        private UserRepositoryInterface $users,
+        private GameRepositoryInterface $games,
+    ) {
     }
 
     /**
@@ -34,9 +44,8 @@ final readonly class RunResultsQuery
      */
     public function execute(string $id): ?array
     {
-        try {
-            $session = $this->findOrFail(Session::class, $id);
-        } catch (\RuntimeException) {
+        $session = $this->sessions->findById($id);
+        if (!$session instanceof Session) {
             return null;
         }
 
@@ -46,11 +55,9 @@ final readonly class RunResultsQuery
 
         [$eventName, $isPersonalRun] = $this->resolveEventName($session);
 
-        /** @var list<SessionSlot> $slots */
-        $slots = $this->entityManager->getRepository(SessionSlot::class)
-            ->findBy(['sessionId' => $id]);
+        $slotsList = $this->slots->findBySessionId($id);
 
-        $slotData = $this->buildSlotData($slots, $session, $isPersonalRun);
+        $slotData = $this->buildSlotData($slotsList, $session, $isPersonalRun);
 
         $startedAt = $session->getStartedAt();
         $finishedAt = $session->getFinishedAt();
@@ -71,34 +78,33 @@ final readonly class RunResultsQuery
     /** @return array{string, bool} */
     private function resolveEventName(Session $session): array
     {
-        $event = $this->entityManager->find(Event::class, $session->getEventId());
+        $event = $this->events->findById($session->getEventId());
         if ($event instanceof Event) {
             return [$event->getTitle(), false];
         }
 
-        $pr = $this->entityManager->getRepository(Run::class)
-            ->findOneBy(['id' => $session->getEventId()]);
+        $run = $this->runs->findById($session->getEventId());
 
-        return [$pr instanceof Run ? $pr->getTitle() : 'Run', true];
+        return [$run instanceof Run ? $run->getTitle() : 'Run', true];
     }
 
     /**
-     * @param list<SessionSlot> $slots
+     * @param list<SessionSlot> $slotsList
      *
      * @return list<array<string, mixed>>
      */
-    private function buildSlotData(array $slots, Session $session, bool $isPersonalRun): array
+    private function buildSlotData(array $slotsList, Session $session, bool $isPersonalRun): array
     {
-        if ([] === $slots) {
+        if ([] === $slotsList) {
             return [];
         }
 
-        $regToUserId = $this->buildRegToUserIdMap($slots, $isPersonalRun);
+        $regToUserId = $this->buildRegToUserIdMap($slotsList, $isPersonalRun);
         $userById = $this->loadUsers($regToUserId);
-        $gameById = $this->loadGames($slots);
+        $gameById = $this->loadGames($slotsList);
 
         $rows = [];
-        foreach ($slots as $slot) {
+        foreach ($slotsList as $slot) {
             $userId = $regToUserId[$slot->getRegistrationId()] ?? '';
             $user = '' !== $userId ? ($userById[$userId] ?? null) : null;
             $game = $gameById[$slot->getGameId()] ?? null;
@@ -134,7 +140,6 @@ final readonly class RunResultsQuery
             }
 
             if (0 === $aPriority) {
-                // Both have completionSeconds set (proven by priority === 0)
                 return (int) $a['completionSeconds'] <=> (int) $b['completionSeconds'];
             }
 
@@ -145,35 +150,31 @@ final readonly class RunResultsQuery
     }
 
     /**
-     * Maps each slot's registrationId to the actual userId.
-     * For personal runs, registrationId IS the userId.
-     * For event sessions, batch-loads Registrations.
-     *
-     * @param list<SessionSlot> $slots
+     * @param list<SessionSlot> $slotsList
      *
      * @return array<string, string>
      */
-    private function buildRegToUserIdMap(array $slots, bool $isPersonalRun): array
+    private function buildRegToUserIdMap(array $slotsList, bool $isPersonalRun): array
     {
         $map = [];
 
         if ($isPersonalRun) {
-            foreach ($slots as $slot) {
+            foreach ($slotsList as $slot) {
                 $map[$slot->getRegistrationId()] = $slot->getRegistrationId();
             }
 
             return $map;
         }
 
-        $registrationIds = array_unique(array_map(
+        $registrationIds = array_values(array_unique(array_map(
             static fn (SessionSlot $s) => $s->getRegistrationId(),
-            $slots,
-        ));
+            $slotsList,
+        )));
 
-        /** @var list<Registration> $registrations */
-        $registrations = $this->entityManager->getRepository(Registration::class)->findBy(['id' => $registrationIds]);
+        /** @var list<Registration> $regList */
+        $regList = $this->registrations->findBy(['id' => $registrationIds]);
 
-        foreach ($registrations as $reg) {
+        foreach ($regList as $reg) {
             $map[$reg->getId()] = $reg->getUserId();
         }
 
@@ -187,19 +188,18 @@ final readonly class RunResultsQuery
      */
     private function loadUsers(array $regToUserId): array
     {
-        $userIds = array_unique(array_values($regToUserId));
-        $userIds = array_filter($userIds, static fn (string $id) => '' !== $id);
+        $userIds = array_values(array_filter(array_values($regToUserId), static fn (string $id) => '' !== $id));
+        $userIds = array_values(array_unique($userIds));
 
         if ([] === $userIds) {
             return [];
         }
 
-        /** @var list<User> $users */
-        $users = $this->entityManager->getRepository(User::class)->findBy(['id' => array_values($userIds)]);
+        $usersList = $this->users->findByIds($userIds);
 
         /** @var array<string, User> $userById */
         $userById = [];
-        foreach ($users as $user) {
+        foreach ($usersList as $user) {
             $userById[$user->getId()] = $user;
         }
 
@@ -207,20 +207,19 @@ final readonly class RunResultsQuery
     }
 
     /**
-     * @param list<SessionSlot> $slots
+     * @param list<SessionSlot> $slotsList
      *
      * @return array<string, Game>
      */
-    private function loadGames(array $slots): array
+    private function loadGames(array $slotsList): array
     {
-        $gameIds = array_unique(array_map(static fn (SessionSlot $s) => $s->getGameId(), $slots));
+        $gameIds = array_values(array_unique(array_map(static fn (SessionSlot $s) => $s->getGameId(), $slotsList)));
 
-        /** @var list<Game> $games */
-        $games = $this->entityManager->getRepository(Game::class)->findBy(['id' => $gameIds]);
+        $gamesList = $this->games->findByIds($gameIds);
 
         /** @var array<string, Game> $gameById */
         $gameById = [];
-        foreach ($games as $game) {
+        foreach ($gamesList as $game) {
             $gameById[$game->getId()] = $game;
         }
 

@@ -61,15 +61,30 @@ services:
             - '../src/Membership/Domain/'
             - '../src/WeeklyRuns/Domain/'
 
-    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway'
+    App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyRunRepository'
+    App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyTemplateRepository'
+    App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyEntryRepository'
+    App\WeeklyRuns\Application\CurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
+    App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
 
-    App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway:
+    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
+
+    App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway:
         arguments:
-            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
-            $runnerApiKey: '%env(RUNNER_API_KEY)%'
+            $client: '@archilan.orchestrateur_client'
+            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
-            $symfonyInternalUrl: '%env(default:default_empty_string:SYMFONY_INTERNAL_URL)%'
-            $mercureHubUrl: '%env(default:default_empty_string:MERCURE_HUB_URL)%'
+
+    App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator'
+
+    App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator:
+        arguments:
+            $client: '@archilan.orchestrateur_client'
+            $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
+            $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
 
     App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\DolibarrClient'
 
@@ -78,7 +93,7 @@ services:
             $dolibarrApiUrl: '%env(default:default_empty_string:DOLIBARR_API_URL)%'
             $dolibarrApiKey: '%env(default:default_empty_string:DOLIBARR_API_KEY)%'
 
-    App\Sessions\Infrastructure\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
+    App\Sessions\Application\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
 
     App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\S3MinioStorage'
 
@@ -91,21 +106,43 @@ services:
 
     App\Sessions\Infrastructure\RunnerGateway:
         arguments:
-            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
-            $runnerApiKey: '%env(RUNNER_API_KEY)%'
+            $client: '@archilan.orchestrateur_client'
 
-    App\Sessions\Infrastructure\DockerPortScannerInterface: '@App\Sessions\Infrastructure\DockerPortScanner'
-
-    App\Sessions\Infrastructure\PortPool:
+    archi_bridge.http_client:
+        class: Symfony\Contracts\HttpClient\HttpClientInterface
+        factory: ['@http_client', 'withOptions']
         arguments:
-            $start: '%env(int:PORT_RANGE_START)%'
-            $end: '%env(int:PORT_RANGE_END)%'
+            - { timeout: 5 }
+
+    Archilan\BridgeClientBundle\Bridge\BridgeClientFactory:
+        arguments:
+            $adminToken: '%archi_bridge.admin_token%'
+            $httpClient: '@archi_bridge.http_client'
+
+    archilan.orchestrateur_client:
+        class: Archilan\OrchestratorClient\OrchestratorClient
+        arguments:
+            $baseUrl: '%env(RUNNER_BASE_URL)%'
+            $apiKey: '%env(ORCHESTRATEUR_API_KEY)%'
+            $httpClient: '@http_client'
 
     App\Sessions\Infrastructure\RunnerCallbackClient:
         arguments:
             $centralApiUrl: '%env(CENTRAL_API_URL)%'
             $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
             $runnerId: '%env(RUNNER_ID)%'
+
+    App\Sessions\Application\SessionOrchestrator:
+        arguments:
+            $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+
+    App\Sessions\Application\SessionLifecycleManager:
+        arguments:
+            $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+
+    App\Sessions\Presentation\OrchestratorWebhookController:
+        arguments:
+            $orchestrateurWebhookSecret: '%env(ORCHESTRATEUR_WEBHOOK_SECRET)%'
 
     App\Sessions\Presentation\SessionOrchestrationController:
         arguments:
@@ -115,11 +152,12 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\WeeklyRuns\Application\LaunchWeeklyEntry:
-        arguments:
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\WeeklyRuns\Presentation\WeeklyEntryPatchController:
+    App\WeeklyRuns\Presentation\WeeklyRunSlotStateController:
+        arguments:
+            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
+
+    App\WeeklyRuns\Application\WeeklyEntryPatchQuery:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
@@ -135,45 +173,10 @@ services:
         arguments:
             $inactivityTimeoutSeconds: '%env(default:default_inactivity_timeout:int:ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS)%'
 
-    App\Sessions\Infrastructure\DockerSocketClient:
+    App\Shared\Infrastructure\DockerSocketClient:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'
         autowire: false
-
-    App\Sessions\Application\Handler\GenerateRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
-            $generateImage: '%env(ARCHIPELAGO_GENERATE_IMAGE)%'
-
-    App\Sessions\Application\Handler\StartRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-            $runnerHost: '%env(RUNNER_HOST)%'
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
-            $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
-            $symfonyInternalUrl: '%env(SYMFONY_INTERNAL_URL)%'
-            $mercureHubUrl: '%env(MERCURE_HUB_URL)%'
-            $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
-            $minioEndpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
-            $minioAccessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
-            $minioSecretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
-            $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
-            $serverImage: '%env(ARCHIPELAGO_SERVER_IMAGE)%'
-            $apworldVolumeName: '%env(ARCHIPELAGO_WORKSPACE_VOLUME)%'
-
-    App\Sessions\Application\Handler\RunHealthCheckJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-
-    App\Sessions\Application\Handler\StopRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-
-    App\Sessions\Application\Handler\RestartRunJobHandler:
-        arguments:
-            $runnerId: '%env(RUNNER_ID)%'
-            $runnerHost: '%env(RUNNER_HOST)%'
 
     App\Sessions\Application\Handler\FetchLogsJobHandler:
         arguments:
@@ -204,7 +207,14 @@ services:
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\DiscordBotStatusQuery:
+    App\Identity\Application\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
+    App\Identity\Application\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
+    App\Identity\Application\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\DbalDiscordResyncAllUsers'
+    App\Identity\Application\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
+    App\Identity\Application\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
+    App\Identity\Application\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
+
+    App\Identity\Infrastructure\DbalDiscordBotStatusQuery:
         arguments:
             $clientId: '%env(DISCORD_CLIENT_ID)%'
             $guildId: '%env(DISCORD_GUILD_ID)%'
@@ -227,6 +237,14 @@ services:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
+    App\Membership\Domain\MembershipRepositoryInterface: '@App\Membership\Infrastructure\DoctrineMembershipRepository'
+    App\Membership\Application\AccountMembershipQueryInterface: '@App\Membership\Infrastructure\DbalAccountMembershipQuery'
+    App\Membership\Application\ActiveMembershipQueryInterface: '@App\Membership\Infrastructure\DbalActiveMembershipQuery'
+    App\Membership\Application\AdminMembershipListQueryInterface: '@App\Membership\Infrastructure\DbalAdminMembershipListQuery'
+    App\Membership\Application\AdminUnmatchedHelloAssoOrdersQueryInterface: '@App\Membership\Infrastructure\DbalAdminUnmatchedHelloAssoOrdersQuery'
+    App\Membership\Application\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\DbalMembershipAllIdsQuery'
+    App\Membership\Application\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\DbalMembershipExpiryCheckQuery'
+
     App\Membership\Application\UserRoleGatewayInterface: '@App\Membership\Infrastructure\UserRoleGateway'
 
     App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\ActivateMembership'
@@ -234,6 +252,17 @@ services:
     App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\ProcessHelloAssoMembershipPayment'
 
     App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\ExpireMembership'
+
+    App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
+    App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
+
+    App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
+    App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineRunAuditLogRepository'
+    App\Sessions\Application\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\DbalCommunityStatsQuery'
+    App\Sessions\Application\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\DbalLeaderboardQuery'
+    App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\DbalPlayerConnectionQuery'
+    App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
 
     App\Streaming\Infrastructure\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
 
@@ -244,6 +273,39 @@ services:
             $channelLogin: '%env(TWITCH_CHANNEL_LOGIN)%'
 
     App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
+
+    App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
+    App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
+    App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
+    App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
+    App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
+    App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
+
+    App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
+
+    App\Content\Domain\PostRepositoryInterface: '@App\Content\Infrastructure\DoctrinePostRepository'
+
+    App\Events\Domain\EventRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventRepository'
+    App\Events\Domain\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventPrivateAccessLogRepository'
+    App\Events\Application\DashboardStatsQueryInterface: '@App\Events\Infrastructure\DbalDashboardStatsQuery'
+
+    App\Identity\Domain\UserRepositoryInterface: '@App\Identity\Infrastructure\DoctrineUserRepository'
+    App\Identity\Domain\EmailConfirmationTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineEmailConfirmationTokenRepository'
+    App\Identity\Domain\PasswordResetTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrinePasswordResetTokenRepository'
+    App\Identity\Domain\RefreshTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineRefreshTokenRepository'
+    App\Identity\Domain\PrivacyRightsRequestRepositoryInterface: '@App\Identity\Infrastructure\DoctrinePrivacyRightsRequestRepository'
+    App\Identity\Domain\AdminCreationAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineAdminCreationAuditRepository'
+    App\Identity\Domain\DeletionAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineDeletionAuditRepository'
+    App\Identity\Domain\RoleChangeAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineRoleChangeAuditRepository'
+
+    App\Payments\Domain\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\DoctrineHelloAssoOrderRepository'
+    App\Payments\Domain\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository'
+
+    App\Registrations\Domain\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationRepository'
+    App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationAdminMessageRepository'
+    App\Registrations\Application\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\DbalRegistrationCounterQuery'
+    App\Registrations\Application\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\DbalAccountRegistrationsQuery'
+    App\Registrations\Application\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\DbalPrivateAccessGrantedQuery'
 
     App\GameSelection\Infrastructure\IgdbHttpClient:
         arguments:
@@ -265,16 +327,13 @@ when@test:
 
         Symfony\Contracts\HttpClient\HttpClientInterface: '@Symfony\Component\HttpClient\MockHttpClient'
 
-        App\Sessions\Infrastructure\RunnerGatewayInterface:
+        App\Sessions\Application\RunnerGatewayInterface:
             class: App\Sessions\Infrastructure\NullRunnerGateway
 
         App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\NullMinioStorage'
 
         App\Shared\Infrastructure\NullMinioStorage:
             public: true
-
-        App\Sessions\Infrastructure\DockerPortScannerInterface:
-            class: App\Sessions\Infrastructure\NullDockerPortScanner
 
         App\Streaming\Infrastructure\TwitchApiClientInterface:
             class: App\Streaming\Infrastructure\NullTwitchApiClient
@@ -289,6 +348,9 @@ when@test:
 
         App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway:
             public: true
+
+        App\WeeklyRuns\Application\WeeklyRunGeneratorInterface:
+            class: App\WeeklyRuns\Infrastructure\NullWeeklyRunGenerator
 
         App\Identity\Application\DiscordBotClientInterface:
             class: App\Identity\Infrastructure\NullDiscordBotClient

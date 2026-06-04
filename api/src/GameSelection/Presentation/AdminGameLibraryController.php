@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Presentation;
 
 use App\GameSelection\Application\AdminGameLibrary;
+use App\GameSelection\Domain\Game;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -31,7 +32,33 @@ final readonly class AdminGameLibraryController
             return $admin;
         }
 
-        return new JsonResponse(['data' => $this->adminGameLibrary->list(), 'meta' => []]);
+        $page = max(1, (int) $request->query->get('page', '1'));
+        $perPage = min(200, max(1, (int) $request->query->get('per_page', '50')));
+        $search = trim((string) $request->query->get('search', ''));
+
+        $rawAvailability = $request->query->has('availability') ? (string) $request->query->get('availability') : null;
+        $availability = null !== $rawAvailability && in_array($rawAvailability, Game::supportedAvailabilities(), true)
+            ? $rawAvailability
+            : null;
+
+        $rawYamlReady = $request->query->has('yaml_ready') ? (string) $request->query->get('yaml_ready') : null;
+        $yamlReady = match ($rawYamlReady) {
+            '1', 'true' => true,
+            '0', 'false' => false,
+            default => null,
+        };
+
+        $result = $this->adminGameLibrary->list($page, $perPage, $search, $availability, $yamlReady);
+
+        return new JsonResponse([
+            'data' => $result['items'],
+            'meta' => [
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'perPage' => $result['perPage'],
+                'totalPages' => $result['totalPages'],
+            ],
+        ]);
     }
 
     #[Route('/api/v1/admin/games', name: 'api_game_selection_admin_games_create', methods: ['POST'])]
@@ -115,6 +142,10 @@ final readonly class AdminGameLibraryController
 
         if (!$file instanceof UploadedFile) {
             return $this->apiAccessGuard->errorResponse('validation_failed', 'Le fichier est requis.', 422, ['file' => ['Le fichier est requis.']]);
+        }
+
+        if (!$file->isValid()) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le fichier est invalide ou trop volumineux.', 422, ['file' => [$file->getErrorMessage()]]);
         }
 
         $contents = file_get_contents($file->getPathname());
