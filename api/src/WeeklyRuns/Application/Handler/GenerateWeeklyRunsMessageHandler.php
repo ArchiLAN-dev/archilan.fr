@@ -37,6 +37,9 @@ final readonly class GenerateWeeklyRunsMessageHandler
 
         $activeTemplates = $this->templates->findAllActive();
 
+        /** @var list<string> $errors */
+        $errors = [];
+
         foreach ($activeTemplates as $template) {
             $templateId = $template->getId();
 
@@ -94,7 +97,12 @@ final readonly class GenerateWeeklyRunsMessageHandler
                     'templateId' => $templateId,
                     'error' => $e->getMessage(),
                 ]);
+                $errors[] = sprintf('[%s] %s', $templateId, $e->getMessage());
             }
+        }
+
+        if ([] !== $errors) {
+            throw new \RuntimeException('Generation failed for '.count($errors).' run(s): '.implode('; ', $errors));
         }
     }
 }

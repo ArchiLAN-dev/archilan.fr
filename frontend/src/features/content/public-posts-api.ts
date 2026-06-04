@@ -2,7 +2,6 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasStringProp } from "@/lib/type-guards";
 import type { PublicPost, PublicPostType } from "./content-types";
-import { publicPosts, getPublicPostBySlug } from "./mock-posts";
 
 type PostPayload = {
   slug: string;
@@ -14,8 +13,6 @@ type PostPayload = {
   body: string[];
   readingTime: string;
   publishedAt: string;
-  relatedEventSlug: string | null;
-  vodUrl: string | null;
 };
 
 function isPublicPostType(v: unknown): v is PublicPostType {
@@ -27,40 +24,38 @@ export async function getPublicPosts(): Promise<PublicPost[]> {
     const response = await apiFetch(`${env.apiBaseUrl}/posts`, { cache: "no-store" });
 
     if (!response.ok) {
-      return publicPosts;
+      return [];
     }
 
     const payload: unknown = await response.json();
     if (!isPostListPayload(payload)) {
-      return publicPosts;
+      return [];
     }
 
     return payload.data.map(toPublicPost);
   } catch {
-    return publicPosts;
+    return [];
   }
 }
 
 export async function getPublicPostBySlugFromApi(slug: string): Promise<PublicPost | null> {
-  const fallback = getPublicPostBySlug(slug) ?? null;
-
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/posts/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
 
     if (!response.ok) {
-      return fallback;
+      return null;
     }
 
     const payload: unknown = await response.json();
     if (!isPostPayload(payload)) {
-      return fallback;
+      return null;
     }
 
     return toPublicPost(payload.data);
   } catch {
-    return fallback;
+    return null;
   }
 }
 
@@ -78,8 +73,6 @@ function toPublicPost(post: PostPayload): PublicPost {
     readingTime: post.readingTime,
     publishedAt: new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(publishedDate),
     publishedAtIso: publishedDate.toISOString().slice(0, 10),
-    ...(post.relatedEventSlug ? { relatedEventSlug: post.relatedEventSlug } : {}),
-    ...(post.vodUrl ? { vodUrl: post.vodUrl } : {}),
   };
 }
 
@@ -109,7 +102,5 @@ function isPostPayloadItem(v: unknown): v is PostPayload {
     return false;
   }
   if (!hasStringProp(v, "readingTime")) return false;
-  if (!hasStringProp(v, "publishedAt")) return false;
-  if (!("relatedEventSlug" in v) || (v.relatedEventSlug !== null && typeof v.relatedEventSlug !== "string")) return false;
-  return "vodUrl" in v && (v.vodUrl === null || typeof v.vodUrl === "string");
+  return hasStringProp(v, "publishedAt");
 }

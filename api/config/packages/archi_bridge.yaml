@@ -1,0 +1,2 @@
+archi_bridge:
+    admin_token: '%env(BRIDGE_INTERNAL_TOKEN)%'

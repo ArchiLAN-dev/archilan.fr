@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Sessions\Application;
 
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -18,31 +18,28 @@ final readonly class NotifyAllGoalCommand
         private SessionRepositoryInterface $sessions,
         private RunAuditLogRepositoryInterface $auditLogs,
         private MessageBusInterface $messageBus,
+        private RunnerGatewayInterface $runnerGateway,
     ) {
     }
 
-    /**
-     * @return array{found: bool, skipped: bool}
-     */
-    public function execute(string $sessionId): array
+    public function execute(string $sessionId): void
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
-            return ['found' => false, 'skipped' => false];
+            throw new SessionNotFoundException($sessionId);
         }
 
         if (Session::STATUS_RUNNING !== $session->getStatus()) {
-            return ['found' => true, 'skipped' => true];
+            return;
         }
 
         $now = new \DateTimeImmutable();
-        $port = $session->getPort() ?? 0;
         $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->transition(Session::STATUS_FINISHED, $now);
         $this->sessions->flush();
 
-        $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+        $this->runnerGateway->stopSession($sessionId);
         $this->messageBus->dispatch(new ArchiveRunJob($sessionId, $bridgePort));
 
         $log = new RunAuditLog(
@@ -55,7 +52,5 @@ final readonly class NotifyAllGoalCommand
         );
         $this->auditLogs->persist($log);
         $this->auditLogs->flush();
-
-        return ['found' => true, 'skipped' => false];
     }
 }

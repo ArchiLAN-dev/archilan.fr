@@ -40,6 +40,7 @@ export type PersonalRun = {
   lastActivityAt: string | null;
   pausedWithoutSave: boolean;
   validationErrors: ValidationSlotError[] | null;
+  adminPassword: string | null;
   createdAt: string;
   updatedAt: string;
 };

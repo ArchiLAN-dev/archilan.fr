@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
 import {
+  downloadPatch,
   fetchWeeklyEntryPatches,
   launchWeeklyEntry,
   optInToWeeklyRun,
@@ -190,6 +191,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
       return;
     }
     void queryClient.invalidateQueries({ queryKey: ["weekly-runs", "current"] });
+    void queryClient.invalidateQueries({ queryKey: ["weekly-run-patches", run.weeklyRunId] });
   }
 
   const { myEntry } = run;
@@ -201,15 +203,15 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
         Fichiers patch
       </p>
       {patches.map((filename) => (
-        <a
+        <button
           key={filename}
           className="inline-flex w-fit items-center gap-1.5 text-sm text-accent-text hover:underline"
-          download={filename}
-          href={`${env.apiBaseUrl}/weekly-runs/${run.weeklyRunId}/entries/${myEntry.entryId}/patches/${filename}`}
+          onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
+          type="button"
         >
           <Download aria-hidden="true" className="size-3.5" />
           {filename}
-        </a>
+        </button>
       ))}
     </div>
   ) : null;

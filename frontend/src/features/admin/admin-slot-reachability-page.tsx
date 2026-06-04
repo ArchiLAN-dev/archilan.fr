@@ -777,7 +777,7 @@ export function AdminSlotReachabilityPage({
                           disabled={!canSubmit || actionLoading !== null}
                           onClick={() => {
                             const cmd = itemQty > 1
-                              ? `!admin /send_multiple ${itemQty} ${itemSearch.trim()} ${state.data.player}`
+                              ? `!admin /send_multiple ${itemQty} ${state.data.player} ${itemSearch.trim()}`
                               : `!admin /send ${state.data.player} ${itemSearch.trim()}`;
                             void sendBridgeCommand(cmd, "send_item");
                           }}

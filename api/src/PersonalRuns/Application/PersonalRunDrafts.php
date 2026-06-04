@@ -192,10 +192,8 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_deletable'];
         }
 
-        if (Run::STATUS_CANCELLED !== $run->getStatus()) {
-            $run->cancel(new \DateTimeImmutable());
-        }
-        $this->runs->flush();
+        $this->participants->deleteByRunId($run->getId());
+        $this->runs->delete($run);
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
     }
@@ -317,6 +315,7 @@ final readonly class PersonalRunDrafts
         $lastActivityAt = null;
         $pausedWithoutSave = false;
         $validationErrors = null;
+        $adminPassword = null;
         $sessionId = $run->getSessionId();
 
         if (null !== $sessionId) {
@@ -329,6 +328,10 @@ final readonly class PersonalRunDrafts
 
                 if (Run::STATUS_DRAFT === $run->getStatus() && Session::STATUS_DRAFT === $session->getStatus()) {
                     $validationErrors = $session->getValidationErrors();
+                }
+
+                if ($isActive && null !== $callerId && $run->isOwnedBy($callerId)) {
+                    $adminPassword = $session->getAdminPassword();
                 }
             }
         }
@@ -349,6 +352,7 @@ final readonly class PersonalRunDrafts
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,
+            'adminPassword' => $adminPassword,
             'createdAt' => $run->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $run->getUpdatedAt()->format(\DateTimeInterface::ATOM),
         ];

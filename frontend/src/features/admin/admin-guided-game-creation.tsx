@@ -59,8 +59,17 @@ function detectGitHubUrl(links: { url: string | null }[]): string {
 }
 
 function isValidApworldSourceUrl(url: string): boolean {
+  // GitLab direct file URL
+  if (url.startsWith("https://gitlab.com/")) {
+    return /\/-\/(blob|raw)\/.+\.apworld$/i.test(url);
+  }
+
   if (!url.startsWith("https://github.com/")) return false;
   const cleanUrl = url.split("?")[0].split("#")[0];
+
+  // Direct .apworld file URL (raw file link)
+  if (/\.apworld$/i.test(cleanUrl)) return true;
+
   const path = cleanUrl.slice("https://github.com/".length).replace(/\/$/, "");
   const parts = path.split("/");
   if (parts.length < 2 || !parts[0] || !parts[1]) return false;
@@ -69,7 +78,7 @@ function isValidApworldSourceUrl(url: string): boolean {
   if (rest.length === 1 && rest[0] === "releases") return true;
   if (rest.length === 2 && rest[0] === "releases" && rest[1] === "latest") return true;
   if (rest.length === 3 && rest[0] === "releases" && rest[1] === "tag" && rest[2]) return true;
-  if (rest.length === 2 && rest[0] === "tree" && rest[1]) return true;
+  if (rest.length >= 2 && rest[0] === "tree" && rest[1]) return true;
   return false;
 }
 
@@ -134,33 +143,6 @@ export function AdminGuidedGameCreation({ preset }: { preset: CataloguePreset })
   }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
-  const [igdbCandidates, setIgdbCandidates] = useState<IgdbCandidate[] | null>(null);
-  const [igdbQuery, setIgdbQuery] = useState(preset.name);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchCandidates() {
-      setIgdbCandidates(null);
-      try {
-        const res = await apiFetch(
-          `${env.apiBaseUrl}/admin/catalog-sync/igdb-preview?name=${encodeURIComponent(igdbQuery)}`,
-        );
-        if (cancelled) return;
-        if (!res.ok) {
-          setIgdbCandidates([]);
-          return;
-        }
-        const body = (await res.json()) as { data?: IgdbCandidate[] };
-        setIgdbCandidates(body.data ?? []);
-      } catch {
-        if (!cancelled) setIgdbCandidates([]);
-      }
-    }
-    void fetchCandidates();
-    return () => {
-      cancelled = true;
-    };
-  }, [igdbQuery]);
 
   function setField<K extends keyof Fields>(key: K, value: Fields[K]) {
     setFields((f) => ({ ...f, [key]: value }));
@@ -182,7 +164,7 @@ export function AdminGuidedGameCreation({ preset }: { preset: CataloguePreset })
     if (!fields.name.trim()) e.name = "Le nom est obligatoire.";
     if (fields.apworldSourceUrl && !isValidApworldSourceUrl(fields.apworldSourceUrl)) {
       e.apworldSourceUrl =
-        "L'URL doit être de la forme https://github.com/{owner}/{repo} (et variantes : /releases, /releases/latest, /releases/tag/{tag}, /tree/{branch}).";
+        "URL invalide. Formats acceptés : https://github.com/{owner}/{repo} (et variantes releases/raw), URL directe .apworld, ou https://gitlab.com/{owner}/{repo}/-/blob/{branch}/{file}.apworld.";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -318,11 +300,9 @@ export function AdminGuidedGameCreation({ preset }: { preset: CataloguePreset })
 
         {/* Section 3 - Candidats IGDB */}
         <IgdbCandidatesSection
-          candidates={igdbCandidates}
-          query={igdbQuery}
+          initialQuery={preset.name}
           selectedIgdbId={fields.igdbId}
           onDeselect={() => setField("igdbId", null)}
-          onSearch={setIgdbQuery}
           onSelect={handleIgdbSelect}
         />
 
@@ -443,33 +423,58 @@ function SheetLinksSection({ links }: { links: { label: string; url: string | nu
 
 // ── IGDB candidates section ────────────────────────────────────────────────────
 
-const IGDB_MAX_SHOWN = 6;
+const IGDB_PAGE_SIZE = 6;
+
+type CandidateStatus = "loading" | "done" | "error";
 
 function IgdbCandidatesSection({
-  candidates,
-  query,
+  initialQuery,
   selectedIgdbId,
   onDeselect,
-  onSearch,
   onSelect,
 }: {
-  candidates: IgdbCandidate[] | null;
-  query: string;
+  initialQuery: string;
   selectedIgdbId: number | null;
   onDeselect: () => void;
-  onSearch: (q: string) => void;
   onSelect: (c: IgdbCandidate) => void;
 }) {
-  const [inputValue, setInputValue] = useState(query);
-  const loading = candidates === null;
+  const [inputValue, setInputValue] = useState(initialQuery);
+  const [activeQuery, setActiveQuery] = useState(initialQuery);
+  const [page, setPage] = useState(0);
+  const [candidates, setCandidates] = useState<IgdbCandidate[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [status, setStatus] = useState<CandidateStatus>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetch() {
+      setStatus("loading");
+      try {
+        const offset = page * IGDB_PAGE_SIZE;
+        const res = await apiFetch(
+          `${env.apiBaseUrl}/admin/igdb/search?q=${encodeURIComponent(activeQuery)}&offset=${offset}`,
+        );
+        if (cancelled) return;
+        if (!res.ok) { setStatus("error"); return; }
+        const body: unknown = await res.json();
+        if (!isIgdbSearchPayload(body)) { setStatus("error"); return; }
+        setCandidates(body.data);
+        setHasMore(body.meta.hasMore);
+        setStatus("done");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    }
+    void fetch();
+    return () => { cancelled = true; };
+  }, [activeQuery, page]);
 
   function triggerSearch() {
     const trimmed = inputValue.trim();
-    if (trimmed && trimmed !== query) onSearch(trimmed);
+    if (!trimmed) return;
+    setPage(0);
+    setActiveQuery(trimmed);
   }
-
-  const shown = candidates?.slice(0, IGDB_MAX_SHOWN) ?? [];
-  const overflow = (candidates?.length ?? 0) - IGDB_MAX_SHOWN;
 
   return (
     <FormSection title="Candidats IGDB">
@@ -491,24 +496,26 @@ function IgdbCandidatesSection({
         </div>
         <button
           className="inline-flex min-h-10 items-center gap-1.5 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={loading}
+          disabled={status === "loading"}
           type="button"
           onClick={triggerSearch}
         >
-          {loading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+          {status === "loading" ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
           Rechercher
         </button>
       </div>
 
       {/* Results */}
-      {loading ? (
+      {status === "loading" ? (
         <p className="text-sm text-muted-foreground">Recherche en cours…</p>
+      ) : status === "error" ? (
+        <p className="text-sm text-danger">Erreur lors de la recherche IGDB.</p>
       ) : candidates.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucun résultat pour « {query} ».</p>
+        <p className="text-sm text-muted-foreground">Aucun résultat pour « {activeQuery} ».</p>
       ) : (
         <>
           <ul className="grid gap-3 sm:grid-cols-3">
-            {shown.map((c) => {
+            {candidates.map((c) => {
               const selected = c.igdbId === selectedIgdbId;
               return (
                 <li key={c.igdbId}>
@@ -536,11 +543,27 @@ function IgdbCandidatesSection({
               );
             })}
           </ul>
-          {overflow > 0 ? (
-            <p className="mt-3 text-xs text-muted-foreground">
-              +{overflow} résultat{overflow > 1 ? "s" : ""} masqué{overflow > 1 ? "s" : ""} - affinez la recherche.
-            </p>
-          ) : null}
+          {(page > 0 || hasMore) && (
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-30"
+                disabled={page === 0}
+                type="button"
+                onClick={() => setPage((p) => p - 1)}
+              >
+                ← Précédent
+              </button>
+              <span className="text-xs text-muted-foreground">Page {page + 1}</span>
+              <button
+                className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-30"
+                disabled={!hasMore}
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Suivant →
+              </button>
+            </div>
+          )}
           {selectedIgdbId !== null ? (
             <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
               <Search aria-hidden="true" className="size-3.5" />
@@ -554,6 +577,13 @@ function IgdbCandidatesSection({
       )}
     </FormSection>
   );
+}
+
+function isIgdbSearchPayload(v: unknown): v is { data: IgdbCandidate[]; meta: { hasMore: boolean } } {
+  if (typeof v !== "object" || v === null || !("data" in v) || !("meta" in v)) return false;
+  if (!Array.isArray((v as { data: unknown }).data)) return false;
+  const meta = (v as { meta: unknown }).meta;
+  return typeof meta === "object" && meta !== null && "hasMore" in meta && typeof (meta as { hasMore: unknown }).hasMore === "boolean";
 }
 
 // ── Shared UI primitives ───────────────────────────────────────────────────────

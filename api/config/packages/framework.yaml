@@ -2,6 +2,7 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+
     # API is stateless (JWT httpOnly cookies) - PHP sessions disabled.
     session: false
 

@@ -44,6 +44,7 @@ type PageState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "data"; data: ReachabilityData }
+  | { kind: "paused" }
   | { kind: "error"; message: string };
 
 // ─── Inline slot switcher (navigates to /runs/[runId]/progression/[slot]) ────
@@ -233,6 +234,10 @@ export function PersonalRunSlotDetailPage({
         `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/reachable`,
       );
       if (!res.ok) {
+        if (res.status === 409) {
+          if (!silent) setState({ kind: "paused" });
+          return;
+        }
         const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
         const msg = body.error?.message ?? `Erreur ${res.status}`;
         if (!silent) setState({ kind: "error", message: msg });
@@ -703,6 +708,16 @@ export function PersonalRunSlotDetailPage({
           </div>
         ) : null}
 
+        {state.kind === "paused" ? (
+          <div className="flex items-start gap-3 rounded border border-border bg-surface p-4 text-sm text-muted-foreground">
+            <WifiOff aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-warm" />
+            <div>
+              <p className="font-medium text-foreground">Partie en pause</p>
+              <p className="mt-0.5">La session n&apos;est pas active. Redémarre la partie depuis la page principale pour accéder à ta progression en direct.</p>
+            </div>
+          </div>
+        ) : null}
+
         {state.kind === "error" ? (
           <div className="grid gap-4">
             <div className="flex items-start gap-3 rounded border border-danger/40 bg-danger/5 p-4 text-sm text-danger">
@@ -721,7 +736,7 @@ export function PersonalRunSlotDetailPage({
         ) : null}
 
         {/* Tab bar */}
-        <div className="-mx-4 flex items-stretch gap-0 border-b border-border bg-surface px-4">
+        <div className={`-mx-4 flex items-stretch gap-0 border-b border-border bg-surface px-4${state.kind === "paused" ? " hidden" : ""}`}>
           {TABS.map((tab) => {
             const data = state.kind === "data" ? state.data : null;
             const sub =

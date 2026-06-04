@@ -19,7 +19,7 @@ final readonly class PublicPostCatalog
     }
 
     /**
-     * @return list<array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, relatedEventSlug: string|null, vodUrl: string|null, coverImageUrl: string|null}>
+     * @return list<array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}>
      */
     public function list(): array
     {
@@ -29,7 +29,7 @@ final readonly class PublicPostCatalog
     }
 
     /**
-     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, relatedEventSlug: string|null, vodUrl: string|null, coverImageUrl: string|null}|null
+     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}|null
      */
     public function get(string $slug): ?array
     {
@@ -43,7 +43,7 @@ final readonly class PublicPostCatalog
     }
 
     /**
-     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, relatedEventSlug: string|null, vodUrl: string|null, coverImageUrl: string|null}
+     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}
      */
     private function payload(Post $post): array
     {
@@ -56,8 +56,6 @@ final readonly class PublicPostCatalog
             'body' => $post->getBody(),
             'readingTime' => $post->getReadingTime(),
             'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM) ?? '',
-            'relatedEventSlug' => $post->getRelatedEventSlug(),
-            'vodUrl' => $post->getVodUrl(),
             'coverImageUrl' => $this->resolveCoverImageUrl($post),
         ];
     }

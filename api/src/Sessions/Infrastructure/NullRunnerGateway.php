@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
+use App\Sessions\Application\RunnerGatewayInterface;
+
 final class NullRunnerGateway implements RunnerGatewayInterface
 {
     /** @var array<string, string>|null */
@@ -48,32 +50,28 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return ['valid' => $valid, 'slots' => $proposed];
     }
 
-    public function writeYamls(string $sessionId, array $slots): array
+    public function configureSession(string $sessionId, array $slots): array
     {
-        return ['files' => []];
+        return ['valid' => true, 'errors' => []];
     }
 
-    public function generate(string $sessionId): array
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null): void
     {
-        return ['sessionId' => $sessionId, 'status' => 'generating'];
     }
 
-    public function launch(string $sessionId): array
+    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword): void
     {
-        return ['sessionId' => $sessionId, 'status' => 'running'];
     }
 
-    public function restart(string $sessionId): array
+    public function stopSession(string $sessionId): void
     {
-        return ['sessionId' => $sessionId, 'status' => 'running'];
     }
 
-    public function stop(string $sessionId): array
+    public function restartSession(string $sessionId): void
     {
-        return ['sessionId' => $sessionId, 'status' => 'stopped'];
     }
 
-    public function getYamlsZip(string $sessionId): ?string
+    public function getSessionInfo(string $sessionId): ?array
     {
         return null;
     }

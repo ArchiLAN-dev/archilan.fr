@@ -6,7 +6,6 @@ namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
-use App\GameSelection\Infrastructure\StubIgdbHttpClient;
 use App\Identity\Domain\User;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -26,70 +25,6 @@ final class AdminCatalogSyncTest extends FunctionalTestCase
         $schemaTool = new SchemaTool($this->entityManager);
         $schemaTool->dropSchema($metadata);
         $schemaTool->createSchema($metadata);
-
-        StubIgdbHttpClient::reset();
-    }
-
-    public function testIgdbPreviewRequiresAdmin(): void
-    {
-        $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
-        self::assertResponseStatusCodeSame(401);
-
-        $user = $this->createUser('user@example.org', ['ROLE_USER']);
-        $this->loginAs($user);
-
-        $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
-        self::assertResponseStatusCodeSame(403);
-    }
-
-    public function testIgdbPreviewRequiresNameParam(): void
-    {
-        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview');
-        self::assertResponseStatusCodeSame(422);
-
-        $response = $this->decodedJsonResponse();
-        $error = $response['error'];
-        self::assertIsArray($error);
-        self::assertSame('igdb_name_required', $error['code']);
-    }
-
-    public function testIgdbPreviewReturnsCandidatesFromStub(): void
-    {
-        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
-        self::assertResponseIsSuccessful();
-
-        $response = $this->decodedJsonResponse();
-        $data = $response['data'];
-        self::assertIsArray($data);
-        self::assertCount(1, $data); // StubIgdbHttpClient returns 1 result by default
-
-        $candidate = $data[0];
-        self::assertIsArray($candidate);
-        self::assertSame(1234, $candidate['igdbId']);
-        self::assertSame('Hollow Knight', $candidate['name']);
-        self::assertArrayHasKey('summary', $candidate);
-        self::assertArrayHasKey('coverUrl', $candidate);
-        self::assertArrayNotHasKey('coverImageAlt', $candidate); // AC5: not returned by API
-    }
-
-    public function testIgdbPreviewReturnsEmptyArrayWhenStubConfiguredToFail(): void
-    {
-        StubIgdbHttpClient::$authFails = true;
-
-        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
-        $this->loginAs($admin);
-
-        $this->client->jsonRequest('GET', '/api/v1/admin/catalog-sync/igdb-preview?name=hollow');
-        self::assertResponseIsSuccessful();
-
-        $response = $this->decodedJsonResponse();
-        self::assertSame([], $response['data']); // graceful no-op
     }
 
     public function testCheckUpdatesRequiresAdmin(): void
@@ -129,12 +64,16 @@ final class AdminCatalogSyncTest extends FunctionalTestCase
         self::assertInstanceOf(MockHttpClient::class, $httpClient);
         $httpClient->setResponseFactory([
             new MockResponse(
-                (string) json_encode([
+                (string) json_encode([[
                     'tag_name' => 'v1.2.0',
                     'published_at' => '2026-01-01T00:00:00Z',
                     'html_url' => 'https://github.com/nicholasb/hollow-knight/releases/tag/v1.2.0',
-                    'assets' => [],
-                ]),
+                    'assets' => [
+                        ['name' => 'hollow-knight.apworld', 'browser_download_url' => 'https://example.com/hk.apworld'],
+                    ],
+                    'draft' => false,
+                    'prerelease' => false,
+                ]]),
                 ['response_headers' => ['x-ratelimit-remaining' => ['50']]],
             ),
         ]);

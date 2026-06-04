@@ -9,5 +9,5 @@ interface IgdbHttpClientInterface
     /**
      * @return list<array{igdbId: int, name: string, slug: string, summary: string|null, coverUrl: string|null}>
      */
-    public function searchGames(string $query, int $limit = 10): array;
+    public function searchGames(string $query, int $limit = 10, int $offset = 0): array;
 }

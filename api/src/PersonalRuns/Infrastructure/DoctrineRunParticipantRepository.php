@@ -39,6 +39,14 @@ final readonly class DoctrineRunParticipantRepository implements RunParticipantR
         $this->entityManager->flush();
     }
 
+    public function deleteByRunId(string $runId): void
+    {
+        foreach ($this->findByRunId($runId) as $participant) {
+            $this->entityManager->remove($participant);
+        }
+        $this->entityManager->flush();
+    }
+
     public function flush(): void
     {
         $this->entityManager->flush();

@@ -7,12 +7,16 @@
     "prefer-stable": true,
     "repositories": [
         {
-            "type": "path",
-            "url": "../packages/orchestrateur-client"
+            "type": "vcs",
+            "url": "git@github.com:ArchiLAN-dev/archilan-orchestrateur-client.git"
         },
         {
-            "type": "path",
-            "url": "../packages/bridge-client"
+            "type": "vcs",
+            "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client.git"
+        },
+        {
+            "type": "vcs",
+            "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client-bundle.git"
         }
     ],
     "require": {
@@ -20,6 +24,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "archilan/bridge-client": "^1.0",
+        "archilan/bridge-client-bundle": ">=1@dev",
         "archilan/orchestrateur-client": ">=1",
         "aws/aws-sdk-php": "^3.381.2",
         "doctrine/doctrine-bundle": "^3.2.2",

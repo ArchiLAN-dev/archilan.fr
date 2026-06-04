@@ -42,6 +42,10 @@ final readonly class ApiAccessGuard
             return $user;
         }
 
+        if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
+            return $user;
+        }
+
         if (!$this->activeMembershipQuery->hasActiveMembership($user->getId())) {
             return $this->errorResponse('forbidden', 'Acces reserve aux adherents.', 403);
         }

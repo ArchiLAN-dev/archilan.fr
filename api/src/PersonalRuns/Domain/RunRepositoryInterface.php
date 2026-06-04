@@ -19,5 +19,7 @@ interface RunRepositoryInterface
 
     public function save(Run $run): void;
 
+    public function delete(Run $run): void;
+
     public function flush(): void;
 }

@@ -10,31 +10,18 @@ use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 
 final class LaunchWeeklyEntryTest extends TestCase
 {
     private static MockClock $clock;
-    private string $workspaceDir;
-    private string $seedFile;
 
     public static function setUpBeforeClass(): void
     {
         self::$clock = new MockClock(new \DateTimeImmutable('2026-05-20T10:00:00', new \DateTimeZone('UTC')));
-    }
-
-    protected function setUp(): void
-    {
-        $this->workspaceDir = sys_get_temp_dir().'/launch_weekly_entry_test_'.uniqid('', true);
-        mkdir($this->workspaceDir.'/run-1/output', 0755, true);
-        $this->seedFile = $this->workspaceDir.'/run-1/output/world.archipelago';
-        file_put_contents($this->seedFile, 'fake-seed-content');
-    }
-
-    protected function tearDown(): void
-    {
-        $this->removeDir($this->workspaceDir);
     }
 
     public function testInvokeThrowsWhenRunNotGenerated(): void
@@ -97,7 +84,7 @@ final class LaunchWeeklyEntryTest extends TestCase
             ->execute('run-1', 'entry-1', 'user-1');
     }
 
-    public function testInvokeLaunchesFromPreGeneratedSeed(): void
+    public function testInvokeLaunchesViaOrchestrateur(): void
     {
         $run = $this->makeRun();
         $entry = $this->makeEntry();
@@ -109,11 +96,16 @@ final class LaunchWeeklyEntryTest extends TestCase
         $entries->method('findById')->willReturn($entry);
         $entries->expects(self::once())->method('flush');
 
-        $capturedSeedPath = null;
+        $capturedArgs = [];
         $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);
-        $gateway->expects(self::once())->method('launchFromSeed')
-            ->willReturnCallback(static function (string $entryId, string $seedFilePath) use (&$capturedSeedPath): array {
-                $capturedSeedPath = $seedFilePath;
+        $gateway->expects(self::once())->method('launchEntry')
+            ->willReturnCallback(static function (
+                string $entryId,
+                string $apworldHash,
+                string $templateYaml,
+                string $seed,
+            ) use (&$capturedArgs): array {
+                $capturedArgs = compact('entryId', 'apworldHash', 'templateYaml', 'seed');
 
                 return [
                     'externalSessionId' => 'sess-1',
@@ -127,9 +119,9 @@ final class LaunchWeeklyEntryTest extends TestCase
         self::assertSame('entry-1', $result['entryId']);
         self::assertSame('sess-1', $result['externalSessionId']);
         self::assertSame('runner.test', $result['connectionInfo']['host']);
-        self::assertNotNull($capturedSeedPath);
-        self::assertStringEndsWith('world.archipelago', $capturedSeedPath);
-        self::assertFileExists($capturedSeedPath);
+        self::assertSame('entry-1', $capturedArgs['entryId']);
+        self::assertSame('sha256hashofapworld', $capturedArgs['apworldHash']);
+        self::assertSame('archilan-weekly-2026-20', $capturedArgs['seed']);
     }
 
     public function testFlushFailureCallsTerminate(): void
@@ -145,7 +137,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $entries->method('flush')->willThrowException(new \RuntimeException('db error'));
 
         $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);
-        $gateway->method('launchFromSeed')->willReturn([
+        $gateway->method('launchEntry')->willReturn([
             'externalSessionId' => 'sess-1',
             'connectionInfo' => ['host' => 'runner.test', 'port' => 38281, 'password' => null],
             'bridgePort' => 5001,
@@ -158,7 +150,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $this->makeHandler($runs, $entries, $gateway)->execute('run-1', 'entry-1', 'user-1');
     }
 
-    private function makeRun(?string $generatedSeedPath = ''): WeeklyRun
+    private function makeRun(?string $generatedSeedPath = 'sha256hashofapworld'): WeeklyRun
     {
         $now = new \DateTimeImmutable('2026-05-19T00:00:00+00:00');
         $run = new WeeklyRun(
@@ -172,9 +164,7 @@ final class LaunchWeeklyEntryTest extends TestCase
             createdAt: $now,
         );
 
-        if ('' === $generatedSeedPath) {
-            $run->markGenerated($this->seedFile);
-        } elseif (null !== $generatedSeedPath) {
+        if (null !== $generatedSeedPath) {
             $run->markGenerated($generatedSeedPath);
         }
 
@@ -196,26 +186,34 @@ final class LaunchWeeklyEntryTest extends TestCase
         );
     }
 
+    private function makeTemplate(): WeeklyTemplate
+    {
+        $now = new \DateTimeImmutable();
+
+        return new WeeklyTemplate(
+            id: 'template-1',
+            gameId: 'game-1',
+            yamlConfig: "name: ArchiLAN\ngame: Archipelago\n",
+            name: null,
+            maxAttempts: null,
+            isActive: true,
+            createdAt: $now,
+            updatedAt: $now,
+        );
+    }
+
     private function makeHandler(
         WeeklyRunRepositoryInterface $runs,
         WeeklyEntryRepositoryInterface $entries,
         WeeklyRunnerGatewayInterface $gateway,
+        ?WeeklyTemplateRepositoryInterface $templates = null,
     ): LaunchWeeklyEntry {
-        return new LaunchWeeklyEntry($runs, $entries, $gateway, self::$clock, $this->workspaceDir);
-    }
+        if (null === $templates) {
+            $stub = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+            $stub->method('findById')->willReturn($this->makeTemplate());
+            $templates = $stub;
+        }
 
-    private function removeDir(string $dir): void
-    {
-        if (!is_dir($dir)) {
-            return;
-        }
-        foreach (scandir($dir) ?: [] as $item) {
-            if ('.' === $item || '..' === $item) {
-                continue;
-            }
-            $path = $dir.'/'.$item;
-            is_dir($path) ? $this->removeDir($path) : unlink($path);
-        }
-        rmdir($dir);
+        return new LaunchWeeklyEntry($runs, $entries, $templates, $gateway, self::$clock);
     }
 }

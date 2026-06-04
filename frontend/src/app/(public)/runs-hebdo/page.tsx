@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RunsHebdoPage() {
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-5xl">
       <header className="mb-8">
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
           Compétition hebdo
@@ -20,7 +20,7 @@ export default function RunsHebdoPage() {
           Runs hebdomadaires
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Inscris-toi, lance ta partie et compare ton temps avec les autres membres.
+          Choisis un jeu pour voir le run de la semaine et consulter le classement.
         </p>
       </header>
       <WeeklyRunsClientPage />

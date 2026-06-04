@@ -141,11 +141,6 @@ printf '%s' "$msg" | GATE_CTX="$git_ctx" "${PYTHON3_CMD[@]}" -c '
 import json, sys, os
 msg = sys.stdin.read()
 ctx = os.environ.get("GATE_CTX", "")
-output = {"systemMessage": msg}
-if ctx:
-    output["hookSpecificOutput"] = {
-        "hookEventName": "Stop",
-        "additionalContext": ctx
-    }
-print(json.dumps(output))
+full_msg = (msg + "\n\n" + ctx).rstrip() if ctx else msg.rstrip()
+print(json.dumps({"systemMessage": full_msg}))
 '

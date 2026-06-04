@@ -10,15 +10,15 @@ use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Sessions\Application\PersonalRunAdvancerInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Shared\Application\Message\GenerateRunJob;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsMessageHandler]
 final readonly class LaunchPersonalRunJobHandler
@@ -31,7 +31,8 @@ final readonly class LaunchPersonalRunJobHandler
         private SessionRepositoryInterface $sessions,
         private SessionSlotRepositoryInterface $slots,
         private SlotNameGenerator $slotNameGenerator,
-        private MessageBusInterface $messageBus,
+        private RunnerGatewayInterface $runnerGateway,
+        private PersonalRunAdvancerInterface $personalRunAdvancer,
         private LoggerInterface $logger,
     ) {
     }
@@ -56,6 +57,7 @@ final readonly class LaunchPersonalRunJobHandler
                     'gameId' => $slot['gameId'],
                     'slotOrder' => $slot['slotOrder'],
                     'playerYaml' => $slot['playerYaml'] ?? '',
+                    'apworldHash' => $slot['apworldHash'] ?? '',
                 ];
             }
         }
@@ -128,6 +130,7 @@ final readonly class LaunchPersonalRunJobHandler
                 'playerName' => $playerName,
                 'archipelagoGameName' => $archipelagoGameName,
                 'playerYaml' => $playerYaml,
+                'apworldHash' => $slot['apworldHash'],
             ];
         }
 
@@ -136,7 +139,37 @@ final readonly class LaunchPersonalRunJobHandler
 
         $this->sessions->flush();
 
-        $this->messageBus->dispatch(new GenerateRunJob($sessionId, 'validate', $messageSlots));
+        $configureSlots = array_map(
+            static fn (array $slot): array => [
+                'slotName' => $slot['slotName'],
+                'apworldHash' => $slot['apworldHash'],
+                'playerYaml' => $slot['playerYaml'],
+            ],
+            $messageSlots,
+        );
+
+        try {
+            $configureResult = $this->runnerGateway->configureSession($sessionId, $configureSlots);
+        } catch (\Throwable $e) {
+            $this->logger->error('personal_run.launch.configure_failed', [
+                'runId' => $job->personalRunId,
+                'sessionId' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+            $session->transition(Session::STATUS_FAILED, $now);
+            $this->sessions->flush();
+
+            return;
+        }
+
+        if ($configureResult['valid']) {
+            $session->transition(Session::STATUS_READY, $now);
+            $this->sessions->flush();
+            $this->personalRunAdvancer->autoAdvancePersonalRun($sessionId);
+        } else {
+            $session->transition(Session::STATUS_FAILED, $now);
+            $this->sessions->flush();
+        }
 
         $this->logger->info('personal_run.launch.dispatched', [
             'runId' => $job->personalRunId,

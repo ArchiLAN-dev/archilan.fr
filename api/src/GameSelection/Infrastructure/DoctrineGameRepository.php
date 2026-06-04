@@ -46,10 +46,10 @@ final readonly class DoctrineGameRepository implements GameRepositoryInterface
         return $this->entityManager->getRepository(Game::class)->findBy(['id' => $ids], ['name' => 'ASC']);
     }
 
-    public function findAllSortedByName(int $limit = 500): array
+    public function findAllSortedByName(): array
     {
         /* @var list<Game> */
-        return $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC'], $limit);
+        return $this->entityManager->getRepository(Game::class)->findBy([], ['name' => 'ASC']);
     }
 
     public function findByAvailabilitiesSortedByName(array $availabilities): array

@@ -12,8 +12,6 @@ export type PublicPost = {
   publishedAtIso: string;
   readingTime: string;
   body: string[];
-  relatedEventSlug?: string;
-  vodUrl?: string;
 };
 
 export type AdminContentPost = Omit<PublicPost, "status" | "publishedAt" | "publishedAtIso"> & {
@@ -30,7 +28,5 @@ export type ContentDraftInput = {
   excerpt: string;
   body: string[];
   readingTime: string;
-  relatedEventSlug?: string;
-  vodUrl?: string;
   coverImageUrl?: string | null;
 };

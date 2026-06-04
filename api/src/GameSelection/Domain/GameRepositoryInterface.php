@@ -27,7 +27,7 @@ interface GameRepositoryInterface
     /**
      * @return list<Game>
      */
-    public function findAllSortedByName(int $limit = 500): array;
+    public function findAllSortedByName(): array;
 
     /**
      * @param list<string> $availabilities

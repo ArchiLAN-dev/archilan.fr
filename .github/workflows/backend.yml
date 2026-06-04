@@ -4,24 +4,17 @@ on:
   pull_request:
     paths:
       - 'api/**'
-      - 'bridge/**'
-      - 'orchestrateur/**'
-      - 'frontend/**'
       - '.github/workflows/backend.yml'
   push:
     branches:
       - main
     paths:
       - 'api/**'
-      - 'bridge/**'
-      - 'orchestrateur/**'
-      - 'frontend/**'
       - '.github/workflows/backend.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write  # ghcr.io push
 
 jobs:
   backend:
@@ -33,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -42,6 +35,9 @@ jobs:
           extensions: ctype, iconv
           coverage: none
           tools: composer:v2
+
+      - name: Configure Composer GitHub token
+        run: composer config -g github-oauth.github.com ${{ secrets.COMPOSER_GITHUB_TOKEN }}
 
       - name: Validate Composer
         run: composer validate
@@ -71,144 +67,3 @@ jobs:
 
       - name: PHPUnit
         run: composer test
-
-  bridge:
-    name: Bridge
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: bridge/requirements-dev.txt
-
-      - name: Install dependencies
-        run: pip install -r bridge/requirements-dev.txt
-
-      - name: Ruff
-        run: python -m ruff check bridge/
-
-      - name: Mypy
-        run: python -m mypy bridge/ --config-file bridge/pyproject.toml
-
-      - name: Pytest
-        run: python -m pytest -c bridge/pyproject.toml bridge/tests
-
-      - name: Bridge module import smoke test
-        run: python -c "import bridge.bridge; print('import ok')"
-
-      - name: Bridge script syntax check
-        run: python -m py_compile bridge/bridge.py && echo "syntax ok"
-
-      - name: Bridge script entry point smoke test
-        run: python bridge/bridge.py --check-imports
-
-  orchestrateur:
-    name: Orchestrateur (Go)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: orchestrateur
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: orchestrateur/go.sum
-
-      - name: Build
-        run: go build ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test
-        run: go test ./...
-
-  frontend:
-    name: Frontend (Next.js)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: '10'
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Lint
-        run: pnpm lint
-
-  bridge-docker:
-    name: Bridge Docker
-    needs: bridge
-    runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && github.event_name == 'push'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: bridge/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/bridge:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/bridge:${{ github.sha }}
-
-  bridge-deploy:
-    name: Bridge Deploy
-    needs: bridge-docker
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd /opt/archilan
-            docker compose pull bridge
-            docker compose up -d --no-deps bridge
-            docker image prune -f

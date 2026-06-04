@@ -43,11 +43,17 @@ final readonly class SendBridgeCommand
             return ['found' => true, 'error' => 'bridge_unavailable'];
         }
 
+        $adminPassword = $session->getAdminPassword();
+
         try {
             $bridgeResponse = $this->httpClient->request(
                 'POST',
                 sprintf('http://%s:%d/commands', $host, $bridgePort),
-                ['json' => ['command' => $command], 'timeout' => 3],
+                [
+                    'json' => ['command' => $command],
+                    'headers' => null !== $adminPassword ? ['X-Ap-Admin-Password' => $adminPassword] : [],
+                    'timeout' => 3,
+                ],
             );
             $bridgeStatus = $bridgeResponse->getStatusCode();
             if ($bridgeStatus < 200 || $bridgeStatus >= 300) {

@@ -29,7 +29,11 @@ final readonly class AdminGenerateWeeklyRunsController
             return $admin;
         }
 
-        $this->messageBus->dispatch(new GenerateWeeklyRunsMessage());
+        try {
+            $this->messageBus->dispatch(new GenerateWeeklyRunsMessage());
+        } catch (\Throwable $e) {
+            return $this->apiAccessGuard->errorResponse('generation_failed', $e->getMessage(), 500);
+        }
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }

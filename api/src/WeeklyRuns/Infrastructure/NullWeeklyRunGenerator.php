@@ -14,6 +14,13 @@ final class NullWeeklyRunGenerator implements WeeklyRunGeneratorInterface
         string $templateYaml,
         string $seed,
     ): string {
-        return '/dev/null/'.$weeklyRunId.'/output/seed.archipelago';
+        $dir = sys_get_temp_dir().'/weekly-runs/'.$weeklyRunId.'/output';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $path = $dir.'/seed.archipelago';
+        file_put_contents($path, '');
+
+        return $path;
     }
 }

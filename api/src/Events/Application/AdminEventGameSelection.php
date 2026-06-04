@@ -33,7 +33,7 @@ final readonly class AdminEventGameSelection
             return null;
         }
 
-        $allGames = $this->gameRepository->findAllSortedByName(500);
+        $allGames = $this->gameRepository->findAllSortedByName();
 
         $gamesById = [];
         foreach ($allGames as $game) {

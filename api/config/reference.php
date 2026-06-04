@@ -1493,6 +1493,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         },
  *     }>,
  * }
+ * @psalm-type ArchiBridgeConfig = array{
+ *     admin_token?: scalar|Param|null, // Bearer token shared by all bridge instances (BRIDGE_TOKEN env var).
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -1505,6 +1508,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     nelmio_cors?: NelmioCorsConfig,
  *     mercure?: MercureConfig,
  *     monolog?: MonologConfig,
+ *     archi_bridge?: ArchiBridgeConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -1517,6 +1521,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         nelmio_cors?: NelmioCorsConfig,
  *         mercure?: MercureConfig,
  *         monolog?: MonologConfig,
+ *         archi_bridge?: ArchiBridgeConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -1530,6 +1535,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         nelmio_cors?: NelmioCorsConfig,
  *         mercure?: MercureConfig,
  *         monolog?: MonologConfig,
+ *         archi_bridge?: ArchiBridgeConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -1543,6 +1549,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         nelmio_cors?: NelmioCorsConfig,
  *         mercure?: MercureConfig,
  *         monolog?: MonologConfig,
+ *         archi_bridge?: ArchiBridgeConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

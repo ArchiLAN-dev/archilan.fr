@@ -11,20 +11,13 @@ use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationRepositoryInterface;
-use App\Sessions\Application\Message\RestartRunJob;
-use App\Sessions\Application\Message\StartRunJob;
-use App\Sessions\Application\Message\StopRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
-use App\Shared\Application\Message\GenerateRunJob;
-use App\Shared\Infrastructure\MinioStorageInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
-final readonly class SessionOrchestrator
+final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,
@@ -35,12 +28,9 @@ final readonly class SessionOrchestrator
         private RunRepositoryInterface $runs,
         private RunnerGatewayInterface $runnerGateway,
         private SessionLifecycleManager $sessionLifecycleManager,
-        private MessageBusInterface $messageBus,
         private SlotNameGenerator $slotNameGenerator,
         private LoggerInterface $logger,
-        private MinioStorageInterface $minioStorage,
-        private string $minioApworldsBucket,
-        private int $minioPresignTtl,
+        private string $runnerPublicHost,
     ) {
     }
 
@@ -215,29 +205,45 @@ final readonly class SessionOrchestrator
             $slot->setSlotName($generatedNames[$i]);
         }
 
-        $messageSlots = [];
-        foreach ($enriched as $i => $data) {
-            $messageSlots[] = [
-                'slotName' => $generatedNames[$i],
-                'playerName' => $data['playerName'],
-                'archipelagoGameName' => $data['archipelagoGameName'],
-                'playerYaml' => $data['playerYaml'],
-            ];
-        }
-
         $transitionResult = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_VALIDATING);
         if (!($transitionResult['found'] ?? false) || isset($transitionResult['errors'])) {
             return $transitionResult;
         }
 
-        $this->messageBus->dispatch(new GenerateRunJob($sessionId, 'validate', $messageSlots));
+        $configureSlots = [];
+        foreach ($enriched as $i => $data) {
+            $configureSlots[] = [
+                'slotName' => $generatedNames[$i],
+                'apworldHash' => $data['apworldHash'],
+                'playerYaml' => $data['playerYaml'],
+            ];
+        }
+
+        $configureResult = $this->runnerGateway->configureSession($sessionId, $configureSlots);
+
+        if (!$configureResult['valid'] || [] !== $configureResult['errors']) {
+            $validationErrors = array_map(
+                static fn (array $e) => ['slotName' => $e['playerName'], 'errors' => $e['errors']],
+                $configureResult['errors'],
+            );
+            $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_DRAFT, validationErrors: $validationErrors);
+
+            $this->logger->warning('session.orchestrate.validate.configure_failed', [
+                'sessionId' => $sessionId,
+                'errors' => $configureResult['errors'],
+            ]);
+
+            return ['found' => true, 'errors' => $configureResult['errors']];
+        }
+
+        $readyResult = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_READY);
 
         $this->logger->info('session.orchestrate.validate', [
             'sessionId' => $sessionId,
-            'slotCount' => count($messageSlots),
+            'slotCount' => count($configureSlots),
         ]);
 
-        return ['found' => true, 'session' => $transitionResult['session']];
+        return $readyResult;
     }
 
     /**
@@ -259,20 +265,33 @@ final readonly class SessionOrchestrator
             return $result;
         }
 
-        $downloadUrls = $this->collectApworldDownloadUrls($sessionId);
+        $adminPassword = bin2hex(random_bytes(16));
+        $this->sessionLifecycleManager->storePendingCredentials($sessionId, adminPassword: $adminPassword);
 
-        $this->messageBus->dispatch(new GenerateRunJob(
-            $sessionId,
-            'generate',
-            apworldDownloadUrls: $downloadUrls,
-        ));
+        $this->runnerGateway->generateSession($sessionId, $adminPassword);
 
-        $this->logger->info('session.orchestrate.generate', [
-            'sessionId' => $sessionId,
-            'apworldUrlCount' => count($downloadUrls),
-        ]);
+        $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId]);
 
         return ['found' => true, 'session' => $result['session']];
+    }
+
+    public function markPersonalRunStopped(string $sessionId): void
+    {
+        $personalRun = $this->runs->findBySessionId($sessionId);
+        if (!$personalRun instanceof Run) {
+            return;
+        }
+
+        try {
+            $personalRun->markStopped(new \DateTimeImmutable());
+            $this->runs->flush();
+            $this->logger->info('session.personal_run.marked_stopped', ['sessionId' => $sessionId]);
+        } catch (\Throwable $e) {
+            $this->logger->error('session.personal_run.mark_stopped_failed', [
+                'sessionId' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function autoAdvancePersonalRun(string $sessionId): void
@@ -287,12 +306,20 @@ final readonly class SessionOrchestrator
             return;
         }
 
-        if (Session::STATUS_READY === $session->getStatus()) {
-            $this->orchestrateGenerate($sessionId);
-            $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
-        } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
-            $this->orchestrateLaunch($sessionId);
-            $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+        try {
+            if (Session::STATUS_READY === $session->getStatus()) {
+                $this->orchestrateGenerate($sessionId);
+                $this->logger->info('session.auto_advance.generate', ['sessionId' => $sessionId]);
+            } elseif (Session::STATUS_GENERATED === $session->getStatus()) {
+                $this->orchestrateLaunch($sessionId);
+                $this->logger->info('session.auto_advance.launch', ['sessionId' => $sessionId]);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error('session.auto_advance.failed', [
+                'sessionId' => $sessionId,
+                'status' => $session->getStatus(),
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -310,12 +337,21 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['La session doit être en état "generated" pour être lancée.']];
         }
 
+        $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
+        $serverPassword = bin2hex(random_bytes(8));
+
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new StartRunJob($sessionId));
+        $this->sessionLifecycleManager->storePendingCredentials(
+            $sessionId,
+            host: $this->runnerPublicHost,
+            password: $serverPassword,
+        );
+
+        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword);
 
         $this->logger->info('session.orchestrate.launch', ['sessionId' => $sessionId]);
 
@@ -345,23 +381,22 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['Impossible de lancer le container depuis l\'état "'.$session->getStatus().'".']];
         }
 
-        $existingPort = $session->getPort();
-        $existingBridgePort = $session->getBridgePort();
+        $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
         $existingPassword = $session->getPassword();
-        $existingServerPwd = $session->getServerPassword();
+        $serverPassword = null !== $existingPassword && '' !== $existingPassword ? $existingPassword : bin2hex(random_bytes(8));
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new StartRunJob(
-            sessionId: $sessionId,
-            existingPort: $existingPort,
-            existingBridgePort: $existingBridgePort,
-            existingPassword: $existingPassword,
-            existingServerPassword: $existingServerPwd,
-        ));
+        $this->sessionLifecycleManager->storePendingCredentials(
+            $sessionId,
+            host: $this->runnerPublicHost,
+            password: $serverPassword,
+        );
+
+        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword);
 
         $this->logger->info('session.orchestrate.force_launch', [
             'sessionId' => $sessionId,
@@ -381,15 +416,12 @@ final readonly class SessionOrchestrator
             return ['found' => false];
         }
 
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
-
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_STOPPED);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new StopRunJob($sessionId, $port, $bridgePort));
+        $this->runnerGateway->stopSession($sessionId);
 
         $this->logger->info('session.orchestrate.stop', ['sessionId' => $sessionId]);
 
@@ -410,17 +442,12 @@ final readonly class SessionOrchestrator
             return ['found' => true, 'errors' => ['La session doit être en état "crashed" pour être relancée.']];
         }
 
-        $port = $session->getPort() ?? 0;
-        $bridgePort = $session->getBridgePort() ?? 0;
-        $password = $session->getPassword() ?? '';
-        $serverPassword = $session->getServerPassword() ?? '';
-
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
-        $this->messageBus->dispatch(new RestartRunJob($sessionId, $port, $bridgePort, $password, $serverPassword));
+        $this->runnerGateway->restartSession($sessionId);
 
         $this->logger->info('session.orchestrate.restart', ['sessionId' => $sessionId]);
 
@@ -435,7 +462,7 @@ final readonly class SessionOrchestrator
     /**
      * @param list<SessionSlot> $sessionSlots
      *
-     * @return list<array{playerName: string, archipelagoGameName: string, playerYaml: string}>
+     * @return list<array{playerName: string, archipelagoGameName: string, playerYaml: string, apworldHash: string}>
      */
     private function enrichSlotsForValidation(array $sessionSlots): array
     {
@@ -491,41 +518,11 @@ final readonly class SessionOrchestrator
                 'playerName' => $playerName,
                 'archipelagoGameName' => $archipelagoGameName,
                 'playerYaml' => $playerYaml,
+                'apworldHash' => $game?->getApworldHash() ?? '',
             ];
         }
 
         return $result;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function collectApworldDownloadUrls(string $sessionId): array
-    {
-        $sessionSlots = $this->slots->findBySessionId($sessionId);
-
-        $gameIds = array_values(array_unique(array_map(static fn (SessionSlot $s) => $s->getGameId(), $sessionSlots)));
-
-        if ([] === $gameIds) {
-            return [];
-        }
-
-        $gamesList = $this->games->findByIds($gameIds);
-
-        $downloadUrls = [];
-
-        foreach ($gamesList as $game) {
-            $minioKey = $game->getApworldMinioKey();
-            if (null !== $minioKey && !array_key_exists($minioKey, $downloadUrls)) {
-                $downloadUrls[$minioKey] = $this->minioStorage->presignedUrl(
-                    $this->minioApworldsBucket,
-                    $minioKey,
-                    $this->minioPresignTtl,
-                );
-            }
-        }
-
-        return $downloadUrls;
     }
 
     /**

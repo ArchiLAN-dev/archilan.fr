@@ -188,3 +188,30 @@ class MyAppService {
     ) {}
 }
 ```
+
+---
+
+## Membership access control
+
+`ROLE_MEMBER` is a **persistent role** on the `User` entity. It is set when a membership is purchased but is **not automatically removed** when the membership expires. It is therefore **stale-prone** and must never be used to gate access.
+
+### Rules
+
+**AC-M1:** Never use `isGranted('ROLE_MEMBER')`, `#[IsGranted('ROLE_MEMBER')]`, or `in_array('ROLE_MEMBER', $user->getRoles())` to protect an endpoint or feature.
+
+**AC-M2:** Always use `ApiAccessGuard::requireAuthenticatedMember()` in controllers, or `isGranted('IS_MEMBER')` via `MembershipVoter`. Both query the `memberships` table with `expires_at >= now` — they are always up to date.
+
+**AC-M3:** `ROLE_MEMBER` may only be used for **display and filtering** (admin user directory, Discord role sync) where slight staleness is acceptable.
+
+```php
+// ❌ Stale — ROLE_MEMBER survives membership expiry in the JWT and the DB row
+if (in_array('ROLE_MEMBER', $user->getRoles(), true)) { ... }
+$this->denyAccessUnlessGranted('ROLE_MEMBER');
+
+// ✅ Live query — ApiAccessGuard for controllers
+$user = $this->apiAccessGuard->requireAuthenticatedMember($request);
+
+// ✅ Live query — Voter for non-controller contexts
+$this->denyAccessUnlessGranted('IS_MEMBER');
+// or: $this->authorizationChecker->isGranted('IS_MEMBER')
+```
