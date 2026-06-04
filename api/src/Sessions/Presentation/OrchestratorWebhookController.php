@@ -74,6 +74,13 @@ final readonly class OrchestratorWebhookController
             return new JsonResponse(['data' => ['ok' => true]]);
         }
 
+        if ('session.stopped' === $event) {
+            $this->sessionLifecycleManager->transition($sessionId, 'stopped');
+            $this->sessionOrchestrator->markPersonalRunStopped($sessionId);
+
+            return new JsonResponse(['data' => ['ok' => true]]);
+        }
+
         return new JsonResponse(['data' => ['ok' => true]]);
     }
 

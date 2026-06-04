@@ -9,7 +9,7 @@ use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Psr\Log\LoggerInterface;
 
@@ -17,6 +17,7 @@ final readonly class AdminGameLibrary
 {
     public function __construct(
         private GameRepositoryInterface $gameRepository,
+        private AdminGameListQueryInterface $adminGameListQuery,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
         private MinioStorageInterface $minioStorage,
@@ -26,13 +27,20 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return array{items: list<array<string, mixed>>, total: int, page: int, perPage: int, totalPages: int}
      */
-    public function list(): array
+    public function list(int $page = 1, int $perPage = 50, string $search = '', ?string $availability = null, ?bool $yamlReady = null): array
     {
-        $games = $this->gameRepository->findAllSortedByName();
+        $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady);
+        $totalPages = $result['total'] > 0 ? (int) ceil($result['total'] / $perPage) : 1;
 
-        return array_map(fn (Game $game): array => $this->payload($game), $games);
+        return [
+            'items' => $result['items'],
+            'total' => $result['total'],
+            'page' => $page,
+            'perPage' => $perPage,
+            'totalPages' => $totalPages,
+        ];
     }
 
     /**
@@ -226,22 +234,24 @@ final readonly class AdminGameLibrary
             return ['found' => false, 'errors' => []];
         }
 
-        if (null === $game->getCatalogSync()?->getApworldSourceUrl()) {
+        $sourceUrl = $game->getCatalogSync()?->getApworldSourceUrl();
+
+        if (null === $sourceUrl) {
             return ['found' => true, 'errors' => ['github' => ['Aucune URL source APWorld configurée pour ce jeu.']]];
         }
 
-        if (!$this->apworldVersionChecker->isAvailable()) {
+        if (!$this->apworldVersionChecker->isAvailable() && !$this->apworldVersionChecker->isDirectApworldUrl($sourceUrl)) {
             return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré.']]];
         }
 
         try {
             $assets = $this->apworldVersionChecker->listAssets($game);
         } catch (\Throwable $e) {
-            return ['found' => true, 'errors' => ['github' => ['Impossible de contacter GitHub : '.$e->getMessage()]]];
+            return ['found' => true, 'errors' => ['github' => ['Impossible de contacter la source : '.$e->getMessage()]]];
         }
 
         if (null === $assets) {
-            return ['found' => true, 'errors' => ['github' => ['Aucune release trouvée pour cette URL GitHub.']]];
+            return ['found' => true, 'errors' => ['github' => ['Aucune release trouvée pour cette URL.']]];
         }
 
         return ['found' => true, 'assets' => $assets, 'errors' => []];
@@ -263,7 +273,7 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['github' => ['Aucune URL source APWorld configurée pour ce jeu.']]];
         }
 
-        if (!$this->apworldVersionChecker->isAvailable()) {
+        if (!$this->apworldVersionChecker->isAvailable() && !$this->apworldVersionChecker->isDirectApworldUrl($sourceUrl)) {
             return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré - impossible de télécharger depuis GitHub.']]];
         }
 
@@ -470,8 +480,9 @@ final readonly class AdminGameLibrary
             ? trim($input['catalog_sheet_name'])
             : null;
 
-        $apworldSourceUrl = is_string($input['apworld_source_url'] ?? null) && '' !== trim($input['apworld_source_url'])
-            ? trim($input['apworld_source_url'])
+        $rawSourceUrl = is_string($input['apworld_source_url'] ?? null) ? trim($input['apworld_source_url']) : '';
+        $apworldSourceUrl = '' !== $rawSourceUrl
+            ? (Game::normalizeApworldSourceUrl($rawSourceUrl) ?? $rawSourceUrl)
             : null;
 
         $apworldDeployedVersion = is_string($input['apworld_deployed_version'] ?? null) && '' !== trim($input['apworld_deployed_version'])

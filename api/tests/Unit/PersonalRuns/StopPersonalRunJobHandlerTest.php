@@ -10,7 +10,7 @@ use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

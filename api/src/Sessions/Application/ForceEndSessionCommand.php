@@ -11,7 +11,6 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionNotRunningException;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class ForceEndSessionCommand

@@ -65,8 +65,6 @@ final readonly class AdminPostCatalog
             excerpt: is_string($input['excerpt'] ?? null) ? $input['excerpt'] : '',
             body: $this->parseBody($input['body'] ?? null),
             readingTime: is_string($input['readingTime'] ?? null) ? $input['readingTime'] : '',
-            relatedEventSlug: $this->nullableString($input['relatedEventSlug'] ?? null),
-            vodUrl: $this->nullableString($input['vodUrl'] ?? null),
             now: $now,
             coverImageUrl: $this->nullableString($input['coverImageUrl'] ?? null),
         );
@@ -105,12 +103,6 @@ final readonly class AdminPostCatalog
             excerpt: is_string($input['excerpt'] ?? null) ? $input['excerpt'] : $post->getExcerpt(),
             body: $this->parseBody($input['body'] ?? null) ?: $post->getBody(),
             readingTime: is_string($input['readingTime'] ?? null) ? $input['readingTime'] : $post->getReadingTime(),
-            relatedEventSlug: array_key_exists('relatedEventSlug', $input)
-                ? $this->nullableString($input['relatedEventSlug'])
-                : $post->getRelatedEventSlug(),
-            vodUrl: array_key_exists('vodUrl', $input)
-                ? $this->nullableString($input['vodUrl'])
-                : $post->getVodUrl(),
             coverImageUrl: array_key_exists('coverImageUrl', $input)
                 ? $this->nullableString($input['coverImageUrl'])
                 : $post->getCoverImageUrl(),
@@ -173,8 +165,6 @@ final readonly class AdminPostCatalog
             'excerpt' => $post->getExcerpt(),
             'body' => $post->getBody(),
             'readingTime' => $post->getReadingTime(),
-            'relatedEventSlug' => $post->getRelatedEventSlug(),
-            'vodUrl' => $post->getVodUrl(),
             'coverImageUrl' => $this->resolveCoverImageUrl($post),
             'coverImageKey' => $post->getCoverImageKey(),
             'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM),

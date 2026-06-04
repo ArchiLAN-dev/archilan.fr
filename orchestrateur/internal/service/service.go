@@ -2,6 +2,7 @@ package service
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -74,14 +75,23 @@ func (s *Service) UploadApworld(ctx context.Context, data []byte) (hash string, 
 
 	yamlData, err = s.docker.GenerateTemplate(ctx, data, hash)
 	if err != nil {
-		return hash, nil, fmt.Errorf("generate template: %w", err)
+		// Template generation failure is non-fatal: some apworlds have Python bugs
+		// that prevent template generation but are otherwise valid for generation.
+		// We store an empty template and continue so the apworld can still be used.
+		s.log.Warn("template generation failed, continuing without template", "hash", hash, "err", err)
+		yamlData = []byte{}
 	}
 
-	if err = s.storage.UploadApworldTemplate(ctx, hash, yamlData); err != nil {
-		return hash, yamlData, fmt.Errorf("upload template: %w", err)
+	if len(yamlData) > 0 {
+		if err = s.storage.UploadApworldTemplate(ctx, hash, yamlData); err != nil {
+			return hash, yamlData, fmt.Errorf("upload template: %w", err)
+		}
 	}
 
 	game := extractApworldGame(yamlData)
+	if game == "" {
+		game = extractGameFromZip(data)
+	}
 	if metaErr := s.storage.UploadApworldMeta(ctx, storage.ApworldMeta{
 		Hash: hash,
 		Game: game,
@@ -150,6 +160,57 @@ func extractApworldGame(yamlData []byte) string {
 		}
 	}
 	return ""
+}
+
+// extractGameFromZip reads the game name from archipelago.json inside the apworld ZIP.
+// Falls back to the top-level package folder name if archipelago.json is absent or malformed.
+func extractGameFromZip(data []byte) string {
+	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return ""
+	}
+
+	var folderName string
+	for _, f := range r.File {
+		parts := strings.SplitN(f.Name, "/", 2)
+		if len(parts) >= 1 && parts[0] != "" && folderName == "" {
+			folderName = parts[0]
+		}
+
+		base := f.Name
+		if idx := strings.LastIndex(f.Name, "/"); idx >= 0 {
+			base = f.Name[idx+1:]
+		}
+		if base != "archipelago.json" {
+			continue
+		}
+
+		rc, openErr := f.Open()
+		if openErr != nil {
+			continue
+		}
+		raw, readErr := io.ReadAll(rc)
+		_ = rc.Close()
+		if readErr != nil {
+			continue
+		}
+
+		var meta struct {
+			Game string `json:"game"`
+			Name string `json:"name"`
+		}
+		if jsonErr := json.Unmarshal(raw, &meta); jsonErr != nil {
+			continue
+		}
+		if meta.Game != "" {
+			return meta.Game
+		}
+		if meta.Name != "" {
+			return meta.Name
+		}
+	}
+
+	return folderName
 }
 
 // GetApworldTemplate returns the default YAML template for an apworld.

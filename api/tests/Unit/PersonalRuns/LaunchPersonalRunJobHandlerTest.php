@@ -14,7 +14,7 @@ use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -65,6 +65,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             $this->createStub(SessionSlotRepositoryInterface::class),
             new SlotNameGenerator(),
             $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
+            $this->createStub(\App\Sessions\Application\PersonalRunAdvancerInterface::class),
             $logger ?? $this->createStub(LoggerInterface::class),
         );
     }

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
@@ -16,13 +14,17 @@ final readonly class WeeklyEntryPatchQuery
     public function __construct(
         private WeeklyEntryRepositoryInterface $entries,
         private WeeklyRunRepositoryInterface $runs,
-        private UserRepositoryInterface $users,
         private string $workspaceDir,
     ) {
     }
 
     /**
-     * @return array{outputDir: string, slotName: string|null}|null
+     * Returns either a bridge context (post-launch, orchestrator-managed session)
+     * or a local filesystem context (legacy Docker sessions).
+     *
+     * @return array{type: 'bridge', bridgePort: int}
+     *                                                | array{type: 'local', outputDir: string, slotName: string|null}
+     *                                                | null
      */
     public function forEntry(string $weeklyRunId, string $entryId, string $userId): ?array
     {
@@ -37,29 +39,30 @@ final readonly class WeeklyEntryPatchQuery
         $externalSessionId = $entry->getExternalSessionId();
 
         if (null !== $externalSessionId) {
-            $user = $this->users->findById($userId);
-            $slotName = $user instanceof User ? $user->getDisplayName() : 'ArchiLAN';
+            $bridgePort = $entry->getBridgePort();
+            if (null !== $bridgePort) {
+                // Orchestrator-based session: files live in a Docker volume accessible
+                // only through the bridge's /output endpoint.
+                return ['type' => 'bridge', 'bridgePort' => $bridgePort];
+            }
 
-            return [
-                'outputDir' => $this->workspaceDir.'/'.$externalSessionId.'/output',
-                'slotName' => $slotName,
-            ];
+            // Legacy Docker-based session: files are on the local filesystem.
+            $outputDir = $this->workspaceDir.'/'.$externalSessionId.'/output';
+
+            return ['type' => 'local', 'outputDir' => $outputDir, 'slotName' => null];
         }
 
-        // Pre-launch: serve the cleaned zip from the run's generation output.
-        // slotName is null because the zip is not named after the player.
+        // Pre-launch: only possible with legacy Docker generator which writes a real
+        // seed file path. The orchestrator stores a hash, not a path.
         $run = $this->runs->findById($weeklyRunId);
         if (!$run instanceof WeeklyRun) {
             return null;
         }
         $seedPath = $run->getGeneratedSeedPath();
-        if (null === $seedPath) {
+        if (null === $seedPath || !is_file($seedPath)) {
             return null;
         }
 
-        return [
-            'outputDir' => \dirname($seedPath),
-            'slotName' => null,
-        ];
+        return ['type' => 'local', 'outputDir' => \dirname($seedPath), 'slotName' => null];
     }
 }

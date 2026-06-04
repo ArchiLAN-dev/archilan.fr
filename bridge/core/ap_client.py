@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 import websockets
 
 from .config import Config
@@ -523,8 +524,10 @@ class ArchipelagoClient:
             self._track_item_send(packet)
             state_changed = True
         elif msg_type == "Goal":
-            self._track_goal(packet)
+            goal_slot = self._track_goal_returning_slot(packet)
             state_changed = True
+            if goal_slot:
+                await self._notify_goal(goal_slot)
         elif msg_type == "Hint":
             await self._track_hint(packet)
             state_changed = True
@@ -655,17 +658,64 @@ class ArchipelagoClient:
             self._recompute_event.set()
 
     def _track_goal(self, packet: dict[str, Any]) -> None:
+        self._track_goal_returning_slot(packet)
+
+    def _track_goal_returning_slot(self, packet: dict[str, Any]) -> int:
+        """Update goal state and return the slot that reached the goal (0 if unknown)."""
         top_slot = int(packet.get("slot", 0))
         if top_slot:
             self._state.update_client_status(top_slot, 30)
-            return
+            return top_slot
         for part in packet.get("data", []):
             if not isinstance(part, dict):
                 continue
             slot = self._slot_from_part(part)
             if slot:
                 self._state.update_client_status(slot, 30)
-                return
+                return slot
+        return 0
+
+    async def _notify_goal(self, slot_id: int) -> None:
+        """Notify Symfony that a slot reached its goal. Symfony handles dispatch."""
+        url = self._config.central_api_url
+        secret = self._config.central_api_secret
+        if not url or not secret:
+            return
+
+        ps = self._state._states.get(slot_id)
+        if ps is None or ps.goal_reached_at is None:
+            return
+
+        endpoint = (
+            f"{url.rstrip('/')}"
+            f"/api/v1/internal/sessions/{self._config.session_id}/slot-goal"
+        )
+        headers = {"X-Internal-Secret": secret}
+        payload = {
+            "slotId": slot_id,
+            "checksTotal": ps.checks_done,
+            "itemsTotal": ps.items_received,
+            "goalReachedAt": ps.goal_reached_at,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.post(endpoint, json=payload, headers=headers)
+                if resp.status_code not in (200, 204):
+                    self._log.warning(
+                        "slot-goal callback: unexpected status %d (session=%s slot=%d)",
+                        resp.status_code,
+                        self._config.session_id,
+                        slot_id,
+                    )
+                else:
+                    self._log.info(
+                        "slot-goal callback: notified goal for slot %d session %s",
+                        slot_id,
+                        self._config.session_id,
+                    )
+        except Exception as exc:
+            self._log.warning("slot-goal callback error (slot=%d): %s", slot_id, exc)
 
     def _resolve_all_hint_names(self) -> None:
         for slot_id, ps in self._state._states.items():
@@ -788,6 +838,31 @@ class ArchipelagoClient:
             "sessionId": self._config.session_id,
             "slots": self.get_slots_summary(),
         })
+        await self._push_state_to_api()
+
+    async def _push_state_to_api(self) -> None:
+        """Push state to Symfony so it can publish to Mercure topic runs/{id}/players.
+
+        Uses to_api_dict() format (dict keyed by slot, snake_case fields) which
+        matches what GET /players returns and what the frontend SSE handler expects.
+        """
+        url = self._config.central_api_url
+        secret = self._config.central_api_secret
+        if not url or not secret:
+            return
+        endpoint = (
+            f"{url.rstrip('/')}"
+            f"/api/v1/internal/sessions/{self._config.session_id}/players-push"
+        )
+        headers = {"X-Internal-Secret": secret}
+        payload = self._state.to_api_dict()
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.post(endpoint, json=payload, headers=headers)
+                if resp.status_code not in (200, 204):
+                    self._log.warning("players push: unexpected status %d", resp.status_code)
+        except Exception as exc:
+            self._log.warning("players push error: %s", exc)
 
     async def _broadcast_room_updated(self) -> None:
         await self._broadcast("room_updated", {

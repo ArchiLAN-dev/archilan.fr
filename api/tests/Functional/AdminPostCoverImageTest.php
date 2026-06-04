@@ -123,8 +123,6 @@ final class AdminPostCoverImageTest extends FunctionalTestCase
             'excerpt' => 'Un article de test.',
             'body' => ['Premier paragraphe.'],
             'readingTime' => '2 min',
-            'relatedEventSlug' => null,
-            'vodUrl' => null,
             'coverImageMode' => 'url',
             'coverImageUrl' => 'https://cdn.example.test/posts/cover.webp',
         ]);
@@ -163,8 +161,6 @@ final class AdminPostCoverImageTest extends FunctionalTestCase
             'excerpt' => 'Un article de test.',
             'body' => ['Premier paragraphe.'],
             'readingTime' => '2 min',
-            'relatedEventSlug' => null,
-            'vodUrl' => null,
             'coverImageUrl' => null,
         ]);
 

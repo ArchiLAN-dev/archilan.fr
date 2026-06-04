@@ -18,14 +18,15 @@ final class IgdbHttpClient implements IgdbHttpClientInterface
     ) {
     }
 
-    public function searchGames(string $query, int $limit = 10): array
+    public function searchGames(string $query, int $limit = 10, int $offset = 0): array
     {
         $token = $this->getAccessToken();
 
         $body = sprintf(
-            'fields id,name,slug,summary,cover.image_id; search "%s"; limit %d;',
+            'fields id,name,slug,summary,cover.image_id; search "%s"; limit %d; offset %d;',
             str_replace('"', '\\"', $query),
             $limit,
+            $offset,
         );
 
         $response = $this->httpClient->request('POST', 'https://api.igdb.com/v4/games', [

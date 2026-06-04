@@ -37,14 +37,17 @@ final readonly class AdminIgdbController
             return $this->apiAccessGuard->errorResponse('igdb_query_required', 'Le paramètre "q" est obligatoire.', 422);
         }
 
+        $offset = max(0, $request->query->getInt('offset', 0));
+        $limit = 10;
+
         try {
-            $results = $this->igdbHttpClient->searchGames($q);
+            $results = $this->igdbHttpClient->searchGames($q, $limit, $offset);
         } catch (IgdbAuthException) {
             return $this->apiAccessGuard->errorResponse('igdb_auth_failed', "L'authentification IGDB a échoué.", 502);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('igdb_search_failed', 'La recherche IGDB a échoué.', 502);
         }
 
-        return new JsonResponse(['data' => $results, 'meta' => []]);
+        return new JsonResponse(['data' => $results, 'meta' => ['hasMore' => count($results) === $limit, 'offset' => $offset]]);
     }
 }

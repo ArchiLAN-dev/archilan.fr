@@ -15,8 +15,6 @@ const validPostPayload = {
   body: ["Paragraph one"],
   readingTime: "2 min",
   publishedAt: "2024-06-01T10:00:00Z",
-  relatedEventSlug: null,
-  vodUrl: null,
 };
 
 describe("getPublicPosts", () => {

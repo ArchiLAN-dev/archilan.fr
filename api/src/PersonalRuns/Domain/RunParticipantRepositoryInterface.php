@@ -17,5 +17,7 @@ interface RunParticipantRepositoryInterface
 
     public function save(RunParticipant $participant): void;
 
+    public function deleteByRunId(string $runId): void;
+
     public function flush(): void;
 }

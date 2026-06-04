@@ -46,6 +46,12 @@ final readonly class DoctrineRunRepository implements RunRepositoryInterface
         $this->entityManager->flush();
     }
 
+    public function delete(Run $run): void
+    {
+        $this->entityManager->remove($run);
+        $this->entityManager->flush();
+    }
+
     public function flush(): void
     {
         $this->entityManager->flush();

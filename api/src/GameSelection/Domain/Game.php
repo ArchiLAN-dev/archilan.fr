@@ -265,11 +265,27 @@ class Game
         }
 
         $parsed = parse_url($url);
-        if (false === $parsed || 'https' !== ($parsed['scheme'] ?? '') || 'github.com' !== ($parsed['host'] ?? '')) {
+        if (false === $parsed || 'https' !== ($parsed['scheme'] ?? '')) {
             return null;
         }
 
+        $host = $parsed['host'] ?? '';
         $path = rtrim($parsed['path'] ?? '/', '/');
+
+        // GitLab direct file URL — blob → raw normalisation
+        if ('gitlab.com' === $host) {
+            // Accept /-/blob/{branch}/{file}.apworld and /-/raw/{branch}/{file}.apworld
+            if (preg_match('#/-/(blob|raw)/.+\.apworld$#i', $path)) {
+                return 'https://gitlab.com'.preg_replace('#/-/blob/#', '/-/raw/', $path);
+            }
+
+            return null;
+        }
+
+        if ('github.com' !== $host) {
+            return null;
+        }
+
         $query = isset($parsed['query']) ? '?'.$parsed['query'] : '';
 
         $parts = array_values(array_filter(
@@ -297,6 +313,16 @@ class Game
             }
         } elseif ('tree' === $subParts[0] && count($subParts) >= 2) {
             // /tree/{branch} - valid
+        } elseif ('raw' === $subParts[0] && count($subParts) >= 2 && str_ends_with(strtolower($path), '.apworld')) {
+            // /raw/{refs/heads/branch/...file}.apworld or /raw/{commit}/{file}.apworld
+            // Normalize to raw.githubusercontent.com which serves the binary directly.
+            $owner = $parts[0];
+            $repo = $parts[1];
+            $rawRest = implode('/', array_slice($subParts, 1));
+
+            return "https://raw.githubusercontent.com/{$owner}/{$repo}/{$rawRest}";
+        } elseif (str_ends_with(strtolower($path), '.apworld')) {
+            // Any other github.com URL ending in .apworld — pass through as-is.
         } else {
             return null;
         }

@@ -15,8 +15,6 @@ use Doctrine\ORM\Tools\SchemaTool;
 
 final class WeeklyRunLaunchTest extends FunctionalTestCase
 {
-    private string $workspaceDir;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -34,9 +32,6 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         $schemaTool->createSchema($metadata);
 
         $this->spy()->reset();
-
-        $envWorkspaceDir = $_ENV['WORKSPACE_DIR'] ?? null;
-        $this->workspaceDir = is_string($envWorkspaceDir) ? $envWorkspaceDir : sys_get_temp_dir().'/archilan-test-workspace';
     }
 
     public function testLaunchFromPreGeneratedSeedSucceeds(): void
@@ -61,7 +56,7 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         self::assertCount(1, $spy->launchCalls);
         $call = $spy->launchCalls[0];
         self::assertSame($entry->getId(), $call['entryId']);
-        self::assertStringContainsString('world.archipelago', $call['seedFilePath']);
+        self::assertSame('abc123apworldhash', $call['apworldHash']);
 
         $this->client->jsonRequest('GET', '/api/v1/weekly-runs/current');
         self::assertResponseIsSuccessful();
@@ -243,15 +238,7 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
     private function createRunWithSeed(string $templateId): WeeklyRun
     {
         $run = $this->createRun($templateId);
-
-        $runOutputDir = $this->workspaceDir.'/'.$run->getId().'/output';
-        if (!is_dir($runOutputDir)) {
-            mkdir($runOutputDir, 0755, true);
-        }
-        $seedFile = $runOutputDir.'/world.archipelago';
-        file_put_contents($seedFile, 'fake-seed-content');
-
-        $run->markGenerated($seedFile);
+        $run->markGenerated('abc123apworldhash');
         $this->entityManager->flush();
 
         return $run;

@@ -132,8 +132,6 @@ final class AdminPostTest extends FunctionalTestCase
             'excerpt' => 'Extrait mis à jour.',
             'body' => ['Paragraphe 1.', 'Paragraphe 2.'],
             'readingTime' => '4 min',
-            'vodUrl' => 'https://example.com/vod',
-            'relatedEventSlug' => 'lan-2026',
         ]);
 
         self::assertResponseIsSuccessful();
@@ -144,8 +142,6 @@ final class AdminPostTest extends FunctionalTestCase
         self::assertSame(Post::TYPE_RECAP, $data['type']);
         self::assertSame('Extrait mis à jour.', $data['excerpt']);
         self::assertSame(['Paragraphe 1.', 'Paragraphe 2.'], $data['body']);
-        self::assertSame('https://example.com/vod', $data['vodUrl']);
-        self::assertSame('lan-2026', $data['relatedEventSlug']);
         self::assertSame('mon-article', $data['slug'], 'slug must not change on update');
     }
 

@@ -16,6 +16,7 @@ import json as _json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -40,10 +41,23 @@ _winapi_stub = types.ModuleType("_winapi")
 _winapi_stub.__getattr__ = lambda name: 0  # type: ignore[method-assign]
 sys.modules["_winapi"] = _winapi_stub
 
-_orjson = types.ModuleType("orjson")
-_orjson.loads = _json.loads  # type: ignore[attr-defined]
-_orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
-sys.modules["orjson"] = _orjson
+try:
+    import orjson as _orjson  # noqa: F401
+except ImportError:
+    _orjson = types.ModuleType("orjson")
+    _orjson.loads = _json.loads  # type: ignore[attr-defined]
+    _orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
+    sys.modules["orjson"] = _orjson
+if not hasattr(_orjson, "orjson"):
+    _orjson.orjson = _orjson  # type: ignore[attr-defined]
+
+# tkinter / _tkinter: GUI toolkit not available in headless containers.
+_tk_stub = types.ModuleType("tkinter")
+_tk_stub.__getattr__ = lambda _n: _tk_stub  # type: ignore[attr-defined]
+for _tk_name in ("tkinter", "_tkinter", "tkinter.ttk", "tkinter.font",
+                 "tkinter.messagebox", "tkinter.filedialog", "tkinter.colorchooser",
+                 "tkinter.simpledialog", "tkinter.constants"):
+    sys.modules.setdefault(_tk_name, _tk_stub)
 
 # pkg_resources: setuptools 71+ no longer ships it as a standalone top-level
 # package. Pre-populate sys.modules from pip's vendored copy so apworlds that
@@ -89,6 +103,7 @@ _ARCHIP_ROOTS = frozenset({
 class _Stub:
     def __getattr__(self, _n): return _Stub()
     def __call__(self, *a, **kw): return _Stub()
+    def __mro_entries__(self, bases): return (object,)
     def __getitem__(self, key): return _Stub()
     def __setitem__(self, key, value): pass
     def __delitem__(self, key): pass
@@ -160,6 +175,15 @@ class _AutoStubFinder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 
 sys.meta_path.append(_AutoStubFinder())
 
+
+def _sanitize_pkg_name(name: str) -> str:
+    import re as _re
+    sanitized = _re.sub(r"[^A-Za-z0-9_]", "_", name)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = "_" + sanitized
+    return sanitized
+
+
 # Populate the worlds stub now that _AutoStubFinder is in place so transitive
 # imports from AutoWorld.py are stubbed correctly.
 from worlds.AutoWorld import AutoWorldRegister, World  # noqa: E402
@@ -176,6 +200,35 @@ if __name__ == "__main__":
     from Main import main as ERmain
     _worlds_pkg = sys.modules["worlds"]
 
+    def _install_apworld_requirements(tmp_dir: str, pkg_name: str) -> None:
+        for candidate in [
+            os.path.join(tmp_dir, pkg_name, "requirements.txt"),
+            os.path.join(tmp_dir, "requirements.txt"),
+        ]:
+            if not os.path.isfile(candidate):
+                continue
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", candidate, "--quiet"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(
+                    f"Warning: pip install failed for {pkg_name}: {result.stderr.strip()}",
+                    file=sys.stderr,
+                )
+                return
+            with open(candidate, encoding="utf-8") as f:
+                installed = {
+                    line.strip().split("==")[0].split(">=")[0].split("<=")[0]
+                               .split("!=")[0].split("[")[0].strip().lower().replace("-", "_")
+                    for line in f
+                    if line.strip() and not line.startswith("#") and not line.startswith("-")
+                }
+            for key in [k for k in sys.modules if k.split(".")[0].lower().replace("-", "_") in installed]:
+                del sys.modules[key]
+            return
+
     def _load_apworlds_from(apworld_dir: pathlib.Path) -> None:
         if not apworld_dir.is_dir():
             return
@@ -183,12 +236,27 @@ if __name__ == "__main__":
             try:
                 with zipfile.ZipFile(str(_apw)) as _zf:
                     _entries = _zf.namelist()
-                    _pkg = _entries[0].split("/")[0] if _entries else None
+                _raw_pkg = None
+                for _e in _entries:
+                    _parts = _e.replace("\\", "/").split("/")
+                    if len(_parts) == 2 and _parts[1] == "__init__.py" and _parts[0]:
+                        _raw_pkg = _parts[0]
+                        break
+                if _raw_pkg is None:
+                    for _e in _entries:
+                        _c = _e.replace("\\", "/").split("/")[0]
+                        if _c:
+                            _raw_pkg = _c
+                            break
             except Exception as _e:
                 print(f"Warning: could not inspect {_apw.name}: {_e}", file=sys.stderr)
                 continue
+            if not _raw_pkg:
+                print(f"Warning: skipping {_apw.name}: could not detect package name", file=sys.stderr)
+                continue
+            _pkg = _raw_pkg if _raw_pkg.isidentifier() else _sanitize_pkg_name(_raw_pkg)
             if not _pkg or not _pkg.isidentifier():
-                print(f"Warning: skipping {_apw.name}: invalid package name", file=sys.stderr)
+                print(f"Warning: skipping {_apw.name}: invalid package name '{_raw_pkg}'", file=sys.stderr)
                 continue
             _mod = f"worlds.{_pkg}"
             if _mod in sys.modules:
@@ -196,12 +264,22 @@ if __name__ == "__main__":
             _tmp_dir = tempfile.mkdtemp(prefix="apworld_")
             atexit.register(shutil.rmtree, _tmp_dir, True)
             with zipfile.ZipFile(str(_apw)) as _zf2:
-                _zf2.extractall(_tmp_dir)
+                for _member in _zf2.infolist():
+                    _member.filename = _member.filename.replace("\\", "/")
+                    _zf2.extract(_member, _tmp_dir)
+            if _raw_pkg != _pkg:
+                _raw_dir = os.path.join(_tmp_dir, _raw_pkg)
+                if os.path.isdir(_raw_dir):
+                    os.rename(_raw_dir, os.path.join(_tmp_dir, _pkg))
+            _install_apworld_requirements(_tmp_dir, _pkg)
+            # Expose bundled top-level packages (deps at zip root) to the import system.
+            sys.path.insert(0, _tmp_dir)
             _worlds_pkg.__path__.append(_tmp_dir)
             try:
                 importlib.import_module(_mod)
             except Exception as _e:
                 _worlds_pkg.__path__.remove(_tmp_dir)
+                sys.path.remove(_tmp_dir)
                 print(f"Warning: failed to load {_apw.name} ({_pkg}): {_e}", file=sys.stderr)
 
     # Consume --world_directory and strip it from sys.argv so Generate.main()

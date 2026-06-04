@@ -65,11 +65,21 @@ async def get_item_locations(
 ) -> ItemLocationsResponse:
     state.merge_state_from_save()
 
-    # Ensure reachability is computed for every known slot so locations across
-    # all games are visible, not just slots that previously called /reachable/{slot}.
+    # Ensure reachability is computed for slots not yet cached.
+    # Use a short timeout per slot to avoid blocking the whole request if Docker
+    # is slow (e.g. after bridge restart). Uncached slots are skipped gracefully;
+    # the sweep loop will warm the cache asynchronously.
     for s in list(state._states.keys()):
         if s not in _reachable_cache:
-            await _compute_reachable(s, state, semaphore, log, runtime)
+            try:
+                await asyncio.wait_for(
+                    _compute_reachable(s, state, semaphore, log, runtime),
+                    timeout=8.0,
+                )
+            except asyncio.TimeoutError:
+                log.warning("item-locations: reachability timeout for slot %d, skipping", s)
+            except Exception as exc:
+                log.warning("item-locations: reachability error for slot %d: %s", s, exc)
 
     locations: list[ItemLocationResponse] = []
     for sender_slot, (_, result) in _reachable_cache.items():

@@ -7,9 +7,9 @@ namespace App\PersonalRuns\Application\Handler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

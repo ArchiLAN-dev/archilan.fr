@@ -128,7 +128,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
-    public function testInvokeLogsErrorWhenGeneratorThrows(): void
+    public function testInvokeThrowsAfterLoggingWhenGeneratorFails(): void
     {
         $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
         $runs->method('existsByTemplateAndWeek')->willReturn(false);
@@ -137,6 +137,9 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
 
         $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
         $generator->method('generate')->willThrowException(new \RuntimeException('docker failed'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessageMatches('/docker failed/');
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());

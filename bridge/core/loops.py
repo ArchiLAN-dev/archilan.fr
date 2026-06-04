@@ -35,6 +35,31 @@ def setup_logging(session_id: str) -> None:
     root.setLevel(logging.INFO)
 
 
+async def _push_reachable_to_api(
+    session_id: str,
+    slot_id: int,
+    result: dict[str, Any],
+    central_api_url: str,
+    central_api_secret: str,
+    log: logging.Logger,
+) -> None:
+    """Push a full reachability result to Symfony so it can publish to Mercure."""
+    if not central_api_url or not central_api_secret:
+        return
+    url = (
+        f"{central_api_url.rstrip('/')}"
+        f"/api/v1/internal/sessions/{session_id}/slots/{slot_id}/reachable-push"
+    )
+    headers = {"X-Internal-Secret": central_api_secret}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url, json=result, headers=headers)
+            if resp.status_code not in (200, 204):
+                log.warning("reachable push: unexpected status %d for slot %d", resp.status_code, slot_id)
+    except Exception as exc:
+        log.warning("reachable push error slot %d: %s", slot_id, exc)
+
+
 async def _reachable_sweep_loop(
     state: StateManager,
     broadcast: BroadcastFn,
@@ -42,6 +67,8 @@ async def _reachable_sweep_loop(
     semaphore: asyncio.Semaphore,
     recompute_event: asyncio.Event,
     runtime: Any = None,
+    central_api_url: str = "",
+    central_api_secret: str = "",
 ) -> None:
     """Compute reachable_now for every non-goal slot on WS events or every 30s."""
     log = logging.getLogger(__name__)
@@ -52,8 +79,7 @@ async def _reachable_sweep_loop(
     while True:
         to_sweep = [
             slot_id for slot_id, ps in list(state._states.items())
-            if ps.client_status != 30
-            and last_computed.get(slot_id) != (ps.checks_done, ps.items_received)
+            if last_computed.get(slot_id) != (ps.checks_done, ps.items_received)
         ]
 
         if to_sweep:
@@ -74,6 +100,10 @@ async def _reachable_sweep_loop(
                         "slot": slot_id,
                         "reachableNow": ps.reachable_now if ps else 0,
                     })
+                    await _push_reachable_to_api(
+                        session_id, slot_id, result,
+                        central_api_url, central_api_secret, log,
+                    )
             await asyncio.sleep(0)
 
         if changed_slots:

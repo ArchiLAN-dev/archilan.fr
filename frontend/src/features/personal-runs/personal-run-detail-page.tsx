@@ -757,6 +757,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               run.connectionPassword !== null && (
                 <>
                   <ConnectionDetails
+                    adminPassword={run.adminPassword}
                     host={run.connectionHost}
                     password={run.connectionPassword}
                     port={run.connectionPort}

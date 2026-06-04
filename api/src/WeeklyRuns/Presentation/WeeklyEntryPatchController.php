@@ -12,7 +12,9 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class WeeklyEntryPatchController
 {
@@ -21,6 +23,7 @@ final readonly class WeeklyEntryPatchController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private WeeklyEntryPatchQuery $patchQuery,
+        private HttpClientInterface $httpClient,
     ) {
     }
 
@@ -37,6 +40,12 @@ final readonly class WeeklyEntryPatchController
             return new JsonResponse(['data' => ['files' => []]]);
         }
 
+        if ('bridge' === $context['type']) {
+            $files = $this->listFromBridge($context['bridgePort']);
+
+            return new JsonResponse(['data' => ['files' => $files]]);
+        }
+
         $files = $this->findPatchFiles($context['outputDir'], $context['slotName']);
 
         return new JsonResponse(['data' => ['files' => $files]]);
@@ -50,11 +59,6 @@ final readonly class WeeklyEntryPatchController
             return $user;
         }
 
-        $context = $this->patchQuery->forEntry($weeklyRunId, $entryId, $user->getId());
-        if (null === $context) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Entrée introuvable.', 404);
-        }
-
         if ('archipelago' === strtolower(pathinfo($filename, \PATHINFO_EXTENSION))) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Fichier non autorisé.', 403);
         }
@@ -63,12 +67,17 @@ final readonly class WeeklyEntryPatchController
             return $this->apiAccessGuard->errorResponse('forbidden', 'Fichier non autorisé.', 403);
         }
 
-        // Post-launch: verify the file belongs to this player's slot.
-        if (null !== $context['slotName']) {
-            $stem = pathinfo($filename, \PATHINFO_FILENAME);
-            if ($stem !== $context['slotName']) {
-                return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre entrée.", 403);
-            }
+        $context = $this->patchQuery->forEntry($weeklyRunId, $entryId, $user->getId());
+        if (null === $context) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Entrée introuvable.', 404);
+        }
+
+        if ('bridge' === $context['type']) {
+            return $this->downloadFromBridge($context['bridgePort'], $filename);
+        }
+
+        if (null !== $context['slotName'] && pathinfo($filename, \PATHINFO_FILENAME) !== $context['slotName']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre entrée.", 403);
         }
 
         $outputDir = realpath($context['outputDir']);
@@ -89,6 +98,59 @@ final readonly class WeeklyEntryPatchController
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $filename);
 
         return $response;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function listFromBridge(int $bridgePort): array
+    {
+        try {
+            $response = $this->httpClient->request(
+                'GET',
+                "http://localhost:{$bridgePort}/output",
+                ['timeout' => 5],
+            );
+            if (200 !== $response->getStatusCode()) {
+                return [];
+            }
+            /** @var array{files?: list<string>} $body */
+            $body = $response->toArray();
+
+            return $body['files'] ?? [];
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function downloadFromBridge(int $bridgePort, string $filename): Response
+    {
+        try {
+            $bridgeResponse = $this->httpClient->request(
+                'GET',
+                "http://localhost:{$bridgePort}/output/".rawurlencode($filename),
+                ['timeout' => 30],
+            );
+            if (200 !== $bridgeResponse->getStatusCode()) {
+                return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
+            }
+
+            $content = $bridgeResponse->getContent();
+            $safeFilename = basename($filename);
+
+            $streamed = new StreamedResponse(static function () use ($content): void {
+                echo $content;
+            });
+            $streamed->headers->set('Content-Type', 'application/octet-stream');
+            $streamed->headers->set(
+                'Content-Disposition',
+                'attachment; filename="'.$safeFilename.'"',
+            );
+
+            return $streamed;
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
+        }
     }
 
     /**

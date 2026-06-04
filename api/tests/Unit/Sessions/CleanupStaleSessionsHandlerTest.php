@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
+use App\Sessions\Application\PersonalRunAdvancerInterface;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsHandler;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Sessions\Application\SessionReconcilerInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
@@ -96,6 +97,7 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
 
     public function testRunningSessionMarkedCrashedWithoutOrchestateurQuery(): void
     {
+        // Orchestrateur-managed session (runnerId = null): stopSession must NOT be called.
         $session = $this->makeStaleSession(Session::STATUS_RUNNING);
 
         $sessions = $this->createStub(SessionRepositoryInterface::class);
@@ -108,11 +110,41 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
 
         $gateway = $this->createMock(RunnerGatewayInterface::class);
         $gateway->expects($this->never())->method('getSessionInfo');
-        $gateway->expects($this->once())->method('stopSession')->with($session->getId());
+        $gateway->expects($this->never())->method('stopSession');
+
+        $advancer = $this->createMock(PersonalRunAdvancerInterface::class);
+        $advancer->expects($this->once())->method('markPersonalRunStopped')->with($session->getId());
 
         $hub = $this->createStub(HubInterface::class);
 
-        $this->makeHandler($sessions, $reconciler, $gateway, $hub)(new CleanupStaleSessionsTask());
+        $this->makeHandler($sessions, $reconciler, $gateway, $hub, $advancer)(new CleanupStaleSessionsTask());
+
+        self::assertSame(Session::STATUS_CRASHED, $session->getStatus());
+    }
+
+    public function testRunningRunnerSessionCallsStopOnCrash(): void
+    {
+        // Runner-managed session (runnerId set): stopSession must be called.
+        $session = $this->makeStaleSession(Session::STATUS_RUNNING);
+        $past = new \DateTimeImmutable('-30 minutes');
+        $session->lockTo('runner-1', $past);
+
+        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions->method('findByStatuses')->willReturn([$session]);
+        $sessions->method('flush');
+
+        $reconciler = $this->createStub(SessionReconcilerInterface::class);
+
+        $gateway = $this->createMock(RunnerGatewayInterface::class);
+        $gateway->expects($this->never())->method('getSessionInfo');
+        $gateway->expects($this->once())->method('stopSession')->with($session->getId());
+
+        $advancer = $this->createMock(PersonalRunAdvancerInterface::class);
+        $advancer->expects($this->once())->method('markPersonalRunStopped')->with($session->getId());
+
+        $hub = $this->createStub(HubInterface::class);
+
+        $this->makeHandler($sessions, $reconciler, $gateway, $hub, $advancer)(new CleanupStaleSessionsTask());
 
         self::assertSame(Session::STATUS_CRASHED, $session->getStatus());
     }
@@ -150,11 +182,13 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         ?SessionReconcilerInterface $reconciler,
         RunnerGatewayInterface $gateway,
         ?HubInterface $hub = null,
+        ?PersonalRunAdvancerInterface $personalRunAdvancer = null,
     ): CleanupStaleSessionsHandler {
         $reconciler ??= $this->createStub(SessionReconcilerInterface::class);
         return new CleanupStaleSessionsHandler(
             $sessions,
             $reconciler,
+            $personalRunAdvancer ?? $this->createStub(PersonalRunAdvancerInterface::class),
             $hub ?? $this->createStub(HubInterface::class),
             $gateway,
             new NullLogger(),

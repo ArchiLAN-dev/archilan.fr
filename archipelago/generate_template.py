@@ -9,6 +9,7 @@ import json as _json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -36,11 +37,29 @@ _winapi_stub = types.ModuleType("_winapi")
 _winapi_stub.__getattr__ = lambda name: 0  # type: ignore[method-assign]
 sys.modules["_winapi"] = _winapi_stub
 
-# orjson: fast Rust JSON library used by the Factorio world for its data files.
-_orjson = types.ModuleType("orjson")
-_orjson.loads = _json.loads  # type: ignore[attr-defined]
-_orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
-sys.modules["orjson"] = _orjson
+# orjson: use real package if installed; fall back to stdlib shim if not.
+# Patch orjson.orjson = orjson so `from orjson import orjson` works regardless
+# (the Rust extension doesn't expose itself as an attribute).
+try:
+    import orjson as _orjson  # noqa: F401
+except ImportError:
+    _orjson = types.ModuleType("orjson")
+    _orjson.loads = _json.loads  # type: ignore[attr-defined]
+    _orjson.dumps = lambda obj, **kw: _json.dumps(obj, default=str).encode()  # type: ignore[attr-defined]
+    sys.modules["orjson"] = _orjson
+if not hasattr(_orjson, "orjson"):
+    _orjson.orjson = _orjson  # type: ignore[attr-defined]
+
+# tkinter / _tkinter: GUI toolkit not available in headless containers.
+# The .so fails to load (missing libtk), so we must stub before the stdlib
+# finder tries to import it.
+_tk_stub = types.ModuleType("tkinter")
+_tk_stub.__getattr__ = lambda _n: _tk_stub  # type: ignore[attr-defined]
+_tk_stub.__call__ = lambda *a, **kw: _tk_stub  # type: ignore[attr-defined]
+for _tk_name in ("tkinter", "_tkinter", "tkinter.ttk", "tkinter.font",
+                 "tkinter.messagebox", "tkinter.filedialog", "tkinter.colorchooser",
+                 "tkinter.simpledialog", "tkinter.constants"):
+    sys.modules.setdefault(_tk_name, _tk_stub)
 
 # pkg_resources: setuptools 71+ no longer ships it as a standalone top-level
 # package (removed from site-packages). Pre-populate sys.modules from pip's
@@ -59,6 +78,29 @@ except ImportError:
 _worlds_stub = types.ModuleType("worlds")
 _worlds_stub.__path__ = [f"{ARCH_SRC}/worlds"]
 _worlds_stub.__package__ = "worlds"
+
+
+def _worlds_getattr(name: str) -> object:
+    """Lazily import worlds.<name> when accessed as an attribute.
+
+    Apworlds that write ``worlds.Files.APDeltaPatch`` (attribute access instead
+    of an explicit ``import worlds.Files``) hit this path.  We try to import the
+    sub-module from ARCH_SRC/worlds/ and cache it on the stub so the next access
+    is free.  If the sub-module doesn't exist we raise AttributeError normally.
+    """
+    full = f"worlds.{name}"
+    if full in sys.modules:
+        mod = sys.modules[full]
+    else:
+        try:
+            mod = importlib.import_module(full)
+        except ImportError:
+            raise AttributeError(f"module 'worlds' has no attribute {name!r}")
+    setattr(_worlds_stub, name, mod)
+    return mod
+
+
+_worlds_stub.__getattr__ = _worlds_getattr  # type: ignore[attr-defined]
 sys.modules["worlds"] = _worlds_stub
 sys.path.insert(0, ARCH_SRC)
 
@@ -74,6 +116,24 @@ from Utils import local_path, user_path  # noqa: E402
 # Expose on the stub so other modules can do `from worlds import AutoWorldRegister`
 _worlds_stub.AutoWorldRegister = AutoWorldRegister
 _worlds_stub.World = World
+
+# Patch Options.Choice metaclass to allow apworlds that define `option_random`.
+# Archipelago reserves "random" as a keyword; some apworlds use it anyway.
+# On AssertionError we strip option_random* and retry so the world still loads.
+import Options as _Options_mod  # noqa: E402
+_ChoiceMeta = type(_Options_mod.Choice)
+_orig_choice_meta_new = _ChoiceMeta.__new__
+
+def _permissive_choice_meta_new(mcs, name, bases, namespace, **kwargs):
+    try:
+        return _orig_choice_meta_new(mcs, name, bases, namespace, **kwargs)
+    except AssertionError as _exc:
+        if "random" in str(_exc).lower():
+            _filtered = {k: v for k, v in namespace.items() if not k.startswith("option_random")}
+            return _orig_choice_meta_new(mcs, name, bases, _filtered, **kwargs)
+        raise
+
+_ChoiceMeta.__new__ = _permissive_choice_meta_new
 
 # Expose worlds/__init__.py public symbols that apworlds import directly.
 # Without these, apworlds doing `from worlds import user_folder` crash with
@@ -118,6 +178,7 @@ class _Stub:
     """
     def __getattr__(self, _n): return _Stub()
     def __call__(self, *a, **kw): return _Stub()
+    def __mro_entries__(self, bases): return (object,)  # allow: class Foo(_Stub()): …
     def __getitem__(self, key): return _Stub()
     def __setitem__(self, key, value): pass
     def __delitem__(self, key): pass
@@ -189,6 +250,59 @@ class _AutoStubFinder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 
 sys.meta_path.append(_AutoStubFinder())
 
+
+def _sanitize_pkg_name(name: str) -> str:
+    """Convert a directory name to a valid Python identifier (spaces → underscores)."""
+    import re as _re
+    sanitized = _re.sub(r"[^A-Za-z0-9_]", "_", name)
+    if sanitized and sanitized[0].isdigit():
+        sanitized = "_" + sanitized
+    return sanitized
+
+
+def _install_apworld_requirements(tmp_dir: str, pkg_name: str) -> None:
+    """Install requirements.txt bundled inside an apworld and evict pre-stubs.
+
+    Packages are installed into the package directory (--target pkg_dir) so that
+    relative imports like `from . import map_rando_app_data` resolve correctly:
+    the installed module ends up inside pkg_dir and therefore inside the package's
+    __path__, which is what Python searches for relative imports.
+    """
+    for candidate in [
+        os.path.join(tmp_dir, pkg_name, "requirements.txt"),
+        os.path.join(tmp_dir, "requirements.txt"),
+    ]:
+        if not os.path.isfile(candidate):
+            continue
+        pkg_dir = os.path.join(tmp_dir, pkg_name)
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", candidate,
+             "--target", pkg_dir, "--quiet"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(
+                f"Warning: pip install failed for {pkg_name}: {result.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return
+        # Make transitive deps of the installed packages importable as top-level.
+        if pkg_dir not in sys.path:
+            sys.path.insert(0, pkg_dir)
+        # Evict installed packages from sys.modules so fresh imports override pre-stubs.
+        with open(candidate, encoding="utf-8") as f:
+            installed = {
+                line.strip().split("==")[0].split(">=")[0].split("<=")[0]
+                           .split("!=")[0].split("[")[0].strip().lower().replace("-", "_")
+                for line in f
+                if line.strip() and not line.startswith("#") and not line.startswith("-")
+            }
+        for key in [k for k in sys.modules if k.split(".")[0].lower().replace("-", "_") in installed]:
+            del sys.modules[key]
+        return
+
+
 # ── Phase 1: load custom apworlds ────────────────────────────────────────────
 # Track pkg_names of apworlds we successfully load so we can filter by __module__.
 _loaded_pkg_names: list[str] = []
@@ -203,13 +317,37 @@ if args.world_directory:
                 entries = zf.namelist()
                 if not entries:
                     continue
-                pkg_name = entries[0].split("/")[0]
+                # Find the Python package directory: the first top-level folder
+                # that directly contains __init__.py. This is more robust than
+                # taking entries[0], which may be a non-package file (e.g.
+                # archipelago.json, .gitattributes) that sorts before the package.
+                # Find the raw directory name (may contain spaces or other
+                # non-identifier chars — we will sanitize below).
+                raw_pkg = None
+                for _e in entries:
+                    _norm = _e.replace("\\", "/")
+                    _parts = _norm.split("/")
+                    if len(_parts) == 2 and _parts[1] == "__init__.py" and _parts[0]:
+                        raw_pkg = _parts[0]
+                        break
+                if raw_pkg is None:
+                    for _e in entries:
+                        _candidate = _e.replace("\\", "/").split("/")[0]
+                        if _candidate:
+                            raw_pkg = _candidate
+                            break
         except Exception as exc:
             print(f"Warning: could not inspect {_apw.name}: {exc}", file=sys.stderr)
             continue
 
+        if not raw_pkg:
+            print(f"Warning: skipping {_apw.name}: could not detect package name", file=sys.stderr)
+            continue
+
+        # Sanitize: replace non-identifier chars with underscores.
+        pkg_name = raw_pkg if raw_pkg.isidentifier() else _sanitize_pkg_name(raw_pkg)
         if not pkg_name or not pkg_name.isidentifier():
-            print(f"Warning: skipping {_apw.name}: invalid package name '{pkg_name}'", file=sys.stderr)
+            print(f"Warning: skipping {_apw.name}: invalid package name '{raw_pkg}'", file=sys.stderr)
             continue
 
         world_mod_name = f"worlds.{pkg_name}"
@@ -223,11 +361,33 @@ if args.world_directory:
         _tmp_dir = tempfile.mkdtemp(prefix="apworld_")
         atexit.register(shutil.rmtree, _tmp_dir, True)
         with zipfile.ZipFile(str(_apw)) as _zf:
-            _zf.extractall(_tmp_dir)
+            for _member in _zf.infolist():
+                _member.filename = _member.filename.replace("\\", "/")
+                _zf.extract(_member, _tmp_dir)
+
+        # Rename the package directory to its sanitized name if needed
+        # (e.g. "Twilight Princess" → "Twilight_Princess").
+        if raw_pkg != pkg_name:
+            _raw_dir = os.path.join(_tmp_dir, raw_pkg)
+            _safe_dir = os.path.join(_tmp_dir, pkg_name)
+            if os.path.isdir(_raw_dir):
+                os.rename(_raw_dir, _safe_dir)
+
+        # Install apworld-specific dependencies before importing.
+        _install_apworld_requirements(_tmp_dir, pkg_name)
+
+        # Expose bundled top-level packages (deps at zip root) to the import system.
+        sys.path.insert(0, _tmp_dir)
 
         # Insert at position 0 so the custom apworld takes priority over any
         # built-in world with the same name in ARCH_SRC/worlds.
         _worlds_stub.__path__.insert(0, _tmp_dir)
+
+        # Redirect stdout → stderr during import so that apworlds that call
+        # print() at module level (e.g. during config processing) don't pollute
+        # the YAML output we capture from stdout.
+        _real_stdout = sys.stdout
+        sys.stdout = sys.stderr
         try:
             importlib.import_module(world_mod_name)
             _loaded_pkg_names.append(pkg_name)
@@ -235,6 +395,8 @@ if args.world_directory:
             _worlds_stub.__path__.remove(_tmp_dir)
             print(f"Warning: failed to load {_apw.name} ({pkg_name}): {exc}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
+        finally:
+            sys.stdout = _real_stdout
 
 # ── Pick the game registered by the apworld ──────────────────────────────────
 # Filter by __module__ to exclude built-in worlds pulled in as transitive imports
@@ -259,7 +421,12 @@ output = pathlib.Path(args.outputpath)
 output.mkdir(parents=True, exist_ok=True)
 
 from Options import generate_yaml_templates  # noqa: E402
-generate_yaml_templates(str(output))
+try:
+    generate_yaml_templates(str(output))
+except Exception as _tpl_exc:
+    print(f"generate_yaml_templates raised: {type(_tpl_exc).__name__}: {_tpl_exc}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
 
 # Restore world_types in case something downstream still needs them.
 AutoWorldRegister.world_types.update(_all_world_types)

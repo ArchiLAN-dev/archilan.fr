@@ -166,11 +166,9 @@ final class PersonalRunTest extends FunctionalTestCase
         $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$runId);
         self::assertResponseStatusCodeSame(204);
 
-        // Run is now cancelled
+        // Run is permanently deleted
         $this->client->jsonRequest('GET', '/api/v1/runs/'.$runId);
-        self::assertResponseIsSuccessful();
-        $data = $this->responseData();
-        self::assertSame(Run::STATUS_CANCELLED, $data['status']);
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testDeleteIdleRunReturns204(): void

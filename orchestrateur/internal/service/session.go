@@ -288,7 +288,14 @@ func (s *Service) StopSession(ctx context.Context, sessionID string) error {
 		s.pool.Release(*sess.BridgePort)
 	}
 
-	return s.db.UpdateSessionStopped(sessionID)
+	if err := s.db.UpdateSessionStopped(sessionID); err != nil {
+		return err
+	}
+	s.webhook.Send(ctx, webhook.Payload{
+		Event:     "session.stopped",
+		SessionID: sessionID,
+	})
+	return nil
 }
 
 // DeleteSession removes all resources for a session (containers, volume, DB record).

@@ -35,7 +35,7 @@ final class StubIgdbHttpClient implements IgdbHttpClientInterface
         ];
     }
 
-    public function searchGames(string $query, int $limit = 10): array
+    public function searchGames(string $query, int $limit = 10, int $offset = 0): array
     {
         if (self::$authFails) {
             throw new IgdbAuthException('Stubbed auth failure');

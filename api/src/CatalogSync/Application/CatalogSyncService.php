@@ -442,7 +442,13 @@ final readonly class CatalogSyncService
         $stabilityChanged = [];
 
         foreach ($sheetEntries as $entry) {
-            $match = $this->findMatch($entry, $existingGames);
+            // Exclude already-matched games so a single Game can only appear once
+            // in the diff results even if multiple sheet entries could match it.
+            $unmatched = array_values(array_filter(
+                $existingGames,
+                static fn (Game $g): bool => !\in_array($g->getId(), $matchedGameIds, true),
+            ));
+            $match = $this->findMatch($entry, $unmatched);
 
             if (null === $match) {
                 $newGames[] = $entry;

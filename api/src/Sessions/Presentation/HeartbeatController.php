@@ -6,6 +6,7 @@ namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\WeeklyRuns\Application\WeeklyEntrySessionCheck;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -15,6 +16,7 @@ final readonly class HeartbeatController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
+        private WeeklyEntrySessionCheck $weeklyEntrySessionCheck,
         private string $centralApiSecret,
     ) {
     }
@@ -31,6 +33,12 @@ final readonly class HeartbeatController
         $result = $this->sessionLifecycleManager->heartbeat($sessionId);
 
         if (!$result['found']) {
+            // The session ID may belong to a weekly run entry — no heartbeat tracking
+            // needed for those, but we must acknowledge to avoid bridge warnings.
+            if ($this->weeklyEntrySessionCheck->existsByExternalSessionId($sessionId)) {
+                return new JsonResponse(['data' => ['ok' => true]]);
+            }
+
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 

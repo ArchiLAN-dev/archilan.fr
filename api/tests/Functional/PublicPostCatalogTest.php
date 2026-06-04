@@ -64,8 +64,6 @@ final class PublicPostCatalogTest extends FunctionalTestCase
             'Retour sur la session.',
             ['Premier paragraphe.', 'Second paragraphe.'],
             '3 min',
-            null,
-            null,
             $now,
             $coverImageUrl,
         );

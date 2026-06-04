@@ -69,23 +69,22 @@ services:
     App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
     App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
 
-    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway'
+    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
 
-    App\WeeklyRuns\Infrastructure\HttpWeeklyRunnerGateway:
+    App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway:
         arguments:
             $client: '@archilan.orchestrateur_client'
-            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
-            $runnerApiKey: '%env(RUNNER_API_KEY)%'
+            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
-            $symfonyInternalUrl: '%env(default:default_empty_string:SYMFONY_INTERNAL_URL)%'
-            $mercureHubUrl: '%env(default:default_empty_string:MERCURE_HUB_URL)%'
 
-    App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\DockerWeeklyRunGenerator'
+    App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator'
 
-    App\WeeklyRuns\Infrastructure\DockerWeeklyRunGenerator:
+    App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator:
         arguments:
-            $generateImage: '%env(ARCHIPELAGO_GENERATE_IMAGE)%'
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+            $client: '@archilan.orchestrateur_client'
+            $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
+            $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
 
     App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\DolibarrClient'
 
@@ -94,7 +93,7 @@ services:
             $dolibarrApiUrl: '%env(default:default_empty_string:DOLIBARR_API_URL)%'
             $dolibarrApiKey: '%env(default:default_empty_string:DOLIBARR_API_KEY)%'
 
-    App\Sessions\Infrastructure\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
+    App\Sessions\Application\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
 
     App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\S3MinioStorage'
 
@@ -153,9 +152,6 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\WeeklyRuns\Application\LaunchWeeklyEntry:
-        arguments:
-            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
     App\WeeklyRuns\Presentation\WeeklyRunSlotStateController:
         arguments:
@@ -283,6 +279,7 @@ services:
     App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
     App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
     App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
+    App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
 
     App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
 
@@ -330,7 +327,7 @@ when@test:
 
         Symfony\Contracts\HttpClient\HttpClientInterface: '@Symfony\Component\HttpClient\MockHttpClient'
 
-        App\Sessions\Infrastructure\RunnerGatewayInterface:
+        App\Sessions\Application\RunnerGatewayInterface:
             class: App\Sessions\Infrastructure\NullRunnerGateway
 
         App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\NullMinioStorage'

@@ -8,6 +8,7 @@ use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
 use Symfony\Component\Clock\ClockInterface;
 
 final readonly class LaunchWeeklyEntry
@@ -15,9 +16,9 @@ final readonly class LaunchWeeklyEntry
     public function __construct(
         private WeeklyRunRepositoryInterface $runs,
         private WeeklyEntryRepositoryInterface $entries,
+        private WeeklyTemplateRepositoryInterface $templates,
         private WeeklyRunnerGatewayInterface $gateway,
         private ClockInterface $clock,
-        private string $workspaceDir,
     ) {
     }
 
@@ -35,8 +36,13 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('run_not_active');
         }
 
-        $seedFilePath = $run->getGeneratedSeedPath();
-        if (null === $seedFilePath || !is_file($seedFilePath)) {
+        $apworldHash = $run->getGeneratedSeedPath();
+        if (null === $apworldHash) {
+            throw new \DomainException('run_not_generated');
+        }
+
+        $template = $this->templates->findById($run->getTemplateId());
+        if (null === $template) {
             throw new \DomainException('run_not_generated');
         }
 
@@ -53,30 +59,15 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('session_already_started');
         }
 
-        // Copy the seed file and yamls into the entry's workspace so the runner can launch
-        // an isolated server instance for this player from the pre-generated world.
-        $entryOutputDir = $this->workspaceDir.'/'.$entryId.'/output';
-        if (!is_dir($entryOutputDir)) {
-            mkdir($entryOutputDir, 0755, true);
-        }
-        $entrySeeedPath = $entryOutputDir.'/'.basename($seedFilePath);
-        copy($seedFilePath, $entrySeeedPath);
-
-        // Copy yamls from the run's workspace so reachable.py can rebuild the MultiWorld.
-        $runYamlsDir = $this->workspaceDir.'/'.$weeklyRunId.'/yamls';
-        $entryYamlsDir = $this->workspaceDir.'/'.$entryId.'/yamls';
-        if (is_dir($runYamlsDir) && !is_dir($entryYamlsDir)) {
-            mkdir($entryYamlsDir, 0755, true);
-            foreach (glob($runYamlsDir.'/*.yaml') ?: [] as $yamlFile) {
-                copy($yamlFile, $entryYamlsDir.'/'.basename($yamlFile));
-            }
-        }
-
-        $result = $this->gateway->launchFromSeed($entryId, $entrySeeedPath);
+        $result = $this->gateway->launchEntry(
+            $entryId,
+            $apworldHash,
+            $template->getYamlConfig(),
+            $run->getSeed(),
+        );
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
-        $bridgePort = $result['bridgePort'];
-        $entry->launch($result['externalSessionId'], $now, $result['connectionInfo'], $bridgePort);
+        $entry->launch($result['externalSessionId'], $now, $result['connectionInfo'], $result['bridgePort']);
 
         try {
             $this->entries->flush();

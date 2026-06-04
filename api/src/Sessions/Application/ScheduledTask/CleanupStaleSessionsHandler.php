@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\ScheduledTask;
 
+use App\Sessions\Application\PersonalRunAdvancerInterface;
+use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\SessionReconcilerInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -19,6 +20,7 @@ final readonly class CleanupStaleSessionsHandler
     public function __construct(
         private SessionRepositoryInterface $sessions,
         private SessionReconcilerInterface $sessionReconciler,
+        private PersonalRunAdvancerInterface $personalRunAdvancer,
         private HubInterface $mercureHub,
         private RunnerGatewayInterface $runnerGateway,
         private LoggerInterface $logger,
@@ -86,7 +88,14 @@ final readonly class CleanupStaleSessionsHandler
             ]);
 
             if (Session::STATUS_RUNNING === $previous) {
-                $this->runnerGateway->stopSession($session->getId());
+                $this->personalRunAdvancer->markPersonalRunStopped($session->getId());
+
+                // Only call the runner stop for runner-managed sessions.
+                // Orchestrateur-managed sessions (runnerId = null) handle their own
+                // container lifecycle and the bridge is already gone at this point.
+                if (null !== $session->getRunnerId()) {
+                    $this->runnerGateway->stopSession($session->getId());
+                }
             }
 
             $cleaned[] = $session;

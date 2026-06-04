@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, Clock, ExternalLink } from "lucide-react";
+import { CalendarDays, Clock } from "lucide-react";
 import { env } from "@/lib/env";
 import type { PublicPost, PublicPostType } from "@/features/content/content-types";
 import { getPostTypeLabel } from "@/features/content/mock-posts";
@@ -104,33 +103,21 @@ export default async function PostPage({ params }: PostPageProps) {
           </div>
         </header>
 
-        <div className="grid gap-6 text-base leading-8 text-muted-foreground">
-          {post.body.map((paragraph, index) => (
-            <p key={`para-${index}`}>{paragraph}</p>
-          ))}
+        <div className="text-base leading-8 text-muted-foreground">
+          {post.body.length === 1 && post.body[0].trimStart().startsWith("<") ? (
+            <div
+              className="post-body"
+              dangerouslySetInnerHTML={{ __html: post.body[0] }}
+            />
+          ) : (
+            <div className="grid gap-6">
+              {post.body.map((paragraph, index) => (
+                <p key={`para-${index}`}>{paragraph}</p>
+              ))}
+            </div>
+          )}
         </div>
 
-        <footer className="mt-10 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row">
-          {post.relatedEventSlug ? (
-            <Link
-              className="inline-flex min-h-11 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-              href={`/evenements/${post.relatedEventSlug}`}
-            >
-              Voir l&apos;événement lié
-            </Link>
-          ) : null}
-          {post.vodUrl ? (
-            <a
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-              href={post.vodUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Voir la VOD
-              <ExternalLink aria-hidden="true" className="size-4" />
-            </a>
-          ) : null}
-        </footer>
       </article>
     </>
   );

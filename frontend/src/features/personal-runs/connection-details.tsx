@@ -42,10 +42,12 @@ export function ConnectionDetails({
   host,
   port,
   password,
+  adminPassword,
 }: {
   host: string;
   port: number;
   password: string;
+  adminPassword?: string | null;
 }) {
   return (
     <div className="rounded-lg border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/5 p-4">
@@ -57,6 +59,9 @@ export function ConnectionDetails({
         <CopyField label="Hôte" value={host} />
         <CopyField label="Port" value={String(port)} />
         <CopyField label="Mot de passe" value={password} />
+        {adminPassword != null && (
+          <CopyField label="Mot de passe admin" value={adminPassword} />
+        )}
       </div>
     </div>
   );

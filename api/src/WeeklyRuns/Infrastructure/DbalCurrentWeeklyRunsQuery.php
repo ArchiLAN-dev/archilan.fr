@@ -26,7 +26,9 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                 'wr.started_at',
                 'wr.finished_at',
                 'wt.name AS template_name',
+                'wt.yaml_config AS yaml_config',
                 'g.name AS game_name',
+                'g.cover_image_url AS cover_image_url',
             )
             ->from('weekly_runs', 'wr')
             ->join('wr', 'weekly_templates', 'wt', 'wt.id = wr.template_id')
@@ -140,7 +142,9 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
             $result[] = [
                 'weeklyRunId' => $runId,
                 'templateName' => is_string($runRow['template_name']) ? $runRow['template_name'] : null,
+                'yamlConfig' => is_string($runRow['yaml_config']) ? $runRow['yaml_config'] : null,
                 'gameName' => is_string($runRow['game_name']) ? $runRow['game_name'] : null,
+                'coverImageUrl' => is_string($runRow['cover_image_url']) ? $runRow['cover_image_url'] : null,
                 'weekNumber' => is_numeric($runRow['week_number']) ? (int) $runRow['week_number'] : 0,
                 'weekYear' => is_numeric($runRow['week_year']) ? (int) $runRow['week_year'] : 0,
                 'status' => is_string($runRow['status']) ? $runRow['status'] : '',

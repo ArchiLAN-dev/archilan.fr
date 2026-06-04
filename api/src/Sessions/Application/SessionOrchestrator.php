@@ -15,10 +15,9 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Sessions\Infrastructure\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 
-final readonly class SessionOrchestrator
+final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,
@@ -274,6 +273,25 @@ final readonly class SessionOrchestrator
         $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId]);
 
         return ['found' => true, 'session' => $result['session']];
+    }
+
+    public function markPersonalRunStopped(string $sessionId): void
+    {
+        $personalRun = $this->runs->findBySessionId($sessionId);
+        if (!$personalRun instanceof Run) {
+            return;
+        }
+
+        try {
+            $personalRun->markStopped(new \DateTimeImmutable());
+            $this->runs->flush();
+            $this->logger->info('session.personal_run.marked_stopped', ['sessionId' => $sessionId]);
+        } catch (\Throwable $e) {
+            $this->logger->error('session.personal_run.mark_stopped_failed', [
+                'sessionId' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function autoAdvancePersonalRun(string $sessionId): void

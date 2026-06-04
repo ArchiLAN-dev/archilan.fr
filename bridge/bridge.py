@@ -102,7 +102,13 @@ async def _main() -> None:
     log.info("REST+WS API listening on port %d", config.rest_port)
 
     _sweep_task = asyncio.create_task(
-        _reachable_sweep_loop(state, ws_server.broadcast, config.session_id, reachable_semaphore, recompute_event, runtime=runtime)
+        _reachable_sweep_loop(
+            state, ws_server.broadcast, config.session_id,
+            reachable_semaphore, recompute_event,
+            runtime=runtime,
+            central_api_url=config.central_api_url,
+            central_api_secret=config.central_api_secret,
+        )
     )
     _reconcile_task = asyncio.create_task(
         _apsave_reconcile_loop(state, ws_server.broadcast, config.session_id, recompute_event, runtime=runtime)

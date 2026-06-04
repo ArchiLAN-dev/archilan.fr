@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { env } from "@/lib/env";
 import { apiFetch, registerUnauthenticatedHandler } from "@/lib/apiFetch";
 
+// Refresh the access token (15 min TTL) 2 minutes before expiry.
+// Keeps long-running pages like the tracker alive without user interaction.
+const PROACTIVE_REFRESH_MS = 13 * 60 * 1000; // 13 min
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -54,6 +58,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [setUser]);
+
+  // Proactive silent refresh: keeps the session alive on passive pages.
+  useEffect(() => {
+    if (!user) return;
+
+    const id = setInterval(() => {
+      apiFetch(`${env.apiBaseUrl}/auth/refresh`, { method: "POST" }).catch(() => {});
+    }, PROACTIVE_REFRESH_MS);
+
+    return () => clearInterval(id);
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser }}>

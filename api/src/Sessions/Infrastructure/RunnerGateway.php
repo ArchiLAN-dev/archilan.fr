@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
+use App\Sessions\Application\RunnerGatewayInterface;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
@@ -88,8 +89,53 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         } catch (\Throwable $e) {
             $this->logger->error('runner.apworld_upload_failed', ['filename' => $filename, 'error' => $e->getMessage()]);
 
+            return $this->classifyUploadError($e->getMessage());
+        }
+    }
+
+    /**
+     * @return array{error: string, detail?: string}
+     */
+    private function classifyUploadError(string $message): array
+    {
+        if (!str_contains($message, 'generate_template exited 1:')) {
             return ['error' => 'runner_unavailable'];
         }
+
+        if (str_contains($message, 'File is not a zip file')) {
+            return ['error' => 'invalid_file'];
+        }
+
+        if (str_contains($message, 'No game registered from the apworld')) {
+            return ['error' => 'template_failed', 'detail' => 'Cet apworld ne contient pas de jeu Archipelago (apworld client-only ou tracker sans composant serveur).'];
+        }
+
+        $detail = null;
+        $lines = preg_split('/\r?\n/', $message) ?: [];
+
+        // Prefer the exception message from our own warning line:
+        // "Warning: failed to load <file> (<pkg>): <ExceptionType: message>"
+        foreach ($lines as $line) {
+            if (preg_match('/^Warning: failed to load .+\((.+)\): (.+)$/', trim($line), $m)) {
+                $detail = $m[2];
+                break;
+            }
+        }
+
+        // Fallback: last line that looks like a Python exception (ExceptionType: message)
+        if (null === $detail) {
+            foreach (array_reverse($lines) as $line) {
+                $line = trim($line);
+                if (preg_match('/^[A-Z][A-Za-z]+Error: .+/', $line) || preg_match('/^[A-Z][A-Za-z]+Exception: .+/', $line)) {
+                    $detail = $line;
+                    break;
+                }
+            }
+        }
+
+        return null !== $detail
+            ? ['error' => 'template_failed', 'detail' => $detail]
+            : ['error' => 'template_failed'];
     }
 
     public function configureSession(string $sessionId, array $slots): array

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
+use App\Sessions\Application\RunnerGatewayInterface;
+
 final class NullRunnerGateway implements RunnerGatewayInterface
 {
     /** @var array<string, string>|null */
