@@ -29,9 +29,9 @@ final readonly class AdminGameLibrary
     /**
      * @return array{items: list<array<string, mixed>>, total: int, page: int, perPage: int, totalPages: int}
      */
-    public function list(int $page = 1, int $perPage = 50, string $search = '', ?string $availability = null, ?bool $yamlReady = null): array
+    public function list(int $page = 1, int $perPage = 50, string $search = '', ?string $availability = null, ?bool $yamlReady = null, ?bool $apworldReady = null): array
     {
-        $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady);
+        $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady, $apworldReady);
         $totalPages = $result['total'] > 0 ? (int) ceil($result['total'] / $perPage) : 1;
 
         return [

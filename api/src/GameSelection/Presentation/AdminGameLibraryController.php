@@ -48,7 +48,14 @@ final readonly class AdminGameLibraryController
             default => null,
         };
 
-        $result = $this->adminGameLibrary->list($page, $perPage, $search, $availability, $yamlReady);
+        $rawApworldReady = $request->query->has('apworld_ready') ? (string) $request->query->get('apworld_ready') : null;
+        $apworldReady = match ($rawApworldReady) {
+            '1', 'true' => true,
+            '0', 'false' => false,
+            default => null,
+        };
+
+        $result = $this->adminGameLibrary->list($page, $perPage, $search, $availability, $yamlReady, $apworldReady);
 
         return new JsonResponse([
             'data' => $result['items'],

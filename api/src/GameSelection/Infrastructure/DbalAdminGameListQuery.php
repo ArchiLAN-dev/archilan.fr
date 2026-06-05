@@ -14,12 +14,12 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
     {
     }
 
-    public function find(int $page, int $perPage, string $search, ?string $availability, ?bool $yamlReady): array
+    public function find(int $page, int $perPage, string $search, ?string $availability, ?bool $yamlReady, ?bool $apworldReady = null): array
     {
         $countQb = $this->connection->createQueryBuilder()
             ->select('COUNT(*)')
             ->from('game', 'g');
-        $this->applyFilters($countQb, $search, $availability, $yamlReady);
+        $this->applyFilters($countQb, $search, $availability, $yamlReady, $apworldReady);
 
         $countResult = $countQb->executeQuery()->fetchOne();
         $total = false !== $countResult && is_numeric($countResult) ? (int) $countResult : 0;
@@ -45,7 +45,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
             ->orderBy('g.name', 'ASC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
-        $this->applyFilters($dataQb, $search, $availability, $yamlReady);
+        $this->applyFilters($dataQb, $search, $availability, $yamlReady, $apworldReady);
 
         $rows = $dataQb->executeQuery()->fetchAllAssociative();
         $items = array_map(fn (array $row): array => $this->mapRow($row), $rows);
@@ -53,7 +53,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
         return ['items' => $items, 'total' => $total];
     }
 
-    private function applyFilters(QueryBuilder $qb, string $search, ?string $availability, ?bool $yamlReady): void
+    private function applyFilters(QueryBuilder $qb, string $search, ?string $availability, ?bool $yamlReady, ?bool $apworldReady): void
     {
         if ('' !== $search) {
             $qb->andWhere('(g.name ILIKE :search OR g.slug ILIKE :search)')
@@ -69,6 +69,12 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
             $qb->andWhere("g.archipelago_game_name IS NOT NULL AND g.archipelago_game_name <> ''");
         } elseif (false === $yamlReady) {
             $qb->andWhere("(g.archipelago_game_name IS NULL OR g.archipelago_game_name = '')");
+        }
+
+        if (true === $apworldReady) {
+            $qb->andWhere("g.apworld_storage_key IS NOT NULL AND g.apworld_storage_key <> ''");
+        } elseif (false === $apworldReady) {
+            $qb->andWhere("(g.apworld_storage_key IS NULL OR g.apworld_storage_key = '')");
         }
     }
 
