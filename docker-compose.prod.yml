@@ -115,6 +115,8 @@ services:
         image: ghcr.io/archilan-dev/api-worker:latest
         container_name: archilan-api-worker
         restart: always
+        group_add:
+            - "${DOCKER_GID}"
         depends_on:
             postgres:
                 condition: service_healthy
@@ -151,6 +153,8 @@ services:
         container_name: archilan-orchestrateur
         restart: always
         env_file: envs/orchestrateur.env
+        group_add:
+            - "${DOCKER_GID}"
         networks:
             - default
             - archilan-proxy
