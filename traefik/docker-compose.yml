@@ -1,0 +1,26 @@
+name: archilan-traefik
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"   # dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
+      - traefik-certs:/certs
+    networks:
+      - archilan-proxy
+
+networks:
+  archilan-proxy:
+    name: archilan-proxy
+    external: false   # créé ici, partagé via external: true dans les autres stacks
+
+volumes:
+  traefik-certs:

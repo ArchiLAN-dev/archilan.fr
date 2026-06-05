@@ -1,0 +1,6 @@
+# Exemple de routes statiques (services non-Docker ou overrides)
+# Les services Docker se configurent via labels dans leur docker-compose.
+
+http:
+  routers: {}
+  services: {}
