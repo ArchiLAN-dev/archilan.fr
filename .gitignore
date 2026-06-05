@@ -15,3 +15,4 @@ packages/
 # Production secrets — never commit
 .env.prod
 traefik/.env
+envs/*.env

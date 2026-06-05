@@ -8,14 +8,11 @@ services:
         image: postgres:17-alpine
         container_name: archilan-postgres
         restart: always
-        environment:
-            POSTGRES_DB: ${POSTGRES_DB:-archilan}
-            POSTGRES_USER: ${POSTGRES_USER:-archilan}
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        env_file: envs/postgres.env
         volumes:
             - postgres-data:/var/lib/postgresql/data
         healthcheck:
-            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-archilan} -d ${POSTGRES_DB:-archilan}" ]
+            test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-archilan} -d $${POSTGRES_DB:-archilan}" ]
             interval: 10s
             timeout: 5s
             retries: 5
@@ -24,9 +21,7 @@ services:
         image: rabbitmq:4-alpine
         container_name: archilan-rabbitmq
         restart: always
-        environment:
-            RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-archilan}
-            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+        env_file: envs/rabbitmq.env
         volumes:
             - rabbitmq-data:/var/lib/rabbitmq
         healthcheck:
@@ -40,9 +35,7 @@ services:
         container_name: archilan-minio
         restart: always
         command: server /data --console-address ":9001"
-        environment:
-            MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+        env_file: envs/minio.env
         ports:
             - "9000:9000"
             - "9001:9001"
@@ -56,12 +49,13 @@ services:
 
     createbuckets:
         image: minio/mc:latest
+        env_file: envs/minio.env
         depends_on:
             minio:
                 condition: service_healthy
         entrypoint: >
             /bin/sh -c "
-            mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+            mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
             mc mb --ignore-existing local/apworlds;
             mc mb --ignore-existing local/sessions;
             mc mb --ignore-existing local/media;
@@ -71,12 +65,7 @@ services:
         image: dunglas/mercure:v0.15
         container_name: archilan-mercure
         restart: always
-        environment:
-            SERVER_NAME: ":3001"
-            MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET}
-            MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET}
-            MERCURE_EXTRA_DIRECTIVES: |
-                cors_origins ${FRONTEND_ORIGIN}
+        env_file: envs/mercure.env
         ports:
             - "3001:3001"
 
@@ -91,6 +80,7 @@ services:
                 condition: service_healthy
             rabbitmq:
                 condition: service_healthy
+        env_file: envs/api.env
         networks:
             - default
             - archilan-proxy
@@ -101,64 +91,10 @@ services:
             - "traefik.http.routers.api-web.entrypoints=websecure"
             - "traefik.http.routers.api-web.tls.certresolver=letsencrypt"
             - "traefik.http.services.api-web.loadbalancer.server.port=80"
-            # Redirect HTTP → HTTPS
             - "traefik.http.routers.api-web-http.rule=Host(`${API_DOMAIN}`)"
             - "traefik.http.routers.api-web-http.entrypoints=web"
             - "traefik.http.routers.api-web-http.middlewares=redirect-https"
             - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
-        environment:
-            APP_ENV: prod
-            APP_DEBUG: "0"
-            APP_SECRET: ${APP_SECRET}
-            DATABASE_URL: postgresql://${POSTGRES_USER:-archilan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-archilan}?serverVersion=17&charset=utf8
-            MESSENGER_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2f
-            MESSENGER_FAILED_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2f
-            MERCURE_URL: http://mercure:3001/.well-known/mercure
-            MERCURE_PUBLIC_URL: ${MERCURE_PUBLIC_URL}
-            MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET}
-            JWT_SECRET_KEY: /run/secrets/jwt_private
-            JWT_PUBLIC_KEY: /run/secrets/jwt_public
-            JWT_PASSPHRASE: ${JWT_PASSPHRASE}
-            FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
-            DEFAULT_URI: ${DEFAULT_URI}
-            MAILER_DSN: ${MAILER_DSN}
-            MAILER_SENDER: ${MAILER_SENDER:-noreply@archilan.fr}
-            MINIO_ENDPOINT: http://minio:9000
-            MINIO_PRESIGN_ENDPOINT: ${MINIO_PRESIGN_ENDPOINT}
-            MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-            MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-            MINIO_BUCKET_APWORLDS: ${MINIO_BUCKET_APWORLDS:-apworlds}
-            MINIO_BUCKET_SAVES: ${MINIO_BUCKET_SAVES:-sessions}
-            MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-media}
-            ORCHESTRATEUR_API_KEY: ${ORCHESTRATEUR_API_KEY}
-            ORCHESTRATEUR_WEBHOOK_SECRET: ${ORCHESTRATEUR_WEBHOOK_SECRET}
-            RUNNER_BASE_URL: http://orchestrateur:8000
-            RUNNER_PUBLIC_HOST: ${RUNNER_PUBLIC_HOST}
-            BRIDGE_INTERNAL_TOKEN: ${BRIDGE_INTERNAL_TOKEN}
-            CENTRAL_API_SECRET: ${CENTRAL_API_SECRET}
-            DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
-            DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-            DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
-            DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
-            DISCORD_ROLE_ID_ADMIN: ${DISCORD_ROLE_ID_ADMIN}
-            DISCORD_ROLE_ID_MEMBER: ${DISCORD_ROLE_ID_MEMBER}
-            DISCORD_REDIRECT_URI_AUTH: ${DISCORD_REDIRECT_URI_AUTH}
-            DISCORD_REDIRECT_URI_LINK: ${DISCORD_REDIRECT_URI_LINK}
-            TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}
-            TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET}
-            TWITCH_CHANNEL_LOGIN: ${TWITCH_CHANNEL_LOGIN:-archilan}
-            HELLOASSO_CLIENT_ID: ${HELLOASSO_CLIENT_ID}
-            HELLOASSO_CLIENT_SECRET: ${HELLOASSO_CLIENT_SECRET}
-            HELLOASSO_ORGANIZATION_SLUG: ${HELLOASSO_ORGANIZATION_SLUG}
-            HELLOASSO_SANDBOX: "false"
-            HELLOASSO_MEMBERSHIP_FORM_SLUG: ${HELLOASSO_MEMBERSHIP_FORM_SLUG}
-            HELLOASSO_SHOP_FORM_SLUG: ${HELLOASSO_SHOP_FORM_SLUG}
-            EMAIL_HASH_SECRET: ${EMAIL_HASH_SECRET}
-            TRAEFIK_TOKEN: ${TRAEFIK_TOKEN}
-            WS_DOMAIN: ${WS_DOMAIN}
-            WORKSPACE_DIR: /var/archilan/workspace
-            ARCHIVE_DIR: /var/archilan/archives
-            ARCHIPELAGO_GENERATE_IMAGE: ${ARCHIPELAGO_GENERATE_IMAGE:-archipelago:latest}
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
@@ -172,36 +108,7 @@ services:
                 condition: service_healthy
             rabbitmq:
                 condition: service_healthy
-        environment:
-            APP_ENV: prod
-            APP_DEBUG: "0"
-            APP_SECRET: ${APP_SECRET}
-            DATABASE_URL: postgresql://${POSTGRES_USER:-archilan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-archilan}?serverVersion=17&charset=utf8
-            MESSENGER_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2f
-            MESSENGER_FAILED_TRANSPORT_DSN: amqp://${RABBITMQ_USER:-archilan}:${RABBITMQ_PASSWORD}@rabbitmq:5672/%2f
-            MERCURE_URL: http://mercure:3001/.well-known/mercure
-            MERCURE_JWT_SECRET: ${MERCURE_JWT_SECRET}
-            JWT_SECRET_KEY: /run/secrets/jwt_private
-            JWT_PUBLIC_KEY: /run/secrets/jwt_public
-            JWT_PASSPHRASE: ${JWT_PASSPHRASE}
-            MINIO_ENDPOINT: http://minio:9000
-            MINIO_PRESIGN_ENDPOINT: ${MINIO_PRESIGN_ENDPOINT}
-            MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-            MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-            MINIO_BUCKET_APWORLDS: ${MINIO_BUCKET_APWORLDS:-apworlds}
-            MINIO_BUCKET_SAVES: ${MINIO_BUCKET_SAVES:-sessions}
-            MINIO_BUCKET_MEDIA: ${MINIO_BUCKET_MEDIA:-media}
-            ORCHESTRATEUR_API_KEY: ${ORCHESTRATEUR_API_KEY}
-            RUNNER_BASE_URL: http://orchestrateur:8000
-            BRIDGE_INTERNAL_TOKEN: ${BRIDGE_INTERNAL_TOKEN}
-            MAILER_DSN: ${MAILER_DSN}
-            MAILER_SENDER: ${MAILER_SENDER:-noreply@archilan.fr}
-            DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
-            DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
-            WORKSPACE_DIR: /var/archilan/workspace
-            ARCHIVE_DIR: /var/archilan/archives
-            DOCKER_HOST: ${DOCKER_HOST:-unix:///var/run/docker.sock}
-            ARCHIPELAGO_GENERATE_IMAGE: ${ARCHIPELAGO_GENERATE_IMAGE:-archipelago:latest}
+        env_file: envs/api.env
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
@@ -211,6 +118,7 @@ services:
         image: ghcr.io/archilan-dev/frontend:latest
         container_name: archilan-frontend
         restart: always
+        env_file: envs/frontend.env
         networks:
             - default
             - archilan-proxy
@@ -224,15 +132,12 @@ services:
             - "traefik.http.routers.frontend-http.rule=Host(`${FRONTEND_DOMAIN}`)"
             - "traefik.http.routers.frontend-http.entrypoints=web"
             - "traefik.http.routers.frontend-http.middlewares=redirect-https"
-        environment:
-            NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
-            NEXT_PUBLIC_MERCURE_URL: ${MERCURE_PUBLIC_URL}
-            NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN: ${TWITCH_CHANNEL_LOGIN:-archilan}
 
     orchestrateur:
         image: ghcr.io/archilan-dev/orchestrateur:latest
         container_name: archilan-orchestrateur
         restart: always
+        env_file: envs/orchestrateur.env
         networks:
             - default
             - archilan-proxy
@@ -243,28 +148,6 @@ services:
             - "traefik.http.routers.orchestrateur.entrypoints=websecure"
             - "traefik.http.routers.orchestrateur.tls.certresolver=letsencrypt"
             - "traefik.http.services.orchestrateur.loadbalancer.server.port=8000"
-        environment:
-            API_KEY: ${ORCHESTRATEUR_API_KEY}
-            BRIDGE_TOKEN: ${BRIDGE_INTERNAL_TOKEN}
-            PORT_RANGE_START: ${PORT_RANGE_START:-25000}
-            PORT_RANGE_END: ${PORT_RANGE_END:-25099}
-            DB_PATH: /data/orchestrateur.db
-            DOCKER_HOST: unix:///var/run/docker.sock
-            BRIDGE_IMAGE: ${BRIDGE_IMAGE:-ghcr.io/archilan-dev/bridge:latest}
-            BRIDGE_NETWORK: archilan-prod_default
-            WEBHOOK_URL: http://api-web/api/v1/internal/orchestrateur/webhook
-            WEBHOOK_SECRET: ${ORCHESTRATEUR_WEBHOOK_SECRET}
-            CENTRAL_API_URL: http://api-web
-            CENTRAL_API_SECRET: ${CENTRAL_API_SECRET}
-            MINIO_ENDPOINT: minio:9000
-            MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
-            MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
-            MINIO_USE_SSL: "false"
-            MINIO_BUCKET_APWORLDS: ${MINIO_BUCKET_APWORLDS:-apworlds}
-            MINIO_BUCKET_SESSIONS: ${MINIO_BUCKET_SESSIONS:-sessions}
-            AP_IMAGE: ${AP_IMAGE:-ghcr.io/archilan-dev/archipelago:latest}
-            AP_SERVER_PORT_OFFSET: ${AP_SERVER_PORT_OFFSET:-10000}
-            CORS_ORIGINS: ${CORS_ORIGINS:-${FRONTEND_ORIGIN}}
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - orchestrateur-data:/data
