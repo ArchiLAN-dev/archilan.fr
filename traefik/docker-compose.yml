@@ -8,7 +8,13 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"   # dashboard
+      - "8080:8080"   # dashboard — restreindre en prod
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+      OVH_ENDPOINT: ${OVH_ENDPOINT:-ovh-eu}
+      OVH_APPLICATION_KEY: ${OVH_APPLICATION_KEY}
+      OVH_APPLICATION_SECRET: ${OVH_APPLICATION_SECRET}
+      OVH_CONSUMER_KEY: ${OVH_CONSUMER_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
@@ -20,7 +26,7 @@ services:
 networks:
   archilan-proxy:
     name: archilan-proxy
-    external: false   # créé ici, partagé via external: true dans les autres stacks
+    external: false
 
 volumes:
   traefik-certs:
