@@ -146,5 +146,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=${{ vars.NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN || 'archilan' }}
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.archilan.fr' }}
+            NEXT_PUBLIC_MERCURE_URL=${{ vars.NEXT_PUBLIC_MERCURE_URL || 'https://mercure.archilan.fr/.well-known/mercure' }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
