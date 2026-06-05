@@ -11,3 +11,7 @@ __pycache__/
 bridge/
 orchestrateur/
 packages/
+
+# Production secrets — never commit
+.env.prod
+traefik/.env
