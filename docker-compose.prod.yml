@@ -66,8 +66,19 @@ services:
         container_name: archilan-mercure
         restart: always
         env_file: envs/mercure.env
-        ports:
-            - "3001:3001"
+        networks:
+            - default
+            - archilan-proxy
+        labels:
+            - "traefik.enable=true"
+            - "traefik.docker.network=archilan-proxy"
+            - "traefik.http.routers.mercure.rule=Host(`${MERCURE_DOMAIN}`)"
+            - "traefik.http.routers.mercure.entrypoints=websecure"
+            - "traefik.http.routers.mercure.tls.certresolver=letsencrypt"
+            - "traefik.http.services.mercure.loadbalancer.server.port=3001"
+            - "traefik.http.routers.mercure-http.rule=Host(`${MERCURE_DOMAIN}`)"
+            - "traefik.http.routers.mercure-http.entrypoints=web"
+            - "traefik.http.routers.mercure-http.middlewares=redirect-https"
 
     # ─── Application ──────────────────────────────────────────────────────────
 
