@@ -109,6 +109,7 @@ services:
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
+            - api-logs:/app/var/log
 
     api-worker:
         image: ghcr.io/archilan-dev/api-worker:latest
@@ -123,6 +124,7 @@ services:
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
+            - api-logs:/app/var/log
             - /var/run/docker.sock:/var/run/docker.sock
 
     frontend:
@@ -176,3 +178,4 @@ volumes:
     orchestrateur-data:
     api-workspace:
     api-archives:
+    api-logs:
