@@ -10,6 +10,7 @@ use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Infrastructure\NullRunnerGateway;
 use Doctrine\ORM\Tools\SchemaTool;
 
 final class RunnerValidatePipelineTest extends FunctionalTestCase
@@ -108,6 +109,53 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         self::assertSame('Bob_HK', $slots[1]->getSlotName());
     }
 
+    // ─── Default YAML fallback (story 12.2) ────────────────────────────────────
+
+    public function testValidateUsesGameDefaultYamlWhenSlotHasNoSavedYaml(): void
+    {
+        NullRunnerGateway::reset();
+
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $defaultYaml = "name: '{{ player }}'\ngame: Hollow Knight\nHollow Knight: {}\n";
+        $player = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $game = $this->makeGameWithDefaultYaml('Hollow Knight', 'Hollow Knight', $defaultYaml);
+        $slotId = 'slot-hk-1';
+        $reg = $this->createRegistrationWithoutYaml($player->getId(), 'evt-001', $game->getId(), $slotId);
+        $session = $this->persistSession('evt-001');
+        $this->persistSessionSlot($session->getId(), $reg->getId(), $game->getId(), 'placeholder', 0, $slotId);
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/validate', $session->getId()));
+
+        self::assertResponseIsSuccessful();
+        self::assertIsArray(NullRunnerGateway::$lastConfigureSlots);
+        self::assertCount(1, NullRunnerGateway::$lastConfigureSlots);
+        self::assertSame($defaultYaml, NullRunnerGateway::$lastConfigureSlots[0]['playerYaml']);
+    }
+
+    public function testValidateKeepsSavedYamlWhenSlotIsConfigured(): void
+    {
+        NullRunnerGateway::reset();
+
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $savedYaml = "name: Alice\ngame: Hollow Knight\nHollow Knight: { custom: true }\n";
+        $player = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice');
+        $game = $this->makeGameWithDefaultYaml('Hollow Knight', 'Hollow Knight', "name: default\n");
+        $slotId = 'slot-hk-1';
+        $reg = $this->createRegistrationWithYaml($player->getId(), 'evt-001', $game->getId(), $slotId, $savedYaml);
+        $session = $this->persistSession('evt-001');
+        $this->persistSessionSlot($session->getId(), $reg->getId(), $game->getId(), 'placeholder', 0, $slotId);
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/sessions/%s/validate', $session->getId()));
+
+        self::assertResponseIsSuccessful();
+        self::assertIsArray(NullRunnerGateway::$lastConfigureSlots);
+        self::assertSame($savedYaml, NullRunnerGateway::$lastConfigureSlots[0]['playerYaml']);
+    }
+
     public function testValidateReturns409WhenSessionNotDraft(): void
     {
         $admin = $this->createAdmin();
@@ -158,6 +206,17 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         return $game;
     }
 
+    private function makeGameWithDefaultYaml(string $name, string $archipelagoGameName, string $defaultYaml): Game
+    {
+        $slug = strtolower(str_replace(' ', '-', $name)).'-'.bin2hex(random_bytes(2));
+        $game = $this->createGame($name, $slug);
+        $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
+        $game->configureApworld('test-key', 'test-hash', $archipelagoGameName, $defaultYaml, $now);
+        $this->entityManager->flush();
+
+        return $game;
+    }
+
     private function createRegistrationWithYaml(
         string $userId,
         string $eventId,
@@ -169,6 +228,20 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         $reg = $this->createRegistration($eventId, $userId);
         $reg->replaceSlots([['slotId' => $slotId, 'gameId' => $gameId]], $now);
         $reg->setSlotPlayerYaml($slotId, $playerYaml, 'test-hash', $now);
+        $this->entityManager->flush();
+
+        return $reg;
+    }
+
+    private function createRegistrationWithoutYaml(
+        string $userId,
+        string $eventId,
+        string $gameId,
+        string $slotId,
+    ): Registration {
+        $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
+        $reg = $this->createRegistration($eventId, $userId);
+        $reg->replaceSlots([['slotId' => $slotId, 'gameId' => $gameId]], $now);
         $this->entityManager->flush();
 
         return $reg;
