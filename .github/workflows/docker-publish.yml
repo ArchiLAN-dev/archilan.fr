@@ -24,6 +24,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   api-web:
     name: API (web)
