@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: Frontend
@@ -42,6 +46,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # warn-only for now: pre-existing high advisories (e.g. Next.js < 16.2.5) are
+      # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
+      # once the backlog is green — story 0.7 AC3.
+      - name: Audit (high+ severity)
+        run: pnpm audit --audit-level high
+        continue-on-error: true
 
       - name: Lint
         run: pnpm lint

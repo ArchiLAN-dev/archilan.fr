@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend
@@ -55,6 +59,13 @@ jobs:
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      # warn-only for now: pre-existing advisories (e.g. symfony/yaml low CVE) are
+      # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
+      # once the backlog is green — story 0.7 AC3.
+      - name: Composer audit (known vulnerabilities)
+        run: composer audit
+        continue-on-error: true
 
       - name: PHPStan
         run: composer phpstan
