@@ -56,9 +56,9 @@ Out of scope (tracked, not done here):
 - [~] Task 3: Add `composer audit` (backend) and `pnpm audit --audit-level high` (frontend) steps. — **lot 1, warn-only** (`continue-on-error: true`); flip to hard gate once Dependabot clears the backlog (Next.js <16.2.5 high, symfony/yaml low). AC3 not fully met until then.
 - [ ] Task 4: CodeQL — **deferred** (removed from lot 1). Findings while attempting it: CodeQL has **no PHP** extractor (PHP stays on PHPStan), and code scanning on a **private** repo requires **GitHub Advanced Security / Code Security** (paid, Team/Enterprise) — the run failed with *"Advanced Security must be enabled… to use code scanning."* On a **public** repo it's free. Re-add (`javascript-typescript` only, with `permissions: actions: read`) once the repo is public or Code Security is enabled.
 - [x] Task 5: **lot 2 — done.** `postgres:17` service in `backend.yml` (+ `pdo_pgsql`/`pgsql` ext); `.env.test` → Postgres (parity everywhere); functional tests refactored to a full-schema base (`FunctionalTestCase` does `DROP SCHEMA CASCADE` + `createSchema(getAllMetadata())`), per-class `SchemaTool` subsets removed from ~85 files; `ILIKE` search assertions re-enabled in `AdminGameLibraryTest`. Whole suite **912/912 green on Postgres**.
-- [ ] Task 6: Add Trivy image scan + SARIF upload to each build job in `docker-publish.yml`.
-- [ ] Task 7: Enforce a backend coverage floor (PHPUnit coverage-check step or Codecov status).
-- [ ] Task 8: Matrix `backend.yml` over PHP 8.3 + 8.4.
+- [x] Task 6: **lot 3.** Trivy image scan in each `docker-publish.yml` job (load-build + scan, HIGH/CRITICAL, `ignore-unfixed`, table). **Warn-only** (`continue-on-error`); **no SARIF upload** — code scanning needs GHAS on this private repo (same constraint as CodeQL), so results are in logs only.
+- [x] Task 7: **lot 3.** Backend coverage floor — a `Coverage floor` step parses the clover and fails under `MIN`. Baseline measured at **67.84%** (first CI run); floor set to **`MIN=65`**, hard gate. Raise over time.
+- [~] Task 8: **lot 3 — matrix dropped.** Attempted PHP **8.3 + 8.4**, but the lockfile requires 8.4 (`doctrine/doctrine-bundle 3.2.2` needs `php ^8.4`) → the 8.3 leg can't `composer install`. Kept **8.4 only**. Finding: `composer.json`'s `"^8.3"` is inaccurate vs the lock — bump to `"^8.4"` in a separate PR (needs `composer update --lock`).
 - [ ] Task 9: Verify on a throwaway PR; tune thresholds/ignore lists; update `CLAUDE.md` quality-gate notes if commands change.
 
 ## Dev Notes

@@ -24,6 +24,10 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    # NB: a PHP 8.3 matrix leg was attempted but the lockfile requires 8.4
+    # (doctrine/doctrine-bundle 3.2.2 needs php ^8.4), so 8.3 can't even install.
+    # The project effectively requires 8.4; composer.json's "^8.3" is aspirational
+    # and should be bumped to "^8.4" to match the lock (separate follow-up).
     defaults:
       run:
         working-directory: api
@@ -93,6 +97,14 @@ jobs:
 
       - name: PHPUnit with coverage
         run: composer test -- --coverage-clover coverage.xml --coverage-html coverage-html
+
+      # Hard gate. Baseline measured at 67.84% (first CI run); floor set just below
+      # with margin. Raise MIN over time as coverage grows.
+      - name: Coverage floor
+        env:
+          MIN: '65'
+        run: |
+          php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

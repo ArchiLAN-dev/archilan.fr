@@ -58,7 +58,28 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push
+      - name: Build image (load for scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile.web
+          load: true
+          tags: api-web:scan
+          secrets: composer_token=${{ secrets.COMPOSER_GITHUB_TOKEN }}
+          cache-from: type=gha,scope=api-web
+          cache-to: type=gha,mode=max,scope=api-web
+
+      - name: Trivy scan (api-web)
+        uses: aquasecurity/trivy-action@0.35.0
+        continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
+        with:
+          image-ref: api-web:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+
+      - name: Push
         uses: docker/build-push-action@v6
         with:
           context: ./api
@@ -99,7 +120,29 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push
+      - name: Build image (load for scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          file: ./api/Dockerfile
+          load: true
+          tags: api-worker:scan
+          secrets: |
+            composer_token=${{ secrets.COMPOSER_GITHUB_TOKEN }}
+          cache-from: type=gha,scope=api-worker
+          cache-to: type=gha,mode=max,scope=api-worker
+
+      - name: Trivy scan (api-worker)
+        uses: aquasecurity/trivy-action@0.35.0
+        continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
+        with:
+          image-ref: api-worker:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+
+      - name: Push
         uses: docker/build-push-action@v6
         with:
           context: ./api
@@ -141,7 +184,31 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push
+      - name: Build image (load for scan)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          load: true
+          tags: frontend:scan
+          build-args: |
+            NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=${{ vars.NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN || 'archilan' }}
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL || 'https://api.archilan.fr' }}
+            NEXT_PUBLIC_MERCURE_URL=${{ vars.NEXT_PUBLIC_MERCURE_URL || 'https://mercure.archilan.fr/.well-known/mercure' }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL || 'https://archilan.fr' }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Trivy scan (frontend)
+        uses: aquasecurity/trivy-action@0.35.0
+        continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
+        with:
+          image-ref: frontend:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+
+      - name: Push
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
