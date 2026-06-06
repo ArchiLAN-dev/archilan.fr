@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
 use App\Membership\Domain\Membership;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class WeeklyRunOptInTest extends FunctionalTestCase
 {
@@ -21,18 +19,6 @@ final class WeeklyRunOptInTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Membership::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(WeeklyTemplate::class),
-            $this->entityManager->getClassMetadata(WeeklyRun::class),
-            $this->entityManager->getClassMetadata(WeeklyEntry::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
 
         $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
         $this->game = $this->createGame('Archipelago', 'archipelago');

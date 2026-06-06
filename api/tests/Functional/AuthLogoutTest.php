@@ -7,13 +7,10 @@ namespace App\Tests\Functional;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\RegisterUser;
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
 use App\Identity\Presentation\AuthController;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\BrowserKit\Cookie;
 
 final class AuthLogoutTest extends FunctionalTestCase
@@ -30,15 +27,6 @@ final class AuthLogoutTest extends FunctionalTestCase
 
         $this->factory = new RefreshTokenFactory();
         $this->repository = new DoctrineRefreshTokenRepository($this->em, $this->em->getConnection());
-
-        $metadata = [
-            $this->em->getClassMetadata(User::class),
-            $this->em->getClassMetadata(RefreshToken::class),
-            $this->em->getClassMetadata(EmailConfirmationToken::class),
-        ];
-        $schemaTool = new SchemaTool($this->em);
-        $schemaTool->dropSchema(array_reverse($metadata));
-        $schemaTool->createSchema($metadata);
 
         $register = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $register);

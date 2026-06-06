@@ -10,7 +10,6 @@ use App\Sessions\Application\Message\FetchLogsJob;
 use App\Sessions\Domain\RunAuditLog;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -26,16 +25,6 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         $httpClient = self::getContainer()->get(MockHttpClient::class);
         self::assertInstanceOf(MockHttpClient::class, $httpClient);
         $this->httpClient = $httpClient;
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(SessionSlot::class),
-            $this->entityManager->getClassMetadata(RunAuditLog::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testCommandForwardsToBridge(): void

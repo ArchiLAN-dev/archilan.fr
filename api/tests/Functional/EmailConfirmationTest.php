@@ -6,10 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Communications\Application\EmailConfirmationMessage;
 use App\Identity\Application\RegisterUser;
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class EmailConfirmationTest extends FunctionalTestCase
@@ -17,15 +14,6 @@ final class EmailConfirmationTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(RefreshToken::class),
-            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema(array_reverse($metadata));
-        $schemaTool->createSchema($metadata);
     }
 
     public function testRegisterDispatchesConfirmationMessage(): void

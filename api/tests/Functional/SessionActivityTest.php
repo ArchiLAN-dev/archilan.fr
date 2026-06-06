@@ -4,27 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
 use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class SessionActivityTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(SessionSlot::class),
-            $this->entityManager->getClassMetadata(Game::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testActivityWithOccurredAtSetsLastActivityAtToThatValue(): void

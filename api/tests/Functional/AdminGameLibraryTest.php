@@ -5,24 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class AdminGameLibraryTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(GameCatalogSync::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAnonymousAndUserCannotManageGameLibrary(): void
@@ -166,8 +154,20 @@ final class AdminGameLibraryTest extends FunctionalTestCase
         self::assertSame('Super Metroid', $notReadyRow['name']);
         self::assertFalse($notReadyRow['isApworldReady']);
 
-        // NB: combining with `search` exercises ILIKE, which the SQLite test DB does
-        // not support — that path is covered by production Postgres, not here.
+        // apworld_ready=1 + matching search (ILIKE) → the ready game
+        $this->client->jsonRequest('GET', '/api/v1/admin/games?apworld_ready=1&search=ocarina');
+        self::assertResponseIsSuccessful();
+        $list = $this->decodedJsonResponse();
+        self::assertIsArray($list['data']);
+        self::assertCount(1, $list['data']);
+
+        // apworld_ready=1 + search matching only a not-ready game → empty; meta.total reflects the filtered set
+        $this->client->jsonRequest('GET', '/api/v1/admin/games?apworld_ready=1&search=metroid');
+        self::assertResponseIsSuccessful();
+        $list = $this->decodedJsonResponse();
+        self::assertSame([], $list['data']);
+        self::assertIsArray($list['meta']);
+        self::assertSame(0, $list['meta']['total']);
 
         // no filter → both games (unchanged behaviour)
         $this->client->jsonRequest('GET', '/api/v1/admin/games');

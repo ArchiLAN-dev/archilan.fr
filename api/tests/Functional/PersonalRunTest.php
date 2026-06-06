@@ -4,25 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class PersonalRunTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Run::class),
-            $this->entityManager->getClassMetadata(RunParticipant::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testUnauthenticatedRequestsReturn401(): void

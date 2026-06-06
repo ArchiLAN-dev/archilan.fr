@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Content\Domain\Post;
-use App\Identity\Domain\User;
 use App\Shared\Infrastructure\NullMinioStorage;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminPostCoverImageTest extends FunctionalTestCase
@@ -21,14 +19,6 @@ final class AdminPostCoverImageTest extends FunctionalTestCase
         $minioStorage = self::getContainer()->get(NullMinioStorage::class);
         self::assertInstanceOf(NullMinioStorage::class, $minioStorage);
         $this->minioStorage = $minioStorage;
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Post::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
 
         NullMinioStorage::reset();
     }

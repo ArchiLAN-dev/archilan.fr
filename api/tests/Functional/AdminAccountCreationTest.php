@@ -6,7 +6,6 @@ namespace App\Tests\Functional;
 
 use App\Identity\Domain\AdminCreationAudit;
 use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class AdminAccountCreationTest extends FunctionalTestCase
@@ -14,14 +13,6 @@ final class AdminAccountCreationTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(AdminCreationAudit::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testUnauthenticatedAdminCreationIsRejected(): void

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminGameApworldTest extends FunctionalTestCase
@@ -14,14 +12,6 @@ final class AdminGameApworldTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Game::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAnonymousCannotUploadApworld(): void

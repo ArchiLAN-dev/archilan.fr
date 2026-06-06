@@ -9,7 +9,9 @@ use App\GameSelection\Domain\Game;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
@@ -27,6 +29,26 @@ abstract class FunctionalTestCase extends WebTestCase
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
         $this->entityManager = $entityManager;
+
+        // Build the FULL schema once per test (every mapped entity), so individual
+        // test classes never have to declare a partial entity subset. Subsets were
+        // fragile: on SQLite they relied on tables leaking between classes; on
+        // Postgres that leakage is gone and incomplete subsets fail with missing-table
+        // or FK errors. A clean full schema removes that whole class of problem.
+        $schemaTool = new SchemaTool($this->entityManager);
+        $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
+
+        $connection = $this->entityManager->getConnection();
+        if ($connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
+            // Fast, FK-safe wipe; SQLite has no schemas so fall back to SchemaTool.
+            $connection->executeStatement('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+        } else {
+            $schemaTool->dropSchema($metadata);
+        }
+
+        if ([] !== $metadata) {
+            $schemaTool->createSchema($metadata);
+        }
     }
 
     protected function loginAs(User $user): void

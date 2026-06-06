@@ -5,28 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\Events\Domain\EventPrivateAccessLog;
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class AdminRegistrationCancellationTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Event::class),
-            $this->entityManager->getClassMetadata(EventPrivateAccessLog::class),
-            $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(Game::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAnonymousGets401(): void
