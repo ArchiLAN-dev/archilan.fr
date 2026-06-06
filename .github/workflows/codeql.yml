@@ -15,6 +15,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read        # CodeQL overlay-base DB caching reads workflow runs (PRs)
   contents: read
   security-events: write
 
