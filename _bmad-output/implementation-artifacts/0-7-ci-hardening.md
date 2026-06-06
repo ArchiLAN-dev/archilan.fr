@@ -54,7 +54,7 @@ Out of scope (tracked, not done here):
 - [x] Task 1: Add `.github/dependabot.yml` (composer, npm, github-actions, docker; grouped; weekly). — **lot 1**
 - [x] Task 2: Add `concurrency` blocks to `backend.yml`, `frontend.yml`, `docker-publish.yml`. — **lot 1**
 - [~] Task 3: Add `composer audit` (backend) and `pnpm audit --audit-level high` (frontend) steps. — **lot 1, warn-only** (`continue-on-error: true`); flip to hard gate once Dependabot clears the backlog (Next.js <16.2.5 high, symfony/yaml low). AC3 not fully met until then.
-- [x] Task 4: Add `.github/workflows/codeql.yml` (php + javascript-typescript; PR/push/schedule). — **lot 1**
+- [x] Task 4: Add `.github/workflows/codeql.yml` — **lot 1**. NB: CodeQL does **not** support PHP (the first CI run failed on `Did not recognize the following languages: php`); scoped to `javascript-typescript` only. PHP stays covered by PHPStan.
 - [ ] Task 5: Add a `postgres:17` service to `backend.yml`; wire test `DATABASE_URL`; ensure functional tests boot against Postgres; re-enable the `ILIKE` search assertions deferred in 23.7.
 - [ ] Task 6: Add Trivy image scan + SARIF upload to each build job in `docker-publish.yml`.
 - [ ] Task 7: Enforce a backend coverage floor (PHPUnit coverage-check step or Codecov status).

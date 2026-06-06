@@ -30,8 +30,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # CodeQL does not support PHP — the backend is covered by PHPStan.
+        # Only the frontend (JS/TS) is analysed here.
         language:
-          - php
           - javascript-typescript
 
     steps:
