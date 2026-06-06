@@ -70,7 +70,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api-web
 
       - name: Trivy scan (api-web)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
         with:
           image-ref: api-web:scan
@@ -133,7 +133,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api-worker
 
       - name: Trivy scan (api-worker)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
         with:
           image-ref: api-worker:scan
@@ -199,7 +199,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=frontend
 
       - name: Trivy scan (frontend)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.35.0
         continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
         with:
           image-ref: frontend:scan
