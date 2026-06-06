@@ -22,8 +22,12 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend
+    name: Backend (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
     defaults:
       run:
         working-directory: api
@@ -50,7 +54,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: ctype, iconv, pdo_pgsql, pgsql
           coverage: pcov
           tools: composer:v2
@@ -69,8 +73,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('api/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+          key: ${{ runner.os }}-php${{ matrix.php }}-composer-${{ hashFiles('api/composer.lock') }}
+          restore-keys: ${{ runner.os }}-php${{ matrix.php }}-composer-
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -94,7 +98,18 @@ jobs:
       - name: PHPUnit with coverage
         run: composer test -- --coverage-clover coverage.xml --coverage-html coverage-html
 
+      # warn-only until the baseline is read from the first CI run; then set MIN to
+      # (baseline − small margin) and drop continue-on-error to make it a hard gate.
+      - name: Coverage floor
+        if: matrix.php == '8.4'
+        continue-on-error: true
+        env:
+          MIN: '0'
+        run: |
+          php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
+
       - name: Upload coverage report
+        if: matrix.php == '8.4'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
