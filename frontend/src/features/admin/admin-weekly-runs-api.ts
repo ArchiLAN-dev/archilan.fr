@@ -63,14 +63,28 @@ export type AdminGameOption = {
   id: string;
   name: string;
   isApworldReady: boolean;
+  coverImageUrl?: string | null;
   defaultYaml?: string | null;
 };
 
 // ── Fetch functions ────────────────────────────────────────────────────────────
 
-export async function fetchAdminGameOptions(): Promise<AdminGameOption[]> {
+// Searches the game catalogue server-side, restricted to APWorld-ready games
+// (apworld_ready=1). The endpoint is paginated; the picker only needs the first
+// page of matches, so we cap it at a small per_page. Empty query → no request.
+const GAME_SEARCH_LIMIT = 20;
+
+export async function searchAdminGameOptions(
+  query: string,
+  signal?: AbortSignal,
+): Promise<AdminGameOption[]> {
+  const q = query.trim();
+  if (q === "") return [];
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/games`);
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/admin/games?search=${encodeURIComponent(q)}&apworld_ready=1&per_page=${GAME_SEARCH_LIMIT}`,
+      { signal },
+    );
     if (!res.ok) return [];
     const payload: unknown = await res.json();
     if (typeof payload !== "object" || payload === null || !("data" in payload) || !Array.isArray(payload.data)) {
@@ -78,7 +92,7 @@ export async function fetchAdminGameOptions(): Promise<AdminGameOption[]> {
     }
     const rawItems: unknown[] = payload.data;
     return rawItems
-      .filter((g): g is { id: string; name: string; isApworldReady: boolean } => {
+      .filter((g): g is { id: string; name: string; isApworldReady: boolean; coverImageUrl?: unknown } => {
         if (typeof g !== "object" || g === null) return false;
         if (!("id" in g) || typeof g.id !== "string") return false;
         if (!("name" in g) || typeof g.name !== "string") return false;
@@ -86,7 +100,12 @@ export async function fetchAdminGameOptions(): Promise<AdminGameOption[]> {
         return true;
       })
       .filter((g) => g.isApworldReady)
-      .map((g) => ({ id: g.id, name: g.name, isApworldReady: g.isApworldReady }));
+      .map((g) => ({
+        id: g.id,
+        name: g.name,
+        isApworldReady: g.isApworldReady,
+        coverImageUrl: typeof g.coverImageUrl === "string" && g.coverImageUrl !== "" ? g.coverImageUrl : null,
+      }));
   } catch {
     return [];
   }
