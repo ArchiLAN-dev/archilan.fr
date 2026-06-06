@@ -1,6 +1,10 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
+// Shared TanStack Query key for the admin weekly-runs dashboard. Exported so the
+// create/edit form can invalidate it after a mutation (avoids magic-string drift).
+export const ADMIN_WEEKLY_DASHBOARD_QUERY_KEY = ["admin-weekly-dashboard"] as const;
+
 export type AdminWeeklyTemplate = {
   id: string;
   name: string | null;

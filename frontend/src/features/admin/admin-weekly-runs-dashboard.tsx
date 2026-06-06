@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import {
+  ADMIN_WEEKLY_DASHBOARD_QUERY_KEY,
   deactivateAdminWeeklyTemplate,
   fetchAdminCurrentWeeklyRuns,
   fetchAdminWeeklyTemplates,
@@ -258,7 +259,7 @@ function CurrentRunCard({ run, expanded, onToggle }: CurrentRunCardProps) {
 
 export function AdminWeeklyRunsDashboard() {
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["admin-weekly-dashboard"],
+    queryKey: ADMIN_WEEKLY_DASHBOARD_QUERY_KEY,
     queryFn: fetchDashboardData,
     staleTime: 30_000,
     refetchInterval: 30_000,

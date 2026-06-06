@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
 import { AdminGamePicker } from "./admin-game-picker";
 import {
+  ADMIN_WEEKLY_DASHBOARD_QUERY_KEY,
   createAdminWeeklyTemplate,
   fetchAdminGameOptionDetail,
   fetchAdminWeeklyTemplate,
@@ -22,6 +24,7 @@ const FALLBACK_YAML = "name: ArchiLAN\ngame: Archipelago\n";
 
 export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [selectedGame, setSelectedGame] = useState<AdminGameOption | null>(null);
   const [template, setTemplate] = useState<AdminWeeklyTemplate | null>(null);
@@ -112,6 +115,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
         }
         return;
       }
+      await queryClient.invalidateQueries({ queryKey: ADMIN_WEEKLY_DASHBOARD_QUERY_KEY });
       router.push("/admin/weekly-runs");
     } else if (template) {
       const result = await updateAdminWeeklyTemplate(template.id, {
@@ -124,6 +128,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
         setError("Erreur lors de la mise à jour du template.");
         return;
       }
+      await queryClient.invalidateQueries({ queryKey: ADMIN_WEEKLY_DASHBOARD_QUERY_KEY });
       router.push("/admin/weekly-runs");
     } else {
       setSubmitting(false);
