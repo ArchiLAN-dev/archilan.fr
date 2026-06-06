@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Infrastructure\StubIgdbHttpClient;
-use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class AdminIgdbSearchTest extends FunctionalTestCase
 {
@@ -15,11 +13,6 @@ final class AdminIgdbSearchTest extends FunctionalTestCase
         StubIgdbHttpClient::reset();
 
         parent::setUp();
-
-        $metadata = [$this->entityManager->getClassMetadata(User::class)];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAnonymousCannotSearchIgdb(): void

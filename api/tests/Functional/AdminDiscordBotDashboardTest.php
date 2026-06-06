@@ -6,8 +6,6 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\User;
-use App\Membership\Domain\Membership;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class AdminDiscordBotDashboardTest extends FunctionalTestCase
@@ -16,13 +14,6 @@ final class AdminDiscordBotDashboardTest extends FunctionalTestCase
     {
         parent::setUp();
 
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Membership::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
         $this->asyncTransport()->reset();
     }
 

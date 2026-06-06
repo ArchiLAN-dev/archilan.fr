@@ -13,37 +13,14 @@ use App\Payments\Domain\HelloAssoSyncLog;
 use App\Payments\Infrastructure\DoctrineHelloAssoOrderRepository;
 use App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository;
 use App\Payments\Infrastructure\HelloAssoHttpClient;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Psr\Log\NullLogger;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
-final class HelloAssoSyncHandlerTest extends KernelTestCase
+final class HelloAssoSyncHandlerTest extends FunctionalTestCase
 {
-    private EntityManagerInterface $entityManager;
-
-    protected function setUp(): void
-    {
-        self::ensureKernelShutdown();
-        self::bootKernel();
-
-        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
-        $this->entityManager = $entityManager;
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(HelloAssoOrder::class),
-            $this->entityManager->getClassMetadata(HelloAssoSyncLog::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
-    }
-
     public function testSyncFetchesHelloAssoItemsAndPersistsInternalOrders(): void
     {
         $handler = $this->handler([

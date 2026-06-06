@@ -4,19 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
-
 final class RealtimeTokenTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [$this->entityManager->getClassMetadata(User::class)];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAdminReceivesTokenForValidAdminTopic(): void

@@ -7,14 +7,10 @@ namespace App\Tests\Functional;
 use App\Communications\Application\SessionRunningMessage;
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Realtime\Infrastructure\SpyHub;
-use App\Registrations\Domain\Registration;
 use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class SessionLifecycleTest extends FunctionalTestCase
@@ -24,20 +20,6 @@ final class SessionLifecycleTest extends FunctionalTestCase
         parent::setUp();
 
         $this->hub()->reset();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(SessionSlot::class),
-            $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(GameCatalogSync::class),
-            $this->entityManager->getClassMetadata(Run::class),
-            $this->entityManager->getClassMetadata(Event::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAdminCreatesSessionInDraftStatus(): void

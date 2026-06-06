@@ -6,25 +6,13 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class RegistrationSlotYamlTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Event::class),
-            $this->entityManager->getClassMetadata(Registration::class),
-            $this->entityManager->getClassMetadata(Game::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAnonymousUserGets401(): void

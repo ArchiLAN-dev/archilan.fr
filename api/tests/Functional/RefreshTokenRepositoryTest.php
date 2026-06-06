@@ -6,15 +6,12 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\RegisterUser;
-use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-final class RefreshTokenRepositoryTest extends KernelTestCase
+final class RefreshTokenRepositoryTest extends FunctionalTestCase
 {
     private EntityManagerInterface $em;
     private DoctrineRefreshTokenRepository $repository;
@@ -23,27 +20,12 @@ final class RefreshTokenRepositoryTest extends KernelTestCase
 
     protected function setUp(): void
     {
-        self::bootKernel();
+        parent::setUp();
+        $this->em = $this->entityManager;
 
-        $em = self::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $this->em = $em;
-
-        $this->repository = new DoctrineRefreshTokenRepository($em, $em->getConnection());
+        $this->repository = new DoctrineRefreshTokenRepository($this->em, $this->em->getConnection());
 
         $this->factory = new RefreshTokenFactory();
-
-        $schemaTool = new SchemaTool($this->em);
-        $schemaTool->dropSchema([
-            $this->em->getClassMetadata(RefreshToken::class),
-            $this->em->getClassMetadata(EmailConfirmationToken::class),
-            $this->em->getClassMetadata(User::class),
-        ]);
-        $schemaTool->createSchema([
-            $this->em->getClassMetadata(User::class),
-            $this->em->getClassMetadata(RefreshToken::class),
-            $this->em->getClassMetadata(EmailConfirmationToken::class),
-        ]);
 
         $registerUser = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $registerUser);

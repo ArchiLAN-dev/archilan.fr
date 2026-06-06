@@ -8,7 +8,6 @@ use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Domain\Session;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class SessionRestartTest extends FunctionalTestCase
@@ -16,15 +15,6 @@ final class SessionRestartTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Session::class),
-            $this->entityManager->getClassMetadata(Run::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
 
         /** @var InMemoryTransport $transport */
         $transport = self::getContainer()->get('messenger.transport.run_server');

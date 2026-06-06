@@ -5,18 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Content\Domain\Post;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class PublicPostCatalogTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $schemaTool = new SchemaTool($this->entityManager);
-        $metadata = [$this->entityManager->getClassMetadata(Post::class)];
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testPublishedPostPayloadIncludesCoverImageUrl(): void

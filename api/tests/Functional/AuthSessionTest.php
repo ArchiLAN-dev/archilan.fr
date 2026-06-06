@@ -6,26 +6,13 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\RegisterUser;
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\User;
 use App\Identity\Presentation\AuthController;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class AuthSessionTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(RefreshToken::class),
-            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema(array_reverse($metadata));
-        $schemaTool->createSchema($metadata);
     }
 
     public function testLoginSetsTwoCookiesWithoutReturningToken(): void
