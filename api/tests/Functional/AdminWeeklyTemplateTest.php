@@ -185,6 +185,7 @@ final class AdminWeeklyTemplateTest extends FunctionalTestCase
         self::assertIsArray($run);
         self::assertSame('active', $run['status']);
         self::assertSame('Weekly Template', $run['templateName']);
+        self::assertSame($this->game->getId(), $run['gameId']);
     }
 
     public function testAdminCurrentRunsExcludesOtherWeeks(): void

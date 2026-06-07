@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AdminWeeklyTemplateNewPage() {
-  return <AdminWeeklyTemplateForm mode="create" />;
+type Props = {
+  searchParams: Promise<{ gameId?: string }>;
+};
+
+export default async function AdminWeeklyTemplateNewPage({ searchParams }: Props) {
+  const { gameId } = await searchParams;
+  return <AdminWeeklyTemplateForm initialGameId={gameId} mode="create" />;
 }

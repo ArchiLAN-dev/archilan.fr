@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { AdminWeeklyRunsDashboard } from "@/features/admin/admin-weekly-runs-dashboard";
+import { AdminWeeklyRunGameGrid } from "@/features/admin/admin-weekly-run-game-grid";
 
 export const metadata: Metadata = {
   title: "Runs hebdomadaires",
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function AdminWeeklyRunsPage() {
-  return <AdminWeeklyRunsDashboard />;
+  return <AdminWeeklyRunGameGrid />;
 }
