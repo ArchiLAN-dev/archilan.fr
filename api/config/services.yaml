@@ -10,6 +10,7 @@ parameters:
     default_minio_apworlds_bucket: 'apworlds'
     default_minio_saves_bucket: 'archipelago-saves'
     default_minio_media_bucket: 'media'
+    default_minio_sessions_bucket: 'sessions'
     default_minio_presign_ttl: 3600
     default_minio_endpoint: 'http://localhost:9000'
     default_minio_access_key: 'minioadmin'
@@ -76,15 +77,16 @@ services:
     App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway:
         arguments:
             $client: '@archilan.orchestrateur_client'
-            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
-            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
     App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator'
 
     App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator:
         arguments:
             $client: '@archilan.orchestrateur_client'
+            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
 

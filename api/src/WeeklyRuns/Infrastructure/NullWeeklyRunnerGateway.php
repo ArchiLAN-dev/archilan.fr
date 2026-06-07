@@ -8,12 +8,8 @@ use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 
 final class NullWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    public function launchEntry(
-        string $entryId,
-        string $apworldHash,
-        string $templateYaml,
-        string $seed,
-    ): array {
+    public function launchEntry(string $entryId, string $outputKey): array
+    {
         return [
             'externalSessionId' => 'null-session-id',
             'connectionInfo' => [

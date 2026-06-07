@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Sessions\Domain\Session;
+use App\WeeklyRuns\Domain\WeeklyRun;
+use App\WeeklyRuns\Domain\WeeklyTemplate;
 
 final class OrchestratorWebhookTest extends FunctionalTestCase
 {
@@ -78,6 +80,63 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         $refreshed = $this->entityManager->find(Session::class, $session->getId());
         self::assertInstanceOf(Session::class, $refreshed);
         self::assertSame(Session::STATUS_CRASHED, $refreshed->getStatus());
+    }
+
+    // ─── weekly-gen-* generator sessions ──────────────────────────────────────
+
+    public function testWeeklyGenGeneratedMarksRunLaunchable(): void
+    {
+        $run = $this->createWeeklyRun();
+        self::assertNull($run->getGeneratedOutputKey());
+
+        $key = 'sessions/weekly-gen-'.$run->getId().'/output/AP_1.zip';
+        $this->sendWebhook([
+            'event' => 'session.generated',
+            'sessionId' => 'weekly-gen-'.$run->getId(),
+            'outputKey' => $key,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(WeeklyRun::class, $run->getId());
+        self::assertInstanceOf(WeeklyRun::class, $refreshed);
+        self::assertSame($key, $refreshed->getGeneratedOutputKey());
+    }
+
+    public function testWeeklyGenGeneratedIsIdempotent(): void
+    {
+        $run = $this->createWeeklyRun();
+        $sessionId = 'weekly-gen-'.$run->getId();
+        $firstKey = 'sessions/'.$sessionId.'/output/first.zip';
+
+        $this->sendWebhook(['event' => 'session.generated', 'sessionId' => $sessionId, 'outputKey' => $firstKey]);
+        self::assertResponseIsSuccessful();
+
+        // A duplicate/retried webhook with a different key must not overwrite.
+        $this->sendWebhook(['event' => 'session.generated', 'sessionId' => $sessionId, 'outputKey' => 'sessions/'.$sessionId.'/output/second.zip']);
+        self::assertResponseIsSuccessful();
+
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(WeeklyRun::class, $run->getId());
+        self::assertInstanceOf(WeeklyRun::class, $refreshed);
+        self::assertSame($firstKey, $refreshed->getGeneratedOutputKey());
+    }
+
+    public function testWeeklyGenCrashedLeavesRunNotLaunchable(): void
+    {
+        $run = $this->createWeeklyRun();
+
+        $this->sendWebhook([
+            'event' => 'session.crashed',
+            'sessionId' => 'weekly-gen-'.$run->getId(),
+            'error' => 'generation boom',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(WeeklyRun::class, $run->getId());
+        self::assertInstanceOf(WeeklyRun::class, $refreshed);
+        self::assertNull($refreshed->getGeneratedOutputKey());
     }
 
     // ─── Unknown event ────────────────────────────────────────────────────────
@@ -154,6 +213,39 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         return $session;
+    }
+
+    private function createWeeklyRun(): WeeklyRun
+    {
+        $now = new \DateTimeImmutable('2026-05-18T00:00:00+00:00');
+        $game = $this->createGame('Archipelago', 'archipelago');
+
+        $template = new WeeklyTemplate(
+            id: bin2hex(random_bytes(8)),
+            gameId: $game->getId(),
+            yamlConfig: "name: ArchiLAN\ngame: Archipelago\n",
+            name: 'Weekly',
+            maxAttempts: null,
+            isActive: true,
+            createdAt: $now,
+            updatedAt: $now,
+        );
+        $this->entityManager->persist($template);
+
+        $run = new WeeklyRun(
+            id: bin2hex(random_bytes(8)),
+            templateId: $template->getId(),
+            weekYear: 2026,
+            weekNumber: 20,
+            seed: 'archilan-weekly-2026-20',
+            status: WeeklyRun::STATUS_ACTIVE,
+            startedAt: $now,
+            createdAt: $now,
+        );
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        return $run;
     }
 
     /** @param array<string, mixed> $payload */

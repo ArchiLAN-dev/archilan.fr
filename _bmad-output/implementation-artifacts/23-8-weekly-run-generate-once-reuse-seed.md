@@ -8,7 +8,7 @@
 
 ## Status
 
-draft
+review
 
 ## Context (current behaviour)
 
@@ -60,18 +60,18 @@ No new `WeeklyRun` status is required: `generatedSeedPath === null` already gate
 ## Tasks / Subtasks
 
 ### Orchestrator (Go repo `archilan-orchestrateur`, branch `master`)
-- [ ] Task 1: `docker.CopyOutputFromVolume(ctx, sessionID, filename) ([]byte, error)` — read the generated file out of the session volume (Docker copy-from-container/volume).
-- [ ] Task 2: `storage.UploadSessionOutput` / `DownloadSessionOutput` (MinIO sessions bucket, key derivable from session id). In `runGeneration`, after `UpdateSessionGenerated`, upload the output before firing the `session.generated` webhook.
-- [ ] Task 3: Tests for copy-from-volume + output upload/download. (No new HTTP route unless the MinIO-direct read is rejected.)
+- [x] Task 1: `docker.CopyOutputFromVolume(ctx, sessionID, filename) ([]byte, error)` — read the generated file out of the session volume (Docker copy-from-container/volume).
+- [x] Task 2: `storage.UploadSessionOutput` / `DownloadSessionOutput` (MinIO sessions bucket, key derivable from session id). In `runGeneration`, after `UpdateSessionGenerated`, upload the output before firing the `session.generated` webhook.
+- [x] Task 3: Tests for copy-from-volume + output upload/download. (No new HTTP route unless the MinIO-direct read is rejected.)
 
 ### API (PHP, monorepo `api/`)
-- [ ] Task 4: `GenerateWeeklyRunsMessageHandler` → async dispatch: create the run, then upload apworld + `configure` + `generate(seed)` against `weekly-gen-{weeklyRunId}` **without polling**; never block on generation.
-- [ ] Task 5: New `MarkWeeklyRunGenerated` application service: set the artifact key on the run (`markGenerated`), idempotent, then delete the generator session.
-- [ ] Task 6: `OrchestratorWebhookController` — detect `weekly-gen-{id}` session ids; route `session.generated` → `MarkWeeklyRunGenerated`, `session.crashed` → log generation failure (run stays not-launchable). Leave the non-weekly path untouched.
-- [ ] Task 7: `OrchestratorWeeklyRunnerGateway::launchEntry()` → download artifact from MinIO + `launchFromFile`; remove configure+generate+poll-generated.
-- [ ] Task 8: `WeeklyRun` — `generatedSeedPath` now holds the MinIO output key; rename to `generatedOutputKey` for clarity (+ migration). `OrchestratorWeeklyRunGenerator` is repurposed/removed (its apworld-upload role folds into Task 4's configure step).
-- [ ] Task 9: Update `NullWeeklyRunGenerator` / `SpyWeeklyRunnerGateway`; functional tests for webhook→launchable and launch-uses-launchFromFile.
-- [ ] Task 10: All quality gates (orchestrator + API).
+- [x] Task 4: `GenerateWeeklyRunsMessageHandler` → async dispatch: create the run, then upload apworld + `configure` + `generate(seed)` against `weekly-gen-{weeklyRunId}` **without polling**; never block on generation.
+- [x] Task 5: New `MarkWeeklyRunGenerated` application service: set the artifact key on the run (`markGenerated`), idempotent, then delete the generator session.
+- [x] Task 6: `OrchestratorWebhookController` — detect `weekly-gen-{id}` session ids; route `session.generated` → `MarkWeeklyRunGenerated`, `session.crashed` → log generation failure (run stays not-launchable). Leave the non-weekly path untouched.
+- [x] Task 7: `OrchestratorWeeklyRunnerGateway::launchEntry()` → download artifact from MinIO + `launchFromFile`; remove configure+generate+poll-generated.
+- [x] Task 8: `WeeklyRun` — `generatedSeedPath` now holds the MinIO output key; rename to `generatedOutputKey` for clarity (+ migration). `OrchestratorWeeklyRunGenerator` is repurposed/removed (its apworld-upload role folds into Task 4's configure step).
+- [x] Task 9: Update `NullWeeklyRunGenerator` / `SpyWeeklyRunnerGateway`; functional tests for webhook→launchable and launch-uses-launchFromFile.
+- [x] Task 10: All quality gates (orchestrator + API).
 
 ### Frontend (follow-up, can be a separate slice)
 - [ ] Task 11: Member weekly-run page shows "Génération en cours…" while `generatedSeedPath` is null (launch disabled), flipping to launchable once the webhook lands. (Out of core scope; track separately if preferred.)
@@ -143,3 +143,4 @@ Spans three repos: `archilan-orchestrateur` (Go, master), `archilan/orchestrateu
 |------------|------------------------------------------------------------------------|
 | 2026-06-06 | Story drafted after investigating the orchestrator. Confirmed `launch-from-file` reuse primitive exists (Go + PHP client); the missing piece is retrieving the generated output bytes for storage/reuse. Pending architect grooming on sync-vs-async Monday generation. |
 | 2026-06-06 | Refined to the **async/webhook-driven** design (option b): non-blocking Monday dispatch, `weekly-gen-{runId}` generator sessions, orchestrator uploads output to MinIO + fires `session.generated`, `OrchestratorWebhookController` routes weekly ids to a new `MarkWeeklyRunGenerated` (idempotent, cleans up the generator session). No new `WeeklyRun` status needed (`generatedSeedPath===null` already gates launch). Tasks re-split (orchestrator output-persistence; API dispatch/webhook/launchFromFile). 4 open points listed for confirmation. |
+| 2026-06-07 | 4 open points confirmed (deterministic `weekly-gen-{runId}`, no auto-retry + admin re-trigger, API-side cleanup, frontend = separate slice). **Implemented Tasks 1–10** across two repos. Artifact handoff uses an additive `outputKey` field on the `session.generated` webhook (PHP MinIO has no `list`, so a derivable key alone is insufficient — the key carries the real filename/extension). Column `generated_seed_path` renamed to `generated_output_key`; legacy `DockerWeeklyRunGenerator` deleted (incompatible with async model). Orchestrator: PR [archilan-orchestrateur#1](https://github.com/ArchiLAN-dev/archilan-orchestrateur/pull/1) (`go build/vet/test` green). API: branch `feature/epic-23-story-8-generate-once-reuse-seed` (phpstan, cs-fixer, phpunit 923/923, ddd green). Task 11 (member "génération en cours" UI) deferred to a separate slice. Pending: live end-to-end integration (orchestrator + MinIO + Docker). |
