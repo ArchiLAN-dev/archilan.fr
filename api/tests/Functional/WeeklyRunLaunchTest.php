@@ -41,7 +41,7 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         self::assertCount(1, $spy->launchCalls);
         $call = $spy->launchCalls[0];
         self::assertSame($entry->getId(), $call['entryId']);
-        self::assertSame('abc123apworldhash', $call['apworldHash']);
+        self::assertSame('abc123apworldhash', $call['outputKey']);
 
         $this->client->jsonRequest('GET', '/api/v1/weekly-runs/current');
         self::assertResponseIsSuccessful();

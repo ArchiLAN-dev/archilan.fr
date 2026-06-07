@@ -13,14 +13,7 @@ final class NullWeeklyRunGenerator implements WeeklyRunGeneratorInterface
         string $apworldStorageKey,
         string $templateYaml,
         string $seed,
-    ): string {
-        $dir = sys_get_temp_dir().'/weekly-runs/'.$weeklyRunId.'/output';
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        $path = $dir.'/seed.archipelago';
-        file_put_contents($path, '');
-
-        return $path;
+    ): void {
+        // No-op: generation completion is simulated in tests via the webhook path.
     }
 }

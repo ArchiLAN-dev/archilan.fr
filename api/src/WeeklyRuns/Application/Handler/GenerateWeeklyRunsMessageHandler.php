@@ -37,9 +37,6 @@ final readonly class GenerateWeeklyRunsMessageHandler
 
         $activeTemplates = $this->templates->findAllActive();
 
-        /** @var list<string> $errors */
-        $errors = [];
-
         foreach ($activeTemplates as $template) {
             $templateId = $template->getId();
 
@@ -73,36 +70,32 @@ final readonly class GenerateWeeklyRunsMessageHandler
                 createdAt: $now,
             );
 
-            // Flush before generation so the run ID is committed even if generation fails.
+            // Persist the run first: it is created not-launchable (generatedOutputKey = null).
+            // Generation runs asynchronously on the orchestrator; the `session.generated`
+            // webhook later marks the run launchable (see MarkWeeklyRunGenerated).
             $this->runs->save($run);
 
             try {
-                $seedFilePath = $this->generator->generate(
+                $this->generator->generate(
                     $run->getId(),
                     $apworldStorageKey,
                     $yamlConfig,
                     $run->getSeed(),
                 );
-                $run->markGenerated($seedFilePath);
-                $this->runs->flush();
 
-                $this->logger->info('weekly_runs.generate.success', [
+                $this->logger->info('weekly_runs.generate.dispatched', [
                     'weeklyRunId' => $run->getId(),
                     'templateId' => $templateId,
-                    'seedFile' => basename($seedFilePath),
                 ]);
             } catch (\Throwable $e) {
-                $this->logger->error('weekly_runs.generate.failed', [
+                // A failed dispatch leaves this run not-launchable; an admin can re-trigger
+                // via "Générer maintenant". It must not abort the other templates.
+                $this->logger->error('weekly_runs.generate.dispatch_failed', [
                     'weeklyRunId' => $run->getId(),
                     'templateId' => $templateId,
                     'error' => $e->getMessage(),
                 ]);
-                $errors[] = sprintf('[%s] %s', $templateId, $e->getMessage());
             }
-        }
-
-        if ([] !== $errors) {
-            throw new \RuntimeException('Generation failed for '.count($errors).' run(s): '.implode('; ', $errors));
         }
     }
 }

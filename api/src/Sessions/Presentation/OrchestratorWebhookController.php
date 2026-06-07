@@ -7,6 +7,8 @@ namespace App\Sessions\Presentation;
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Sessions\Application\SessionOrchestrator;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\WeeklyRuns\Application\MarkWeeklyRunGenerated;
+use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +20,7 @@ final readonly class OrchestratorWebhookController
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
         private SessionOrchestrator $sessionOrchestrator,
+        private MarkWeeklyRunGenerated $markWeeklyRunGenerated,
         private LoggerInterface $logger,
         private string $orchestrateurWebhookSecret,
     ) {
@@ -39,6 +42,25 @@ final readonly class OrchestratorWebhookController
 
         if ('' === $sessionId) {
             return $this->apiAccessGuard->errorResponse('bad_request', 'sessionId manquant.', 400);
+        }
+
+        // Weekly-run generator sessions are handled out-of-band: they mark the run
+        // launchable (and clean themselves up) instead of going through the personal
+        // session lifecycle.
+        if (str_starts_with($sessionId, WeeklyRunGeneratorInterface::GENERATOR_SESSION_PREFIX)) {
+            $weeklyRunId = substr($sessionId, \strlen(WeeklyRunGeneratorInterface::GENERATOR_SESSION_PREFIX));
+
+            if ('session.generated' === $event) {
+                $outputKey = is_string($body['outputKey'] ?? null) ? $body['outputKey'] : '';
+                $this->markWeeklyRunGenerated->execute($weeklyRunId, $outputKey);
+            } elseif ('session.crashed' === $event) {
+                $this->logger->error('weekly_runs.generate.failed', [
+                    'weeklyRunId' => $weeklyRunId,
+                    'error' => is_string($body['error'] ?? null) ? $body['error'] : '',
+                ]);
+            }
+
+            return new JsonResponse(['data' => ['ok' => true]]);
         }
 
         if ('session.generated' === $event) {

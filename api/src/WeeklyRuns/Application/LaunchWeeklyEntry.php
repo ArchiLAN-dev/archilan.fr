@@ -36,8 +36,8 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('run_not_active');
         }
 
-        $apworldHash = $run->getGeneratedSeedPath();
-        if (null === $apworldHash) {
+        $outputKey = $run->getGeneratedOutputKey();
+        if (null === $outputKey) {
             throw new \DomainException('run_not_generated');
         }
 
@@ -59,12 +59,8 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('session_already_started');
         }
 
-        $result = $this->gateway->launchEntry(
-            $entryId,
-            $apworldHash,
-            $template->getYamlConfig(),
-            $run->getSeed(),
-        );
+        // The run's generated world is already built; launch reuses it (no regeneration).
+        $result = $this->gateway->launchEntry($entryId, $outputKey);
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $entry->launch($result['externalSessionId'], $now, $result['connectionInfo'], $result['bridgePort']);

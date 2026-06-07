@@ -26,7 +26,7 @@ final class LaunchWeeklyEntryTest extends TestCase
 
     public function testInvokeThrowsWhenRunNotGenerated(): void
     {
-        $run = $this->makeRun(generatedSeedPath: null);
+        $run = $this->makeRun(generatedOutputKey: null);
 
         $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
@@ -101,11 +101,9 @@ final class LaunchWeeklyEntryTest extends TestCase
         $gateway->expects(self::once())->method('launchEntry')
             ->willReturnCallback(static function (
                 string $entryId,
-                string $apworldHash,
-                string $templateYaml,
-                string $seed,
+                string $outputKey,
             ) use (&$capturedArgs): array {
-                $capturedArgs = compact('entryId', 'apworldHash', 'templateYaml', 'seed');
+                $capturedArgs = compact('entryId', 'outputKey');
 
                 return [
                     'externalSessionId' => 'sess-1',
@@ -120,8 +118,8 @@ final class LaunchWeeklyEntryTest extends TestCase
         self::assertSame('sess-1', $result['externalSessionId']);
         self::assertSame('runner.test', $result['connectionInfo']['host']);
         self::assertSame('entry-1', $capturedArgs['entryId']);
-        self::assertSame('sha256hashofapworld', $capturedArgs['apworldHash']);
-        self::assertSame('archilan-weekly-2026-20', $capturedArgs['seed']);
+        // The run's stored output key is what gets reused for launch-from-file.
+        self::assertSame('sessions/weekly-gen-run-1/output/AP_1.zip', $capturedArgs['outputKey']);
     }
 
     public function testFlushFailureCallsTerminate(): void
@@ -150,7 +148,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $this->makeHandler($runs, $entries, $gateway)->execute('run-1', 'entry-1', 'user-1');
     }
 
-    private function makeRun(?string $generatedSeedPath = 'sha256hashofapworld'): WeeklyRun
+    private function makeRun(?string $generatedOutputKey = 'sessions/weekly-gen-run-1/output/AP_1.zip'): WeeklyRun
     {
         $now = new \DateTimeImmutable('2026-05-19T00:00:00+00:00');
         $run = new WeeklyRun(
@@ -164,8 +162,8 @@ final class LaunchWeeklyEntryTest extends TestCase
             createdAt: $now,
         );
 
-        if (null !== $generatedSeedPath) {
-            $run->markGenerated($generatedSeedPath);
+        if (null !== $generatedOutputKey) {
+            $run->markGenerated($generatedOutputKey);
         }
 
         return $run;

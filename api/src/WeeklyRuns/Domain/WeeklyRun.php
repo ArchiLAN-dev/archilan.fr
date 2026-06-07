@@ -34,19 +34,19 @@ final class WeeklyRun
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'finished_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $finishedAt = null,
-        #[ORM\Column(name: 'generated_seed_path', type: Types::TEXT, nullable: true)]
-        private ?string $generatedSeedPath = null,
+        #[ORM\Column(name: 'generated_output_key', type: Types::TEXT, nullable: true)]
+        private ?string $generatedOutputKey = null,
     ) {
     }
 
-    public function markGenerated(string $seedFilePath): void
+    public function markGenerated(string $outputKey): void
     {
-        $this->generatedSeedPath = $seedFilePath;
+        $this->generatedOutputKey = $outputKey;
     }
 
-    public function getGeneratedSeedPath(): ?string
+    public function getGeneratedOutputKey(): ?string
     {
-        return $this->generatedSeedPath;
+        return $this->generatedOutputKey;
     }
 
     public function finish(\DateTimeImmutable $finishedAt): void
