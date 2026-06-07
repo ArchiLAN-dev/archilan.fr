@@ -68,6 +68,8 @@ services:
     App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
     App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
     App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
+    App\WeeklyRuns\Application\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunGameListQuery'
+    App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminTemplateRunsQuery'
 
     App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
 

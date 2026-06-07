@@ -4,32 +4,26 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
-use App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface;
-use Doctrine\DBAL\ArrayParameterType;
+use App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface;
 use Doctrine\DBAL\Connection;
-use Symfony\Component\Clock\ClockInterface;
 
-final readonly class DbalAdminCurrentWeeklyRunsQuery implements AdminCurrentWeeklyRunsQueryInterface
+final readonly class DbalAdminTemplateRunsQuery implements AdminTemplateRunsQueryInterface
 {
-    public function __construct(
-        private Connection $connection,
-        private ClockInterface $clock,
-    ) {
+    public function __construct(private Connection $connection)
+    {
     }
 
-    public function execute(): array
+    public function execute(string $templateId): array
     {
         $userTable = $this->connection->quoteSingleIdentifier('user');
-
-        $now = $this->clock->now();
-        $weekYear = (int) $now->format('o');
-        $weekNumber = (int) $now->format('W');
 
         $runRows = $this->connection->createQueryBuilder()
             ->select(
                 'wr.id AS run_id',
                 'wr.status',
                 'wr.seed',
+                'wr.week_year',
+                'wr.week_number',
                 'wr.started_at',
                 'wr.finished_at',
                 'wt.name AS template_name',
@@ -39,12 +33,10 @@ final readonly class DbalAdminCurrentWeeklyRunsQuery implements AdminCurrentWeek
             ->from('weekly_runs', 'wr')
             ->join('wr', 'weekly_templates', 'wt', 'wt.id = wr.template_id')
             ->join('wr', 'game', 'g', 'g.id = wt.game_id')
-            ->where('wr.week_year = :weekYear')
-            ->andWhere('wr.week_number = :weekNumber')
-            ->andWhere('wr.status IN (:statuses)')
-            ->setParameter('statuses', ['active', 'finished'], ArrayParameterType::STRING)
-            ->setParameter('weekYear', $weekYear)
-            ->setParameter('weekNumber', $weekNumber)
+            ->where('wr.template_id = :templateId')
+            ->setParameter('templateId', $templateId)
+            ->orderBy('wr.week_year', 'DESC')
+            ->addOrderBy('wr.week_number', 'DESC')
             ->executeQuery()
             ->fetchAllAssociative();
 
@@ -90,6 +82,8 @@ final readonly class DbalAdminCurrentWeeklyRunsQuery implements AdminCurrentWeek
                 'gameName' => is_string($runRow['game_name']) ? $runRow['game_name'] : '',
                 'status' => is_string($runRow['status']) ? $runRow['status'] : '',
                 'seed' => is_string($runRow['seed']) ? $runRow['seed'] : '',
+                'weekYear' => is_numeric($runRow['week_year']) ? (int) $runRow['week_year'] : 0,
+                'weekNumber' => is_numeric($runRow['week_number']) ? (int) $runRow['week_number'] : 0,
                 'startedAt' => is_string($runRow['started_at']) ? $runRow['started_at'] : null,
                 'finishedAt' => is_string($runRow['finished_at']) ? $runRow['finished_at'] : null,
                 'entryCount' => count($entries),

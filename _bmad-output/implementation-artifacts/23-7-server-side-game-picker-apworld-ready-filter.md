@@ -155,3 +155,72 @@ In `admin-weekly-template-form.tsx`:
 | 2026-06-06 | Implemented. AC2 caveat: the `apworld_ready` + `search` combination exercises Postgres `ILIKE`, which the SQLite functional-test DB rejects — the combined path is covered in prod, not in tests; the filter alone (+ `meta.total`) is tested. Bonus gate fix: `AdminGameLibraryTest::setUp` was missing `GameCatalogSync` in its `SchemaTool` array (two pre-existing reds: `no such table: game_catalog_sync`) — added it. All gates green. |
 | 2026-06-06 | Picker enhancement: dropdown options now show a cover thumbnail (`coverImageUrl`, already returned by `GET /admin/games`) with a `Gamepad2` fallback, matching the IGDB widget. `coverImageUrl` added to `AdminGameOption` and `searchAdminGameOptions`. Gates re-run green. |
 | 2026-06-06 | Follow-up fix (create-flow UX): after create/update, the form now invalidates the dashboard query so the listing reflects the change immediately instead of waiting for the 30s `staleTime`/`refetchInterval`. Extracted a shared `ADMIN_WEEKLY_DASHBOARD_QUERY_KEY` used by both the dashboard `useQuery` and the form's `invalidateQueries`. Gates green. |
+| 2026-06-07 | **Addendum — game-grouped navigation** (see section below). Gates green (API: phpunit 920/920, phpstan, cs-fixer, ddd; frontend: typecheck, lint, build). |
+
+## Addendum (2026-06-07) — Game-grouped weekly-runs navigation
+
+The flat admin dashboard (`/admin/weekly-runs`) was reorganised **by targeted game** so it
+scales as templates/games multiply.
+
+### New acceptance criteria
+
+**AC8 — Game grid landing.** `GET /api/v1/admin/weekly-runs/games` returns one entry per
+game that has ≥ 1 weekly template: `{ gameId, gameName, coverImageUrl, coverImageAlt,
+templateCount, runCount }`, ordered by game name. `runCount` = total `weekly_runs` (all
+weeks) attached to the game. `403` non-admin. The landing page renders these as a card grid
+(cover thumbnail + run-count badge in a corner) plus the "Nouveau template" button.
+
+**AC9 — Per-game detail page.** Clicking a game card opens `/admin/weekly-runs/jeu/{gameId}`:
+game header (cover + name + counts), actions ("Générer maintenant" + "Nouveau template"
+pre-filled with the game), and the list of that game's templates. `notFound()` when the game
+has no template. (Per follow-up: the current-week runs table was **removed** from this page —
+run monitoring now lives on the per-template page, AC11.)
+
+**AC10 — Pre-filled template creation.** `/admin/weekly-runs/nouveau?gameId=<id>` locks the
+game (static read-only name, no combobox) and pre-loads its `defaultYaml`. Without the param,
+the searchable combobox (AC4) is unchanged.
+
+**AC11 — Per-template run history.** `GET /api/v1/admin/weekly-templates/{templateId}/runs`
+returns all runs of a template (current + past), most recent ISO week first, each with
+`weekYear/weekNumber/status/seed/entryCount/entries[]`. Unknown template → `200 { data: [] }`
+(template existence is validated client-side via the template-detail fetch). The template
+card body links to `/admin/weekly-runs/template/{templateId}`, which lists the run history
+(participants expandable per run). `403` non-admin.
+
+**AC12 — gameId on current runs.** `GET /admin/weekly-runs/current` entries now carry
+`gameId` (additive).
+
+### Tasks
+
+- [x] API: `AdminWeeklyRunGameListQuery(Interface)` + `DbalAdminWeeklyRunGameListQuery` + `AdminWeeklyRunGameListController`.
+- [x] API: `AdminTemplateRunsQuery(Interface)` + `DbalAdminTemplateRunsQuery` + `AdminTemplateRunsController`.
+- [x] API: add `gameId` to `DbalAdminCurrentWeeklyRunsQuery`; services.yaml bindings.
+- [x] API tests: `AdminWeeklyRunGameListTest`, `AdminTemplateRunsTest`, `gameId` assertion in `AdminWeeklyTemplateTest`.
+- [x] Front: `fetchAdminWeeklyRunGames` / `fetchAdminTemplateRuns` + types/guards; `gameId` on `AdminCurrentWeeklyRun`.
+- [x] Front: extract shared `TemplateCard`/`CurrentRunCard`/`formatTime` into `admin-weekly-run-cards.tsx`; delete `admin-weekly-runs-dashboard.tsx`.
+- [x] Front: `admin-weekly-run-game-grid.tsx` (landing) + `admin-weekly-run-game-detail.tsx` (per-game) + `admin-weekly-run-template-detail.tsx` (per-template history) + their route pages (`jeu/[gameId]`, `template/[templateId]`).
+- [x] Front: `?gameId=` pre-fill in the create form (locked game).
+
+### Files (addendum)
+
+**API (new):** `AdminWeeklyRunGameListQueryInterface`, `AdminWeeklyRunGameListQuery`,
+`DbalAdminWeeklyRunGameListQuery`, `AdminWeeklyRunGameListController`,
+`AdminTemplateRunsQueryInterface`, `AdminTemplateRunsQuery`, `DbalAdminTemplateRunsQuery`,
+`AdminTemplateRunsController`, `tests/Functional/AdminWeeklyRunGameListTest.php`,
+`tests/Functional/AdminTemplateRunsTest.php`.
+**API (modified):** `DbalAdminCurrentWeeklyRunsQuery` (gameId), `config/services.yaml`,
+`tests/Functional/AdminWeeklyTemplateTest.php`.
+**Front (new):** `admin-weekly-run-cards.tsx`, `admin-weekly-run-game-grid.tsx`,
+`admin-weekly-run-game-detail.tsx`, `admin-weekly-run-template-detail.tsx`,
+`app/(admin)/admin/weekly-runs/jeu/[gameId]/page.tsx`,
+`app/(admin)/admin/weekly-runs/template/[templateId]/page.tsx`.
+**Front (modified):** `admin-weekly-runs-api.ts`, `admin-weekly-template-form.tsx`,
+`app/(admin)/admin/weekly-runs/page.tsx`, `app/(admin)/admin/weekly-runs/nouveau/page.tsx`.
+**Front (deleted):** `admin-weekly-runs-dashboard.tsx`.
+
+### Out of scope / open
+
+- Surfacing the **generated seed file** per run (download) is **not** implemented: the active
+  `OrchestratorWeeklyRunGenerator` stores an APWorld **hash** in `weekly_runs.generated_seed_path`
+  (the legacy `DockerWeeklyRunGenerator` stored a local file path), and there is no admin
+  download endpoint. Pending a product/architecture decision.

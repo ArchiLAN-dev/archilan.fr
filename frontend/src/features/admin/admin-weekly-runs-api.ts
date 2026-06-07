@@ -1,9 +1,10 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
-// Shared TanStack Query key for the admin weekly-runs dashboard. Exported so the
-// create/edit form can invalidate it after a mutation (avoids magic-string drift).
-export const ADMIN_WEEKLY_DASHBOARD_QUERY_KEY = ["admin-weekly-dashboard"] as const;
+// Shared TanStack Query keys for the admin weekly-runs views. Exported so the
+// create/edit form can invalidate them after a mutation (avoids magic-string drift).
+export const ADMIN_WEEKLY_GAMES_QUERY_KEY = ["admin-weekly-games"] as const;
+export const ADMIN_WEEKLY_GAME_DETAIL_QUERY_KEY = ["admin-weekly-game-detail"] as const;
 
 export type AdminWeeklyTemplate = {
   id: string;
@@ -37,9 +38,19 @@ export type AdminWeeklyRunEntry = {
   itemsTotal: number | null;
 };
 
+export type AdminWeeklyRunGame = {
+  gameId: string;
+  gameName: string;
+  coverImageUrl: string | null;
+  coverImageAlt: string;
+  templateCount: number;
+  runCount: number;
+};
+
 export type AdminCurrentWeeklyRun = {
   weeklyRunId: string;
   templateName: string | null;
+  gameId: string;
   gameName: string;
   status: "active" | "finished";
   seed: string;
@@ -47,6 +58,13 @@ export type AdminCurrentWeeklyRun = {
   finishedAt: string | null;
   entryCount: number;
   entries: AdminWeeklyRunEntry[];
+};
+
+// A weekly run of a given template, including past weeks. Superset of the
+// current-runs shape with the ISO week it belongs to.
+export type AdminTemplateRun = AdminCurrentWeeklyRun & {
+  weekYear: number;
+  weekNumber: number;
 };
 
 export type CreateTemplatePayload = {
@@ -236,6 +254,39 @@ export async function fetchAdminCurrentWeeklyRuns(): Promise<AdminCurrentWeeklyR
   }
 }
 
+// All runs (current week + past) of a single template, most recent week first.
+export async function fetchAdminTemplateRuns(templateId: string): Promise<AdminTemplateRun[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/weekly-templates/${templateId}/runs`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload) || !Array.isArray(payload.data)) {
+      return null;
+    }
+    const rawItems: unknown[] = payload.data;
+    return rawItems.filter(isAdminTemplateRun);
+  } catch {
+    return null;
+  }
+}
+
+// Games that have at least one weekly template, each with its total run count.
+// Powers the admin weekly-runs landing grid (one card per targeted game).
+export async function fetchAdminWeeklyRunGames(): Promise<AdminWeeklyRunGame[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/weekly-runs/games`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload) || !Array.isArray(payload.data)) {
+      return null;
+    }
+    const rawItems: unknown[] = payload.data;
+    return rawItems.filter(isAdminWeeklyRunGame);
+  } catch {
+    return null;
+  }
+}
+
 // ── Type guards ────────────────────────────────────────────────────────────────
 
 function isTemplateListPayload(
@@ -257,6 +308,38 @@ function isTemplateDetailPayload(v: unknown): v is { data: AdminWeeklyTemplate }
   if (!("yamlConfig" in d) || typeof d.yamlConfig !== "string") return false;
   if (!("isActive" in d) || typeof d.isActive !== "boolean") return false;
   return true;
+}
+
+function isAdminWeeklyRunEntry(v: unknown): v is AdminWeeklyRunEntry {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("userId" in v) || typeof v.userId !== "string") return false;
+  if (!("displayName" in v) || typeof v.displayName !== "string") return false;
+  return "attemptNumber" in v && typeof v.attemptNumber === "number";
+}
+
+function isAdminTemplateRun(v: unknown): v is AdminTemplateRun {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("weeklyRunId" in v) || typeof v.weeklyRunId !== "string") return false;
+  if (!("gameId" in v) || typeof v.gameId !== "string") return false;
+  if (!("gameName" in v) || typeof v.gameName !== "string") return false;
+  if (!("status" in v) || (v.status !== "active" && v.status !== "finished")) return false;
+  if (!("seed" in v) || typeof v.seed !== "string") return false;
+  if (!("weekYear" in v) || typeof v.weekYear !== "number") return false;
+  if (!("weekNumber" in v) || typeof v.weekNumber !== "number") return false;
+  if (!("entryCount" in v) || typeof v.entryCount !== "number") return false;
+  if (!("entries" in v) || !Array.isArray(v.entries)) return false;
+  return v.entries.every(isAdminWeeklyRunEntry);
+}
+
+function isAdminWeeklyRunGame(v: unknown): v is AdminWeeklyRunGame {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("gameId" in v) || typeof v.gameId !== "string") return false;
+  if (!("gameName" in v) || typeof v.gameName !== "string") return false;
+  if (!("coverImageAlt" in v) || typeof v.coverImageAlt !== "string") return false;
+  if (!("templateCount" in v) || typeof v.templateCount !== "number") return false;
+  if (!("runCount" in v) || typeof v.runCount !== "number") return false;
+  const cover = "coverImageUrl" in v ? v.coverImageUrl : null;
+  return cover === null || typeof cover === "string";
 }
 
 function isCurrentRunsPayload(v: unknown): v is { data: AdminCurrentWeeklyRun[] } {
