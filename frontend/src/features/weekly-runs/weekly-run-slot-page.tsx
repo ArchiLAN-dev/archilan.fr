@@ -767,7 +767,7 @@ export function WeeklyRunSlotPage({
 
             {/* Items tab */}
             {activeTab === "items" ? (
-              <div className="grid gap-6">
+              <div className="grid gap-6 lg:grid-cols-2">
                 <ItemListPanel
                   emptyMessage="Aucun item reçu."
                   hideSpoilers={true}
@@ -775,6 +775,14 @@ export function WeeklyRunSlotPage({
                   items={state.data.items_received}
                   title="Items reçus"
                   variant="received"
+                />
+                <ItemListPanel
+                  emptyMessage="Tous les items ont été reçus !"
+                  hideSpoilers={true}
+                  itemLocations={{}}
+                  items={state.data.items_not_received ?? []}
+                  title="Items non reçus"
+                  variant="not-received"
                 />
               </div>
             ) : null}
