@@ -77,6 +77,8 @@ services:
     App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway:
         arguments:
             $client: '@archilan.orchestrateur_client'
+            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 

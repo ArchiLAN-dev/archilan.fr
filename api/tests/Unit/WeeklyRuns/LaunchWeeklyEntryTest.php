@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\WeeklyRuns\Application\LaunchWeeklyEntry;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
@@ -101,9 +103,11 @@ final class LaunchWeeklyEntryTest extends TestCase
         $gateway->expects(self::once())->method('launchEntry')
             ->willReturnCallback(static function (
                 string $entryId,
+                string $apworldHash,
+                string $templateYaml,
                 string $outputKey,
             ) use (&$capturedArgs): array {
-                $capturedArgs = compact('entryId', 'outputKey');
+                $capturedArgs = compact('entryId', 'apworldHash', 'templateYaml', 'outputKey');
 
                 return [
                     'externalSessionId' => 'sess-1',
@@ -118,6 +122,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         self::assertSame('sess-1', $result['externalSessionId']);
         self::assertSame('runner.test', $result['connectionInfo']['host']);
         self::assertSame('entry-1', $capturedArgs['entryId']);
+        self::assertSame('apworld-hash-123', $capturedArgs['apworldHash']);
         // The run's stored output key is what gets reused for launch-from-file.
         self::assertSame('sessions/weekly-gen-run-1/output/AP_1.zip', $capturedArgs['outputKey']);
     }
@@ -212,6 +217,11 @@ final class LaunchWeeklyEntryTest extends TestCase
             $templates = $stub;
         }
 
-        return new LaunchWeeklyEntry($runs, $entries, $templates, $gateway, self::$clock);
+        $gameStub = $this->createStub(Game::class);
+        $gameStub->method('getApworldHash')->willReturn('apworld-hash-123');
+        $games = $this->createStub(GameRepositoryInterface::class);
+        $games->method('findById')->willReturn($gameStub);
+
+        return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock);
     }
 }
