@@ -212,11 +212,49 @@ The frontend has no test framework configured (no jest/vitest). Quality gates ar
 
 ---
 
+## Addendum — Multi-tab proactive-refresh bugfix (2026-06-08)
+
+### Symptom
+
+Opening several tabs within a few milliseconds of each other caused the whole session to
+be logged out roughly one access-token lifetime later (~13–15 min).
+
+### Root cause
+
+A proactive silent refresh was later added to `AuthProvider` (a `setInterval` firing every
+`PROACTIVE_REFRESH_MS = 13 min`) that called `apiFetch(POST /auth/refresh)` **directly**.
+`/auth/refresh` is a `BYPASS_PATH`, so that call never went through the coordinated
+`attemptRefresh` path and thus had **no cross-tab coordination** (no Web Lock, no recent-ts
+skip) — unlike the reactive 401 interceptor, which is coordinated.
+
+When N tabs are opened near-simultaneously, each arms its own 13-min interval at roughly the
+same instant. ~13 min later they all fire near-simultaneously and each `POST /auth/refresh`
+with the **same** `refresh_token` cookie (the first tab's rotation `R1→R2` hasn't landed in the
+shared cookie jar yet). Server-side (`api/src/Identity/Application/RotateRefreshToken.php:30-39`):
+the first request rotates `R1→R2`; the others arrive with the now-revoked `R1` → reuse detection
+→ `revokeAllForUser()` → the whole session is killed. No grace window (by design, story 13.3).
+
+### Fix
+
+Route the proactive refresh through the **same** coordinated path as the reactive one.
+`attemptRefresh` was renamed to **`coordinatedRefresh`** and exported from `apiFetch.ts`; the
+`AuthProvider` interval now calls `void coordinatedRefresh()` instead of a direct
+`POST /auth/refresh`. The in-tab queue + cross-tab Web Lock (`navigator.locks`) + the
+`archilan_refresh_ts` recent-ts skip (5 s window) then guarantee exactly **one** network refresh
+wins across all tabs; the others no-op. No server-side change; reuse detection stays strict.
+
+### Residual limitation
+
+The cross-tab guard relies on the Web Locks API. In the rare fallback where `navigator.locks`
+is unavailable (very old browsers / non-secure contexts), `doRefreshUnderLock` runs without a
+lock and simultaneous tabs can still race. Acceptable: Web Locks is supported in all current
+browsers and on `localhost`/HTTPS.
+
 ## Dev Agent Record
 
 ### Agent Model Used
 
-claude-sonnet-4-6
+claude-sonnet-4-6 (original) · claude-opus-4-8 (2026-06-08 multi-tab bugfix)
 
 ### Debug Log References
 
@@ -276,3 +314,4 @@ None.
 ### Change Log
 
 - **2026-05-05**: Story implemented in full. Created centralized `apiFetch` utility with silent 401 refresh interceptor and queue pattern. Migrated all 30 fetch-using files. TypeScript clean, no new lint errors.
+- **2026-06-08**: Multi-tab bugfix (see Addendum). The proactive `AuthProvider` interval bypassed the cross-tab coordination and raced on refresh-token rotation, tripping server reuse detection and logging out all tabs ~13 min after opening several tabs near-simultaneously. Exported `attemptRefresh` as `coordinatedRefresh` from `apiFetch.ts` and routed the proactive interval through it. Files: `frontend/src/lib/apiFetch.ts`, `frontend/src/features/auth/auth-context.tsx`. Gates green (typecheck, lint, build).

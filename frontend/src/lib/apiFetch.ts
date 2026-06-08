@@ -36,7 +36,13 @@ async function doRefreshUnderLock(): Promise<boolean> {
   return ok;
 }
 
-async function attemptRefresh(): Promise<boolean> {
+// Shared by both the reactive 401 interceptor and the proactive interval in
+// AuthProvider. Routing BOTH through this single coordinated path is what keeps
+// multiple tabs from each firing `POST /auth/refresh` with the same (about to be
+// rotated) refresh token — concurrent rotations trip the server's reuse detection
+// and revoke the whole session. The in-tab queue + cross-tab Web Lock + recent-ts
+// skip guarantee exactly one network refresh wins per ~5s window.
+export async function coordinatedRefresh(): Promise<boolean> {
   if (isRefreshing) {
     return new Promise<boolean>((resolve) => {
       refreshQueue.push(resolve);
@@ -81,7 +87,7 @@ export async function apiFetch(
     return response;
   }
 
-  const refreshOk = await attemptRefresh();
+  const refreshOk = await coordinatedRefresh();
 
   if (!refreshOk) {
     const nextPath =
