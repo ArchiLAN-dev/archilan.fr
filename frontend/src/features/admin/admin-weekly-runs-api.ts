@@ -65,6 +65,8 @@ export type AdminCurrentWeeklyRun = {
 export type AdminTemplateRun = AdminCurrentWeeklyRun & {
   weekYear: number;
   weekNumber: number;
+  // True when the run's generated multidata is available for download from storage.
+  hasOutput: boolean;
 };
 
 export type CreateTemplatePayload = {
@@ -270,6 +272,29 @@ export async function fetchAdminTemplateRuns(templateId: string): Promise<AdminT
   }
 }
 
+// Downloads a weekly run's generated multidata (admin-only) as a file.
+export async function downloadAdminWeeklyRunOutput(weeklyRunId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/weekly-runs/${weeklyRunId}/output`);
+    if (!res.ok) return false;
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const match = /filename="?([^"]+)"?/.exec(disposition);
+    const filename = match?.[1] ?? `weekly-run-${weeklyRunId}.archipelago`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Games that have at least one weekly template, each with its total run count.
 // Powers the admin weekly-runs landing grid (one card per targeted game).
 export async function fetchAdminWeeklyRunGames(): Promise<AdminWeeklyRunGame[] | null> {
@@ -326,6 +351,7 @@ function isAdminTemplateRun(v: unknown): v is AdminTemplateRun {
   if (!("seed" in v) || typeof v.seed !== "string") return false;
   if (!("weekYear" in v) || typeof v.weekYear !== "number") return false;
   if (!("weekNumber" in v) || typeof v.weekNumber !== "number") return false;
+  if (!("hasOutput" in v) || typeof v.hasOutput !== "boolean") return false;
   if (!("entryCount" in v) || typeof v.entryCount !== "number") return false;
   if (!("entries" in v) || !Array.isArray(v.entries)) return false;
   return v.entries.every(isAdminWeeklyRunEntry);

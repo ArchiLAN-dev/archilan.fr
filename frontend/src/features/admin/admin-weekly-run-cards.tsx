@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Edit2, Infinity, PowerOff, Timer, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Edit2, Infinity, PowerOff, Timer, Users } from "lucide-react";
 import Link from "next/link";
 
 import type { AdminCurrentWeeklyRun, AdminWeeklyTemplateListItem } from "./admin-weekly-runs-api";
@@ -111,9 +111,11 @@ type CurrentRunCardProps = {
   // When set (template run history), the card title shows the ISO week and the
   // subtitle shows the seed instead of the template/game names.
   weekLabel?: string;
+  // When set, renders a "Télécharger le seed" action for the run's generated multidata.
+  onDownloadOutput?: () => void;
 };
 
-export function CurrentRunCard({ run, expanded, onToggle, weekLabel }: CurrentRunCardProps) {
+export function CurrentRunCard({ run, expanded, onToggle, weekLabel, onDownloadOutput }: CurrentRunCardProps) {
   return (
     <div className="rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between gap-3 p-4">
@@ -149,6 +151,17 @@ export function CurrentRunCard({ run, expanded, onToggle, weekLabel }: CurrentRu
           >
             {run.status === "active" ? "En cours" : "Terminé"}
           </span>
+          {onDownloadOutput && (
+            <button
+              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-accent-text transition-colors hover:bg-surface-2"
+              onClick={onDownloadOutput}
+              title="Télécharger le seed généré"
+              type="button"
+            >
+              <Download aria-hidden="true" className="size-3.5" />
+              Seed
+            </button>
+          )}
           <button
             aria-expanded={expanded}
             className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"

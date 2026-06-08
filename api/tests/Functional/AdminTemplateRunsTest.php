@@ -48,6 +48,7 @@ final class AdminTemplateRunsTest extends FunctionalTestCase
         self::assertSame(21, $first['weekNumber']);
         self::assertSame(2026, $first['weekYear']);
         self::assertSame('active', $first['status']);
+        self::assertFalse($first['hasOutput']);
         self::assertSame(1, $first['entryCount']);
 
         $second = $response['data'][1];
