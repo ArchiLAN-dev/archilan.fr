@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -273,17 +273,26 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
           )}
 
           {myEntry !== null && myEntry.connectionInfo === null && (
-            <div className="flex flex-col gap-3">
-              <button
-                className="w-fit rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
-                disabled={actionLoading}
-                onClick={() => void handleLaunch()}
-                type="button"
-              >
-                {actionLoading ? "Lancement…" : "Lancer ma partie"}
-              </button>
-              {patchSection}
-            </div>
+            run.isGenerated ? (
+              <div className="flex flex-col gap-3">
+                <button
+                  className="w-fit rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                  disabled={actionLoading}
+                  onClick={() => void handleLaunch()}
+                  type="button"
+                >
+                  {actionLoading ? "Lancement…" : "Lancer ma partie"}
+                </button>
+                {patchSection}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5 rounded border border-border bg-surface-2/50 px-4 py-3 text-sm text-muted-foreground">
+                <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-accent-text" />
+                <span>
+                  Génération en cours… le lancement se débloquera automatiquement dès que le monde sera prêt.
+                </span>
+              </div>
+            )
           )}
 
           {myEntry !== null && myEntry.connectionInfo !== null && (

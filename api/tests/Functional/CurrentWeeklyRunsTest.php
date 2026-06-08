@@ -74,6 +74,7 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         self::assertSame(20, $item['weekNumber']);
         self::assertSame(2026, $item['weekYear']);
         self::assertSame('active', $item['status']);
+        self::assertFalse($item['isGenerated']);
         self::assertNull($item['myEntry']);
 
         $leaderboard = $item['leaderboard'];
@@ -85,6 +86,33 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         $participants = $item['participants'];
         self::assertIsArray($participants);
         self::assertCount(0, $participants);
+    }
+
+    public function testCurrentRunsIsGeneratedReflectsGeneration(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
+        $run = $this->createRun($this->template->getId(), WeeklyRun::STATUS_ACTIVE, $now);
+
+        // Not generated yet.
+        $this->client->request('GET', '/api/v1/weekly-runs/current');
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $item = $data[0];
+        self::assertIsArray($item);
+        self::assertFalse($item['isGenerated']);
+
+        // After the orchestrator webhook stores the output key, the run is launchable.
+        $run->markGenerated('sessions/weekly-gen-'.$run->getId().'/output/AP_1.zip');
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/weekly-runs/current');
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $item = $data[0];
+        self::assertIsArray($item);
+        self::assertTrue($item['isGenerated']);
     }
 
     public function testCurrentRunsAuthenticatedMemberReturnsMyEntry(): void
