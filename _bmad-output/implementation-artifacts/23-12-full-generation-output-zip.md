@@ -2,7 +2,7 @@
 
 ## Status
 
-review
+done
 
 ## Context
 
@@ -77,3 +77,6 @@ and the download filename is `weekly-run-{runId}.zip` for zip artifacts.
 | Date       | Change |
 |------------|--------|
 | 2026-06-08 | Bugfix story created and implemented — capture the full generation output as a zip (admin download of all files; restores member ROM patches). Orchestrateur PR #3 (master). |
+| 2026-06-08 | Follow-up — avoid zip-in-zip: when generation already produced a single `AP_*.zip` bundle, store it as-is instead of re-zipping (orchestrateur PR #4, master). |
+| 2026-06-08 | Follow-up — download filename: the artifact is a zip but was saved as `*.archipelago` because the cross-origin `fetch` could not read `Content-Disposition` (not CORS-exposed) and fell back to a hardcoded name. Fixed by exposing `Content-Disposition` (`nelmio_cors`) + `.zip` frontend fallback (PR #32, develop). Verified live end-to-end: generation → admin "Fichiers générés" → `weekly-run-{id}.zip` containing `.archipelago` + `.aplm` + spoiler; seed loads in `ArchipelagoServer` (Luigi's Mansion). |
+| 2026-06-08 | Status → done. Pending prod deploy of orchestrateur `master` + API CORS config. |
