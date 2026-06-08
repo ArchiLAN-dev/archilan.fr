@@ -280,7 +280,9 @@ export async function downloadAdminWeeklyRunOutput(weeklyRunId: string): Promise
     const blob = await res.blob();
     const disposition = res.headers.get("Content-Disposition") ?? "";
     const match = /filename="?([^"]+)"?/.exec(disposition);
-    const filename = match?.[1] ?? `weekly-run-${weeklyRunId}.archipelago`;
+    // The artifact is a zip archive; fall back to a .zip name when the
+    // Content-Disposition header is unreadable (e.g. not CORS-exposed).
+    const filename = match?.[1] ?? `weekly-run-${weeklyRunId}.zip`;
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objectUrl;
