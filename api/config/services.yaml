@@ -34,6 +34,7 @@ services:
             string $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             string $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
+            string $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
             string $siteUrl: '%env(FRONTEND_ORIGIN)%'
             string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
@@ -71,6 +72,7 @@ services:
     App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
     App\WeeklyRuns\Application\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunGameListQuery'
     App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminTemplateRunsQuery'
+    App\WeeklyRuns\Application\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunOutputQuery'
 
     App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
 

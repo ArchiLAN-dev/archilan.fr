@@ -8,6 +8,7 @@ import { useState } from "react";
 
 import { CurrentRunCard } from "./admin-weekly-run-cards";
 import {
+  downloadAdminWeeklyRunOutput,
   fetchAdminTemplateRuns,
   fetchAdminWeeklyTemplate,
 } from "./admin-weekly-runs-api";
@@ -114,6 +115,11 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
               <CurrentRunCard
                 expanded={expandedRun === run.weeklyRunId}
                 key={run.weeklyRunId}
+                onDownloadOutput={
+                  run.hasOutput
+                    ? () => void downloadAdminWeeklyRunOutput(run.weeklyRunId)
+                    : undefined
+                }
                 onToggle={() =>
                   setExpandedRun((prev) => (prev === run.weeklyRunId ? null : run.weeklyRunId))
                 }

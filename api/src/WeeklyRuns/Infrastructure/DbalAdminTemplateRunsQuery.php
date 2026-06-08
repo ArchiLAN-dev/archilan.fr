@@ -26,6 +26,7 @@ final readonly class DbalAdminTemplateRunsQuery implements AdminTemplateRunsQuer
                 'wr.week_number',
                 'wr.started_at',
                 'wr.finished_at',
+                'wr.generated_output_key',
                 'wt.name AS template_name',
                 'wt.game_id AS game_id',
                 'g.name AS game_name',
@@ -75,8 +76,11 @@ final readonly class DbalAdminTemplateRunsQuery implements AdminTemplateRunsQuer
                 'itemsTotal' => is_numeric($row['items_total']) ? (int) $row['items_total'] : null,
             ], $entryRows);
 
+            $generatedOutputKey = is_string($runRow['generated_output_key']) ? $runRow['generated_output_key'] : null;
+
             $result[] = [
                 'weeklyRunId' => $runId,
+                'hasOutput' => null !== $generatedOutputKey && '' !== $generatedOutputKey,
                 'templateName' => is_string($runRow['template_name']) ? $runRow['template_name'] : null,
                 'gameId' => is_string($runRow['game_id']) ? $runRow['game_id'] : '',
                 'gameName' => is_string($runRow['game_name']) ? $runRow['game_name'] : '',
