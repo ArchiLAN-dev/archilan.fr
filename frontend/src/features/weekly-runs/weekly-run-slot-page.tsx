@@ -66,7 +66,7 @@ export function WeeklyRunSlotPage({
   params: Promise<{ weeklyRunId: string }>;
 }) {
   const { weeklyRunId } = use(params);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -81,12 +81,14 @@ export function WeeklyRunSlotPage({
   const myEntry = run?.myEntry ?? null;
   const entryId = myEntry?.entryId ?? null;
 
-  // Redirect unauthenticated users
+  // Redirect unauthenticated users — but only once the session has finished
+  // resolving. On a cold load `user` is null while `authLoading` is true; redirecting
+  // then would bounce an authenticated user to /connexion before the profile resolves.
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push(`/connexion?returnTo=${encodeURIComponent(`/runs-hebdo/${weeklyRunId}/ma-run`)}`);
     }
-  }, [user, weeklyRunId, router]);
+  }, [authLoading, user, weeklyRunId, router]);
 
   const entryBaseUrl = entryId
     ? `${env.apiBaseUrl}/weekly-runs/${weeklyRunId}/entries/${entryId}`
@@ -437,6 +439,17 @@ export function WeeklyRunSlotPage({
   }, [liveConnected]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  // Session still resolving on a cold load: show a loader instead of flashing a
+  // blank page or a redirect (the effect above redirects only once auth resolved).
+  if (authLoading) {
+    return (
+      <div className="mx-auto max-w-sm py-20 text-center">
+        <Loader2 aria-hidden className="mx-auto size-8 animate-spin text-muted-foreground/40" />
+        <p className="mt-4 text-sm text-muted-foreground">Chargement…</p>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
