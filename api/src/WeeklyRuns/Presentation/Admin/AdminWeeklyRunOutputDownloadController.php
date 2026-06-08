@@ -42,7 +42,11 @@ final readonly class AdminWeeklyRunOutputDownloadController
             return $this->apiAccessGuard->errorResponse('not_found', 'Seed introuvable dans le stockage.', 404);
         }
 
-        $filename = basename($outputKey);
+        // New artifacts are a full-output zip; give it a readable name. Legacy single-file
+        // artifacts keep their original basename.
+        $filename = str_ends_with($outputKey, '.zip')
+            ? 'weekly-run-'.$weeklyRunId.'.zip'
+            : basename($outputKey);
 
         $response = new StreamedResponse(static function () use ($contents): void {
             echo $contents;
