@@ -1,6 +1,6 @@
 # Story 23.14: Admin — Generate a Run for a Single Template, On Demand
 
-Status: review
+Status: done
 
 ## Story
 
@@ -154,3 +154,4 @@ None.
 |------------|--------|
 | 2026-06-08 | Story created — per-template on-demand "generate the week's run" button (epic 23). |
 | 2026-06-08 | Implemented (backend command+controller+query field, frontend button+API, unit tests). All gates green. Status → review. |
+| 2026-06-08 | Merged to `develop` (PR #46) + verified live in the browser (204 → run "En cours" Semaine 2026-S24, button disabled, server 409 guard). Status → done. |
