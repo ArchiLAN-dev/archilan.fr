@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, Download, Settings2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Download, Loader2, Settings2 } from "lucide-react";
 import { load as loadYaml } from "js-yaml";
 import Image from "next/image";
 import Link from "next/link";
@@ -502,31 +502,41 @@ function CategorySection({ run, myUserId }: CategorySectionProps) {
           )}
 
           {myEntry !== null && myEntry.connectionInfo === null && (
-            <div className="flex flex-col gap-3">
-              <button
-                className="w-fit rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
-                disabled={actionLoading}
-                onClick={() => void handleLaunch()}
-                type="button"
-              >
-                {actionLoading ? "Lancement…" : "Lancer ma partie"}
-              </button>
-              {patches.length > 0 && (
-                <div className="flex flex-wrap gap-3">
-                  {patches.map((filename) => (
-                    <button
-                      className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline"
-                      key={filename}
-                      onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
-                      type="button"
-                    >
-                      <Download aria-hidden className="size-3.5" />
-                      {filename}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            run.isGenerated ? (
+              <div className="flex flex-col gap-3">
+                <button
+                  className="w-fit rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                  disabled={actionLoading}
+                  onClick={() => void handleLaunch()}
+                  type="button"
+                >
+                  {actionLoading ? "Lancement…" : "Lancer ma partie"}
+                </button>
+                {patches.length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {patches.map((filename) => (
+                      <button
+                        className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline"
+                        key={filename}
+                        onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
+                        type="button"
+                      >
+                        <Download aria-hidden className="size-3.5" />
+                        {filename}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5 rounded border border-border bg-surface-2/50 px-4 py-3 text-sm text-muted-foreground">
+                <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-accent-text" />
+                <span>
+                  Génération en cours… le monde de la semaine est en préparation.
+                  Le lancement se débloquera automatiquement dès qu&apos;il sera prêt.
+                </span>
+              </div>
+            )
           )}
 
           {myEntry !== null && myEntry.connectionInfo !== null && (
