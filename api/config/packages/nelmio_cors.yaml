@@ -4,7 +4,7 @@ nelmio_cors:
         allow_origin: ['%env(FRONTEND_ORIGIN)%']
         allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']
         allow_headers: ['Content-Type', 'X-CSRF-Token', 'Authorization']
-        expose_headers: []
+        expose_headers: ['Content-Disposition']
         allow_credentials: true
         max_age: 3600
     paths:
