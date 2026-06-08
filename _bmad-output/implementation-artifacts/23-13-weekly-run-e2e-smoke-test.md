@@ -1,6 +1,6 @@
 # Story 23.13: Weekly Run — Live End-to-End Smoke Test
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -200,3 +200,4 @@ claude-opus-4-8 (Claude Code, bmad-dev-story workflow).
 |------------|--------|
 | 2026-06-08 | Story created from epic 23 retrospective action item #1 (live weekly E2E smoke test). |
 | 2026-06-08 | Implemented `scripts/e2e/weekly-smoke.sh` + `make e2e-weekly` + runbook; verified live (run `d34cfc972db9d721`). Tasks 1–7 done, AC8 via runbook (CI = follow-up). Status → review. |
+| 2026-06-08 | Merged to `develop` (PR #43). Status → done. |
