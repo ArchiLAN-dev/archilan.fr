@@ -155,11 +155,11 @@ export function CurrentRunCard({ run, expanded, onToggle, weekLabel, onDownloadO
             <button
               className="flex items-center gap-1 rounded px-2 py-1 text-xs text-accent-text transition-colors hover:bg-surface-2"
               onClick={onDownloadOutput}
-              title="Télécharger le seed généré"
+              title="Télécharger l'archive des fichiers générés (.zip)"
               type="button"
             >
               <Download aria-hidden="true" className="size-3.5" />
-              Seed
+              Fichiers générés
             </button>
           )}
           <button

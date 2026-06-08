@@ -38,7 +38,8 @@ final class AdminWeeklyRunOutputDownloadTest extends FunctionalTestCase
         $disposition = $this->client->getResponse()->headers->get('Content-Disposition');
         self::assertIsString($disposition);
         self::assertStringContainsString('attachment', $disposition);
-        self::assertStringContainsString('AP_42.zip', $disposition);
+        // Full-output zip artifacts get a readable download name.
+        self::assertStringContainsString('weekly-run-'.$run->getId().'.zip', $disposition);
     }
 
     public function testReturns404WhenRunNotGenerated(): void
