@@ -24,6 +24,12 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         $member = $this->createUser('member@test.com', ['ROLE_USER'], displayName: 'SkyPlayer');
         $this->createMembership($member->getId());
         $game = $this->createGame('Archipelago', 'archipelago');
+        // The launch resolves the apworld hash from the game to configure the entry session.
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE game SET apworld_hash = :h WHERE id = :id',
+            ['h' => 'abc123apworldhash', 'id' => $game->getId()],
+        );
+        $this->entityManager->refresh($game);
         $template = $this->createTemplate($game->getId(), "name: ArchiLAN\ngame: Archipelago\n");
         $run = $this->createRunWithSeed($template->getId());
         $entry = $this->createEntry($run->getId(), $member->getId());
