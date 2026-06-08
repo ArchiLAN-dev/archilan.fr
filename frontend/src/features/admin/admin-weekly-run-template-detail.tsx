@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, History } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, History, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useState } from "react";
@@ -11,8 +11,17 @@ import {
   downloadAdminWeeklyRunOutput,
   fetchAdminTemplateRuns,
   fetchAdminWeeklyTemplate,
+  generateWeeklyRunForTemplate,
 } from "./admin-weekly-runs-api";
 import type { AdminTemplateRun, AdminWeeklyTemplate } from "./admin-weekly-runs-api";
+
+const GENERATE_ERROR_LABEL: Record<string, string> = {
+  run_already_exists: "Une run existe déjà pour cette semaine.",
+  template_incomplete: "Template incomplet (YAML ou APWorld manquant).",
+  template_not_found: "Template introuvable.",
+  network_error: "Erreur réseau, réessaie.",
+  generation_failed: "La génération a échoué.",
+};
 
 type TemplateDetailData = {
   template: AdminWeeklyTemplate;
@@ -34,6 +43,7 @@ function weekLabel(run: AdminTemplateRun): string {
 }
 
 export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: string }) {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-weekly-template-runs", templateId],
     queryFn: () => fetchTemplateDetailData(templateId),
@@ -41,6 +51,22 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
     refetchInterval: 30_000,
   });
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const generateMutation = useMutation({
+    mutationFn: () => generateWeeklyRunForTemplate(templateId),
+    onSuccess: async (result) => {
+      if (result.ok) {
+        setGenerateError(null);
+        await queryClient.invalidateQueries({
+          queryKey: ["admin-weekly-template-runs", templateId],
+        });
+      } else {
+        setGenerateError(GENERATE_ERROR_LABEL[result.error] ?? GENERATE_ERROR_LABEL.generation_failed);
+      }
+    },
+    onError: () => setGenerateError(GENERATE_ERROR_LABEL.generation_failed),
+  });
 
   if (isLoading) {
     return (
@@ -83,13 +109,36 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
       </Link>
 
       {/* Header */}
-      <header>
-        <h2 className="font-heading text-xl font-bold text-foreground">
-          {template.name ?? <span className="italic text-muted-foreground">Template sans nom</span>}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {template.gameName} · {runs.length} run{runs.length !== 1 ? "s" : ""}
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="font-heading text-xl font-bold text-foreground">
+            {template.name ?? <span className="italic text-muted-foreground">Template sans nom</span>}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {template.gameName} · {runs.length} run{runs.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5">
+          <button
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={template.currentWeekHasRun === true || generateMutation.isPending}
+            onClick={() => generateMutation.mutate()}
+            type="button"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={`size-4 ${generateMutation.isPending ? "animate-spin" : ""}`}
+            />
+            {template.currentWeekHasRun === true
+              ? "Run déjà générée cette semaine"
+              : generateMutation.isPending
+                ? "Génération…"
+                : "Générer la run de la semaine"}
+          </button>
+          {generateError !== null ? (
+            <p className="text-xs text-danger">{generateError}</p>
+          ) : null}
+        </div>
       </header>
 
       {/* Runs (current + past) */}

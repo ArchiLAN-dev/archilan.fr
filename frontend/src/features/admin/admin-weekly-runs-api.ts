@@ -14,6 +14,9 @@ export type AdminWeeklyTemplate = {
   yamlConfig: string;
   maxAttempts: number | null;
   isActive: boolean;
+  // Only returned by the template detail endpoint (omitted by create/update):
+  // true when a run for the current ISO week already exists for this template.
+  currentWeekHasRun?: boolean;
 };
 
 export type AdminWeeklyTemplateListItem = {
@@ -245,6 +248,27 @@ export async function triggerAdminWeeklyRunsGeneration(): Promise<boolean> {
   }
 }
 
+export type GenerateRunResult = { ok: true } | { ok: false; error: string };
+
+// Triggers generation of the current ISO week's run for a single template.
+// 204 on success; the server rejects with a coded error (404 template_not_found,
+// 409 run_already_exists, 422 template_incomplete) wrapped as { error: { code } }.
+export async function generateWeeklyRunForTemplate(
+  templateId: string,
+): Promise<GenerateRunResult> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/admin/weekly-templates/${templateId}/generate`,
+      { method: "POST" },
+    );
+    if (res.status === 204) return { ok: true };
+    const payload: unknown = await res.json().catch(() => null);
+    return { ok: false, error: extractErrorCode(payload) };
+  } catch {
+    return { ok: false, error: "network_error" };
+  }
+}
+
 export async function fetchAdminCurrentWeeklyRuns(): Promise<AdminCurrentWeeklyRun[] | null> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/weekly-runs/current`);
@@ -380,4 +404,18 @@ function isErrorPayload(v: unknown): v is { error: string } {
   if (typeof v !== "object" || v === null) return false;
   if (!("error" in v) || typeof v.error !== "string") return false;
   return true;
+}
+
+// Reads the error code from either the flat `{ error: "code" }` shape or the
+// ApiAccessGuard's nested `{ error: { code, message } }` shape. Falls back to a
+// generic code when the body is unreadable.
+function extractErrorCode(v: unknown): string {
+  if (isErrorPayload(v)) return v.error;
+  if (typeof v === "object" && v !== null && "error" in v) {
+    const err: unknown = v.error;
+    if (typeof err === "object" && err !== null && "code" in err && typeof err.code === "string") {
+      return err.code;
+    }
+  }
+  return "generation_failed";
 }

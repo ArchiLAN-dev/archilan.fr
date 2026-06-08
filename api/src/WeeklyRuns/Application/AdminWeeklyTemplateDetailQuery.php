@@ -6,13 +6,17 @@ namespace App\WeeklyRuns\Application;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use Symfony\Component\Clock\ClockInterface;
 
 final readonly class AdminWeeklyTemplateDetailQuery
 {
     public function __construct(
         private WeeklyTemplateRepositoryInterface $templates,
         private GameRepositoryInterface $games,
+        private WeeklyRunRepositoryInterface $runs,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -29,6 +33,12 @@ final readonly class AdminWeeklyTemplateDetailQuery
         $game = $this->games->findById($template->getGameId());
         $gameName = $game instanceof Game ? $game->getName() : '';
 
+        // Same ISO-week computation as GenerateWeeklyRunsMessageHandler — drives the
+        // on-demand "generate the week's run" button's disabled state on the template page.
+        $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
+        $weekYear = (int) $now->format('o');
+        $weekNumber = (int) $now->format('W');
+
         return [
             'id' => $template->getId(),
             'name' => $template->getName(),
@@ -37,6 +47,7 @@ final readonly class AdminWeeklyTemplateDetailQuery
             'yamlConfig' => $template->getYamlConfig(),
             'maxAttempts' => $template->getMaxAttempts(),
             'isActive' => $template->isActive(),
+            'currentWeekHasRun' => $this->runs->existsByTemplateAndWeek($templateId, $weekYear, $weekNumber),
         ];
     }
 }
