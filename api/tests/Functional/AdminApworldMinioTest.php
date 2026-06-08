@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\Identity\Domain\User;
 use App\Sessions\Infrastructure\NullRunnerGateway;
 use App\Shared\Infrastructure\NullMinioStorage;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminApworldMinioTest extends FunctionalTestCase
@@ -23,15 +20,6 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         $minioStorage = self::getContainer()->get(NullMinioStorage::class);
         self::assertInstanceOf(NullMinioStorage::class, $minioStorage);
         $this->minioStorage = $minioStorage;
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(GameCatalogSync::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
 
         NullRunnerGateway::reset();
         NullMinioStorage::reset();

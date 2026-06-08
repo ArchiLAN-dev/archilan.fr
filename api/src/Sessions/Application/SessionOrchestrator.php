@@ -512,7 +512,10 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 
             $playerName = $user?->getDisplayName() ?? $user?->getEmail() ?? $slot->getRegistrationId();
             $archipelagoGameName = $game?->getArchipelagoGameName() ?? '';
-            $playerYaml = is_string($regSlot['playerYaml'] ?? null) ? $regSlot['playerYaml'] : '';
+            $savedYaml = is_string($regSlot['playerYaml'] ?? null) ? $regSlot['playerYaml'] : '';
+            // No saved YAML means the player kept the defaults — fall back to the game's
+            // default template so generation succeeds without an explicit save.
+            $playerYaml = '' !== $savedYaml ? $savedYaml : ($game?->getDefaultYaml() ?? '');
 
             $result[] = [
                 'playerName' => $playerName,
@@ -602,12 +605,15 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             $registrationSlot = null !== ($slot['slotId'] ?? null) ? $registration?->getSlot((string) $slot['slotId']) : null;
             $user = $registration instanceof Registration ? ($usersById[$registration->getUserId()] ?? null) : null;
 
+            $savedYaml = is_string($registrationSlot['playerYaml'] ?? null) ? $registrationSlot['playerYaml'] : '';
+            $playerYaml = '' !== $savedYaml ? $savedYaml : ($game instanceof Game ? ($game->getDefaultYaml() ?? '') : '');
+
             $result[] = [
                 'eventId' => $registration?->getEventId(),
                 'slotId' => $slot['slotId'] ?? $slot['registrationId'].'-'.$slot['gameId'],
                 'playerName' => $user?->getDisplayName() ?? $user?->getEmail() ?? $slot['registrationId'],
                 'archipelagoGameName' => $game instanceof Game ? ($game->getArchipelagoGameName() ?? '') : 'Unknown',
-                'playerYaml' => $registrationSlot['playerYaml'] ?? null,
+                'playerYaml' => $playerYaml,
             ];
         }
 

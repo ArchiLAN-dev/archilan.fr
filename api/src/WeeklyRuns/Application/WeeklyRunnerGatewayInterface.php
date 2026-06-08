@@ -7,16 +7,15 @@ namespace App\WeeklyRuns\Application;
 interface WeeklyRunnerGatewayInterface
 {
     /**
-     * Configure, generate and launch a session for a weekly entry via the orchestrateur.
+     * Launch a session for a weekly entry by reusing the run's pre-generated world.
+     * The entry session is first configured (uploads the template YAML + manifest so the
+     * orchestrator can stage /data/yamls + /data/worlds for reachability), then the
+     * pre-generated multidata is downloaded from MinIO ($outputKey) and injected with
+     * launch-from-file. Performs no Archipelago generation.
      *
      * @return array{externalSessionId: string, connectionInfo: array{host: string, port: int, password: string|null}, bridgePort: int|null}
      */
-    public function launchEntry(
-        string $entryId,
-        string $apworldHash,
-        string $templateYaml,
-        string $seed,
-    ): array;
+    public function launchEntry(string $entryId, string $apworldHash, string $templateYaml, string $outputKey): array;
 
     public function terminate(string $externalSessionId): void;
 

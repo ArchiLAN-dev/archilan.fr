@@ -33,6 +33,7 @@ final readonly class DbalAdminCurrentWeeklyRunsQuery implements AdminCurrentWeek
                 'wr.started_at',
                 'wr.finished_at',
                 'wt.name AS template_name',
+                'wt.game_id AS game_id',
                 'g.name AS game_name',
             )
             ->from('weekly_runs', 'wr')
@@ -85,6 +86,7 @@ final readonly class DbalAdminCurrentWeeklyRunsQuery implements AdminCurrentWeek
             $result[] = [
                 'weeklyRunId' => $runId,
                 'templateName' => is_string($runRow['template_name']) ? $runRow['template_name'] : null,
+                'gameId' => is_string($runRow['game_id']) ? $runRow['game_id'] : '',
                 'gameName' => is_string($runRow['game_name']) ? $runRow['game_name'] : '',
                 'status' => is_string($runRow['status']) ? $runRow['status'] : '',
                 'seed' => is_string($runRow['seed']) ? $runRow['seed'] : '',

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application;
 
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
@@ -17,6 +19,7 @@ final readonly class LaunchWeeklyEntry
         private WeeklyRunRepositoryInterface $runs,
         private WeeklyEntryRepositoryInterface $entries,
         private WeeklyTemplateRepositoryInterface $templates,
+        private GameRepositoryInterface $games,
         private WeeklyRunnerGatewayInterface $gateway,
         private ClockInterface $clock,
     ) {
@@ -36,8 +39,8 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('run_not_active');
         }
 
-        $apworldHash = $run->getGeneratedSeedPath();
-        if (null === $apworldHash) {
+        $outputKey = $run->getGeneratedOutputKey();
+        if (null === $outputKey) {
             throw new \DomainException('run_not_generated');
         }
 
@@ -59,12 +62,16 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('session_already_started');
         }
 
-        $result = $this->gateway->launchEntry(
-            $entryId,
-            $apworldHash,
-            $template->getYamlConfig(),
-            $run->getSeed(),
-        );
+        // The apworld hash (orchestrator content hash, stored on the game) lets the launch
+        // configure the entry session so the orchestrator can stage worlds for reachability.
+        $game = $this->games->findById($template->getGameId());
+        $apworldHash = $game instanceof Game ? $game->getApworldHash() : null;
+        if (null === $apworldHash || '' === $apworldHash) {
+            throw new \DomainException('run_not_generated');
+        }
+
+        // The run's generated world is already built; launch reuses it (no regeneration).
+        $result = $this->gateway->launchEntry($entryId, $apworldHash, $template->getYamlConfig(), $outputKey);
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $entry->launch($result['externalSessionId'], $now, $result['connectionInfo'], $result['bridgePort']);

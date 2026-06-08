@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
+use App\Shared\Infrastructure\MinioStorageInterface;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Psr\Log\LoggerInterface;
@@ -11,46 +12,38 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    private const GENERATE_POLL_INTERVAL_MS = 3_000;
-    private const GENERATE_TIMEOUT_S = 180;
     private const LAUNCH_POLL_INTERVAL_MS = 2_000;
     private const LAUNCH_TIMEOUT_S = 60;
 
     public function __construct(
         private OrchestratorClient $client,
+        private MinioStorageInterface $minioStorage,
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
         private string $orchestrateurBaseUrl,
         private string $orchestrateurApiKey,
         private string $runnerPublicHost,
+        private string $minioSessionsBucket,
     ) {
     }
 
-    public function launchEntry(
-        string $entryId,
-        string $apworldHash,
-        string $templateYaml,
-        string $seed,
-    ): array {
+    public function launchEntry(string $entryId, string $apworldHash, string $templateYaml, string $outputKey): array
+    {
         $adminPassword = bin2hex(random_bytes(16));
         $serverPassword = bin2hex(random_bytes(8));
 
-        // 1. Configure the session with the apworld + template YAML
+        // 1. Configure the entry session: uploads the template YAML + manifest to MinIO so
+        //    the orchestrator can stage /data/yamls + /data/worlds (needed for reachability).
         $this->configureSession($entryId, $apworldHash, $templateYaml);
 
-        // 2. Trigger generation with the weekly run's seed
-        $this->client->sessions()->generate($entryId, $adminPassword, $seed);
-        $this->logger->info('weekly_entry.generate.triggered', ['entryId' => $entryId]);
+        // 2. Download the run's pre-generated world from MinIO (zero regeneration).
+        $output = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
 
-        // 3. Poll until generated
-        $this->pollUntilStatus($entryId, 'generated', self::GENERATE_TIMEOUT_S, self::GENERATE_POLL_INTERVAL_MS);
-        $this->logger->info('weekly_entry.generate.done', ['entryId' => $entryId]);
+        // 3. Inject it into the session volume and launch — no generation is run.
+        $this->client->sessions()->launchFromFile($entryId, $output, basename($outputKey), $adminPassword, $serverPassword);
+        $this->logger->info('weekly_entry.launch_from_file.triggered', ['entryId' => $entryId]);
 
-        // 4. Launch the session
-        $this->client->sessions()->launch($entryId, $adminPassword, $serverPassword);
-        $this->logger->info('weekly_entry.launch.triggered', ['entryId' => $entryId]);
-
-        // 5. Poll until running and get connection info
+        // 4. Poll until running and get connection info.
         $session = $this->pollUntilStatus($entryId, 'running', self::LAUNCH_TIMEOUT_S, self::LAUNCH_POLL_INTERVAL_MS);
 
         $apPort = $session->apPort;

@@ -9,5 +9,5 @@ interface AdminGameListQueryInterface
     /**
      * @return array{items: list<array<string, mixed>>, total: int}
      */
-    public function find(int $page, int $perPage, string $search, ?string $availability, ?bool $yamlReady): array;
+    public function find(int $page, int $perPage, string $search, ?string $availability, ?bool $yamlReady, ?bool $apworldReady = null): array;
 }

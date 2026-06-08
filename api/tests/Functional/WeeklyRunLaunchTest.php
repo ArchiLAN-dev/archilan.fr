@@ -4,32 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
 use App\Membership\Domain\Membership;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
 use App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class WeeklyRunLaunchTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Membership::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(WeeklyTemplate::class),
-            $this->entityManager->getClassMetadata(WeeklyRun::class),
-            $this->entityManager->getClassMetadata(WeeklyEntry::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
 
         $this->spy()->reset();
     }
@@ -39,6 +24,12 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         $member = $this->createUser('member@test.com', ['ROLE_USER'], displayName: 'SkyPlayer');
         $this->createMembership($member->getId());
         $game = $this->createGame('Archipelago', 'archipelago');
+        // The launch resolves the apworld hash from the game to configure the entry session.
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE game SET apworld_hash = :h WHERE id = :id',
+            ['h' => 'abc123apworldhash', 'id' => $game->getId()],
+        );
+        $this->entityManager->refresh($game);
         $template = $this->createTemplate($game->getId(), "name: ArchiLAN\ngame: Archipelago\n");
         $run = $this->createRunWithSeed($template->getId());
         $entry = $this->createEntry($run->getId(), $member->getId());
@@ -56,7 +47,7 @@ final class WeeklyRunLaunchTest extends FunctionalTestCase
         self::assertCount(1, $spy->launchCalls);
         $call = $spy->launchCalls[0];
         self::assertSame($entry->getId(), $call['entryId']);
-        self::assertSame('abc123apworldhash', $call['apworldHash']);
+        self::assertSame('abc123apworldhash', $call['outputKey']);
 
         $this->client->jsonRequest('GET', '/api/v1/weekly-runs/current');
         self::assertResponseIsSuccessful();

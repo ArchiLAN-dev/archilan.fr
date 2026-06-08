@@ -10,6 +10,7 @@ parameters:
     default_minio_apworlds_bucket: 'apworlds'
     default_minio_saves_bucket: 'archipelago-saves'
     default_minio_media_bucket: 'media'
+    default_minio_sessions_bucket: 'sessions'
     default_minio_presign_ttl: 3600
     default_minio_endpoint: 'http://localhost:9000'
     default_minio_access_key: 'minioadmin'
@@ -33,6 +34,7 @@ services:
             string $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             string $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
+            string $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
             string $siteUrl: '%env(FRONTEND_ORIGIN)%'
             string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
@@ -68,6 +70,9 @@ services:
     App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
     App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
     App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
+    App\WeeklyRuns\Application\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunGameListQuery'
+    App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminTemplateRunsQuery'
+    App\WeeklyRuns\Application\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunOutputQuery'
 
     App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
 
@@ -77,12 +82,15 @@ services:
             $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
             $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
     App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator'
 
     App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator:
         arguments:
             $client: '@archilan.orchestrateur_client'
+            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
 

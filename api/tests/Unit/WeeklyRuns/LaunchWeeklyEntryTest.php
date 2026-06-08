@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
 use App\WeeklyRuns\Application\LaunchWeeklyEntry;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
@@ -26,7 +28,7 @@ final class LaunchWeeklyEntryTest extends TestCase
 
     public function testInvokeThrowsWhenRunNotGenerated(): void
     {
-        $run = $this->makeRun(generatedSeedPath: null);
+        $run = $this->makeRun(generatedOutputKey: null);
 
         $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
@@ -103,9 +105,9 @@ final class LaunchWeeklyEntryTest extends TestCase
                 string $entryId,
                 string $apworldHash,
                 string $templateYaml,
-                string $seed,
+                string $outputKey,
             ) use (&$capturedArgs): array {
-                $capturedArgs = compact('entryId', 'apworldHash', 'templateYaml', 'seed');
+                $capturedArgs = compact('entryId', 'apworldHash', 'templateYaml', 'outputKey');
 
                 return [
                     'externalSessionId' => 'sess-1',
@@ -120,8 +122,9 @@ final class LaunchWeeklyEntryTest extends TestCase
         self::assertSame('sess-1', $result['externalSessionId']);
         self::assertSame('runner.test', $result['connectionInfo']['host']);
         self::assertSame('entry-1', $capturedArgs['entryId']);
-        self::assertSame('sha256hashofapworld', $capturedArgs['apworldHash']);
-        self::assertSame('archilan-weekly-2026-20', $capturedArgs['seed']);
+        self::assertSame('apworld-hash-123', $capturedArgs['apworldHash']);
+        // The run's stored output key is what gets reused for launch-from-file.
+        self::assertSame('sessions/weekly-gen-run-1/output/AP_1.zip', $capturedArgs['outputKey']);
     }
 
     public function testFlushFailureCallsTerminate(): void
@@ -150,7 +153,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $this->makeHandler($runs, $entries, $gateway)->execute('run-1', 'entry-1', 'user-1');
     }
 
-    private function makeRun(?string $generatedSeedPath = 'sha256hashofapworld'): WeeklyRun
+    private function makeRun(?string $generatedOutputKey = 'sessions/weekly-gen-run-1/output/AP_1.zip'): WeeklyRun
     {
         $now = new \DateTimeImmutable('2026-05-19T00:00:00+00:00');
         $run = new WeeklyRun(
@@ -164,8 +167,8 @@ final class LaunchWeeklyEntryTest extends TestCase
             createdAt: $now,
         );
 
-        if (null !== $generatedSeedPath) {
-            $run->markGenerated($generatedSeedPath);
+        if (null !== $generatedOutputKey) {
+            $run->markGenerated($generatedOutputKey);
         }
 
         return $run;
@@ -214,6 +217,11 @@ final class LaunchWeeklyEntryTest extends TestCase
             $templates = $stub;
         }
 
-        return new LaunchWeeklyEntry($runs, $entries, $templates, $gateway, self::$clock);
+        $gameStub = $this->createStub(Game::class);
+        $gameStub->method('getApworldHash')->willReturn('apworld-hash-123');
+        $games = $this->createStub(GameRepositoryInterface::class);
+        $games->method('findById')->willReturn($gameStub);
+
+        return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock);
     }
 }

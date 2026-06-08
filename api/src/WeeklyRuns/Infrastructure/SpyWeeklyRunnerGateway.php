@@ -8,7 +8,7 @@ use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 
 final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    /** @var list<array{entryId: string, apworldHash: string, seed: string}> */
+    /** @var list<array{entryId: string, apworldHash: string, templateYaml: string, outputKey: string}> */
     public array $launchCalls = [];
 
     public function reset(): void
@@ -16,16 +16,13 @@ final class SpyWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
         $this->launchCalls = [];
     }
 
-    public function launchEntry(
-        string $entryId,
-        string $apworldHash,
-        string $templateYaml,
-        string $seed,
-    ): array {
+    public function launchEntry(string $entryId, string $apworldHash, string $templateYaml, string $outputKey): array
+    {
         $this->launchCalls[] = [
             'entryId' => $entryId,
             'apworldHash' => $apworldHash,
-            'seed' => $seed,
+            'templateYaml' => $templateYaml,
+            'outputKey' => $outputKey,
         ];
 
         return [

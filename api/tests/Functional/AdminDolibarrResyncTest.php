@@ -4,25 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\User;
 use App\Membership\Domain\Membership;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class AdminDolibarrResyncTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(EmailConfirmationToken::class),
-            $this->entityManager->getClassMetadata(Membership::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testUnauthenticatedReturns401(): void

@@ -36,15 +36,13 @@ services:
 
     bridge-builder:
         build:
-            context: .
-            dockerfile: bridge/Dockerfile
+            context: ./bridge
         image: archilan-bridge:latest
         entrypoint: ["true"]
 
     archipelago-builder:
         build:
-            context: .
-            dockerfile: archipelago/Dockerfile
+            context: ./archipelago
         image: archipelago:latest
         entrypoint: ["true"]
 

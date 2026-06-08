@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
 use App\Membership\Domain\Membership;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class CurrentWeeklyRunsTest extends FunctionalTestCase
 {
@@ -20,18 +18,6 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Membership::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(WeeklyTemplate::class),
-            $this->entityManager->getClassMetadata(WeeklyRun::class),
-            $this->entityManager->getClassMetadata(WeeklyEntry::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
 
         $this->game = $this->createGame('Archipelago', 'archipelago');
         $this->template = $this->createTemplate($this->game->getId(), 'Test Run', null);
@@ -88,6 +74,7 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         self::assertSame(20, $item['weekNumber']);
         self::assertSame(2026, $item['weekYear']);
         self::assertSame('active', $item['status']);
+        self::assertFalse($item['isGenerated']);
         self::assertNull($item['myEntry']);
 
         $leaderboard = $item['leaderboard'];
@@ -99,6 +86,33 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         $participants = $item['participants'];
         self::assertIsArray($participants);
         self::assertCount(0, $participants);
+    }
+
+    public function testCurrentRunsIsGeneratedReflectsGeneration(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
+        $run = $this->createRun($this->template->getId(), WeeklyRun::STATUS_ACTIVE, $now);
+
+        // Not generated yet.
+        $this->client->request('GET', '/api/v1/weekly-runs/current');
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $item = $data[0];
+        self::assertIsArray($item);
+        self::assertFalse($item['isGenerated']);
+
+        // After the orchestrator webhook stores the output key, the run is launchable.
+        $run->markGenerated('sessions/weekly-gen-'.$run->getId().'/output/AP_1.zip');
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/weekly-runs/current');
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $item = $data[0];
+        self::assertIsArray($item);
+        self::assertTrue($item['isGenerated']);
     }
 
     public function testCurrentRunsAuthenticatedMemberReturnsMyEntry(): void

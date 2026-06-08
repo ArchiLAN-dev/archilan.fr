@@ -5,22 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Content\Domain\Post;
-use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 
 final class AdminPostTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Post::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testAnonymousRequestIsRejected(): void

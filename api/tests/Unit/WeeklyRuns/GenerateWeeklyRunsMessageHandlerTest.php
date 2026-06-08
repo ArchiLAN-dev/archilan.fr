@@ -50,10 +50,9 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         $runs->expects(self::once())->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
             $saved = $run;
         });
-        $runs->expects(self::once())->method('flush');
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
-        $generator->method('generate')->willReturn('/workspace/run-1/output/world.archipelago');
+        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator->expects(self::once())->method('generate');
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
@@ -61,7 +60,8 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         self::assertInstanceOf(WeeklyRun::class, $saved);
         self::assertSame(WeeklyRun::STATUS_ACTIVE, $saved->getStatus());
         self::assertSame('template-1', $saved->getTemplateId());
-        self::assertSame('/workspace/run-1/output/world.archipelago', $saved->getGeneratedSeedPath());
+        // Not launchable yet: the run becomes generated only via the webhook.
+        self::assertNull($saved->getGeneratedOutputKey());
     }
 
     public function testInvokeSeedIsRandomPositiveInteger(): void
@@ -76,7 +76,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         });
 
         $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
-        $generator->method('generate')->willReturn('/workspace/run-1/output/world.archipelago');
+        $generator->method('generate'); // void dispatch
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
@@ -103,7 +103,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         });
 
         $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
-        $generator->method('generate')->willReturn('/workspace/run-1/output/world.archipelago');
+        $generator->method('generate'); // void dispatch
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator, $boundaryDate)
             ->__invoke(new GenerateWeeklyRunsMessage());
@@ -128,21 +128,27 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             ->__invoke(new GenerateWeeklyRunsMessage());
     }
 
-    public function testInvokeThrowsAfterLoggingWhenGeneratorFails(): void
+    public function testInvokeDoesNotThrowWhenDispatchFails(): void
     {
+        /** @var WeeklyRun|null $saved */
+        $saved = null;
+
         $runs = $this->createMock(WeeklyRunRepositoryInterface::class);
         $runs->method('existsByTemplateAndWeek')->willReturn(false);
-        $runs->expects(self::once())->method('save');
-        $runs->expects(self::never())->method('flush');
+        $runs->expects(self::once())->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
+            $saved = $run;
+        });
 
         $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
-        $generator->method('generate')->willThrowException(new \RuntimeException('docker failed'));
+        $generator->method('generate')->willThrowException(new \RuntimeException('orchestrator unreachable'));
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessageMatches('/docker failed/');
-
+        // A failed dispatch is logged, not thrown: it leaves the run not-launchable
+        // and must not abort the other templates.
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
             ->__invoke(new GenerateWeeklyRunsMessage());
+
+        self::assertInstanceOf(WeeklyRun::class, $saved);
+        self::assertNull($saved->getGeneratedOutputKey());
     }
 
     /**

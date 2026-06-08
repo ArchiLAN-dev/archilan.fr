@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
+import { AdminGamePicker } from "./admin-game-picker";
 import {
+  ADMIN_WEEKLY_GAME_DETAIL_QUERY_KEY,
+  ADMIN_WEEKLY_GAMES_QUERY_KEY,
   createAdminWeeklyTemplate,
   fetchAdminGameOptionDetail,
-  fetchAdminGameOptions,
   fetchAdminWeeklyTemplate,
   updateAdminWeeklyTemplate,
 } from "./admin-weekly-runs-api";
@@ -16,14 +19,16 @@ import type { AdminGameOption, AdminWeeklyTemplate, CreateTemplateResult } from 
 type Props = {
   mode: "create" | "edit";
   templateId?: string;
+  initialGameId?: string;
 };
 
 const FALLBACK_YAML = "name: ArchiLAN\ngame: Archipelago\n";
 
-export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
+export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  const [games, setGames] = useState<AdminGameOption[]>([]);
+  const [selectedGame, setSelectedGame] = useState<AdminGameOption | null>(null);
   const [template, setTemplate] = useState<AdminWeeklyTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -39,14 +44,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
 
   useEffect(() => {
     async function load() {
-      const [gameList, tmpl] = await Promise.all([
-        fetchAdminGameOptions(),
-        mode === "edit" && templateId ? fetchAdminWeeklyTemplate(templateId) : Promise.resolve(null),
-      ]);
-
-      setGames(gameList);
-
-      if (mode === "edit") {
+      if (mode === "edit" && templateId) {
+        const tmpl = await fetchAdminWeeklyTemplate(templateId);
         if (!tmpl) {
           setError("Template introuvable.");
           setLoading(false);
@@ -61,24 +60,30 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
 
         const gameDetail = await fetchAdminGameOptionDetail(tmpl.gameId);
         setDefaultYaml(gameDetail?.defaultYaml || tmpl.yamlConfig || FALLBACK_YAML);
+      } else if (mode === "create" && initialGameId) {
+        // Game pre-selected from the per-game detail page: lock it and load its defaults.
+        const gameDetail = await fetchAdminGameOptionDetail(initialGameId);
+        if (gameDetail) {
+          setSelectedGame(gameDetail);
+          setGameId(gameDetail.id);
+          const nextDefaultYaml = gameDetail.defaultYaml || FALLBACK_YAML;
+          setDefaultYaml(nextDefaultYaml);
+          setYamlConfig(nextDefaultYaml);
+        }
       }
 
       setLoading(false);
     }
 
     void load();
-  }, [mode, templateId]);
+  }, [mode, templateId, initialGameId]);
 
-  async function handleGameChange(nextGameId: string) {
-    setGameId(nextGameId);
+  async function handleGameSelect(game: AdminGameOption) {
+    setSelectedGame(game);
+    setGameId(game.id);
     setInitialTemplateYaml(null);
-    if (!nextGameId) {
-      setDefaultYaml(FALLBACK_YAML);
-      setYamlConfig(FALLBACK_YAML);
-      return;
-    }
 
-    const gameDetail = await fetchAdminGameOptionDetail(nextGameId);
+    const gameDetail = await fetchAdminGameOptionDetail(game.id);
     const nextDefaultYaml = gameDetail?.defaultYaml || FALLBACK_YAML;
     setDefaultYaml(nextDefaultYaml);
     setYamlConfig(nextDefaultYaml);
@@ -122,6 +127,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
         }
         return;
       }
+      await queryClient.invalidateQueries({ queryKey: ADMIN_WEEKLY_GAMES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ADMIN_WEEKLY_GAME_DETAIL_QUERY_KEY });
       router.push("/admin/weekly-runs");
     } else if (template) {
       const result = await updateAdminWeeklyTemplate(template.id, {
@@ -134,6 +141,8 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
         setError("Erreur lors de la mise à jour du template.");
         return;
       }
+      await queryClient.invalidateQueries({ queryKey: ADMIN_WEEKLY_GAMES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ADMIN_WEEKLY_GAME_DETAIL_QUERY_KEY });
       router.push("/admin/weekly-runs");
     } else {
       setSubmitting(false);
@@ -158,25 +167,26 @@ export function AdminWeeklyTemplateForm({ mode, templateId }: Props) {
           <label className="text-sm font-medium text-foreground" htmlFor="game-select">
             Jeu <span aria-hidden="true" className="text-danger">*</span>
           </label>
-          <select
-            className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-60"
-            disabled={mode === "edit"}
-            id="game-select"
-            onChange={(e) => void handleGameChange(e.target.value)}
-            required
-            value={gameId}
-          >
-            <option value="">- Sélectionner un jeu -</option>
-            {games.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          {mode === "edit" && (
-            <p className="text-xs text-muted-foreground">
-              Le jeu ne peut pas être modifié après création.
-            </p>
+          {mode === "edit" || initialGameId ? (
+            <>
+              <p
+                className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground opacity-60"
+                id="game-select"
+              >
+                {mode === "edit" ? template?.gameName ?? "—" : selectedGame?.name ?? "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {mode === "edit"
+                  ? "Le jeu ne peut pas être modifié après création."
+                  : "Jeu pré-sélectionné depuis sa page de runs."}
+              </p>
+            </>
+          ) : (
+            <AdminGamePicker
+              id="game-select"
+              onSelect={(game) => void handleGameSelect(game)}
+              value={selectedGame}
+            />
           )}
         </div>
 

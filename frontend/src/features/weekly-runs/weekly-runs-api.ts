@@ -33,6 +33,7 @@ export type WeeklyRunMyEntry = {
 
 export type CurrentWeeklyRun = {
   weeklyRunId: string;
+  isGenerated: boolean;
   templateName: string | null;
   yamlConfig: string | null;
   gameName: string;

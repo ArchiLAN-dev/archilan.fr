@@ -58,7 +58,7 @@ final readonly class WeeklyEntryPatchQuery
         if (!$run instanceof WeeklyRun) {
             return null;
         }
-        $seedPath = $run->getGeneratedSeedPath();
+        $seedPath = $run->getGeneratedOutputKey();
         if (null === $seedPath || !is_file($seedPath)) {
             return null;
         }

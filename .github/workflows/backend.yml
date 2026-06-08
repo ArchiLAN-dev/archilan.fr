@@ -16,13 +16,36 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    # NB: a PHP 8.3 matrix leg was attempted but the lockfile requires 8.4
+    # (doctrine/doctrine-bundle 3.2.2 needs php ^8.4), so 8.3 can't even install.
+    # The project effectively requires 8.4; composer.json's "^8.3" is aspirational
+    # and should be bumped to "^8.4" to match the lock (separate follow-up).
     defaults:
       run:
         working-directory: api
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: archilan
+          POSTGRES_PASSWORD: archilan_dev_password
+          POSTGRES_DB: archilan_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U archilan"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
 
     steps:
       - name: Checkout
@@ -32,7 +55,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: ctype, iconv
+          extensions: ctype, iconv, pdo_pgsql, pgsql
           coverage: pcov
           tools: composer:v2
 
@@ -56,6 +79,13 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      # warn-only for now: pre-existing advisories (e.g. symfony/yaml low CVE) are
+      # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
+      # once the backlog is green — story 0.7 AC3.
+      - name: Composer audit (known vulnerabilities)
+        run: composer audit
+        continue-on-error: true
+
       - name: PHPStan
         run: composer phpstan
 
@@ -67,6 +97,14 @@ jobs:
 
       - name: PHPUnit with coverage
         run: composer test -- --coverage-clover coverage.xml --coverage-html coverage-html
+
+      # Hard gate. Baseline measured at 67.84% (first CI run); floor set just below
+      # with margin. Raise MIN over time as coverage grows.
+      - name: Coverage floor
+        env:
+          MIN: '65'
+        run: |
+          php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

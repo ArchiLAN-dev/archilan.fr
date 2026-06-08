@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\GameSelection\Domain\IgnoredCatalogEntry;
-use App\Identity\Domain\User;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -19,16 +15,6 @@ final class CatalogSyncEndpointTest extends FunctionalTestCase
     protected function setUp(): void
     {
         parent::setUp();
-
-        $metadata = [
-            $this->entityManager->getClassMetadata(User::class),
-            $this->entityManager->getClassMetadata(Game::class),
-            $this->entityManager->getClassMetadata(GameCatalogSync::class),
-            $this->entityManager->getClassMetadata(IgnoredCatalogEntry::class),
-        ];
-        $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
     }
 
     public function testCatalogSyncRequiresAdmin(): void

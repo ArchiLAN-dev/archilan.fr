@@ -25,6 +25,7 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                 'wr.status',
                 'wr.started_at',
                 'wr.finished_at',
+                'wr.generated_output_key',
                 'wt.name AS template_name',
                 'wt.yaml_config AS yaml_config',
                 'g.name AS game_name',
@@ -139,8 +140,11 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
             $fewestItems = $withGoal;
             usort($fewestItems, static fn (array $a, array $b): int => ($a['itemsTotal'] ?? PHP_INT_MAX) <=> ($b['itemsTotal'] ?? PHP_INT_MAX));
 
+            $generatedOutputKey = is_string($runRow['generated_output_key']) ? $runRow['generated_output_key'] : null;
+
             $result[] = [
                 'weeklyRunId' => $runId,
+                'isGenerated' => null !== $generatedOutputKey && '' !== $generatedOutputKey,
                 'templateName' => is_string($runRow['template_name']) ? $runRow['template_name'] : null,
                 'yamlConfig' => is_string($runRow['yaml_config']) ? $runRow['yaml_config'] : null,
                 'gameName' => is_string($runRow['game_name']) ? $runRow['game_name'] : null,

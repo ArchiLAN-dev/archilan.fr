@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "99cbe7c7489cb2700379752c3151a4b0",
+    "content-hash": "6cdb804b6f71fa6721d1f76fcd91ca79",
     "packages": [
         {
             "name": "archilan/bridge-client",
@@ -11569,7 +11569,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.3",
+        "php": "^8.4",
         "ext-ctype": "*",
         "ext-iconv": "*"
     },
