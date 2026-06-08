@@ -3,7 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { env } from "@/lib/env";
-import { apiFetch, registerUnauthenticatedHandler } from "@/lib/apiFetch";
+import {
+  apiFetch,
+  coordinatedRefresh,
+  registerUnauthenticatedHandler,
+} from "@/lib/apiFetch";
 
 // Refresh the access token (15 min TTL) 2 minutes before expiry.
 // Keeps long-running pages like the tracker alive without user interaction.
@@ -60,11 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [setUser]);
 
   // Proactive silent refresh: keeps the session alive on passive pages.
+  // Goes through `coordinatedRefresh` (Web Lock + recent-ts skip), NOT a direct
+  // `POST /auth/refresh`: with several tabs open their intervals fire near-
+  // simultaneously, and uncoordinated rotations would race on the same refresh
+  // token and trip the server's reuse detection (logging everyone out).
   useEffect(() => {
     if (!user) return;
 
     const id = setInterval(() => {
-      apiFetch(`${env.apiBaseUrl}/auth/refresh`, { method: "POST" }).catch(() => {});
+      void coordinatedRefresh();
     }, PROACTIVE_REFRESH_MS);
 
     return () => clearInterval(id);
