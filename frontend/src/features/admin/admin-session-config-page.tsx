@@ -30,10 +30,31 @@ const COMPATIBILITY_LABELS: Record<number, string> = {
 };
 
 const SPOILER_LABELS: Record<number, string> = {
-  0: "Aucun (0)",
-  1: "Sans playthrough (1)",
-  2: "Avec playthrough (2)",
-  3: "Playthrough + chemins (3)",
+  0: "Aucun",
+  1: "Sans solution",
+  2: "Avec solution",
+  3: "Solution + chemins",
+};
+
+// French display labels for the Archipelago mode values (the stored values stay in English).
+const RELEASE_COLLECT_LABELS: Record<string, string> = {
+  disabled: "Désactivé",
+  enabled: "Toujours autorisé",
+  goal: "Après l'objectif atteint",
+  auto: "Automatique à l'objectif",
+  "auto-enabled": "Automatique + manuel",
+};
+
+const REMAINING_LABELS: Record<string, string> = {
+  enabled: "Toujours autorisé",
+  disabled: "Désactivé",
+  goal: "Après l'objectif atteint",
+};
+
+const COUNTDOWN_LABELS: Record<string, string> = {
+  enabled: "Toujours autorisé",
+  disabled: "Désactivé",
+  auto: "Auto (salles < 30 joueurs)",
 };
 
 const ERROR_LABELS: Record<string, string> = {
@@ -158,18 +179,18 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
       }}
     >
       <fieldset className="grid gap-4 rounded-xl border border-border bg-surface p-5">
-        <legend className="px-1 font-heading text-sm font-semibold text-foreground">Serveur</legend>
+        <legend className="px-1 font-heading text-sm font-semibold text-foreground">Options serveur</legend>
 
-        <SelectField label="!release" onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
-        <SelectField label="!collect" onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
-        <SelectField label="!remaining" onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
-        <SelectField label="!countdown" onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
+        <SelectField hint="Renvoi des objets restants d'un monde terminé vers les autres." label="Don des objets restants (!release)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
+        <SelectField hint="Récupération automatique de ses objets restants chez les autres mondes." label="Récupération des objets (!collect)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
+        <SelectField hint="Possibilité de demander la liste des objets encore à recevoir." label="Voir les objets restants (!remaining)" labels={REMAINING_LABELS} onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
+        <SelectField hint="Lancement d'un compte à rebours par les joueurs." label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
 
-        <CheckboxField checked={server.disableItemCheat} label="Désactiver !getitem (anti-triche)" onChange={(c) => patchServer({ disableItemCheat: c })} />
+        <CheckboxField checked={server.disableItemCheat} label="Interdire la triche d'objets (!getitem)" onChange={(c) => patchServer({ disableItemCheat: c })} />
 
-        <NumberField label="Coût d'un indice (%)" max={100} min={0} onChange={(n) => patchServer({ hintCost: n })} value={server.hintCost} />
-        <NumberField label="Points par check" min={0} onChange={(n) => patchServer({ locationCheckPoints: n })} value={server.locationCheckPoints} />
-        <NumberField label="Auto-shutdown (s, 0 = jamais)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
+        <NumberField hint="Pourcentage de checks à compléter pour gagner un indice." label="Coût d'un indice (% des checks)" max={100} min={0} onChange={(n) => patchServer({ hintCost: n })} value={server.hintCost} />
+        <NumberField hint="Points d'indice gagnés à chaque check trouvé." label="Points gagnés par check" min={0} onChange={(n) => patchServer({ locationCheckPoints: n })} value={server.locationCheckPoints} />
+        <NumberField hint="Arrêt du serveur après ce délai sans nouveau check (0 = jamais)." label="Arrêt auto après inactivité (s)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
 
         <NumberSelectField
           label="Compatibilité"
@@ -180,7 +201,7 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
         />
 
         <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">Mot de passe de connexion (vide = aucun)</span>
+          <span className="font-medium text-foreground">Mot de passe de connexion (laisser vide = aucun)</span>
           <input
             className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
             onChange={(e) => patchServer({ joinPassword: e.target.value === "" ? null : e.target.value })}
@@ -191,10 +212,10 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
       </fieldset>
 
       <fieldset className="grid content-start gap-4 rounded-xl border border-border bg-surface p-5">
-        <legend className="px-1 font-heading text-sm font-semibold text-foreground">Génération</legend>
+        <legend className="px-1 font-heading text-sm font-semibold text-foreground">Options de génération</legend>
 
         <div className="grid gap-2">
-          <span className="text-sm text-muted-foreground">Plando autorisé</span>
+          <span className="text-sm font-medium text-foreground">Plando autorisé (placement manuel d&apos;objets / boss)</span>
           <div className="flex flex-wrap gap-3">
             {PLANDO_OPTIONS.map((option) => (
               <label className="flex items-center gap-1.5 text-sm text-foreground" key={option}>
@@ -209,10 +230,10 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           </div>
         </div>
 
-        <CheckboxField checked={generation.race} label="Mode race (roms chiffrées)" onChange={(c) => patchGeneration({ race: c })} />
+        <CheckboxField checked={generation.race} label="Mode course (ROMs chiffrées, spoiler masqué)" onChange={(c) => patchGeneration({ race: c })} />
 
         <NumberSelectField
-          label="Spoiler"
+          label="Niveau de spoiler généré"
           labels={SPOILER_LABELS}
           onChange={(n) => patchGeneration({ spoiler: n })}
           options={SPOILER_LEVELS}
@@ -242,16 +263,21 @@ function SelectField({
   label,
   value,
   options,
+  labels,
+  hint,
   onChange,
 }: {
   label: string;
   value: string;
   options: readonly string[];
+  labels?: Record<string, string>;
+  hint?: string;
   onChange: (v: string) => void;
 }) {
   return (
     <label className="grid gap-1 text-sm">
-      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{label}</span>
+      {hint !== undefined ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
       <select
         className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         onChange={(e) => onChange(e.target.value)}
@@ -259,7 +285,7 @@ function SelectField({
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>
-            {opt}
+            {labels?.[opt] ?? opt}
           </option>
         ))}
       </select>
@@ -303,17 +329,20 @@ function NumberField({
   value,
   min,
   max,
+  hint,
   onChange,
 }: {
   label: string;
   value: number;
   min?: number;
   max?: number;
+  hint?: string;
   onChange: (v: number) => void;
 }) {
   return (
     <label className="grid gap-1 text-sm">
-      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{label}</span>
+      {hint !== undefined ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
       <input
         className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         max={max}
