@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 import { useState } from "react";
 
 import { CurrentRunCard } from "./admin-weekly-run-cards";
-import { clearOverride, loadOverride, saveOverride } from "./admin-session-config-api";
+import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "./admin-session-config-api";
 import { SessionConfigOverrideForm } from "./session-config-override-form";
 import {
   downloadAdminWeeklyRunOutput,
@@ -152,6 +152,7 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
             adapter={{
               queryKey: ["session-override", "weekly-template", templateId],
               load: () => loadOverride(`/admin/session-config/override/${templateId}`),
+              loadProfile: () => fetchSessionConfig("weekly"),
               save: (o) => saveOverride(`/admin/session-config/override/${templateId}`, o),
               clear: () => clearOverride(`/admin/session-config/override/${templateId}`),
             }}

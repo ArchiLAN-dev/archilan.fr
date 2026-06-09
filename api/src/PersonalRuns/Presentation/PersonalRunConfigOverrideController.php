@@ -80,7 +80,7 @@ final readonly class PersonalRunConfigOverrideController
     }
 
     /**
-     * @param array{found: bool, authorized: bool, override?: array<string, mixed>} $result
+     * @param array{found: bool, authorized: bool, override?: array<string, mixed>, profile?: array<string, mixed>} $result
      */
     private function respond(array $result): JsonResponse
     {
@@ -91,6 +91,6 @@ final readonly class PersonalRunConfigOverrideController
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', Response::HTTP_FORBIDDEN);
         }
 
-        return new JsonResponse(['data' => ['override' => $result['override'] ?? []]]);
+        return new JsonResponse(['data' => ['override' => $result['override'] ?? [], 'profile' => $result['profile'] ?? null]]);
     }
 }
