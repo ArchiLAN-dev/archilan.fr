@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - develop
+    tags:
+      - 'v*.*.*'
     paths:
       - 'api/**'
       - 'frontend/**'
@@ -56,6 +58,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build image (load for scan)
@@ -118,6 +122,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build image (load for scan)
@@ -182,6 +188,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build image (load for scan)
