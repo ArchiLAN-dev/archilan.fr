@@ -190,6 +190,7 @@ final class DddArchitectureValidatorTest extends TestCase
             'Streaming',
             'Membership',
             'WeeklyRuns',
+            'SessionConfig',
         ];
         $layers = ['Domain', 'Application', 'Infrastructure', 'Presentation'];
 

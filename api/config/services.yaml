@@ -62,6 +62,7 @@ services:
             - '../src/CatalogSync/Domain/'
             - '../src/Membership/Domain/'
             - '../src/WeeklyRuns/Domain/'
+            - '../src/SessionConfig/Domain/'
 
     App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyTemplateRepository'
