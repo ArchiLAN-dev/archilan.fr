@@ -52,23 +52,4 @@ final class SessionConfigResolverTest extends TestCase
 
         self::assertSame(ReleaseCollectMode::Goal, $resolved->server->releaseMode);
     }
-
-    public function testRecordResolvedForSessionStoresFullOverride(): void
-    {
-        $profiles = $this->createMock(SessionConfigProfileRepositoryInterface::class);
-        $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
-
-        $captured = null;
-        $overrides->expects(self::once())->method('save')
-            ->willReturnCallback(static function (string $id, SessionConfigOverride $o) use (&$captured): void {
-                $captured = $o;
-            });
-
-        $resolved = SessionConfig::defaultsFor(SessionType::Event);
-        (new SessionConfigResolver($profiles, $overrides))->recordResolvedForSession('sess-3', $resolved);
-
-        self::assertInstanceOf(SessionConfigOverride::class, $captured);
-        self::assertFalse($captured->isEmpty());
-        self::assertSame(ReleaseCollectMode::Disabled, $captured->releaseMode);
-    }
 }

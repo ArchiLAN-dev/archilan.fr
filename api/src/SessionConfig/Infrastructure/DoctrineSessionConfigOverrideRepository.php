@@ -18,24 +18,33 @@ final readonly class DoctrineSessionConfigOverrideRepository implements SessionC
     ) {
     }
 
-    public function find(string $sessionId): ?SessionConfigOverride
+    public function find(string $scopeKey): ?SessionConfigOverride
     {
-        $store = $this->entityManager->find(SessionConfigOverrideStore::class, $sessionId);
+        $store = $this->entityManager->find(SessionConfigOverrideStore::class, $scopeKey);
 
         return $store instanceof SessionConfigOverrideStore ? $store->toOverride() : null;
     }
 
-    public function save(string $sessionId, SessionConfigOverride $override): void
+    public function save(string $scopeKey, SessionConfigOverride $override): void
     {
         $now = $this->clock->now();
-        $store = $this->entityManager->find(SessionConfigOverrideStore::class, $sessionId);
+        $store = $this->entityManager->find(SessionConfigOverrideStore::class, $scopeKey);
 
         if ($store instanceof SessionConfigOverrideStore) {
             $store->update($override, $now);
         } else {
-            $this->entityManager->persist(new SessionConfigOverrideStore($sessionId, $override, $now));
+            $this->entityManager->persist(new SessionConfigOverrideStore($scopeKey, $override, $now));
         }
 
         $this->entityManager->flush();
+    }
+
+    public function delete(string $scopeKey): void
+    {
+        $store = $this->entityManager->find(SessionConfigOverrideStore::class, $scopeKey);
+        if ($store instanceof SessionConfigOverrideStore) {
+            $this->entityManager->remove($store);
+            $this->entityManager->flush();
+        }
     }
 }

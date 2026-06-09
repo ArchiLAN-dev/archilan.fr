@@ -84,7 +84,7 @@ final readonly class GenerateWeeklyRunsMessageHandler
                     $apworldStorageKey,
                     $yamlConfig,
                     $run->getSeed(),
-                    $this->configResolver->resolve(SessionType::Weekly)->generation->toGenerationParams(),
+                    $this->configResolver->resolve(SessionType::Weekly, $templateId)->generation->toGenerationParams(),
                 );
 
                 $this->logger->info('weekly_runs.generate.dispatched', [
