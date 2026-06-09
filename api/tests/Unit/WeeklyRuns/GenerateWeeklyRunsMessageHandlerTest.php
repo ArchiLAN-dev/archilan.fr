@@ -19,6 +19,8 @@ use Symfony\Component\Clock\MockClock;
 
 final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
 {
+    use SessionConfigDefaultsTrait;
+
     private static \DateTimeImmutable $defaultNow;
 
     public static function setUpBeforeClass(): void
@@ -193,6 +195,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             $generator,
             new MockClock($now ?? self::$defaultNow),
             new NullLogger(),
+            $this->defaultsResolver(),
         );
     }
 }

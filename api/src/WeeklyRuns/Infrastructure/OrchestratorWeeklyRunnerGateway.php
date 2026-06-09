@@ -27,10 +27,11 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
     ) {
     }
 
-    public function launchEntry(string $entryId, string $apworldHash, string $templateYaml, string $outputKey): array
+    public function launchEntry(string $entryId, string $apworldHash, string $templateYaml, string $outputKey, array $serverOptions = [], ?string $joinPassword = null): array
     {
         $adminPassword = bin2hex(random_bytes(16));
-        $serverPassword = bin2hex(random_bytes(8));
+        // The join password comes from the resolved config when set, else a random one.
+        $serverPassword = (null !== $joinPassword && '' !== $joinPassword) ? $joinPassword : bin2hex(random_bytes(8));
 
         // 1. Configure the entry session: uploads the template YAML + manifest to MinIO so
         //    the orchestrator can stage /data/yamls + /data/worlds (needed for reachability).
@@ -40,7 +41,7 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
         $output = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
 
         // 3. Inject it into the session volume and launch — no generation is run.
-        $this->client->sessions()->launchFromFile($entryId, $output, basename($outputKey), $adminPassword, $serverPassword);
+        $this->client->sessions()->launchFromFile($entryId, $output, basename($outputKey), $adminPassword, $serverPassword, $serverOptions);
         $this->logger->info('weekly_entry.launch_from_file.triggered', ['entryId' => $entryId]);
 
         // 4. Poll until running and get connection info.

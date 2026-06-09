@@ -6,6 +6,8 @@ namespace App\WeeklyRuns\Application;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\SessionConfig\Application\SessionConfigResolver;
+use App\SessionConfig\Domain\SessionType;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
@@ -22,6 +24,7 @@ final readonly class LaunchWeeklyEntry
         private GameRepositoryInterface $games,
         private WeeklyRunnerGatewayInterface $gateway,
         private ClockInterface $clock,
+        private SessionConfigResolver $configResolver,
     ) {
     }
 
@@ -70,8 +73,23 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('run_not_generated');
         }
 
+        // Resolve the effective server config for this entry (weekly profile ⊕ any per-entry
+        // override), snapshot it for restart determinism, and pass it to the launch. The join
+        // password travels via its own argument; the rest become orchestrator server_options.
+        $config = $this->configResolver->resolve(SessionType::Weekly, $entryId);
+        $this->configResolver->recordResolvedForSession($entryId, $config);
+        $serverOptions = $config->server->toServerFlags();
+        unset($serverOptions['password']);
+
         // The run's generated world is already built; launch reuses it (no regeneration).
-        $result = $this->gateway->launchEntry($entryId, $apworldHash, $template->getYamlConfig(), $outputKey);
+        $result = $this->gateway->launchEntry(
+            $entryId,
+            $apworldHash,
+            $template->getYamlConfig(),
+            $outputKey,
+            $serverOptions,
+            $config->server->joinPassword,
+        );
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $entry->launch($result['externalSessionId'], $now, $result['connectionInfo'], $result['bridgePort']);

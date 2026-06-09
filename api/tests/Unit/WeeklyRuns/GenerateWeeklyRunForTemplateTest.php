@@ -18,6 +18,8 @@ use Symfony\Component\Clock\MockClock;
 
 final class GenerateWeeklyRunForTemplateTest extends TestCase
 {
+    use SessionConfigDefaultsTrait;
+
     private const NOW = '2026-05-18T00:00:00';
 
     public function testGenerateCreatesRunAndDispatchesWhenNoneExists(): void
@@ -142,6 +144,7 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
             $generator,
             new MockClock(new \DateTimeImmutable(self::NOW, new \DateTimeZone('UTC'))),
             new NullLogger(),
+            $this->defaultsResolver(),
         );
     }
 }
