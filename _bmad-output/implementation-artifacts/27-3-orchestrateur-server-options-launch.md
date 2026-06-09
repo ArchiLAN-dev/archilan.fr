@@ -1,6 +1,6 @@
 # Story 27.3: Orchestrateur + archipelago — remaining server_options on launch
 
-Status: review
+Status: done
 
 ## Story
 
