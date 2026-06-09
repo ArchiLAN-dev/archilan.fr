@@ -1,6 +1,6 @@
 # Story 27.5: Wire resolved config into the three launch/generation gateways
 
-Status: review
+Status: done
 
 ## Story
 

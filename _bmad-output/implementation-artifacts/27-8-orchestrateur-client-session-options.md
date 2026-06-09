@@ -1,6 +1,6 @@
 # Story 27.8: orchestrateur-client — forward session options (generate/launch)
 
-Status: review
+Status: done
 
 ## Story
 
