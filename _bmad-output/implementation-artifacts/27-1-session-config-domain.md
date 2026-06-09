@@ -1,6 +1,6 @@
 # Story 27.1: Session config domain — value objects, validation, defaults
 
-Status: review
+Status: done
 
 ## Story
 
