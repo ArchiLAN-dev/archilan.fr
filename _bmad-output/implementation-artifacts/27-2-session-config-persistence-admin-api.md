@@ -1,6 +1,6 @@
 # Story 27.2: Session config persistence + admin API + resolution service
 
-Status: review
+Status: done
 
 ## Story
 
