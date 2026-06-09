@@ -174,14 +174,15 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
 
   return (
     <form
-      className="grid max-w-5xl gap-6"
+      className="grid gap-6"
       onSubmit={(e) => {
         e.preventDefault();
         mutation.mutate(draft);
       }}
     >
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Section description="Politique d'échange des objets restants entre les mondes de la partie." title="Échanges d'objets">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <SelectField hint="Renvoi des objets d'un monde terminé vers les autres." label="Don (!release)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
           <SelectField hint="Récupération de ses objets chez les autres mondes." label="Récupération (!collect)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
           <SelectField hint="Demander la liste des objets encore à recevoir." label="Objets restants (!remaining)" labels={REMAINING_LABELS} onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
@@ -196,7 +197,7 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
       </Section>
 
       <Section description="Comportement de la salle et règles de la partie." title="Salle & partie">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <SelectField hint="Compte à rebours lançable par les joueurs." label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
           <NumberSelectField label="Compatibilité clients" labels={COMPATIBILITY_LABELS} onChange={(n) => patchServer({ compatibility: n })} options={COMPATIBILITY_VALUES} value={server.compatibility} />
           <NumberField hint="Arrêt du serveur après ce délai sans check (0 = jamais)." label="Arrêt auto (s)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
@@ -250,6 +251,7 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           </div>
         </div>
       </Section>
+      </div>
 
       <div className="flex items-center gap-3">
         <button
