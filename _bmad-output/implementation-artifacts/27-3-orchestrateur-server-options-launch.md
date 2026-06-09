@@ -1,6 +1,6 @@
 # Story 27.3: Orchestrateur + archipelago — remaining server_options on launch
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -42,16 +42,16 @@ archipelago `ap_server.sh`/`entrypoint.sh` `--release_mode`/`--collect_mode`). T
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 (archipelago) — Add the flags to `ap_server.sh` and `entrypoint.sh` with `${VAR:-default}`
+- [x] Task 1 (archipelago) — Add the flags to `ap_server.sh` and `entrypoint.sh` with `${VAR:-default}`
   env indirection; verify exact argparse names/semantics against the bundled `MultiServer.py`. `sh -n`.
-- [ ] Task 2 (orchestrateur) — Extend `LaunchRequest` + `APServerCreateConfig` (internal/service,
+- [x] Task 2 (orchestrateur) — Extend `LaunchRequest` + `APServerCreateConfig` (internal/service,
   internal/docker) with the new fields; append env in `CreateAPServer` only when non-empty; thread
   through `Launch → startSession → CreateAPServer` (same shape as ReleaseMode/CollectMode).
-- [ ] Task 3 (orchestrateur) — Validation helpers (reuse/extend `validAPMode`; add range checks); map to
+- [x] Task 3 (orchestrateur) — Validation helpers (reuse/extend `validAPMode`; add range checks); map to
   400 in `writeSessionError`. Extend `internal/service/mode_test.go`.
-- [ ] Task 4 (orchestrateur) — API: `LaunchSessionRequest` JSON fields + `/launch-from-file` form values
+- [x] Task 4 (orchestrateur) — API: `LaunchSessionRequest` JSON fields + `/launch-from-file` form values
   + swagger `@Param`.
-- [ ] Task 5 — `go build/vet/test`; PR to orchestrateur `master`; PR to archipelago `master`; both CI green.
+- [x] Task 5 — `go build/vet/test`; PR to orchestrateur `master`; PR to archipelago `master`; both CI green.
 
 ## Dev Notes
 
@@ -83,14 +83,43 @@ archipelago `ap_server.sh`/`entrypoint.sh` `--release_mode`/`--collect_mode`). T
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code).
+
 ### Debug Log References
+
+- Verified exact flags in bundled `MultiServer.py` argparse: the countdown flag is
+  `--countdown_mode` (not `--countdown`); `--disable_item_cheat` is `store_true` (presence-only);
+  `--hint_cost`, `--location_check_points`, `--auto_shutdown`, `--compatibility` are value args;
+  `--remaining_mode` choices `enabled|disabled|goal`.
 
 ### Completion Notes List
 
+- **archipelago** (PR archilan-archipelago#3, merged to `master`): `ap_server.sh` + `entrypoint.sh`
+  rebuilt with `set --` so the presence-only `--disable_item_cheat` is appended conditionally; value
+  flags use `${VAR:-default}` with defaults = AP defaults (so unset env = no behaviour change);
+  release/collect keep forced `disabled`.
+- **orchestrateur** (PR archilan-orchestrateur#6, merged to `master`): `LaunchRequest` +
+  `APServerCreateConfig` gained `RemainingMode`, `CountdownMode` (strings), `DisableItemCheat` (*bool),
+  `HintCost`/`LocationCheckPoints`/`AutoShutdown`/`Compatibility` (*int — pointers so meaningful zeros
+  like `compatibility=0` are distinct from unset). `CreateAPServer` emits each env only when set.
+  `validateServerOptions` validates modes + int ranges → 400 (`ErrInvalidMode`). API: JSON
+  `LaunchSessionRequest` + `/launch-from-file` form parsing (`parseOptInt`/`parseOptBool` +
+  `serverOptionsFromForm`); swagger `@Param` updated. `startSession` refactored to take the
+  `LaunchRequest`. `go build/vet/test` green (`TestValidateServerOptions`).
+- Both `:latest` images built on `master` merge. **Requires redeploy** to take effect on launched
+  servers; applies to new launches only.
+- Not in this story: the api/ resolution + wiring (27.5) and the config store/UI (27.1/27.2/27.6) —
+  this story only gives the orchestrateur/archipelago the *capability* to accept the options.
+
 ### File List
+
+- archilan-archipelago: `ap_server.sh`, `entrypoint.sh` (modified).
+- archilan-orchestrateur: `internal/service/session.go`, `internal/docker/client.go`,
+  `internal/api/types.go`, `internal/api/session_handlers.go`, `internal/service/mode_test.go` (modified).
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-09 | Story created from epic 27 plan (orchestrateur/archipelago server_options). |
+| 2026-06-09 | Implemented: archipelago#3 + orchestrateur#6 merged to `master`, CI green, `:latest` rebuilt. Status → review. |
