@@ -1,12 +1,18 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CalendarDays, ImageIcon, MessageCircle, Radio } from "lucide-react";
+import { ArrowRight, CalendarDays, MessageCircle, Radio } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
 import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twitch-embed";
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
 import { CommunityStatsWidget } from "@/features/community/community-stats-widget";
+import { EventCard, EventsEmptyState } from "@/features/events/event-card";
+import { getPublicEvents } from "@/features/events/public-events-api";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const { upcoming, past } = await getPublicEvents();
+
   return (
     <div className="grid gap-24">
 
@@ -117,14 +123,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Galerie événements */}
-      <section aria-labelledby="gallery-heading" className="border-t border-border pt-12">
+      {/* Événements - dynamiques (à venir + passés) */}
+      <section aria-labelledby="events-heading" className="border-t border-border pt-12">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
-              En images
+              Agenda
             </p>
-            <h2 className="font-heading text-3xl font-bold text-foreground text-on-canvas" id="gallery-heading">
+            <h2 className="font-heading text-3xl font-bold text-foreground text-on-canvas" id="events-heading">
               Nos événements
             </h2>
           </div>
@@ -136,58 +142,37 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Grille - large + 2 colonnes */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {upcoming.length === 0 && past.length === 0 ? (
+          <EventsEmptyState />
+        ) : (
+          <div className="grid gap-12">
+            {upcoming.length > 0 ? (
+              <div>
+                <h3 className="mb-5 font-heading text-xl font-semibold text-foreground text-on-canvas">
+                  À venir
+                </h3>
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {upcoming.slice(0, 3).map((event) => (
+                    <EventCard event={event} key={event.id} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
-          {/* Grande photo - 2 colonnes sur lg */}
-          <div className="relative aspect-[4/3] overflow-hidden rounded-lg sm:col-span-2 lg:col-span-1 lg:row-span-2 lg:aspect-auto lg:min-h-[480px]">
-            <Image
-              alt="Participants lors d'ArchiLAN 3 - vue générale"
-              className="object-cover object-[60%_40%]"
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 33vw"
-              src="/images/events/lan-photo-1.webp"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
-            <p className="absolute bottom-3 left-3 text-xs font-semibold uppercase tracking-widest text-white/70">
-              ARCHILAN 3
-            </p>
+            {past.length > 0 ? (
+              <div>
+                <h3 className="mb-5 font-heading text-xl font-semibold text-foreground text-on-canvas">
+                  Passés
+                </h3>
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {past.slice(0, 3).map((event) => (
+                    <EventCard event={event} key={event.id} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
-
-          {/* Photo - crop haut (écran de jeu) */}
-          <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
-            <Image
-              alt="Écran de jeu lors d'ArchiLAN 3"
-              className="object-cover object-[50%_60%]"
-              fill
-              sizes="(max-width: 640px) 100vw, 50vw"
-              src="/images/events/lan-photo-1.webp"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
-            <p className="absolute bottom-3 left-3 text-xs font-semibold uppercase tracking-widest text-white/70">
-              ARCHILAN 3
-            </p>
-          </div>
-
-          {/* Placeholder */}
-          <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-surface/40 backdrop-blur-sm text-center">
-            <ImageIcon aria-hidden="true" className="size-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground/60">Photos à venir</p>
-          </div>
-
-          {/* Placeholder */}
-          <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-surface/40 backdrop-blur-sm text-center">
-            <ImageIcon aria-hidden="true" className="size-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground/60">Photos à venir</p>
-          </div>
-
-          {/* Placeholder */}
-          <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-surface/40 backdrop-blur-sm text-center">
-            <ImageIcon aria-hidden="true" className="size-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground/60">Photos à venir</p>
-          </div>
-
-        </div>
+        )}
       </section>
 
       {/* Stats communautaires */}

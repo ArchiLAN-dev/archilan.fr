@@ -14,11 +14,14 @@ use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
 use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 
 final class LaunchWeeklyEntryTest extends TestCase
 {
+    use SessionConfigDefaultsTrait;
+
     private static MockClock $clock;
 
     public static function setUpBeforeClass(): void
@@ -127,6 +130,32 @@ final class LaunchWeeklyEntryTest extends TestCase
         self::assertSame('sessions/weekly-gen-run-1/output/AP_1.zip', $capturedArgs['outputKey']);
     }
 
+    public function testInvokeForwardsResolvedServerOptions(): void
+    {
+        $run = $this->makeRun();
+        $entry = $this->makeEntry();
+
+        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs->method('findById')->willReturn($run);
+
+        $entries = $this->createMock(WeeklyEntryRepositoryInterface::class);
+        $entries->method('findById')->willReturn($entry);
+        $entries->method('flush');
+
+        $gateway = new SpyWeeklyRunnerGateway();
+
+        $this->makeHandler($runs, $entries, $gateway)->execute('run-1', 'entry-1', 'user-1');
+
+        self::assertCount(1, $gateway->launchCalls);
+        $call = $gateway->launchCalls[0];
+        // The weekly default profile is forwarded as orchestrator server_options.
+        self::assertSame('disabled', $call['serverOptions']['releaseMode']);
+        self::assertSame('disabled', $call['serverOptions']['collectMode']);
+        self::assertTrue($call['serverOptions']['disableItemCheat']);
+        self::assertArrayNotHasKey('password', $call['serverOptions']);
+        self::assertNull($call['joinPassword']);
+    }
+
     public function testFlushFailureCallsTerminate(): void
     {
         $run = $this->makeRun();
@@ -222,6 +251,6 @@ final class LaunchWeeklyEntryTest extends TestCase
         $games = $this->createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($gameStub);
 
-        return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock);
+        return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock, $this->defaultsResolver());
     }
 }

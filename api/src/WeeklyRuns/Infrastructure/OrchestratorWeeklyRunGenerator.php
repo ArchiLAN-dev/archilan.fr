@@ -27,6 +27,7 @@ final readonly class OrchestratorWeeklyRunGenerator implements WeeklyRunGenerato
         string $apworldStorageKey,
         string $templateYaml,
         string $seed,
+        array $generationOptions = [],
     ): void {
         $genSessionId = self::GENERATOR_SESSION_PREFIX.$weeklyRunId;
         // (constant defined on WeeklyRunGeneratorInterface, implemented here)
@@ -46,7 +47,7 @@ final readonly class OrchestratorWeeklyRunGenerator implements WeeklyRunGenerato
         // 3. Kick off generation with the run's deterministic seed — non-blocking.
         //    Completion arrives later via the `session.generated` webhook (outputKey),
         //    which marks the run launchable. We never poll here.
-        $this->client->sessions()->generate($genSessionId, bin2hex(random_bytes(16)), $seed);
+        $this->client->sessions()->generate($genSessionId, bin2hex(random_bytes(16)), $seed, $generationOptions);
     }
 
     private function configureSession(string $sessionId, string $apworldHash, string $templateYaml): void

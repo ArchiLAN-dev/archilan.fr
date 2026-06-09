@@ -13,6 +13,7 @@ final class NullWeeklyRunGenerator implements WeeklyRunGeneratorInterface
         string $apworldStorageKey,
         string $templateYaml,
         string $seed,
+        array $generationOptions = [],
     ): void {
         // No-op: generation completion is simulated in tests via the webhook path.
     }

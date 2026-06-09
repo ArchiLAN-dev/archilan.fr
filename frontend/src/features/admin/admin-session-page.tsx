@@ -31,6 +31,9 @@ import { env } from "@/lib/env";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
+import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
+import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
+import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -537,6 +540,18 @@ export function AdminSessionDetailPage({
         session={session}
         slots={slots}
       />
+      <CollapsibleConfigPanel title="Configuration avancée (override de la session)">
+        <SessionConfigOverrideForm
+          adapter={{
+            queryKey: ["session-override", "event-session", sessionId],
+            load: () => loadOverride(`/admin/session-config/override/${sessionId}`),
+            loadProfile: () => fetchSessionConfig("event"),
+            save: (o) => saveOverride(`/admin/session-config/override/${sessionId}`, o),
+            clear: () => clearOverride(`/admin/session-config/override/${sessionId}`),
+          }}
+          scopeLabel="cette session"
+        />
+      </CollapsibleConfigPanel>
     </PageShell>
   );
 }

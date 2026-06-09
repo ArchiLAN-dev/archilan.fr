@@ -25,7 +25,7 @@
         "ext-iconv": "*",
         "archilan/bridge-client": "^1.0",
         "archilan/bridge-client-bundle": ">=1@dev",
-        "archilan/orchestrateur-client": ">=1",
+        "archilan/orchestrateur-client": ">=1.1",
         "aws/aws-sdk-php": "^3.381.2",
         "doctrine/doctrine-bundle": "^3.2.2",
         "doctrine/doctrine-migrations-bundle": "^4.0",

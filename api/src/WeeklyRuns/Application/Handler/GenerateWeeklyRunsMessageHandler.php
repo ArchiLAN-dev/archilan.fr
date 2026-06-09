@@ -6,6 +6,8 @@ namespace App\WeeklyRuns\Application\Handler;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\SessionConfig\Application\SessionConfigResolver;
+use App\SessionConfig\Domain\SessionType;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
@@ -25,6 +27,7 @@ final readonly class GenerateWeeklyRunsMessageHandler
         private WeeklyRunGeneratorInterface $generator,
         private ClockInterface $clock,
         private LoggerInterface $logger,
+        private SessionConfigResolver $configResolver,
     ) {
     }
 
@@ -81,6 +84,7 @@ final readonly class GenerateWeeklyRunsMessageHandler
                     $apworldStorageKey,
                     $yamlConfig,
                     $run->getSeed(),
+                    $this->configResolver->resolve(SessionType::Weekly, $templateId)->generation->toGenerationParams(),
                 );
 
                 $this->logger->info('weekly_runs.generate.dispatched', [

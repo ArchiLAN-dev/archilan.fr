@@ -1,6 +1,6 @@
 # Story 23.13: Weekly Run — Live End-to-End Smoke Test
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -61,24 +61,24 @@ change more inter-service contracts.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 (AC: 1, 8): Choose the harness and location. Recommended: a shell orchestration
+- [x] Task 1 (AC: 1, 8): Choose the harness and location. Recommended: a shell orchestration
   script under `scripts/e2e/` (drives the stack + asserts via `docker exec`, `mc`, `php bin/console`),
   since the flow spans Go + PHP + Docker + MinIO and no single test runner covers it. Decide
   CI vs runbook based on runner Docker capabilities.
-- [ ] Task 2 (AC: 2): Implement the trigger + wait-for-generated:
+- [x] Task 2 (AC: 2): Implement the trigger + wait-for-generated:
   - dispatch generation (prefer the real admin endpoint with an authenticated admin; fall back to
     a `messenger:`/console trigger). Do NOT ship a debug command in `src/` — use a test-only path.
   - poll `weekly_runs.generated_output_key` (DBAL) until set, bounded timeout.
-- [ ] Task 3 (AC: 3, 6): Fetch the artifact via the admin endpoint and assert: HTTP 200,
+- [x] Task 3 (AC: 3, 6): Fetch the artifact via the admin endpoint and assert: HTTP 200,
   `Content-Disposition` filename `weekly-run-{runId}.zip`, body magic `PK\x03\x04`, and entry list
   (flat real files; reject nested `.zip` / lone `.archipelago`).
-- [ ] Task 4 (AC: 4): Opt-in + launch an entry; assert the session volume `/data/output` holds the
+- [x] Task 4 (AC: 4): Opt-in + launch an entry; assert the session volume `/data/output` holds the
   loose files incl. the per-player patch; assert the bridge `/output` patch list exposes the `.aplm`.
-- [ ] Task 5 (AC: 5): Run `ArchipelagoServer` on the extracted seed (or assert the launched
+- [x] Task 5 (AC: 5): Run `ArchipelagoServer` on the extracted seed (or assert the launched
   ap-server container is healthy + its logs show the game hosted) — no load error.
-- [ ] Task 6 (AC: 7): Teardown: terminate the orchestrateur session(s), remove temp containers,
+- [x] Task 6 (AC: 7): Teardown: terminate the orchestrateur session(s), remove temp containers,
   delete the created run + entry + MinIO objects. Make the whole script idempotent.
-- [ ] Task 7 (AC: 8): Wire a CI job (services) or a `make e2e-weekly` target + runbook in
+- [x] Task 7 (AC: 8): Wire a CI job (services) or a `make e2e-weekly` target + runbook in
   `docs/`/README; document prerequisites (`archilan_test`/dev DB, stack up, AP image built).
 
 ## Dev Notes
@@ -151,14 +151,53 @@ rather than inventing new ones.
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code, bmad-dev-story workflow).
+
 ### Debug Log References
+
+- Two parsing bugs found+fixed while bringing the script up against the live stack:
+  - template/run id extraction matched the `d` of `"id"` via `grep -oE '[0-9a-f]+'`; replaced with
+    `sed -E 's/.*"id":"([0-9a-f]+)".*/\1/'`.
+  - download 404 — the script polled "any run hasOutput" but captured `data[0]`, mismatching when an
+    older generated run existed. Fixed by selecting the newest run for the template from the DB
+    (`ORDER BY created_at DESC LIMIT 1`), pre-deleting the current-week run so generation creates a
+    fresh deterministic row, then polling that exact run's `generated_output_key`.
+- Windows/git-bash MSYS path mangling on `docker cp`/`exec` worked around with `MSYS_NO_PATHCONV=1`
+  and container-to-container `docker cp - | docker cp -` streams (no-op on Linux/CI).
 
 ### Completion Notes List
 
+- Implemented `scripts/e2e/weekly-smoke.sh`: self-contained, idempotent, self-cleaning (EXIT trap).
+  Provisions a throwaway admin (SQL + `security:hash-password`), logs in via the real endpoint
+  (manual `Secure`-cookie handling so it works over plain `http://localhost`), triggers generation,
+  polls the run's `generated_output_key` (DBAL) until the artifact is present, downloads via the real
+  admin endpoint, asserts the flat-zip contract (`.archipelago` + per-player patch; rejects zip-in-zip
+  and lone multidata; filename `weekly-run-{runId}.zip`), opts-in + launches an entry, asserts the
+  session volume `/data/output` holds the loose files, the member patch list exposes the `.aplm`, and
+  the ap-server hosts the seed.
+- **Verified live** against the local `archilan` stack — full happy path PASSED end-to-end on run
+  `d34cfc972db9d721`: provision ✓, login ✓, generation ✓, download `weekly-run-d34cfc972db9d721.zip`
+  ✓ (entries `AP_*_P2_Player1.aplm` + `AP_*_Spoiler.txt` + `*.archipelago`, "artifact contract OK"),
+  launch entry `1f06885aa7227d12` ✓ ("launch restored loose files"), "member patch list exposes the
+  patch" ✓, "seed hosts (ap-server listening)" ✓. Cleanup left 0 test-admin rows, 0 run rows, 0 orphan
+  containers; `bash -n` clean; re-runnable.
+- **AC8 — CI vs runbook:** ships as a single-command runbook gated behind `make e2e-weekly` (a full
+  CI job needs Docker-in-Docker + the large archipelago image build). Wiring CI is the documented
+  follow-up (see `scripts/e2e/README.md`); the automation itself exists and passes locally, satisfying
+  AC8's "must exist and pass locally" clause.
+- No production `src/` changes — no throwaway console command left behind (the 23.x `Debug*Command`
+  experiments were deleted; this triggers generation via the real admin endpoint).
+
 ### File List
+
+- `scripts/e2e/weekly-smoke.sh` (new) — the live E2E smoke test.
+- `scripts/e2e/README.md` (new) — runbook: what it checks, prerequisites, run/config, known limits.
+- `Makefile` (new) — `e2e-weekly` target.
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-08 | Story created from epic 23 retrospective action item #1 (live weekly E2E smoke test). |
+| 2026-06-08 | Implemented `scripts/e2e/weekly-smoke.sh` + `make e2e-weekly` + runbook; verified live (run `d34cfc972db9d721`). Tasks 1–7 done, AC8 via runbook (CI = follow-up). Status → review. |
+| 2026-06-08 | Merged to `develop` (PR #43). Status → done. |
