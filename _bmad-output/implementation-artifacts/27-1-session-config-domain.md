@@ -1,6 +1,6 @@
 # Story 27.1: Session config domain — value objects, validation, defaults
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -51,18 +51,18 @@ The options split into two enforcement points (see epic): **server** (launch-tim
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Decide context + create skeleton (AC: 1, 2). Either reuse `App\Sessions\Domain` or add a
+- [x] Task 1 — Decide context + create skeleton (AC: 1, 2). Either reuse `App\Sessions\Domain` or add a
   new bounded context `SessionConfig` (if new: register in `DddArchitectureValidator::CONTEXTS`, add
   Domain exclusion in `services.yaml` — see api/CLAUDE.md "Adding a new context"). Prefer a dedicated
   `SessionConfig` context since the config is shared by Sessions, WeeklyRuns and PersonalRuns.
-- [ ] Task 2 — Implement enums (PHP 8.1 backed enums with the exact AP string values) for release,
+- [x] Task 2 — Implement enums (PHP 8.1 backed enums with the exact AP string values) for release,
   collect, remaining, countdown, compatibility, spoiler; a `PlandoOption` enum + set wrapper.
-- [ ] Task 3 — Implement `SessionServerConfig` + `SessionGenerationConfig` (`final readonly`,
+- [x] Task 3 — Implement `SessionServerConfig` + `SessionGenerationConfig` (`final readonly`,
   validation in constructor, no setters; AC: 1–3).
-- [ ] Task 4 — Implement `SessionConfigOverride` (all fields nullable) + `withOverride()` merge (AC: 5).
-- [ ] Task 5 — Implement per-type default factories + the `toServerFlags()`/`toGenerationParams()`
+- [x] Task 4 — Implement `SessionConfigOverride` (all fields nullable) + `withOverride()` merge (AC: 5).
+- [x] Task 5 — Implement per-type default factories + the `toServerFlags()`/`toGenerationParams()`
   seams (AC: 4, 6).
-- [ ] Task 6 — Unit tests `tests/Unit/SessionConfig/...` (AC: 7) and run all four API gates (AC: 8).
+- [x] Task 6 — Unit tests `tests/Unit/SessionConfig/...` (AC: 7) and run all four API gates (AC: 8).
 
 ## Dev Notes
 
@@ -111,14 +111,47 @@ The options split into two enforcement points (see epic): **server** (launch-tim
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code).
+
 ### Debug Log References
+
+- PHPStan flagged the runtime `instanceof PlandoOption` in `SessionGenerationConfig` as
+  always-true (the `list<PlandoOption>` type already guarantees it). Removed it — element
+  validity is enforced at the input boundary via `PlandoOption::fromString` (27.2), the
+  constructor only dedupes.
+- Added `SessionConfig` to the `DddArchitectureValidatorTest` fixture's context list (it
+  mirrors the validator `CONTEXTS`), else the fixture lacked the new context dir.
 
 ### Completion Notes List
 
+- New bounded context `App\SessionConfig` (Domain only). Registered in
+  `DddArchitectureValidator::CONTEXTS` and excluded in `services.yaml` (Domain has no services).
+  No Doctrine mapping (value objects, no entities). Persistence is 27.2.
+- Enums (exact AP string/int values): `ReleaseCollectMode`, `RemainingMode`, `CountdownMode`,
+  `Compatibility` (int 0/1/2), `SpoilerLevel` (int 0..3), `PlandoOption`, `SessionType`. Each
+  has a `from*()` that throws `\DomainException('invalid_*')`.
+- `SessionServerConfig` (`final readonly`): validates `hintCost` 0..100, `locationCheckPoints` ≥ 0,
+  `autoShutdown` ≥ 0; `toServerFlags()` maps to the orchestrateur field names (omits empty
+  `joinPassword`). `SessionGenerationConfig`: dedupes plando, `toGenerationParams()`.
+- `SessionConfigOverride` (all-nullable) + `SessionConfig` (server + generation) with
+  `defaultsFor(SessionType)` (weekly/event competitive, private lax — default table in Dev Notes)
+  and per-field `withOverride()`.
+- Gates green: phpstan (max, 0), php-cs-fixer (@Symfony, 0), `app:architecture:ddd` (0), phpunit
+  (948 incl. 14 new SessionConfig tests / 48 assertions).
+
 ### File List
+
+- `api/src/SessionConfig/Domain/`: `ReleaseCollectMode.php`, `RemainingMode.php`, `CountdownMode.php`,
+  `Compatibility.php`, `SpoilerLevel.php`, `PlandoOption.php`, `SessionType.php`,
+  `SessionServerConfig.php`, `SessionGenerationConfig.php`, `SessionConfigOverride.php`,
+  `SessionConfig.php` (all new).
+- `api/src/Shared/Application/DddArchitectureValidator.php` (modified — `SessionConfig` context).
+- `api/config/services.yaml` (modified — Domain exclude).
+- `api/tests/Unit/SessionConfig/` (new — 3 test classes); `api/tests/Unit/DddArchitectureValidatorTest.php` (fixture).
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-09 | Story created from epic 27 plan (config domain core). |
+| 2026-06-09 | Implemented `App\SessionConfig` domain (enums, VOs, defaults, override merge) + tests. All API gates green. Status → review. |
