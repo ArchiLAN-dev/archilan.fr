@@ -64,6 +64,9 @@ services:
             - '../src/WeeklyRuns/Domain/'
             - '../src/SessionConfig/Domain/'
 
+    App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigProfileRepository'
+    App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigOverrideRepository'
+
     App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyTemplateRepository'
     App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyEntryRepository'

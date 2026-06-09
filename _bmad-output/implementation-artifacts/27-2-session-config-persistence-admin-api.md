@@ -1,6 +1,6 @@
 # Story 27.2: Session config persistence + admin API + resolution service
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -40,16 +40,16 @@ read/update a profile, and a **resolution service** that computes the effective 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Migration `Version{ts}.php`: `session_config_profiles` (+ seed 3 rows) and
+- [x] Task 1 — Migration `Version{ts}.php`: `session_config_profiles` (+ seed 3 rows) and
   `session_config_overrides` (AC: 1, 2). Follow api/CLAUDE.md migration standards (timestamp +1s, reversible).
-- [ ] Task 2 — Domain repository interface (`SessionConfigProfileRepositoryInterface`) + Doctrine impl;
+- [x] Task 2 — Domain repository interface (`SessionConfigProfileRepositoryInterface`) + Doctrine impl;
   Application query interface for reads + DBAL impl (AC-A2). Map JSON ⇄ 27.1 VOs.
-- [ ] Task 3 — `AdminSessionConfigQuery` (read) + `AdminUpdateSessionConfig` (write, validates via VOs)
+- [x] Task 3 — `AdminSessionConfigQuery` (read) + `AdminUpdateSessionConfig` (write, validates via VOs)
   application services (AC: 3, 4).
-- [ ] Task 4 — Controllers `AdminSessionConfigController` (GET) + `AdminUpdateSessionConfigController`
+- [x] Task 4 — Controllers `AdminSessionConfigController` (GET) + `AdminUpdateSessionConfigController`
   (PUT), admin-only, error mapping (422 `invalid_*`, 404 `unknown_type`) (AC: 3, 4).
-- [ ] Task 5 — `SessionConfigResolver` + `recordResolvedForSession` (AC: 5, 6).
-- [ ] Task 6 — Functional tests (`WebTestCase`, schema per class) + run gates (AC: 7, 8).
+- [x] Task 5 — `SessionConfigResolver` + `recordResolvedForSession` (AC: 5, 6).
+- [x] Task 6 — Functional tests (`WebTestCase`, schema per class) + run gates (AC: 7, 8).
 
 ## Dev Notes
 
@@ -80,14 +80,57 @@ read/update a profile, and a **resolution service** that computes the effective 
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code).
+
 ### Debug Log References
+
+- Chose **ORM entities** (`SessionConfigProfile`, `SessionConfigOverrideStore`) over DBAL-only
+  so the functional `SchemaTool::createSchema(getAllMetadata())` creates the tables in tests, and
+  to satisfy AC-A2 ("repositories use Doctrine ORM"). Registered the context in `doctrine.yaml`.
+- `get(type)` falls back to `SessionConfig::defaultsFor(type)` when no row exists → no seed
+  migration needed, and functional tests (empty tables) get defaults automatically.
+- phpstan: ORM `updatedAt`/`sessionId` flagged write-only → added getters; array-mapping helper
+  return types set to `array<array-key, mixed>` (is_array can't prove string keys); functional
+  test narrows nested JSON with per-level `assertIsArray`.
 
 ### Completion Notes List
 
+- **Domain:** added `SessionConfig::toArray()/fromArray()` and `SessionConfigOverride::toArray()/
+  fromArray()/fromConfig()` (canonical array form, single mapping for storage + API; `fromArray`
+  throws `invalid_*` on malformed input). Two ORM entities + two repository interfaces.
+- **Infrastructure:** `DoctrineSessionConfigProfileRepository` (upsert + default fallback) and
+  `DoctrineSessionConfigOverrideRepository`, both ORM via `EntityManagerInterface` + `ClockInterface`.
+- **Application:** `SessionConfigResolver` (`resolve(type, ?sessionId)` = profile ⊕ override;
+  `recordResolvedForSession` snapshots the effective config as a full override for restart
+  determinism — used by 27.5); `AdminSessionConfigQuery` (read); `AdminUpdateSessionConfig`
+  (validates via VOs, persists).
+- **Presentation:** `GET`/`PUT /api/v1/admin/session-config/{type}`, admin-only; unknown type → 404,
+  invalid body → 400, invalid field → 422 (`invalid_*` code).
+- **Migration** `Version20260609100001` creates `session_config_profiles` +
+  `session_config_overrides` (no seed — defaults come from the domain).
+- services.yaml binds the two repo interfaces; doctrine.yaml maps the `SessionConfig` context.
+- Gates green: phpstan max (0), php-cs-fixer @Symfony (0), `app:architecture:ddd` (0), phpunit
+  (962, +14 new: array round-trip, resolver merge/snapshot, GET/PUT functional incl. auth + 422).
+
 ### File List
+
+- `api/src/SessionConfig/Domain/`: `SessionConfig.php`, `SessionConfigOverride.php` (modified —
+  array mapping); `SessionConfigProfile.php`, `SessionConfigOverrideStore.php`,
+  `SessionConfigProfileRepositoryInterface.php`, `SessionConfigOverrideRepositoryInterface.php` (new).
+- `api/src/SessionConfig/Infrastructure/`: `DoctrineSessionConfigProfileRepository.php`,
+  `DoctrineSessionConfigOverrideRepository.php` (new).
+- `api/src/SessionConfig/Application/`: `SessionConfigResolver.php`, `AdminSessionConfigQuery.php`,
+  `AdminUpdateSessionConfig.php` (new).
+- `api/src/SessionConfig/Presentation/Admin/`: `AdminSessionConfigController.php`,
+  `AdminUpdateSessionConfigController.php` (new).
+- `api/migrations/Version20260609100001.php` (new); `api/config/services.yaml`,
+  `api/config/packages/doctrine.yaml` (modified).
+- `api/tests/Unit/SessionConfig/SessionConfigArrayTest.php`, `SessionConfigResolverTest.php`,
+  `api/tests/Functional/AdminSessionConfigTest.php` (new).
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-09 | Story created from epic 27 plan (persistence + admin API + resolver). |
+| 2026-06-09 | Implemented: ORM entities + repos, resolver (+snapshot), admin GET/PUT, migration, tests. All API gates green. Status → review. |

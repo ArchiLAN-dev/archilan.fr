@@ -74,6 +74,12 @@ doctrine:
                 dir: '%kernel.project_dir%/src/WeeklyRuns/Domain'
                 prefix: 'App\WeeklyRuns\Domain'
                 alias: WeeklyRuns
+            SessionConfig:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/SessionConfig/Domain'
+                prefix: 'App\SessionConfig\Domain'
+                alias: SessionConfig
 
 when@test:
     doctrine:
