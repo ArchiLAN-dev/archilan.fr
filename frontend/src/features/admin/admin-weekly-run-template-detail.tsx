@@ -7,6 +7,8 @@ import { notFound } from "next/navigation";
 import { useState } from "react";
 
 import { CurrentRunCard } from "./admin-weekly-run-cards";
+import { clearOverride, loadOverride, saveOverride } from "./admin-session-config-api";
+import { SessionConfigOverrideForm } from "./session-config-override-form";
 import {
   downloadAdminWeeklyRunOutput,
   fetchAdminTemplateRuns,
@@ -140,6 +142,23 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
           ) : null}
         </div>
       </header>
+
+      <details className="rounded-xl border border-border bg-surface">
+        <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-foreground">
+          Configuration avancée (override du template)
+        </summary>
+        <div className="border-t border-border p-5">
+          <SessionConfigOverrideForm
+            adapter={{
+              queryKey: ["session-override", "weekly-template", templateId],
+              load: () => loadOverride(`/admin/session-config/override/${templateId}`),
+              save: (o) => saveOverride(`/admin/session-config/override/${templateId}`, o),
+              clear: () => clearOverride(`/admin/session-config/override/${templateId}`),
+            }}
+            scopeLabel="ce template (toutes ses entrées)"
+          />
+        </div>
+      </details>
 
       {/* Runs (current + past) */}
       <section>
