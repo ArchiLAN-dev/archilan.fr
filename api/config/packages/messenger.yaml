@@ -43,6 +43,10 @@ framework:
             'App\PersonalRuns\Application\Message\StopPersonalRunJob': run_server
             'App\Identity\Application\Message\SyncDiscordRoleMessage': async
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
+            'App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage': async
+            'App\Identity\Application\Message\CleanupPasswordResetTokensMessage': async
+            'App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage': async
+            'App\Events\Application\Message\CleanupEventPrivateAccessLogMessage': async
             'App\Membership\Application\Message\ExpireMembershipMessage': async
             'App\Membership\Application\Message\MembershipReminderMessage': async
             'App\Membership\Application\Message\MembershipActivatedNotificationMessage': async

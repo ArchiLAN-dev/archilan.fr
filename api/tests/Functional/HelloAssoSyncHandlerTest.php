@@ -181,7 +181,7 @@ final class HelloAssoSyncHandlerTest extends FunctionalTestCase
         );
 
         $orderRepository = new DoctrineHelloAssoOrderRepository($this->entityManager);
-        $syncLogRepository = new DoctrineHelloAssoSyncLogRepository($this->entityManager);
+        $syncLogRepository = new DoctrineHelloAssoSyncLogRepository($this->entityManager, $this->entityManager->getConnection());
 
         return new SyncHelloAssoFormHandler($client, $orderRepository, $syncLogRepository, $bus ?? new class implements MessageBusInterface {
             public function dispatch(object $message, array $stamps = []): Envelope
