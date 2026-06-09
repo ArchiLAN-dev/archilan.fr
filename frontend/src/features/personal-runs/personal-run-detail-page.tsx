@@ -21,7 +21,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useAuth } from "@/features/auth/auth-context";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
-import { clearOverride, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
+import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
@@ -673,6 +673,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 adapter={{
                   queryKey: ["session-override", "private-run", run.id],
                   load: () => loadOverride(`/runs/${run.id}/config-override`),
+                  loadProfile: () => loadOverrideProfile(`/runs/${run.id}/config-override`),
                   save: (o) => saveOverride(`/runs/${run.id}/config-override`, o),
                   clear: () => clearOverride(`/runs/${run.id}/config-override`),
                 }}

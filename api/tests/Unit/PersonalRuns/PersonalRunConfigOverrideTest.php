@@ -10,7 +10,10 @@ use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\SessionConfig\Application\ClearSessionConfigOverride;
 use App\SessionConfig\Application\SessionConfigOverrideQuery;
 use App\SessionConfig\Application\SetSessionConfigOverride;
+use App\SessionConfig\Domain\SessionConfig;
 use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
+use App\SessionConfig\Domain\SessionType;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunConfigOverrideTest extends TestCase
@@ -20,11 +23,15 @@ final class PersonalRunConfigOverrideTest extends TestCase
         $runs = $this->createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
+        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Private));
+
         return new PersonalRunConfigOverride(
             $runs,
             new SessionConfigOverrideQuery($overrides),
             new SetSessionConfigOverride($overrides),
             new ClearSessionConfigOverride($overrides),
+            $profiles,
         );
     }
 

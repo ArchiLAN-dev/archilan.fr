@@ -13,13 +13,16 @@ import {
   RELEASE_COLLECT_MODES,
   REMAINING_MODES,
   SPOILER_LEVELS,
+  type SessionConfig,
 } from "./admin-session-config-api";
 
 // Adapter so the same editor serves the admin endpoints (weekly template / event session)
-// and the owner endpoint (private run). Each returns the partial override object.
+// and the owner endpoint (private run). Each returns the partial override object, plus the
+// resolved profile (the values inherited by unset fields).
 export type OverrideAdapter = {
   queryKey: readonly unknown[];
   load: () => Promise<Record<string, unknown>>;
+  loadProfile: () => Promise<SessionConfig | null>;
   save: (override: Record<string, unknown>) => Promise<{ ok: true } | { ok: false; error: string }>;
   clear: () => Promise<boolean>;
 };
@@ -27,12 +30,14 @@ export type OverrideAdapter = {
 type OverrideValue = string | number | boolean | string[];
 
 type FieldDef =
-  | { key: string; label: string; kind: "select"; options: readonly string[]; labels: Record<string, string>; fallback: string }
-  | { key: string; label: string; kind: "int"; min?: number; max?: number; fallback: number }
-  | { key: string; label: string; kind: "intselect"; options: readonly number[]; labels: Record<number, string>; fallback: number }
-  | { key: string; label: string; kind: "bool"; fallback: boolean }
-  | { key: string; label: string; kind: "text"; fallback: string }
-  | { key: string; label: string; kind: "plando"; fallback: string[] };
+  | { key: string; label: string; section: string; kind: "select"; options: readonly string[]; labels: Record<string, string>; fallback: string }
+  | { key: string; label: string; section: string; kind: "int"; min?: number; max?: number; fallback: number }
+  | { key: string; label: string; section: string; kind: "intselect"; options: readonly number[]; labels: Record<number, string>; fallback: number }
+  | { key: string; label: string; section: string; kind: "bool"; fallback: boolean }
+  | { key: string; label: string; section: string; kind: "text"; fallback: string }
+  | { key: string; label: string; section: string; kind: "plando"; fallback: string[] };
+
+const SECTION_ORDER = ["Échanges d'objets", "Indices & score", "Salle & partie", "Génération"] as const;
 
 // A run-specific join password proposed when the override is enabled (admins/owners can edit it).
 function randomPassword(): string {
@@ -52,19 +57,19 @@ const COMPAT: Record<number, string> = { 2: "Casual (2)", 1: "Racing (1)", 0: "T
 const SPOIL: Record<number, string> = { 0: "Aucun", 1: "Sans solution", 2: "Avec solution", 3: "Solution + chemins" };
 
 const FIELDS: FieldDef[] = [
-  { key: "releaseMode", label: "Don des objets restants (!release)", kind: "select", options: RELEASE_COLLECT_MODES, labels: RC, fallback: "disabled" },
-  { key: "collectMode", label: "Récupération des objets (!collect)", kind: "select", options: RELEASE_COLLECT_MODES, labels: RC, fallback: "disabled" },
-  { key: "remainingMode", label: "Voir les objets restants (!remaining)", kind: "select", options: REMAINING_MODES, labels: REM, fallback: "goal" },
-  { key: "countdownMode", label: "Compte à rebours (!countdown)", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
-  { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", kind: "bool", fallback: true },
-  { key: "hintCost", label: "Coût d'un indice (%)", kind: "int", min: 0, max: 100, fallback: 10 },
-  { key: "locationCheckPoints", label: "Points gagnés par check", kind: "int", min: 0, fallback: 1 },
-  { key: "autoShutdown", label: "Arrêt auto après inactivité (s)", kind: "int", min: 0, fallback: 0 },
-  { key: "compatibility", label: "Compatibilité", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
-  { key: "plandoOptions", label: "Plando autorisé", kind: "plando", fallback: [] },
-  { key: "race", label: "Mode course (ROMs chiffrées)", kind: "bool", fallback: false },
-  { key: "spoiler", label: "Niveau de spoiler", kind: "intselect", options: SPOILER_LEVELS, labels: SPOIL, fallback: 3 },
-  { key: "joinPassword", label: "Mot de passe de connexion", kind: "text", fallback: "" },
+  { key: "releaseMode", label: "Don des objets restants (!release)", section: "Échanges d'objets", kind: "select", options: RELEASE_COLLECT_MODES, labels: RC, fallback: "disabled" },
+  { key: "collectMode", label: "Récupération des objets (!collect)", section: "Échanges d'objets", kind: "select", options: RELEASE_COLLECT_MODES, labels: RC, fallback: "disabled" },
+  { key: "remainingMode", label: "Voir les objets restants (!remaining)", section: "Échanges d'objets", kind: "select", options: REMAINING_MODES, labels: REM, fallback: "goal" },
+  { key: "hintCost", label: "Coût d'un indice (%)", section: "Indices & score", kind: "int", min: 0, max: 100, fallback: 10 },
+  { key: "locationCheckPoints", label: "Points gagnés par check", section: "Indices & score", kind: "int", min: 0, fallback: 1 },
+  { key: "countdownMode", label: "Compte à rebours (!countdown)", section: "Salle & partie", kind: "select", options: COUNTDOWN_MODES, labels: CD, fallback: "auto" },
+  { key: "disableItemCheat", label: "Interdire la triche d'objets (!getitem)", section: "Salle & partie", kind: "bool", fallback: true },
+  { key: "compatibility", label: "Compatibilité", section: "Salle & partie", kind: "intselect", options: COMPATIBILITY_VALUES, labels: COMPAT, fallback: 2 },
+  { key: "autoShutdown", label: "Arrêt auto après inactivité (s)", section: "Salle & partie", kind: "int", min: 0, fallback: 0 },
+  { key: "joinPassword", label: "Mot de passe de connexion", section: "Salle & partie", kind: "text", fallback: "" },
+  { key: "plandoOptions", label: "Plando autorisé", section: "Génération", kind: "plando", fallback: [] },
+  { key: "race", label: "Mode course (ROMs chiffrées)", section: "Génération", kind: "bool", fallback: false },
+  { key: "spoiler", label: "Niveau de spoiler", section: "Génération", kind: "intselect", options: SPOILER_LEVELS, labels: SPOIL, fallback: 3 },
 ];
 
 const ERROR_LABELS: Record<string, string> = {
@@ -87,6 +92,12 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
     queryFn: () => adapter.load(),
     staleTime: 30_000,
   });
+  const { data: profile } = useQuery({
+    queryKey: [...adapter.queryKey, "profile"],
+    queryFn: () => adapter.loadProfile(),
+    staleTime: 30_000,
+  });
+  const profileValues = profile ? flattenProfile(profile) : null;
 
   const [draft, setDraft] = useState<Record<string, OverrideValue> | null>(null);
   const [syncedFrom, setSyncedFrom] = useState<Record<string, unknown> | null>(null);
@@ -152,32 +163,61 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
     });
   }
 
-  return (
-    <div className="grid gap-3">
-      <p className="text-xs text-muted-foreground">
-        Surcharge le profil pour {scopeLabel}. Les champs non surchargés héritent du profil.
-      </p>
+  const overriddenCount = FIELDS.filter((f) => f.key in current).length;
 
-      <div className="grid gap-2">
-        {FIELDS.map((field) => {
-          const overridden = field.key in current;
-          return (
-            <div className="flex flex-wrap items-center gap-3 rounded border border-border bg-surface-2/40 px-3 py-2" key={field.key}>
-              <div className="flex min-w-56 items-center gap-2 text-sm">
-                <Switch ariaLabel={`Surcharger ${field.label}`} checked={overridden} onChange={(c) => toggleField(field, c)} />
-                <span className={overridden ? "font-medium text-foreground" : "text-muted-foreground"}>{field.label}</span>
-              </div>
-              {overridden ? (
-                <OverrideControl field={field} onChange={(v) => setField(field.key, v)} value={current[field.key]} />
-              ) : (
-                <span className="text-xs italic text-muted-foreground">hérité du profil</span>
-              )}
-            </div>
-          );
-        })}
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-prose text-xs text-muted-foreground">
+          Surcharge le profil pour {scopeLabel}. Active un champ pour le personnaliser&nbsp;; les champs
+          laissés inactifs héritent du profil.
+        </p>
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            overriddenCount > 0 ? "bg-accent/15 text-accent-text" : "bg-surface-2 text-muted-foreground"
+          }`}
+        >
+          {overriddenCount > 0 ? `${overriddenCount} champ${overriddenCount > 1 ? "s" : ""} surchargé${overriddenCount > 1 ? "s" : ""}` : "Aucune surcharge"}
+        </span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        {SECTION_ORDER.map((section) => (
+          <section className="rounded-xl border border-border bg-surface-2/30 p-4" key={section}>
+            <h4 className="mb-1 font-heading text-sm font-semibold text-foreground">{section}</h4>
+            <div className="divide-y divide-border/50">
+              {FIELDS.filter((f) => f.section === section).map((field) => {
+                const overridden = field.key in current;
+                return (
+                  <div className="py-3 first:pt-2 last:pb-0" key={field.key}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="mt-0.5">
+                        <Switch ariaLabel={`Surcharger ${field.label}`} checked={overridden} onChange={(c) => toggleField(field, c)} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm leading-snug ${overridden ? "font-medium text-foreground" : "text-muted-foreground"}`}>{field.label}</p>
+                        {overridden ? (
+                          <div className="mt-2">
+                            <OverrideControl field={field} onChange={(v) => setField(field.key, v)} value={current[field.key]} />
+                          </div>
+                        ) : (
+                          <p className="mt-0.5 text-xs italic text-muted-foreground/70">
+                            {profileValues
+                              ? `Profil : ${displayValue(field, profileValues[field.key])}`
+                              : "hérité du profil"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
         <button
           className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           disabled={saveMutation.isPending}
@@ -189,7 +229,7 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
         </button>
         <button
           className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-          disabled={clearMutation.isPending}
+          disabled={clearMutation.isPending || overriddenCount === 0}
           onClick={() => clearMutation.mutate()}
           type="button"
         >
@@ -229,7 +269,8 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
   if (field.kind === "bool") {
     return (
       <span className="flex items-center gap-1.5 text-sm text-foreground">
-        <Switch ariaLabel={field.label} checked={value === true} onChange={onChange} /> activé
+        <Switch ariaLabel={field.label} checked={value === true} onChange={onChange} />
+        <span className="text-muted-foreground">{value === true ? "activé" : "désactivé"}</span>
       </span>
     );
   }
@@ -259,6 +300,46 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
       ))}
     </div>
   );
+}
+
+// Flatten the resolved profile (nested server/generation) into the flat field-keyed shape.
+function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
+  return {
+    releaseMode: c.server.releaseMode,
+    collectMode: c.server.collectMode,
+    remainingMode: c.server.remainingMode,
+    countdownMode: c.server.countdownMode,
+    disableItemCheat: c.server.disableItemCheat,
+    hintCost: c.server.hintCost,
+    locationCheckPoints: c.server.locationCheckPoints,
+    autoShutdown: c.server.autoShutdown,
+    compatibility: c.server.compatibility,
+    joinPassword: c.server.joinPassword ?? "",
+    plandoOptions: c.generation.plandoOptions,
+    race: c.generation.race,
+    spoiler: c.generation.spoiler,
+  };
+}
+
+// Human-readable rendering of a field's inherited (profile) value.
+function displayValue(field: FieldDef, value: OverrideValue | undefined): string {
+  if (value === undefined) return "—";
+  switch (field.kind) {
+    case "select":
+      return field.labels[String(value)] ?? String(value);
+    case "intselect":
+      return field.labels[Number(value)] ?? String(value);
+    case "int":
+      return String(value);
+    case "bool":
+      return value === true ? "activé" : "désactivé";
+    case "text":
+      return typeof value === "string" && value !== "" ? value : "aléatoire";
+    case "plando": {
+      const arr = Array.isArray(value) ? value : [];
+      return arr.length > 0 ? arr.join(", ") : "aucun";
+    }
+  }
 }
 
 // Coerce the loaded override (unknown JSON) into a typed draft, keeping only known fields.

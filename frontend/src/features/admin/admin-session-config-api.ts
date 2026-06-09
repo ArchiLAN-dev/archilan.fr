@@ -111,6 +111,22 @@ export async function saveOverride(path: string, override: Record<string, unknow
   }
 }
 
+// Reads the resolved profile config returned alongside an override ({ data: { profile: {...} } }).
+// Used by override editors to display inherited values; returns null when absent.
+export async function loadOverrideProfile(path: string): Promise<SessionConfig | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}${path}`);
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    const data: unknown = payload.data;
+    if (typeof data !== "object" || data === null || !("profile" in data)) return null;
+    return isSessionConfig(data.profile) ? data.profile : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function clearOverride(path: string): Promise<boolean> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}${path}`, { method: "DELETE" });
