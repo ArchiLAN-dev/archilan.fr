@@ -321,11 +321,11 @@ function SelectField({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-sm">
+    <label className="flex h-full flex-col gap-1 text-sm">
       <span className="font-medium text-foreground">{label}</span>
       {hint !== undefined ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
       <select
-        className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
+        className="mt-auto h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         onChange={(e) => onChange(e.target.value)}
         value={value}
       >
@@ -353,10 +353,10 @@ function NumberSelectField({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="grid gap-1 text-sm">
+    <label className="flex h-full flex-col gap-1 text-sm">
       <span className="font-medium text-foreground">{label}</span>
       <select
-        className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
+        className="mt-auto h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         onChange={(e) => onChange(Number(e.target.value))}
         value={value}
       >
@@ -386,11 +386,11 @@ function NumberField({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="grid gap-1 text-sm">
+    <label className="flex h-full flex-col gap-1 text-sm">
       <span className="font-medium text-foreground">{label}</span>
       {hint !== undefined ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
       <input
-        className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
+        className="mt-auto h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         max={max}
         min={min}
         onChange={(e) => onChange(Number(e.target.value))}
