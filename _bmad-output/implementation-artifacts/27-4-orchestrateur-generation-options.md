@@ -1,6 +1,6 @@
 # Story 27.4: Orchestrateur + archipelago — generation options (plando / race / spoiler)
 
-Status: review
+Status: done
 
 ## Story
 
