@@ -174,71 +174,84 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
 
   return (
     <form
-      className="grid gap-8 lg:grid-cols-2"
+      className="grid max-w-5xl gap-6"
       onSubmit={(e) => {
         e.preventDefault();
         mutation.mutate(draft);
       }}
     >
-      <fieldset className="grid gap-4 rounded-xl border border-border bg-surface p-5">
-        <legend className="px-1 font-heading text-sm font-semibold text-foreground">Options serveur</legend>
+      <Section description="Politique d'échange des objets restants entre les mondes de la partie." title="Échanges d'objets">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SelectField hint="Renvoi des objets d'un monde terminé vers les autres." label="Don (!release)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
+          <SelectField hint="Récupération de ses objets chez les autres mondes." label="Récupération (!collect)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
+          <SelectField hint="Demander la liste des objets encore à recevoir." label="Objets restants (!remaining)" labels={REMAINING_LABELS} onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
+        </div>
+      </Section>
 
-        <SelectField hint="Renvoi des objets restants d'un monde terminé vers les autres." label="Don des objets restants (!release)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
-        <SelectField hint="Récupération automatique de ses objets restants chez les autres mondes." label="Récupération des objets (!collect)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
-        <SelectField hint="Possibilité de demander la liste des objets encore à recevoir." label="Voir les objets restants (!remaining)" labels={REMAINING_LABELS} onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
-        <SelectField hint="Lancement d'un compte à rebours par les joueurs." label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
+      <Section description="Économie d'indices et points attribués aux joueurs." title="Indices & score">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberField hint="Pourcentage de checks à compléter pour gagner un indice." label="Coût d'un indice (% des checks)" max={100} min={0} onChange={(n) => patchServer({ hintCost: n })} value={server.hintCost} />
+          <NumberField hint="Points d'indice gagnés à chaque check trouvé." label="Points gagnés par check" min={0} onChange={(n) => patchServer({ locationCheckPoints: n })} value={server.locationCheckPoints} />
+        </div>
+      </Section>
 
-        <CheckboxField checked={server.disableItemCheat} label="Interdire la triche d'objets (!getitem)" onChange={(c) => patchServer({ disableItemCheat: c })} />
-
-        <NumberField hint="Pourcentage de checks à compléter pour gagner un indice." label="Coût d'un indice (% des checks)" max={100} min={0} onChange={(n) => patchServer({ hintCost: n })} value={server.hintCost} />
-        <NumberField hint="Points d'indice gagnés à chaque check trouvé." label="Points gagnés par check" min={0} onChange={(n) => patchServer({ locationCheckPoints: n })} value={server.locationCheckPoints} />
-        <NumberField hint="Arrêt du serveur après ce délai sans nouveau check (0 = jamais)." label="Arrêt auto après inactivité (s)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
-
-        <NumberSelectField
-          label="Compatibilité"
-          labels={COMPATIBILITY_LABELS}
-          onChange={(n) => patchServer({ compatibility: n })}
-          options={COMPATIBILITY_VALUES}
-          value={server.compatibility}
-        />
-
-        <p className="text-xs text-muted-foreground">
-          Le mot de passe de connexion n&apos;est pas défini au niveau du profil : un mot de passe
-          aléatoire est généré pour chaque run. Il peut être fixé ponctuellement via un override.
+      <Section description="Comportement de la salle et règles de la partie." title="Salle & partie">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SelectField hint="Compte à rebours lançable par les joueurs." label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
+          <NumberSelectField label="Compatibilité clients" labels={COMPATIBILITY_LABELS} onChange={(n) => patchServer({ compatibility: n })} options={COMPATIBILITY_VALUES} value={server.compatibility} />
+          <NumberField hint="Arrêt du serveur après ce délai sans check (0 = jamais)." label="Arrêt auto (s)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
+        </div>
+        <div className="mt-4">
+          <SwitchRow
+            checked={server.disableItemCheat}
+            description="Empêche la commande !getitem (anti-triche)."
+            label="Interdire la triche d'objets"
+            onChange={(c) => patchServer({ disableItemCheat: c })}
+          />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Le mot de passe de connexion n&apos;est pas défini ici : un mot de passe aléatoire est
+          généré par run. Il peut être fixé ponctuellement via un override.
         </p>
-      </fieldset>
+      </Section>
 
-      <fieldset className="grid content-start gap-4 rounded-xl border border-border bg-surface p-5">
-        <legend className="px-1 font-heading text-sm font-semibold text-foreground">Options de génération</legend>
-
-        <div className="grid gap-2">
-          <span className="text-sm font-medium text-foreground">Plando autorisé (placement manuel d&apos;objets / boss)</span>
-          <div className="flex flex-wrap gap-3">
-            {PLANDO_OPTIONS.map((option) => (
-              <div className="flex items-center gap-1.5 text-sm text-foreground" key={option}>
-                <Switch
-                  ariaLabel={option}
-                  checked={generation.plandoOptions.includes(option)}
-                  onChange={() => togglePlando(option)}
-                />
-                <span>{option}</span>
-              </div>
-            ))}
+      <Section description="Options appliquées lors de la génération du multimonde." title="Génération">
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <span className="text-sm font-medium text-foreground">Plando autorisé</span>
+            <span className="text-xs text-muted-foreground">Placement manuel d&apos;objets / boss / connexions.</span>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {PLANDO_OPTIONS.map((option) => {
+                const on = generation.plandoOptions.includes(option);
+                return (
+                  <button
+                    aria-pressed={on}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors ${
+                      on ? "border-accent bg-accent/15 text-accent-text" : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                    key={option}
+                    onClick={() => togglePlando(option)}
+                    type="button"
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <SwitchRow
+            checked={generation.race}
+            description="Génère des ROMs chiffrées (mode course), spoiler masqué."
+            label="Mode course"
+            onChange={(c) => patchGeneration({ race: c })}
+          />
+          <div className="sm:max-w-xs">
+            <NumberSelectField label="Niveau de spoiler généré" labels={SPOILER_LABELS} onChange={(n) => patchGeneration({ spoiler: n })} options={SPOILER_LEVELS} value={generation.spoiler} />
           </div>
         </div>
+      </Section>
 
-        <CheckboxField checked={generation.race} label="Mode course (ROMs chiffrées, spoiler masqué)" onChange={(c) => patchGeneration({ race: c })} />
-
-        <NumberSelectField
-          label="Niveau de spoiler généré"
-          labels={SPOILER_LABELS}
-          onChange={(n) => patchGeneration({ spoiler: n })}
-          options={SPOILER_LEVELS}
-          value={generation.spoiler}
-        />
-      </fieldset>
-
-      <div className="flex items-center gap-3 lg:col-span-2">
+      <div className="flex items-center gap-3">
         <button
           className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           disabled={mutation.isPending}
@@ -251,6 +264,42 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
         {error !== null ? <span className="text-sm text-danger">{error}</span> : null}
       </div>
     </form>
+  );
+}
+
+// ── Layout primitives ───────────────────────────────────────────────────────
+
+function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-border bg-surface p-5">
+      <div className="mb-4">
+        <h3 className="font-heading text-sm font-semibold text-foreground">{title}</h3>
+        {description !== undefined ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SwitchRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (c: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description !== undefined ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
+    </div>
   );
 }
 
@@ -305,7 +354,7 @@ function NumberSelectField({
 }) {
   return (
     <label className="grid gap-1 text-sm">
-      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{label}</span>
       <select
         className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         onChange={(e) => onChange(Number(e.target.value))}
@@ -352,19 +401,3 @@ function NumberField({
   );
 }
 
-function CheckboxField({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (c: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-sm text-foreground">
-      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
-      <span>{label}</span>
-    </div>
-  );
-}
