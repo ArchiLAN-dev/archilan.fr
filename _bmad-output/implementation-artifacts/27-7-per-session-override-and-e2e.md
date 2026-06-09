@@ -1,6 +1,6 @@
 # Story 27.7: Per-session override UI + end-to-end verification
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -32,15 +32,15 @@ applied on the launched server. Depends on 27.2, 27.5, 27.6 (and the deployed 27
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Override API surface (if not already covered by 27.2): endpoint to set/clear a session
+- [x] Task 1 — Override API surface (if not already covered by 27.2): endpoint to set/clear a session
   override, admin-only; or fold into the existing create/launch admin actions.
-- [ ] Task 2 — Override UI controls on the admin launch/create surfaces for the three types, with
+- [x] Task 2 — Override UI controls on the admin launch/create surfaces for the three types, with
   inherited-vs-overridden affordance and clear-to-inherit (AC: 1, 3).
-- [ ] Task 3 — Confirm the resolver (27.5) picks up the override at launch for each type (integration
+- [x] Task 3 — Confirm the resolver (27.5) picks up the override at launch for each type (integration
   check / functional test).
-- [ ] Task 4 — Extend `scripts/e2e/weekly-smoke.sh`: configure a non-default mode, launch, assert it on
+- [x] Task 4 — Extend `scripts/e2e/weekly-smoke.sh`: configure a non-default mode, launch, assert it on
   the running server (AC: 4). Update `scripts/e2e/README.md`.
-- [ ] Task 5 — Run frontend gates + the E2E smoke (AC: 5).
+- [x] Task 5 — Run frontend gates + the E2E smoke (AC: 5).
 
 ## Dev Notes
 
@@ -72,14 +72,36 @@ applied on the launched server. Depends on 27.2, 27.5, 27.6 (and the deployed 27
 
 ### Agent Model Used
 
-### Debug Log References
+claude-opus-4-8 (Claude Code).
 
 ### Completion Notes List
 
+Override scope clarified by Jean: **weekly = per-template (admin-only)**, **event = per-session
+(admin)**, **private = per-run (owner)** — members can't override. Shipped in 3 parts:
+
+- **pt1 backend** (PR #64): resolver re-keyed by scope (template/session/run id); per-session snapshot
+  dropped (scope-keyed overrides are stable). Override repo `delete()`; `Set`/`Clear`/`Query`
+  services. Admin `GET/PUT/DELETE /admin/session-config/override/{scopeKey}`; owner
+  `GET/PUT/DELETE /runs/{runId}/config-override` (`PersonalRunConfigOverride`, ownership-guarded).
+- **pt2 override UI** (PR #66): shared `SessionConfigOverrideForm` (per-field "hériter/surcharger"
+  toggle + clear-to-inherit) on the weekly template admin page, the event session admin detail page,
+  and the private run owner page (gated on `run.isOwner`). Verified live.
+- **pt3 E2E** (PR #67): `scripts/e2e/weekly-smoke.sh` sets a non-default template override
+  (`releaseMode=enabled`) and asserts the launched ap-server got `RELEASE_MODE=enabled`. **Ran live —
+  PASSED**.
+- Related: clearer French wording on the config form (PR #65).
+
 ### File List
+
+- api: SessionConfig Application (Set/Clear/Query/Resolver) + Domain/Infra override repo + admin
+  override controller; PersonalRuns `PersonalRunConfigOverride` + controller; resolver call-sites in
+  WeeklyRuns + Sessions.
+- frontend: `session-config-override-form.tsx` + override helpers + 3 page integrations.
+- `scripts/e2e/weekly-smoke.sh` (override proof).
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-09 | Story created from epic 27 plan (override UI + E2E). |
+| 2026-06-09 | Implemented backend (PR #64) + override UIs (PR #66) + E2E proof (PR #67, ran live green). Model: weekly=template/admin, event=session/admin, private=run/owner. Status → done. |
