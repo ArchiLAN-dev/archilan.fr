@@ -73,11 +73,10 @@ final readonly class LaunchWeeklyEntry
             throw new \DomainException('run_not_generated');
         }
 
-        // Resolve the effective server config for this entry (weekly profile ⊕ any per-entry
-        // override), snapshot it for restart determinism, and pass it to the launch. The join
+        // Resolve the effective server config: the weekly profile ⊕ the per-template override
+        // (admin-only; keyed by template id so it applies to all entries of the template). The join
         // password travels via its own argument; the rest become orchestrator server_options.
-        $config = $this->configResolver->resolve(SessionType::Weekly, $entryId);
-        $this->configResolver->recordResolvedForSession($entryId, $config);
+        $config = $this->configResolver->resolve(SessionType::Weekly, $template->getId());
         $serverOptions = $config->server->toServerFlags();
         unset($serverOptions['password']);
 

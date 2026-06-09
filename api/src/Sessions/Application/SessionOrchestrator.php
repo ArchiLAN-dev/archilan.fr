@@ -49,6 +49,17 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
     }
 
     /**
+     * The config-override scope key: the personal run id for private sessions (owner-controlled),
+     * else the session id for event sessions (admin-controlled).
+     */
+    private function scopeKey(string $sessionId): string
+    {
+        $run = $this->runs->findBySessionId($sessionId);
+
+        return $run instanceof Run ? $run->getId() : $sessionId;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function listSessions(string $eventId): array
@@ -282,7 +293,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $adminPassword = bin2hex(random_bytes(16));
         $this->sessionLifecycleManager->storePendingCredentials($sessionId, adminPassword: $adminPassword);
 
-        $generationOptions = $this->configResolver->resolve($this->sessionType($sessionId))->generation->toGenerationParams();
+        $generationOptions = $this->configResolver->resolve($this->sessionType($sessionId), $this->scopeKey($sessionId))->generation->toGenerationParams();
         $this->runnerGateway->generateSession($sessionId, $adminPassword, null, $generationOptions);
 
         $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId]);
@@ -355,8 +366,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
         $serverPassword = bin2hex(random_bytes(8));
 
-        $config = $this->configResolver->resolve($this->sessionType($sessionId), $sessionId);
-        $this->configResolver->recordResolvedForSession($sessionId, $config);
+        $config = $this->configResolver->resolve($this->sessionType($sessionId), $this->scopeKey($sessionId));
         $serverPassword = $config->server->joinPassword ?? $serverPassword;
         $serverOptions = $config->server->toServerFlags();
         unset($serverOptions['password']);
@@ -406,8 +416,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $existingPassword = $session->getPassword();
         $serverPassword = null !== $existingPassword && '' !== $existingPassword ? $existingPassword : bin2hex(random_bytes(8));
 
-        $config = $this->configResolver->resolve($this->sessionType($sessionId), $sessionId);
-        $this->configResolver->recordResolvedForSession($sessionId, $config);
+        $config = $this->configResolver->resolve($this->sessionType($sessionId), $this->scopeKey($sessionId));
         $serverPassword = $config->server->joinPassword ?? $serverPassword;
         $serverOptions = $config->server->toServerFlags();
         unset($serverOptions['password']);

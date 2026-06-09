@@ -46,6 +46,19 @@ final class AdminSessionConfigTest extends FunctionalTestCase
         return $generation;
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
+    private function overrideData(): array
+    {
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $override = $data['override'] ?? null;
+        self::assertIsArray($override);
+
+        return $override;
+    }
+
     public function testGetReturnsDefaultsForWeekly(): void
     {
         $this->loginAs($this->admin);
@@ -116,6 +129,46 @@ final class AdminSessionConfigTest extends FunctionalTestCase
         self::assertSame('goal', $server['releaseMode']);
         self::assertSame(0, $generation['spoiler']);
         self::assertTrue($generation['race']);
+    }
+
+    public function testOverridePutGetDeleteCycle(): void
+    {
+        $this->loginAs($this->admin);
+
+        $this->client->jsonRequest('PUT', '/api/v1/admin/session-config/override/tpl-1', [
+            'releaseMode' => 'goal',
+            'hintCost' => 5,
+        ]);
+        self::assertResponseStatusCodeSame(200);
+        $override = $this->overrideData();
+        self::assertSame('goal', $override['releaseMode']);
+        self::assertSame(5, $override['hintCost']);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/session-config/override/tpl-1');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('goal', $this->overrideData()['releaseMode']);
+
+        $this->client->jsonRequest('DELETE', '/api/v1/admin/session-config/override/tpl-1');
+        self::assertResponseStatusCodeSame(204);
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/session-config/override/tpl-1');
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->overrideData());
+    }
+
+    public function testOverridePutRejectsInvalidWith422(): void
+    {
+        $this->loginAs($this->admin);
+        $this->client->jsonRequest('PUT', '/api/v1/admin/session-config/override/tpl-1', ['spoiler' => 9]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testOverrideRequiresAdmin(): void
+    {
+        $member = $this->createUser('member2@test.com', ['ROLE_USER']);
+        $this->loginAs($member);
+        $this->client->jsonRequest('GET', '/api/v1/admin/session-config/override/tpl-1');
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testPutRejectsInvalidEnumWith422(): void
