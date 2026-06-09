@@ -1,6 +1,6 @@
 # Story 13.7: Scheduled Cleanup of Expired Tokens & Old Operational Logs
 
-**Status:** review
+**Status:** done
 **Epic:** 13 - Secure Token Lifecycle / Data Retention
 **Date:** 2026-06-09
 
@@ -242,3 +242,4 @@ claude-opus-4-8 (Claude Code).
 |------------|--------|
 | 2026-06-09 | Story created (scope confirmed with Jean: email-confirmation + password-reset tokens + helloasso_sync_log + event_private_access_log; GameCatalogSync and audit tables explicitly excluded; refresh tokens already covered by 13.6). Status → ready-for-dev. |
 | 2026-06-10 | Implemented: Domain delete contracts + DBAL deletes + per-target messages/handlers + 3 console commands + Schedule/messenger/config wiring + 7 tests. All gates green. Status → review. |
+| 2026-06-10 | Merged via PR #80 (CI green, incl. full backend suite on fresh Postgres). Status → done. |
