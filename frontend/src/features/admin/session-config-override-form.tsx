@@ -29,7 +29,13 @@ type FieldDef =
   | { key: string; label: string; kind: "int"; min?: number; max?: number; fallback: number }
   | { key: string; label: string; kind: "intselect"; options: readonly number[]; labels: Record<number, string>; fallback: number }
   | { key: string; label: string; kind: "bool"; fallback: boolean }
+  | { key: string; label: string; kind: "text"; fallback: string }
   | { key: string; label: string; kind: "plando"; fallback: string[] };
+
+// A run-specific join password proposed when the override is enabled (admins/owners can edit it).
+function randomPassword(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
 
 const RC: Record<string, string> = {
   disabled: "Désactivé",
@@ -56,6 +62,7 @@ const FIELDS: FieldDef[] = [
   { key: "plandoOptions", label: "Plando autorisé", kind: "plando", fallback: [] },
   { key: "race", label: "Mode course (ROMs chiffrées)", kind: "bool", fallback: false },
   { key: "spoiler", label: "Niveau de spoiler", kind: "intselect", options: SPOILER_LEVELS, labels: SPOIL, fallback: 3 },
+  { key: "joinPassword", label: "Mot de passe de connexion", kind: "text", fallback: "" },
 ];
 
 const ERROR_LABELS: Record<string, string> = {
@@ -134,7 +141,8 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
     setDraft((d) => {
       const next = { ...(d ?? {}) };
       if (on) {
-        next[field.key] = field.fallback;
+        // Propose a fresh random password when overriding the join password.
+        next[field.key] = field.key === "joinPassword" ? randomPassword() : field.fallback;
       } else {
         delete next[field.key];
       }
@@ -223,6 +231,16 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
       </label>
     );
   }
+  if (field.kind === "text") {
+    return (
+      <input
+        className="h-8 w-48 rounded border border-border bg-surface px-2 text-sm text-foreground"
+        onChange={(e) => onChange(e.target.value)}
+        type="text"
+        value={typeof value === "string" ? value : ""}
+      />
+    );
+  }
   // plando
   const selected = Array.isArray(value) ? value : [];
   return (
@@ -247,7 +265,7 @@ function coerce(raw: Record<string, unknown>): Record<string, OverrideValue> {
   for (const field of FIELDS) {
     if (!(field.key in raw)) continue;
     const v = raw[field.key];
-    if (field.kind === "select" && typeof v === "string") out[field.key] = v;
+    if ((field.kind === "select" || field.kind === "text") && typeof v === "string") out[field.key] = v;
     else if ((field.kind === "int" || field.kind === "intselect") && typeof v === "number") out[field.key] = v;
     else if (field.kind === "bool" && typeof v === "boolean") out[field.key] = v;
     else if (field.kind === "plando" && Array.isArray(v)) out[field.key] = v.filter((p): p is string => typeof p === "string");

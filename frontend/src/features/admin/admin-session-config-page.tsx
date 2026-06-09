@@ -200,15 +200,10 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           value={server.compatibility}
         />
 
-        <label className="grid gap-1 text-sm">
-          <span className="font-medium text-foreground">Mot de passe de connexion (laisser vide = aucun)</span>
-          <input
-            className="h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
-            onChange={(e) => patchServer({ joinPassword: e.target.value === "" ? null : e.target.value })}
-            type="text"
-            value={server.joinPassword ?? ""}
-          />
-        </label>
+        <p className="text-xs text-muted-foreground">
+          Le mot de passe de connexion n&apos;est pas défini au niveau du profil : un mot de passe
+          aléatoire est généré pour chaque run. Il peut être fixé ponctuellement via un override.
+        </p>
       </fieldset>
 
       <fieldset className="grid content-start gap-4 rounded-xl border border-border bg-surface p-5">
