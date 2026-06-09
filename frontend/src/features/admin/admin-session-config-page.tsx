@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save } from "lucide-react";
 import { useState } from "react";
 
+import { Switch } from "@/components/switch";
+
 import {
   COMPATIBILITY_VALUES,
   COUNTDOWN_MODES,
@@ -213,14 +215,14 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           <span className="text-sm font-medium text-foreground">Plando autorisé (placement manuel d&apos;objets / boss)</span>
           <div className="flex flex-wrap gap-3">
             {PLANDO_OPTIONS.map((option) => (
-              <label className="flex items-center gap-1.5 text-sm text-foreground" key={option}>
-                <input
+              <div className="flex items-center gap-1.5 text-sm text-foreground" key={option}>
+                <Switch
+                  ariaLabel={option}
                   checked={generation.plandoOptions.includes(option)}
                   onChange={() => togglePlando(option)}
-                  type="checkbox"
                 />
-                {option}
-              </label>
+                <span>{option}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -360,9 +362,9 @@ function CheckboxField({
   onChange: (c: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-foreground">
-      <input checked={checked} onChange={(e) => onChange(e.target.checked)} type="checkbox" />
-      {label}
-    </label>
+    <div className="flex items-center gap-2 text-sm text-foreground">
+      <Switch ariaLabel={label} checked={checked} onChange={onChange} />
+      <span>{label}</span>
+    </div>
   );
 }
