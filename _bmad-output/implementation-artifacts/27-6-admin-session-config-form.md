@@ -1,6 +1,6 @@
 # Story 27.6: Admin session-config form (frontend)
 
-Status: review
+Status: done
 
 ## Story
 
