@@ -28,9 +28,15 @@ interface RunnerGatewayInterface
      */
     public function configureSession(string $sessionId, array $slots): array;
 
-    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null): void;
+    /**
+     * @param array<string, mixed> $generationOptions
+     */
+    public function generateSession(string $sessionId, string $adminPassword, ?string $seed = null, array $generationOptions = []): void;
 
-    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword): void;
+    /**
+     * @param array<string, scalar> $serverOptions
+     */
+    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword, array $serverOptions = []): void;
 
     public function stopSession(string $sessionId): void;
 

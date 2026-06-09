@@ -11,6 +11,8 @@ use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\SessionConfig\Application\SessionConfigResolver;
+use App\SessionConfig\Domain\SessionType;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
@@ -30,8 +32,20 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         private SessionLifecycleManager $sessionLifecycleManager,
         private SlotNameGenerator $slotNameGenerator,
         private LoggerInterface $logger,
+        private SessionConfigResolver $configResolver,
         private string $runnerPublicHost,
     ) {
+    }
+
+    /**
+     * A session backed by a personal run uses the "private" config profile; everything else
+     * (event sessions) uses "event". The personal-run repo is the authoritative signal.
+     */
+    private function sessionType(string $sessionId): SessionType
+    {
+        return $this->runs->findBySessionId($sessionId) instanceof Run
+            ? SessionType::Private
+            : SessionType::Event;
     }
 
     /**
@@ -268,7 +282,8 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $adminPassword = bin2hex(random_bytes(16));
         $this->sessionLifecycleManager->storePendingCredentials($sessionId, adminPassword: $adminPassword);
 
-        $this->runnerGateway->generateSession($sessionId, $adminPassword);
+        $generationOptions = $this->configResolver->resolve($this->sessionType($sessionId))->generation->toGenerationParams();
+        $this->runnerGateway->generateSession($sessionId, $adminPassword, null, $generationOptions);
 
         $this->logger->info('session.orchestrate.generate', ['sessionId' => $sessionId]);
 
@@ -340,6 +355,12 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
         $serverPassword = bin2hex(random_bytes(8));
 
+        $config = $this->configResolver->resolve($this->sessionType($sessionId), $sessionId);
+        $this->configResolver->recordResolvedForSession($sessionId, $config);
+        $serverPassword = $config->server->joinPassword ?? $serverPassword;
+        $serverOptions = $config->server->toServerFlags();
+        unset($serverOptions['password']);
+
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
@@ -351,7 +372,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             password: $serverPassword,
         );
 
-        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword);
+        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword, $serverOptions);
 
         $this->logger->info('session.orchestrate.launch', ['sessionId' => $sessionId]);
 
@@ -385,6 +406,12 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $existingPassword = $session->getPassword();
         $serverPassword = null !== $existingPassword && '' !== $existingPassword ? $existingPassword : bin2hex(random_bytes(8));
 
+        $config = $this->configResolver->resolve($this->sessionType($sessionId), $sessionId);
+        $this->configResolver->recordResolvedForSession($sessionId, $config);
+        $serverPassword = $config->server->joinPassword ?? $serverPassword;
+        $serverOptions = $config->server->toServerFlags();
+        unset($serverOptions['password']);
+
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
         if (!($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
@@ -396,7 +423,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             password: $serverPassword,
         );
 
-        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword);
+        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword, $serverOptions);
 
         $this->logger->info('session.orchestrate.force_launch', [
             'sessionId' => $sessionId,

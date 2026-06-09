@@ -19,6 +19,9 @@ interface WeeklyRunGeneratorInterface
      * `session.generated` webhook, which marks the run launchable. This method does
      * NOT poll or wait for generation to finish.
      *
+     * @param array<string, mixed> $generationOptions optional generator options (plando/race/spoiler)
+     *                                                resolved from the session config (epic 27)
+     *
      * @throws \RuntimeException when the dispatch itself fails (e.g. orchestrator unreachable)
      */
     public function generate(
@@ -26,5 +29,6 @@ interface WeeklyRunGeneratorInterface
         string $apworldStorageKey,
         string $templateYaml,
         string $seed,
+        array $generationOptions = [],
     ): void;
 }

@@ -1,6 +1,6 @@
 # Story 27.5: Wire resolved config into the three launch/generation gateways
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -42,16 +42,16 @@ The three contexts that launch/generate (verified):
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Extend `WeeklyRunnerGatewayInterface` (launch) + `WeeklyRunGeneratorInterface`
+- [x] Task 1 — Extend `WeeklyRunnerGatewayInterface` (launch) + `WeeklyRunGeneratorInterface`
   (generation) and their `Orchestrator*` impls + `Null*`/`Spy*`; resolve config in `LaunchWeeklyEntry`
   and `GenerateWeeklyRunForTemplate`/`GenerateWeeklyRunsMessageHandler` (AC: 1–4).
-- [ ] Task 2 — Extend `Sessions` `RunnerGatewayInterface` + `RunnerGateway`/`NullRunnerGateway`; resolve
+- [x] Task 2 — Extend `Sessions` `RunnerGatewayInterface` + `RunnerGateway`/`NullRunnerGateway`; resolve
   in `SessionOrchestrator`/`SessionLifecycleManager` launch (AC: 1–4).
-- [ ] Task 3 — Extend `PersonalRuns` runner gateway + impl; resolve in `LaunchPersonalRunJobHandler`
+- [x] Task 3 — Extend `PersonalRuns` runner gateway + impl; resolve in `LaunchPersonalRunJobHandler`
   (AC: 1–4).
-- [ ] Task 4 — Inject `SessionConfigResolver` (27.2) into each use case (constructor injection only,
+- [x] Task 4 — Inject `SessionConfigResolver` (27.2) into each use case (constructor injection only,
   api/CLAUDE.md). Record resolved config per session.
-- [ ] Task 5 — Update spies/nulls + tests; run all four gates (AC: 4–6).
+- [x] Task 5 — Update spies/nulls + tests; run all four gates (AC: 4–6).
 
 ## Dev Notes
 
@@ -86,14 +86,53 @@ The three contexts that launch/generate (verified):
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code).
+
 ### Debug Log References
+
+- Discovered the gateways delegate to the `archilan/orchestrateur-client` package, which did not
+  forward options → extracted **story 27.8** (package change, v1.1.0) per `packages/CLAUDE.md`, then
+  `composer update` (`>=1.1`) before wiring here.
+- Sessions + PersonalRuns share `SessionOrchestrator`; the session type is resolved per-session via
+  the existing personal-run repo (`$this->runs->findBySessionId()` → Private, else Event), so both
+  flows wire correctly through the same `orchestrateGenerate/Launch` methods.
 
 ### Completion Notes List
 
+- **WeeklyRuns:** `WeeklyRunGeneratorInterface::generate` + `WeeklyRunnerGatewayInterface::launchEntry`
+  gained option params; `Orchestrator*` impls forward them to the client; `Null`/`Spy` updated.
+  `GenerateWeeklyRunForTemplate` + `GenerateWeeklyRunsMessageHandler` resolve the **weekly** generation
+  options; `LaunchWeeklyEntry` resolves the **weekly** server options for the entry (+ join password),
+  records the snapshot, and passes them (drops the `password` key, sent via `$joinPassword`).
+- **Sessions (event):** `RunnerGatewayInterface::generateSession/launchSession` gained option params
+  (`RunnerGateway` forwards to the client; `NullRunnerGateway` updated). `SessionOrchestrator`
+  resolves per-session type in `orchestrateGenerate`/`orchestrateLaunch`/`orchestrateForceLaunch`,
+  records the launch snapshot, and overrides the join password from config when set.
+- **PersonalRuns (private):** advances through `SessionOrchestrator.autoAdvancePersonalRun` →
+  `orchestrateGenerate/Launch`, where `sessionType()` returns **Private** (personal-run repo signal),
+  so private runs get the private profile with no extra wiring in `LaunchPersonalRunJobHandler`.
+- Resolver injected by autowiring (its repo deps bound in 27.2). New `SessionConfigDefaultsTrait`
+  builds a real resolver over stub repos (the resolver is `final`, so not mockable) for the weekly
+  unit tests; added `testInvokeForwardsResolvedServerOptions` asserting the weekly defaults reach the
+  gateway. `composer.json` → `archilan/orchestrateur-client >=1.1`.
+- Gates green: phpstan max, php-cs-fixer @Symfony, `app:architecture:ddd`, phpunit (963).
+
 ### File List
+
+- WeeklyRuns: `Application/WeeklyRunGeneratorInterface.php`, `Application/WeeklyRunnerGatewayInterface.php`,
+  `Application/GenerateWeeklyRunForTemplate.php`, `Application/Handler/GenerateWeeklyRunsMessageHandler.php`,
+  `Application/LaunchWeeklyEntry.php`, `Infrastructure/OrchestratorWeeklyRunGenerator.php`,
+  `Infrastructure/OrchestratorWeeklyRunnerGateway.php`, `Infrastructure/NullWeeklyRunGenerator.php`,
+  `Infrastructure/NullWeeklyRunnerGateway.php`, `Infrastructure/SpyWeeklyRunnerGateway.php` (modified).
+- Sessions: `Application/RunnerGatewayInterface.php`, `Application/SessionOrchestrator.php`,
+  `Infrastructure/RunnerGateway.php`, `Infrastructure/NullRunnerGateway.php` (modified).
+- `api/composer.json`, `api/composer.lock` (orchestrateur-client → 1.1.0).
+- Tests: `tests/Unit/WeeklyRuns/SessionConfigDefaultsTrait.php` (new); `GenerateWeeklyRunForTemplateTest`,
+  `GenerateWeeklyRunsMessageHandlerTest`, `LaunchWeeklyEntryTest` (modified).
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-09 | Story created from epic 27 plan (gateway wiring). |
+| 2026-06-09 | Implemented across WeeklyRuns + Sessions + PersonalRuns; client v1.1.0 (story 27.8). Per-session type via personal-run signal. Gates green (963). Status → review. |
