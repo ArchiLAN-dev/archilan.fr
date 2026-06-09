@@ -1,6 +1,6 @@
 # Story 27.4: Orchestrateur + archipelago — generation options (plando / race / spoiler)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -35,14 +35,14 @@ the generate flow). Independent of 27.3.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 (archipelago) — In `generate_multiworld.py`, read the three options and inject them into the
+- [x] Task 1 (archipelago) — In `generate_multiworld.py`, read the three options and inject them into the
   generator config before invoking generation; default to current behaviour when unset. Confirm the
   authoritative read path in the bundled Archipelago generator.
-- [ ] Task 2 (orchestrateur) — Extend `GenerateRequest` (internal/service) + the generate container
+- [x] Task 2 (orchestrateur) — Extend `GenerateRequest` (internal/service) + the generate container
   invocation (internal/docker) to pass plando/race/spoiler as env/args; validate.
-- [ ] Task 3 (orchestrateur) — API generate handler + type: accept `plandoOptions`, `race`, `spoiler`;
+- [x] Task 3 (orchestrateur) — API generate handler + type: accept `plandoOptions`, `race`, `spoiler`;
   swagger `@Param`/struct doc; 400 on invalid.
-- [ ] Task 4 — `go build/vet/test`; PRs to both repos `master`; CI green.
+- [x] Task 4 — `go build/vet/test`; PRs to both repos `master`; CI green.
 
 ## Dev Notes
 
@@ -73,14 +73,39 @@ the generate flow). Independent of 27.3.
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code).
+
 ### Debug Log References
+
+- `Generate.py` argparse (bundled source) already exposes `--spoiler` (int), `--race`
+  (store_true), `--plando` (string). `generate_multiworld.py` only consumes `--world_directory`
+  and forwards every other arg to `Generate.main()` → **no archipelago change required**.
 
 ### Completion Notes List
 
+- **orchestrateur only** (PR archilan-orchestrateur#7, merged to `master`, `:latest` rebuilt):
+  - `GenerateRequest` gained `PlandoOptions []string`, `Race *bool`, `Spoiler *int`.
+  - `docker.GenerateOptions` + `GenerateMultiworld` append `--spoiler N`, `--race` (presence-only,
+    when true), `--plando "a, b"` — **only when set**, so the generator host.yaml default stands.
+  - `validateGenerationOptions` (plando tokens ∈ {bosses,items,texts,connections}; spoiler 0..3) →
+    `ErrInvalidGenerationOption` → 400 on `POST /sessions/{id}/generate`.
+  - `runGeneration` refactored to take the `GenerateRequest`.
+  - `go build/vet/test` green (`TestValidateGenerationOptions`).
+- **AC5 (race interplay) — flagged, deferred to 27.7:** `race=1` produces encrypted race roms and
+  `spoiler=0` omits the spoiler file. The weekly artifact contract (23.12) bundles whatever
+  `/data/output` contains, so the zip stays valid, but the E2E smoke (23.13) currently asserts a
+  `*_Spoiler.txt` entry — under `spoiler=0` that assertion must be made conditional. To verify when
+  wiring the configured generation path in 27.5/27.7.
+- No api/ wiring here (27.5); this story only gives the orchestrateur the capability.
+
 ### File List
+
+- archilan-orchestrateur: `internal/service/session.go`, `internal/docker/client.go`,
+  `internal/api/types.go`, `internal/api/session_handlers.go`, `internal/service/mode_test.go` (modified).
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-09 | Story created from epic 27 plan (generation options). |
+| 2026-06-09 | Implemented orchestrateur#7 (merged to master, :latest rebuilt). No archipelago change needed. Status → review. |
