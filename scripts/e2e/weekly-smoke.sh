@@ -48,6 +48,7 @@ ADMIN_ID=""
 COOKIE=""
 RUN_ID=""
 ENTRY_ID=""
+TEMPLATE_ID=""
 TMP="$(mktemp -d 2>/dev/null || echo /tmp/e2e-weekly-$$)"
 mkdir -p "$TMP"
 
@@ -65,6 +66,10 @@ cleanup() {
   if [ -n "$ENTRY_ID" ]; then
     docker rm -f "bridge-$ENTRY_ID" "ap-server-$ENTRY_ID" "archilan-bridge-$ENTRY_ID" >/dev/null 2>&1 || true
     MSYS_NO_PATHCONV=1 docker volume rm -f "archilan_session_$ENTRY_ID" >/dev/null 2>&1 || true
+  fi
+  # Clear the template config override the test set (idempotent).
+  if [ -n "$TEMPLATE_ID" ] && [ -n "$COOKIE" ]; then
+    api_delete "/admin/session-config/override/$TEMPLATE_ID" >/dev/null 2>&1 || true
   fi
   # Remove the test admin and any runs/entries it produced (FK-safe order).
   console dbal:run-sql "DELETE FROM weekly_entries WHERE user_id IN (SELECT id FROM \"user\" WHERE email='$ADMIN_EMAIL')" >/dev/null 2>&1 || true
@@ -109,6 +114,8 @@ login() {
 
 api_get()  { curl -s -D "$TMP/h" -H "Cookie: $COOKIE" "$API$1"; }
 api_post() { curl -s -o "$TMP/resp" -w '%{http_code}' -H "Cookie: $COOKIE" -X POST "$API$1" "${@:2}"; }
+api_put()  { curl -s -o "$TMP/resp" -w '%{http_code}' -H "Cookie: $COOKIE" -H 'Content-Type: application/json' -X PUT "$API$1" -d "$2"; }
+api_delete() { curl -s -o /dev/null -w '%{http_code}' -H "Cookie: $COOKIE" -X DELETE "$API$1"; }
 
 # ── 3-4. Trigger generation + wait until the latest run is generated ────────────
 trigger_and_wait() {
@@ -118,6 +125,12 @@ trigger_and_wait() {
     tid="$(api_get "/admin/weekly-templates" | grep -oE '"id":"[0-9a-f]+"' | head -1 | sed -E 's/.*"id":"([0-9a-f]+)".*/\1/')"
   fi
   [ -n "$tid" ] || fail "no active weekly template found (set E2E_TEMPLATE_ID)"
+  TEMPLATE_ID="$tid"
+  # Set a non-default template override (release defaults to "disabled" for weekly) to prove
+  # the configured value flows config → resolver → gateway → orchestrateur → ap-server.
+  code="$(api_put "/admin/session-config/override/$tid" '{"releaseMode":"enabled"}')"
+  [ "$code" = "200" ] || fail "could not set template config override (HTTP $code)"
+  info "template override set: releaseMode=enabled"
   # Deterministic: drop this ISO-week's run for the template so generation creates a fresh
   # one we own (otherwise existsByTemplateAndWeek makes "Générer maintenant" a no-op).
   console dbal:run-sql "DELETE FROM weekly_runs WHERE template_id='$tid' AND week_year=EXTRACT(ISOYEAR FROM NOW()) AND week_number=EXTRACT(WEEK FROM NOW())" >/dev/null 2>&1 || true
@@ -190,6 +203,22 @@ assert_launch() {
     --max-time "$LAUNCH_TIMEOUT" -X POST "$API/weekly-runs/$RUN_ID/entries/$ENTRY_ID/launch")"
   [ "$code" = "201" ] || fail "launch returned HTTP $code ($(cat "$TMP/launch.json"))"
   ok "launch returned connection info"
+
+  # Epic 27: prove the configured override (releaseMode=enabled, ≠ weekly default) reached the
+  # launched AP server — the orchestrateur sets it as an env the launch script maps to --release_mode.
+  local apenv
+  apenv="$(MSYS_NO_PATHCONV=1 docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "ap-server-$ENTRY_ID" 2>/dev/null || true)"
+  printf '%s\n' "$apenv" | grep -qx 'RELEASE_MODE=enabled' \
+    || fail "configured releaseMode did not reach the ap-server (expected env RELEASE_MODE=enabled)"
+  ok "configured server option reached the ap-server (RELEASE_MODE=enabled)"
+  # Best-effort: the bridge's room info should report the same mode once connected (non-fatal).
+  local room
+  room="$(MSYS_NO_PATHCONV=1 docker exec "archilan-bridge-$ENTRY_ID" sh -c 'wget -qO- http://localhost:5000/room 2>/dev/null || curl -s http://localhost:5000/room 2>/dev/null' 2>/dev/null || true)"
+  if printf '%s' "$room" | grep -qiE '"releaseMode"[[:space:]]*:[[:space:]]*"enabled"'; then
+    ok "bridge room info reports releaseMode=enabled"
+  else
+    info "bridge /room not readable yet (non-fatal)"
+  fi
 
   # Session volume restored with the loose files (multidata + patch).
   local ls_out=""
