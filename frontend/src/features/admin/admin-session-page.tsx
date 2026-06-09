@@ -33,6 +33,7 @@ import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
+import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -539,23 +540,18 @@ export function AdminSessionDetailPage({
         session={session}
         slots={slots}
       />
-      <details className="rounded-xl border border-border bg-surface">
-        <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-foreground">
-          Configuration avancée (override de la session)
-        </summary>
-        <div className="border-t border-border p-5">
-          <SessionConfigOverrideForm
-            adapter={{
-              queryKey: ["session-override", "event-session", sessionId],
-              load: () => loadOverride(`/admin/session-config/override/${sessionId}`),
-              loadProfile: () => fetchSessionConfig("event"),
-              save: (o) => saveOverride(`/admin/session-config/override/${sessionId}`, o),
-              clear: () => clearOverride(`/admin/session-config/override/${sessionId}`),
-            }}
-            scopeLabel="cette session"
-          />
-        </div>
-      </details>
+      <CollapsibleConfigPanel title="Configuration avancée (override de la session)">
+        <SessionConfigOverrideForm
+          adapter={{
+            queryKey: ["session-override", "event-session", sessionId],
+            load: () => loadOverride(`/admin/session-config/override/${sessionId}`),
+            loadProfile: () => fetchSessionConfig("event"),
+            save: (o) => saveOverride(`/admin/session-config/override/${sessionId}`, o),
+            clear: () => clearOverride(`/admin/session-config/override/${sessionId}`),
+          }}
+          scopeLabel="cette session"
+        />
+      </CollapsibleConfigPanel>
     </PageShell>
   );
 }
