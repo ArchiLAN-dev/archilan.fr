@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, Calendar, CreditCard, Gamepad2, LayoutDashboard, Library, LogOut, Menu, Newspaper, Timer, Users, X } from "lucide-react";
+import { ArrowLeft, Bot, Calendar, CreditCard, Gamepad2, LayoutDashboard, Library, LogOut, Menu, Newspaper, SlidersHorizontal, Timer, Users, X } from "lucide-react";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -20,6 +20,7 @@ const navItems = [
   { href: "/admin/discord", icon: Bot, label: "Bot Discord", shortLabel: "Discord", exact: false },
   { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
   { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdo", shortLabel: "Runs", exact: false },
+  { href: "/admin/sessions/config", icon: SlidersHorizontal, label: "Config sessions", shortLabel: "Config", exact: false },
 ] as const;
 
 function AdminShellSkeleton() {
