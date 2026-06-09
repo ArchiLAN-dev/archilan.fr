@@ -21,6 +21,8 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useAuth } from "@/features/auth/auth-context";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
+import { clearOverride, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
+import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
@@ -659,6 +661,25 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         {/* My games card - visible to owner + participants when configurable */}
         {(run.isOwner || myParticipant !== null) && (run.status === "draft" || run.status === "idle") && (
           <MyGamesCard mySlotCount={mySlotCount} run={run} />
+        )}
+
+        {run.isOwner && (
+          <details className="rounded-lg border border-border bg-surface">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-foreground">
+              Configuration avancée (override)
+            </summary>
+            <div className="border-t border-border p-4">
+              <SessionConfigOverrideForm
+                adapter={{
+                  queryKey: ["session-override", "private-run", run.id],
+                  load: () => loadOverride(`/runs/${run.id}/config-override`),
+                  save: (o) => saveOverride(`/runs/${run.id}/config-override`, o),
+                  clear: () => clearOverride(`/runs/${run.id}/config-override`),
+                }}
+                scopeLabel="cette run"
+              />
+            </div>
+          </details>
         )}
 
         {/* Status-conditional panels - owner actions */}

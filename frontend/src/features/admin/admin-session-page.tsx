@@ -31,6 +31,8 @@ import { env } from "@/lib/env";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
+import { clearOverride, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
+import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -537,6 +539,22 @@ export function AdminSessionDetailPage({
         session={session}
         slots={slots}
       />
+      <details className="rounded-xl border border-border bg-surface">
+        <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-foreground">
+          Configuration avancée (override de la session)
+        </summary>
+        <div className="border-t border-border p-5">
+          <SessionConfigOverrideForm
+            adapter={{
+              queryKey: ["session-override", "event-session", sessionId],
+              load: () => loadOverride(`/admin/session-config/override/${sessionId}`),
+              save: (o) => saveOverride(`/admin/session-config/override/${sessionId}`, o),
+              clear: () => clearOverride(`/admin/session-config/override/${sessionId}`),
+            }}
+            scopeLabel="cette session"
+          />
+        </div>
+      </details>
     </PageShell>
   );
 }

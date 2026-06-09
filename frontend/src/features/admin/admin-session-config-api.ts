@@ -76,6 +76,50 @@ export async function updateSessionConfig(
   }
 }
 
+// ── Per-scope override (admin scope endpoints + owner run endpoint share the shape) ─────────
+
+export type OverrideResult = { ok: true } | { ok: false; error: string };
+
+// Loads the partial override stored for an endpoint ({ data: { override: {...} } }), or {}.
+export async function loadOverride(path: string): Promise<Record<string, unknown>> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}${path}`);
+    if (!res.ok) return {};
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return {};
+    const data: unknown = payload.data;
+    if (typeof data !== "object" || data === null || !("override" in data)) return {};
+    const override: unknown = data.override;
+    return typeof override === "object" && override !== null ? { ...override } : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function saveOverride(path: string, override: Record<string, unknown>): Promise<OverrideResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}${path}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(override),
+    });
+    if (res.status === 200) return { ok: true };
+    const err: unknown = await res.json().catch(() => null);
+    return { ok: false, error: extractErrorCode(err) };
+  } catch {
+    return { ok: false, error: "network_error" };
+  }
+}
+
+export async function clearOverride(path: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}${path}`, { method: "DELETE" });
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
+
 // ── Type guards ──────────────────────────────────────────────────────────────
 
 function extractConfig(payload: unknown): SessionConfig | null {
