@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save } from "lucide-react";
 import { useState } from "react";
 
+import { Switch } from "@/components/switch";
+
 import {
   COMPATIBILITY_VALUES,
   COUNTDOWN_MODES,
@@ -161,10 +163,10 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
           const overridden = field.key in current;
           return (
             <div className="flex flex-wrap items-center gap-3 rounded border border-border bg-surface-2/40 px-3 py-2" key={field.key}>
-              <label className="flex min-w-56 items-center gap-2 text-sm">
-                <input checked={overridden} onChange={(e) => toggleField(field, e.target.checked)} type="checkbox" />
+              <div className="flex min-w-56 items-center gap-2 text-sm">
+                <Switch ariaLabel={`Surcharger ${field.label}`} checked={overridden} onChange={(c) => toggleField(field, c)} />
                 <span className={overridden ? "font-medium text-foreground" : "text-muted-foreground"}>{field.label}</span>
-              </label>
+              </div>
               {overridden ? (
                 <OverrideControl field={field} onChange={(v) => setField(field.key, v)} value={current[field.key]} />
               ) : (
@@ -226,9 +228,9 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
   }
   if (field.kind === "bool") {
     return (
-      <label className="flex items-center gap-1.5 text-sm text-foreground">
-        <input checked={value === true} onChange={(e) => onChange(e.target.checked)} type="checkbox" /> activé
-      </label>
+      <span className="flex items-center gap-1.5 text-sm text-foreground">
+        <Switch ariaLabel={field.label} checked={value === true} onChange={onChange} /> activé
+      </span>
     );
   }
   if (field.kind === "text") {
@@ -246,14 +248,14 @@ function OverrideControl({ field, value, onChange }: { field: FieldDef; value: O
   return (
     <div className="flex flex-wrap gap-2">
       {PLANDO_OPTIONS.map((opt) => (
-        <label className="flex items-center gap-1 text-sm text-foreground" key={opt}>
-          <input
+        <span className="flex items-center gap-1.5 text-sm text-foreground" key={opt}>
+          <Switch
+            ariaLabel={opt}
             checked={selected.includes(opt)}
             onChange={() => onChange(selected.includes(opt) ? selected.filter((p) => p !== opt) : [...selected, opt])}
-            type="checkbox"
           />
           {opt}
-        </label>
+        </span>
       ))}
     </div>
   );
