@@ -1,6 +1,6 @@
 # Story 27.6: Admin session-config form (frontend)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -35,13 +35,13 @@ config API. Depends on 27.2 (API contract). The per-session override UI is 27.7.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — API module `admin-session-config-api.ts`: types + guards + `fetchSessionConfig(type)` /
+- [x] Task 1 — API module `admin-session-config-api.ts`: types + guards + `fetchSessionConfig(type)` /
   `updateSessionConfig(type, payload)` returning typed results (AC: 3, 5).
-- [ ] Task 2 — Page route under `(admin)` + a client component with the three-tab layout (AC: 1).
-- [ ] Task 3 — Server group form controls + Generation group controls, with labels matching AP semantics
+- [x] Task 2 — Page route under `(admin)` + a client component with the three-tab layout (AC: 1).
+- [x] Task 3 — Server group form controls + Generation group controls, with labels matching AP semantics
   (AC: 2). Reuse existing admin form primitives/styles (see `admin-weekly-run-*`).
-- [ ] Task 4 — Load + mutation wiring, invalidation, inline 422 errors, client validation (AC: 3, 4).
-- [ ] Task 5 — Add a nav entry in the admin shell; run gates (AC: 6).
+- [x] Task 4 — Load + mutation wiring, invalidation, inline 422 errors, client validation (AC: 3, 4).
+- [x] Task 5 — Add a nav entry in the admin shell; run gates (AC: 6).
 
 ## Dev Notes
 
@@ -71,11 +71,36 @@ config API. Depends on 27.2 (API contract). The per-session override UI is 27.7.
 
 ### Agent Model Used
 
+claude-opus-4-8 (Claude Code).
+
 ### Debug Log References
+
+- ESLint `react-hooks/set-state-in-effect` rejected syncing the query data into the editable draft
+  via `useEffect`. Replaced with the React-sanctioned "adjust state while rendering" pattern
+  (`if (data && data !== syncedFrom) { setSyncedFrom(data); setDraft(clone) }`), which resets the
+  draft only when the query returns a new config object (incl. after a save invalidation).
 
 ### Completion Notes List
 
+- `admin-session-config-api.ts`: typed `SessionConfig`/`SessionServerConfig`/`SessionGenerationConfig`
+  + exported enum constant lists, `fetchSessionConfig(type)` and `updateSessionConfig(type, config)`
+  (returns `{ ok, error }`), strict type guards (no `as` at the boundary; literal-key `in` narrowing).
+- `admin-session-config-page.tsx` (`"use client"`): three type tabs (Privé / Événement / Weekly),
+  **Serveur** group (release/collect/remaining/countdown selects, item-cheat toggle, hint cost,
+  location points, auto-shutdown, compatibility select, join password) and **Génération** group
+  (plando checkboxes, race toggle, spoiler select). TanStack query (`staleTime` 30s) + mutation with
+  query invalidation; inline success/error (422 → field code). Form keyed per type to reset cleanly.
+- Thin route `(admin)/admin/sessions/config/page.tsx` + admin-shell nav item ("Config sessions",
+  `SlidersHorizontal`).
+- Gates green: `pnpm typecheck`, `pnpm lint`, `pnpm build`.
+- Per-session override UI is deferred to 27.7.
+
 ### File List
+
+- `frontend/src/features/admin/admin-session-config-api.ts` (new)
+- `frontend/src/features/admin/admin-session-config-page.tsx` (new)
+- `frontend/src/app/(admin)/admin/sessions/config/page.tsx` (new)
+- `frontend/src/components/admin-shell.tsx` (modified — nav item)
 
 ## Change Log
 
