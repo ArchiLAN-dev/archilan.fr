@@ -1,12 +1,20 @@
 "use client";
 
-import { CalendarPlus, Gamepad2, Pencil, Plus, RotateCcw, Server, ShieldAlert, Users, Video } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Eye, Gamepad2, KeyRound, Pencil, Play, Plus, RotateCcw, Server, ShieldAlert, Users, Video } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+
+// Unified row-button styles: neutral for actions, accent for "state" chips
+// (game selection enabled, recap attached). Same size / radius / hover everywhere.
+const ROW_BTN_BASE =
+  "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors";
+const ROW_BTN_NEUTRAL = `${ROW_BTN_BASE} border-border text-foreground hover:border-accent hover:text-accent-text`;
+const ROW_BTN_ACTIVE = `${ROW_BTN_BASE} border-accent/60 text-accent-text hover:border-accent`;
 
 type AdminEvent = {
   id: string;
@@ -492,23 +500,23 @@ function EventList({
                 </td>
                 <td className="px-4 py-3">
                   <Link
-                    className={`inline-flex min-h-7 items-center justify-center gap-1 rounded border px-2 text-xs font-semibold transition-colors ${event.gameSelectionEnabled ? "border-accent text-accent-text" : "border-border text-muted-foreground hover:border-accent hover:text-accent-text"}`}
+                    className={event.gameSelectionEnabled ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
                     href={`/admin/evenements/${event.id}/jeux`}
                     title={event.gameSelectionEnabled ? "Sélection activée" : "Configurer la sélection de jeux"}
                   >
-                    <Gamepad2 aria-hidden="true" className="size-3" />
+                    <Gamepad2 aria-hidden="true" className="size-3.5" />
                     {event.gameSelectionEnabled ? "Activée" : "Configurer"}
                   </Link>
                 </td>
                 <td className="px-4 py-3">
                   {event.status === "completed" ? (
                     <button
-                      className={`inline-flex min-h-7 items-center justify-center gap-1 rounded border px-2 text-xs font-semibold ${event.hasRecap ? "border-accent text-accent-text" : "border-border text-muted-foreground hover:border-accent hover:text-accent-text"}`}
+                      className={event.hasRecap ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
                       onClick={() => onConfigureRecap(event)}
                       title={event.hasRecap ? "Récap attaché" : "Attacher un récap ou une VOD"}
                       type="button"
                     >
-                      <Video aria-hidden="true" className="size-3" />
+                      <Video aria-hidden="true" className="size-3.5" />
                       {event.hasRecap ? "Attaché" : "Attacher"}
                     </button>
                   ) : (
@@ -517,46 +525,41 @@ function EventList({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1.5">
-                    <Link
-                      className="inline-flex min-h-7 items-center justify-center gap-1 rounded border border-border px-2 text-xs font-semibold text-foreground hover:border-accent"
-                      href={`/admin/evenements/${event.id}/modifier`}
-                    >
-                      <Pencil aria-hidden="true" className="size-3" />
+                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/modifier`}>
+                      <Pencil aria-hidden="true" className="size-3.5" />
                       Modifier
                     </Link>
-                    <Link
-                      className="inline-flex min-h-7 items-center justify-center gap-1 rounded border border-border px-2 text-xs font-semibold text-foreground hover:border-accent"
-                      href={`/admin/evenements/${event.id}/inscriptions`}
-                    >
-                      <Users aria-hidden="true" className="size-3" />
+                    <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/inscriptions`}>
+                      <Users aria-hidden="true" className="size-3.5" />
                       Inscrits
                     </Link>
                     {event.gameSelectionEnabled ? (
-                      <Link
-                        className="inline-flex min-h-7 items-center justify-center gap-1 rounded border border-accent/60 px-2 text-xs font-semibold text-accent-text hover:border-accent"
-                        href={`/admin/evenements/${event.id}/session`}
-                      >
-                        <Server aria-hidden="true" className="size-3" />
+                      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>
+                        <Server aria-hidden="true" className="size-3.5" />
                         Run
                       </Link>
                     ) : null}
-                    {transitionActions(event.status).map((action) => (
-                      <button
-                        className="inline-flex min-h-7 items-center justify-center gap-1 rounded border border-border px-2 text-xs font-semibold text-foreground hover:border-accent"
-                        key={action.status}
-                        onClick={() => onTransition(event, action.status)}
-                        type="button"
-                      >
-                        {action.status === "draft" ? <RotateCcw aria-hidden="true" className="size-3" /> : null}
-                        {action.label}
-                      </button>
-                    ))}
+                    {transitionActions(event.status).map((action) => {
+                      const Icon = transitionIcon(action.status);
+                      return (
+                        <button
+                          className={ROW_BTN_NEUTRAL}
+                          key={action.status}
+                          onClick={() => onTransition(event, action.status)}
+                          type="button"
+                        >
+                          <Icon aria-hidden="true" className="size-3.5" />
+                          {action.label}
+                        </button>
+                      );
+                    })}
                     {!event.isPublic ? (
                       <button
-                        className="inline-flex min-h-7 items-center justify-center gap-1 rounded border border-border px-2 text-xs font-semibold text-foreground hover:border-accent"
+                        className={ROW_BTN_NEUTRAL}
                         onClick={() => onConfigurePrivateAccess(event)}
                         type="button"
                       >
+                        <KeyRound aria-hidden="true" className="size-3.5" />
                         {event.hasPrivateAccessPassword ? "Changer accès" : "Config. accès"}
                       </button>
                     ) : null}
@@ -724,6 +727,15 @@ function transitionActions(status: AdminEvent["status"]): StatusAction[] {
     completed: [{ label: "Rouvrir", status: "published" }],
   };
   return actions[status];
+}
+
+function transitionIcon(status: AdminEvent["status"]): LucideIcon {
+  return {
+    draft: RotateCcw,
+    published: Eye,
+    "in-progress": Play,
+    completed: CheckCircle2,
+  }[status];
 }
 
 function transitionConfirmation(from: AdminEvent["status"], to: AdminEvent["status"]) {
