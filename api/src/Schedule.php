@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
+use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
+use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
+use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
@@ -34,6 +38,18 @@ final class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::cron('0 3 * * *', new CleanupRefreshTokensMessage()),
+            )
+            ->add(
+                RecurringMessage::cron('15 3 * * *', new CleanupEmailConfirmationTokensMessage()),
+            )
+            ->add(
+                RecurringMessage::cron('20 3 * * *', new CleanupPasswordResetTokensMessage()),
+            )
+            ->add(
+                RecurringMessage::cron('25 3 * * *', new CleanupHelloAssoSyncLogMessage()),
+            )
+            ->add(
+                RecurringMessage::cron('30 3 * * *', new CleanupEventPrivateAccessLogMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

@@ -16,4 +16,11 @@ interface HelloAssoSyncLogRepositoryInterface
     public function save(HelloAssoSyncLog $log): void;
 
     public function flush(): void;
+
+    /**
+     * Delete log rows older than the given threshold (by attempt time).
+     *
+     * @return int number of deleted rows
+     */
+    public function deleteOlderThan(\DateTimeImmutable $threshold): int;
 }

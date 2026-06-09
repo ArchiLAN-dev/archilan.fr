@@ -44,4 +44,15 @@ final readonly class DoctrineEmailConfirmationTokenRepository implements EmailCo
             ->setParameter('userId', $userId)
             ->executeStatement();
     }
+
+    public function deleteStale(\DateTimeImmutable $now, \DateTimeImmutable $consumedBefore): int
+    {
+        $qb = $this->connection->createQueryBuilder();
+
+        return (int) $qb->delete($this->table)
+            ->where('expires_at < :now OR (confirmed_at IS NOT NULL AND confirmed_at < :consumedBefore)')
+            ->setParameter('now', $now, Types::DATETIMETZ_IMMUTABLE)
+            ->setParameter('consumedBefore', $consumedBefore, Types::DATETIMETZ_IMMUTABLE)
+            ->executeStatement();
+    }
 }
