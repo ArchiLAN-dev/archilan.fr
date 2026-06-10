@@ -811,23 +811,20 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               <div className="grid gap-3">
               <div className="rounded-lg border border-border bg-surface p-4">
                 <p className="mb-3 rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  La partie s&apos;est mise en pause après une période d&apos;inactivité. Relance-la pour reprendre&nbsp;: la dernière sauvegarde sera chargée automatiquement.
+                  {run.pausedWithoutSave
+                    ? "La partie s'est mise en pause, mais aucune sauvegarde n'est disponible : elle ne peut pas être reprise. Tu peux la supprimer."
+                    : "La partie s'est mise en pause après une période d'inactivité. Reprends-la pour continuer : la dernière sauvegarde sera chargée automatiquement."}
                 </p>
                 {run.pausedWithoutSave ? (
-                  <div>
-                    <button
-                      className="inline-flex items-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground opacity-50 cursor-not-allowed"
-                      disabled
-                      title="Reprise impossible : aucune sauvegarde disponible"
-                      type="button"
-                    >
-                      <RotateCcw aria-hidden className="size-4" />
-                      Reprendre manuellement
-                    </button>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Reprise impossible : aucune sauvegarde disponible.
-                    </p>
-                  </div>
+                  <button
+                    className="inline-flex items-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground opacity-50 cursor-not-allowed"
+                    disabled
+                    title="Reprise impossible : aucune sauvegarde disponible"
+                    type="button"
+                  >
+                    <RotateCcw aria-hidden className="size-4" />
+                    Reprendre manuellement
+                  </button>
                 ) : (
                   <button
                     className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
