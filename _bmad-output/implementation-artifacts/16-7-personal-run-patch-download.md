@@ -1,6 +1,6 @@
 # Story 16.7: Personal run — participant patch download
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 16 - Personal Runs - Private User-Created Archipelago Games
 **Date:** 2026-06-10
 
@@ -126,22 +126,50 @@ participant's own slot(s) to avoid handing out other players' patches.
 
 ### Agent Model Used
 
-_TBD_
+claude-opus-4-8 (Claude Code).
 
 ### Spike Findings
 
-_TBD — record how a participant's resolved slot name(s) are obtained (YAML name vs generation output) before coding Task 2/3._
+The participant's resolved slot name is **persisted in `SessionSlot`** at launch
+(`LaunchPersonalRunJobHandler` → `SlotNameGenerator` → `SessionSlot::create(…, userId,
+…, slotName, …)`), where the `registration_id` column holds the user id for personal
+runs. So no YAML parsing: `findByRegistrationAndSession(userId, sessionId)` →
+`getSlotName()`. Verified live: run → session bridge_port 25000, slot "masterkafei_LM".
+
+Bridge `/output` filenames are **`AP_{seed}_P{slotNumber}_{slotName}.{ext}`** (the slot
+name is a suffix and may contain underscores), e.g.
+`AP_32336784011536737200_P2_masterkafei_LM.aplm` — NOT just `{slotName}.{ext}`. So the
+matcher extracts the slot name after `_P\d+_` and compares **exactly** (a plain-stem
+fallback covers non-AP names). Exact match prevents a player whose slot is a *suffix*
+of another's (e.g. "LM" vs "masterkafei_LM") from grabbing the wrong patch.
 
 ### Completion Notes List
 
-_TBD_
+- `PersonalRunPatchQuery.forParticipant(runId, userId)` → `{bridgePort, slotNames}` or
+  null (run missing / not launched / no bridge / user has no slot). Reuses Sessions
+  Domain repos (no EM/Connection in Application).
+- `PersonalRunPatchController`: `GET /runs/{runId}/patches` (list) + `.../patches/{filename}`
+  (download), proxied through the bridge `/output` (mirrors `WeeklyEntryPatchController`),
+  filtered to the participant's own slot via `belongsToOwnSlot()` which excludes
+  `.archipelago` + `*_spoiler*` and matches the slot name exactly.
+- Frontend `PersonalRunPatchPanel` ("Fichiers générés") on the run page, before the
+  progress grid; renders nothing when there are no files; one download button per patch.
+- Verified live on a running private run: owner sees and the endpoint serves their own
+  `AP_…_masterkafei_LM.aplm`; `.archipelago`/spoiler/other slots are not exposed.
+- Tests: query (5: null paths + resolution) + matcher (6: AP-name match, plain fallback,
+  suffix-not-matched, other player's patch, multidata/spoiler excluded) — 11 green.
 
 ### File List
 
-_TBD_
+- `api/src/PersonalRuns/Application/PersonalRunPatchQuery.php` (new)
+- `api/src/PersonalRuns/Presentation/PersonalRunPatchController.php` (new)
+- `api/tests/Unit/PersonalRuns/PersonalRunPatchQueryTest.php`, `PersonalRunPatchFilterTest.php` (new)
+- `frontend/src/features/personal-runs/personal-run-patches.tsx` (new)
+- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` (panel wired in)
 
 ### Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-10 | Story created. Gap confirmed (no personal-run patch download; weekly has it). Decisions: per-participant own-slot patch, on the run page; .archipelago/spoiler excluded. Spike-first on participant→slot-name resolution. Status → ready-for-dev. |
+| 2026-06-10 | Implemented: query + controller (bridge proxy, exact own-slot match) + "Fichiers générés" panel + 11 unit tests. Spike resolved (SessionSlot stores slotName; AP filename = AP_{seed}_P{n}_{slotName}.ext). Verified live. Gates green. Status → review. |
