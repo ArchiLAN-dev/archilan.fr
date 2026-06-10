@@ -668,21 +668,21 @@ function EventList({
                 {formatDateShort(event.startsAt)}
               </time>
             </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <div>
-                <dt className="text-xs text-muted-foreground">Capacité</dt>
-                <dd className="mt-0.5 text-muted-foreground">{renderCapacity(event)}</dd>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Capacité</dt>
+                <dd className="mt-1 text-foreground">{renderCapacity(event)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Visibilité</dt>
-                <dd className="mt-0.5 text-muted-foreground">{renderVisibility(event)}</dd>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Visibilité</dt>
+                <dd className="mt-1 text-foreground">{renderVisibility(event)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Jeux</dt>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Jeux</dt>
                 <dd className="mt-1">{renderGames(event)}</dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Récap</dt>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Récap</dt>
                 <dd className="mt-1">{renderRecap(event)}</dd>
               </div>
             </dl>
