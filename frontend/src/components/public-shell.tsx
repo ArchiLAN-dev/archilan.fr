@@ -96,12 +96,6 @@ function AuthNavDesktop() {
         )}
         <Link
           className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-          href="/runs-hebdo"
-        >
-          Runs hebdo
-        </Link>
-        <Link
-          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
           href="/compte"
         >
           Mon espace
@@ -163,13 +157,6 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
             Administration
           </Link>
         )}
-        <Link
-          className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-          href="/runs-hebdo"
-          onClick={onNavigate}
-        >
-          Runs hebdo
-        </Link>
         <Link
           className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
           href="/compte"
@@ -253,8 +240,9 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             </span>
           </Link>
 
-          <div className="hidden items-center gap-6 lg:flex">
+          <div className="hidden items-center gap-4 lg:flex xl:gap-6">
             <NavLink href="/evenements" label="Événements" />
+            <NavLink href="/runs-hebdo" label="Runs hebdo" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink href="/actualites" label="Actualités" />
             <NavLink href={externalLinks.archilanDiscord} label="Discord" />
@@ -293,6 +281,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
           <nav aria-label="Navigation mobile" className="flex h-full flex-col">
             <div className="flex flex-col gap-3">
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink href="/runs-hebdo" label="Runs hebdo" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/actualites" label="Actualités" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href={externalLinks.archilanDiscord} label="Discord" onNavigate={() => setMenuState({ open: false, pathname })} />
