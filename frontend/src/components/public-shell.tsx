@@ -285,7 +285,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
         <div
           aria-hidden={!open}
           className={[
-            "fixed inset-0 top-16 z-40 bg-background px-6 py-8 transition lg:hidden",
+            "fixed inset-x-0 top-16 z-40 h-[calc(100dvh-4rem)] overflow-y-auto bg-background px-6 py-8 transition lg:hidden",
             open ? "visible opacity-100" : "invisible pointer-events-none opacity-0",
           ].join(" ")}
           id={menuId}
