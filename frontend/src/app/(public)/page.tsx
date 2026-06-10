@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CalendarDays, MessageCircle, Radio } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, Gamepad2, MessageCircle, Radio, Swords, Trophy } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
 import { ConsentGatedTwitchEmbed } from "@/features/streaming/consent-gated-twitch-embed";
 import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
@@ -9,6 +10,78 @@ import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
 
 export const dynamic = "force-dynamic";
+
+type Feature = { title: string; description: string; href?: string; Icon: LucideIcon };
+
+const FEATURES: Feature[] = [
+  {
+    title: "Runs hebdomadaires",
+    href: "/runs-hebdo",
+    Icon: CalendarClock,
+    description:
+      "Un nouveau seed Archipelago chaque semaine, par jeu. Complète tes checks à ton rythme et grimpe au classement.",
+  },
+  {
+    title: "Parties privées",
+    href: "/runs",
+    Icon: Swords,
+    description:
+      "Crée ta propre partie multiworld, invite tes amis avec un lien et lancez l'aventure quand vous voulez.",
+  },
+  {
+    title: "Événements & LAN",
+    href: "/evenements",
+    Icon: CalendarDays,
+    description:
+      "Inscris-toi aux événements ArchiLAN, choisis tes jeux et rejoins le multiworld du jour.",
+  },
+  {
+    title: "Suivi en direct",
+    Icon: Radio,
+    description:
+      "La progression de chaque joueur en temps réel : checks, objets envoyés, indices et objectifs atteints.",
+  },
+  {
+    title: "Classements & profils",
+    href: "/classements",
+    Icon: Trophy,
+    description:
+      "Ton profil joueur, l'historique de tes runs et les classements de la communauté.",
+  },
+  {
+    title: "Catalogue de jeux",
+    href: "/jeux",
+    Icon: Gamepad2,
+    description:
+      "Parcours les jeux compatibles Archipelago disponibles pour tes runs et événements.",
+  },
+];
+
+function FeatureCard({ title, description, href, Icon }: Feature) {
+  const body = (
+    <>
+      <Icon aria-hidden="true" className="mb-5 size-7 text-accent-text" />
+      <h3 className="font-heading text-lg font-semibold text-foreground">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+      {href ? (
+        <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent-text">
+          Découvrir
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link className="card-glow flex flex-col rounded-lg border border-border p-6 transition-colors hover:border-accent" href={href}>
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className="card-glow flex flex-col rounded-lg border border-border p-6">{body}</div>;
+}
 
 export default async function Home() {
   const { upcoming, past } = await getPublicEvents();
@@ -121,6 +194,29 @@ export default async function Home() {
               des replays, et une communauté francophone qui grandit.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Fonctionnalités de la plateforme */}
+      <section aria-labelledby="features-heading" className="border-t border-border pt-12">
+        <div className="max-w-2xl">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text text-on-canvas">
+            La plateforme
+          </p>
+          <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl text-on-canvas" id="features-heading">
+            Tout pour jouer à Archipelago
+          </h2>
+          <p className="mt-4 text-lg leading-8 text-muted-foreground text-on-canvas">
+            Des runs hebdomadaires aux parties privées entre amis, ArchiLAN gère
+            la génération des seeds, les serveurs et le suivi en direct — tu n&apos;as
+            plus qu&apos;à jouer.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <FeatureCard key={feature.title} {...feature} />
+          ))}
         </div>
       </section>
 
