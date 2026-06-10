@@ -675,6 +675,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 save: (o) => saveOverride(`/runs/${run.id}/config-override`, o),
                 clear: () => clearOverride(`/runs/${run.id}/config-override`),
               }}
+              lockedKeys={["autoShutdown"]}
               scopeLabel="cette run"
             />
           </CollapsibleConfigPanel>
