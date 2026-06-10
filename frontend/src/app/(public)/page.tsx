@@ -19,7 +19,7 @@ const FEATURES: Feature[] = [
     href: "/runs-hebdo",
     Icon: CalendarClock,
     description:
-      "Un nouveau seed Archipelago chaque semaine, par jeu. Complète tes checks à ton rythme et grimpe au classement.",
+      "Une nouvelle seed Archipelago chaque semaine, par jeu. Complète tes checks à ton rythme et grimpe au classement.",
   },
   {
     title: "Parties privées",
