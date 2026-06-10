@@ -1,6 +1,6 @@
 # Story 16.7: Personal run — participant patch download
 
-**Status:** review
+**Status:** done
 **Epic:** 16 - Personal Runs - Private User-Created Archipelago Games
 **Date:** 2026-06-10
 
@@ -173,3 +173,4 @@ of another's (e.g. "LM" vs "masterkafei_LM") from grabbing the wrong patch.
 |------------|--------|
 | 2026-06-10 | Story created. Gap confirmed (no personal-run patch download; weekly has it). Decisions: per-participant own-slot patch, on the run page; .archipelago/spoiler excluded. Spike-first on participant→slot-name resolution. Status → ready-for-dev. |
 | 2026-06-10 | Implemented: query + controller (bridge proxy, exact own-slot match) + "Fichiers générés" panel + 11 unit tests. Spike resolved (SessionSlot stores slotName; AP filename = AP_{seed}_P{n}_{slotName}.ext). Verified live. Gates green. Status → review. |
+| 2026-06-10 | Merged via PR #97 (CI green incl. full backend suite). Status → done. |
