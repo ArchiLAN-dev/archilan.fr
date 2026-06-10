@@ -35,7 +35,7 @@ async function downloadPatch(runId: string, filename: string): Promise<void> {
     document.body.removeChild(a);
     URL.revokeObjectURL(objectUrl);
   } catch {
-    // non-critical — the user will notice the file didn't arrive
+    // non-critical - the user will notice the file didn't arrive
   }
 }
 
@@ -60,18 +60,19 @@ export function PersonalRunPatchPanel({ runId, enabled }: { runId: string; enabl
         <h3 className="text-sm font-semibold text-foreground">Fichiers générés</h3>
       </div>
       <p className="mb-3 text-sm text-muted-foreground">
-        Le patch de ton slot pour cette partie — applique-le à ta ROM pour jouer.
+        Le patch de ton slot pour cette partie - applique-le à ta ROM pour jouer.
       </p>
       <div className="flex flex-wrap gap-2">
         {files.map((filename) => (
           <button
-            className="inline-flex items-center gap-1.5 rounded border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent"
+            className="inline-flex max-w-full items-center gap-1.5 rounded border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent"
             key={filename}
             onClick={() => { void downloadPatch(runId, filename); }}
+            title={filename}
             type="button"
           >
-            <Download aria-hidden className="size-3.5 text-accent-text" />
-            {filename}
+            <Download aria-hidden className="size-3.5 shrink-0 text-accent-text" />
+            <span className="min-w-0 truncate">{filename}</span>
           </button>
         ))}
       </div>
