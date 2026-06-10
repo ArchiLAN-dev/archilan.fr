@@ -11,7 +11,6 @@ use App\Identity\Application\Message\CleanupRefreshTokensMessage;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
-use App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -53,9 +52,6 @@ final class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),
-            )
-            ->add(
-                RecurringMessage::every('5 minutes', new InactivityWatchdogMessage()),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),

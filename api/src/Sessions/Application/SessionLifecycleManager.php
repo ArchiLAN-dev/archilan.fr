@@ -492,45 +492,6 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
     /**
      * @return array{found: bool, error: string|null, status: string|null}
      */
-    public function markRestartingBridge(string $sessionId): array
-    {
-        $session = $this->sessions->findById($sessionId);
-        if (!$session instanceof Session) {
-            return ['found' => false, 'error' => null, 'status' => null];
-        }
-
-        if (Session::STATUS_RESTARTING === $session->getStatus()) {
-            return ['found' => true, 'error' => null, 'status' => 'already_restarting'];
-        }
-
-        if (Session::STATUS_IDLE !== $session->getStatus()) {
-            return ['found' => true, 'error' => 'invalid_status', 'status' => null];
-        }
-
-        $now = new \DateTimeImmutable();
-
-        try {
-            $session->markRestarting($now);
-        } catch (\LogicException $e) {
-            return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
-        }
-
-        $personalRun = $this->runs->findBySessionId($sessionId);
-        if ($personalRun instanceof Run) {
-            $personalRun->markRestarting($now);
-        }
-
-        $this->sessions->flush();
-        $this->publish($session);
-
-        $this->logger->info('session.restarting.bridge_triggered', ['sessionId' => $sessionId]);
-
-        return ['found' => true, 'error' => null, 'status' => 'restarting'];
-    }
-
-    /**
-     * @return array{found: bool, error: string|null, status: string|null}
-     */
     public function markRestartFailed(string $sessionId): array
     {
         $session = $this->sessions->findById($sessionId);

@@ -187,10 +187,6 @@ services:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
 
-    App\Sessions\Application\ScheduledTask\InactivityWatchdogHandler:
-        arguments:
-            $inactivityTimeoutSeconds: '%env(default:default_inactivity_timeout:int:ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS)%'
-
     App\Shared\Infrastructure\DockerSocketClient:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'

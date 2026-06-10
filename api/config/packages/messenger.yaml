@@ -53,8 +53,6 @@ framework:
             'App\Membership\Application\Message\MembershipExpiredNotificationMessage': async
             'App\Membership\Application\Message\SyncMemberToDolibarrMessage': async
             'App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask': async
-            'App\Sessions\Application\ScheduledTask\InactivityWatchdogMessage': async
-            'App\Sessions\Application\Message\PauseRunJob': run_server
             'App\Sessions\Application\Message\ResumeRunJob': run_server
             'App\Communications\Application\SessionPausedWithoutSaveMessage': async
             'App\Communications\Application\SessionRestartFailedMessage': async

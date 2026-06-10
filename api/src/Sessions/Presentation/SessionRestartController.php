@@ -53,26 +53,6 @@ final readonly class SessionRestartController
         return new JsonResponse(['data' => ['sessionId' => $result['sessionId'], 'status' => $result['status']]], 202);
     }
 
-    #[Route('/api/v1/internal/sessions/{sessionId}/restarting', methods: ['POST'])]
-    public function restarting(Request $request, string $sessionId): JsonResponse
-    {
-        if (!$this->bearerTokenValid($request)) {
-            return $this->apiAccessGuard->errorResponse('unauthorized', 'Token invalide.', 401);
-        }
-
-        $result = $this->sessionLifecycleManager->markRestartingBridge($sessionId);
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
-        }
-
-        if (null !== $result['error'] && 'already_restarting' !== $result['status']) {
-            return $this->apiAccessGuard->errorResponse('invalid_status', $result['error'], 409);
-        }
-
-        return new JsonResponse(['data' => ['ok' => true]]);
-    }
-
     #[Route('/api/v1/internal/sessions/{sessionId}/restart-failed', methods: ['POST'])]
     public function restartFailed(Request $request, string $sessionId): JsonResponse
     {
