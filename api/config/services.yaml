@@ -294,6 +294,7 @@ services:
     App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
     App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
     App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
+    App\GameSelection\Application\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\DbalGameUsageCounter'
 
     App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
 

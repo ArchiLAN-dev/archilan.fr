@@ -12,12 +12,17 @@ export type AdminGame = {
   usageCount: number;
 };
 
+export type GameSort = "name" | "usage";
+export type GameSortDir = "asc" | "desc";
+
 export type AdminGameListFilters = {
   page: number;
   perPage: number;
   search: string;
   availability: "available" | "unavailable" | "experimental" | "";
   yamlReady: "" | "1" | "0";
+  sort: GameSort;
+  dir: GameSortDir;
 };
 
 type AdminGameListPayload = {
@@ -36,6 +41,8 @@ export async function fetchAdminGames(
     if (filters.search.trim()) params.set("search", filters.search.trim());
     if (filters.availability) params.set("availability", filters.availability);
     if (filters.yamlReady) params.set("yaml_ready", filters.yamlReady);
+    params.set("sort", filters.sort);
+    params.set("dir", filters.dir);
 
     const res = await apiFetch(`${env.apiBaseUrl}/admin/games?${params.toString()}`);
 
