@@ -46,8 +46,14 @@ const STATUS_CLASSES: Record<number, string> = {
 
 // ─── Sorting ──────────────────────────────────────────────────────────────────
 
+// The "Bridge" slot is the observer the bridge service connects as (see orchestrateur
+// service.go) — a TextOnly spectator, not a real player. Hide it from the grid.
+const BRIDGE_SLOT_NAME = "Bridge";
+
 function sortedEntries(slots: SlotsMap): [string, SlotData][] {
-  return Object.entries(slots).sort(([, a], [, b]) => {
+  return Object.entries(slots)
+    .filter(([, slot]) => slot.slot_name !== BRIDGE_SLOT_NAME)
+    .sort(([, a], [, b]) => {
     const bucket = (s: SlotData) => (s.client_status === 30 ? 0 : s.client_status === 20 ? 1 : 2);
     const ba = bucket(a);
     const bb = bucket(b);
