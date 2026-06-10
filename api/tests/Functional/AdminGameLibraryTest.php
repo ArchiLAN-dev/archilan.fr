@@ -177,6 +177,59 @@ final class AdminGameLibraryTest extends FunctionalTestCase
         self::assertCount(2, $list['data']);
     }
 
+    public function testUsageCountAndSorting(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->loginAs($admin);
+
+        $now = new \DateTimeImmutable();
+        $alpha = Game::create('Alpha', 'alpha', 'A.', null, 'alt', 'credit', Game::AVAILABILITY_AVAILABLE, $now);
+        $beta = Game::create('Beta', 'beta', 'B.', null, 'alt', 'credit', Game::AVAILABILITY_AVAILABLE, $now);
+        $this->entityManager->persist($alpha);
+        $this->entityManager->persist($beta);
+        $this->entityManager->flush();
+
+        // Alpha is used by two weekly templates; Beta by none.
+        $conn = $this->entityManager->getConnection();
+        foreach (['wt-usage-1', 'wt-usage-2'] as $id) {
+            $conn->insert('weekly_templates', [
+                'id' => $id,
+                'game_id' => $alpha->getId(),
+                'yaml_config' => "name: x\n",
+                'is_active' => true,
+                'created_at' => $now->format('Y-m-d H:i:sP'),
+                'updated_at' => $now->format('Y-m-d H:i:sP'),
+            ], ['is_active' => \Doctrine\DBAL\ParameterType::BOOLEAN]);
+        }
+        $this->entityManager->clear();
+
+        // sort=usage desc → Alpha (2) before Beta (0)
+        $this->client->jsonRequest('GET', '/api/v1/admin/games?sort=usage&dir=desc');
+        self::assertResponseIsSuccessful();
+        $list = $this->decodedJsonResponse();
+        self::assertIsArray($list['data']);
+        $first = $list['data'][0];
+        $second = $list['data'][1];
+        self::assertIsArray($first);
+        self::assertIsArray($second);
+        self::assertSame('Alpha', $first['name']);
+        self::assertSame(2, $first['usageCount']);
+        self::assertSame('Beta', $second['name']);
+        self::assertSame(0, $second['usageCount']);
+
+        // sort=name desc → Beta before Alpha
+        $this->client->jsonRequest('GET', '/api/v1/admin/games?sort=name&dir=desc');
+        self::assertResponseIsSuccessful();
+        $list = $this->decodedJsonResponse();
+        self::assertIsArray($list['data']);
+        $first = $list['data'][0];
+        $second = $list['data'][1];
+        self::assertIsArray($first);
+        self::assertIsArray($second);
+        self::assertSame('Beta', $first['name']);
+        self::assertSame('Alpha', $second['name']);
+    }
+
     /**
      * @return array<string, mixed>
      */

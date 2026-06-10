@@ -13,6 +13,8 @@ import {
   fetchAdminGames,
   type AdminGame,
   type AdminGameListFilters,
+  type GameSort,
+  type GameSortDir,
 } from "./admin-game-library-api";
 
 const DEFAULT_FILTERS: AdminGameListFilters = {
@@ -21,6 +23,8 @@ const DEFAULT_FILTERS: AdminGameListFilters = {
   search: "",
   availability: "",
   yamlReady: "",
+  sort: "name",
+  dir: "asc",
 };
 
 type FlashMessage = { kind: "success" | "error"; text: string };
@@ -52,6 +56,8 @@ export function AdminGameLibraryDashboard() {
       search: draftSearch,
       availability: draftAvailability,
       yamlReady: draftYamlReady,
+      sort: filters.sort,
+      dir: filters.dir,
     });
   }
 
@@ -143,6 +149,20 @@ export function AdminGameLibraryDashboard() {
           <option value="">Tout statut YAML</option>
           <option value="1">YAML configuré</option>
           <option value="0">YAML manquant</option>
+        </select>
+        <select
+          aria-label="Trier les jeux"
+          className="min-h-10 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+          value={`${filters.sort}:${filters.dir}`}
+          onChange={(e) => {
+            const [sort, dir] = e.target.value.split(":") as [GameSort, GameSortDir];
+            setFilters((prev) => ({ ...prev, sort, dir, page: 1 }));
+          }}
+        >
+          <option value="name:asc">Nom (A→Z)</option>
+          <option value="name:desc">Nom (Z→A)</option>
+          <option value="usage:desc">Utilisations (décroissant)</option>
+          <option value="usage:asc">Utilisations (croissant)</option>
         </select>
         <button
           className="min-h-10 rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"

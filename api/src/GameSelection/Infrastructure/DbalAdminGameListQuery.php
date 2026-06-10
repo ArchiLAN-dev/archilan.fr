@@ -14,7 +14,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
     {
     }
 
-    public function find(int $page, int $perPage, string $search, ?string $availability, ?bool $yamlReady, ?bool $apworldReady = null): array
+    public function find(int $page, int $perPage, string $search, ?string $availability, ?bool $yamlReady, ?bool $apworldReady = null, string $sort = 'name', string $dir = 'asc'): array
     {
         $countQb = $this->connection->createQueryBuilder()
             ->select('COUNT(*)')
@@ -40,11 +40,19 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
                 'g.apworld_uploaded_at',
                 'g.created_at',
                 'g.updated_at',
+                '(SELECT COUNT(*) FROM session_slot ss WHERE ss.game_id = g.id) '
+                .'+ (SELECT COUNT(*) FROM weekly_templates wt WHERE wt.game_id = g.id) AS usage_count',
             )
             ->from('game', 'g')
-            ->orderBy('g.name', 'ASC')
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
+
+        $direction = 'desc' === strtolower($dir) ? 'DESC' : 'ASC';
+        if ('usage' === $sort) {
+            $dataQb->orderBy('usage_count', $direction)->addOrderBy('g.name', 'ASC');
+        } else {
+            $dataQb->orderBy('g.name', $direction);
+        }
         $this->applyFilters($dataQb, $search, $availability, $yamlReady, $apworldReady);
 
         $rows = $dataQb->executeQuery()->fetchAllAssociative();
@@ -104,7 +112,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
             'isApworldReady' => null !== $apworldStorageKey,
             'apworldHash' => $apworldHash,
             'apworldUploadedAt' => $this->formatDate($row['apworld_uploaded_at'] ?? null),
-            'usageCount' => 0,
+            'usageCount' => is_numeric($row['usage_count'] ?? null) ? (int) $row['usage_count'] : 0,
             'createdAt' => $this->formatDate($row['created_at'] ?? null) ?? '',
             'updatedAt' => $this->formatDate($row['updated_at'] ?? null) ?? '',
         ];
