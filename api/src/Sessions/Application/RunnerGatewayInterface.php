@@ -43,6 +43,12 @@ interface RunnerGatewayInterface
     public function restartSession(string $sessionId): void;
 
     /**
+     * Resume an idle session: the orchestrateur relaunches the AP server on the retained session
+     * volume so the latest Archipelago save is reloaded (epic-17 restart redesign).
+     */
+    public function relaunchFromSave(string $sessionId): void;
+
+    /**
      * Returns the orchestrateur's view of the session, or null if the session is unknown.
      *
      * @return array{status: string, bridgePort: ?int, apPort: ?int}|null

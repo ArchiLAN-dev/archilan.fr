@@ -16,6 +16,13 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class OrchestratorWebhookController
 {
+    /**
+     * Stored as the session's lastSaveKey when it goes idle via auto_shutdown. The real save lives
+     * in the orchestrateur session volume (relaunch-from-save reads it there); this marker only
+     * makes the session resumable through the existing "has a save" gate in initiateRestart().
+     */
+    private const VOLUME_SAVE_MARKER = 'orchestrateur:volume';
+
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionLifecycleManager $sessionLifecycleManager,
@@ -99,6 +106,16 @@ final readonly class OrchestratorWebhookController
         if ('session.stopped' === $event) {
             $this->sessionLifecycleManager->transition($sessionId, 'stopped');
             $this->sessionOrchestrator->markPersonalRunStopped($sessionId);
+
+            return new JsonResponse(['data' => ['ok' => true]]);
+        }
+
+        // Archipelago auto_shutdown after inactivity: the AP server stopped itself and the
+        // orchestrateur retained the session volume (which holds the .apsave). Mark the session
+        // idle and resumable. There is no MinIO save key under this model — the orchestrateur
+        // relaunches from the volume — so a non-empty marker is stored to satisfy the resume gate.
+        if ('session.idle' === $event) {
+            $this->sessionLifecycleManager->recordPaused($sessionId, self::VOLUME_SAVE_MARKER, false);
 
             return new JsonResponse(['data' => ['ok' => true]]);
         }

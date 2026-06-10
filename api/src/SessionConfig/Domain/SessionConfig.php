@@ -164,7 +164,10 @@ final readonly class SessionConfig
                     hintCost: 10,
                     locationCheckPoints: 1,
                     countdownMode: CountdownMode::Auto,
-                    autoShutdown: 0,
+                    // Idle is driven by Archipelago's native auto_shutdown (epic 17 redesign): a private
+                    // run idle for 30 min stops itself; the owner relaunches it manually. Admin-tunable
+                    // on the "private" profile (owners cannot change it, story 27.9).
+                    autoShutdown: 1800,
                     compatibility: Compatibility::Casual,
                 ),
                 new SessionGenerationConfig([], false, SpoilerLevel::WithPaths),

@@ -811,7 +811,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               <div className="grid gap-3">
               <div className="rounded-lg border border-border bg-surface p-4">
                 <p className="mb-3 rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  La partie redémarre automatiquement dès qu&apos;un joueur tente de se connecter. Vous pouvez aussi la relancer manuellement.
+                  La partie s&apos;est mise en pause après une période d&apos;inactivité. Relance-la pour reprendre&nbsp;: la dernière sauvegarde sera chargée automatiquement.
                 </p>
                 {run.pausedWithoutSave ? (
                   <div>
