@@ -83,6 +83,10 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     {
     }
 
+    public function relaunchFromSave(string $sessionId): void
+    {
+    }
+
     public function getSessionInfo(string $sessionId): ?array
     {
         return null;

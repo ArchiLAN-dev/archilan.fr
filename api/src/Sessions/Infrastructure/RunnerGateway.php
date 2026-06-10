@@ -193,6 +193,11 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         $this->client->sessions()->restart($sessionId);
     }
 
+    public function relaunchFromSave(string $sessionId): void
+    {
+        $this->client->sessions()->relaunchFromSave($sessionId);
+    }
+
     public function getSessionInfo(string $sessionId): ?array
     {
         try {
