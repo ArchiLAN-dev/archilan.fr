@@ -122,9 +122,8 @@ export default async function Home() {
               Association Archipelago en France
             </p>
             <h1 className="font-heading text-4xl font-bold leading-tight md:text-5xl">
-              <span className="bg-gradient-to-r from-foreground via-foreground to-accent bg-clip-text text-transparent">
-                Un item de ton jeu.<br />
-                Le monde entier.
+              <span className="bg-linear-to-r from-foreground via-foreground to-accent-text bg-clip-text text-transparent">
+                Joue pour toi, gagne pour tous.
               </span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
