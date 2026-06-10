@@ -12,12 +12,12 @@ done
 
 ## Acceptance Criteria
 
-**AC1 — Package scaffold:**
+**AC1 - Package scaffold:**
 Directory `packages/orchestrateur-client/` exists in the monorepo root with:
 - `composer.json` declaring `name: "archilan/orchestrateur-client"`, `type: "library"`, PHP `^8.2`, dependencies: `symfony/http-client-contracts: ^3.0`, `symfony/mime: ^6.4|^7.0`. PSR-4 autoload root `Archilan\\OrchestratorClient\\` → `src/`.
 - `api/composer.json` adds a `path` repository pointing to `../packages/orchestrateur-client` and requires `archilan/orchestrateur-client: *`.
 
-**AC2 — Entry point:**
+**AC2 - Entry point:**
 `OrchestratorClient` is the single user-facing entry point:
 ```php
 $client = new OrchestratorClient(
@@ -31,15 +31,15 @@ $client->apworlds()   // ApworldsClient
 ```
 No global state; all config passed at construction. Internally, `OrchestratorClient` builds one `HttpTransport` instance and injects it into each sub-client.
 
-**AC2b — Internal `HttpTransport`:**
+**AC2b - Internal `HttpTransport`:**
 `HttpTransport` (internal class, not part of the public API) centralises all HTTP plumbing so sub-clients contain zero HTTP logic:
 - Injects `Authorization: Bearer {apiKey}` header on every request.
-- Exposes `postVoid()`, `postJson()`, `postMultipart()`, `getJson()`, `getRaw()`, `deleteVoid()` — each maps the response to the correct return type or throws.
+- Exposes `postVoid()`, `postJson()`, `postMultipart()`, `getJson()`, `getRaw()`, `deleteVoid()` - each maps the response to the correct return type or throws.
 - Single `mapError()` private method: reads HTTP status + JSON `error` field and throws the appropriate `OrchestratorException` subtype. **All exception mapping lives here and nowhere else.**
 - Adding a new endpoint to an existing sub-client = one method call to `$this->transport->*()`.
 - Adding a new group of endpoints = new `FooClient(HttpTransport $transport)` + one `->foo(): FooClient` getter on `OrchestratorClient`.
 
-**AC3 — Sessions API — all 8 endpoints covered:**
+**AC3 - Sessions API - all 8 endpoints covered:**
 `SessionsClient` methods (all throw `OrchestratorException` on non-2xx):
 - `generate(string $sessionId, string $adminPassword, string $seed = ''): void` → `POST /sessions/{id}/generate` (202)
 - `launch(string $sessionId, string $adminPassword, ?string $serverPassword = null): void` → `POST /sessions/{id}/launch` (202)
@@ -50,7 +50,7 @@ No global state; all config passed at construction. Internally, `OrchestratorCli
 - `delete(string $sessionId): void` → `DELETE /sessions/{id}` (204)
 - `preflight(string $sessionId, PreflightRequest $request): PreflightResult` → `POST /sessions/{id}/preflight` (200)
 
-**AC4 — Containers API — all 6 endpoints covered:**
+**AC4 - Containers API - all 6 endpoints covered:**
 `ContainersClient` methods:
 - `create(string $sessionId, string $adminPassword, string $serverPassword = ''): CreateContainerResult` → `POST /containers` (202)
 - `list(): ContainerResponse[]` → `GET /containers` (200)
@@ -59,12 +59,12 @@ No global state; all config passed at construction. Internally, `OrchestratorCli
 - `reload(string $sessionId): void` → `POST /containers/{id}/reload` (204)
 - `remove(string $sessionId): void` → `DELETE /containers/{id}` (204)
 
-**AC5 — Apworlds API — both endpoints covered:**
+**AC5 - Apworlds API - both endpoints covered:**
 `ApworldsClient` methods:
 - `upload(string $fileContents, string $filename): UploadApworldResult` → `POST /apworlds` multipart (201)
 - `getYamlTemplate(string $hash): string` → `GET /apworlds/{hash}/yaml` (200, returns raw YAML string)
 
-**AC6 — Typed response DTOs:**
+**AC6 - Typed response DTOs:**
 All response objects are `final readonly` classes (no public setters). Fields map 1-to-1 to the Go `types.go` JSON shapes:
 - `SessionResponse`: `sessionId`, `status` (string), `bridgePort` (?int), `apPort` (?int), `serverPassword` (?string), `outputFile` (?string), `createdAt` (string), `updatedAt` (string).
 - `ContainerResponse`: `sessionId`, `port` (int), `status` (string), `containerId` (?string), `image` (string), `createdAt` (string), `updatedAt` (string).
@@ -73,43 +73,43 @@ All response objects are `final readonly` classes (no public setters). Fields ma
 - `PreflightResult`: `valid` (bool), `slots` (PreflightSlotResult[]).
 - `PreflightSlotResult`: `slotId` (string), `proposedName` (string), `errors` (string[]).
 
-**AC7 — Typed request DTOs:**
+**AC7 - Typed request DTOs:**
 - `PreflightRequest` holds `slots` (`PreflightSlot[]`).
-- `PreflightSlot`: `slotId`, `playerName`, `archipelagoGameName`, `options` (`SlotOption[]`), `apworldStorageKey`, `playerYaml` — all optional except `slotId`.
+- `PreflightSlot`: `slotId`, `playerName`, `archipelagoGameName`, `options` (`SlotOption[]`), `apworldStorageKey`, `playerYaml` - all optional except `slotId`.
 - `SlotOption`: `key` (string), `required` (bool), `currentValue` (mixed), `defaultValue` (mixed).
 
-**AC8 — Exception hierarchy:**
+**AC8 - Exception hierarchy:**
 All exceptions extend `OrchestratorException`. Specific subtypes:
-- `SessionNotFoundException` — HTTP 404
-- `ConflictException` — HTTP 409 (carries `errorCode` string from the `error` JSON field: `"already_in_progress"` or `"not_ready"`)
-- `ServiceUnavailableException` — HTTP 503 (port pool exhausted, storage not configured)
-- `TransportException` — network error or timeout (wraps `\Throwable $previous`)
+- `SessionNotFoundException` - HTTP 404
+- `ConflictException` - HTTP 409 (carries `errorCode` string from the `error` JSON field: `"already_in_progress"` or `"not_ready"`)
+- `ServiceUnavailableException` - HTTP 503 (port pool exhausted, storage not configured)
+- `TransportException` - network error or timeout (wraps `\Throwable $previous`)
 
-The client never returns `['error' => ...]` arrays — it always throws.
+The client never returns `['error' => ...]` arrays - it always throws.
 
-**AC9 — Authentication:**
+**AC9 - Authentication:**
 All requests include `Authorization: Bearer {apiKey}` header. No endpoint is called without it.
 
-**AC10 — Unit tests:**
+**AC10 - Unit tests:**
 `tests/` directory with tests for all three clients using a mock `HttpClientInterface`. Cover: happy path, 404 → `SessionNotFoundException`, 409 → `ConflictException`, 503 → `ServiceUnavailableException`, transport error → `TransportException`. PHPUnit ^11, PHPStan level 9, no CS Fixer required in the library itself (the API layer's gates don't scan `packages/`).
 
-**AC11 — Symfony API wiring:**
-`api/config/services.yaml` adds a named service `archilan.orchestrateur_client` of type `OrchestratorClient`, constructed from `%env(ORCHESTRATEUR_BASE_URL)%` and `%env(ORCHESTRATEUR_API_KEY)%`. Existing `RunnerGateway` and `HttpWeeklyRunnerGateway` are NOT yet migrated in this story — they remain unchanged. The new client is available for injection in future stories.
+**AC11 - Symfony API wiring:**
+`api/config/services.yaml` adds a named service `archilan.orchestrateur_client` of type `OrchestratorClient`, constructed from `%env(ORCHESTRATEUR_BASE_URL)%` and `%env(ORCHESTRATEUR_API_KEY)%`. Existing `RunnerGateway` and `HttpWeeklyRunnerGateway` are NOT yet migrated in this story - they remain unchanged. The new client is available for injection in future stories.
 
 ## Tasks / Subtasks
 
 - [ ] Task 1: Create `packages/orchestrateur-client/` with `composer.json`, `src/` PSR-4 structure, `tests/` directory
-- [ ] Task 2: Implement `HttpTransport` (internal) — `postVoid`, `postJson`, `postMultipart`, `getJson`, `getRaw`, `deleteVoid`, `mapError`
-- [ ] Task 3: Add `OrchestratorClient` entry point — constructs `HttpTransport`, exposes `sessions()`, `containers()`, `apworlds()` getters
+- [ ] Task 2: Implement `HttpTransport` (internal) - `postVoid`, `postJson`, `postMultipart`, `getJson`, `getRaw`, `deleteVoid`, `mapError`
+- [ ] Task 3: Add `OrchestratorClient` entry point - constructs `HttpTransport`, exposes `sessions()`, `containers()`, `apworlds()` getters
 - [ ] Task 4: Create all response DTOs (`SessionResponse`, `ContainerResponse`, `CreateContainerResult`, `UploadApworldResult`, `PreflightResult`, `PreflightSlotResult`)
 - [ ] Task 5: Create request DTOs (`PreflightRequest`, `PreflightSlot`, `SlotOption`)
 - [ ] Task 6: Create exception hierarchy (`OrchestratorException`, `SessionNotFoundException`, `ConflictException`, `ServiceUnavailableException`, `TransportException`)
-- [ ] Task 7: Implement `SessionsClient` (all 8 methods — each delegates to `HttpTransport`)
+- [ ] Task 7: Implement `SessionsClient` (all 8 methods - each delegates to `HttpTransport`)
 - [ ] Task 8: Implement `ContainersClient` (all 6 methods)
 - [ ] Task 9: Implement `ApworldsClient` (upload multipart + getYamlTemplate)
-- [ ] Task 10: Write unit tests — mock `HttpClientInterface` at the `HttpTransport` level; cover happy path + all 4 exception types for each client
+- [ ] Task 10: Write unit tests - mock `HttpClientInterface` at the `HttpTransport` level; cover happy path + all 4 exception types for each client
 - [ ] Task 11: Add `path` repository + `require` entry to `api/composer.json`; register `archilan.orchestrateur_client` in `api/config/services.yaml`
-- [ ] Task 12: Run API quality gates (`phpstan`, `php-cs-fixer`, `phpunit`) — fix any issues
+- [ ] Task 12: Run API quality gates (`phpstan`, `php-cs-fixer`, `phpunit`) - fix any issues
 
 ## Dev Notes
 

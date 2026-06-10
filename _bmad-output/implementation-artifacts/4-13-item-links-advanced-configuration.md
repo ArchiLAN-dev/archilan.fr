@@ -24,25 +24,25 @@ So that I can set up item-sharing groups with other players in the Archipelago m
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Add `ItemLinksOption` type, parsing, serialization to `archipelago-yaml.ts` (AC: #2, #4, #5, #6)
+- [x] Task 1 - Add `ItemLinksOption` type, parsing, serialization to `archipelago-yaml.ts` (AC: #2, #4, #5, #6)
   - [x] 1.1 Define `ItemLinkEntry` and `ItemLinksOption` types
   - [x] 1.2 Add `ItemLinksOption` to the `GameOption` union
-  - [x] 1.3 Add `key === "item_links"` detection in `buildOption` BEFORE the `Array.isArray(value)` check (same insertion point as plando_items guard — add after it)
+  - [x] 1.3 Add `key === "item_links"` detection in `buildOption` BEFORE the `Array.isArray(value)` check (same insertion point as plando_items guard - add after it)
   - [x] 1.4 Implement `parseItemLinkEntries(value: unknown): ItemLinkEntry[]` helper
   - [x] 1.5 Add serialization branch in `serializeOption` for `opt.type === "item_links"`
   - [x] 1.6 Update `mergePlayerValues` to handle `item_links` type (replace entries wholesale)
 
-- [x] Task 2 — Add `ItemLinksField` and `ItemLinkCard` components to `yaml-option-editor.tsx` (AC: #1, #2, #3)
+- [x] Task 2 - Add `ItemLinksField` and `ItemLinkCard` components to `yaml-option-editor.tsx` (AC: #1, #2, #3)
   - [x] 2.1 Add dispatch in `OptionField` for `option.type === "item_links"`
   - [x] 2.2 Implement `ItemLinksField`: Simple mode → banner; Advanced mode → list + "Ajouter un lien" button
   - [x] 2.3 Implement `ItemLinkCard`: name input, item_pool list editor (with "Everything" checkbox), replacement_item field (null toggle + text input), link_replacement Yes/No, local_items list, non_local_items list
   - [x] 2.4 Stable `id`-based React keys on every entry and list item
 
-- [x] Task 3 — Fix `admin-yaml-editor.tsx` narrowing (AC: all compile)
+- [x] Task 3 - Fix `admin-yaml-editor.tsx` narrowing (AC: all compile)
   - [x] 3.1 Add `ItemLinksOption` case in `displayValue`
   - [x] 3.2 Add `ItemLinksOption` case in `updateOptionValue`
 
-- [x] Task 4 — Quality gates
+- [x] Task 4 - Quality gates
   - [x] 4.1 `pnpm typecheck` → 0 errors
   - [x] 4.2 `pnpm lint` → 0 errors / 0 warnings
   - [x] 4.3 `pnpm build` → clean
@@ -159,7 +159,7 @@ Insert alongside the `plando_items` case in `mergePlayerValues`.
 
 ### UI (`yaml-option-editor.tsx`)
 
-**`ItemLinksField`** — same structure as `PlandoItemsField`:
+**`ItemLinksField`** - same structure as `PlandoItemsField`:
 - Simple mode: `<p className="text-xs text-muted-foreground">Configurez les item links en mode <strong>Avancé</strong>.</p>`
 - Advanced mode: list of `ItemLinkCard` + "Ajouter un lien" button (ADD_BTN_CLS)
 
@@ -167,9 +167,9 @@ Insert alongside the `plando_items` case in `mergePlayerValues`.
 
 | Field | UI |
 |-------|-----|
-| **Nom du groupe** | Text input (INPUT_CLS), required — shared name links players together |
+| **Nom du groupe** | Text input (INPUT_CLS), required - shared name links players together |
 | **Item pool** | List of text inputs + Add button; checkbox "Everything" that adds/removes the string "Everything" from the list |
-| **Replacement item** | Toggle "Aucun (filler auto)" / "Spécifier" — when "Spécifier", show text input |
+| **Replacement item** | Toggle "Aucun (filler auto)" / "Spécifier" - when "Spécifier", show text input |
 | **Link replacement** | Yes/No toggle (same pattern as `SimpleToggle`) |
 | **Local items** | List of text inputs + Add button |
 | **Non-local items** | List of text inputs + Add button |
@@ -194,10 +194,10 @@ if (option.type === "item_links") return option;
 
 ### Do NOT
 
-- Do NOT add backend endpoints — pure frontend YAML editing
+- Do NOT add backend endpoints - pure frontend YAML editing
 - Do NOT break existing behavior of `plando_items`, `FreeformListOption`, etc.
 - Do NOT add new npm packages
-- Do NOT create new files — all changes in the 3 existing files only
+- Do NOT create new files - all changes in the 3 existing files only
 - Do NOT call `crypto.randomUUID()` during render
 
 ### Project Structure Notes
@@ -208,10 +208,10 @@ Reuse: `INPUT_CLS`, `REMOVE_BTN_CLS`, `ADD_BTN_CLS` constants, all design tokens
 
 ### References
 
-- [Source: frontend/src/lib/archipelago-yaml.ts] — insert after `plando_items` guard in `buildOption`, after plando case in `serializeOption` and `mergePlayerValues`
-- [Source: frontend/src/features/events/yaml-option-editor.tsx] — insert after `PlandoEntryCard` block, add dispatch in `OptionField`
-- [Source: frontend/src/features/admin/admin-yaml-editor.tsx] — same narrowing fix pattern as story 4.12
-- [Source: Story 4.12] — `_bmad-output/implementation-artifacts/4-12-plando-items-advanced-configuration.md` — follow identical patterns for types, parsing, serialization, merge, UI structure
+- [Source: frontend/src/lib/archipelago-yaml.ts] - insert after `plando_items` guard in `buildOption`, after plando case in `serializeOption` and `mergePlayerValues`
+- [Source: frontend/src/features/events/yaml-option-editor.tsx] - insert after `PlandoEntryCard` block, add dispatch in `OptionField`
+- [Source: frontend/src/features/admin/admin-yaml-editor.tsx] - same narrowing fix pattern as story 4.12
+- [Source: Story 4.12] - `_bmad-output/implementation-artifacts/4-12-plando-items-advanced-configuration.md` - follow identical patterns for types, parsing, serialization, merge, UI structure
 - [Archipelago Advanced Settings: https://archipelago.gg/tutorial/Archipelago/advanced_settings_en]
 
 ## Dev Agent Record

@@ -212,7 +212,7 @@ The frontend has no test framework configured (no jest/vitest). Quality gates ar
 
 ---
 
-## Addendum — Multi-tab proactive-refresh bugfix (2026-06-08)
+## Addendum - Multi-tab proactive-refresh bugfix (2026-06-08)
 
 ### Symptom
 
@@ -225,7 +225,7 @@ A proactive silent refresh was later added to `AuthProvider` (a `setInterval` fi
 `PROACTIVE_REFRESH_MS = 13 min`) that called `apiFetch(POST /auth/refresh)` **directly**.
 `/auth/refresh` is a `BYPASS_PATH`, so that call never went through the coordinated
 `attemptRefresh` path and thus had **no cross-tab coordination** (no Web Lock, no recent-ts
-skip) — unlike the reactive 401 interceptor, which is coordinated.
+skip) - unlike the reactive 401 interceptor, which is coordinated.
 
 When N tabs are opened near-simultaneously, each arms its own 13-min interval at roughly the
 same instant. ~13 min later they all fire near-simultaneously and each `POST /auth/refresh`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Weekly Run — live end-to-end smoke test (story 23.13).
+# Weekly Run - live end-to-end smoke test (story 23.13).
 #
 # Exercises the REAL flow against the running `archilan` stack (orchestrateur + MinIO +
 # Docker + api + worker + bridge + archipelago image), catching cross-service contract
@@ -54,7 +54,7 @@ mkdir -p "$TMP"
 
 red()  { printf '\033[31m%s\033[0m\n' "$*"; }
 grn()  { printf '\033[32m%s\033[0m\n' "$*"; }
-info() { printf '— %s\n' "$*"; }
+info() { printf '- %s\n' "$*"; }
 fail() { red "✗ FAIL: $*"; cleanup; exit 1; }
 ok()   { grn "✓ $*"; }
 
@@ -134,7 +134,7 @@ trigger_and_wait() {
   # Deterministic: drop this ISO-week's run for the template so generation creates a fresh
   # one we own (otherwise existsByTemplateAndWeek makes "Générer maintenant" a no-op).
   console dbal:run-sql "DELETE FROM weekly_runs WHERE template_id='$tid' AND week_year=EXTRACT(ISOYEAR FROM NOW()) AND week_number=EXTRACT(WEEK FROM NOW())" >/dev/null 2>&1 || true
-  info "template $tid — triggering generation"
+  info "template $tid - triggering generation"
   code="$(api_post "/admin/weekly-runs/generate")"
   [ "$code" -ge 200 ] && [ "$code" -lt 300 ] || fail "generate returned HTTP $code"
 
@@ -142,7 +142,7 @@ trigger_and_wait() {
   sleep 1
   RUN_ID="$(console dbal:run-sql "SELECT id FROM weekly_runs WHERE template_id='$tid' ORDER BY created_at DESC LIMIT 1" 2>/dev/null | grep -oE '[0-9a-f]{16}' | head -1)"
   [ -n "$RUN_ID" ] || fail "no weekly run was created for template $tid"
-  info "run $RUN_ID — waiting for generation (≤ ${GEN_TIMEOUT}s)…"
+  info "run $RUN_ID - waiting for generation (≤ ${GEN_TIMEOUT}s)…"
   local deadline=$(( $(date +%s) + GEN_TIMEOUT ))
   while [ "$(date +%s)" -lt "$deadline" ]; do
     # Wait for THIS run's output key (set by the session.generated webhook).
@@ -205,7 +205,7 @@ assert_launch() {
   ok "launch returned connection info"
 
   # Epic 27: prove the configured override (releaseMode=enabled, ≠ weekly default) reached the
-  # launched AP server — the orchestrateur sets it as an env the launch script maps to --release_mode.
+  # launched AP server - the orchestrateur sets it as an env the launch script maps to --release_mode.
   local apenv
   apenv="$(MSYS_NO_PATHCONV=1 docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "ap-server-$ENTRY_ID" 2>/dev/null || true)"
   printf '%s\n' "$apenv" | grep -qx 'RELEASE_MODE=enabled' \
@@ -243,7 +243,7 @@ assert_launch() {
   fi
 }
 
-echo "=== Weekly Run E2E smoke — API: $API ==="
+echo "=== Weekly Run E2E smoke - API: $API ==="
 provision_admin
 login
 trigger_and_wait

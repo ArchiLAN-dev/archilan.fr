@@ -10,7 +10,7 @@
 
 As an operator,
 I want the scheduler to periodically purge expired/consumed auth tokens and old operational logs from the database,
-So that ephemeral tables don't grow unbounded (cost, backups, GDPR data minimisation) — the way refresh tokens are already pruned (story 13.6).
+So that ephemeral tables don't grow unbounded (cost, backups, GDPR data minimisation) - the way refresh tokens are already pruned (story 13.6).
 
 ---
 
@@ -30,18 +30,18 @@ Several other ephemeral tables are written on every signup / reset / sync / priv
 | HelloAsso sync log | `App\Payments\Domain\HelloAssoSyncLog` | `helloasso_sync_log` (confirm) | `attempt_at` |
 | Event private-access log | `App\Events\Domain\EventPrivateAccessLog` | `event_private_access_log` (confirm) | `created_at` |
 
-Their current repositories only `findByTokenHash` / `save` / `revokeExistingForUser` (tokens) — **no delete path**.
+Their current repositories only `findByTokenHash` / `save` / `revokeExistingForUser` (tokens) - **no delete path**.
 
-### Out of scope — DO NOT purge
+### Out of scope - DO NOT purge
 
 - **`GameCatalogSync`** (`App\GameSelection\Domain\GameCatalogSync`): despite the "Sync" name this is **persistent
   per-game state** (deployed apworld version, `apworld_checked_at`, adult/bundled flags, IGDB id), one row per
   game joined to `game` with `ON DELETE CASCADE`. Deleting rows would destroy catalog state. Leave untouched.
 - **Audit / compliance tables**: `AdminCreationAudit`, `DeletionAudit`, `RoleChangeAudit`, `PrivacyRightsRequest`
-  (Identity), `RunAuditLog` (Sessions). These are retained for security/legal traceability — never auto-purged.
+  (Identity), `RunAuditLog` (Sessions). These are retained for security/legal traceability - never auto-purged.
 - **Refresh tokens**: already handled by 13.6. Do not duplicate.
 - **Discord OAuth state token** (`App\Identity\Application\DiscordStateToken`): stateless, HMAC-signed
-  (`hash_hmac`) — nothing persisted, nothing to clean.
+  (`hash_hmac`) - nothing persisted, nothing to clean.
 
 ---
 
@@ -61,36 +61,36 @@ Their current repositories only `findByTokenHash` / `save` / `revokeExistingForU
    target, e.g. `auth.cleanup_email_confirmation_tokens`, `data.cleanup_helloasso_sync_log`).
 8. A console command allows a manual run on demand (mirrors `app:auth:cleanup-refresh-tokens`).
 9. `GameCatalogSync`, the audit/compliance tables, and any **active/recent** rows (non-expired tokens,
-   unconfirmed-but-not-expired tokens, recent logs) are **never** deleted — proven by tests.
+   unconfirmed-but-not-expired tokens, recent logs) are **never** deleted - proven by tests.
 10. All quality gates green: `phpstan` (max), `php-cs-fixer`, `phpunit`, `app:architecture:ddd`.
 
 ---
 
 ## Tasks / Subtasks
 
-- [ ] **Domain — repository delete contracts** (AC: 1–4, DDD)
+- [ ] **Domain - repository delete contracts** (AC: 1–4, DDD)
   - [ ] `EmailConfirmationTokenRepositoryInterface::deleteStale(\DateTimeImmutable $now, \DateTimeImmutable $consumedGrace): int`
   - [ ] `PasswordResetTokenRepositoryInterface::deleteStale(\DateTimeImmutable $now, \DateTimeImmutable $consumedGrace): int`
-  - [ ] New `HelloAssoSyncLogRepositoryInterface` (Payments/Domain) with `deleteOlderThan(\DateTimeImmutable $threshold): int` — or add to an existing Payments repo interface if one already writes the log
-  - [ ] New `EventPrivateAccessLogRepositoryInterface` (Events/Domain) with `deleteOlderThan(\DateTimeImmutable $threshold): int` — or extend the existing repo that persists the log
+  - [ ] New `HelloAssoSyncLogRepositoryInterface` (Payments/Domain) with `deleteOlderThan(\DateTimeImmutable $threshold): int` - or add to an existing Payments repo interface if one already writes the log
+  - [ ] New `EventPrivateAccessLogRepositoryInterface` (Events/Domain) with `deleteOlderThan(\DateTimeImmutable $threshold): int` - or extend the existing repo that persists the log
 
-- [ ] **Infrastructure — DBAL DELETE implementations** (AC: 1–4, DDD)
+- [ ] **Infrastructure - DBAL DELETE implementations** (AC: 1–4, DDD)
   - [ ] Mirror `DoctrineRefreshTokenRepository`: inject DBAL `Connection`, resolve table via
     `EntityManagerInterface::getClassMetadata(X::class)->getTableName()`, use
     `$this->connection->createQueryBuilder()->delete($this->table)->where(...)->setParameter(...)->executeStatement()`
-  - [ ] Single `DELETE ... WHERE` per call (no per-row loads, no full-table lock) — safe under concurrent load
+  - [ ] Single `DELETE ... WHERE` per call (no per-row loads, no full-table lock) - safe under concurrent load
   - [ ] Extend the existing `DoctrineEmailConfirmationTokenRepository` / `DoctrinePasswordResetTokenRepository`
     (currently ORM-only) by adding the DBAL `Connection` dependency for the delete method
 
-- [ ] **Application — messages + handlers** (AC: 5, 7; CQRS)
+- [ ] **Application - messages + handlers** (AC: 5, 7; CQRS)
   - [ ] One marker `*Message` + `#[AsMessageHandler]` `*Handler` per target under `Application/Message/`
     (mirror `CleanupRefreshTokensMessage`/`Handler`), in the owning context (Identity / Payments / Events)
   - [ ] Handlers inject the **Domain repository interface** + `LoggerInterface` + their retention/grace value;
-    compute the threshold from an injected `now` (do NOT call `new \DateTimeImmutable()` in Domain — handlers may
+    compute the threshold from an injected `now` (do NOT call `new \DateTimeImmutable()` in Domain - handlers may
     build it) and call the repo delete; log the deleted count
   - [ ] **No `Connection`/`EntityManagerInterface` in Application** (AC-A2)
 
-- [ ] **Config — retention windows** (AC: 5)
+- [ ] **Config - retention windows** (AC: 5)
   - [ ] Add parameters bound from env (e.g. `CLEANUP_TOKEN_CONSUMED_GRACE_DAYS=7`,
     `CLEANUP_HELLOASSO_SYNC_LOG_RETENTION_DAYS=90`, `CLEANUP_EVENT_ACCESS_LOG_RETENTION_DAYS=365`)
   - [ ] Document them in `.env` / `.env.example` (if present) and the handler service bindings
@@ -98,7 +98,7 @@ Their current repositories only `findByTokenHash` / `save` / `revokeExistingForU
 - [ ] **Scheduler** (AC: 6)
   - [ ] Add `RecurringMessage::cron(...)` entries to `Schedule.php` for each new message, staggered after 03:00
 
-- [ ] **Presentation — manual command** (AC: 8)
+- [ ] **Presentation - manual command** (AC: 8)
   - [ ] A console command (e.g. `app:data:cleanup` running all targets, or per-target commands) mirroring
     `CleanupRefreshTokensCommand`; auto-wired, returns `Command::SUCCESS`, writes deleted counts to output
 
@@ -145,11 +145,11 @@ Schedule: `RecurringMessage::cron('0 3 * * *', new CleanupRefreshTokensMessage()
 
 - `EmailConfirmationToken`: `expires_at` (non-null), `created_at`, `confirmed_at` (nullable) → consumed = `confirmed_at` set.
 - `PasswordResetToken`: `expires_at` (non-null), `created_at`, `used_at` (nullable) → consumed = `used_at` set.
-- `HelloAssoSyncLog`: `attempt_at` (non-null), `form_slug`, `error_message` (nullable) — append-only log.
-- `EventPrivateAccessLog`: `event_id`, `user_id`, `created_at` (non-null) — append-only log.
+- `HelloAssoSyncLog`: `attempt_at` (non-null), `form_slug`, `error_message` (nullable) - append-only log.
+- `EventPrivateAccessLog`: `event_id`, `user_id`, `created_at` (non-null) - append-only log.
 
 Column types are `datetimetz_immutable`; bind parameters with `Types::DATETIMETZ_IMMUTABLE` to match.
-Resolve table names from metadata (don't hardcode) — confirm `helloasso_sync_log` / `event_private_access_log`.
+Resolve table names from metadata (don't hardcode) - confirm `helloasso_sync_log` / `event_private_access_log`.
 
 ### Existing repos to extend / add
 
@@ -170,15 +170,15 @@ Resolve table names from metadata (don't hardcode) — confirm `helloasso_sync_l
 
 ### Retention defaults & rationale
 
-- Token consumed grace **7 days** (matches the refresh-token grace) — keep a short audit trail after use.
-- `helloasso_sync_log` **90 days** — operational troubleshooting window.
-- `event_private_access_log` **365 days** — access trail kept ~1 year (configurable; do not go to 0 silently).
+- Token consumed grace **7 days** (matches the refresh-token grace) - keep a short audit trail after use.
+- `helloasso_sync_log` **90 days** - operational troubleshooting window.
+- `event_private_access_log` **365 days** - access trail kept ~1 year (configurable; do not go to 0 silently).
 
-Expired-but-never-consumed tokens are deleted as soon as `expires_at < now()` (no grace needed — they're dead).
+Expired-but-never-consumed tokens are deleted as soon as `expires_at < now()` (no grace needed - they're dead).
 
 ### References
 
-- [Source: api/src/Schedule.php] — scheduler, existing cron entries
+- [Source: api/src/Schedule.php] - scheduler, existing cron entries
 - [Source: api/src/Identity/Application/Message/CleanupRefreshTokensMessage.php + CleanupRefreshTokensHandler.php]
 - [Source: api/src/Identity/Infrastructure/DoctrineRefreshTokenRepository.php] — DBAL delete pattern + table-from-metadata
 - [Source: api/src/Identity/Presentation/CleanupRefreshTokensCommand.php] — command pattern

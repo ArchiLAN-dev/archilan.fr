@@ -1,4 +1,4 @@
-# Story 23.8: Weekly Run — Generate the Multiworld Once, Reuse It Per Player
+# Story 23.8: Weekly Run - Generate the Multiworld Once, Reuse It Per Player
 
 ## Story
 
@@ -14,15 +14,15 @@ done
 
 The weekly-run "generation" is misnamed and mis-timed today:
 
-- **Monday 00:00** — `GenerateWeeklyRunsMessageHandler` → `OrchestratorWeeklyRunGenerator::generate()` does **not** generate any multiworld. It only downloads the apworld from MinIO, uploads it to the orchestrator, and stores the **apworld hash** in `WeeklyRun.markGenerated()` (the field `getGeneratedSeedPath()` actually holds an apworld hash).
-- **Every player launch** — `LaunchWeeklyEntry` → `OrchestratorWeeklyRunnerGateway::launchEntry()` runs the **full Archipelago generation**: `configureSession` → `sessions()->generate(seed)` → poll up to 180s → `launch`. So the heavy generation (the "combined apworlds / Generate.py" run) happens **once per player**, not once per run.
+- **Monday 00:00** - `GenerateWeeklyRunsMessageHandler` → `OrchestratorWeeklyRunGenerator::generate()` does **not** generate any multiworld. It only downloads the apworld from MinIO, uploads it to the orchestrator, and stores the **apworld hash** in `WeeklyRun.markGenerated()` (the field `getGeneratedSeedPath()` actually holds an apworld hash).
+- **Every player launch** - `LaunchWeeklyEntry` → `OrchestratorWeeklyRunnerGateway::launchEntry()` runs the **full Archipelago generation**: `configureSession` → `sessions()->generate(seed)` → poll up to 180s → `launch`. So the heavy generation (the "combined apworlds / Generate.py" run) happens **once per player**, not once per run.
 
 Since the weekly design fixes one seed + one template YAML for all players (epic 23 amendment: players cannot customize YAML), the generated world is identical for everyone. Regenerating per launch wastes minutes of CPU per player, adds launch latency, and risks divergence if any world is non-deterministic.
 
 ### What the orchestrator already supports (investigated)
 
 - `POST /sessions/{id}/generate` → `GenerateMultiworld` writes the output into the session's Docker volume (`/data/output`), stores it as `session.OutputFile`, status → `generated`.
-- `POST /sessions/{id}/launch-from-file` (multipart: `adminPassword`, `serverPassword`, `file`) → `Service.LaunchFromFile` injects a **provided** multiworld file into a fresh session volume and launches it — **no regeneration**. Already wrapped in the PHP client: `SessionsClient::launchFromFile(sessionId, fileContents, filename, adminPassword, serverPassword?)`.
+- `POST /sessions/{id}/launch-from-file` (multipart: `adminPassword`, `serverPassword`, `file`) → `Service.LaunchFromFile` injects a **provided** multiworld file into a fresh session volume and launches it - **no regeneration**. Already wrapped in the PHP client: `SessionsClient::launchFromFile(sessionId, fileContents, filename, adminPassword, serverPassword?)`.
 - `RestartSession` reuses `session.OutputFile` (same session only).
 - MinIO storage client handles apworlds + per-session YAML/manifest.
 
@@ -34,42 +34,42 @@ There is **no way to retrieve the generated multiworld output bytes** after gene
 
 The real generation takes minutes, so it must **not** run synchronously inside the Monday message handler. Instead:
 
-1. **Monday 00:00** — for each active template, create the `WeeklyRun` (status `active`, `generatedSeedPath = null` ⇒ not launchable yet) and kick off **one async generation per template** against a deterministic generator session `weekly-gen-{weeklyRunId}` (upload apworld → `configure` → `generate(seed)`). The handler does **not** poll/block.
-2. **Orchestrator** — `runGeneration` runs in its goroutine, uploads the output to MinIO keyed by session id, and fires the existing `session.generated` webhook (or `session.crashed` on failure).
-3. **API webhook** — `OrchestratorWebhookController` recognises `weekly-gen-*` session ids and routes them to a new `MarkWeeklyRunGenerated` service that stores the artifact key on the run (now launchable) and cleans up the generator session.
-4. **Player launch** — downloads the stored artifact and calls `launchFromFile`; zero generation.
+1. **Monday 00:00** - for each active template, create the `WeeklyRun` (status `active`, `generatedSeedPath = null` ⇒ not launchable yet) and kick off **one async generation per template** against a deterministic generator session `weekly-gen-{weeklyRunId}` (upload apworld → `configure` → `generate(seed)`). The handler does **not** poll/block.
+2. **Orchestrator** - `runGeneration` runs in its goroutine, uploads the output to MinIO keyed by session id, and fires the existing `session.generated` webhook (or `session.crashed` on failure).
+3. **API webhook** - `OrchestratorWebhookController` recognises `weekly-gen-*` session ids and routes them to a new `MarkWeeklyRunGenerated` service that stores the artifact key on the run (now launchable) and cleans up the generator session.
+4. **Player launch** - downloads the stored artifact and calls `launchFromFile`; zero generation.
 
 No new `WeeklyRun` status is required: `generatedSeedPath === null` already gates launch (`LaunchWeeklyEntry` throws `run_not_generated`).
 
 ## Acceptance Criteria
 
-**AC1 (orchestrator — output persistence):** At the end of a successful `runGeneration`, the generated multiworld output is copied out of the session volume and uploaded to MinIO (sessions bucket) under a key **derivable from the session id** (e.g. `sessions/{sessionId}/output/<file>`), so the API can fetch it without a new endpoint or webhook-payload change. (`GET /sessions/{id}/output` is a fallback only if direct MinIO read from the API is rejected.)
+**AC1 (orchestrator - output persistence):** At the end of a successful `runGeneration`, the generated multiworld output is copied out of the session volume and uploaded to MinIO (sessions bucket) under a key **derivable from the session id** (e.g. `sessions/{sessionId}/output/<file>`), so the API can fetch it without a new endpoint or webhook-payload change. (`GET /sessions/{id}/output` is a fallback only if direct MinIO read from the API is rejected.)
 
-**AC2 (Monday dispatch — non-blocking):** `GenerateWeeklyRunsMessageHandler` creates each `WeeklyRun` (active, not launchable) and triggers generation against generator session `weekly-gen-{weeklyRunId}` (apworld upload → configure → `generate(seed)`) **without polling**. One run with a failed *dispatch* (e.g. orchestrator unreachable) is logged and left not-launchable; it does not abort the other templates.
+**AC2 (Monday dispatch - non-blocking):** `GenerateWeeklyRunsMessageHandler` creates each `WeeklyRun` (active, not launchable) and triggers generation against generator session `weekly-gen-{weeklyRunId}` (apworld upload → configure → `generate(seed)`) **without polling**. One run with a failed *dispatch* (e.g. orchestrator unreachable) is logged and left not-launchable; it does not abort the other templates.
 
-**AC3 (webhook — mark generated):** `OrchestratorWebhookController` detects a `weekly-gen-{weeklyRunId}` session id and, on `session.generated`, calls `MarkWeeklyRunGenerated(weeklyRunId, artifactKey)` → `WeeklyRun.markGenerated(artifactKey)` (artifact key derived from the session id, AC1). The handler is **idempotent** (duplicate webhook is a no-op) and then deletes the generator session/volume (`sessions()->delete(weekly-gen-id)`). Non-weekly session ids keep the existing `SessionLifecycleManager` path unchanged.
+**AC3 (webhook - mark generated):** `OrchestratorWebhookController` detects a `weekly-gen-{weeklyRunId}` session id and, on `session.generated`, calls `MarkWeeklyRunGenerated(weeklyRunId, artifactKey)` → `WeeklyRun.markGenerated(artifactKey)` (artifact key derived from the session id, AC1). The handler is **idempotent** (duplicate webhook is a no-op) and then deletes the generator session/volume (`sessions()->delete(weekly-gen-id)`). Non-weekly session ids keep the existing `SessionLifecycleManager` path unchanged.
 
-**AC4 (webhook — generation failure):** On `session.crashed` for a `weekly-gen-*` id, the run is left not-launchable and the failure is logged/observable. No auto-retry; an admin can re-trigger via the existing "Générer maintenant" endpoint, which re-dispatches generation only for active runs of the current week whose `generatedSeedPath` is still null (idempotent).
+**AC4 (webhook - generation failure):** On `session.crashed` for a `weekly-gen-*` id, the run is left not-launchable and the failure is logged/observable. No auto-retry; an admin can re-trigger via the existing "Générer maintenant" endpoint, which re-dispatches generation only for active runs of the current week whose `generatedSeedPath` is still null (idempotent).
 
-**AC5 (per-player launch — no regeneration):** `OrchestratorWeeklyRunnerGateway::launchEntry()` no longer calls `configure`+`generate`. It downloads the run's stored output artifact and calls `client.sessions().launchFromFile(entryId, output, filename, adminPassword, serverPassword)`. A launch performs **zero** Archipelago generation. Launching before generation completes still yields `run_not_generated` (unchanged).
+**AC5 (per-player launch - no regeneration):** `OrchestratorWeeklyRunnerGateway::launchEntry()` no longer calls `configure`+`generate`. It downloads the run's stored output artifact and calls `client.sessions().launchFromFile(entryId, output, filename, adminPassword, serverPassword)`. A launch performs **zero** Archipelago generation. Launching before generation completes still yields `run_not_generated` (unchanged).
 
-**AC6 (determinism + parity):** All players of a run get individual servers from the **identical** generated world. Connection info, goal detection, leaderboard, and the member-facing flow are unchanged from the player's perspective — only generation timing/source changes.
+**AC6 (determinism + parity):** All players of a run get individual servers from the **identical** generated world. Connection info, goal detection, leaderboard, and the member-facing flow are unchanged from the player's perspective - only generation timing/source changes.
 
 **AC7 (quality gates):** Orchestrator (`go test`, vet/lint) and API (phpstan, php-cs-fixer, phpunit, `app:architecture:ddd`) green. Functional coverage: webhook `weekly-gen` routing → run becomes launchable; `launchEntry` uses `launchFromFile` (spy gateway) and never calls generate.
 
 ## Tasks / Subtasks
 
 ### Orchestrator (Go repo `archilan-orchestrateur`, branch `master`)
-- [x] Task 1: `docker.CopyOutputFromVolume(ctx, sessionID, filename) ([]byte, error)` — read the generated file out of the session volume (Docker copy-from-container/volume).
+- [x] Task 1: `docker.CopyOutputFromVolume(ctx, sessionID, filename) ([]byte, error)` - read the generated file out of the session volume (Docker copy-from-container/volume).
 - [x] Task 2: `storage.UploadSessionOutput` / `DownloadSessionOutput` (MinIO sessions bucket, key derivable from session id). In `runGeneration`, after `UpdateSessionGenerated`, upload the output before firing the `session.generated` webhook.
 - [x] Task 3: Tests for copy-from-volume + output upload/download. (No new HTTP route unless the MinIO-direct read is rejected.)
 
 ### API (PHP, monorepo `api/`)
 - [x] Task 4: `GenerateWeeklyRunsMessageHandler` → async dispatch: create the run, then upload apworld + `configure` + `generate(seed)` against `weekly-gen-{weeklyRunId}` **without polling**; never block on generation.
 - [x] Task 5: New `MarkWeeklyRunGenerated` application service: set the artifact key on the run (`markGenerated`), idempotent, then delete the generator session.
-- [x] Task 6: `OrchestratorWebhookController` — detect `weekly-gen-{id}` session ids; route `session.generated` → `MarkWeeklyRunGenerated`, `session.crashed` → log generation failure (run stays not-launchable). Leave the non-weekly path untouched.
+- [x] Task 6: `OrchestratorWebhookController` - detect `weekly-gen-{id}` session ids; route `session.generated` → `MarkWeeklyRunGenerated`, `session.crashed` → log generation failure (run stays not-launchable). Leave the non-weekly path untouched.
 - [x] Task 7: `OrchestratorWeeklyRunnerGateway::launchEntry()` → download artifact from MinIO + `launchFromFile`; remove configure+generate+poll-generated.
-- [x] Task 8: `WeeklyRun` — `generatedSeedPath` now holds the MinIO output key; rename to `generatedOutputKey` for clarity (+ migration). `OrchestratorWeeklyRunGenerator` is repurposed/removed (its apworld-upload role folds into Task 4's configure step).
+- [x] Task 8: `WeeklyRun` - `generatedSeedPath` now holds the MinIO output key; rename to `generatedOutputKey` for clarity (+ migration). `OrchestratorWeeklyRunGenerator` is repurposed/removed (its apworld-upload role folds into Task 4's configure step).
 - [x] Task 9: Update `NullWeeklyRunGenerator` / `SpyWeeklyRunnerGateway`; functional tests for webhook→launchable and launch-uses-launchFromFile.
 - [x] Task 10: All quality gates (orchestrator + API).
 
@@ -84,10 +84,10 @@ Prefer **MinIO-as-handoff** over a streaming endpoint: at the end of `runGenerat
 
 ### Files (current → change)
 
-- `orchestrateur/internal/service/session.go` — `runGeneration` (add output upload), maybe new `GetSessionOutput`.
-- `orchestrateur/internal/storage/client.go` — add `UploadSessionOutput` / `DownloadSessionOutput`.
-- `orchestrateur/internal/docker/client.go` — add copy-from-volume for the output file.
-- `orchestrateur/internal/api/{router,session_handlers}.go` — optional `GET /sessions/{id}/output`.
+- `orchestrateur/internal/service/session.go` - `runGeneration` (add output upload), maybe new `GetSessionOutput`.
+- `orchestrateur/internal/storage/client.go` - add `UploadSessionOutput` / `DownloadSessionOutput`.
+- `orchestrateur/internal/docker/client.go` - add copy-from-volume for the output file.
+- `orchestrateur/internal/api/{router,session_handlers}.go` - optional `GET /sessions/{id}/output`.
 - `api/src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunGenerator.php` — real generation + store artifact.
 - `api/src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunnerGateway.php` — `launchEntry` → `launchFromFile` (already in client).
 - `api/src/WeeklyRuns/Domain/WeeklyRun.php` — artifact reference field.

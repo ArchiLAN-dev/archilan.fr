@@ -81,7 +81,7 @@ export function WeeklyRunSlotPage({
   const myEntry = run?.myEntry ?? null;
   const entryId = myEntry?.entryId ?? null;
 
-  // Redirect unauthenticated users — but only once the session has finished
+  // Redirect unauthenticated users - but only once the session has finished
   // resolving. On a cold load `user` is null while `authLoading` is true; redirecting
   // then would bounce an authenticated user to /connexion before the profile resolves.
   useEffect(() => {
@@ -614,7 +614,7 @@ export function WeeklyRunSlotPage({
               >
                 {slots.map((s) => (
                   <option key={s.index} value={s.index}>
-                    #{s.index} — {s.name}
+                    #{s.index} - {s.name}
                   </option>
                 ))}
               </select>

@@ -217,15 +217,15 @@ Add a "Runs hebdo" `<Link href="/runs-hebdo">` in `frontend/src/components/publi
 | 2026-05-17 | Revised: auth pattern corrected - useAuth() hook in WeeklyRunsClientPage (same as AccountTabs pattern; compte/page.tsx does NO server auth). env.mercureHubUrl → env.mercurePublicUrl. Mercure topic declared public. Data fetching simplified (no initialData from Server Component). |
 | 2026-05-17 | Revised: Task 4 corrected to thin Server Component (no auth, no data). Auth guard includes ROLE_MEMBER check + ROLE_ADMIN fallback. Nav file named explicitly: public-shell.tsx AuthNavDesktop/AuthNavMobile. |
 
-## Addendum — "Items non reçus" panel on the member items tab (2026-06-08)
+## Addendum - "Items non reçus" panel on the member items tab (2026-06-08)
 
 The member slot page's **Items** tab only showed "Items reçus". The personal-run and
 admin reachability pages already show both panels via the shared `ItemListPanel`
 (`variant="not-received"`), and the data (`ReachabilityData.items_not_received`) was already
-fetched on the weekly page (used for the goal % computation) — it just wasn't rendered.
+fetched on the weekly page (used for the goal % computation) - it just wasn't rendered.
 
 Added a second `ItemListPanel` ("Items non reçus", `variant="not-received"`,
-`items={state.data.items_not_received ?? []}`, `hideSpoilers`, no hint request — member,
+`items={state.data.items_not_received ?? []}`, `hideSpoilers`, no hint request - member,
 spoiler-free posture) next to "Items reçus", switching the tab layout to a 2-column grid
 (`lg:grid-cols-2`), matching `personal-run-slot-detail-page.tsx`.
 

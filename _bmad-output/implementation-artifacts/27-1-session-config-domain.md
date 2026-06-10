@@ -1,4 +1,4 @@
-# Story 27.1: Session config domain — value objects, validation, defaults
+# Story 27.1: Session config domain - value objects, validation, defaults
 
 Status: done
 
@@ -14,7 +14,7 @@ rejected before they ever reach the orchestrateur (a bad flag crashes `Archipela
 Epic 27 (`_bmad-output/planning-artifacts/epic-27-configurable-session-server-options.md`) introduces
 admin-configurable options per session **type** (private / event / weekly) with an optional **per-session
 override**. This first story builds the pure domain core that the persistence (27.2), gateway wiring
-(27.5) and UI (27.6) all depend on. No I/O, no framework — just value objects, validation, defaults, and
+(27.5) and UI (27.6) all depend on. No I/O, no framework - just value objects, validation, defaults, and
 the **per-field override merge** rule.
 
 The options split into two enforcement points (see epic): **server** (launch-time flags) and
@@ -23,10 +23,10 @@ The options split into two enforcement points (see epic): **server** (launch-tim
 ## Acceptance Criteria
 
 1. A `final readonly` value object `SessionServerConfig` (in `App\Sessions\Domain` or a shared
-   `App\SessionConfig\Domain` context — see Project Structure Notes) carries the **server** options:
+   `App\SessionConfig\Domain` context - see Project Structure Notes) carries the **server** options:
    `releaseMode`, `collectMode`, `remainingMode` (enums), `disableItemCheat` (bool), `hintCost` (int),
    `locationCheckPoints` (int), `countdownMode` (enum), `autoShutdown` (int ≥ 0), `compatibility`
-   (enum 0|2), `joinPassword` (?string — the player `password`, never the admin `server_password`).
+   (enum 0|2), `joinPassword` (?string - the player `password`, never the admin `server_password`).
 2. A `final readonly` value object `SessionGenerationConfig` carries the **generation** options:
    `plandoOptions` (set of bosses|items|texts|connections), `race` (bool), `spoiler` (enum 0|1|2|3).
 3. Construction validates every field; an invalid value throws a domain exception with a stable code
@@ -51,18 +51,18 @@ The options split into two enforcement points (see epic): **server** (launch-tim
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Decide context + create skeleton (AC: 1, 2). Either reuse `App\Sessions\Domain` or add a
+- [x] Task 1 - Decide context + create skeleton (AC: 1, 2). Either reuse `App\Sessions\Domain` or add a
   new bounded context `SessionConfig` (if new: register in `DddArchitectureValidator::CONTEXTS`, add
-  Domain exclusion in `services.yaml` — see api/CLAUDE.md "Adding a new context"). Prefer a dedicated
+  Domain exclusion in `services.yaml` - see api/CLAUDE.md "Adding a new context"). Prefer a dedicated
   `SessionConfig` context since the config is shared by Sessions, WeeklyRuns and PersonalRuns.
-- [x] Task 2 — Implement enums (PHP 8.1 backed enums with the exact AP string values) for release,
+- [x] Task 2 - Implement enums (PHP 8.1 backed enums with the exact AP string values) for release,
   collect, remaining, countdown, compatibility, spoiler; a `PlandoOption` enum + set wrapper.
-- [x] Task 3 — Implement `SessionServerConfig` + `SessionGenerationConfig` (`final readonly`,
+- [x] Task 3 - Implement `SessionServerConfig` + `SessionGenerationConfig` (`final readonly`,
   validation in constructor, no setters; AC: 1–3).
-- [x] Task 4 — Implement `SessionConfigOverride` (all fields nullable) + `withOverride()` merge (AC: 5).
-- [x] Task 5 — Implement per-type default factories + the `toServerFlags()`/`toGenerationParams()`
+- [x] Task 4 - Implement `SessionConfigOverride` (all fields nullable) + `withOverride()` merge (AC: 5).
+- [x] Task 5 - Implement per-type default factories + the `toServerFlags()`/`toGenerationParams()`
   seams (AC: 4, 6).
-- [x] Task 6 — Unit tests `tests/Unit/SessionConfig/...` (AC: 7) and run all four API gates (AC: 8).
+- [x] Task 6 - Unit tests `tests/Unit/SessionConfig/...` (AC: 7) and run all four API gates (AC: 8).
 
 ## Dev Notes
 
@@ -116,7 +116,7 @@ claude-opus-4-8 (Claude Code).
 ### Debug Log References
 
 - PHPStan flagged the runtime `instanceof PlandoOption` in `SessionGenerationConfig` as
-  always-true (the `list<PlandoOption>` type already guarantees it). Removed it — element
+  always-true (the `list<PlandoOption>` type already guarantees it). Removed it - element
   validity is enforced at the input boundary via `PlandoOption::fromString` (27.2), the
   constructor only dedupes.
 - Added `SessionConfig` to the `DddArchitectureValidatorTest` fixture's context list (it
@@ -134,7 +134,7 @@ claude-opus-4-8 (Claude Code).
   `autoShutdown` ≥ 0; `toServerFlags()` maps to the orchestrateur field names (omits empty
   `joinPassword`). `SessionGenerationConfig`: dedupes plando, `toGenerationParams()`.
 - `SessionConfigOverride` (all-nullable) + `SessionConfig` (server + generation) with
-  `defaultsFor(SessionType)` (weekly/event competitive, private lax — default table in Dev Notes)
+  `defaultsFor(SessionType)` (weekly/event competitive, private lax - default table in Dev Notes)
   and per-field `withOverride()`.
 - Gates green: phpstan (max, 0), php-cs-fixer (@Symfony, 0), `app:architecture:ddd` (0), phpunit
   (948 incl. 14 new SessionConfig tests / 48 assertions).
@@ -145,9 +145,9 @@ claude-opus-4-8 (Claude Code).
   `Compatibility.php`, `SpoilerLevel.php`, `PlandoOption.php`, `SessionType.php`,
   `SessionServerConfig.php`, `SessionGenerationConfig.php`, `SessionConfigOverride.php`,
   `SessionConfig.php` (all new).
-- `api/src/Shared/Application/DddArchitectureValidator.php` (modified — `SessionConfig` context).
-- `api/config/services.yaml` (modified — Domain exclude).
-- `api/tests/Unit/SessionConfig/` (new — 3 test classes); `api/tests/Unit/DddArchitectureValidatorTest.php` (fixture).
+- `api/src/Shared/Application/DddArchitectureValidator.php` (modified - `SessionConfig` context).
+- `api/config/services.yaml` (modified - Domain exclude).
+- `api/tests/Unit/SessionConfig/` (new - 3 test classes); `api/tests/Unit/DddArchitectureValidatorTest.php` (fixture).
 
 ## Change Log
 

@@ -33,21 +33,21 @@ when the member has an entry but no `connectionInfo`:
   being built and the button will unlock automatically).
 
 **AC3:** The page already polls (`refetchInterval: 60_000` on the `["weekly-runs","current"]`
-query) so the state flips to launchable automatically once generation completes — no manual
+query) so the state flips to launchable automatically once generation completes - no manual
 refresh required. No new realtime channel is introduced in this slice.
 
-**AC4:** All quality gates pass — API (`phpstan`, `php-cs-fixer`, `phpunit`,
+**AC4:** All quality gates pass - API (`phpstan`, `php-cs-fixer`, `phpunit`,
 `app:architecture:ddd`) and frontend (`pnpm typecheck`, `pnpm lint`, `pnpm build`).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: API — add `generated_output_key` to `DbalCurrentWeeklyRunsQuery` select and an
+- [x] Task 1: API - add `generated_output_key` to `DbalCurrentWeeklyRunsQuery` select and an
   `isGenerated` boolean to each run DTO.
-- [x] Task 2: API — assert `isGenerated` in the member current-runs functional test
+- [x] Task 2: API - assert `isGenerated` in the member current-runs functional test
   (`CurrentWeeklyRunsTest`): false before generation, true after `markGenerated`.
-- [x] Task 3: Frontend — add `isGenerated: boolean` to `CurrentWeeklyRun`
+- [x] Task 3: Frontend - add `isGenerated: boolean` to `CurrentWeeklyRun`
   (`weekly-runs-api.ts`); the loose payload guard is unchanged.
-- [x] Task 4: Frontend — render the "Génération en cours…" disabled state in `CategorySection`
+- [x] Task 4: Frontend - render the "Génération en cours…" disabled state in `CategorySection`
   when `!run.isGenerated`; keep the enabled launch button when generated. Mirror the same gate
   in `weekly-run-card.tsx` for consistency.
 - [x] Task 5: Quality gates (API + frontend).
@@ -62,16 +62,16 @@ refresh required. No new realtime channel is introduced in this slice.
 ## File List
 
 ### API
-- `api/src/WeeklyRuns/Infrastructure/DbalCurrentWeeklyRunsQuery.php` — `generated_output_key` + `isGenerated`
-- `api/tests/Functional/CurrentWeeklyRunsTest.php` — `isGenerated` assertions
+- `api/src/WeeklyRuns/Infrastructure/DbalCurrentWeeklyRunsQuery.php` - `generated_output_key` + `isGenerated`
+- `api/tests/Functional/CurrentWeeklyRunsTest.php` - `isGenerated` assertions
 
 ### Frontend
-- `frontend/src/features/weekly-runs/weekly-runs-api.ts` — `isGenerated` on `CurrentWeeklyRun`
-- `frontend/src/features/weekly-runs/weekly-run-game-client.tsx` — generating state in `CategorySection`
-- `frontend/src/features/weekly-runs/weekly-run-card.tsx` — same gate (consistency)
+- `frontend/src/features/weekly-runs/weekly-runs-api.ts` - `isGenerated` on `CurrentWeeklyRun`
+- `frontend/src/features/weekly-runs/weekly-run-game-client.tsx` - generating state in `CategorySection`
+- `frontend/src/features/weekly-runs/weekly-run-card.tsx` - same gate (consistency)
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
-| 2026-06-08 | Story created and implemented — completes the deferred Task 11 of 23.8 (member "génération en cours" state, launch disabled until the run is generated). |
+| 2026-06-08 | Story created and implemented - completes the deferred Task 11 of 23.8 (member "génération en cours" state, launch disabled until the run is generated). |

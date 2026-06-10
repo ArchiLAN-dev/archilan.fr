@@ -24,7 +24,7 @@ final class PersonalRunPatchFilterTest extends TestCase
 
     public function testDoesNotMatchOnSlotNameSuffix(): void
     {
-        // "LM" is a suffix of "masterkafei_LM" — must NOT grant access (anti-spoiler).
+        // "LM" is a suffix of "masterkafei_LM" - must NOT grant access (anti-spoiler).
         self::assertFalse(PersonalRunPatchController::belongsToOwnSlot(
             'AP_32336784011536737200_P2_masterkafei_LM.aplm',
             ['LM'],

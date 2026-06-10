@@ -1,4 +1,4 @@
-# Story 9.21: Generation Container — Offline pip + Secret of Evermore Dependency
+# Story 9.21: Generation Container - Offline pip + Secret of Evermore Dependency
 
 ## Story
 
@@ -14,10 +14,10 @@ partial
 
 > **Delivery status (2026-06-06):**
 > - ✅ **Compose build-context scoping** delivered to `develop` via PR #15 (`c05c92a`): `archipelago-builder` → `./archipelago`, `bridge-builder` → `./bridge`.
-> - ⏸️ **Deferred, local-only** (operator's decision — not pushed):
->   - archipelago `Dockerfile` offline pip + SoE `pyevermizer` — commit `d20cd3d` on `archilan-archipelago` `master`.
->   - archipelago `Dockerfile` CRLF strip — commit `5b6408e` (the `develop` submodule pointer instead relies on `.gitattributes eol=lf` at `a7246a4`).
->   - bridge `.dockerignore` — commit `2a97d2b` on the `bridge` repo `master`.
+> - ⏸️ **Deferred, local-only** (operator's decision - not pushed):
+>   - archipelago `Dockerfile` offline pip + SoE `pyevermizer` - commit `d20cd3d` on `archilan-archipelago` `master`.
+>   - archipelago `Dockerfile` CRLF strip - commit `5b6408e` (the `develop` submodule pointer instead relies on `.gitattributes eol=lf` at `a7246a4`).
+>   - bridge `.dockerignore` - commit `2a97d2b` on the `bridge` repo `master`.
 > - Resume by pushing those repo commits + bumping the submodule pointer when SoE/offline-pip is wanted in prod.
 
 ## Context
@@ -30,13 +30,13 @@ installs fail noisily.
 
 Observed in a 2026-06-06 generation log:
 
-- **Harmless noise** — play-time/client deps of worlds that aren't needed to *roll*
+- **Harmless noise** - play-time/client deps of worlds that aren't needed to *roll*
   a seed: `factorio` (factorio-rcon-py), `jakanddaxter` (PyMemoryEditor), `kh2`
   (Pymem), `sc2` (nest-asyncio), `tww` (dolphin-memory-engine), `luigismansion`/
   `zillion` (`git+` deps). Each failed install spends ~8s on DNS retries → ~50s
   total per generation (11:21:10 → 11:22:01 in the log). Generation still
   succeeded (`AP_*.zip` produced).
-- **Real defect** — `Warning: failed to load soe.apworld (soe): name '_loc' is not
+- **Real defect** - `Warning: failed to load soe.apworld (soe): name '_loc' is not
   defined`: the Secret of Evermore world module fails to import because its
   generation-time dep `pyevermizer` is absent. SoE is missing from `worlds loaded`,
   so any seed including SoE would break.
@@ -47,7 +47,7 @@ matters at build time.
 
 ## Acceptance Criteria
 
-**AC1:** `pip install pyevermizer==0.50.1` is baked into the gen image at build time, so `soe.apworld` loads and SoE appears in `worlds loaded`. (Wheel `cp313` manylinux — no compiler needed.)
+**AC1:** `pip install pyevermizer==0.50.1` is baked into the gen image at build time, so `soe.apworld` loads and SoE appears in `worlds loaded`. (Wheel `cp313` manylinux - no compiler needed.)
 
 **AC2:** Runtime pip is forced offline (`PIP_NO_INDEX=1`, `PIP_RETRIES=0`, `PIP_DEFAULT_TIMEOUT=1`) so the remaining worlds' lazy installs fail immediately instead of retrying over DNS. The env vars are placed **after** all build-time `pip install` steps so the build itself is unaffected.
 
@@ -66,7 +66,7 @@ matters at build time.
 ### Submodule + deploy side effect
 
 `archipelago/` is a git submodule (own repo, `master`, no Gitflow/BMAD of its own).
-Its CI publishes to `ghcr.io/archilan-dev/archipelago` on push to master — so
+Its CI publishes to `ghcr.io/archilan-dev/archipelago` on push to master - so
 pushing is a deploy. Sequence: commit in submodule → push (→ image publish) →
 parent records the new submodule SHA → commit pointer bump in parent.
 
@@ -76,7 +76,7 @@ Note: the parent working tree already carried an unrelated submodule pointer bum
 ### Why not strip the unsupported apworlds instead
 
 Removing the noisy worlds' `.apworld` files would also silence the logs and is worth
-considering if ArchiLAN only supports a curated set. Out of scope here — this story
+considering if ArchiLAN only supports a curated set. Out of scope here - this story
 keeps the full world set and only (a) speeds up the failures and (b) fixes the one
 world (SoE) that genuinely fails to load.
 
@@ -95,9 +95,9 @@ the `COPY . bridge/` layer. Verified: `docker compose build archipelago-builder`
 
 ## File List
 
-- `archipelago/Dockerfile` (submodule `archilan-archipelago`) — modified: bake `pyevermizer`, force offline runtime pip.
-- `docker-compose.yml` (parent) — modified: scope `bridge-builder`/`archipelago-builder` build contexts to their subdirs.
-- `bridge/.dockerignore` (parent) — new: exclude `__pycache__`, tests, caches from the bridge image layer.
+- `archipelago/Dockerfile` (submodule `archilan-archipelago`) - modified: bake `pyevermizer`, force offline runtime pip.
+- `docker-compose.yml` (parent) - modified: scope `bridge-builder`/`archipelago-builder` build contexts to their subdirs.
+- `bridge/.dockerignore` (parent) - new: exclude `__pycache__`, tests, caches from the bridge image layer.
 
 ## Change Log
 
@@ -105,4 +105,4 @@ the `COPY . bridge/` layer. Verified: `docker compose build archipelago-builder`
 |------------|------------------------------------------------------------------------|
 | 2026-06-06 | Story created + implemented (Dockerfile in submodule). pyevermizer install verified in isolation; full image build + submodule push pending (push = ghcr publish, user-gated). |
 | 2026-06-06 | Added parent-repo compose build-context fixes: `archipelago-builder` (`context: ./archipelago`) and `bridge-builder` (`context: ./bridge` + `bridge/.dockerignore`). Both `docker compose build` targets verified; bridge context shrank from the whole monorepo to ~18 kB. |
-| 2026-06-06 | Runtime fix: `exec /ap_server.sh: no such file or directory` — scripts checked out on Windows (autocrlf) carried CRLF, breaking the shell shebang. The submodule `.gitattributes` enforces LF in the index but the working tree was stale CRLF, and Docker COPYs from the working tree. Added a build-time `sed -i 's/\r$//'` over the copied scripts in `archipelago/Dockerfile` (host-independent). Rebuilt + verified `/ap_server.sh` is LF and parses. |
+| 2026-06-06 | Runtime fix: `exec /ap_server.sh: no such file or directory` - scripts checked out on Windows (autocrlf) carried CRLF, breaking the shell shebang. The submodule `.gitattributes` enforces LF in the index but the working tree was stale CRLF, and Docker COPYs from the working tree. Added a build-time `sed -i 's/\r$//'` over the copied scripts in `archipelago/Dockerfile` (host-independent). Rebuilt + verified `/ap_server.sh` is LF and parses. |

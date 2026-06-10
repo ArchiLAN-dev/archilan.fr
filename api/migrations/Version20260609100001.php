@@ -11,7 +11,7 @@ final class Version20260609100001 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Create session_config_profiles and session_config_overrides (epic 27 — per-type config + per-session override)';
+        return 'Create session_config_profiles and session_config_overrides (epic 27 - per-type config + per-session override)';
     }
 
     public function up(Schema $schema): void

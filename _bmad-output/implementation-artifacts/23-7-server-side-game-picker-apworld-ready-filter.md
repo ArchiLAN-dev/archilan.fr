@@ -18,7 +18,7 @@ filter exists; if not, filter client-side"*. The server filter was never impleme
 so the form fell back to client-side filtering over a **single unpaginated page** of
 `/admin/games`. Since that endpoint defaults to `per_page=50` (max 200) and the catalogue
 now holds ~600 games, only the first 50 reached the client and the `isApworldReady`
-filter further shrank the visible list — games were missing from the select.
+filter further shrank the visible list - games were missing from the select.
 
 An interim fix made `fetchAdminGameOptions()` walk every page client-side. This story
 **supersedes** that interim fix with the server-side approach 23.5 originally intended:
@@ -35,25 +35,25 @@ without ever truncating the picker.
 
 **AC4:** The weekly-template **create** form replaces the `<select>` with a searchable combobox: a debounced text input (300 ms) calls `GET /admin/games?search=<q>&apworld_ready=1&per_page=20`, shows matching games in a dropdown, and selecting one sets `gameId` and loads its `defaultYaml` (existing `handleGameChange` logic). Empty query shows an idle hint, not the whole catalogue.
 
-**AC5:** The **edit** form (game immutable) shows the current game name as static read-only text — no combobox, no games fetch. The interim paginated `fetchAdminGameOptions()` bulk loader is removed (or reduced to nothing unused).
+**AC5:** The **edit** form (game immutable) shows the current game name as static read-only text - no combobox, no games fetch. The interim paginated `fetchAdminGameOptions()` bulk loader is removed (or reduced to nothing unused).
 
 **AC6:** Combobox UX matches the existing `igdb-game-search.tsx` pattern: click-outside and Escape close the dropdown, in-flight requests are aborted on new keystrokes, loading / error / empty states are rendered. Keyboard selection is not required (parity with igdb widget).
 
-**AC7:** All quality gates pass — API (`phpstan`, `php-cs-fixer`, `phpunit`, `app:architecture:ddd`) and frontend (`pnpm typecheck`, `pnpm lint`, `pnpm build`).
+**AC7:** All quality gates pass - API (`phpstan`, `php-cs-fixer`, `phpunit`, `app:architecture:ddd`) and frontend (`pnpm typecheck`, `pnpm lint`, `pnpm build`).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: API — add `apworld_ready` parsing in `AdminGameLibraryController::list` (same `match` shape as `yaml_ready`).
-- [x] Task 2: API — thread `?bool $apworldReady` through `AdminGameLibrary::list` → `AdminGameListQueryInterface::find` → `DbalAdminGameListQuery::find`/`applyFilters` (add the `apworld_storage_key` predicate).
-- [x] Task 3: API — extend `AdminGameLibraryTest` for AC1: ready-only, not-ready-only, absent. (ready+search untestable here — see Dev Notes.)
-- [x] Task 4: Frontend — add `searchAdminGameOptions(query, signal?)` to `admin-weekly-runs-api.ts` (calls the filtered endpoint, returns `AdminGameOption[]`, type-guarded). Removed the interim paginated `fetchAdminGameOptions`.
-- [x] Task 5: Frontend — build `AdminGamePicker` combobox component in `features/admin/` (debounce + abort + outside-click/Escape close), props `{ value: AdminGameOption | null; onSelect: (game: AdminGameOption) => void; id? }`.
-- [x] Task 6: Frontend — wire `AdminGamePicker` into `admin-weekly-template-form.tsx` create mode; render static game name in edit mode.
-- [x] Task 7: Run all quality gates (API + frontend) — all green (phpunit 910/910).
+- [x] Task 1: API - add `apworld_ready` parsing in `AdminGameLibraryController::list` (same `match` shape as `yaml_ready`).
+- [x] Task 2: API - thread `?bool $apworldReady` through `AdminGameLibrary::list` → `AdminGameListQueryInterface::find` → `DbalAdminGameListQuery::find`/`applyFilters` (add the `apworld_storage_key` predicate).
+- [x] Task 3: API - extend `AdminGameLibraryTest` for AC1: ready-only, not-ready-only, absent. (ready+search untestable here - see Dev Notes.)
+- [x] Task 4: Frontend - add `searchAdminGameOptions(query, signal?)` to `admin-weekly-runs-api.ts` (calls the filtered endpoint, returns `AdminGameOption[]`, type-guarded). Removed the interim paginated `fetchAdminGameOptions`.
+- [x] Task 5: Frontend - build `AdminGamePicker` combobox component in `features/admin/` (debounce + abort + outside-click/Escape close), props `{ value: AdminGameOption | null; onSelect: (game: AdminGameOption) => void; id? }`.
+- [x] Task 6: Frontend - wire `AdminGamePicker` into `admin-weekly-template-form.tsx` create mode; render static game name in edit mode.
+- [x] Task 7: Run all quality gates (API + frontend) - all green (phpunit 910/910).
 
 ## Dev Notes
 
-### API — filter predicate (Task 2)
+### API - filter predicate (Task 2)
 
 In `DbalAdminGameListQuery::applyFilters`, after the `yamlReady` block:
 
@@ -76,14 +76,14 @@ $apworldReady = match ($rawApworldReady) {
 };
 ```
 
-`applyFilters` is called by **both** the count and data query builders — adding the
+`applyFilters` is called by **both** the count and data query builders - adding the
 predicate there keeps `meta.total`/`meta.totalPages` correct (AC2).
 
 **Signature change:** `AdminGameListQueryInterface::find()` gains a parameter. Update the
 interface, `DbalAdminGameListQuery`, `AdminGameLibrary::list`, and the controller call in
 lockstep so phpstan stays green. Append `apworldReady` after `yamlReady` for positional clarity.
 
-### Frontend — search fetch (Task 4)
+### Frontend - search fetch (Task 4)
 
 ```ts
 export async function searchAdminGameOptions(query: string): Promise<AdminGameOption[]> {

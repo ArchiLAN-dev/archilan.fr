@@ -402,7 +402,7 @@ function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
     return { type: "text", key, label, value: String(value ?? ""), description };
   }
 
-  // Plando items: array of structured blocks — must check before generic Array.isArray
+  // Plando items: array of structured blocks - must check before generic Array.isArray
   if (key === "plando_items") {
     return {
       type: "plando_items", key, label,
@@ -411,7 +411,7 @@ function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
     };
   }
 
-  // Item links: array of structured blocks — must check before generic Array.isArray
+  // Item links: array of structured blocks - must check before generic Array.isArray
   if (key === "item_links") {
     return {
       type: "item_links", key, label,

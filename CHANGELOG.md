@@ -7,7 +7,7 @@ projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [0.1.0] - 2026-06-09
 
-Première version publiée d'archilan.fr — le site et l'ERP de l'association
+Première version publiée d'archilan.fr - le site et l'ERP de l'association
 ArchiLAN autour d'Archipelago (multiworld). Cette release inaugure le tag de
 version et la publication d'images Docker versionnées sur GHCR.
 

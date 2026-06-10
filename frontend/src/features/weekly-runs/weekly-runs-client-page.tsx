@@ -68,7 +68,7 @@ export function WeeklyRunsClientPage() {
 
   const isAdmin = user?.roles.includes("ROLE_ADMIN") === true;
 
-  // Always fetch membership for non-admin users — ROLE_MEMBER in the JWT can be
+  // Always fetch membership for non-admin users - ROLE_MEMBER in the JWT can be
   // stale (cotisation expirée sans demotion). The API is authoritative.
   const { data: membership, isLoading: membershipLoading } = useQuery({
     queryKey: ["account-membership"],
@@ -80,7 +80,7 @@ export function WeeklyRunsClientPage() {
   // Members (and admins) can participate; everyone else can browse but not join.
   const canParticipate = isAdmin || membership?.status === "active";
 
-  // The list endpoint is public (optional auth) — everyone sees the week's runs.
+  // The list endpoint is public (optional auth) - everyone sees the week's runs.
   const { data: runs = [] } = useQuery({
     queryKey: ["weekly-runs", "current"],
     queryFn: fetchCurrentWeeklyRuns,
@@ -114,7 +114,7 @@ export function WeeklyRunsClientPage() {
     );
   }
 
-  // Deduplicate by gameName — one card per game even if multiple templates exist
+  // Deduplicate by gameName - one card per game even if multiple templates exist
   const seen = new Set<string>();
   const games: CurrentWeeklyRun[] = [];
   for (const run of runs) {

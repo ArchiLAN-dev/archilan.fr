@@ -107,7 +107,7 @@ final readonly class ApworldVersionChecker
             isNewer: Game::UPDATE_STATUS_UPDATE_AVAILABLE === $updateStatus,
         );
 
-        // Rate limit check after persisting the version — mirrors the old behaviour where
+        // Rate limit check after persisting the version - mirrors the old behaviour where
         // the game state was recorded before the exception was raised.
         $this->checkRateLimit($remaining);
 
@@ -127,7 +127,7 @@ final readonly class ApworldVersionChecker
             return null;
         }
 
-        // Direct .apworld file URL — no API call needed.
+        // Direct .apworld file URL - no API call needed.
         // Normalize blob → raw to ensure the download URL serves the binary.
         if ($this->isDirectApworldUrl($sourceUrl)) {
             $downloadUrl = Game::normalizeApworldSourceUrl($sourceUrl) ?? $sourceUrl;

@@ -168,7 +168,7 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
 
     public function testPublisherTokenReturns200ForAnyRunIdWithValidSecret(): void
     {
-        // Session existence is no longer validated — weekly entries use this endpoint too.
+        // Session existence is no longer validated - weekly entries use this endpoint too.
         $this->client->request(
             'GET',
             '/api/v1/internal/sessions/no-such-session/publisher-token',

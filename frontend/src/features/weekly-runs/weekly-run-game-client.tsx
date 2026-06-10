@@ -93,7 +93,7 @@ function OptionValue({ value }: { value: ApOptionValue }) {
   if (isWeightedDict(value)) {
     const entries = Object.entries(value);
     const total = entries.reduce((s, [, w]) => s + w, 0);
-    if (total === 0) return <span className="text-muted-foreground">—</span>;
+    if (total === 0) return <span className="text-muted-foreground">-</span>;
 
     return (
       <ul className="mt-1 flex flex-col gap-1.5">
@@ -159,7 +159,7 @@ function YamlOptionsViewer({
       }
     }
   } catch {
-    // unparseable YAML — hide the viewer silently
+    // unparseable YAML - hide the viewer silently
   }
 
   if (!gameOptions || Object.keys(gameOptions).length === 0) return null;
@@ -314,7 +314,7 @@ function DualLeaderboard({ leaderboard, myUserId, myEntryId }: DualLeaderboardPr
         {tab === "fastest" ? (
           <LeaderboardTable
             entries={leaderboard.fastest}
-            getValue={(e) => e.completionTimeSeconds != null ? formatTime(e.completionTimeSeconds) : "—"}
+            getValue={(e) => e.completionTimeSeconds != null ? formatTime(e.completionTimeSeconds) : "-"}
             myEntryId={myEntryId}
             myUserId={myUserId}
             valueLabel="Temps"
@@ -322,7 +322,7 @@ function DualLeaderboard({ leaderboard, myUserId, myEntryId }: DualLeaderboardPr
         ) : (
           <LeaderboardTable
             entries={leaderboard.fewestChecks}
-            getValue={(e) => e.checksTotal != null ? String(e.checksTotal) : "—"}
+            getValue={(e) => e.checksTotal != null ? String(e.checksTotal) : "-"}
             myEntryId={myEntryId}
             myUserId={myUserId}
             valueLabel="Checks"
@@ -338,7 +338,7 @@ function DualLeaderboard({ leaderboard, myUserId, myEntryId }: DualLeaderboardPr
           </p>
           <LeaderboardTable
             entries={leaderboard.fastest}
-            getValue={(e) => e.completionTimeSeconds != null ? formatTime(e.completionTimeSeconds) : "—"}
+            getValue={(e) => e.completionTimeSeconds != null ? formatTime(e.completionTimeSeconds) : "-"}
             myEntryId={myEntryId}
             myUserId={myUserId}
             valueLabel="Temps"
@@ -350,7 +350,7 @@ function DualLeaderboard({ leaderboard, myUserId, myEntryId }: DualLeaderboardPr
           </p>
           <LeaderboardTable
             entries={leaderboard.fewestChecks}
-            getValue={(e) => e.checksTotal != null ? String(e.checksTotal) : "—"}
+            getValue={(e) => e.checksTotal != null ? String(e.checksTotal) : "-"}
             myEntryId={myEntryId}
             myUserId={myUserId}
             valueLabel="Checks"
@@ -477,12 +477,12 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
         />
       </div>
 
-      {/* YAML config viewer — visible to all members */}
+      {/* YAML config viewer - visible to all members */}
       {run.yamlConfig && (
         <YamlOptionsViewer gameName={run.gameName} yamlConfig={run.yamlConfig} />
       )}
 
-      {/* Participation — only when active, authenticated, and a member/admin */}
+      {/* Participation - only when active, authenticated, and a member/admin */}
       {isActive && myUserId && canParticipate && (
         <div className="border-t border-border px-5 py-4">
           {toast && (
@@ -615,7 +615,7 @@ export function WeeklyRunGameClientPage({ params }: Props) {
   // Members (and admins) can participate; everyone else can browse but not join.
   const canParticipate = isAdmin || membership?.status === "active";
 
-  // The list endpoint is public (optional auth) — everyone can browse the runs.
+  // The list endpoint is public (optional auth) - everyone can browse the runs.
   const { data: runs = [], isLoading: runsLoading } = useQuery({
     queryKey: ["weekly-runs", "current"],
     queryFn: fetchCurrentWeeklyRuns,
@@ -668,7 +668,7 @@ export function WeeklyRunGameClientPage({ params }: Props) {
         </Link>
       </nav>
 
-      {/* Game header — speedrun.com style */}
+      {/* Game header - speedrun.com style */}
       <header className="flex items-center gap-5">
         {coverImageUrl && (
           <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded-lg border border-border">

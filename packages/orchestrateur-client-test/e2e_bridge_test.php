@@ -4,17 +4,17 @@
  * End-to-end bridge test.
  *
  * Workflow :
- *   1. Configure  — 1 slot Luigi's Mansion (+ toadsanity)
- *   2. Generate   — lance la génération AP
- *   3. Poll       — attend status=generated
- *   4. Launch     — démarre AP + bridge
- *   5. Poll       — attend status=running
- *   6. WS probe   — attend wsConnected=true sur le bridge
- *   7. Bridge test — exécute bridge-client-test/test.php sur le port du bridge
- *   8. Cleanup    — supprime la session
+ *   1. Configure  - 1 slot Luigi's Mansion (+ toadsanity)
+ *   2. Generate   - lance la génération AP
+ *   3. Poll       - attend status=generated
+ *   4. Launch     - démarre AP + bridge
+ *   5. Poll       - attend status=running
+ *   6. WS probe   - attend wsConnected=true sur le bridge
+ *   7. Bridge test - exécute bridge-client-test/test.php sur le port du bridge
+ *   8. Cleanup    - supprime la session
  *
  * Usage : php e2e_bridge_test.php [sessionId]
- *   sessionId  (optionnel) — généré automatiquement si absent
+ *   sessionId  (optionnel) - généré automatiquement si absent
  */
 
 declare(strict_types=1);
@@ -93,7 +93,7 @@ function poll(string $label, callable $check, int $maxSeconds = 120, int $stepSe
 
 // ─── 1. Configure ────────────────────────────────────────────────────────────
 
-section("Configure session — {$sessionId}");
+section("Configure session - {$sessionId}");
 try {
     $cfg = $client->sessions()->configure(
         $sessionId,
@@ -110,7 +110,7 @@ try {
     }
     ok("configure() → valid");
 } catch (OrchestratorException $e) {
-    bail("configure() échoué : " . get_class($e) . ' — ' . $e->getMessage());
+    bail("configure() échoué : " . get_class($e) . ' - ' . $e->getMessage());
 }
 
 // ─── 2. Generate ─────────────────────────────────────────────────────────────
@@ -120,12 +120,12 @@ try {
     $client->sessions()->generate($sessionId, $adminPassword);
     ok("generate() → 202");
 } catch (OrchestratorException $e) {
-    bail("generate() échoué : " . get_class($e) . ' — ' . $e->getMessage());
+    bail("generate() échoué : " . get_class($e) . ' - ' . $e->getMessage());
 }
 
 // ─── 3. Poll until generated ──────────────────────────────────────────────────
 
-section("Polling — status=generated (max 120s)");
+section("Polling - status=generated (max 120s)");
 $outputFile = null;
 $generated = poll('  Génération en cours', function () use ($client, $sessionId, &$outputFile): bool {
     try {
@@ -155,12 +155,12 @@ try {
     $client->sessions()->launch($sessionId, $adminPassword);
     ok("launch() → 202");
 } catch (OrchestratorException $e) {
-    bail("launch() échoué : " . get_class($e) . ' — ' . $e->getMessage());
+    bail("launch() échoué : " . get_class($e) . ' - ' . $e->getMessage());
 }
 
 // ─── 5. Poll until running ────────────────────────────────────────────────────
 
-section("Polling — status=running (max 120s)");
+section("Polling - status=running (max 120s)");
 $bridgePort = null;
 $apPort     = null;
 $running = poll('  Démarrage en cours', function () use ($client, $sessionId, &$bridgePort, &$apPort): bool {
@@ -197,7 +197,7 @@ ok("status=running  bridgePort={$bridgePort}  apPort={$apPort}");
 
 // ─── 6. Wait for WS connection ────────────────────────────────────────────────
 
-section("Polling — bridge wsConnected=true (max 60s)");
+section("Polling - bridge wsConnected=true (max 60s)");
 $bridgeUrl = "http://localhost:{$bridgePort}";
 $wsReady = poll('  Connexion WebSocket AP', function () use ($bridgeUrl, $bridgeToken): bool {
     try {
@@ -217,14 +217,14 @@ $wsReady = poll('  Connexion WebSocket AP', function () use ($bridgeUrl, $bridge
 }, 60, 2);
 
 if (!$wsReady) {
-    err("Bridge WS non connecté après 60s — les tests bridge peuvent être partiels");
+    err("Bridge WS non connecté après 60s - les tests bridge peuvent être partiels");
 } else {
     ok("wsConnected=true");
 }
 
 // ─── 7. Run bridge client tests ───────────────────────────────────────────────
 
-section("Bridge client test — {$bridgeUrl}");
+section("Bridge client test - {$bridgeUrl}");
 echo "\n";
 $exitCode = 0;
 passthru(
@@ -236,7 +236,7 @@ passthru(
 
 // ─── 8. Cleanup ───────────────────────────────────────────────────────────────
 
-section("Cleanup — suppression de la session {$sessionId}");
+section("Cleanup - suppression de la session {$sessionId}");
 try {
     $client->sessions()->delete($sessionId);
     ok("delete() → 204");
@@ -250,7 +250,7 @@ try {
 
 echo "\n";
 if (0 === $exitCode) {
-    echo "\033[1;32mE2E OK — tous les tests bridge sont passés.\033[0m\n";
+    echo "\033[1;32mE2E OK - tous les tests bridge sont passés.\033[0m\n";
 } else {
-    echo "\033[1;31mE2E PARTIEL — bridge test sorti avec code {$exitCode}.\033[0m\n";
+    echo "\033[1;31mE2E PARTIEL - bridge test sorti avec code {$exitCode}.\033[0m\n";
 }

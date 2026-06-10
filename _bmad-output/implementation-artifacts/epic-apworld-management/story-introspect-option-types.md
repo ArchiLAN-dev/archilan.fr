@@ -1,4 +1,4 @@
-# Story — Introspect Apworld Option Types via Python
+# Story - Introspect Apworld Option Types via Python
 
 **Epic:** Apworld Management  
 **Story ID:** epic-apworld-management / story-introspect-option-types
@@ -44,12 +44,12 @@ The introspection runs asynchronously (goroutine) so it does not extend the uplo
 ## Tasks
 
 - [x] Write `archipelago/introspect_options.py`
-- [x] Update `archipelago/Dockerfile` — add COPY for new script
+- [x] Update `archipelago/Dockerfile` - add COPY for new script
 - [x] Add `docker.IntrospectOptions()` to `orchestrateur/internal/docker/client.go`
 - [x] Add `UploadApworldOptionTypes()` / `DownloadApworldOptionTypes()` to `orchestrateur/internal/storage/client.go`
-- [x] Update `service.UploadApworld()` — launch introspection goroutine after meta upload
-- [x] Add `service.GetApworldOptionTypes()` — download and parse `{hash}.types.json`
-- [x] Update `handleGetApworldOptions()` — merge type overrides into parsed options
+- [x] Update `service.UploadApworld()` - launch introspection goroutine after meta upload
+- [x] Add `service.GetApworldOptionTypes()` - download and parse `{hash}.types.json`
+- [x] Update `handleGetApworldOptions()` - merge type overrides into parsed options
 
 ## Status: DONE
 

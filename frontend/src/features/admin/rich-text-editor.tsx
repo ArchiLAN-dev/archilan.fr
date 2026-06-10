@@ -207,7 +207,7 @@ function Toolbar({ editor, postId }: ToolbarProps) {
         <ImageIcon aria-hidden className="size-4" />
       </ToolbarButton>
 
-      {/* Upload image — only available when postId is known (edit mode) */}
+      {/* Upload image - only available when postId is known (edit mode) */}
       {postId && (
         <label
           className="flex size-8 cursor-pointer items-center justify-center rounded text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
