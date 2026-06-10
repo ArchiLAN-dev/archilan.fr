@@ -35,22 +35,22 @@ config API. Depends on 27.2 (API contract). The per-session override UI is 27.7.
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — API module `admin-session-config-api.ts`: types + guards + `fetchSessionConfig(type)` /
+- [x] Task 1 - API module `admin-session-config-api.ts`: types + guards + `fetchSessionConfig(type)` /
   `updateSessionConfig(type, payload)` returning typed results (AC: 3, 5).
-- [x] Task 2 — Page route under `(admin)` + a client component with the three-tab layout (AC: 1).
-- [x] Task 3 — Server group form controls + Generation group controls, with labels matching AP semantics
+- [x] Task 2 - Page route under `(admin)` + a client component with the three-tab layout (AC: 1).
+- [x] Task 3 - Server group form controls + Generation group controls, with labels matching AP semantics
   (AC: 2). Reuse existing admin form primitives/styles (see `admin-weekly-run-*`).
-- [x] Task 4 — Load + mutation wiring, invalidation, inline 422 errors, client validation (AC: 3, 4).
-- [x] Task 5 — Add a nav entry in the admin shell; run gates (AC: 6).
+- [x] Task 4 - Load + mutation wiring, invalidation, inline 422 errors, client validation (AC: 3, 4).
+- [x] Task 5 - Add a nav entry in the admin shell; run gates (AC: 6).
 
 ## Dev Notes
 
 - **Mirror existing admin patterns:** `src/features/admin/admin-weekly-runs-api.ts` (typed fetch + guards
-  + mutations) and `admin-weekly-run-*` components (form/state/spinner). No toast system in the app —
+  + mutations) and `admin-weekly-run-*` components (form/state/spinner). No toast system in the app -
   use inline success/error state (as done for the per-template generate button, story 23.14).
 - **Selects use the AP value strings** as values, French labels for display. Compatibility shown as
   "Casual" (2) / "Tournoi" (0). Spoiler 0–3 with short descriptions.
-- The exact field set + defaults come from the 27.1 default table / 27.2 API response — render whatever
+- The exact field set + defaults come from the 27.1 default table / 27.2 API response - render whatever
   the API returns; don't hardcode defaults client-side beyond validation bounds.
 - frontend/AGENTS.md: Server Components by default, `"use client"` only for the interactive form;
   `staleTime` explicit; env via `src/lib/env.ts`.
@@ -100,7 +100,7 @@ claude-opus-4-8 (Claude Code).
 - `frontend/src/features/admin/admin-session-config-api.ts` (new)
 - `frontend/src/features/admin/admin-session-config-page.tsx` (new)
 - `frontend/src/app/(admin)/admin/sessions/config/page.tsx` (new)
-- `frontend/src/components/admin-shell.tsx` (modified — nav item)
+- `frontend/src/components/admin-shell.tsx` (modified - nav item)
 
 ## Change Log
 

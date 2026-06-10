@@ -77,7 +77,7 @@ final readonly class PersonalRunPatchController
      *
      * AP patch files are named "AP_{seed}_P{slotNumber}_{slotName}.{ext}" (the slot
      * name is a suffix, and may itself contain underscores). The slot name is matched
-     * exactly — extracted after the "_P{n}_" delimiter — so one player can't grab a
+     * exactly - extracted after the "_P{n}_" delimiter - so one player can't grab a
      * file whose slot name merely ends with theirs. The shared multidata
      * (.archipelago) and any *_spoiler* file are never patches.
      *

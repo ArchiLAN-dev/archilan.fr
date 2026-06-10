@@ -207,7 +207,7 @@ export default async function Home() {
           </h2>
           <p className="mt-4 text-lg leading-8 text-muted-foreground text-on-canvas">
             Des runs hebdomadaires aux parties privées entre amis, ArchiLAN gère
-            la génération des seeds, les serveurs et le suivi en direct — tu n&apos;as
+            la génération des seeds, les serveurs et le suivi en direct - tu n&apos;as
             plus qu&apos;à jouer.
           </p>
         </div>

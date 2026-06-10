@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 /**
  * Collapsible "advanced configuration" panel (native <details>) with a leading
- * config icon and a chevron that rotates when open. Pure CSS — no client JS.
+ * config icon and a chevron that rotates when open. Pure CSS - no client JS.
  */
 export function CollapsibleConfigPanel({
   title,

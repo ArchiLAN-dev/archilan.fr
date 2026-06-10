@@ -549,7 +549,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             $playerName = $user?->getDisplayName() ?? $user?->getEmail() ?? $slot->getRegistrationId();
             $archipelagoGameName = $game?->getArchipelagoGameName() ?? '';
             $savedYaml = is_string($regSlot['playerYaml'] ?? null) ? $regSlot['playerYaml'] : '';
-            // No saved YAML means the player kept the defaults — fall back to the game's
+            // No saved YAML means the player kept the defaults - fall back to the game's
             // default template so generation succeeds without an explicit save.
             $playerYaml = '' !== $savedYaml ? $savedYaml : ($game?->getDefaultYaml() ?? '');
 

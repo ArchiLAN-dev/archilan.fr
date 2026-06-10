@@ -1222,9 +1222,9 @@ function PlandoEntryCard({
           value={entry.force}
           onChange={(e) => onChange({ ...entry, force: e.target.value as PlandoItem["force"] })}
         >
-          <option value="silent">Silencieux (défaut) — ignorer si impossible</option>
-          <option value="true">Strict — erreur si impossible</option>
-          <option value="false">Souple — warning si impossible</option>
+          <option value="silent">Silencieux (défaut) - ignorer si impossible</option>
+          <option value="true">Strict - erreur si impossible</option>
+          <option value="false">Souple - warning si impossible</option>
         </select>
       </div>
 

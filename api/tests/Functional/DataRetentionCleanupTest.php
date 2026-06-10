@@ -14,7 +14,7 @@ use App\Payments\Domain\HelloAssoSyncLog;
 use App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository;
 
 /**
- * Story 13.7 — proves each scheduled cleanup deletes only stale rows and leaves
+ * Story 13.7 - proves each scheduled cleanup deletes only stale rows and leaves
  * recent/active rows untouched.
  */
 final class DataRetentionCleanupTest extends FunctionalTestCase

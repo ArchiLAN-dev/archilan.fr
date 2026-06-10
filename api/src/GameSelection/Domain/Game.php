@@ -272,7 +272,7 @@ class Game
         $host = $parsed['host'] ?? '';
         $path = rtrim($parsed['path'] ?? '/', '/');
 
-        // GitLab direct file URL — blob → raw normalisation
+        // GitLab direct file URL - blob → raw normalisation
         if ('gitlab.com' === $host) {
             // Accept /-/blob/{branch}/{file}.apworld and /-/raw/{branch}/{file}.apworld
             if (preg_match('#/-/(blob|raw)/.+\.apworld$#i', $path)) {
@@ -322,7 +322,7 @@ class Game
 
             return "https://raw.githubusercontent.com/{$owner}/{$repo}/{$rawRest}";
         } elseif (str_ends_with(strtolower($path), '.apworld')) {
-            // Any other github.com URL ending in .apworld — pass through as-is.
+            // Any other github.com URL ending in .apworld - pass through as-is.
         } else {
             return null;
         }

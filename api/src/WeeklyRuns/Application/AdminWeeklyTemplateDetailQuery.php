@@ -33,7 +33,7 @@ final readonly class AdminWeeklyTemplateDetailQuery
         $game = $this->games->findById($template->getGameId());
         $gameName = $game instanceof Game ? $game->getName() : '';
 
-        // Same ISO-week computation as GenerateWeeklyRunsMessageHandler — drives the
+        // Same ISO-week computation as GenerateWeeklyRunsMessageHandler - drives the
         // on-demand "generate the week's run" button's disabled state on the template page.
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $weekYear = (int) $now->format('o');

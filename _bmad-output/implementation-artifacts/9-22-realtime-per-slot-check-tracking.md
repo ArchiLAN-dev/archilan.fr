@@ -3,14 +3,14 @@
 **Status:** done
 **Epic:** 9 - Archipelago Session Management
 **Date:** 2026-06-10
-**Repo:** `Archipelago-Bridge` (Python) — and possibly `archilan-archipelago` (AP server image)
+**Repo:** `Archipelago-Bridge` (Python) - and possibly `archilan-archipelago` (AP server image)
 
 ---
 
 ## Story
 
 As a viewer of a live Archipelago run,
-I want every location check to appear on the UI within ~1-2 s — including checks the AP server does not broadcast (e.g. solo/filler self-finds),
+I want every location check to appear on the UI within ~1-2 s - including checks the AP server does not broadcast (e.g. solo/filler self-finds),
 so that progress is truly real-time instead of waiting for the AP server's periodic save.
 
 ---
@@ -18,7 +18,7 @@ so that progress is truly real-time instead of waiting for the AP server's perio
 ## Context
 
 The bridge connects to the AP server over WebSocket as a **TextOnly observer slot** ("Bridge",
-`tags: ["TextOnly"], items_handling: 0` — `core/ap_client.py`). It learns other slots' progress from
+`tags: ["TextOnly"], items_handling: 0` - `core/ap_client.py`). It learns other slots' progress from
 **`PrintJSON ItemSend`** broadcasts (`_track_item_send`) and pushes state to Symfony → Mercure
 `runs/{id}/players` on every event (`_push_state_to_api`). A 5 s **apsave reconcile loop** is a backstop.
 
@@ -27,11 +27,11 @@ missing ones only show up after the page is refreshed or after a *new* item is s
 - the AP server does **not** broadcast a `PrintJSON ItemSend` for every check (notably filler / self-finds),
   so those checks never reach the observer over the WS;
 - they are only picked up by the **apsave reconcile**, which is bounded by **AP's own save cadence**
-  (stock `ArchipelagoServer` auto-saves on a long interval, not per check — `ap_server.sh` sets no
+  (stock `ArchipelagoServer` auto-saves on a long interval, not per check - `ap_server.sh` sets no
   save-interval flag), hence the multi-second / "only on refresh" latency.
 
 A prior bridge fix (PR #1, merged) made the apsave reconcile **push** on change, removing the
-"stuck until refresh" failure — but the residual latency is still bounded by the AP save interval.
+"stuck until refresh" failure - but the residual latency is still bounded by the AP save interval.
 This story closes that gap with a **real-time** signal for all checks.
 
 AP version in use: **0.6.7** (`archilan-archipelago/Dockerfile` `ARCHIPELAGO_VERSION=0.6.7`; the AP source
@@ -42,12 +42,12 @@ tarball is fetched at build, so `MultiServer.py` is available in the image / dow
 ## Acceptance Criteria
 
 1. Every location check for every slot is reflected on the live UI within **~1-2 s**, independent of the
-   AP server's save interval — verified including a **solo run with filler items** (the case that fails today).
+   AP server's save interval - verified including a **solo run with filler items** (the case that fails today).
 2. The mechanism does not rely on the apsave for the common path; the apsave reconcile remains only as a
    backstop (and still pushes, per PR #1).
 3. No regression to the existing real-time paths (PrintJSON feed, hints, reachability, goal callback) or to
    reconnect/backoff behaviour.
-4. Connection load is bounded and safe for large multiworlds (see spike) — no unbounded fan-out that could
+4. Connection load is bounded and safe for large multiworlds (see spike) - no unbounded fan-out that could
    overwhelm the AP server.
 5. Bridge quality gates green: `ruff`, `pytest`, `mypy` (run per `bridge/CLAUDE.md`). New behaviour covered
    by tests with a stubbed AP WS (no live server needed).
@@ -56,47 +56,47 @@ tarball is fetched at build, so `MultiServer.py` is available in the image / dow
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Spike: pick the real-time mechanism for AP 0.6.7** (AC: 1, 4). Read the AP `MultiServer.py`
+- [ ] **Task 1 - Spike: pick the real-time mechanism for AP 0.6.7** (AC: 1, 4). Read the AP `MultiServer.py`
   source (`register_location_checks`, `RoomUpdate` emission, the `_read_*` data-storage keys, the
   `Tracker` tag handling, and the auto-save logic) and determine which gives real-time per-slot checks to a
   non-playing client. Candidates, in rough priority:
-  - **(A) Per-slot tracking connections** — AP sends `RoomUpdate { checked_locations: [...] }` to **all
+  - **(A) Per-slot tracking connections** - AP sends `RoomUpdate { checked_locations: [...] }` to **all
     clients connected to a given slot**, and AP allows **multiple connections per slot**. The bridge could
     open a lightweight client per player slot (reusing the WS infra) that receives `Connected`
     (initial `checked_locations`) + `RoomUpdate` (incremental) + `ReceivedItems` in real time. Confirm the
     packets, that extra same-slot connections don't disturb the real player, and the connection ceiling.
-  - **(B) Data-storage `SetNotify`** — check whether a notify-able key reflects checks in 0.6.7
+  - **(B) Data-storage `SetNotify`** - check whether a notify-able key reflects checks in 0.6.7
     (`_read_client_status_*` exists; confirm if any check/location key exists). Likely insufficient for
     checks but cheap if present.
-  - **(C) Fix `ItemSend` parsing** — verify whether self-finds *are* broadcast but `_track_item_send`
+  - **(C) Fix `ItemSend` parsing** - verify whether self-finds *are* broadcast but `_track_item_send`
     fails to resolve the sender for the self-find message shape (then this is a cheap parser fix, possibly
     combined with A/B).
-  - **(D) Fallback** — if no clean real-time signal exists, reduce the effective save latency (e.g. a
-    save-interval lever on the AP server in `ap_server.sh`, or an admin-triggered save) — document the
+  - **(D) Fallback** - if no clean real-time signal exists, reduce the effective save latency (e.g. a
+    save-interval lever on the AP server in `ap_server.sh`, or an admin-triggered save) - document the
     trade-off. Only if A–C are not viable.
   - Write the decision + evidence into the Dev Agent Record before coding.
 
-- [ ] **Task 2 — Implement the chosen real-time path** in `core/ap_client.py` (and wiring in `bridge.py`)
+- [ ] **Task 2 - Implement the chosen real-time path** in `core/ap_client.py` (and wiring in `bridge.py`)
   (AC: 1, 2, 3): ingest per-slot checks/items in real time, update `StateManager`, and call
   `notify_state_changed()` (existing) so the push to Symfony → Mercure fires immediately. Keep the existing
   observer connection for the feed/hints/permissions.
 
-- [ ] **Task 3 — Bound and harden** (AC: 3, 4): reuse the existing reconnect/backoff
+- [ ] **Task 3 - Bound and harden** (AC: 3, 4): reuse the existing reconnect/backoff
   (`run_with_reconnect`), cap concurrent connections / degrade gracefully on large slot counts, ensure clean
   teardown, and avoid duplicate counting between the new path and PrintJSON ItemSend (dedupe by
   slot+location).
 
-- [ ] **Task 4 — Keep the apsave backstop** (AC: 2): leave `_apsave_reconcile_loop` (now pushing) as the
+- [ ] **Task 4 - Keep the apsave backstop** (AC: 2): leave `_apsave_reconcile_loop` (now pushing) as the
   safety net; confirm no double-push storms when both paths see the same change.
 
-- [ ] **Task 5 — Tests** (AC: 5): unit-test the new packet handlers (feed a stubbed `RoomUpdate` /
+- [ ] **Task 5 - Tests** (AC: 5): unit-test the new packet handlers (feed a stubbed `RoomUpdate` /
   `ReceivedItems` and assert state + `notify_state_changed` fire) using the existing `AsyncMock` broadcast
   style (`tests/test_checks.py`); assert dedupe (no double count vs ItemSend). No live AP server.
 
-- [ ] **Task 6 — If Task 1 chose (D)**: change `archilan-archipelago/ap_server.sh` accordingly, rebuild the
+- [ ] **Task 6 - If Task 1 chose (D)**: change `archilan-archipelago/ap_server.sh` accordingly, rebuild the
   image, and note the redeploy requirement. (Separate repo / coordinated change.)
 
-- [ ] **Task 7 — Gates + manual verify** (AC: 1, 5): `ruff` / `pytest` / `mypy` green; verify live on a
+- [ ] **Task 7 - Gates + manual verify** (AC: 1, 5): `ruff` / `pytest` / `mypy` green; verify live on a
   **solo run with filler items** that checks appear ~instantly without refresh.
 
 ---
@@ -107,12 +107,12 @@ tarball is fetched at build, so `MultiServer.py` is available in the image / dow
   `tags: ["TextOnly"]`, `items_handling: 0`, `slot_data: False`. The "Bridge" observer slot is injected
   into every generated multiworld by the orchestrateur.
 - **Existing real-time hooks to reuse**: `_handle_packet` (dispatch), `_handle_connected`
-  (`checked_locations`/`missing_locations` for the bridge's own slot — the per-slot path would reuse this
-  for each tracked slot), `RoomUpdate` handler (currently only permissions/hint_cost — extend for
+  (`checked_locations`/`missing_locations` for the bridge's own slot - the per-slot path would reuse this
+  for each tracked slot), `RoomUpdate` handler (currently only permissions/hint_cost - extend for
   `checked_locations` if approach A), `StateManager.add_location_checks` / `set_checks_total` /
   `update_client_status`, and `notify_state_changed()` (added in PR #1) which broadcasts + pushes.
 - **Dedupe**: `_track_item_send` already increments checks from PrintJSON; the new path must not
-  double-count. `StateManager.add_location_checks` should be idempotent per (slot, location) — verify.
+  double-count. `StateManager.add_location_checks` should be idempotent per (slot, location) - verify.
 - **Do not** reintroduce the apsave as the primary path; it stays a backstop (PR #1 keeps it pushing).
 - **AP source to read for the spike**: `MultiServer.py` (`register_location_checks`, `update_checked_locations`,
   `send_new_items`, `RoomUpdate` construction, `Context.save` / auto-save interval). The 0.6.7 source is the
@@ -127,10 +127,10 @@ tarball is fetched at build, so `MultiServer.py` is available in the image / dow
 
 ### References
 
-- [Source: _bmad-output/implementation-artifacts/9-12-bridge-py-realtime-observer-service.md] — original observer
-- [Source: _bmad-output/implementation-artifacts/9-14-player-progress-dashboard.md] — consumer UI
-- [Source: _bmad-output/implementation-artifacts/9-20-bridge-reachability-push-to-mercure.md] — push pattern
-- [Source: Archipelago-Bridge core/ap_client.py, core/loops.py, bridge.py] — observer + reconcile + push
+- [Source: _bmad-output/implementation-artifacts/9-12-bridge-py-realtime-observer-service.md] - original observer
+- [Source: _bmad-output/implementation-artifacts/9-14-player-progress-dashboard.md] - consumer UI
+- [Source: _bmad-output/implementation-artifacts/9-20-bridge-reachability-push-to-mercure.md] - push pattern
+- [Source: Archipelago-Bridge core/ap_client.py, core/loops.py, bridge.py] - observer + reconcile + push
 - [Source: Archipelago-Bridge PR #1 — apsave reconcile now pushes (notify_state_changed)]
 - [Source: archilan-archipelago/ap_server.sh, Dockerfile (AP 0.6.7)] — server launch, no save-interval flag
 

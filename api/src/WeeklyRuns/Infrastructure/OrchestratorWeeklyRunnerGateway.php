@@ -40,7 +40,7 @@ final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGate
         // 2. Download the run's pre-generated world from MinIO (zero regeneration).
         $output = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
 
-        // 3. Inject it into the session volume and launch — no generation is run.
+        // 3. Inject it into the session volume and launch - no generation is run.
         $this->client->sessions()->launchFromFile($entryId, $output, basename($outputKey), $adminPassword, $serverPassword, $serverOptions);
         $this->logger->info('weekly_entry.launch_from_file.triggered', ['entryId' => $entryId]);
 

@@ -18,14 +18,14 @@ les valeurs par défaut seront utilisées"* and renders a slot with no saved `pl
 YAML, `SessionOrchestrator` sends an empty/`null` YAML to the runner instead of the game's
 `defaultYaml`, so multiworld generation fails until the player opens the editor and saves
 (which persists a non-empty `playerYaml`). Reported on private events but the defect is
-general — it affects any slot left unconfigured.
+general - it affects any slot left unconfigured.
 
 Two collection points in `SessionOrchestrator` drop the default:
 
 - `enrichSlotsForValidation()` (feeds `configureSession` → real generation):
-  `… ? $regSlot['playerYaml'] : ''` — empty string when unsaved.
+  `… ? $regSlot['playerYaml'] : ''` - empty string when unsaved.
 - `buildPreflightSlotsForCreation()` (feeds `preflight` validation):
-  `'playerYaml' => $registrationSlot['playerYaml'] ?? null` — null when unsaved.
+  `'playerYaml' => $registrationSlot['playerYaml'] ?? null` - null when unsaved.
 
 The `Game` aggregate is already loaded at both sites and exposes `getDefaultYaml(): ?string`.
 
@@ -35,7 +35,7 @@ The `Game` aggregate is already loaded at both sites and exposes `getDefaultYaml
 
 **AC2:** In `buildPreflightSlotsForCreation()`, the same fallback applies to the `playerYaml` sent for preflight.
 
-**AC3:** A slot **with** a saved `playerYaml` is unchanged — the saved value is always used as-is (custom config wins).
+**AC3:** A slot **with** a saved `playerYaml` is unchanged - the saved value is always used as-is (custom config wins).
 
 **AC4:** Functional coverage: validating a session whose slot has no saved YAML sends the game's `defaultYaml` to `configureSession` (not `''`). A slot with a saved YAML sends the saved YAML.
 
@@ -43,11 +43,11 @@ The `Game` aggregate is already loaded at both sites and exposes `getDefaultYaml
 
 ## Tasks / Subtasks
 
-- [x] Task 1: `enrichSlotsForValidation()` — fall back to `$game?->getDefaultYaml()` when saved YAML is null/empty.
-- [x] Task 2: `buildPreflightSlotsForCreation()` — same fallback (replace the `?? null`).
-- [x] Task 3: `NullRunnerGateway` — record the last `configureSession` slots (static, reset-able) so tests can assert the YAML sent.
+- [x] Task 1: `enrichSlotsForValidation()` - fall back to `$game?->getDefaultYaml()` when saved YAML is null/empty.
+- [x] Task 2: `buildPreflightSlotsForCreation()` - same fallback (replace the `?? null`).
+- [x] Task 3: `NullRunnerGateway` - record the last `configureSession` slots (static, reset-able) so tests can assert the YAML sent.
 - [x] Task 4: Functional test in `RunnerValidatePipelineTest`: unconfigured slot → default YAML forwarded; configured slot → saved YAML forwarded.
-- [x] Task 5: Run all API quality gates — green (phpunit 911/911, phpstan/cs-fixer/DDD clean).
+- [x] Task 5: Run all API quality gates - green (phpunit 911/911, phpstan/cs-fixer/DDD clean).
 
 ## Dev Notes
 
@@ -78,18 +78,18 @@ semantics intact and is the minimal, localised fix (Application layer, where `Ga
 
 `NullRunnerGateway` already exposes a static result hook (`$apworldUploadResult` + `reset()`);
 add a `public static ?array $lastConfigureSlots` recorded in `configureSession()` and cleared in
-`reset()`. No services.yaml change — `NullRunnerGateway` is already the `when@test` runner.
+`reset()`. No services.yaml change - `NullRunnerGateway` is already the `when@test` runner.
 The test reads `NullRunnerGateway::$lastConfigureSlots` after the validate request.
 
 ## File List
 
 ### API
-- `api/src/Sessions/Application/SessionOrchestrator.php` — modified (two fallback sites)
-- `api/src/Sessions/Infrastructure/NullRunnerGateway.php` — modified (record configure slots)
-- `api/tests/Functional/RunnerValidatePipelineTest.php` — modified (default-fallback cases)
+- `api/src/Sessions/Application/SessionOrchestrator.php` - modified (two fallback sites)
+- `api/src/Sessions/Infrastructure/NullRunnerGateway.php` - modified (record configure slots)
+- `api/tests/Functional/RunnerValidatePipelineTest.php` - modified (default-fallback cases)
 
 ## Change Log
 
 | Date       | Change                                                                 |
 |------------|------------------------------------------------------------------------|
-| 2026-06-06 | Story created — fixes unconfigured slots generating with empty YAML instead of the game default, honouring the contract already shown in the recap UI. |
+| 2026-06-06 | Story created - fixes unconfigured slots generating with empty YAML instead of the game default, honouring the contract already shown in the recap UI. |

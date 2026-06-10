@@ -1,4 +1,4 @@
-# Weekly Run — live E2E smoke test
+# Weekly Run - live E2E smoke test
 
 `scripts/e2e/weekly-smoke.sh` exercises the **real** Weekly Run flow against the running
 `archilan` stack, to catch cross-service contract regressions that the unit/functional
@@ -7,18 +7,18 @@ action item #1 (story 23.13).
 
 ## What it checks
 
-1. **Generation** — triggers `POST /admin/weekly-runs/generate` and waits until the
+1. **Generation** - triggers `POST /admin/weekly-runs/generate` and waits until the
    newest run for the template reports `hasOutput: true` (i.e. the orchestrateur generated,
    the `session.generated` webhook landed, `MarkWeeklyRunGenerated` set the output key).
-2. **Artifact contract** — downloads `GET /admin/weekly-runs/{runId}/output` and asserts:
+2. **Artifact contract** - downloads `GET /admin/weekly-runs/{runId}/output` and asserts:
    - HTTP 200, `Content-Disposition: filename="weekly-run-{runId}.zip"`, zip magic `PK\x03\x04`;
    - the zip is **flat** and contains a `*.archipelago` (multidata) **and** at least one
      per-player patch (non-`.archipelago`, non-`_spoiler`);
    - **no** nested `*.zip` (zip-in-zip) and **not** a lone multidata.
-3. **Launch restore** — opt-in + launch an entry, then asserts the session volume
+3. **Launch restore** - opt-in + launch an entry, then asserts the session volume
    `/data/output` holds the loose files (multidata + patch) and the member patch listing
    (`/weekly-runs/{runId}/entries/{entryId}/patches`) exposes the patch.
-4. **Seed validity** — asserts the launched ap-server is hosting the seed.
+4. **Seed validity** - asserts the launched ap-server is hosting the seed.
 
 It provisions its own throwaway admin and **cleans everything up** (idempotent).
 
@@ -28,7 +28,7 @@ It provisions its own throwaway admin and **cleans everything up** (idempotent).
   `archilan-minio`, rabbitmq, mercure) and the API + worker running.
 - The `archipelago:latest` image is built (generation/launch need it).
 - An **active weekly template** exists (or pass `E2E_TEMPLATE_ID`), with its game's
-  apworld uploaded (`apworld_hash` set) — required for launch.
+  apworld uploaded (`apworld_hash` set) - required for launch.
 - Tools on PATH: `bash`, `curl`, `docker`, and the API's `php`/`bin/console`.
 
 ## Run
@@ -53,8 +53,8 @@ E2E_SKIP_LAUNCH=1 bash scripts/e2e/weekly-smoke.sh
 | `E2E_CONSOLE` | `php bin/console` (run from `api/`) | DB/console runner. For a containerized API: `docker compose -f docker-compose.prod.yml exec -T api-web php bin/console`. |
 | `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | `e2e-admin@archilan.local` / `E2eSmoke!pass1` | Throwaway admin the script creates + deletes. |
 | `E2E_TEMPLATE_ID` | _(auto: first active template)_ | Pin a specific template. |
-| `E2E_MINIO_CONTAINER` | `archilan-minio` | — |
-| `E2E_SESSIONS_BUCKET` | `sessions` | — |
+| `E2E_MINIO_CONTAINER` | `archilan-minio` | - |
+| `E2E_SESSIONS_BUCKET` | `sessions` | - |
 | `E2E_GEN_TIMEOUT` / `E2E_LAUNCH_TIMEOUT` | `120` / `90` | seconds. |
 | `E2E_SKIP_LAUNCH` | `0` | `1` = artifact-only. |
 

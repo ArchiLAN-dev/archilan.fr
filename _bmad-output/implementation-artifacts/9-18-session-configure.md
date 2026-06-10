@@ -1,4 +1,4 @@
-# Story 9.18: Session Configure — Draft Creation with Apworld Validation
+# Story 9.18: Session Configure - Draft Creation with Apworld Validation
 
 ## Story
 
@@ -12,7 +12,7 @@ done
 
 ## Acceptance Criteria
 
-**AC1 — New endpoint:**
+**AC1 - New endpoint:**
 `POST /sessions/{sessionId}/configure` (authenticated) accepts:
 ```json
 {
@@ -32,23 +32,23 @@ Returns 409 if the session is already in `generating`, `launching`, or `running`
 Returns 503 if storage (Minio) is not configured.
 Returns 200 with a preflight-style validation result otherwise.
 
-**AC2 — Validation logic:**
+**AC2 - Validation logic:**
 For each slot:
 - `apworldHash` must be non-empty and the binary must exist in the `apworlds` Minio bucket; field error if not found.
 - `playerYaml` must be non-empty; field error if missing.
 - `playerName` defaults to `"Player"` if empty.
 - `archipelagoGameName` defaults to `"Custom"` if empty (used for slot name abbreviation only).
 
-**AC3 — Persistence on valid configure:**
+**AC3 - Persistence on valid configure:**
 If and only if ALL slots pass validation:
 - Each `playerYaml` is uploaded to `sessions/{sessionId}/yamls/{slotId}.yaml`.
 - A `manifest.json` is uploaded to `sessions/{sessionId}/manifest.json` with deduplicated apworld refs (`{hash, filename}` where `filename = hash + ".apworld"`).
 - The session is upserted in the DB with status `"draft"` (insert if new; update if in a terminal or draft state).
 
-**AC4 — No persistence on invalid configure:**
+**AC4 - No persistence on invalid configure:**
 If any slot fails validation, 200 is returned with `valid: false` and slot errors. Nothing is written to Minio or the DB.
 
-**AC5 — Response shape (reuses preflight format):**
+**AC5 - Response shape (reuses preflight format):**
 ```json
 {
   "valid": true,
@@ -58,10 +58,10 @@ If any slot fails validation, 200 is returned with `valid: false` and slot error
 }
 ```
 
-**AC6 — Session state machine:**
+**AC6 - Session state machine:**
 `draft` is a new state preceding `pending`. The existing `generate` endpoint already allows re-generation from any non-active state, so no changes to `generate` are required. State machine: `draft → (generate) → pending → generating → generated → launching → running → stopped/crashed`.
 
-**AC7 — PHP client:**
+**AC7 - PHP client:**
 `SessionsClient::configure(string $sessionId, ConfigureRequest $request): PreflightResult`
 - `ConfigureRequest` holds `ConfigureSlot[]`.
 - `ConfigureSlot`: `slotId` (required), `playerName`, `apworldHash` (required), `archipelagoGameName`, `playerYaml` (required).
@@ -86,4 +86,4 @@ Partial Minio state (some yamls uploaded, manifest missing or incomplete) would 
 The apworld binary is stored in Minio as `{hash}` (no extension). The manifest stores it with `filename = hash + ".apworld"` so that Archipelago's world loader recognizes the `.apworld` extension when the tar is extracted into `/data/worlds/`.
 
 ### State transition safety
-`generate` already skips sessions in `generating`, `launching`, `running` states. `draft` is treated the same as any other non-active state — `generate` will proceed and call `buildDataTar` which reads the manifest written by `configure`.
+`generate` already skips sessions in `generating`, `launching`, `running` states. `draft` is treated the same as any other non-active state - `generate` will proceed and call `buildDataTar` which reads the manifest written by `configure`.

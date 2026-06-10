@@ -1,6 +1,6 @@
-# Story 26.1 — Migrer le cycle de vie des sessions vers l'orchestrateur
+# Story 26.1 - Migrer le cycle de vie des sessions vers l'orchestrateur
 
-**Epic:** 26 — Élimination du runner Symfony intégré  
+**Epic:** 26 - Élimination du runner Symfony intégré  
 **Branch:** `feature/epic-26-story-1-migrate-session-lifecycle-to-orchestrateur`  
 **Status:** Todo
 
@@ -23,7 +23,7 @@ Cette story supprime la couche Docker locale et branche Symfony sur l'orchestrat
 
 ---
 
-## Format du webhook (Go — `webhook.Payload`)
+## Format du webhook (Go - `webhook.Payload`)
 
 ```json
 {
@@ -35,7 +35,7 @@ Cette story supprime la couche Docker locale et branche Symfony sur l'orchestrat
 }
 ```
 
-- `port` : bridge port — présent seulement sur `session.ready`
+- `port` : bridge port - présent seulement sur `session.ready`
 - `error` : présent seulement sur `session.crashed`
 - Auth : header `X-Signature-256: sha256=<hmac-sha256-hex>` (secret partagé)
 
@@ -43,7 +43,7 @@ Cette story supprime la couche Docker locale et branche Symfony sur l'orchestrat
 
 ## Acceptance Criteria
 
-### AC1 — `configure()` + `generate()` remplacent `GenerateRunJobHandler`
+### AC1 - `configure()` + `generate()` remplacent `GenerateRunJobHandler`
 
 `SessionOrchestrator::orchestrateValidate()` :
 - Calcule les slots avec `enrichSlotsForValidation()` (déjà fait)
@@ -60,7 +60,7 @@ Cette story supprime la couche Docker locale et branche Symfony sur l'orchestrat
 
 `GenerateRunJobHandler`, `GenerateRunJob` (message), et la phase `validate` sont supprimés.
 
-### AC2 — `launch()` remplace `StartRunJobHandler`
+### AC2 - `launch()` remplace `StartRunJobHandler`
 
 `SessionOrchestrator::orchestrateLaunch()` :
 - Récupère `$adminPassword` depuis la session (stocké en AC1)
@@ -70,30 +70,30 @@ Cette story supprime la couche Docker locale et branche Symfony sur l'orchestrat
 - Appelle `$this->client->sessions()->launch($sessionId, $adminPassword, $serverPassword)`
 - `StartRunJobHandler`, `StartRunJob` (message) sont supprimés
 
-### AC3 — `SessionLifecycleManager::storePendingCredentials()` 
+### AC3 - `SessionLifecycleManager::storePendingCredentials()` 
 
 Nouvelle méthode qui stocke `adminPassword`, `serverPassword`, `host` dans la session en `STATUS_LAUNCHING`
 **avant** l'appel async à l'orchestrateur. Permet au webhook `session.ready` de retrouver les
 credentials sans qu'ils aient été envoyés dans le payload du webhook.
 
-### AC4 — `stop()` remplace `StopRunJobHandler`
+### AC4 - `stop()` remplace `StopRunJobHandler`
 
 `SessionOrchestrator::orchestrateStop()` :
 - Appelle directement `$this->client->sessions()->stop($sessionId)` (synchrone, sans Messenger)
 - `StopRunJobHandler`, `StopRunJob` (message) sont supprimés
 
-### AC5 — `restart()` remplace `RestartRunJobHandler`
+### AC5 - `restart()` remplace `RestartRunJobHandler`
 
 `SessionOrchestrator::orchestrateRestart()` :
 - Appelle directement `$this->client->sessions()->restart($sessionId)` (synchrone, sans Messenger)
 - `RestartRunJobHandler`, `RestartRunJob` (message) sont supprimés
 
-### AC6 — `RunHealthCheckJobHandler` supprimé
+### AC6 - `RunHealthCheckJobHandler` supprimé
 
 La détection de crash est déléguée au sweeper de l'orchestrateur (goroutine, 30s).
 `RunHealthCheckJobHandler`, `RunHealthCheckJob` (message) sont supprimés.
 
-### AC7 — Nouveau `OrchestratorWebhookController`
+### AC7 - Nouveau `OrchestratorWebhookController`
 
 Route : `POST /api/v1/internal/orchestrateur/webhook`  
 Auth : vérifie `X-Signature-256` avec HMAC-SHA256 et `ORCHESTRATEUR_WEBHOOK_SECRET`
@@ -106,16 +106,16 @@ Auth : vérifie `X-Signature-256` avec HMAC-SHA256 et `ORCHESTRATEUR_WEBHOOK_SEC
 
 Signature invalide → HTTP 401. Event inconnu → HTTP 200 (ignoré silencieusement).
 
-### AC8 — `RunnerCallbackController` allégé
+### AC8 - `RunnerCallbackController` allégé
 
 Conserve uniquement les statuts `logs` et `archived` (envoyés par le bridge/AP directement).
 Supprime le traitement des statuts de cycle de vie (`running`, `failed`, `crashed`, `generated`,
 `ready`, `launching`) puisqu'ils arrivent désormais via webhook orchestrateur.
 
-### AC9 — Env vars
+### AC9 - Env vars
 
 **Ajoutée :**
-- `ORCHESTRATEUR_WEBHOOK_SECRET` — secret HMAC partagé entre l'orchestrateur et Symfony
+- `ORCHESTRATEUR_WEBHOOK_SECRET` - secret HMAC partagé entre l'orchestrateur et Symfony
 
 **Supprimées de `.env` et `services.yaml` :**
 - `ARCHIPELAGO_SERVER_IMAGE`

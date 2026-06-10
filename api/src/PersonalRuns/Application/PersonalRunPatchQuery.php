@@ -13,7 +13,7 @@ use App\Sessions\Domain\SessionSlotRepositoryInterface;
 /**
  * Resolves the bridge context for a private-run participant: the session's bridge
  * port and the participant's own resolved slot name(s). Used to let a participant
- * download only their own generated patch(es) — never the shared multidata, spoiler,
+ * download only their own generated patch(es) - never the shared multidata, spoiler,
  * or other players' patches.
  */
 final readonly class PersonalRunPatchQuery

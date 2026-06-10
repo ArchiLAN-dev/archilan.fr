@@ -21,7 +21,7 @@ applied on the launched server. Depends on 27.2, 27.5, 27.6 (and the deployed 27
    admin change individual fields for that session only; unset fields inherit the type profile (per-field,
    matching the resolver). Applies to the relevant admin surfaces for private / event / weekly.
 2. The override is persisted via the 27.2 override store and consumed by the resolver at launch (no new
-   resolution logic — reuse 27.5).
+   resolution logic - reuse 27.5).
 3. The UI clearly shows which fields are overridden vs inherited (e.g. "hérité du profil" hint), and
    clearing an override returns the field to the profile value.
 4. The weekly E2E smoke test (story 23.13, `scripts/e2e/weekly-smoke.sh`) is extended to: launch with a
@@ -32,15 +32,15 @@ applied on the launched server. Depends on 27.2, 27.5, 27.6 (and the deployed 27
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Override API surface (if not already covered by 27.2): endpoint to set/clear a session
+- [x] Task 1 - Override API surface (if not already covered by 27.2): endpoint to set/clear a session
   override, admin-only; or fold into the existing create/launch admin actions.
-- [x] Task 2 — Override UI controls on the admin launch/create surfaces for the three types, with
+- [x] Task 2 - Override UI controls on the admin launch/create surfaces for the three types, with
   inherited-vs-overridden affordance and clear-to-inherit (AC: 1, 3).
-- [x] Task 3 — Confirm the resolver (27.5) picks up the override at launch for each type (integration
+- [x] Task 3 - Confirm the resolver (27.5) picks up the override at launch for each type (integration
   check / functional test).
-- [x] Task 4 — Extend `scripts/e2e/weekly-smoke.sh`: configure a non-default mode, launch, assert it on
+- [x] Task 4 - Extend `scripts/e2e/weekly-smoke.sh`: configure a non-default mode, launch, assert it on
   the running server (AC: 4). Update `scripts/e2e/README.md`.
-- [x] Task 5 — Run frontend gates + the E2E smoke (AC: 5).
+- [x] Task 5 - Run frontend gates + the E2E smoke (AC: 5).
 
 ## Dev Notes
 
@@ -77,7 +77,7 @@ claude-opus-4-8 (Claude Code).
 ### Completion Notes List
 
 Override scope clarified by Jean: **weekly = per-template (admin-only)**, **event = per-session
-(admin)**, **private = per-run (owner)** — members can't override. Shipped in 3 parts:
+(admin)**, **private = per-run (owner)** - members can't override. Shipped in 3 parts:
 
 - **pt1 backend** (PR #64): resolver re-keyed by scope (template/session/run id); per-session snapshot
   dropped (scope-keyed overrides are stable). Override repo `delete()`; `Set`/`Clear`/`Query`
@@ -87,7 +87,7 @@ Override scope clarified by Jean: **weekly = per-template (admin-only)**, **even
   toggle + clear-to-inherit) on the weekly template admin page, the event session admin detail page,
   and the private run owner page (gated on `run.isOwner`). Verified live.
 - **pt3 E2E** (PR #67): `scripts/e2e/weekly-smoke.sh` sets a non-default template override
-  (`releaseMode=enabled`) and asserts the launched ap-server got `RELEASE_MODE=enabled`. **Ran live —
+  (`releaseMode=enabled`) and asserts the launched ap-server got `RELEASE_MODE=enabled`. **Ran live -
   PASSED**.
 - Related: clearer French wording on the config form (PR #65).
 

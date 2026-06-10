@@ -1,4 +1,4 @@
-# Story 9.19: Apworld Template — Structured Options with Descriptions
+# Story 9.19: Apworld Template - Structured Options with Descriptions
 
 ## Story
 
@@ -18,7 +18,7 @@ When an apworld is uploaded, the orchestrateur runs `generate_template.py` and r
     ...
 ```
 
-Now that the PHP client uses typed option classes (`RangeOption`, `ChoiceOption`, etc.) via `PlayerYaml`, the raw YAML string is no longer usable as-is — and the comments (the only source of option descriptions and type hints) are stripped by every standard YAML parser.
+Now that the PHP client uses typed option classes (`RangeOption`, `ChoiceOption`, etc.) via `PlayerYaml`, the raw YAML string is no longer usable as-is - and the comments (the only source of option descriptions and type hints) are stripped by every standard YAML parser.
 
 The orchestrateur must parse the template itself and expose structured option data.
 
@@ -28,7 +28,7 @@ done
 
 ## Acceptance Criteria
 
-**AC1 — New response shape for `POST /apworlds`:**
+**AC1 - New response shape for `POST /apworlds`:**
 `UploadApworldResponse` is extended with an `options` field. The `yaml` field is removed.
 ```json
 {
@@ -65,7 +65,7 @@ done
 }
 ```
 
-**AC2 — Template parser in Go:**
+**AC2 - Template parser in Go:**
 A `templateparser` package (or function in the `storage` package) reads a YAML template line by line and produces `[]TemplateOption`. Rules:
 - Consecutive comment lines (`# ...`) immediately above a key are the option's description.
 - Type inference from comment content or value structure:
@@ -73,13 +73,13 @@ A `templateparser` package (or function in the `storage` package) reads a YAML t
   - Boolean-only values (`0`/`1` or `true`/`false`) → `toggle`
   - String keys with integer weights → `choice`; list the choice names as `validValues`
   - Otherwise → `text`
-- Universal options (`accessibility`, `progression_balancing`, `local_items`, `start_inventory`, etc.) are excluded from the response — the PHP client already knows them via typed fields in `PlayerYaml`.
+- Universal options (`accessibility`, `progression_balancing`, `local_items`, `start_inventory`, etc.) are excluded from the response - the PHP client already knows them via typed fields in `PlayerYaml`.
 - Top-level keys (`name`, `game`, `description`, `requires`, `quantity`) are excluded.
 
-**AC3 — `SlotOption.description` in preflight:**
+**AC3 - `SlotOption.description` in preflight:**
 `SlotOption` (used in the preflight request/response) gains a `description string` field. The preflight handler populates it when returning option validation results, by reading the stored template for the relevant apworld.
 
-**AC4 — PHP client — `TemplateOption` DTO:**
+**AC4 - PHP client - `TemplateOption` DTO:**
 `UploadApworldResult` is updated:
 - Remove `yaml: string`
 - Add `options: TemplateOption[]`
@@ -99,15 +99,15 @@ final readonly class TemplateOption {
 }
 ```
 
-**AC5 — PHP client — `SlotOption.description`:**
+**AC5 - PHP client - `SlotOption.description`:**
 `SlotOption` gains `public string $description` (default `''`).
 
-**AC6 — Backward compatibility:**
+**AC6 - Backward compatibility:**
 The `yaml` field removal in `UploadApworldResponse` is a breaking change. Any existing caller that reads `->yaml` must be migrated to use `->options` before this story ships. Identify all callers in `api/` before starting.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Implement `internal/templateparser` package in Go — line-by-line template parser producing `[]TemplateOption`
+- [ ] Task 1: Implement `internal/templateparser` package in Go - line-by-line template parser producing `[]TemplateOption`
 - [ ] Task 2: Add `TemplateOption` type to `api/types.go`; update `UploadApworldResponse` (remove `Yaml`, add `Options []TemplateOption`)
 - [ ] Task 3: Update apworld upload handler to call the parser and populate `Options`
 - [ ] Task 4: Add `description string` to `SlotOption` in `api/types.go`; populate from stored template in preflight handler
@@ -131,7 +131,7 @@ option_key:                 → flush comment as description for this key
   choice_b: weight
 ```
 
-The parser does NOT need to be a full YAML parser — it only reads the template structure. Use a state machine: `idle → collecting_comment → reading_value`.
+The parser does NOT need to be a full YAML parser - it only reads the template structure. Use a state machine: `idle → collecting_comment → reading_value`.
 
 ### Type inference heuristic
 

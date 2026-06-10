@@ -24,7 +24,7 @@ So that I can specify exactly which items get placed in which locations in the A
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Add `PlandoItemsOption` type, parsing, serialization to `archipelago-yaml.ts` (AC: #2, #4, #5, #6)
+- [x] Task 1 - Add `PlandoItemsOption` type, parsing, serialization to `archipelago-yaml.ts` (AC: #2, #4, #5, #6)
   - [x] 1.1 Define `PlandoItemRow`, `PlandoLocationRow`, `PlandoItem`, and `PlandoItemsOption` types
   - [x] 1.2 Add `PlandoItemsOption` to the `GameOption` union
   - [x] 1.3 Add `key === "plando_items"` detection in `buildOption` BEFORE the `Array.isArray(value)` check
@@ -32,13 +32,13 @@ So that I can specify exactly which items get placed in which locations in the A
   - [x] 1.5 Add serialization branch in `serializeOption` for `opt.type === "plando_items"`
   - [x] 1.6 Update `mergePlayerValues` to handle `plando_items` type (replace entries wholesale from player YAML)
 
-- [x] Task 2 — Add `PlandoItemsField` and `PlandoEntryCard` components to `yaml-option-editor.tsx` (AC: #1, #2, #3)
+- [x] Task 2 - Add `PlandoItemsField` and `PlandoEntryCard` components to `yaml-option-editor.tsx` (AC: #1, #2, #3)
   - [x] 2.1 Add dispatch in `OptionField` for `option.type === "plando_items"`
   - [x] 2.2 Implement `PlandoItemsField`: Simple mode → banner; Advanced mode → list + "Ajouter" button
   - [x] 2.3 Implement `PlandoEntryCard`: items dict editor, locations list editor, world selector, from_pool toggle, force selector, percentage stepper
   - [x] 2.4 Stable `id`-based React keys on every entry, item row, and location row
 
-- [x] Task 3 — Quality gates (AC: all)
+- [x] Task 3 - Quality gates (AC: all)
   - [x] 3.1 `pnpm typecheck` → 0 errors
   - [x] 3.2 `pnpm lint` → 0 errors / 0 warnings
   - [x] 3.3 `pnpm build` → clean
@@ -91,7 +91,7 @@ export type GameOption = TextOption | ToggleOption | ChoiceOption | RangeOption 
 
 ---
 
-### Parsing Logic — `buildOption` insertion point
+### Parsing Logic - `buildOption` insertion point
 
 Insert BEFORE `if (Array.isArray(value))` (currently line ~276):
 
@@ -198,7 +198,7 @@ if (opt.type === "plando_items") {
 }
 ```
 
-AC#6: `serializeOption` returning `[]` — the caller in `serializeToYaml` will write `plando_items: []`. To omit empty arrays, add a filter in `serializeToYaml` after building `gameBlock`:
+AC#6: `serializeOption` returning `[]` - the caller in `serializeToYaml` will write `plando_items: []`. To omit empty arrays, add a filter in `serializeToYaml` after building `gameBlock`:
 ```typescript
 // In serializeToYaml, after building gameBlock:
 for (const key of Object.keys(gameBlock)) {
@@ -213,7 +213,7 @@ Only apply this filter to array-valued keys to avoid breaking other options.
 
 ### Merge Logic (`mergePlayerValues`)
 
-Add case for `plando_items` — replace entries wholesale (plando blocks are user-authored, not schema-derived):
+Add case for `plando_items` - replace entries wholesale (plando blocks are user-authored, not schema-derived):
 ```typescript
 if (baseOpt.type === "plando_items" && playerOpt.type === "plando_items") {
   return { ...baseOpt, entries: playerOpt.entries };
@@ -223,7 +223,7 @@ Insert this before the `freeform` check in the `mergePlayerValues` map.
 
 ---
 
-### UI — `yaml-option-editor.tsx`
+### UI - `yaml-option-editor.tsx`
 
 **In `OptionField`** (after the `dict` branch, around line 499):
 ```typescript
@@ -232,7 +232,7 @@ Insert this before the `freeform` check in the `mergePlayerValues` map.
 )}
 ```
 
-The `onChange` signature in `OptionField` is `(updated: GameOption) => void` — cast is safe because `PlandoItemsField` will only call it with `PlandoItemsOption`.
+The `onChange` signature in `OptionField` is `(updated: GameOption) => void` - cast is safe because `PlandoItemsField` will only call it with `PlandoItemsOption`.
 
 **`PlandoItemsField` component:**
 ```typescript
@@ -291,7 +291,7 @@ function PlandoItemsField({
 }
 ```
 
-**`PlandoEntryCard` component** — place after `PlandoItemsField`, before `NumberStepper`:
+**`PlandoEntryCard` component** - place after `PlandoItemsField`, before `NumberStepper`:
 ```typescript
 function PlandoEntryCard({
   entry, index, readOnly, onChange, onRemove,
@@ -324,20 +324,20 @@ When serializing "named", use the typed player name as the world string.
 
 **Force selector options:**
 ```
-"silent" → label "Silencieux (défaut) — ignorer si impossible"
-"true"   → label "Strict — erreur si impossible"
-"false"  → label "Souple — warning si impossible"
+"silent" → label "Silencieux (défaut) - ignorer si impossible"
+"true"   → label "Strict - erreur si impossible"
+"false"  → label "Souple - warning si impossible"
 ```
 
 ---
 
 ### Do NOT
 
-- Do NOT add backend endpoints — pure frontend YAML editing only
+- Do NOT add backend endpoints - pure frontend YAML editing only
 - Do NOT break `FreeformListOption` / `FreeformDictOption` / `ListField` / `DictField` behavior
-- Do NOT add new npm packages — `js-yaml`, React, Lucide icons are all already available
-- Do NOT create new files — all changes in the 2 existing files only
-- Do NOT call `crypto.randomUUID()` during render — only in event handlers and `parsePlandoEntries`
+- Do NOT add new npm packages - `js-yaml`, React, Lucide icons are all already available
+- Do NOT create new files - all changes in the 2 existing files only
+- Do NOT call `crypto.randomUUID()` during render - only in event handlers and `parsePlandoEntries`
 
 ### Project Structure Notes
 

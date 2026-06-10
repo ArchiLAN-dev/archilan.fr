@@ -19,7 +19,7 @@ const REFRESH_TS_KEY = "archilan_refresh_ts";
 const REFRESH_RECENT_MS = 5_000;
 
 async function doRefreshUnderLock(): Promise<boolean> {
-  // Another tab may have just refreshed — skip if so.
+  // Another tab may have just refreshed - skip if so.
   const last = Number(localStorage.getItem(REFRESH_TS_KEY) ?? 0);
   if (Date.now() - last < REFRESH_RECENT_MS) {
     return true;
@@ -39,7 +39,7 @@ async function doRefreshUnderLock(): Promise<boolean> {
 // Shared by both the reactive 401 interceptor and the proactive interval in
 // AuthProvider. Routing BOTH through this single coordinated path is what keeps
 // multiple tabs from each firing `POST /auth/refresh` with the same (about to be
-// rotated) refresh token — concurrent rotations trip the server's reuse detection
+// rotated) refresh token - concurrent rotations trip the server's reuse detection
 // and revoke the whole session. The in-tab queue + cross-tab Web Lock + recent-ts
 // skip guarantee exactly one network refresh wins per ~5s window.
 export async function coordinatedRefresh(): Promise<boolean> {

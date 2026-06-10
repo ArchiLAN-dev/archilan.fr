@@ -39,7 +39,7 @@ final readonly class PlayersPushController
                 true,
             ));
         } catch (\Throwable) {
-            // Non-fatal — SSE clients will get the data on next state_changed broadcast
+            // Non-fatal - SSE clients will get the data on next state_changed broadcast
         }
 
         return new JsonResponse(['data' => ['ok' => true]]);

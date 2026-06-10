@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Quality gates runner — archilan.fr monorepo
+# Quality gates runner - archilan.fr monorepo
 # Called by the Claude Code Stop hook. Detects which directories have
 # uncommitted changes and only runs the relevant gates.
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$REPO_ROOT" ]; then
-    printf '{"systemMessage": "⚠️ Hors dépôt git — quality gates ignorés."}\n'
+    printf '{"systemMessage": "⚠️ Hors dépôt git - quality gates ignorés."}\n'
     exit 0
 fi
 
@@ -28,7 +28,7 @@ changed=$(git -C "$REPO_ROOT" status --short 2>/dev/null \
     | sort -u)
 
 if [ -z "$changed" ]; then
-    printf '{"systemMessage": "✅ Aucun changement local — quality gates ignorés."}\n'
+    printf '{"systemMessage": "✅ Aucun changement local - quality gates ignorés."}\n'
     exit 0
 fi
 
@@ -102,7 +102,7 @@ fi
 if [ $fail -eq 0 ]; then
     header="✅ Quality gates : ${pass}/${pass} OK"
 else
-    header="❌ Quality gates : ${pass} OK, ${fail} EN ÉCHEC — corriger avant de continuer"
+    header="❌ Quality gates : ${pass} OK, ${fail} EN ÉCHEC - corriger avant de continuer"
 fi
 
 # ── Ask Claude to run the git workflow when all gates are green ────────────────
@@ -126,7 +126,7 @@ if [ $fail -eq 0 ]; then
                 git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur 'develop'. Rappel Gitflow : 'develop' ne doit recevoir que des merges de branches feature/hotfix/release, pas de commits directs. Si ce travail correspond à une story BMAD, crée une branche feature/* et commite là-bas."
                 ;;
             main)
-                git_ctx="ATTENTION : tu es sur 'main' avec des changements non commités. Selon le Gitflow du projet, 'main' ne reçoit que des merges de release/* ou hotfix/* via PR. Ne commite pas directement sur main — crée une branche appropriée."
+                git_ctx="ATTENTION : tu es sur 'main' avec des changements non commités. Selon le Gitflow du projet, 'main' ne reçoit que des merges de release/* ou hotfix/* via PR. Ne commite pas directement sur main - crée une branche appropriée."
                 ;;
             *)
                 git_ctx="Tous les quality gates sont verts. Il y a des changements non commités sur la branche '${branch}'. Effectue le workflow git : analyse les changements (git diff HEAD), crée des commits conventionnels avec des messages descriptifs, puis push vers origin."

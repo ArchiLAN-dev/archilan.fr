@@ -173,7 +173,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
                 className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground opacity-60"
                 id="game-select"
               >
-                {mode === "edit" ? template?.gameName ?? "—" : selectedGame?.name ?? "—"}
+                {mode === "edit" ? template?.gameName ?? "-" : selectedGame?.name ?? "-"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {mode === "edit"
