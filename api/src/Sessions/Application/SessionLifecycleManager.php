@@ -412,10 +412,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true, 'error' => 'invalid_session_status', 'sessionId' => null, 'status' => null];
         }
 
-        if ($session->isPausedWithoutSave() || null === $session->getLastSaveKey()) {
-            return ['found' => true, 'error' => 'no_save_available', 'sessionId' => null, 'status' => null];
-        }
-
+        // An idle run is always relaunchable without recreating it: the orchestrateur relaunch reloads
+        // the latest save from the retained volume if present, otherwise restarts from the generated
+        // seed (story 17.10). A missing save just means progress restarts from the beginning.
         $personalRun = $this->runs->findBySessionId($sessionId);
 
         if (!$isAdmin) {
@@ -434,12 +433,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $this->sessions->flush();
         $this->publish($session);
 
-        $saveKey = $session->getLastSaveKey();
-        \assert(null !== $saveKey);
-
         $this->messageBus->dispatch(new ResumeRunJob(
             $sessionId,
-            $saveKey,
+            $session->getLastSaveKey() ?? '',
             $session->getPassword() ?? '',
             $session->getServerPassword() ?? '',
             $session->getBridgePort() ?? 0,

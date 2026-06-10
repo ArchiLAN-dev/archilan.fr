@@ -72,19 +72,28 @@ final class SessionRestartTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testPausedWithoutSaveReturns422(): void
+    public function testPausedWithoutSaveIsStillRelaunchable(): void
     {
+        // Without a save the run restarts from the seed on the retained volume (story 17.10) —
+        // no recreation needed, so the restart is accepted.
         $admin = $this->createAdmin('admin@example.org');
         $session = $this->createIdleSessionWithoutSave();
 
         $this->loginAs($admin);
         $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
 
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame('no_save_available', $this->responseErrorCode());
+        self::assertResponseStatusCodeSame(202);
+
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $reloaded);
+        self::assertSame(Session::STATUS_RESTARTING, $reloaded->getStatus());
+
+        $resumeJobs = $this->getResumeJobs($session->getId());
+        self::assertCount(1, $resumeJobs);
     }
 
-    public function testNullSaveKeyReturns422NoSaveAvailable(): void
+    public function testNullSaveKeyIsStillRelaunchable(): void
     {
         $admin = $this->createAdmin('admin@example.org');
         $session = $this->createIdleSessionNullSaveKey();
@@ -92,8 +101,9 @@ final class SessionRestartTest extends FunctionalTestCase
         $this->loginAs($admin);
         $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
 
-        self::assertResponseStatusCodeSame(422);
-        self::assertSame('no_save_available', $this->responseErrorCode());
+        self::assertResponseStatusCodeSame(202);
+        $resumeJobs = $this->getResumeJobs($session->getId());
+        self::assertCount(1, $resumeJobs);
     }
 
     public function testNonIdleSessionReturns422InvalidStatus(): void

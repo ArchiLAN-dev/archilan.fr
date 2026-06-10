@@ -46,10 +46,6 @@ final readonly class SessionRestartController
             return $this->apiAccessGuard->errorResponse('invalid_session_status', 'La session n\'est pas en état idle.', 422);
         }
 
-        if ('no_save_available' === $result['error']) {
-            return $this->apiAccessGuard->errorResponse('no_save_available', 'Aucune sauvegarde disponible pour cette session.', 422);
-        }
-
         return new JsonResponse(['data' => ['sessionId' => $result['sessionId'], 'status' => $result['status']]], 202);
     }
 
