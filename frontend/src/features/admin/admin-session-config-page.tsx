@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save } from "lucide-react";
 import { useState } from "react";
 
+import { InfoTooltip } from "@/components/info-tooltip";
 import { Switch } from "@/components/switch";
 
+import { sessionConfigHelp } from "./session-config-help";
 import {
   COMPATIBILITY_VALUES,
   COUNTDOWN_MODES,
@@ -183,29 +185,29 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Section description="Politique d'échange des objets restants entre les mondes de la partie." title="Échanges d'objets">
         <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField hint="Renvoi des objets d'un monde terminé vers les autres." label="Don (!release)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
-          <SelectField hint="Récupération de ses objets chez les autres mondes." label="Récupération (!collect)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
-          <SelectField hint="Demander la liste des objets encore à recevoir." label="Objets restants (!remaining)" labels={REMAINING_LABELS} onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
+          <SelectField hint={sessionConfigHelp.releaseMode} label="Don (!release)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ releaseMode: v })} options={RELEASE_COLLECT_MODES} value={server.releaseMode} />
+          <SelectField hint={sessionConfigHelp.collectMode} label="Récupération (!collect)" labels={RELEASE_COLLECT_LABELS} onChange={(v) => patchServer({ collectMode: v })} options={RELEASE_COLLECT_MODES} value={server.collectMode} />
+          <SelectField hint={sessionConfigHelp.remainingMode} label="Objets restants (!remaining)" labels={REMAINING_LABELS} onChange={(v) => patchServer({ remainingMode: v })} options={REMAINING_MODES} value={server.remainingMode} />
         </div>
       </Section>
 
       <Section description="Économie d'indices et points attribués aux joueurs." title="Indices & score">
         <div className="grid gap-4 sm:grid-cols-2">
-          <NumberField hint="Pourcentage de checks à compléter pour gagner un indice." label="Coût d'un indice (% des checks)" max={100} min={0} onChange={(n) => patchServer({ hintCost: n })} value={server.hintCost} />
-          <NumberField hint="Points d'indice gagnés à chaque check trouvé." label="Points gagnés par check" min={0} onChange={(n) => patchServer({ locationCheckPoints: n })} value={server.locationCheckPoints} />
+          <NumberField hint={sessionConfigHelp.hintCost} label="Coût d'un indice (% des checks)" max={100} min={0} onChange={(n) => patchServer({ hintCost: n })} value={server.hintCost} />
+          <NumberField hint={sessionConfigHelp.locationCheckPoints} label="Points gagnés par check" min={0} onChange={(n) => patchServer({ locationCheckPoints: n })} value={server.locationCheckPoints} />
         </div>
       </Section>
 
       <Section description="Comportement de la salle et règles de la partie." title="Salle & partie">
         <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField hint="Compte à rebours lançable par les joueurs." label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
-          <NumberSelectField label="Compatibilité clients" labels={COMPATIBILITY_LABELS} onChange={(n) => patchServer({ compatibility: n })} options={COMPATIBILITY_VALUES} value={server.compatibility} />
-          <NumberField hint="Arrêt du serveur après ce délai sans check (0 = jamais)." label="Arrêt auto (s)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
+          <SelectField hint={sessionConfigHelp.countdownMode} label="Compte à rebours (!countdown)" labels={COUNTDOWN_LABELS} onChange={(v) => patchServer({ countdownMode: v })} options={COUNTDOWN_MODES} value={server.countdownMode} />
+          <NumberSelectField hint={sessionConfigHelp.compatibility} label="Compatibilité clients" labels={COMPATIBILITY_LABELS} onChange={(n) => patchServer({ compatibility: n })} options={COMPATIBILITY_VALUES} value={server.compatibility} />
+          <NumberField hint={sessionConfigHelp.autoShutdown} label="Arrêt auto (s)" min={0} onChange={(n) => patchServer({ autoShutdown: n })} value={server.autoShutdown} />
         </div>
         <div className="mt-4">
           <SwitchRow
             checked={server.disableItemCheat}
-            description="Empêche la commande !getitem (anti-triche)."
+            description={sessionConfigHelp.disableItemCheat}
             label="Interdire la triche d'objets"
             onChange={(c) => patchServer({ disableItemCheat: c })}
           />
@@ -219,8 +221,10 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
       <Section description="Options appliquées lors de la génération du multimonde." title="Génération">
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <span className="text-sm font-medium text-foreground">Plando autorisé</span>
-            <span className="text-xs text-muted-foreground">Placement manuel d&apos;objets / boss / connexions.</span>
+            <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+              Plando autorisé
+              <InfoTooltip label="Aide : Plando autorisé" text={sessionConfigHelp.plandoOptions} />
+            </span>
             <div className="flex flex-wrap gap-2 pt-1">
               {PLANDO_OPTIONS.map((option) => {
                 const on = generation.plandoOptions.includes(option);
@@ -242,12 +246,12 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
           </div>
           <SwitchRow
             checked={generation.race}
-            description="Génère des ROMs chiffrées (mode course), spoiler masqué."
+            description={sessionConfigHelp.race}
             label="Mode course"
             onChange={(c) => patchGeneration({ race: c })}
           />
           <div className="sm:max-w-xs">
-            <NumberSelectField label="Niveau de spoiler généré" labels={SPOILER_LABELS} onChange={(n) => patchGeneration({ spoiler: n })} options={SPOILER_LEVELS} value={generation.spoiler} />
+            <NumberSelectField hint={sessionConfigHelp.spoiler} label="Niveau de spoiler généré" labels={SPOILER_LABELS} onChange={(n) => patchGeneration({ spoiler: n })} options={SPOILER_LEVELS} value={generation.spoiler} />
           </div>
         </div>
       </Section>
@@ -296,10 +300,10 @@ function SwitchRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3">
-      <div>
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description !== undefined ? <p className="text-xs text-muted-foreground">{description}</p> : null}
-      </div>
+      <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+        {label}
+        {description !== undefined ? <InfoTooltip label={`Aide : ${label}`} text={description} /> : null}
+      </p>
       <Switch ariaLabel={label} checked={checked} onChange={onChange} />
     </div>
   );
@@ -324,8 +328,10 @@ function SelectField({
 }) {
   return (
     <label className="flex h-full flex-col gap-1 text-sm">
-      <span className="font-medium text-foreground">{label}</span>
-      {hint !== undefined ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
+      <span className="flex items-center gap-1.5 font-medium text-foreground">
+        {label}
+        {hint !== undefined ? <InfoTooltip label={`Aide : ${label}`} text={hint} /> : null}
+      </span>
       <select
         className="mt-auto h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         onChange={(e) => onChange(e.target.value)}
@@ -346,17 +352,22 @@ function NumberSelectField({
   value,
   options,
   labels,
+  hint,
   onChange,
 }: {
   label: string;
   value: number;
   options: readonly number[];
   labels: Record<number, string>;
+  hint?: string;
   onChange: (v: number) => void;
 }) {
   return (
     <label className="flex h-full flex-col gap-1 text-sm">
-      <span className="font-medium text-foreground">{label}</span>
+      <span className="flex items-center gap-1.5 font-medium text-foreground">
+        {label}
+        {hint !== undefined ? <InfoTooltip label={`Aide : ${label}`} text={hint} /> : null}
+      </span>
       <select
         className="mt-auto h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         onChange={(e) => onChange(Number(e.target.value))}
@@ -389,8 +400,10 @@ function NumberField({
 }) {
   return (
     <label className="flex h-full flex-col gap-1 text-sm">
-      <span className="font-medium text-foreground">{label}</span>
-      {hint !== undefined ? <span className="text-xs text-muted-foreground">{hint}</span> : null}
+      <span className="flex items-center gap-1.5 font-medium text-foreground">
+        {label}
+        {hint !== undefined ? <InfoTooltip label={`Aide : ${label}`} text={hint} /> : null}
+      </span>
       <input
         className="mt-auto h-9 rounded border border-border bg-surface-2 px-2 text-foreground focus:border-accent-text focus:outline-none"
         max={max}

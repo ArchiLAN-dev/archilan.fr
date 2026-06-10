@@ -4,7 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save } from "lucide-react";
 import { useState } from "react";
 
+import { InfoTooltip } from "@/components/info-tooltip";
 import { Switch } from "@/components/switch";
+
+import { sessionConfigHelp } from "./session-config-help";
 
 import {
   COMPATIBILITY_VALUES,
@@ -206,7 +209,12 @@ export function SessionConfigOverrideForm({
                         <Switch ariaLabel={`Surcharger ${field.label}`} checked={overridden} onChange={(c) => toggleField(field, c)} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className={`text-sm leading-snug ${overridden ? "font-medium text-foreground" : "text-muted-foreground"}`}>{field.label}</p>
+                        <p className={`flex items-center gap-1.5 text-sm leading-snug ${overridden ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                          {field.label}
+                          {sessionConfigHelp[field.key] ? (
+                            <InfoTooltip label={`Aide : ${field.label}`} text={sessionConfigHelp[field.key]} />
+                          ) : null}
+                        </p>
                         {overridden ? (
                           <div className="mt-2">
                             <OverrideControl field={field} onChange={(v) => setField(field.key, v)} value={current[field.key]} />
