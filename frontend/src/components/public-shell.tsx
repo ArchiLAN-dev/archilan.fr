@@ -253,7 +253,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             </span>
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center gap-6 lg:flex">
             <NavLink href="/evenements" label="Événements" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink href="/actualites" label="Actualités" />
@@ -261,7 +261,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <LiveTwitchBadge />
           </div>
 
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center gap-2 lg:flex">
             <AuthNavDesktop />
           </div>
 
@@ -269,7 +269,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             aria-controls={menuId}
             aria-expanded={open}
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            className="inline-flex size-11 items-center justify-center rounded border border-border bg-surface text-foreground md:hidden"
+            className="inline-flex size-11 items-center justify-center rounded border border-border bg-surface text-foreground lg:hidden"
             type="button"
             onClick={() =>
               setMenuState((current) => ({
@@ -285,7 +285,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
         <div
           aria-hidden={!open}
           className={[
-            "fixed inset-0 top-16 z-40 bg-background px-6 py-8 transition md:hidden",
+            "fixed inset-0 top-16 z-40 bg-background px-6 py-8 transition lg:hidden",
             open ? "visible opacity-100" : "invisible pointer-events-none opacity-0",
           ].join(" ")}
           id={menuId}
