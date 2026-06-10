@@ -85,7 +85,18 @@ function errorLabel(code: string): string {
   return ERROR_LABELS.update_failed;
 }
 
-export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: OverrideAdapter; scopeLabel: string }) {
+export function SessionConfigOverrideForm({
+  adapter,
+  scopeLabel,
+  lockedKeys = [],
+}: {
+  adapter: OverrideAdapter;
+  scopeLabel: string;
+  // Field keys the current scope may not override (e.g. autoShutdown for private-run owners — it is
+  // locked to the admin "private" type profile). Hidden entirely; the server is the authoritative gate.
+  lockedKeys?: readonly string[];
+}) {
+  const fields = FIELDS.filter((f) => !lockedKeys.includes(f.key));
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: adapter.queryKey,
@@ -163,7 +174,7 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
     });
   }
 
-  const overriddenCount = FIELDS.filter((f) => f.key in current).length;
+  const overriddenCount = fields.filter((f) => f.key in current).length;
 
   return (
     <div className="grid gap-4">
@@ -182,11 +193,11 @@ export function SessionConfigOverrideForm({ adapter, scopeLabel }: { adapter: Ov
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        {SECTION_ORDER.map((section) => (
+        {SECTION_ORDER.filter((section) => fields.some((f) => f.section === section)).map((section) => (
           <section className="rounded-xl border border-border bg-surface-2/30 p-4" key={section}>
             <h4 className="mb-1 font-heading text-sm font-semibold text-foreground">{section}</h4>
             <div className="divide-y divide-border/50">
-              {FIELDS.filter((f) => f.section === section).map((field) => {
+              {fields.filter((f) => f.section === section).map((field) => {
                 const overridden = field.key in current;
                 return (
                   <div className="py-3 first:pt-2 last:pb-0" key={field.key}>

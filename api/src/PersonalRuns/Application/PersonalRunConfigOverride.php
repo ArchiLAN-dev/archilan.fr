@@ -18,6 +18,13 @@ use App\SessionConfig\Domain\SessionType;
  */
 final readonly class PersonalRunConfigOverride
 {
+    /**
+     * Config fields a run owner may not change: they stay locked to the admin-managed "private"
+     * type profile. `autoShutdown` (inactivity watchdog, epic 17) is a platform-resource decision,
+     * not a per-player setting.
+     */
+    private const array OWNER_LOCKED_FIELDS = ['autoShutdown'];
+
     public function __construct(
         private RunRepositoryInterface $runs,
         private SessionConfigOverrideQuery $query,
@@ -37,7 +44,7 @@ final readonly class PersonalRunConfigOverride
             return $this->denial($runId, $userId);
         }
 
-        return ['found' => true, 'authorized' => true, 'override' => $this->query->execute($runId), 'profile' => $this->privateProfile()];
+        return ['found' => true, 'authorized' => true, 'override' => $this->stripLocked($this->query->execute($runId)), 'profile' => $this->privateProfile()];
     }
 
     /**
@@ -54,9 +61,13 @@ final readonly class PersonalRunConfigOverride
             return $this->denial($runId, $userId);
         }
 
+        // Owner-locked fields stay inherited from the admin "private" profile - drop them before save.
+        foreach (self::OWNER_LOCKED_FIELDS as $field) {
+            unset($override[$field]);
+        }
         $this->setOverride->execute($runId, $override);
 
-        return ['found' => true, 'authorized' => true, 'override' => $this->query->execute($runId), 'profile' => $this->privateProfile()];
+        return ['found' => true, 'authorized' => true, 'override' => $this->stripLocked($this->query->execute($runId)), 'profile' => $this->privateProfile()];
     }
 
     /**
@@ -82,6 +93,22 @@ final readonly class PersonalRunConfigOverride
     private function privateProfile(): array
     {
         return $this->profiles->get(SessionType::Private)->toArray();
+    }
+
+    /**
+     * Drop owner-locked fields from a stored override before echoing it back to the owner.
+     *
+     * @param array<string, mixed> $override
+     *
+     * @return array<string, mixed>
+     */
+    private function stripLocked(array $override): array
+    {
+        foreach (self::OWNER_LOCKED_FIELDS as $field) {
+            unset($override[$field]);
+        }
+
+        return $override;
     }
 
     private function guard(string $runId, string $userId): ?Run
