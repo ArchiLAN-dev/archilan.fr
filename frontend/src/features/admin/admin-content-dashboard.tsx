@@ -247,29 +247,99 @@ function ContentBody({
   }
 
   return (
-    <div className="overflow-x-auto border border-border bg-surface">
-      <table className="w-full min-w-[700px] border-collapse text-left text-sm">
-        <thead className="border-b border-border text-muted-foreground">
-          <tr>
-            <th className="px-4 py-3 font-medium">Titre</th>
-            <th className="px-4 py-3 font-medium">Type</th>
-            <th className="px-4 py-3 font-medium">Statut</th>
-            <th className="px-4 py-3 font-medium">Mis à jour</th>
-            <th className="px-4 py-3 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {posts.map((post) => (
-            <PostRow
-              actioningId={actioningId}
-              key={post.id}
-              onTogglePublish={onTogglePublish}
-              post={post}
-            />
-          ))}
-        </tbody>
-      </table>
+    <div className="border border-border bg-surface">
+      {/* Desktop: table */}
+      <div className="hidden overflow-x-auto lg:block">
+        <table className="w-full min-w-[700px] border-collapse text-left text-sm">
+          <thead className="border-b border-border text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 font-medium">Titre</th>
+              <th className="px-4 py-3 font-medium">Type</th>
+              <th className="px-4 py-3 font-medium">Statut</th>
+              <th className="px-4 py-3 font-medium">Mis à jour</th>
+              <th className="px-4 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {posts.map((post) => (
+              <PostRow
+                actioningId={actioningId}
+                key={post.id}
+                onTogglePublish={onTogglePublish}
+                post={post}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile: one card per post */}
+      <ul className="divide-y divide-border lg:hidden">
+        {posts.map((post) => (
+          <PostCard
+            actioningId={actioningId}
+            key={post.id}
+            onTogglePublish={onTogglePublish}
+            post={post}
+          />
+        ))}
+      </ul>
     </div>
+  );
+}
+
+function PostCard({
+  actioningId,
+  onTogglePublish,
+  post,
+}: {
+  actioningId: string | null;
+  onTogglePublish: (post: AdminPost) => void;
+  post: AdminPost;
+}) {
+  const isActioning = actioningId === post.id;
+  const publishLabel = post.status === "published" ? "Dépublier" : "Publier";
+
+  return (
+    <li className="space-y-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">{post.title}</p>
+          <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{post.slug}</p>
+        </div>
+        <span
+          className={`shrink-0 text-xs font-medium ${post.status === "published" ? "text-success" : "text-muted-foreground"}`}
+        >
+          {post.status === "published" ? "Publié" : "Brouillon"}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span className="inline-flex min-h-6 items-center border border-border px-2 font-medium text-foreground">
+          {typeLabels[post.type]}
+        </span>
+        <time dateTime={post.updatedAt}>
+          Maj {new Intl.DateTimeFormat("fr-FR").format(new Date(post.updatedAt))}
+        </time>
+      </div>
+      <div className="flex gap-2">
+        <Link
+          className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent"
+          href={`/admin/actualites/${post.id}`}
+        >
+          <Pencil aria-hidden="true" className="size-3" />
+          Éditer
+        </Link>
+        <button
+          className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isActioning}
+          onClick={() => onTogglePublish(post)}
+          type="button"
+        >
+          <FilePenLine aria-hidden="true" className="size-3" />
+          {isActioning ? "En cours..." : publishLabel}
+        </button>
+      </div>
+    </li>
   );
 }
 
