@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, MapPin, RefreshCw, Trophy, Users } from "lucide-react";
 import { externalLinks } from "@/lib/external-links";
 import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/events/event-types";
-import { getPublicEvent, getPublicEvents } from "@/features/events/public-events-api";
+import { getPublicEvent } from "@/features/events/public-events-api";
 import { EventCheckout } from "@/features/events/event-checkout";
 import { EventRegistrationCta } from "@/features/events/event-registration-cta";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
@@ -72,10 +72,9 @@ const schemaAttendanceModeMap: Record<EventAttendanceMode, string> = {
   mixed: "https://schema.org/MixedEventAttendanceMode",
 };
 
-export async function generateStaticParams() {
-  const { upcoming, past } = await getPublicEvents();
-  return [...upcoming, ...past].map((event) => ({ eventSlug: event.id }));
-}
+// Rendered per request so the MinIO presigned image URLs (short TTL) are always
+// fresh. Static generation baked them at build time and they expired ~1h later.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: EventDetailPageProps): Promise<Metadata> {
   const { eventSlug } = await params;
