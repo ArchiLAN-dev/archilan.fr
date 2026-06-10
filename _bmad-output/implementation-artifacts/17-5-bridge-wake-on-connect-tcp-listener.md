@@ -1,6 +1,19 @@
 # Story 17.5: Bridge - Wake-on-Connect TCP Listener
 
-Status: ready-for-dev
+Status: superseded
+
+> **Superseded (2026-06-10) by stories 17.6 / 17.7 / 17.8.** The wake-on-connect model — bridge
+> killing the AP sub-process and surviving inside a warm container to relaunch on the next connection
+> — was dropped: the bridge depends on its AP server (it shouldn't outlive it), and keeping a
+> container warm per idle run wastes resources. The new model is **stop the container on idle** and
+> **relaunch a fresh container from the MinIO save**, driven by Symfony → orchestrateur, with a
+> single **manual** restart trigger (no auto-restart-on-connect). See:
+> - 17.6 — orchestrateur: stop on idle + relaunch-from-save
+> - 17.7 — bridge: remove wake listener, `/pause` = save+upload then quit
+> - 17.8 — api + frontend: drop the bridge wake trigger, repoint resume, fix the UI copy
+>
+> The description below is retained for historical context only and reflects the **old** (in-bridge,
+> PID-file) architecture.
 
 ## Story
 
