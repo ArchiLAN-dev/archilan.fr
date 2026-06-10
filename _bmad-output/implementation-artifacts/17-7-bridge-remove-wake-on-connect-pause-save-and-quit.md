@@ -1,8 +1,8 @@
 # Story 17.7: bridge — remove pause/resume/wake; the bridge lives only while AP lives
 
-Status: ready-for-dev
+Status: review
 
-Repo: `Archipelago-Bridge` (Python) — branch from `master`.
+Repo: `Archipelago-Bridge` (Python) — implemented in PR #3 (`feature/remove-pause-resume-wake` → `master`).
 
 ## Story
 
@@ -40,11 +40,12 @@ Pairs with **17.6** (orchestrateur) and **17.8** (Symfony). Ship 17.6 + 17.7 bef
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Delete `/pause`, `/resume`, wake listener, lifecycle-manager pause/resume + `/restarting`
-      callback (AC 1).
-- [ ] Task 2 — Ensure clean exit when the AP WS closes (bounded reconnect, then exit) (AC 3).
-- [ ] Task 3 — Remove `!save`/MinIO-upload code from the bridge (AC 4).
-- [ ] Task 4 — Tests + gates: drop wake/pause/resume tests (AC 5).
+- [x] Task 1 — Delete `/pause`, `/resume`, wake listener, lifecycle helpers + `/restarting`
+      callback; delete `core/wake_on_connect.py` + `core/coordinator.py`; unwire deps/rest/bridge (AC 1).
+- [x] Task 2 — (Revised) The orchestrateur stops the bridge container on idle (17.6), so the bridge
+      need not self-exit; reconnect loop left as-is. See Dev Agent Record (AC 3).
+- [x] Task 3 — Remove the in-bridge save/upload code; drop dead config `ap_pid_file`/`ap_launch_cmd` (AC 4).
+- [x] Task 4 — Tests + gates: drop wake/pause/resume tests; ruff/pytest(142)/mypy green (AC 5).
 
 ## Dev Notes
 
@@ -66,6 +67,29 @@ no caller hits `/pause` once 17.8 ships. Removing the endpoint in 17.7 is safe i
 - Bridge: `core/rest.py`, `core/ap_client.py`, `core/config.py`.
 
 ## Dev Agent Record
+
+### Implementation notes (PR #3)
+
+- Went further than "reduce `/pause`": **removed `/pause` entirely** too. In the two-container model
+  the bridge can't manage AP's lifecycle anyway (`_kill_ap` used a PID file from the legacy
+  single-container `entrypoint.sh`), and AP now self-saves + the orchestrateur persists/relaunches
+  (17.6). So the bridge has no save/pause/resume role.
+- **AC 3 relaxed:** the bridge does **not** self-exit on AP death. The orchestrateur explicitly stops
+  the bridge container on idle (17.6 `idleFromAutoShutdown`), and an explicit `docker stop` is not
+  auto-restarted. Changing `run_with_reconnect` to bounded-then-exit would also exit on transient
+  blips → more risk than value. Left the reconnect loop as-is.
+- **`ws_server.request_approve_restart` left in place:** now unused, but entangled with the WS
+  `_pending_requests` receive loop; a clean removal is more risk than value. No import of deleted code.
+
+### File List
+
+- `core/rest_session.py` — removed `/pause`, `/resume` + all pause/resume/wake helpers + imports.
+- `core/deps.py`, `core/rest.py`, `bridge.py` — removed coordinator import/param/wiring.
+- `core/config.py` — removed `ap_pid_file`, `ap_launch_cmd`.
+- Deleted: `core/wake_on_connect.py`, `core/coordinator.py`,
+  `tests/test_pause_endpoint.py`, `tests/test_resume_endpoint.py`, `tests/test_wake_on_connect.py`.
+- `tests/test_rest_handlers.py` — dropped `/pause`,`/resume` route + auth tests.
+- `BRIDGE_API.md` — removed `/pause`, `/resume` endpoint docs.
 
 ## Change Log
 
