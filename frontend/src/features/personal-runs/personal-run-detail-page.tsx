@@ -27,6 +27,7 @@ import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { PersonalRunPatchPanel } from "./personal-run-patches";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -927,6 +928,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               port={run.connectionPort}
             />
           )}
+
+        {/* Generated patch download — each participant gets their own slot's patch */}
+        <PersonalRunPatchPanel enabled={run.status === "active"} runId={run.id} />
 
         {/* Player progress grid - visible to all when active or idle */}
         {run.sessionId && (run.status === "active" || run.status === "idle") && (
