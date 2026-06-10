@@ -683,7 +683,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* Status-conditional panels - owner actions */}
         {run.isOwner && (
-          <section className="grid gap-4">
+          <section className="grid min-w-0 grid-cols-1 gap-4">
             {actionError && (
               <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 px-4 py-3 text-sm text-[color:var(--color-danger)]">
                 <X aria-hidden className="size-4 shrink-0" />

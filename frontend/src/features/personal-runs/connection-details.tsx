@@ -17,7 +17,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2">
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2">
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="truncate font-mono text-sm text-foreground">{value}</p>
@@ -50,12 +50,12 @@ export function ConnectionDetails({
   adminPassword?: string | null;
 }) {
   return (
-    <div className="rounded-lg border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/5 p-4">
+    <div className="min-w-0 rounded-lg border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/5 p-4">
       <div className="mb-3 flex items-center gap-2">
         <Server aria-hidden className="size-4 text-[color:var(--color-success)]" />
         <h3 className="text-sm font-semibold text-foreground">Infos de connexion</h3>
       </div>
-      <div className="grid gap-2">
+      <div className="grid grid-cols-1 gap-2">
         <CopyField label="Hôte" value={host} />
         <CopyField label="Port" value={String(port)} />
         <CopyField label="Mot de passe" value={password} />
