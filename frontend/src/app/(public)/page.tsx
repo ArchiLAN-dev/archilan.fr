@@ -16,11 +16,11 @@ export default async function Home() {
   return (
     <div className="grid gap-24">
 
-      {/* Hero - photo immersive pleine largeur */}
-      <section className="relative -mx-6 -mt-16 flex min-h-[88vh] items-end md:-mx-12 lg:-mx-20">
-        {/* Fond masqué indépendamment du contenu */}
+      {/* Hero - bannière empilée sur mobile, photo immersive superposée sur desktop */}
+      <section className="relative -mx-6 -mt-16 flex flex-col md:-mx-12 lg:-mx-20 lg:min-h-[88vh] lg:flex-row lg:items-end">
+        {/* Image : bannière en haut sur mobile, fond plein écran sous le texte sur desktop */}
         <div
-          className="absolute inset-0"
+          className="relative h-72 w-full shrink-0 sm:h-96 lg:absolute lg:inset-0 lg:h-auto"
           style={{ maskImage: "linear-gradient(to bottom, black 87%, transparent 100%)" }}
         >
           <Image
@@ -31,11 +31,12 @@ export default async function Home() {
             sizes="100vw"
             src="/images/events/lan-photo-1.webp"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background from-8% via-background/55 via-50% to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/45 via-transparent to-background/70" />
+          {/* Dégradés de lisibilité du texte superposé - desktop uniquement */}
+          <div className="absolute inset-0 hidden bg-gradient-to-r from-background from-8% via-background/55 via-50% to-transparent lg:block" />
+          <div className="absolute inset-0 hidden bg-gradient-to-b from-background/45 via-transparent to-background/70 lg:block" />
         </div>
 
-        <div className="relative z-10 w-full px-6 pb-20 md:px-12 lg:px-20">
+        <div className="relative z-10 w-full px-6 pb-12 pt-8 md:px-12 lg:px-20 lg:pb-20 lg:pt-0">
           <div className="max-w-2xl">
             <Image
               alt="Logo ArchiLAN"
