@@ -161,7 +161,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             </span>
           </div>
 
-          <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{event.description}</p>
+          <p className="text-lg leading-8 text-muted-foreground">{event.description}</p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             {primaryCta ? <DetailCta cta={primaryCta} /> : null}
