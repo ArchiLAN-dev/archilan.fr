@@ -619,7 +619,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         </div>
       )}
 
-      <div className="mx-auto grid max-w-2xl gap-8">
+      <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-8">
         {/* Header */}
         <header>
           <button
