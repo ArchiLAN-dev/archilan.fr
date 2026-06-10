@@ -5,11 +5,11 @@ import { load as loadYaml } from "js-yaml";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { getAccountMembership } from "@/features/payments/membership-api";
+import { MembershipNotice } from "./weekly-runs-client-page";
 import {
   downloadPatch,
   fetchCurrentWeeklyRuns,
@@ -366,9 +366,10 @@ function DualLeaderboard({ leaderboard, myUserId, myEntryId }: DualLeaderboardPr
 type CategorySectionProps = {
   run: CurrentWeeklyRun;
   myUserId: string | null;
+  canParticipate: boolean;
 };
 
-function CategorySection({ run, myUserId }: CategorySectionProps) {
+function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps) {
   const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -481,8 +482,8 @@ function CategorySection({ run, myUserId }: CategorySectionProps) {
         <YamlOptionsViewer gameName={run.gameName} yamlConfig={run.yamlConfig} />
       )}
 
-      {/* Participation — only when active and authenticated */}
-      {isActive && myUserId && (
+      {/* Participation — only when active, authenticated, and a member/admin */}
+      {isActive && myUserId && canParticipate && (
         <div className="border-t border-border px-5 py-4">
           {toast && (
             <div className="mb-3 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -601,7 +602,6 @@ type Props = {
 export function WeeklyRunGameClientPage({ params }: Props) {
   const { gameSlug } = use(params);
   const { user, loading } = useAuth();
-  const router = useRouter();
 
   const isAdmin = user?.roles.includes("ROLE_ADMIN") === true;
 
@@ -612,41 +612,21 @@ export function WeeklyRunGameClientPage({ params }: Props) {
     enabled: Boolean(user) && !isAdmin,
   });
 
-  const canAccessWeeklyRuns = isAdmin || membership?.status === "active";
+  // Members (and admins) can participate; everyone else can browse but not join.
+  const canParticipate = isAdmin || membership?.status === "active";
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push(
-        `/connexion?returnTo=${encodeURIComponent(`/runs-hebdo/jeu/${gameSlug}`)}`,
-      );
-    }
-  }, [loading, user, router, gameSlug]);
-
+  // The list endpoint is public (optional auth) — everyone can browse the runs.
   const { data: runs = [], isLoading: runsLoading } = useQuery({
     queryKey: ["weekly-runs", "current"],
     queryFn: fetchCurrentWeeklyRuns,
     staleTime: DEFAULT_STALE_TIME,
     refetchInterval: 60_000,
-    enabled: canAccessWeeklyRuns,
   });
 
-  if (loading || (user && !isAdmin && membershipLoading) || (canAccessWeeklyRuns && runsLoading)) {
+  if (loading || (user && !isAdmin && membershipLoading) || runsLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  if (!canAccessWeeklyRuns) {
-    return (
-      <div className="py-16 text-center">
-        <p className="text-foreground">Cette section est réservée aux membres ArchiLAN.</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Adhère à l&apos;association pour participer aux runs hebdomadaires.
-        </p>
       </div>
     );
   }
@@ -716,10 +696,17 @@ export function WeeklyRunGameClientPage({ params }: Props) {
         </div>
       </header>
 
+      {!canParticipate && <MembershipNotice loggedIn={Boolean(user)} />}
+
       {/* Categories */}
       <div className="flex flex-col gap-4">
         {gameRuns.map((run) => (
-          <CategorySection key={run.weeklyRunId} myUserId={user.id} run={run} />
+          <CategorySection
+            canParticipate={canParticipate}
+            key={run.weeklyRunId}
+            myUserId={user?.id ?? null}
+            run={run}
+          />
         ))}
       </div>
     </div>

@@ -1,10 +1,9 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/features/auth/auth-context";
@@ -66,7 +65,6 @@ function WeeklyRunGameCard({ run }: { run: CurrentWeeklyRun }) {
 
 export function WeeklyRunsClientPage() {
   const { user, loading } = useAuth();
-  const router = useRouter();
 
   const isAdmin = user?.roles.includes("ROLE_ADMIN") === true;
 
@@ -79,20 +77,15 @@ export function WeeklyRunsClientPage() {
     enabled: Boolean(user) && !isAdmin,
   });
 
-  const canAccessWeeklyRuns = isAdmin || membership?.status === "active";
+  // Members (and admins) can participate; everyone else can browse but not join.
+  const canParticipate = isAdmin || membership?.status === "active";
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push(`/connexion?returnTo=${encodeURIComponent("/runs-hebdo")}`);
-    }
-  }, [loading, user, router]);
-
+  // The list endpoint is public (optional auth) — everyone sees the week's runs.
   const { data: runs = [] } = useQuery({
     queryKey: ["weekly-runs", "current"],
     queryFn: fetchCurrentWeeklyRuns,
     staleTime: DEFAULT_STALE_TIME,
     refetchInterval: 60_000,
-    enabled: canAccessWeeklyRuns,
   });
 
   if (loading || (user && !isAdmin && membershipLoading)) {
@@ -103,30 +96,20 @@ export function WeeklyRunsClientPage() {
     );
   }
 
-  if (!user) return null;
-
-  if (!canAccessWeeklyRuns) {
-    return (
-      <div className="py-16 text-center">
-        <p className="text-foreground">
-          Cette section est réservée aux membres ArchiLAN.
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Adhère à l&apos;association pour participer aux runs hebdomadaires.
-        </p>
-      </div>
-    );
-  }
+  const notice = canParticipate ? null : <MembershipNotice loggedIn={Boolean(user)} />;
 
   if (runs.length === 0) {
     return (
-      <div className="py-16 text-center">
-        <p className="text-lg font-semibold text-foreground">
-          Aucun run cette semaine - revenez lundi&nbsp;!
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Les runs hebdomadaires démarrent automatiquement chaque lundi.
-        </p>
+      <div className="flex flex-col gap-6">
+        {notice}
+        <div className="py-16 text-center">
+          <p className="text-lg font-semibold text-foreground">
+            Aucun run cette semaine - revenez lundi&nbsp;!
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Les runs hebdomadaires démarrent automatiquement chaque lundi.
+          </p>
+        </div>
       </div>
     );
   }
@@ -142,7 +125,34 @@ export function WeeklyRunsClientPage() {
     }
   }
 
-  return <GameGrid games={games} />;
+  return (
+    <div className="flex flex-col gap-6">
+      {notice}
+      <GameGrid games={games} />
+    </div>
+  );
+}
+
+// ── Membership notice (browse open to all, participation members-only) ──────────
+
+export function MembershipNotice({ loggedIn }: { loggedIn: boolean }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-special/40 bg-special/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="font-semibold text-foreground">Participation réservée aux membres</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Découvre les runs de la semaine ci-dessous.{" "}
+          {loggedIn ? "Adhère à l'association" : "Connecte-toi et adhère"} pour rejoindre une partie.
+        </p>
+      </div>
+      <Link
+        className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+        href="/adhesion"
+      >
+        Adhérer
+      </Link>
+    </div>
+  );
 }
 
 // ── Game grid with search ─────────────────────────────────────────────────────
