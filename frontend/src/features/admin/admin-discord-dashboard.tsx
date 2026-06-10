@@ -96,7 +96,7 @@ export function AdminDiscordDashboard({ initialStatus, initialUsers }: Props) {
   }
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
@@ -268,7 +268,8 @@ function UsersTable({ state, onLoadMore }: { state: UsersState; onLoadMore: () =
         </h2>
         <span className="text-sm text-muted-foreground">({state.total} au total)</span>
       </div>
-      <div className="overflow-x-auto border border-border bg-surface">
+      <div className="border border-border bg-surface">
+        <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[800px] border-collapse text-left text-sm">
           <thead className="border-b border-border text-muted-foreground">
             <tr>
@@ -332,6 +333,51 @@ function UsersTable({ state, onLoadMore }: { state: UsersState; onLoadMore: () =
             ))}
           </tbody>
         </table>
+        </div>
+
+        <ul className="divide-y divide-border lg:hidden">
+          {state.users.map((user) => (
+            <li className="space-y-3 p-4" key={user.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-foreground">{user.email}</p>
+                  <p className="text-xs text-muted-foreground">{user.displayName ?? "-"}</p>
+                </div>
+                {user.discordSyncError ? (
+                  <span className="shrink-0 text-xs font-medium text-danger">Erreur</span>
+                ) : (
+                  <span className="shrink-0 text-xs font-medium text-success">OK</span>
+                )}
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Compte Discord</p>
+                <p className="text-sm text-foreground">{user.discordUsername ?? "-"}</p>
+                <p className="truncate font-mono text-xs text-muted-foreground">{user.discordId}</p>
+              </div>
+              {user.roles.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {user.roles.map((role) => (
+                    <span
+                      className="inline-flex items-center rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                      key={role}
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                Synchro&nbsp;:{" "}
+                {user.discordRoleSyncedAt
+                  ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date(user.discordRoleSyncedAt))
+                  : "-"}
+              </p>
+              {user.discordSyncError ? (
+                <p className="text-xs text-danger">{user.discordSyncError}</p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
       </div>
       {canLoadMore ? (
         <div className="flex justify-center pt-2">

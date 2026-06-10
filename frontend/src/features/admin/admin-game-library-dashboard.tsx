@@ -85,7 +85,7 @@ export function AdminGameLibraryDashboard() {
   const hasActiveFilters = filters.search !== "" || filters.availability !== "" || filters.yamlReady !== "";
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       <header>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -118,7 +118,7 @@ export function AdminGameLibraryDashboard() {
 
       <div className="flex flex-wrap gap-3">
         <input
-          className="min-h-10 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+          className="min-h-10 min-w-0 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
           placeholder="Rechercher par nom ou slug…"
           type="search"
           value={draftSearch}
@@ -207,7 +207,8 @@ function GameTable({
   }
 
   return (
-    <div className="overflow-x-auto border border-border bg-surface">
+    <div className="border border-border bg-surface">
+      <div className="hidden overflow-x-auto lg:block">
       <table className="w-full min-w-[600px] border-collapse text-left text-sm">
         <thead className="border-b border-border text-muted-foreground">
           <tr>
@@ -306,6 +307,76 @@ function GameTable({
                 ))}
         </tbody>
       </table>
+      </div>
+
+      {/* Mobile: one card per game */}
+      <div className="lg:hidden">
+        {isLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div className="animate-pulse space-y-3 p-4" key={i}>
+                <div className="h-4 w-40 rounded bg-surface-2" />
+                <div className="h-3 w-24 rounded bg-surface-2" />
+              </div>
+            ))}
+          </div>
+        ) : games.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
+            <Gamepad2 aria-hidden="true" className="size-8 text-accent-text" />
+            <span>Aucun jeu trouvé. Ajuste les filtres ou ajoute le premier jeu Archipelago.</span>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {games.map((game) => (
+              <li className="space-y-3 p-4" key={game.id}>
+                <div className="flex items-start gap-3">
+                  {game.coverImageUrl ? (
+                    <ThumbnailPreview src={game.coverImageUrl} />
+                  ) : (
+                    <div className="flex h-10 w-7 shrink-0 items-center justify-center rounded bg-surface-2">
+                      <Gamepad2 aria-hidden="true" className="size-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground">{game.name}</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">{game.slug}</p>
+                  </div>
+                  {game.isYamlReady ? (
+                    <span className="inline-flex shrink-0 items-center rounded border border-success/50 bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+                      Prêt
+                    </span>
+                  ) : (
+                    <span className="inline-flex shrink-0 items-center rounded border border-warning/50 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
+                      Manquant
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{availabilityLabel(game.availability)}</span>
+                  <span>· {game.usageCount} utilisation{game.usageCount > 1 ? "s" : ""}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Link
+                    className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent"
+                    href={`/admin/jeux/${game.id}`}
+                  >
+                    <Pencil aria-hidden="true" className="size-3" />
+                    Configurer
+                  </Link>
+                  <button
+                    className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-danger"
+                    onClick={() => onDelete(game)}
+                    type="button"
+                  >
+                    <Trash2 aria-hidden="true" className="size-3" />
+                    Supprimer
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
