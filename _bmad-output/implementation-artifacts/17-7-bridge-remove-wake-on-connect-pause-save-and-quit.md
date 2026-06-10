@@ -1,4 +1,4 @@
-# Story 17.7: bridge — remove wake-on-connect; `/pause` saves, uploads, then quits
+# Story 17.7: bridge — remove pause/resume/wake; the bridge lives only while AP lives
 
 Status: ready-for-dev
 
@@ -7,72 +7,68 @@ Repo: `Archipelago-Bridge` (Python) — branch from `master`.
 ## Story
 
 As a maintainer,
-I want the bridge to stop pretending it can outlive its Archipelago server,
-so that pausing a session means "save the state and let the container be stopped", not "kill AP but
-keep a TCP listener alive inside a half-dead container".
+I want the bridge to be a pure relay that exists only while its Archipelago server exists,
+so that it no longer pretends to manage pause/resume or to survive its own AP server — idle is now
+Archipelago's native `auto_shutdown` and the save is persisted by the orchestrateur.
 
 ## Context
 
-Story 17.5 had the bridge open a wake-on-connect TCP listener on the AP port after killing the AP
-sub-process, surviving so it could relaunch AP on the next connection. We are dropping that model: the
-bridge depends on AP, the container shouldn't stay warm, and resume is now driven by Symfony →
-orchestrateur relaunch-from-save (story 17.6). This story removes the wake/relaunch responsibilities
-from the bridge and reduces `/pause` to a clean "save → upload → done".
+Story 17.5 had the bridge kill the AP sub-process on `/pause`, save+upload, and survive inside a warm
+container with a wake-on-connect TCP listener. We are dropping all of that. Idle is handled by AP's
+native `auto_shutdown` (config-driven, epic 27); when AP exits, the orchestrateur persists the
+`.apsave` and stops the bridge (story 17.6). The bridge therefore no longer needs `/pause`, `/resume`,
+the wake listener, or any AP process management — it depends on AP and should die with it.
 
-Pairs with **17.6** (orchestrateur stop + relaunch-from-save) and **17.8** (Symfony repoint). Ship
-17.6 and 17.7 before 17.8 flips Symfony.
+Pairs with **17.6** (orchestrateur) and **17.8** (Symfony). Ship 17.6 + 17.7 before 17.8.
 
 ## Acceptance Criteria
 
-1. `POST /pause` (bearer-token auth, called by Symfony): issues the AP `!save` command, waits for the
-   `.apsave` to appear (bounded timeout), uploads it to MinIO at
-   `sessions/{sessionId}/saves/{timestamp}.apsave`, then returns `200` with
-   `{ "paused_without_save": bool, "save_key": str|null }`. It does **not** open any TCP listener and
-   does **not** kill/relaunch AP itself — the orchestrateur stops the container afterwards.
-2. On save timeout (no `.apsave`), returns `200` with `paused_without_save: true` and `save_key: null`
-   (Symfony already surfaces this as "reprise impossible").
-3. The wake-on-connect TCP listener is **removed**: delete `core/wake_on_connect.py`, the
-   `WakeOnConnectServer` task wiring, and the call to Symfony `POST /restarting`. No code path opens a
-   socket on the AP port.
-4. `POST /resume` is **removed** (resume is now a fresh container via the orchestrateur). Any
-   `BridgeLifecycleManager.resume()` / `_launch_ap()` / save-relaunch logic is deleted.
-5. The bridge process is free to exit when the container is stopped; it no longer needs to survive a
-   dead AP. Heartbeat/activity reporting and the live PrintJSON relay (epic 9/17.1) are unchanged
-   while AP is running.
-6. Bridge gates green from the repo root: `ruff`, `pytest`, `mypy`. Tests updated: remove
-   `test_wake_on_connect.py`; `test_lifecycle_manager.py` (or equivalent) asserts `/pause` does
-   save+upload and returns the right shape, with no listener started.
+1. **Remove pause/resume/wake:** delete the `/pause` and `/resume` endpoints, `core/wake_on_connect.py`
+   (`WakeOnConnectServer`), the `BridgeLifecycleManager` pause/resume/`_launch_ap` logic, the Symfony
+   `POST /restarting` callback, and any code that opens a TCP socket on the AP port or kills/relaunches
+   the AP process. No endpoint mutates AP lifecycle anymore.
+2. **Pure relay:** the bridge connects to AP (observer slot), relays state, reports activity/heartbeat,
+   and pushes the structured `PrintJSON ItemSend` → Mercure (stories 9.20/9.22). Unchanged.
+3. **Dies with AP:** when AP exits (auto_shutdown or crash) the bridge's WS connection closes; the
+   bridge exits cleanly (no infinite reconnect against a dead server, no orphaned asyncio tasks). The
+   orchestrateur stops the bridge container regardless (17.6) — the bridge must not block that.
+4. **Save is not the bridge's job:** the bridge no longer issues `!save` / uploads `.apsave`. AP
+   auto-saves during play; the orchestrateur copies the latest `.apsave` to MinIO on shutdown (17.6).
+5. Bridge gates green from the repo root (`ruff`, `pytest`, `mypy`). Remove `test_wake_on_connect.py`
+   and the pause/resume/lifecycle-manager tests; keep/relay tests for the WS + activity + ItemSend
+   path.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Reduce `/pause` to save → upload → return; drop the listener start (AC 1, 2, 3).
-- [ ] Task 2 — Delete `core/wake_on_connect.py` and all `WakeOnConnectServer` wiring + the
-      `/restarting` callback (AC 3).
-- [ ] Task 3 — Remove `POST /resume` and the in-bridge relaunch logic (AC 4).
-- [ ] Task 4 — Confirm the bridge exits cleanly on container stop; no orphaned tasks (AC 5).
-- [ ] Task 5 — Tests + gates: drop wake tests, adjust pause tests (AC 6).
+- [ ] Task 1 — Delete `/pause`, `/resume`, wake listener, lifecycle-manager pause/resume + `/restarting`
+      callback (AC 1).
+- [ ] Task 2 — Ensure clean exit when the AP WS closes (bounded reconnect, then exit) (AC 3).
+- [ ] Task 3 — Remove `!save`/MinIO-upload code from the bridge (AC 4).
+- [ ] Task 4 — Tests + gates: drop wake/pause/resume tests (AC 5).
 
 ## Dev Notes
 
-### Save-then-stop ordering
+### Reconnect vs exit
 
-The orchestrateur stops the container only **after** `/pause` returns 200 (Symfony sequences this in
-17.8). So `/pause` must fully complete the save+upload before returning — do not background it.
+The bridge has exponential-backoff reconnect (`_WS_RETRY_DELAYS` in `ap_client.py`). Under the new
+model a closed WS usually means AP shut down → the bridge should bound the retries and then exit
+rather than spin forever; the orchestrateur is tearing the container down anyway.
 
-### What stays
+### Nothing schedules a pause anymore
 
-The WebSocket client, heartbeat, activity reporting, and the structured `PrintJSON ItemSend` →
-Mercure relay (stories 9.20/9.22) are untouched: they only run while AP is up, which is the only time
-the bridge is up under the new model.
+Symfony's `InactivityWatchdog` (which called `/pause`) is removed in 17.8, and AP owns the timeout, so
+no caller hits `/pause` once 17.8 ships. Removing the endpoint in 17.7 is safe in that order.
 
 ### References
 
-- Story 17.5 (superseded) — the wake-on-connect design being removed.
-- Save key convention consumed by orchestrateur 17.6: `sessions/{sessionId}/saves/{timestamp}.apsave`.
-- Bridge REST/config: `core/rest.py`, `core/config.py`, `core/ap_client.py`.
+- Story 17.5 (superseded) — the design being removed.
+- Story 17.6 — orchestrateur now persists the save + relaunches.
+- Bridge: `core/rest.py`, `core/ap_client.py`, `core/config.py`.
 
 ## Dev Agent Record
 
 ## Change Log
 
-- 2026-06-10 — Story created (supersedes the bridge half of 17.5).
+- 2026-06-10 — Story created.
+- 2026-06-10 — Revised: remove `/pause` too (not just wake); idle = AP `auto_shutdown`, save persisted
+  by the orchestrateur. The bridge is a pure relay that dies with AP.
