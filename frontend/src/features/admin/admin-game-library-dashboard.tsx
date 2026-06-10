@@ -85,7 +85,7 @@ export function AdminGameLibraryDashboard() {
   const hasActiveFilters = filters.search !== "" || filters.availability !== "" || filters.yamlReady !== "";
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       <header>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -118,7 +118,7 @@ export function AdminGameLibraryDashboard() {
 
       <div className="flex flex-wrap gap-3">
         <input
-          className="min-h-10 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+          className="min-h-10 min-w-0 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
           placeholder="Rechercher par nom ou slug…"
           type="search"
           value={draftSearch}

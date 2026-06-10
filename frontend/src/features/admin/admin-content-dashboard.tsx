@@ -115,7 +115,7 @@ export function AdminContentDashboard() {
   }
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       <header className="grid gap-3">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Backoffice
@@ -147,7 +147,7 @@ export function AdminContentDashboard() {
 
       <div className="flex flex-wrap gap-3">
         <input
-          className="min-h-10 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+          className="min-h-10 min-w-0 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
           placeholder="Rechercher par titre ou slug…"
           type="search"
           value={search}
