@@ -1,8 +1,8 @@
 # Story 17.8: api + frontend — drop the custom inactivity watchdog; idle via AP, manual resume
 
-Status: ready-for-dev
+Status: review
 
-Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) — branch from `develop`.
+Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) — implemented on `feature/epic-17-restart-redesign-stories` (PR #102), in two commits (non-package, then the orchestrateur-client repoint after story 17.9 / v1.2.0).
 
 ## Story
 
@@ -109,6 +109,37 @@ No new session states. `restarting` + `/restarted` + `/restart-failed` retained 
 - Orchestrateur: story 17.6 (`session.idle` webhook, `POST /sessions/{id}/relaunch-from-save`).
 
 ## Dev Agent Record
+
+### Implementation notes
+
+- **`session.idle` → resumable:** mapped to `recordPaused($sessionId, 'orchestrateur:volume', false)`.
+  Under the new model the save lives in the orchestrateur session volume (not MinIO), so a marker
+  save key is stored only to satisfy the existing `initiateRestart` "has a save" gate — keeping that
+  gate and `testNullSaveKeyReturns422NoSaveAvailable` intact rather than relaxing the domain.
+- **`session.ready` after relaunch needs no special-casing:** `restarting → running` is already an
+  allowed transition, so the existing `session.ready` handler (`transitionToRunningFromOrchestrateur`)
+  resumes the session correctly (and does not re-notify players, since `isNotified` stays true).
+- **autoShutdown default:** Private → 1800 s; Event/Weekly kept at 0 (auto-shutting-down a live event
+  is risky; admin-tunable per type, owners can't change it per 27.9).
+- **Resume repoint** depended on a package method → split out as **story 17.9**
+  (`orchestrateur-client` v1.2.0, `relaunchFromSave()`), per `packages/CLAUDE.md`. Done in commit 2.
+- `SessionPausedController` (`POST /sessions/{id}/paused`) left as now-dead code (the bridge no longer
+  calls it); harmless, removable in a follow-up.
+
+### File List
+
+- `api/src/Schedule.php`, `api/config/packages/messenger.yaml`, `api/config/services.yaml` — watchdog removed.
+- Deleted: `InactivityWatchdogHandler`, `InactivityWatchdogMessage`, `PauseRunJob`, `PauseRunJobHandler`,
+  `InactivityWatchdogTest`.
+- `SessionRestartController.php`, `SessionLifecycleManager.php` — removed `/restarting` + `markRestartingBridge`.
+- `BridgeLifecycleCallbackTest.php` — dropped `/restarting` cases.
+- `OrchestratorWebhookController.php` — `session.idle` handler.
+- `SessionConfig.php` — Private autoShutdown default 1800.
+- `SessionRestartFailedEmail.php` — reworded.
+- `RunnerGatewayInterface.php` / `RunnerGateway.php` / `NullRunnerGateway.php` — `relaunchFromSave`.
+- `Handler/ResumeRunJobHandler.php` — repointed to the gateway; `tests/Unit/Sessions/ResumeRunJobHandlerTest.php`.
+- `api/composer.lock` — orchestrateur-client 1.2.0.
+- `frontend/.../personal-run-detail-page.tsx` — IDLE copy.
 
 ## Change Log
 
