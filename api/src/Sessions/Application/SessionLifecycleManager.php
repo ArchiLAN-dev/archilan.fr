@@ -408,7 +408,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false, 'error' => null, 'sessionId' => null, 'status' => null];
         }
 
-        if (Session::STATUS_IDLE !== $session->getStatus()) {
+        // A paused run is "idle" from the owner's POV, but the underlying session may be either IDLE
+        // (auto_shutdown) or STOPPED (orchestrateur session.stopped) — both are relaunchable.
+        if (!in_array($session->getStatus(), [Session::STATUS_IDLE, Session::STATUS_STOPPED], true)) {
             return ['found' => true, 'error' => 'invalid_session_status', 'sessionId' => null, 'status' => null];
         }
 

@@ -35,7 +35,7 @@ class Session
         self::STATUS_IDLE => [self::STATUS_RESTARTING],
         self::STATUS_RESTARTING => [self::STATUS_RUNNING, self::STATUS_IDLE],
         self::STATUS_CRASHED => [self::STATUS_LAUNCHING, self::STATUS_STOPPED, self::STATUS_IDLE],
-        self::STATUS_STOPPED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
+        self::STATUS_STOPPED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING, self::STATUS_RESTARTING],
         self::STATUS_FAILED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
         self::STATUS_FINISHED => [self::STATUS_LAUNCHING],
     ];

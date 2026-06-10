@@ -106,6 +106,24 @@ final class SessionRestartTest extends FunctionalTestCase
         self::assertCount(1, $resumeJobs);
     }
 
+    public function testStoppedSessionIsRelaunchable(): void
+    {
+        // A paused run stays "idle" even when its session drifted to "stopped" (orchestrateur
+        // session.stopped); it must still be relaunchable (story 17.10 follow-up).
+        $admin = $this->createAdmin('admin@example.org');
+        $session = $this->createStoppedSession();
+
+        $this->loginAs($admin);
+        $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
+
+        self::assertResponseStatusCodeSame(202);
+
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $reloaded);
+        self::assertSame(Session::STATUS_RESTARTING, $reloaded->getStatus());
+    }
+
     public function testNonIdleSessionReturns422InvalidStatus(): void
     {
         $admin = $this->createAdmin('admin@example.org');
@@ -240,6 +258,15 @@ final class SessionRestartTest extends FunctionalTestCase
     {
         $session = $this->createRunningSession();
         $session->markIdle(null, false, new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        return $session;
+    }
+
+    private function createStoppedSession(): Session
+    {
+        $session = $this->createRunningSession();
+        $session->transition(Session::STATUS_STOPPED, new \DateTimeImmutable());
         $this->entityManager->flush();
 
         return $session;
