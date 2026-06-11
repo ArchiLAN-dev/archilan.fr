@@ -5,6 +5,48 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.2.0] - 2026-06-11
+
+Deuxième release : refonte du cycle de vie des runs (restart/idle), configuration
+de session et overrides, runs hebdomadaires publiques, et une large passe
+responsive/UX sur tout le site et l'administration.
+
+### Ajouté
+
+- **Configuration de session (épic 27)** : modèle de configuration côté domaine,
+  persistance, overrides par périmètre (hebdo / privé / événement), formulaire
+  d'administration, infobulles d'aide, et verrouillage de l'auto-shutdown pour les
+  runs privées.
+- **Runs hebdomadaires publiques** : navigation publique des runs de la semaine
+  et entrée de menu dédiée.
+- **Téléchargement des patchs** d'une run perso côté membre.
+- **Scheduler de nettoyage (épic 13)** : purge planifiée des données temporaires
+  et des logs avec rétention configurable.
+- **Bibliothèque de jeux (admin)** : comptage réel des utilisations d'un jeu et
+  tri par nom ou par nombre d'utilisations.
+- Tri et affichage responsive de la gestion des événements (admin).
+- Vitrine des fonctionnalités et slogan sur la page d'accueil.
+
+### Modifié
+
+- **Refonte restart / idle (épic 17)** : suppression du wake-on-connect ; l'idle
+  est désormais géré nativement par l'`auto_shutdown` d'Archipelago, et la relance
+  se fait manuellement depuis une sauvegarde.
+- Rafraîchissement temps réel plus réactif (`staleTime` 5 s → 2 s).
+- Slot « Bridge » masqué de l'interface.
+- Large passe responsive sur les tableaux et pages d'administration ainsi que sur
+  les pages publiques (accueil, runs, navigation mobile/tablette).
+- Dependabot cible désormais `develop` plutôt que `main` (respect du Gitflow).
+
+### Corrigé
+
+- Relance d'une session restée à l'état « stopped ».
+- Message contradictoire du panneau « idle ».
+- Débordements d'affichage : détails de connexion, infobulles, noms de patchs,
+  descriptions d'événements, menu mobile, navigation tablette, progression des slots.
+- Expiration des images d'événement.
+- Formulations diverses (vocabulaire « seed »).
+
 ## [0.1.0] - 2026-06-09
 
 Première version publiée d'archilan.fr - le site et l'ERP de l'association
@@ -78,4 +120,5 @@ version et la publication d'images Docker versionnées sur GHCR.
 - Pipelines backend (PHPStan, PHP-CS-Fixer, PHPUnit, validation
   d'architecture DDD) et frontend (typecheck, lint, build) sur chaque PR.
 
+[0.2.0]: https://github.com/ArchiLAN-dev/archilan.fr/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ArchiLAN-dev/archilan.fr/releases/tag/v0.1.0
