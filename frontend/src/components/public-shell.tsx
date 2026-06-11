@@ -294,7 +294,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
         </div>
       </header>
 
-      <main className="w-full flex-1 px-6 py-16 md:px-12 lg:px-20" id="main-content">
+      <main className="w-full flex-1 px-6 py-6 md:px-12 lg:px-20" id="main-content">
         {children}
       </main>
 
