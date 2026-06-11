@@ -916,8 +916,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             />
           )}
 
-        {/* Generated patch download — each participant gets their own slot's patch */}
-        <PersonalRunPatchPanel enabled={run.status === "active"} runId={run.id} />
+        {/* Generated patch download — each participant gets their own slot's patch.
+            Served from the durable MinIO archive, so available once generated whatever the state. */}
+        <PersonalRunPatchPanel enabled={run.sessionId !== null} runId={run.id} />
 
         {/* Full spoiler download — owner or admin only, served from durable storage */}
         <PersonalRunSpoilerPanel
