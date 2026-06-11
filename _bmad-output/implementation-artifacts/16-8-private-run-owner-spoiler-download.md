@@ -1,6 +1,6 @@
 # Story 16.8: Private run - owner/admin spoiler download (from MinIO)
 
-**Status:** review
+**Status:** done
 **Epic:** 16 - Personal Runs - Private User-Created Archipelago Games
 **Date:** 2026-06-11
 
@@ -226,3 +226,4 @@ claude-opus-4-8 (Claude Code).
 |------------|--------|
 | 2026-06-11 | Story created (bridge approach), then revised to the **MinIO** approach: serve the spoiler from the already-persisted `{sessionId}/output/archive.zip` (orchestrateur untouched), owner/admin only, available in any run state; multidata never exposed (extract only the spoiler entry). Decisions confirmed with Jean: MinIO version, spoiler-only, owner OR any admin (incl. non-participant). Status → ready-for-dev. |
 | 2026-06-11 | Implemented: `Session.generatedOutputKey` (+ migration) + webhook capture; MinIO+zip spoiler reader (Infrastructure) extracting only the `*_spoiler*` entry; `PersonalRunSpoilerDownload` (owner/admin) + `GET /runs/{runId}/spoiler`; owner/admin-only frontend panel. 13 new unit tests; all gates green (backend 992 tests + frontend). Status → review. |
+| 2026-06-11 | Merged via PR #119 (CI green incl. full backend suite). Validated live by Jean. Status → done. |
