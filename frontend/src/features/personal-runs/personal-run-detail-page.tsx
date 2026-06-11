@@ -28,6 +28,7 @@ import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { PersonalRunPatchPanel } from "./personal-run-patches";
+import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -917,6 +918,12 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* Generated patch download — each participant gets their own slot's patch */}
         <PersonalRunPatchPanel enabled={run.status === "active"} runId={run.id} />
+
+        {/* Full spoiler download — owner or admin only, served from durable storage */}
+        <PersonalRunSpoilerPanel
+          enabled={(run.isOwner || (user?.roles.includes("ROLE_ADMIN") ?? false)) && run.sessionId !== null}
+          runId={run.id}
+        />
 
         {/* Player progress grid - visible to all when active or idle */}
         {run.sessionId && (run.status === "active" || run.status === "idle") && (

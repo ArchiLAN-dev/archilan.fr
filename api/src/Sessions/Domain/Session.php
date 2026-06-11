@@ -128,6 +128,9 @@ class Session
 
         #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
         private ?string $adminPassword = null,
+
+        #[ORM\Column(name: 'generated_output_key', type: Types::STRING, length: 500, nullable: true)]
+        private ?string $generatedOutputKey = null,
     ) {
     }
 
@@ -466,6 +469,16 @@ class Session
     public function setArchivedSpoilerPath(?string $path): void
     {
         $this->archivedSpoilerPath = $path;
+    }
+
+    public function getGeneratedOutputKey(): ?string
+    {
+        return $this->generatedOutputKey;
+    }
+
+    public function setGeneratedOutputKey(?string $key): void
+    {
+        $this->generatedOutputKey = $key;
     }
 
     /** @param list<array{slotName: string, errors: list<string>}>|null $errors */
