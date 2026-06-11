@@ -4,6 +4,7 @@ updates:
   # ── Backend (Composer) ──────────────────────────────────────────────────────
   - package-ecosystem: composer
     directory: /api
+    target-branch: develop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -16,6 +17,7 @@ updates:
   # ── Frontend (npm / pnpm lockfile) ──────────────────────────────────────────
   - package-ecosystem: npm
     directory: /frontend
+    target-branch: develop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -28,6 +30,7 @@ updates:
   # ── GitHub Actions versions ─────────────────────────────────────────────────
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
     groups:
@@ -38,9 +41,11 @@ updates:
   # ── Docker base images ──────────────────────────────────────────────────────
   - package-ecosystem: docker
     directory: /api
+    target-branch: develop
     schedule:
       interval: weekly
   - package-ecosystem: docker
     directory: /frontend
+    target-branch: develop
     schedule:
       interval: weekly
