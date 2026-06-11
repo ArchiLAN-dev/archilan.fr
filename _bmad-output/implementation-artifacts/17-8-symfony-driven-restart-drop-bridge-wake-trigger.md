@@ -1,6 +1,6 @@
 # Story 17.8: api + frontend — drop the custom inactivity watchdog; idle via AP, manual resume
 
-Status: review
+Status: done
 
 Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) — implemented on `feature/epic-17-restart-redesign-stories` (PR #102), in two commits (non-package, then the orchestrateur-client repoint after story 17.9 / v1.2.0).
 

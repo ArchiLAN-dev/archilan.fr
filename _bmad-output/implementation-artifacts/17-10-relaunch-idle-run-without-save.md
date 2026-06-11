@@ -1,6 +1,6 @@
 # Story 17.10: relaunch an idle run even without a save (restart from the seed)
 
-Status: review
+Status: done
 
 Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) — branch from `develop`.
 

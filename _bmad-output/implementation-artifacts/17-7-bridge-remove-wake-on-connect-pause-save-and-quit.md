@@ -1,6 +1,6 @@
 # Story 17.7: bridge — remove pause/resume/wake; the bridge lives only while AP lives
 
-Status: review
+Status: done
 
 Repo: `Archipelago-Bridge` (Python) — implemented in PR #3 (`feature/remove-pause-resume-wake` → `master`).
 

@@ -1,6 +1,6 @@
 # Story 17.9: orchestrateur-client — add `relaunchFromSave()`
 
-Status: review
+Status: done
 
 Repo: `archilan-orchestrateur-client` (`packages/orchestrateur-client/`) — PR + tag `v1.2.0`.
 
