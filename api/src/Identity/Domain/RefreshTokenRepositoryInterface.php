@@ -14,6 +14,12 @@ interface RefreshTokenRepositoryInterface
 
     public function revokeAllForUser(string $userId): void;
 
+    /**
+     * Revoke every still-active token in one rotation family (one login lineage),
+     * leaving the user's other devices/sessions untouched.
+     */
+    public function revokeFamily(string $familyId): void;
+
     public function deleteExpiredBefore(\DateTimeImmutable $threshold): int;
 
     public function deleteStale(\DateTimeImmutable $now): int;
