@@ -186,7 +186,7 @@ export function AdminUserDirectory() {
     }
 
     return (
-        <section className="grid w-full gap-8 px-4 py-10">
+        <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
             <header className="grid gap-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
                     Backoffice
@@ -448,7 +448,8 @@ function DirectoryBody({
     }
 
     return (
-        <div className="overflow-x-auto border border-border bg-surface">
+        <div className="border border-border bg-surface">
+            <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead className="border-b border-border text-muted-foreground">
                 <tr>
@@ -492,6 +493,36 @@ function DirectoryBody({
                 ))}
                 </tbody>
             </table>
+            </div>
+
+            <ul className="divide-y divide-border lg:hidden">
+                {state.users.map((user) => (
+                    <li className="space-y-3 p-4" key={user.id}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="truncate font-semibold text-foreground">{user.email}</p>
+                                <p className="text-xs text-muted-foreground">{user.displayName ?? "Nom affiché non renseigné"}</p>
+                            </div>
+                            <span className={`shrink-0 text-xs font-medium ${user.status === "deleted" ? "text-danger" : "text-success"}`}>
+                                {statusLabels[user.status]}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span className="inline-flex min-h-6 items-center border border-accent/50 px-2 font-semibold text-accent-text">
+                                {roleLabels[user.role]}
+                            </span>
+                            <time dateTime={user.createdAt}>
+                                Créé le {new Intl.DateTimeFormat("fr-FR").format(new Date(user.createdAt))}
+                            </time>
+                        </div>
+                        <RoleActionButton
+                            changing={changingUserId === user.id}
+                            onChangeRole={onChangeRole}
+                            user={user}
+                        />
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }

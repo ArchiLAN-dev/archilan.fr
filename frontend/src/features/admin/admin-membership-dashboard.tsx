@@ -67,7 +67,7 @@ export function AdminMembershipDashboard() {
   }
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <header className="grid gap-3">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
@@ -194,7 +194,8 @@ export function AdminMembershipDashboard() {
         </EmptyPanel>
       ) : (
         <>
-          <div className="overflow-x-auto border border-border bg-surface">
+          <div className="border border-border bg-surface">
+            <div className="hidden overflow-x-auto lg:block">
             <table className="w-full min-w-[860px] border-collapse text-left text-sm">
               <thead className="border-b border-border text-muted-foreground">
                 <tr>
@@ -251,6 +252,48 @@ export function AdminMembershipDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
+
+            <ul className="divide-y divide-border lg:hidden">
+              {entries.map((entry) => (
+                <li className="space-y-3 p-4" key={entry.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">{entry.email}</p>
+                      {entry.displayName && (
+                        <p className="text-xs text-muted-foreground">{entry.displayName}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0">
+                      <StatusBadge status={entry.status} />
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+                    <SourceBadge source={entry.source} />
+                    <span>Début&nbsp;: {entry.startedAt ? formatDate(entry.startedAt) : "-"}</span>
+                    <span>Expire&nbsp;: {entry.expiresAt ? formatDate(entry.expiresAt) : "-"}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 border border-border text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"
+                      type="button"
+                      onClick={() => { setBanner(null); setEditTarget(entry); }}
+                    >
+                      <Pencil aria-hidden="true" className="size-3.5" />
+                      Modifier
+                    </button>
+                    <button
+                      className="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 border border-border text-xs font-semibold text-foreground transition-colors hover:border-danger hover:text-danger"
+                      type="button"
+                      onClick={() => { setBanner(null); setDeleteTarget(entry); }}
+                    >
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                      Annuler
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {totalPages > 1 && (
