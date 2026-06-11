@@ -1,6 +1,6 @@
 # Story 16.9: Private run - participant patch download from MinIO (durable)
 
-**Status:** review
+**Status:** done
 **Epic:** 16 - Personal Runs - Private User-Created Archipelago Games
 **Date:** 2026-06-11
 
@@ -193,3 +193,4 @@ claude-opus-4-8 (Claude Code).
 |------------|--------|
 | 2026-06-11 | Story created. Follow-up to 16.8: move the participant patch download (16.7) from the live bridge to the durable MinIO output archive, so patches survive idle/stop and volume loss. Reuse the 16.8 MinIO+zip reader (generalized) + `Session.generatedOutputKey`. Same own-slot filtering/auth. Status → ready-for-dev. |
 | 2026-06-11 | Implemented: general `SessionOutputArtifactReaderInterface` (list/extract) + `MinioZipOutputArtifactReader`; `PersonalRunPatchQuery`/`Controller` switched from bridge to the MinIO archive (own-slot filter unchanged); frontend patch panel enabled once generated. 16.8 spoiler reader left standalone (just-shipped, low-risk). Tests rewritten/added; all gates green (backend 998 + frontend). Status → review. |
+| 2026-06-11 | Merged via PR #121 (CI green incl. full backend suite). Status → done. |
