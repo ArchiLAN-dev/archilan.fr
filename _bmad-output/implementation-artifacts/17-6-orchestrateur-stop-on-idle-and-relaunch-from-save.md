@@ -1,6 +1,6 @@
 # Story 17.6: orchestrateur — detect AP auto-shutdown as idle, persist the save, relaunch from it
 
-Status: review
+Status: done
 
 Repo: `archilan-orchestrateur` (Go) — implemented in PR #8 (`feature/idle-via-ap-auto-shutdown` → `master`).
 

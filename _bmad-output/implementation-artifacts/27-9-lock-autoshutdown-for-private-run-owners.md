@@ -1,6 +1,6 @@
 # Story 27.9: lock the inactivity auto-shutdown for private-run owners
 
-Status: review
+Status: done
 
 ## Story
 
