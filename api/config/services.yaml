@@ -96,6 +96,12 @@ services:
 
     App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator'
 
+    App\Sessions\Application\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader'
+
+    App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader:
+        arguments:
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
+
     App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator:
         arguments:
             $client: '@archilan.orchestrateur_client'
