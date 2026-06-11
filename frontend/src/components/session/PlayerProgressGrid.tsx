@@ -131,12 +131,28 @@ export function PlayerProgressGrid({
         setState((prev) =>
           prev.kind === "active" ? { ...prev, connected: false } : prev,
         );
-        if (!cancelled) {
-          reconnectTimerRef.current = setTimeout(
-            () => { connect(token, hubUrl, topic); },
-            5_000,
-          );
-        }
+        if (cancelled) return;
+        reconnectTimerRef.current = setTimeout(() => {
+          // Re-mint a fresh subscriber token before reconnecting: the previous one may
+          // have expired (the old code looped forever on a stale token). apiFetch also
+          // recovers an expired access token here. Fall back to the old token on failure.
+          void (async () => {
+            try {
+              const res = await apiFetch(`${env.apiBaseUrl}/sessions/${runId}/players-token`);
+              if (cancelled) return;
+              if (res.ok) {
+                const json = (await res.json()) as {
+                  data: { token: string; hubUrl: string; topic: string };
+                };
+                connect(json.data.token, json.data.hubUrl, json.data.topic);
+                return;
+              }
+            } catch {
+              /* fall through to retry with the existing token */
+            }
+            if (!cancelled) connect(token, hubUrl, topic);
+          })();
+        }, 5_000);
       };
     }
 
