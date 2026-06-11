@@ -28,7 +28,11 @@ final class RotateRefreshTokenTest extends TestCase
         $repo->expects(self::never())->method('revokeFamily');
         $persisted = null;
         $repo->expects(self::once())->method('persist')->with(self::callback(
-            function (RefreshToken $t) use (&$persisted): bool { $persisted = $t; return true; },
+            function (RefreshToken $t) use (&$persisted): bool {
+                $persisted = $t;
+
+                return true;
+            },
         ));
 
         $result = $this->rotator($repo)->rotate('raw', $this->now(), 'UA', $this->req());
@@ -65,7 +69,11 @@ final class RotateRefreshTokenTest extends TestCase
         $repo->expects(self::never())->method('revokeFamily');
         $persisted = null;
         $repo->expects(self::once())->method('persist')->with(self::callback(
-            function (RefreshToken $t) use (&$persisted): bool { $persisted = $t; return true; },
+            function (RefreshToken $t) use (&$persisted): bool {
+                $persisted = $t;
+
+                return true;
+            },
         ));
 
         $result = $this->rotator($repo)->rotate('raw', $this->now(), 'UA', $this->req());
