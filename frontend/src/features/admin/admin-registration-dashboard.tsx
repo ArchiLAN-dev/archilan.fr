@@ -253,7 +253,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
   }
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       <header>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Backoffice
@@ -395,7 +395,7 @@ function RegistrationList({
   }
 
   return (
-    <div className="overflow-x-auto border border-border bg-surface">
+    <div className="min-w-0 overflow-x-auto border border-border bg-surface">
       <table className="w-full min-w-[960px] border-collapse text-left text-sm">
         <thead className="border-b border-border text-muted-foreground">
           <tr>
