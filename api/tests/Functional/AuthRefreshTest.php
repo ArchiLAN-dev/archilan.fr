@@ -137,16 +137,21 @@ final class AuthRefreshTest extends FunctionalTestCase
         self::assertSame('invalid_refresh_token', $response['error']['code']);
     }
 
-    public function testReuseOfRevokedTokenRevokesAllAndReturns401(): void
+    public function testReuseOfRevokedTokenRevokesOnlyItsFamilyAndReturns401(): void
     {
         $now = new \DateTimeImmutable();
 
+        // token1 + a sibling in the SAME family (one login lineage).
         ['rawToken' => $raw1, 'entity' => $token1] = $this->factory->issue($this->userId, $now);
-        ['rawToken' => $raw2, 'entity' => $token2] = $this->factory->issue($this->userId, $now);
+        ['rawToken' => $rawSibling, 'entity' => $sibling] = $this->factory->issue($this->userId, $now, null, true, $token1->getFamilyId());
+        // an UNRELATED session (another device = its own family).
+        ['rawToken' => $rawOther, 'entity' => $other] = $this->factory->issue($this->userId, $now);
         $this->em->persist($token1);
-        $this->em->persist($token2);
+        $this->em->persist($sibling);
+        $this->em->persist($other);
         $this->em->flush();
 
+        // token1 is revoked but NOT rotated (no successor) -> genuine reuse, not a grace retry.
         $token1->revoke($now);
         $this->em->flush();
 
@@ -166,8 +171,40 @@ final class AuthRefreshTest extends FunctionalTestCase
         self::assertSame('token_reuse_detected', $response['error']['code']);
 
         $this->em->clear();
-        $stillActive = $this->repository->findByTokenHash(hash('sha256', $raw2));
-        self::assertNotNull($stillActive);
-        self::assertTrue($stillActive->isRevoked());
+        // The sibling in the same family is revoked...
+        $sib = $this->repository->findByTokenHash(hash('sha256', $rawSibling));
+        self::assertNotNull($sib);
+        self::assertTrue($sib->isRevoked());
+        // ...but the unrelated device's session survives (no global logout).
+        $oth = $this->repository->findByTokenHash(hash('sha256', $rawOther));
+        self::assertNotNull($oth);
+        self::assertFalse($oth->isRevoked());
+    }
+
+    public function testGraceRetryOfRecentlyRotatedTokenSucceeds(): void
+    {
+        $now = new \DateTimeImmutable();
+
+        ['rawToken' => $raw1, 'entity' => $token1] = $this->factory->issue($this->userId, $now);
+        $this->em->persist($token1);
+        $this->em->flush();
+
+        // Simulate token1 having just been rotated (revoked + has a successor) - a re-presentation
+        // within the grace window is a benign retry, not reuse.
+        $token1->markRotated('successor-hash', $now);
+        $this->em->flush();
+
+        $this->client->getCookieJar()->set(
+            new \Symfony\Component\BrowserKit\Cookie(
+                AuthController::REFRESH_COOKIE_NAME,
+                $raw1,
+                null,
+                AuthController::REFRESH_COOKIE_PATH,
+            )
+        );
+        $this->client->jsonRequest('POST', AuthController::REFRESH_COOKIE_PATH);
+
+        // Recovered (204), not logged out (401).
+        self::assertResponseStatusCodeSame(204);
     }
 }
