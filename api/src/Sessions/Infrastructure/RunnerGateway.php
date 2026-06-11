@@ -215,9 +215,21 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
 
     private function buildPlayerYaml(string $slotName, string $rawYaml): PlayerYaml
     {
+        // Strip a leading UTF-8 BOM before parsing: Symfony's YAML parser throws on it
+        // ("Mapping values are not allowed in multi-line blocks at line 1"), which used to
+        // be swallowed below and produce a player YAML with an empty game - the AP generator
+        // then fails with "No world found to handle game ." and the run never launches.
+        if (str_starts_with($rawYaml, "\u{FEFF}")) {
+            $rawYaml = substr($rawYaml, 3);
+        }
+
         try {
             $parsed = Yaml::parse($rawYaml);
-        } catch (ParseException) {
+        } catch (ParseException $e) {
+            $this->logger->error('runner.player_yaml_parse_failed', [
+                'slotName' => $slotName,
+                'error' => $e->getMessage(),
+            ]);
             $parsed = [];
         }
 
@@ -227,7 +239,13 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
 
         $game = is_string($parsed['game'] ?? null) ? $parsed['game'] : '';
 
-        $gameSection = ('' !== $game && is_array($parsed[$game] ?? null)) ? $parsed[$game] : [];
+        // A player YAML with no resolvable game can never generate; fail loudly at configure
+        // time (the caller marks the session failed) instead of staging a broken `game: ''`.
+        if ('' === $game) {
+            throw new \RuntimeException(sprintf('Player YAML for slot "%s" has no resolvable game.', $slotName));
+        }
+
+        $gameSection = is_array($parsed[$game] ?? null) ? $parsed[$game] : [];
 
         $options = [];
         foreach ($gameSection as $key => $value) {

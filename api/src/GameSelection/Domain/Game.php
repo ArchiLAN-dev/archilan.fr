@@ -111,7 +111,9 @@ class Game
         $this->apworldStorageKey = $storageKey;
         $this->apworldHash = $hash;
         $this->apworldUploadedAt = $now;
-        $this->defaultYaml = $defaultYaml;
+        // Strip a leading UTF-8 BOM: apworld templates authored on Windows often carry one,
+        // which breaks the YAML parser downstream (it reads an empty game). Sanitize at the source.
+        $this->defaultYaml = str_starts_with($defaultYaml, "\u{FEFF}") ? substr($defaultYaml, 3) : $defaultYaml;
         $this->archipelagoGameName = $archipelagoGameName;
         $this->updatedAt = $now;
     }

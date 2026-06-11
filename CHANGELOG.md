@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.2.1] - 2026-06-11
+
+Correctif d'un blocage de génération sur les parties privées, plus deux améliorations
+autour des fichiers générés (servis depuis le stockage durable MinIO).
+
+### Corrigé
+
+- **Génération des parties privées en template par défaut** : un BOM UTF-8 en tête des
+  templates apworld faisait échouer la lecture du YAML (jeu vidé), donc la génération
+  échouait et le serveur ne démarrait jamais. Le BOM est désormais retiré (au parse et à
+  l'ingestion), les templates existants sont nettoyés, et un échec de configuration n'immobilise
+  plus la partie sur « démarrage ».
+
+### Ajouté
+
+- **Téléchargement du spoiler** d'une partie privée par son propriétaire (ou un admin),
+  servi depuis le stockage durable — disponible quel que soit l'état de la partie.
+- **Patchs des joueurs** d'une partie privée servis depuis le stockage durable : chaque
+  joueur récupère le patch de son slot même partie arrêtée/en veille.
+
 ## [0.2.0] - 2026-06-11
 
 Deuxième release : refonte du cycle de vie des runs (restart/idle), configuration
@@ -120,5 +140,6 @@ version et la publication d'images Docker versionnées sur GHCR.
 - Pipelines backend (PHPStan, PHP-CS-Fixer, PHPUnit, validation
   d'architecture DDD) et frontend (typecheck, lint, build) sur chaque PR.
 
+[0.2.1]: https://github.com/ArchiLAN-dev/archilan.fr/releases/tag/v0.2.1
 [0.2.0]: https://github.com/ArchiLAN-dev/archilan.fr/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ArchiLAN-dev/archilan.fr/releases/tag/v0.1.0

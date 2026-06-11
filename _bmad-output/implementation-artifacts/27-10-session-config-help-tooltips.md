@@ -1,6 +1,6 @@
 # Story 27.10: contextual help (ⓘ tooltips) for session config options
 
-Status: review
+Status: done
 
 Repo: `archilan.fr` (monorepo, `frontend/`) — branch from `develop`.
 

@@ -157,6 +157,8 @@ final readonly class LaunchPersonalRunJobHandler
                 'error' => $e->getMessage(),
             ]);
             $session->transition(Session::STATUS_FAILED, $now);
+            // Don't leave the run stuck on "starting": reset it so the owner can retry.
+            $run->resetAfterValidationFailure($now);
             $this->sessions->flush();
 
             return;
@@ -168,6 +170,7 @@ final readonly class LaunchPersonalRunJobHandler
             $this->personalRunAdvancer->autoAdvancePersonalRun($sessionId);
         } else {
             $session->transition(Session::STATUS_FAILED, $now);
+            $run->resetAfterValidationFailure($now);
             $this->sessions->flush();
         }
 

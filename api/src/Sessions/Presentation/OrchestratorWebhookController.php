@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation;
 
+use App\Sessions\Application\RecordSessionGeneratedOutput;
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Sessions\Application\SessionOrchestrator;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -28,6 +29,7 @@ final readonly class OrchestratorWebhookController
         private SessionLifecycleManager $sessionLifecycleManager,
         private SessionOrchestrator $sessionOrchestrator,
         private MarkWeeklyRunGenerated $markWeeklyRunGenerated,
+        private RecordSessionGeneratedOutput $recordSessionGeneratedOutput,
         private LoggerInterface $logger,
         private string $orchestrateurWebhookSecret,
     ) {
@@ -75,6 +77,12 @@ final readonly class OrchestratorWebhookController
             if (!($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }
+
+            // Persist the generated output archive key so the owner/admin can later download
+            // the spoiler from durable storage even when the run is idle/stopped (story 16.8).
+            $outputKey = is_string($body['outputKey'] ?? null) ? $body['outputKey'] : '';
+            $this->recordSessionGeneratedOutput->execute($sessionId, $outputKey);
+
             $this->sessionOrchestrator->autoAdvancePersonalRun($sessionId);
 
             return new JsonResponse(['data' => ['ok' => true]]);
