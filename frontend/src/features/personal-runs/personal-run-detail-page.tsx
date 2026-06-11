@@ -27,6 +27,7 @@ import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { PersonalRunPatchPanel } from "./personal-run-patches";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -619,7 +620,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         </div>
       )}
 
-      <div className="mx-auto grid max-w-2xl gap-8">
+      <div className="mx-auto grid w-full max-w-2xl grid-cols-1 gap-8">
         {/* Header */}
         <header>
           <button
@@ -674,6 +675,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 save: (o) => saveOverride(`/runs/${run.id}/config-override`, o),
                 clear: () => clearOverride(`/runs/${run.id}/config-override`),
               }}
+              lockedKeys={["autoShutdown"]}
               scopeLabel="cette run"
             />
           </CollapsibleConfigPanel>
@@ -681,7 +683,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* Status-conditional panels - owner actions */}
         {run.isOwner && (
-          <section className="grid gap-4">
+          <section className="grid min-w-0 grid-cols-1 gap-4">
             {actionError && (
               <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 px-4 py-3 text-sm text-[color:var(--color-danger)]">
                 <X aria-hidden className="size-4 shrink-0" />
@@ -809,38 +811,23 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               <div className="grid gap-3">
               <div className="rounded-lg border border-border bg-surface p-4">
                 <p className="mb-3 rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  La partie redémarre automatiquement dès qu&apos;un joueur tente de se connecter. Vous pouvez aussi la relancer manuellement.
+                  {run.pausedWithoutSave
+                    ? "La partie s'est mise en pause sans sauvegarde disponible. La relancer la redémarrera depuis le début, avec la même configuration et les mêmes slots."
+                    : "La partie s'est mise en pause après une période d'inactivité. Reprends-la pour continuer : la dernière sauvegarde sera chargée automatiquement."}
                 </p>
-                {run.pausedWithoutSave ? (
-                  <div>
-                    <button
-                      className="inline-flex items-center gap-2 rounded border border-border px-4 py-2 text-sm font-semibold text-muted-foreground opacity-50 cursor-not-allowed"
-                      disabled
-                      title="Reprise impossible : aucune sauvegarde disponible"
-                      type="button"
-                    >
-                      <RotateCcw aria-hidden className="size-4" />
-                      Reprendre manuellement
-                    </button>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Reprise impossible : aucune sauvegarde disponible.
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-                    disabled={actioning || !run.sessionId}
-                    onClick={() => { if (run.sessionId) void handleRestart(run.sessionId); }}
-                    type="button"
-                  >
-                    {actioning ? (
-                      <Loader2 aria-hidden className="size-4 animate-spin" />
-                    ) : (
-                      <RotateCcw aria-hidden className="size-4" />
-                    )}
-                    Reprendre manuellement
-                  </button>
-                )}
+                <button
+                  className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                  disabled={actioning || !run.sessionId}
+                  onClick={() => { if (run.sessionId) void handleRestart(run.sessionId); }}
+                  type="button"
+                >
+                  {actioning ? (
+                    <Loader2 aria-hidden className="size-4 animate-spin" />
+                  ) : (
+                    <RotateCcw aria-hidden className="size-4" />
+                  )}
+                  {run.pausedWithoutSave ? "Relancer depuis le début" : "Reprendre manuellement"}
+                </button>
               </div>
               <button
                 className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
@@ -927,6 +914,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               port={run.connectionPort}
             />
           )}
+
+        {/* Generated patch download — each participant gets their own slot's patch */}
+        <PersonalRunPatchPanel enabled={run.status === "active"} runId={run.id} />
 
         {/* Player progress grid - visible to all when active or idle */}
         {run.sessionId && (run.status === "active" || run.status === "idle") && (

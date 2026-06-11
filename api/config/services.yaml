@@ -17,6 +17,9 @@ parameters:
     default_minio_secret_key: 'minioadmin'
     default_empty_string: ''
     default_inactivity_timeout: 3600
+    default_cleanup_token_consumed_grace_days: 7
+    default_cleanup_helloasso_sync_log_retention_days: 90
+    default_cleanup_event_access_log_retention_days: 365
 
 services:
     # default configuration for services in *this* file
@@ -39,6 +42,9 @@ services:
             string $siteUrl: '%env(FRONTEND_ORIGIN)%'
             string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
             string $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
+            int $tokenConsumedGraceDays: '%env(default:default_cleanup_token_consumed_grace_days:int:CLEANUP_TOKEN_CONSUMED_GRACE_DAYS)%'
+            int $helloAssoSyncLogRetentionDays: '%env(default:default_cleanup_helloasso_sync_log_retention_days:int:CLEANUP_HELLOASSO_SYNC_LOG_RETENTION_DAYS)%'
+            int $eventAccessLogRetentionDays: '%env(default:default_cleanup_event_access_log_retention_days:int:CLEANUP_EVENT_ACCESS_LOG_RETENTION_DAYS)%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -181,10 +187,6 @@ services:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
 
-    App\Sessions\Application\ScheduledTask\InactivityWatchdogHandler:
-        arguments:
-            $inactivityTimeoutSeconds: '%env(default:default_inactivity_timeout:int:ARCHIPELAGO_INACTIVITY_TIMEOUT_SECONDS)%'
-
     App\Shared\Infrastructure\DockerSocketClient:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'
@@ -292,6 +294,7 @@ services:
     App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
     App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
     App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
+    App\GameSelection\Application\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\DbalGameUsageCounter'
 
     App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
 

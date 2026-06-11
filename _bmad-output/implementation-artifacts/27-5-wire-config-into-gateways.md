@@ -16,12 +16,12 @@ This is the integration story: it connects the resolver (27.2) to the orchestrat
 27.2, 27.3, 27.4.
 
 The three contexts that launch/generate (verified):
-- **WeeklyRuns** — generation: `GenerateWeeklyRunForTemplate` / `GenerateWeeklyRunsMessageHandler`
+- **WeeklyRuns** - generation: `GenerateWeeklyRunForTemplate` / `GenerateWeeklyRunsMessageHandler`
   (→ `WeeklyRunGeneratorInterface` / `OrchestratorWeeklyRunGenerator`); launch:
   `LaunchWeeklyEntry` (→ `WeeklyRunnerGatewayInterface` / `OrchestratorWeeklyRunnerGateway`).
-- **Sessions (events)** — `SessionOrchestrator` / `SessionLifecycleManager` (→ `RunnerGatewayInterface`
+- **Sessions (events)** - `SessionOrchestrator` / `SessionLifecycleManager` (→ `RunnerGatewayInterface`
   / `RunnerGateway`).
-- **PersonalRuns (private)** — `LaunchPersonalRunJobHandler` (→ its runner gateway).
+- **PersonalRuns (private)** - `LaunchPersonalRunJobHandler` (→ its runner gateway).
 
 ## Acceptance Criteria
 
@@ -29,7 +29,7 @@ The three contexts that launch/generate (verified):
    triggers launch gains the server params (typed from the 27.1 VOs / their transport seam).
 2. Each `Orchestrator*` gateway implementation sends the new fields to the orchestrateur
    (generate: plando/race/spoiler; launch: remaining/itemCheat/hintCost/checkPoints/countdown/
-   autoShutdown/compatibility/joinPassword — release/collect already sent).
+   autoShutdown/compatibility/joinPassword - release/collect already sent).
 3. Each launch/generation use case resolves the **effective** config via `SessionConfigResolver`
    (27.2): weekly → type `weekly`, event → `event`, private → `private`, applying any per-session
    override; passes it to its gateway. The resolved config is recorded per session (27.2 AC6) so a
@@ -42,23 +42,23 @@ The three contexts that launch/generate (verified):
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Extend `WeeklyRunnerGatewayInterface` (launch) + `WeeklyRunGeneratorInterface`
+- [x] Task 1 - Extend `WeeklyRunnerGatewayInterface` (launch) + `WeeklyRunGeneratorInterface`
   (generation) and their `Orchestrator*` impls + `Null*`/`Spy*`; resolve config in `LaunchWeeklyEntry`
   and `GenerateWeeklyRunForTemplate`/`GenerateWeeklyRunsMessageHandler` (AC: 1–4).
-- [x] Task 2 — Extend `Sessions` `RunnerGatewayInterface` + `RunnerGateway`/`NullRunnerGateway`; resolve
+- [x] Task 2 - Extend `Sessions` `RunnerGatewayInterface` + `RunnerGateway`/`NullRunnerGateway`; resolve
   in `SessionOrchestrator`/`SessionLifecycleManager` launch (AC: 1–4).
-- [x] Task 3 — Extend `PersonalRuns` runner gateway + impl; resolve in `LaunchPersonalRunJobHandler`
+- [x] Task 3 - Extend `PersonalRuns` runner gateway + impl; resolve in `LaunchPersonalRunJobHandler`
   (AC: 1–4).
-- [x] Task 4 — Inject `SessionConfigResolver` (27.2) into each use case (constructor injection only,
+- [x] Task 4 - Inject `SessionConfigResolver` (27.2) into each use case (constructor injection only,
   api/CLAUDE.md). Record resolved config per session.
-- [x] Task 5 — Update spies/nulls + tests; run all four gates (AC: 4–6).
+- [x] Task 5 - Update spies/nulls + tests; run all four gates (AC: 4–6).
 
 ## Dev Notes
 
 - **Gateways send to the orchestrateur** via HTTP. Launch params map to the orchestrateur
   `/sessions/{id}/launch` or `/launch-from-file` body/form (fields added in 27.3); generation params to
   `/sessions/{id}/generate` (27.4). The weekly gateway already builds a `launch-from-file` multipart
-  request (`OrchestratorWeeklyRunnerGateway::launchEntry`) — add the new form fields there.
+  request (`OrchestratorWeeklyRunnerGateway::launchEntry`) - add the new form fields there.
 - **Resolver dependency direction** (api/CLAUDE.md): use cases (Application) depend on the
   `SessionConfigResolver` (Application service) + gateway interfaces; no Infrastructure leakage.
 - **Per-session id** for the resolver/override = the external session id each context already uses

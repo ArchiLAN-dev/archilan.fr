@@ -31,7 +31,7 @@ final readonly class SessionConfigOverride
     }
 
     /**
-     * Full override capturing every field of a resolved config — used to snapshot the
+     * Full override capturing every field of a resolved config - used to snapshot the
      * effective config for a session so a restart reuses it (see SessionConfigResolver).
      */
     public static function fromConfig(SessionConfig $c): self

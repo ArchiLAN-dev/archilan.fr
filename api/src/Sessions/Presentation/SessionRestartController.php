@@ -46,31 +46,7 @@ final readonly class SessionRestartController
             return $this->apiAccessGuard->errorResponse('invalid_session_status', 'La session n\'est pas en état idle.', 422);
         }
 
-        if ('no_save_available' === $result['error']) {
-            return $this->apiAccessGuard->errorResponse('no_save_available', 'Aucune sauvegarde disponible pour cette session.', 422);
-        }
-
         return new JsonResponse(['data' => ['sessionId' => $result['sessionId'], 'status' => $result['status']]], 202);
-    }
-
-    #[Route('/api/v1/internal/sessions/{sessionId}/restarting', methods: ['POST'])]
-    public function restarting(Request $request, string $sessionId): JsonResponse
-    {
-        if (!$this->bearerTokenValid($request)) {
-            return $this->apiAccessGuard->errorResponse('unauthorized', 'Token invalide.', 401);
-        }
-
-        $result = $this->sessionLifecycleManager->markRestartingBridge($sessionId);
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
-        }
-
-        if (null !== $result['error'] && 'already_restarting' !== $result['status']) {
-            return $this->apiAccessGuard->errorResponse('invalid_status', $result['error'], 409);
-        }
-
-        return new JsonResponse(['data' => ['ok' => true]]);
     }
 
     #[Route('/api/v1/internal/sessions/{sessionId}/restart-failed', methods: ['POST'])]

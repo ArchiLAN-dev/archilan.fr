@@ -49,7 +49,7 @@ jobs:
 
       # warn-only for now: pre-existing high advisories (e.g. Next.js < 16.2.5) are
       # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
-      # once the backlog is green — story 0.7 AC3.
+      # once the backlog is green - story 0.7 AC3.
       - name: Audit (high+ severity)
         run: pnpm audit --audit-level high
         continue-on-error: true

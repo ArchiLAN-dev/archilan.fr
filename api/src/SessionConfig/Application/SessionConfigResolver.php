@@ -11,7 +11,7 @@ use App\SessionConfig\Domain\SessionType;
 
 /**
  * Resolves the effective config for a session: the type profile merged with a per-scope override
- * (template id for weekly, session id for event, run id for private — the admin/owner-controlled
+ * (template id for weekly, session id for event, run id for private - the admin/owner-controlled
  * stable key). Used by the launch/generation paths (story 27.5). Scope-keyed overrides are stable,
  * so re-resolving at restart is deterministic without snapshotting.
  */

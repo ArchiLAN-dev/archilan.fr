@@ -175,7 +175,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * ROLE_MEMBER persists even after the membership expires — it is NOT a live
+     * ROLE_MEMBER persists even after the membership expires - it is NOT a live
      * indicator of active membership. Use ApiAccessGuard::requireAuthenticatedMember()
      * or isGranted('IS_MEMBER') for access control; never isGranted('ROLE_MEMBER').
      */

@@ -1,4 +1,4 @@
-# Story 27.3: Orchestrateur + archipelago — remaining server_options on launch
+# Story 27.3: Orchestrateur + archipelago - remaining server_options on launch
 
 Status: done
 
@@ -42,20 +42,20 @@ archipelago `ap_server.sh`/`entrypoint.sh` `--release_mode`/`--collect_mode`). T
 
 ## Tasks / Subtasks
 
-- [x] Task 1 (archipelago) — Add the flags to `ap_server.sh` and `entrypoint.sh` with `${VAR:-default}`
+- [x] Task 1 (archipelago) - Add the flags to `ap_server.sh` and `entrypoint.sh` with `${VAR:-default}`
   env indirection; verify exact argparse names/semantics against the bundled `MultiServer.py`. `sh -n`.
-- [x] Task 2 (orchestrateur) — Extend `LaunchRequest` + `APServerCreateConfig` (internal/service,
+- [x] Task 2 (orchestrateur) - Extend `LaunchRequest` + `APServerCreateConfig` (internal/service,
   internal/docker) with the new fields; append env in `CreateAPServer` only when non-empty; thread
   through `Launch → startSession → CreateAPServer` (same shape as ReleaseMode/CollectMode).
-- [x] Task 3 (orchestrateur) — Validation helpers (reuse/extend `validAPMode`; add range checks); map to
+- [x] Task 3 (orchestrateur) - Validation helpers (reuse/extend `validAPMode`; add range checks); map to
   400 in `writeSessionError`. Extend `internal/service/mode_test.go`.
-- [x] Task 4 (orchestrateur) — API: `LaunchSessionRequest` JSON fields + `/launch-from-file` form values
+- [x] Task 4 (orchestrateur) - API: `LaunchSessionRequest` JSON fields + `/launch-from-file` form values
   + swagger `@Param`.
-- [x] Task 5 — `go build/vet/test`; PR to orchestrateur `master`; PR to archipelago `master`; both CI green.
+- [x] Task 5 - `go build/vet/test`; PR to orchestrateur `master`; PR to archipelago `master`; both CI green.
 
 ## Dev Notes
 
-- **Exact precedent to copy:** the release/collect implementation merged this session —
+- **Exact precedent to copy:** the release/collect implementation merged this session -
   archipelago `ap_server.sh`/`entrypoint.sh` (`--release_mode "${RELEASE_MODE:-disabled}"`), orchestrateur
   `internal/docker/client.go` `CreateAPServer` (env appended only when non-empty),
   `internal/service/session.go` `LaunchRequest`/`startSession`/`validAPMode`,
@@ -65,7 +65,7 @@ archipelago `ap_server.sh`/`entrypoint.sh` `--release_mode`/`--collect_mode`). T
   are value args; `--countdown` choices `enabled|disabled|auto`; `--compatibility` int.
 - Defense in depth: validate in orchestrateur **and** (27.1) in the api/ domain.
 - `host.yaml` is NOT baked into the image (no COPY) → CLI flags are authoritative; empty env keeps the
-  AP built-in default, which for release/collect is `auto` — hence we always set safe defaults in scripts.
+  AP built-in default, which for release/collect is `auto` - hence we always set safe defaults in scripts.
 
 ### Project Structure Notes
 
@@ -100,7 +100,7 @@ claude-opus-4-8 (Claude Code).
   release/collect keep forced `disabled`.
 - **orchestrateur** (PR archilan-orchestrateur#6, merged to `master`): `LaunchRequest` +
   `APServerCreateConfig` gained `RemainingMode`, `CountdownMode` (strings), `DisableItemCheat` (*bool),
-  `HintCost`/`LocationCheckPoints`/`AutoShutdown`/`Compatibility` (*int — pointers so meaningful zeros
+  `HintCost`/`LocationCheckPoints`/`AutoShutdown`/`Compatibility` (*int - pointers so meaningful zeros
   like `compatibility=0` are distinct from unset). `CreateAPServer` emits each env only when set.
   `validateServerOptions` validates modes + int ranges → 400 (`ErrInvalidMode`). API: JSON
   `LaunchSessionRequest` + `/launch-from-file` form parsing (`parseOptInt`/`parseOptBool` +
@@ -108,7 +108,7 @@ claude-opus-4-8 (Claude Code).
   `LaunchRequest`. `go build/vet/test` green (`TestValidateServerOptions`).
 - Both `:latest` images built on `master` merge. **Requires redeploy** to take effect on launched
   servers; applies to new launches only.
-- Not in this story: the api/ resolution + wiring (27.5) and the config store/UI (27.1/27.2/27.6) —
+- Not in this story: the api/ resolution + wiring (27.5) and the config store/UI (27.1/27.2/27.6) -
   this story only gives the orchestrateur/archipelago the *capability* to accept the options.
 
 ### File List

@@ -34,7 +34,7 @@ final class SessionRestartFailedEmail extends ArchilanEmail
         return <<<TEXT
         [ArchiLAN - alerte automatique]
 
-        La session {$this->sessionId} n'a pas pu redémarrer automatiquement après une tentative de wake-on-connect.
+        La session {$this->sessionId} n'a pas pu redémarrer après une tentative de relance.
 
         La session a été remise en pause. Veuillez vérifier les logs du bridge et du runner avant de relancer la partie.
         TEXT;

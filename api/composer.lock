@@ -84,21 +84,21 @@
             "license": [
                 "proprietary"
             ],
-            "description": "Symfony bundle — autoconfigures the Archilan bridge WebSocket dispatcher.",
+            "description": "Symfony bundle - autoconfigures the Archilan bridge WebSocket dispatcher.",
             "time": "2026-06-04T18:15:40+00:00"
         },
         {
             "name": "archilan/orchestrateur-client",
-            "version": "1.1.0",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:ArchiLAN-dev/archilan-orchestrateur-client.git",
-                "reference": "80129ac951fb9fc4c4d13c2637526d35bfe9dd2a"
+                "reference": "49b2d9d9a1ed3bec8a0cdb98dfe529989aecb2b1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/80129ac951fb9fc4c4d13c2637526d35bfe9dd2a",
-                "reference": "80129ac951fb9fc4c4d13c2637526d35bfe9dd2a",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/49b2d9d9a1ed3bec8a0cdb98dfe529989aecb2b1",
+                "reference": "49b2d9d9a1ed3bec8a0cdb98dfe529989aecb2b1",
                 "shasum": ""
             },
             "require": {
@@ -127,7 +127,7 @@
                 "proprietary"
             ],
             "description": "PHP client for the Archilan orchestrateur REST API.",
-            "time": "2026-06-09T11:35:04+00:00"
+            "time": "2026-06-10T14:26:12+00:00"
         },
         {
             "name": "aws/aws-crt-php",

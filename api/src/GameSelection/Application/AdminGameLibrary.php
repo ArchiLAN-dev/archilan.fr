@@ -23,15 +23,16 @@ final readonly class AdminGameLibrary
         private MinioStorageInterface $minioStorage,
         private string $minioApworldsBucket,
         private ApworldVersionChecker $apworldVersionChecker,
+        private GameUsageCounterInterface $gameUsageCounter,
     ) {
     }
 
     /**
      * @return array{items: list<array<string, mixed>>, total: int, page: int, perPage: int, totalPages: int}
      */
-    public function list(int $page = 1, int $perPage = 50, string $search = '', ?string $availability = null, ?bool $yamlReady = null, ?bool $apworldReady = null): array
+    public function list(int $page = 1, int $perPage = 50, string $search = '', ?string $availability = null, ?bool $yamlReady = null, ?bool $apworldReady = null, string $sort = 'name', string $dir = 'asc'): array
     {
-        $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady, $apworldReady);
+        $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady, $apworldReady, $sort, $dir);
         $totalPages = $result['total'] > 0 ? (int) ceil($result['total'] / $perPage) : 1;
 
         return [
@@ -419,8 +420,7 @@ final readonly class AdminGameLibrary
 
     private function usageCount(Game $game): int
     {
-        // Registration/game usage is introduced by later stories. Keep the boundary explicit.
-        return 0;
+        return $this->gameUsageCounter->count($game->getId());
     }
 
     /**

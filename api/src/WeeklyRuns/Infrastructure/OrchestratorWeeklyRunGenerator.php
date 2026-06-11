@@ -44,7 +44,7 @@ final readonly class OrchestratorWeeklyRunGenerator implements WeeklyRunGenerato
         // 2. Configure the generator session with the apworld + the fixed template YAML.
         $this->configureSession($genSessionId, $apworldHash, $templateYaml);
 
-        // 3. Kick off generation with the run's deterministic seed — non-blocking.
+        // 3. Kick off generation with the run's deterministic seed - non-blocking.
         //    Completion arrives later via the `session.generated` webhook (outputKey),
         //    which marks the run launchable. We never poll here.
         $this->client->sessions()->generate($genSessionId, bin2hex(random_bytes(16)), $seed, $generationOptions);

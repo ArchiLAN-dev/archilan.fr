@@ -19,7 +19,7 @@ export function useChiptune(): void {
 
         try {
             ctx = new AudioContext();
-            // Resume if suspended — browser autoplay policy blocks AudioContext
+            // Resume if suspended - browser autoplay policy blocks AudioContext
             // created outside a user gesture. By goal time the page has been
             // interacted with, so resume() succeeds and the clock starts from 0.
             void ctx.resume();

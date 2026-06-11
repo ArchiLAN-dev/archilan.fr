@@ -1,10 +1,10 @@
-# Story 0.7: CI Hardening — Security Scanning, Postgres-Backed Tests, Dependency Automation
+# Story 0.7: CI Hardening - Security Scanning, Postgres-Backed Tests, Dependency Automation
 
 ## Story
 
 **As** the ArchiLAN maintainers,
 **I want** the monorepo CI extended with dependency automation, security scanning, Postgres-backed backend tests, image scanning, and run hygiene,
-**So that** known-vulnerable dependencies, Postgres-only bugs, and image CVEs are caught automatically — closing gaps that the current SQLite-based, scan-less pipeline misses.
+**So that** known-vulnerable dependencies, Postgres-only bugs, and image CVEs are caught automatically - closing gaps that the current SQLite-based, scan-less pipeline misses.
 
 ## Status
 
@@ -14,56 +14,56 @@ approved
 
 The monorepo already has solid CI (`.github/workflows/`):
 
-- **`backend.yml`** — composer validate, PHPStan, CS Fixer, DDD validator, PHPUnit + coverage (clover + HTML artifact), composer cache. Runs on `api/**`.
-- **`frontend.yml`** — lint, typecheck, test (`--if-present`), build, bundle analysis, pnpm cache. Runs on `frontend/**`.
-- **`docker-publish.yml`** — builds + pushes `api-web`, `api-worker`, `frontend` images to ghcr on `main`/`develop`, build-only on PR, GHA layer cache.
+- **`backend.yml`** - composer validate, PHPStan, CS Fixer, DDD validator, PHPUnit + coverage (clover + HTML artifact), composer cache. Runs on `api/**`.
+- **`frontend.yml`** - lint, typecheck, test (`--if-present`), build, bundle analysis, pnpm cache. Runs on `frontend/**`.
+- **`docker-publish.yml`** - builds + pushes `api-web`, `api-worker`, `frontend` images to ghcr on `main`/`develop`, build-only on PR, GHA layer cache.
 
 Gaps this story closes:
 
-1. **No dependency automation** — no Dependabot; composer/pnpm/Actions/Docker base images drift and accrue silent CVEs.
-2. **No security scanning** — no `composer audit`/`pnpm audit`, no SAST (CodeQL), no image CVE scan on the published images.
-3. **Backend tests run on SQLite** while prod is **Postgres** — Postgres-only behaviour is untested. This bit us directly (the `search` filter uses `ILIKE`, which SQLite rejects, so that path is currently untestable — see story 23.7 AC2 caveat).
-4. **Run hygiene** — no `concurrency` (superseded runs keep burning minutes); coverage is produced but no floor; PHP tested only on 8.4 though `composer.json` allows 8.3.
+1. **No dependency automation** - no Dependabot; composer/pnpm/Actions/Docker base images drift and accrue silent CVEs.
+2. **No security scanning** - no `composer audit`/`pnpm audit`, no SAST (CodeQL), no image CVE scan on the published images.
+3. **Backend tests run on SQLite** while prod is **Postgres** - Postgres-only behaviour is untested. This bit us directly (the `search` filter uses `ILIKE`, which SQLite rejects, so that path is currently untestable - see story 23.7 AC2 caveat).
+4. **Run hygiene** - no `concurrency` (superseded runs keep burning minutes); coverage is produced but no floor; PHP tested only on 8.4 though `composer.json` allows 8.3.
 
 Out of scope (tracked, not done here):
-- **Microservices CI** — `bridge`, `orchestrateur`, `archipelago` are now standalone gitignored repos; their CI lives in their own repos (bridge: ruff/mypy/pytest; orchestrateur: `go test`/`go vet`; archipelago: image build). Noted for follow-up per-repo.
-- **Branch protection** on `develop`/`main` — a GitHub repo setting, not a workflow file (checklist item in Dev Notes).
+- **Microservices CI** - `bridge`, `orchestrateur`, `archipelago` are now standalone gitignored repos; their CI lives in their own repos (bridge: ruff/mypy/pytest; orchestrateur: `go test`/`go vet`; archipelago: image build). Noted for follow-up per-repo.
+- **Branch protection** on `develop`/`main` - a GitHub repo setting, not a workflow file (checklist item in Dev Notes).
 
 ## Acceptance Criteria
 
-**AC1 — Dependabot:** `.github/dependabot.yml` enables weekly updates for `composer` (`/api`), `npm` (`/frontend`, pnpm-compatible), `github-actions` (`/`), and `docker` (`/api`, `/frontend`) ecosystems, grouped sensibly to limit PR noise.
+**AC1 - Dependabot:** `.github/dependabot.yml` enables weekly updates for `composer` (`/api`), `npm` (`/frontend`, pnpm-compatible), `github-actions` (`/`), and `docker` (`/api`, `/frontend`) ecosystems, grouped sensibly to limit PR noise.
 
-**AC2 — Concurrency:** all three workflows declare `concurrency: { group: <workflow>-${{ github.ref }}, cancel-in-progress: true }` so a new push to a branch/PR cancels its in-flight runs.
+**AC2 - Concurrency:** all three workflows declare `concurrency: { group: <workflow>-${{ github.ref }}, cancel-in-progress: true }` so a new push to a branch/PR cancels its in-flight runs.
 
-**AC3 — Dependency audit:** `backend.yml` runs `composer audit` and `frontend.yml` runs `pnpm audit` (failing on actionable advisories; document any accepted-risk allowlist inline).
+**AC3 - Dependency audit:** `backend.yml` runs `composer audit` and `frontend.yml` runs `pnpm audit` (failing on actionable advisories; document any accepted-risk allowlist inline).
 
-**AC4 — SAST (CodeQL):** a `codeql.yml` workflow scans `php` and `javascript-typescript`, on PR + push to `develop`/`main` + a weekly schedule, with results in the Security tab.
+**AC4 - SAST (CodeQL):** a `codeql.yml` workflow scans `php` and `javascript-typescript`, on PR + push to `develop`/`main` + a weekly schedule, with results in the Security tab.
 
-**AC5 — Postgres-backed backend tests:** `backend.yml` runs PHPUnit against a `postgres:17` service container (`DATABASE_URL`/test env pointed at it), so functional tests exercise real Postgres. The previously-untestable `ILIKE` search paths (23.7) are re-enabled and asserted. SQLite may remain only for fast unit-only runs if justified.
+**AC5 - Postgres-backed backend tests:** `backend.yml` runs PHPUnit against a `postgres:17` service container (`DATABASE_URL`/test env pointed at it), so functional tests exercise real Postgres. The previously-untestable `ILIKE` search paths (23.7) are re-enabled and asserted. SQLite may remain only for fast unit-only runs if justified.
 
-**AC6 — Image scanning:** `docker-publish.yml` scans each built image with Trivy (or equivalent), failing on `HIGH`/`CRITICAL` fixable CVEs (with a documented ignore policy), uploading SARIF to the Security tab.
+**AC6 - Image scanning:** `docker-publish.yml` scans each built image with Trivy (or equivalent), failing on `HIGH`/`CRITICAL` fixable CVEs (with a documented ignore policy), uploading SARIF to the Security tab.
 
-**AC7 — Coverage floor:** backend coverage fails under an agreed threshold (start conservative, e.g. current % − margin) — either via a PHPUnit/coverage-check step or Codecov with a PR status. No silent regression.
+**AC7 - Coverage floor:** backend coverage fails under an agreed threshold (start conservative, e.g. current % − margin) - either via a PHPUnit/coverage-check step or Codecov with a PR status. No silent regression.
 
-**AC8 — PHP matrix:** `backend.yml` runs the gate on PHP **8.3 and 8.4** (matrix), matching `composer.json`'s minimum.
+**AC8 - PHP matrix:** `backend.yml` runs the gate on PHP **8.3 and 8.4** (matrix), matching `composer.json`'s minimum.
 
-**AC9 — Green everywhere:** all workflows pass on a representative PR; no increase in flake; total wall-clock stays reasonable (caching + concurrency offset the new jobs).
+**AC9 - Green everywhere:** all workflows pass on a representative PR; no increase in flake; total wall-clock stays reasonable (caching + concurrency offset the new jobs).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Add `.github/dependabot.yml` (composer, npm, github-actions, docker; grouped; weekly). — **lot 1**
-- [x] Task 2: Add `concurrency` blocks to `backend.yml`, `frontend.yml`, `docker-publish.yml`. — **lot 1**
-- [~] Task 3: Add `composer audit` (backend) and `pnpm audit --audit-level high` (frontend) steps. — **lot 1, warn-only** (`continue-on-error: true`); flip to hard gate once Dependabot clears the backlog (Next.js <16.2.5 high, symfony/yaml low). AC3 not fully met until then.
-- [ ] Task 4: CodeQL — **deferred** (removed from lot 1). Findings while attempting it: CodeQL has **no PHP** extractor (PHP stays on PHPStan), and code scanning on a **private** repo requires **GitHub Advanced Security / Code Security** (paid, Team/Enterprise) — the run failed with *"Advanced Security must be enabled… to use code scanning."* On a **public** repo it's free. Re-add (`javascript-typescript` only, with `permissions: actions: read`) once the repo is public or Code Security is enabled.
-- [x] Task 5: **lot 2 — done.** `postgres:17` service in `backend.yml` (+ `pdo_pgsql`/`pgsql` ext); `.env.test` → Postgres (parity everywhere); functional tests refactored to a full-schema base (`FunctionalTestCase` does `DROP SCHEMA CASCADE` + `createSchema(getAllMetadata())`), per-class `SchemaTool` subsets removed from ~85 files; `ILIKE` search assertions re-enabled in `AdminGameLibraryTest`. Whole suite **912/912 green on Postgres**.
-- [x] Task 6: **lot 3.** Trivy image scan in each `docker-publish.yml` job (load-build + scan, HIGH/CRITICAL, `ignore-unfixed`, table). **Warn-only** (`continue-on-error`); **no SARIF upload** — code scanning needs GHAS on this private repo (same constraint as CodeQL), so results are in logs only.
-- [x] Task 7: **lot 3.** Backend coverage floor — a `Coverage floor` step parses the clover and fails under `MIN`. Baseline measured at **67.84%** (first CI run); floor set to **`MIN=65`**, hard gate. Raise over time.
-- [~] Task 8: **lot 3 — matrix dropped.** Attempted PHP **8.3 + 8.4**, but the lockfile requires 8.4 (`doctrine/doctrine-bundle 3.2.2` needs `php ^8.4`) → the 8.3 leg can't `composer install`. Kept **8.4 only**. Finding: `composer.json`'s `"^8.3"` is inaccurate vs the lock — bump to `"^8.4"` in a separate PR (needs `composer update --lock`).
+- [x] Task 1: Add `.github/dependabot.yml` (composer, npm, github-actions, docker; grouped; weekly). - **lot 1**
+- [x] Task 2: Add `concurrency` blocks to `backend.yml`, `frontend.yml`, `docker-publish.yml`. - **lot 1**
+- [~] Task 3: Add `composer audit` (backend) and `pnpm audit --audit-level high` (frontend) steps. - **lot 1, warn-only** (`continue-on-error: true`); flip to hard gate once Dependabot clears the backlog (Next.js <16.2.5 high, symfony/yaml low). AC3 not fully met until then.
+- [ ] Task 4: CodeQL - **deferred** (removed from lot 1). Findings while attempting it: CodeQL has **no PHP** extractor (PHP stays on PHPStan), and code scanning on a **private** repo requires **GitHub Advanced Security / Code Security** (paid, Team/Enterprise) - the run failed with *"Advanced Security must be enabled… to use code scanning."* On a **public** repo it's free. Re-add (`javascript-typescript` only, with `permissions: actions: read`) once the repo is public or Code Security is enabled.
+- [x] Task 5: **lot 2 - done.** `postgres:17` service in `backend.yml` (+ `pdo_pgsql`/`pgsql` ext); `.env.test` → Postgres (parity everywhere); functional tests refactored to a full-schema base (`FunctionalTestCase` does `DROP SCHEMA CASCADE` + `createSchema(getAllMetadata())`), per-class `SchemaTool` subsets removed from ~85 files; `ILIKE` search assertions re-enabled in `AdminGameLibraryTest`. Whole suite **912/912 green on Postgres**.
+- [x] Task 6: **lot 3.** Trivy image scan in each `docker-publish.yml` job (load-build + scan, HIGH/CRITICAL, `ignore-unfixed`, table). **Warn-only** (`continue-on-error`); **no SARIF upload** - code scanning needs GHAS on this private repo (same constraint as CodeQL), so results are in logs only.
+- [x] Task 7: **lot 3.** Backend coverage floor - a `Coverage floor` step parses the clover and fails under `MIN`. Baseline measured at **67.84%** (first CI run); floor set to **`MIN=65`**, hard gate. Raise over time.
+- [~] Task 8: **lot 3 - matrix dropped.** Attempted PHP **8.3 + 8.4**, but the lockfile requires 8.4 (`doctrine/doctrine-bundle 3.2.2` needs `php ^8.4`) → the 8.3 leg can't `composer install`. Kept **8.4 only**. Finding: `composer.json`'s `"^8.3"` is inaccurate vs the lock - bump to `"^8.4"` in a separate PR (needs `composer update --lock`).
 - [ ] Task 9: Verify on a throwaway PR; tune thresholds/ignore lists; update `CLAUDE.md` quality-gate notes if commands change.
 
 ## Dev Notes
 
-### Postgres service container (AC5) — the highest-value item
+### Postgres service container (AC5) - the highest-value item
 
 ```yaml
 services:
@@ -97,7 +97,7 @@ Use `github/codeql-action` with a language matrix `['php', 'javascript-typescrip
 
 `concurrency` is one block per workflow. Coverage floor: simplest is a PHPUnit `--coverage-text` + a grep/threshold check, or adopt Codecov (`codecov/codecov-action`, already producing clover). PHP matrix: `strategy.matrix.php: ['8.3','8.4']` on the existing `setup-php` step.
 
-### Branch protection (checklist — GitHub settings, not a file)
+### Branch protection (checklist - GitHub settings, not a file)
 
 After these land, set required status checks on `develop`/`main`: Backend, Frontend, CodeQL, Docker builds; require 1 review; dismiss stale approvals. Capture in repo settings (can't be committed).
 

@@ -458,9 +458,93 @@ function EventList({
     );
   }
 
+  // Most recent first.
+  const sortedEvents = [...state.events].sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+
+  const renderCapacity = (event: AdminEvent) => (
+    <div className="flex items-center gap-2">
+      <span>{event.confirmedRegistrations}/{event.capacity}</span>
+      {event.isAtCapacity ? (
+        <span className="inline-flex items-center gap-1 rounded border border-danger/40 bg-danger/10 px-1.5 py-0.5 text-xs font-semibold text-danger">
+          <Users aria-hidden="true" className="size-3" />
+          Complet
+        </span>
+      ) : null}
+    </div>
+  );
+
+  const renderVisibility = (event: AdminEvent) =>
+    event.isPublic ? "Public" : event.hasPrivateAccessPassword ? "Privé protégé" : "Privé";
+
+  const renderGames = (event: AdminEvent) => (
+    <Link
+      className={event.gameSelectionEnabled ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
+      href={`/admin/evenements/${event.id}/jeux`}
+      title={event.gameSelectionEnabled ? "Sélection activée" : "Configurer la sélection de jeux"}
+    >
+      <Gamepad2 aria-hidden="true" className="size-3.5" />
+      {event.gameSelectionEnabled ? "Activée" : "Configurer"}
+    </Link>
+  );
+
+  const renderRecap = (event: AdminEvent) =>
+    event.status === "completed" ? (
+      <button
+        className={event.hasRecap ? ROW_BTN_ACTIVE : ROW_BTN_NEUTRAL}
+        onClick={() => onConfigureRecap(event)}
+        title={event.hasRecap ? "Récap attaché" : "Attacher un récap ou une VOD"}
+        type="button"
+      >
+        <Video aria-hidden="true" className="size-3.5" />
+        {event.hasRecap ? "Attaché" : "Attacher"}
+      </button>
+    ) : (
+      <span className="text-xs text-muted-foreground">-</span>
+    );
+
+  const renderActions = (event: AdminEvent) => (
+    <div className="flex flex-wrap gap-1.5">
+      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/modifier`}>
+        <Pencil aria-hidden="true" className="size-3.5" />
+        Modifier
+      </Link>
+      <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/inscriptions`}>
+        <Users aria-hidden="true" className="size-3.5" />
+        Inscrits
+      </Link>
+      {event.gameSelectionEnabled ? (
+        <Link className={ROW_BTN_NEUTRAL} href={`/admin/evenements/${event.id}/session`}>
+          <Server aria-hidden="true" className="size-3.5" />
+          Run
+        </Link>
+      ) : null}
+      {transitionActions(event.status).map((action) => {
+        const Icon = transitionIcon(action.status);
+        return (
+          <button
+            className={ROW_BTN_NEUTRAL}
+            key={action.status}
+            onClick={() => onTransition(event, action.status)}
+            type="button"
+          >
+            <Icon aria-hidden="true" className="size-3.5" />
+            {action.label}
+          </button>
+        );
+      })}
+      {!event.isPublic ? (
+        <button className={ROW_BTN_NEUTRAL} onClick={() => onConfigurePrivateAccess(event)} type="button">
+          <KeyRound aria-hidden="true" className="size-3.5" />
+          {event.hasPrivateAccessPassword ? "Changer accès" : "Config. accès"}
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <div className="overflow-x-auto">
+      {/* Desktop: full table (horizontal scroll only as a last resort on mid widths) */}
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[960px] border-collapse text-left text-sm">
           <thead className="border-b border-border text-muted-foreground">
             <tr>
@@ -475,12 +559,12 @@ function EventList({
             </tr>
           </thead>
           <tbody>
-            {state.events.map((event) => (
+            {sortedEvents.map((event) => (
               <tr className="border-b border-border last:border-b-0" key={event.id}>
                 <td className="px-4 py-3 font-semibold text-foreground">
                   <span>{event.title}</span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-accent-text">{statusLabel(event.status)}</td>
+                <td className="whitespace-nowrap px-4 py-3">{statusPill(event.status)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                   <time dateTime={event.startsAt}>{formatDateShort(event.startsAt)}</time>
                 </td>
@@ -570,6 +654,42 @@ function EventList({
           </tbody>
         </table>
       </div>
+
+      {/* Mobile: one card per event (no horizontal scroll) */}
+      <ul className="divide-y divide-border lg:hidden">
+        {sortedEvents.map((event) => (
+          <li className="space-y-3 p-4" key={event.id}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground">{event.title}</p>
+                <div className="mt-1">{statusPill(event.status)}</div>
+              </div>
+              <time className="shrink-0 text-xs text-muted-foreground" dateTime={event.startsAt}>
+                {formatDateShort(event.startsAt)}
+              </time>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Capacité</dt>
+                <dd className="mt-1 text-foreground">{renderCapacity(event)}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Visibilité</dt>
+                <dd className="mt-1 text-foreground">{renderVisibility(event)}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Jeux</dt>
+                <dd className="mt-1">{renderGames(event)}</dd>
+              </div>
+              <div>
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Récap</dt>
+                <dd className="mt-1">{renderRecap(event)}</dd>
+              </div>
+            </dl>
+            <div className="border-t border-border pt-3">{renderActions(event)}</div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -717,6 +837,21 @@ function extractDetails(payload: unknown): Record<string, string> {
 
 function statusLabel(status: AdminEvent["status"]) {
   return { draft: "Brouillon", published: "Publié", "in-progress": "En cours", completed: "Terminé" }[status];
+}
+
+const STATUS_PILL: Record<AdminEvent["status"], string> = {
+  draft: "border-border bg-surface-2 text-muted-foreground",
+  published: "border-accent/40 bg-accent/15 text-accent-text",
+  "in-progress": "border-success/40 bg-success/15 text-success",
+  completed: "border-border bg-surface-2 text-foreground",
+};
+
+function statusPill(status: AdminEvent["status"]) {
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_PILL[status]}`}>
+      {statusLabel(status)}
+    </span>
+  );
 }
 
 function transitionActions(status: AdminEvent["status"]): StatusAction[] {

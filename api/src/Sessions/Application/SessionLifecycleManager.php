@@ -408,14 +408,15 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false, 'error' => null, 'sessionId' => null, 'status' => null];
         }
 
-        if (Session::STATUS_IDLE !== $session->getStatus()) {
+        // A paused run is "idle" from the owner's POV, but the underlying session may be either IDLE
+        // (auto_shutdown) or STOPPED (orchestrateur session.stopped) — both are relaunchable.
+        if (!in_array($session->getStatus(), [Session::STATUS_IDLE, Session::STATUS_STOPPED], true)) {
             return ['found' => true, 'error' => 'invalid_session_status', 'sessionId' => null, 'status' => null];
         }
 
-        if ($session->isPausedWithoutSave() || null === $session->getLastSaveKey()) {
-            return ['found' => true, 'error' => 'no_save_available', 'sessionId' => null, 'status' => null];
-        }
-
+        // An idle run is always relaunchable without recreating it: the orchestrateur relaunch reloads
+        // the latest save from the retained volume if present, otherwise restarts from the generated
+        // seed (story 17.10). A missing save just means progress restarts from the beginning.
         $personalRun = $this->runs->findBySessionId($sessionId);
 
         if (!$isAdmin) {
@@ -434,12 +435,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $this->sessions->flush();
         $this->publish($session);
 
-        $saveKey = $session->getLastSaveKey();
-        \assert(null !== $saveKey);
-
         $this->messageBus->dispatch(new ResumeRunJob(
             $sessionId,
-            $saveKey,
+            $session->getLastSaveKey() ?? '',
             $session->getPassword() ?? '',
             $session->getServerPassword() ?? '',
             $session->getBridgePort() ?? 0,
@@ -487,45 +485,6 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $this->logger->info('session.restarted', ['sessionId' => $sessionId, 'host' => $effectiveHost, 'port' => $effectivePort]);
 
         return ['found' => true, 'status' => 'running'];
-    }
-
-    /**
-     * @return array{found: bool, error: string|null, status: string|null}
-     */
-    public function markRestartingBridge(string $sessionId): array
-    {
-        $session = $this->sessions->findById($sessionId);
-        if (!$session instanceof Session) {
-            return ['found' => false, 'error' => null, 'status' => null];
-        }
-
-        if (Session::STATUS_RESTARTING === $session->getStatus()) {
-            return ['found' => true, 'error' => null, 'status' => 'already_restarting'];
-        }
-
-        if (Session::STATUS_IDLE !== $session->getStatus()) {
-            return ['found' => true, 'error' => 'invalid_status', 'status' => null];
-        }
-
-        $now = new \DateTimeImmutable();
-
-        try {
-            $session->markRestarting($now);
-        } catch (\LogicException $e) {
-            return ['found' => true, 'error' => $e->getMessage(), 'status' => null];
-        }
-
-        $personalRun = $this->runs->findBySessionId($sessionId);
-        if ($personalRun instanceof Run) {
-            $personalRun->markRestarting($now);
-        }
-
-        $this->sessions->flush();
-        $this->publish($session);
-
-        $this->logger->info('session.restarting.bridge_triggered', ['sessionId' => $sessionId]);
-
-        return ['found' => true, 'error' => null, 'status' => 'restarting'];
     }
 
     /**

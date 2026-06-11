@@ -49,4 +49,15 @@ final readonly class DoctrinePasswordResetTokenRepository implements PasswordRes
     {
         $this->entityManager->flush();
     }
+
+    public function deleteStale(\DateTimeImmutable $now, \DateTimeImmutable $consumedBefore): int
+    {
+        $qb = $this->connection->createQueryBuilder();
+
+        return (int) $qb->delete($this->table)
+            ->where('expires_at < :now OR (used_at IS NOT NULL AND used_at < :consumedBefore)')
+            ->setParameter('now', $now, Types::DATETIMETZ_IMMUTABLE)
+            ->setParameter('consumedBefore', $consumedBefore, Types::DATETIMETZ_IMMUTABLE)
+            ->executeStatement();
+    }
 }

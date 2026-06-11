@@ -295,7 +295,7 @@ export function AdminCatalogueSyncPage() {
   const filteredChanges = data?.stabilityChanged.filter((c) => !q || c.gameName.toLowerCase().includes(q)) ?? [];
 
   return (
-    <section className="grid w-full gap-8 px-4 py-10">
+    <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">
       <header>
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
@@ -467,7 +467,7 @@ function NewGamesTable({
       ) : games.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun résultat pour cette recherche.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -620,7 +620,7 @@ function ApworldUpdatesTable({
       {updates.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun résultat pour cette recherche.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -711,7 +711,7 @@ function StabilityChangedTable({
       ) : changes.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-muted-foreground">Aucun résultat pour cette recherche.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="min-w-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">

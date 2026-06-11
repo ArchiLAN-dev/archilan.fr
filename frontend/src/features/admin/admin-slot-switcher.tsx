@@ -25,6 +25,7 @@ export function SlotSwitcher({
       .then((r) => r.json())
       .then((json: { data?: { slots?: Record<string, { slot_name: string }> } }) => {
         const entries: SlotEntry[] = Object.entries(json.data?.slots ?? {})
+          .filter(([, s]) => s.slot_name !== "Bridge")
           .map(([index, s]) => ({ index, name: s.slot_name }))
           .sort((a, b) => Number(a.index) - Number(b.index));
         setSlots(entries);

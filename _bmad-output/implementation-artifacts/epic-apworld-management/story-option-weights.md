@@ -1,4 +1,4 @@
-# Story: Option weights — expose and consume probabilistic weights for choice/toggle options
+# Story: Option weights - expose and consume probabilistic weights for choice/toggle options
 
 ## Story
 
@@ -20,9 +20,9 @@ rank_requirement:
 
 The current parser picks the highest-weight value as `defaultValue` and drops the rest. This means:
 - The frontend cannot build a weight-picker UI.
-- Users cannot express "50% rank_h, 50% rank_f" — they can only pick a single value.
+- Users cannot express "50% rank_h, 50% rank_f" - they can only pick a single value.
 
-The configure endpoint already supports nested `map[string]any` values in `options.values`, so sending `{"rank_requirement": {"rank_h": 50, "rank_f": 50}}` to `configure` already works at the Go level — the YAML builder serialises it correctly.
+The configure endpoint already supports nested `map[string]any` values in `options.values`, so sending `{"rank_requirement": {"rank_h": 50, "rank_f": 50}}` to `configure` already works at the Go level - the YAML builder serialises it correctly.
 
 ## Status
 
@@ -30,7 +30,7 @@ done
 
 ## Acceptance Criteria
 
-**AC1 — Weights returned in API responses:**
+**AC1 - Weights returned in API responses:**
 `GET /apworlds/{hash}/options` and `POST /apworlds` return a `weights` field on choice and toggle options:
 ```json
 {
@@ -42,13 +42,13 @@ done
 }
 ```
 
-**AC2 — PHP typed properties:**
+**AC2 - PHP typed properties:**
 `ChoiceTemplateOption` and `ToggleTemplateOption` expose `public array $weights` (`array<string, int>`).
 
-**AC3 — Weights usable in configure:**
-Sending `{"options": {"playerName": "Jean", "values": {"rank_requirement": {"rank_h": 50, "rank_f": 50}}}}` to `POST /sessions/{id}/configure` produces a valid Archipelago player YAML with the weighted distribution — no new server changes required (works by existing `buildPlayerYaml`).
+**AC3 - Weights usable in configure:**
+Sending `{"options": {"playerName": "Jean", "values": {"rank_requirement": {"rank_h": 50, "rank_f": 50}}}}` to `POST /sessions/{id}/configure` produces a valid Archipelago player YAML with the weighted distribution - no new server changes required (works by existing `buildPlayerYaml`).
 
-**AC4 — Tests updated:**
+**AC4 - Tests updated:**
 Go parser tests verify weights extraction for choice and toggle options. PHP tests verify weights are deserialized correctly.
 
 ## Tasks

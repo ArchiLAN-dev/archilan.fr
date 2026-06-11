@@ -33,7 +33,7 @@ final readonly class HeartbeatController
         $result = $this->sessionLifecycleManager->heartbeat($sessionId);
 
         if (!$result['found']) {
-            // The session ID may belong to a weekly run entry — no heartbeat tracking
+            // The session ID may belong to a weekly run entry - no heartbeat tracking
             // needed for those, but we must acknowledge to avoid bridge warnings.
             if ($this->weeklyEntrySessionCheck->existsByExternalSessionId($sessionId)) {
                 return new JsonResponse(['data' => ['ok' => true]]);

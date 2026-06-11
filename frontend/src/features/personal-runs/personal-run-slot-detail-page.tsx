@@ -67,6 +67,7 @@ function RunSlotSwitcher({
       .then((r) => r.json())
       .then((json: { data?: { slots?: Record<string, { slot_name: string }> } }) => {
         const entries = Object.entries(json.data?.slots ?? {})
+          .filter(([, s]) => s.slot_name !== "Bridge")
           .map(([index, s]) => ({ index, name: s.slot_name }))
           .sort((a, b) => Number(a.index) - Number(b.index));
         setSlots(entries);
@@ -641,7 +642,7 @@ export function PersonalRunSlotDetailPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="font-heading text-4xl font-bold leading-tight text-foreground">
+                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground sm:text-4xl">
                   {state.kind === "data" ? state.data.player : `Slot ${slotIndex}`}
                 </h1>
                 {showDisconnected ? (
@@ -736,7 +737,7 @@ export function PersonalRunSlotDetailPage({
         ) : null}
 
         {/* Tab bar */}
-        <div className={`-mx-4 flex items-stretch gap-0 border-b border-border bg-surface px-4${state.kind === "paused" ? " hidden" : ""}`}>
+        <div className={`-mx-4 flex items-stretch gap-0 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden${state.kind === "paused" ? " hidden" : ""}`}>
           {TABS.map((tab) => {
             const data = state.kind === "data" ? state.data : null;
             const sub =
@@ -751,7 +752,7 @@ export function PersonalRunSlotDetailPage({
                     : null;
             return (
               <button
-                className={`inline-flex flex-col items-start justify-center px-4 py-2.5 text-sm font-medium transition-colors ${
+                className={`inline-flex shrink-0 flex-col items-start justify-center px-4 py-2.5 text-sm font-medium transition-colors ${
                   activeTab === tab.id
                     ? "border-b-2 border-accent-text text-foreground"
                     : "text-muted-foreground hover:text-foreground"

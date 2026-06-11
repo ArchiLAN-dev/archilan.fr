@@ -14,7 +14,7 @@ So that I can see the live progression without having to refresh the page.
 
 2. **Given** the admin slot detail page is open **When** a player sends a check **Then** the checks/items/spheres update automatically within ~10 seconds (bridge recompute + push latency), without page refresh.
 
-3. **Given** the `central_api_url` or `central_api_secret` is not configured **When** the sweep loop runs **Then** the push is silently skipped — no error, no crash, existing behavior unchanged.
+3. **Given** the `central_api_url` or `central_api_secret` is not configured **When** the sweep loop runs **Then** the push is silently skipped - no error, no crash, existing behavior unchanged.
 
 4. **Given** the Symfony push endpoint is called **When** the `X-Internal-Secret` header doesn't match **Then** it returns HTTP 401 and the bridge logs a warning.
 
@@ -22,16 +22,16 @@ So that I can see the live progression without having to refresh the page.
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Bridge: add push-to-API after non-cached reachability compute (AC: #1, #3)
+- [x] Task 1 - Bridge: add push-to-API after non-cached reachability compute (AC: #1, #3)
   - [x] 1.1 Add `central_api_url: str = ""` and `central_api_secret: str = ""` params to `_reachable_sweep_loop` signature in `bridge/core/loops.py`
   - [x] 1.2 Implement `_push_reachable_to_api()` async helper in `loops.py`
   - [x] 1.3 Call `_push_reachable_to_api()` after `broadcast("reachable_changed", ...)` when not cached
   - [x] 1.4 Pass `config.central_api_url` and `config.central_api_secret` in `bridge/bridge.py`
 
-- [x] Task 2 — Symfony API: new internal push endpoint (AC: #4, #5)
+- [x] Task 2 - Symfony API: new internal push endpoint (AC: #4, #5)
   - [x] 2.1 Create `api/src/Sessions/Presentation/ReachablePushController.php`
 
-- [x] Task 3 — Quality gates
+- [x] Task 3 - Quality gates
   - [x] 3.1 Bridge: ruff → 0 errors
   - [x] 3.2 Bridge: mypy → 0 errors (23 source files)
   - [x] 3.3 Bridge: pytest → 168 passed
@@ -54,7 +54,7 @@ Nobody ever publishes to the Mercure topic. The frontend waits forever.
 
 ---
 
-### Bridge — `loops.py` changes
+### Bridge - `loops.py` changes
 
 **New helper** (add before `_reachable_sweep_loop`):
 
@@ -125,7 +125,7 @@ _sweep_task = asyncio.create_task(
 
 ---
 
-### Symfony API — `ReachablePushController.php`
+### Symfony API - `ReachablePushController.php`
 
 Follow the exact same pattern as `HeartbeatController`:
 
@@ -208,21 +208,21 @@ The bridge's `_compute_reachable()` result already contains `counts`, `reachable
 ### Files to modify
 
 **Bridge:**
-- `bridge/core/loops.py` — new helper + updated signature + call
-- `bridge/bridge.py` — pass new params to `_reachable_sweep_loop`
+- `bridge/core/loops.py` - new helper + updated signature + call
+- `bridge/bridge.py` - pass new params to `_reachable_sweep_loop`
 
 **Symfony API:**
-- `api/src/Sessions/Presentation/ReachablePushController.php` — new file
+- `api/src/Sessions/Presentation/ReachablePushController.php` - new file
 
 ### References
 
-- [Source: bridge/core/loops.py:38] — `_reachable_sweep_loop`, insertion points
-- [Source: bridge/core/loops.py:146] — `_api_heartbeat_loop` pattern for `httpx` call
-- [Source: bridge/bridge.py:104] — `_sweep_task` creation, pass new params
-- [Source: api/src/Sessions/Presentation/HeartbeatController.php] — auth pattern to replicate
-- [Source: api/src/Sessions/Presentation/PlayerStateController.php:140] — Mercure topic format
-- [Source: api/src/Communications/Application/SessionRunningHandler.php] — HubInterface + Update publish pattern
-- [Source: frontend/src/features/admin/admin-slot-reachability-page.tsx:186] — SSE handler, `data.counts` guard
+- [Source: bridge/core/loops.py:38] - `_reachable_sweep_loop`, insertion points
+- [Source: bridge/core/loops.py:146] - `_api_heartbeat_loop` pattern for `httpx` call
+- [Source: bridge/bridge.py:104] - `_sweep_task` creation, pass new params
+- [Source: api/src/Sessions/Presentation/HeartbeatController.php] - auth pattern to replicate
+- [Source: api/src/Sessions/Presentation/PlayerStateController.php:140] - Mercure topic format
+- [Source: api/src/Communications/Application/SessionRunningHandler.php] - HubInterface + Update publish pattern
+- [Source: frontend/src/features/admin/admin-slot-reachability-page.tsx:186] - SSE handler, `data.counts` guard
 
 ## Dev Agent Record
 

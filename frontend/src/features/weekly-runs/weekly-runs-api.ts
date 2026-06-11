@@ -207,7 +207,7 @@ export async function downloadPatch(
     document.body.removeChild(a);
     URL.revokeObjectURL(objectUrl);
   } catch {
-    // non-critical — user will notice the file didn't arrive
+    // non-critical - user will notice the file didn't arrive
   }
 }
 

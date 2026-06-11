@@ -20,9 +20,9 @@ session-specific apworld. With an empty `/data/yamls` it fails:
 {"error": "no yaml found in /data/yamls"}
 ```
 
-(Observed live, 2026-06-08.) A secondary, pre-existing log line —
+(Observed live, 2026-06-08.) A secondary, pre-existing log line -
 `KeyError: 'POKEDEX_REWARD_001'` while loading the **official** bundled
-`pokemon_emerald.apworld` — is only a warning: `reachable.py` loads official apworlds
+`pokemon_emerald.apworld` - is only a warning: `reachable.py` loads official apworlds
 first, then **session-specific** ones that override them. Once the correct session
 apworld is staged (this fix), reachability uses it and the official-version mismatch
 is harmless. (Rebuilding the AP image so bundled apworlds match the core stays an ops
@@ -49,24 +49,24 @@ the current game hash is safe.
 with no `no yaml found` error (validated live; automated coverage via the spy gateway
 asserting `configure` happens before `launchFromFile`).
 
-**AC5:** All quality gates pass — orchestrator (`go build/vet/test`) and API (`phpstan`,
+**AC5:** All quality gates pass - orchestrator (`go build/vet/test`) and API (`phpstan`,
 `php-cs-fixer`, `phpunit`, `app:architecture:ddd`).
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Orchestrator — extract `docker.PutDataToVolume(ctx, sessionID, tar)` from
+- [ ] Task 1: Orchestrator - extract `docker.PutDataToVolume(ctx, sessionID, tar)` from
   `InjectFileToVolume`; `LaunchFromFile` stages `buildDataTar` then injects the output.
-- [ ] Task 2: API — `launchEntry(entryId, apworldHash, templateYaml, outputKey)`:
+- [ ] Task 2: API - `launchEntry(entryId, apworldHash, templateYaml, outputKey)`:
   configure → download output → `launchFromFile`. Re-add httpClient/baseUrl/apiKey deps.
-- [ ] Task 3: API — `LaunchWeeklyEntry` fetches the game, passes `apworldHash`/`templateYaml`/`outputKey`.
-- [ ] Task 4: API — update `Null`/`Spy` gateways + unit/functional tests (spy asserts configure-before-launchFromFile; launch still works).
+- [ ] Task 3: API - `LaunchWeeklyEntry` fetches the game, passes `apworldHash`/`templateYaml`/`outputKey`.
+- [ ] Task 4: API - update `Null`/`Spy` gateways + unit/functional tests (spy asserts configure-before-launchFromFile; launch still works).
 - [ ] Task 5: Quality gates (orchestrator + API).
 
 ## Dev Notes
 
 - `game.apworld_hash` is set by `AdminGameLibrary` from the runner's content hash
   (`configureApworld($storageKey, $hash, …)`), and the apworld lives in the orchestrator
-  apworlds bucket under that hash — so `configure`'s `ApworldExists(hash)` passes and
+  apworlds bucket under that hash - so `configure`'s `ApworldExists(hash)` passes and
   `buildDataTar` can `DownloadApworld(hash)`.
 - `buildDataTar(sessionID)` reads `sessions/{sessionID}/manifest.json` + `yamls/` and stages
   `worlds/` + `yamls/` (+ the Bridge observer slot). `configure` is what writes those MinIO
@@ -75,19 +75,19 @@ asserting `configure` happens before `launchFromFile`).
 ## File List
 
 ### Orchestrator (`archilan-orchestrateur`)
-- `internal/docker/client.go` — `PutDataToVolume`; `InjectFileToVolume` reuses it
-- `internal/service/session.go` — `LaunchFromFile` stages `buildDataTar`
+- `internal/docker/client.go` - `PutDataToVolume`; `InjectFileToVolume` reuses it
+- `internal/service/session.go` - `LaunchFromFile` stages `buildDataTar`
 
 ### API (`api/`)
-- `src/WeeklyRuns/Application/WeeklyRunnerGatewayInterface.php` — signature
-- `src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunnerGateway.php` — configure + launchFromFile
-- `src/WeeklyRuns/Infrastructure/{Null,Spy}WeeklyRunnerGateway.php` — signature
-- `src/WeeklyRuns/Application/LaunchWeeklyEntry.php` — resolve apworld hash from game
-- `config/services.yaml` — gateway deps
-- tests — `LaunchWeeklyEntryTest`, `WeeklyRunLaunchTest`
+- `src/WeeklyRuns/Application/WeeklyRunnerGatewayInterface.php` - signature
+- `src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunnerGateway.php` - configure + launchFromFile
+- `src/WeeklyRuns/Infrastructure/{Null,Spy}WeeklyRunnerGateway.php` - signature
+- `src/WeeklyRuns/Application/LaunchWeeklyEntry.php` - resolve apworld hash from game
+- `config/services.yaml` - gateway deps
+- tests - `LaunchWeeklyEntryTest`, `WeeklyRunLaunchTest`
 
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
-| 2026-06-08 | Bugfix story created — restore weekly reachability broken by 23.8's launchFromFile (volume missing /data/yamls + /data/worlds). |
+| 2026-06-08 | Bugfix story created - restore weekly reachability broken by 23.8's launchFromFile (volume missing /data/yamls + /data/worlds). |

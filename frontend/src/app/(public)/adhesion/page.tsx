@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AlertCircle, CalendarDays, MessageSquare, RefreshCw, Star } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { getMembershipCheckoutUrl } from "@/features/payments/membership-api";
 import { MembershipCheckout } from "@/features/payments/membership-checkout";
 
@@ -12,24 +12,6 @@ export const metadata: Metadata = {
     title: "Adhésion - ArchiLAN",
   },
 };
-
-const perks = [
-  {
-    icon: CalendarDays,
-    title: "Événements",
-    description: "Participe aux événements ArchiLAN et accède aux inscriptions.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Discord",
-    description: "Rejoins le salon membres réservé aux adhérents de l'association.",
-  },
-  {
-    icon: Star,
-    title: "Site",
-    description: "Débloque les fonctionnalités membres sur archilan.fr.",
-  },
-] as const;
 
 export default async function AdhesionPage() {
   const checkoutEmbedUrl = await getMembershipCheckoutUrl();
@@ -49,23 +31,6 @@ export default async function AdhesionPage() {
           l&apos;association.
         </p>
       </header>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        {perks.map(({ icon: Icon, title, description }) => (
-          <div
-            className="grid gap-3 card-glow rounded-lg border border-border p-5"
-            key={title}
-          >
-            <div className="flex size-9 items-center justify-center rounded-md border border-border bg-surface">
-              <Icon aria-hidden="true" className="size-4 text-accent-text" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">{title}</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {checkoutEmbedUrl ? (
         <MembershipCheckout checkoutEmbedUrl={checkoutEmbedUrl} />

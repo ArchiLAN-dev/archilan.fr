@@ -96,12 +96,6 @@ function AuthNavDesktop() {
         )}
         <Link
           className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-          href="/runs-hebdo"
-        >
-          Runs hebdo
-        </Link>
-        <Link
-          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
           href="/compte"
         >
           Mon espace
@@ -163,13 +157,6 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
             Administration
           </Link>
         )}
-        <Link
-          className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-          href="/runs-hebdo"
-          onClick={onNavigate}
-        >
-          Runs hebdo
-        </Link>
         <Link
           className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
           href="/compte"
@@ -253,15 +240,16 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             </span>
           </Link>
 
-          <div className="hidden items-center gap-8 md:flex">
+          <div className="hidden items-center gap-4 lg:flex xl:gap-6">
             <NavLink href="/evenements" label="Événements" />
+            <NavLink href="/runs-hebdo" label="Runs hebdo" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink href="/actualites" label="Actualités" />
             <NavLink href={externalLinks.archilanDiscord} label="Discord" />
             <LiveTwitchBadge />
           </div>
 
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center gap-2 lg:flex">
             <AuthNavDesktop />
           </div>
 
@@ -269,7 +257,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             aria-controls={menuId}
             aria-expanded={open}
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            className="inline-flex size-11 items-center justify-center rounded border border-border bg-surface text-foreground md:hidden"
+            className="inline-flex size-11 items-center justify-center rounded border border-border bg-surface text-foreground lg:hidden"
             type="button"
             onClick={() =>
               setMenuState((current) => ({
@@ -285,7 +273,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
         <div
           aria-hidden={!open}
           className={[
-            "fixed inset-0 top-16 z-40 bg-background px-6 py-8 transition md:hidden",
+            "fixed inset-x-0 top-16 z-40 h-[calc(100dvh-4rem)] overflow-y-auto bg-background px-6 py-8 transition lg:hidden",
             open ? "visible opacity-100" : "invisible pointer-events-none opacity-0",
           ].join(" ")}
           id={menuId}
@@ -293,6 +281,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
           <nav aria-label="Navigation mobile" className="flex h-full flex-col">
             <div className="flex flex-col gap-3">
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink href="/runs-hebdo" label="Runs hebdo" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/actualites" label="Actualités" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href={externalLinks.archilanDiscord} label="Discord" onNavigate={() => setMenuState({ open: false, pathname })} />
@@ -305,7 +294,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
         </div>
       </header>
 
-      <main className="w-full flex-1 px-6 py-16 md:px-12 lg:px-20" id="main-content">
+      <main className="w-full flex-1 px-6 py-6 md:px-12 lg:px-20" id="main-content">
         {children}
       </main>
 

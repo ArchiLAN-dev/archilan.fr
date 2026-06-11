@@ -39,7 +39,7 @@ final readonly class ReachablePushController
                 true,
             ));
         } catch (\Throwable) {
-            // Non-fatal — SSE clients will receive the data on next recompute
+            // Non-fatal - SSE clients will receive the data on next recompute
         }
 
         return new JsonResponse(['data' => ['ok' => true]]);

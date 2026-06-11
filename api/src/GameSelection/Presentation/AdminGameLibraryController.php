@@ -55,7 +55,13 @@ final readonly class AdminGameLibraryController
             default => null,
         };
 
-        $result = $this->adminGameLibrary->list($page, $perPage, $search, $availability, $yamlReady, $apworldReady);
+        $rawSort = (string) $request->query->get('sort', 'name');
+        $sort = in_array($rawSort, ['name', 'usage'], true) ? $rawSort : 'name';
+
+        $rawDir = strtolower((string) $request->query->get('dir', 'asc'));
+        $dir = in_array($rawDir, ['asc', 'desc'], true) ? $rawDir : 'asc';
+
+        $result = $this->adminGameLibrary->list($page, $perPage, $search, $availability, $yamlReady, $apworldReady, $sort, $dir);
 
         return new JsonResponse([
             'data' => $result['items'],

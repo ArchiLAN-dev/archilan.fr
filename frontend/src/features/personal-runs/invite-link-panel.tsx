@@ -58,7 +58,7 @@ export function InviteLinkPanel({
         <h3 className="text-sm font-semibold text-foreground">Lien d&apos;invitation</h3>
       </div>
       <div className="flex items-center gap-2">
-        <span className="flex-1 truncate rounded border border-border bg-background px-3 py-2 font-mono text-sm text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate rounded border border-border bg-background px-3 py-2 font-mono text-sm text-muted-foreground">
           {maskedUrl}
         </span>
         <button

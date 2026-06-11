@@ -153,7 +153,7 @@ export function AdminWeeklyRunGameDetail({ gameId }: { gameId: string }) {
         </div>
       </header>
 
-      {/* Templates section — click a template to see its run history */}
+      {/* Templates section - click a template to see its run history */}
       <section>
         <h3 className="mb-4 font-heading text-lg font-bold text-foreground">Templates</h3>
         {templates.length === 0 ? (
