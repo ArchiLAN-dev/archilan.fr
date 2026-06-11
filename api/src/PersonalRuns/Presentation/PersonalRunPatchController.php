@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Presentation;
 
 use App\PersonalRuns\Application\PersonalRunPatchQuery;
+use App\Sessions\Application\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -12,12 +13,11 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Lets a private-run participant download the patch(es) generated for their own slot,
- * proxied through the session bridge's /output endpoint. The shared multidata
- * (.archipelago), spoilers, and other players' patches are never exposed.
+ * Lets a private-run participant download the patch(es) generated for their own slot, read
+ * from the run's durable output archive on MinIO (so it works whatever the run's state).
+ * The shared multidata (.archipelago), spoilers, and other players' patches are never exposed.
  */
 final readonly class PersonalRunPatchController
 {
@@ -26,7 +26,7 @@ final readonly class PersonalRunPatchController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private PersonalRunPatchQuery $patchQuery,
-        private HttpClientInterface $httpClient,
+        private SessionOutputArtifactReaderInterface $reader,
     ) {
     }
 
@@ -44,7 +44,7 @@ final readonly class PersonalRunPatchController
         }
 
         $files = array_values(array_filter(
-            $this->listFromBridge($context['bridgePort']),
+            $this->reader->listEntries($context['outputKey']),
             fn (string $filename): bool => self::belongsToOwnSlot($filename, $context['slotNames']),
         ));
         sort($files);
@@ -69,7 +69,21 @@ final readonly class PersonalRunPatchController
             return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre slot.", 403);
         }
 
-        return $this->downloadFromBridge($context['bridgePort'], $filename);
+        $artifact = $this->reader->extractEntry($context['outputKey'], $filename);
+        if (null === $artifact) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
+        }
+
+        $contents = $artifact->contents;
+        $safeFilename = basename($artifact->filename);
+
+        $streamed = new StreamedResponse(static function () use ($contents): void {
+            echo $contents;
+        });
+        $streamed->headers->set('Content-Type', 'application/octet-stream');
+        $streamed->headers->set('Content-Disposition', 'attachment; filename="'.$safeFilename.'"');
+
+        return $streamed;
     }
 
     /**
@@ -96,55 +110,5 @@ final readonly class PersonalRunPatchController
         $slot = 1 === preg_match('/_P\d+_(.+)$/', $stem, $matches) ? $matches[1] : $stem;
 
         return in_array($slot, $slotNames, true);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function listFromBridge(int $bridgePort): array
-    {
-        try {
-            $response = $this->httpClient->request(
-                'GET',
-                "http://localhost:{$bridgePort}/output",
-                ['timeout' => 5],
-            );
-            if (200 !== $response->getStatusCode()) {
-                return [];
-            }
-            /** @var array{files?: list<string>} $body */
-            $body = $response->toArray();
-
-            return $body['files'] ?? [];
-        } catch (\Throwable) {
-            return [];
-        }
-    }
-
-    private function downloadFromBridge(int $bridgePort, string $filename): Response
-    {
-        try {
-            $bridgeResponse = $this->httpClient->request(
-                'GET',
-                "http://localhost:{$bridgePort}/output/".rawurlencode($filename),
-                ['timeout' => 30],
-            );
-            if (200 !== $bridgeResponse->getStatusCode()) {
-                return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-            }
-
-            $content = $bridgeResponse->getContent();
-            $safeFilename = basename($filename);
-
-            $streamed = new StreamedResponse(static function () use ($content): void {
-                echo $content;
-            });
-            $streamed->headers->set('Content-Type', 'application/octet-stream');
-            $streamed->headers->set('Content-Disposition', 'attachment; filename="'.$safeFilename.'"');
-
-            return $streamed;
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-        }
     }
 }

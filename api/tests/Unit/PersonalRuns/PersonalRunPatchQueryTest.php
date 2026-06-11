@@ -21,42 +21,54 @@ final class PersonalRunPatchQueryTest extends TestCase
 
     public function testReturnsNullWhenRunMissing(): void
     {
-        $query = $this->query(null, null, []);
-        self::assertNull($query->forParticipant(self::RUN_ID, self::USER_ID));
+        self::assertNull($this->query(null, null, [])->forParticipant(self::RUN_ID, self::USER_ID));
     }
 
     public function testReturnsNullWhenRunNotLaunched(): void
     {
         $run = Run::create('owner-x', 'My run', new \DateTimeImmutable()); // no sessionId
-        $query = $this->query($run, null, []);
-        self::assertNull($query->forParticipant(self::RUN_ID, self::USER_ID));
-    }
-
-    public function testReturnsNullWhenSessionHasNoBridgePort(): void
-    {
-        $query = $this->query($this->launchedRun(), $this->sessionWithBridgePort(null), [$this->slot('masterkafei_LM')]);
-        self::assertNull($query->forParticipant(self::RUN_ID, self::USER_ID));
+        self::assertNull($this->query($run, null, [])->forParticipant(self::RUN_ID, self::USER_ID));
     }
 
     public function testReturnsNullWhenUserHasNoSlot(): void
     {
-        $query = $this->query($this->launchedRun(), $this->sessionWithBridgePort(35000), []);
+        $query = $this->query($this->launchedRun(), $this->session('k.zip'), []);
         self::assertNull($query->forParticipant(self::RUN_ID, self::USER_ID));
     }
 
-    public function testReturnsBridgePortAndOwnSlotNames(): void
+    public function testReturnsPersistedOutputKeyAndOwnSlotNames(): void
     {
         $query = $this->query(
             $this->launchedRun(),
-            $this->sessionWithBridgePort(35000),
+            $this->session('custom/output/archive.zip'),
             [$this->slot('masterkafei_LM'), $this->slot('masterkafei_SMW')],
         );
 
         $result = $query->forParticipant(self::RUN_ID, self::USER_ID);
 
         self::assertNotNull($result);
-        self::assertSame(35000, $result['bridgePort']);
+        self::assertSame('custom/output/archive.zip', $result['outputKey']);
         self::assertSame(['masterkafei_LM', 'masterkafei_SMW'], $result['slotNames']);
+    }
+
+    public function testFallsBackToDeterministicKeyWhenSessionKeyAbsent(): void
+    {
+        $query = $this->query($this->launchedRun(), $this->session(null), [$this->slot('masterkafei_LM')]);
+
+        $result = $query->forParticipant(self::RUN_ID, self::USER_ID);
+
+        self::assertNotNull($result);
+        self::assertSame(self::SESSION_ID.'/output/archive.zip', $result['outputKey']);
+    }
+
+    public function testFallsBackToDeterministicKeyWhenSessionMissing(): void
+    {
+        $query = $this->query($this->launchedRun(), null, [$this->slot('masterkafei_LM')]);
+
+        $result = $query->forParticipant(self::RUN_ID, self::USER_ID);
+
+        self::assertNotNull($result);
+        self::assertSame(self::SESSION_ID.'/output/archive.zip', $result['outputKey']);
     }
 
     /**
@@ -84,11 +96,12 @@ final class PersonalRunPatchQueryTest extends TestCase
         return $run;
     }
 
-    private function sessionWithBridgePort(?int $port): Session
+    private function session(?string $generatedOutputKey): Session
     {
         $session = Session::create(self::SESSION_ID, self::RUN_ID, new \DateTimeImmutable());
-        $ref = new \ReflectionProperty(Session::class, 'bridgePort');
-        $ref->setValue($session, $port);
+        if (null !== $generatedOutputKey) {
+            $session->setGeneratedOutputKey($generatedOutputKey);
+        }
 
         return $session;
     }
