@@ -7,6 +7,7 @@ import {
   RANDOM_ALIASES,
   addCustomRangeEntry,
   createRangeEntry,
+  findZeroWeightOptions,
   labelFromAlias,
   labelFromKey,
   mergePlayerValues,
@@ -72,6 +73,7 @@ export function YamlOptionEditor({
   const [mode, setMode] = useState<Mode>("simple");
   const [panelSave, setPanelSave] = useState<PanelSave>({ kind: "idle" });
   const [nameError, setNameError] = useState(false);
+  const [zeroWeightLabels, setZeroWeightLabels] = useState<string[]>([]);
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "");
@@ -143,6 +145,18 @@ export function YamlOptionEditor({
       }
     }
     const yamlToSave = parsed ? serializeToYaml({ ...parsed, playerName: parsed.playerName.trim() }) : rawYaml;
+
+    // A weighted option (toggle/choice/range) whose weights all sum to 0 can never be
+    // rolled and fails generation - block the save and point at the offending options.
+    const validationTarget = parsed ?? parseDefaultYaml(yamlToSave);
+    const zeroWeight = validationTarget ? findZeroWeightOptions(validationTarget.options) : [];
+    if (zeroWeight.length > 0) {
+      setZeroWeightLabels(zeroWeight.map((o) => o.label));
+      setPanelSave({ kind: "idle" });
+      return;
+    }
+    setZeroWeightLabels([]);
+
     if (onChange) {
       onChange(yamlToSave);
       return;
@@ -297,6 +311,16 @@ export function YamlOptionEditor({
           <span className="flex items-center gap-1.5 text-sm text-danger">
             <AlertCircle aria-hidden="true" className="size-4 shrink-0" />
             {panelSave.message}
+          </span>
+        ) : null}
+        {zeroWeightLabels.length > 0 ? (
+          <span className="flex items-start gap-1.5 text-sm text-danger">
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Ces options n&apos;ont aucune valeur active (tous les poids sont à 0) :{" "}
+              <strong>{zeroWeightLabels.join(", ")}</strong>. Mets au moins une valeur à un poids
+              supérieur à 0 — sinon la génération échoue.
+            </span>
           </span>
         ) : null}
 

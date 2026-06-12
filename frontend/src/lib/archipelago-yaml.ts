@@ -632,6 +632,31 @@ export function serializeToYaml(parsed: ParsedYaml): string {
   return yaml.dump(doc, { lineWidth: -1, noRefs: true, schema: yaml.CORE_SCHEMA });
 }
 
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+/**
+ * Weighted options (toggle / choice / range) must have at least one value with a
+ * weight > 0: a distribution that sums to 0 is impossible for Archipelago to roll
+ * and fails generation. Returns the offending options (empty list = all valid).
+ */
+export function findZeroWeightOptions(options: GameOption[]): { key: string; label: string }[] {
+  const offending: { key: string; label: string }[] = [];
+  for (const opt of options) {
+    let total: number | null = null;
+    if (opt.type === "toggle") {
+      total = opt.weightFalse + opt.weightTrue;
+    } else if (opt.type === "choice") {
+      total = opt.choices.reduce((sum, c) => sum + c.weight, 0);
+    } else if (opt.type === "range") {
+      total = opt.entries.reduce((sum, e) => sum + e.weight, 0);
+    }
+    if (total !== null && total <= 0) {
+      offending.push({ key: opt.key, label: opt.label });
+    }
+  }
+  return offending;
+}
+
 function serializeOption(opt: GameOption): unknown {
   if (opt.type === "plando_items") {
     const out = opt.entries
