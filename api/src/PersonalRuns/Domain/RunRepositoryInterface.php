@@ -13,6 +13,13 @@ interface RunRepositoryInterface
      */
     public function findByOwnerId(string $ownerId): array;
 
+    /**
+     * Runs the user participates in but does **not** own (joined via invite link).
+     *
+     * @return list<Run>
+     */
+    public function findJoinedByUserId(string $userId): array;
+
     public function findByInviteToken(string $inviteToken): ?Run;
 
     public function findBySessionId(string $sessionId): ?Run;

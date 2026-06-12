@@ -57,7 +57,7 @@ final readonly class PersonalRunController
             return $user;
         }
 
-        return new JsonResponse(['data' => $this->drafts->listForOwner($user->getId())]);
+        return new JsonResponse(['data' => $this->drafts->listMine($user->getId())]);
     }
 
     #[Route('/api/v1/runs/invite/{inviteToken}/preview', name: 'api_runs_invite_preview', methods: ['GET'])]
