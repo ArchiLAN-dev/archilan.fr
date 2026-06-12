@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
+import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { AdminGamePicker } from "./admin-game-picker";
 import {
   ADMIN_WEEKLY_GAME_DETAIL_QUERY_KEY,
@@ -37,6 +38,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
   const [gameId, setGameId] = useState("");
   const [name, setName] = useState("");
   const [defaultYaml, setDefaultYaml] = useState(FALLBACK_YAML);
+  const [optionTypes, setOptionTypes] = useState<OptionTypesMap | null>(null);
   const [yamlConfig, setYamlConfig] = useState(FALLBACK_YAML);
   const [initialTemplateYaml, setInitialTemplateYaml] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<string>("");
@@ -60,6 +62,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
 
         const gameDetail = await fetchAdminGameOptionDetail(tmpl.gameId);
         setDefaultYaml(gameDetail?.defaultYaml || tmpl.yamlConfig || FALLBACK_YAML);
+        setOptionTypes(gameDetail?.optionTypes ?? null);
       } else if (mode === "create" && initialGameId) {
         // Game pre-selected from the per-game detail page: lock it and load its defaults.
         const gameDetail = await fetchAdminGameOptionDetail(initialGameId);
@@ -69,6 +72,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
           const nextDefaultYaml = gameDetail.defaultYaml || FALLBACK_YAML;
           setDefaultYaml(nextDefaultYaml);
           setYamlConfig(nextDefaultYaml);
+          setOptionTypes(gameDetail.optionTypes ?? null);
         }
       }
 
@@ -86,6 +90,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
     const gameDetail = await fetchAdminGameOptionDetail(game.id);
     const nextDefaultYaml = gameDetail?.defaultYaml || FALLBACK_YAML;
     setDefaultYaml(nextDefaultYaml);
+    setOptionTypes(gameDetail?.optionTypes ?? null);
     setYamlConfig(nextDefaultYaml);
     setYamlEditorKey((k) => k + 1);
   }
@@ -228,6 +233,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
           <YamlOptionEditor
             key={yamlEditorKey}
             defaultYaml={defaultYaml}
+            optionTypes={optionTypes}
             playerYaml={initialTemplateYaml}
             onChange={setYamlConfig}
           />

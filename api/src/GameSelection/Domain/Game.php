@@ -58,6 +58,13 @@ class Game
         private ?string $apworldMinioKey = null,
         #[ORM\Column(name: 'availability_locked', type: 'boolean', options: ['default' => false])]
         private bool $availabilityLocked = false,
+        /**
+         * Authoritative range bounds per option key, from apworld introspection (story 9.25).
+         *
+         * @var array<string, array{min: int, max: int, default: int|null}>|null
+         */
+        #[ORM\Column(name: 'option_types', type: 'json', nullable: true)]
+        private ?array $optionTypes = null,
     ) {
     }
 
@@ -218,6 +225,22 @@ class Game
     public function getDefaultYaml(): ?string
     {
         return $this->defaultYaml;
+    }
+
+    /**
+     * @return array<string, array{min: int, max: int, default: int|null}>|null
+     */
+    public function getOptionTypes(): ?array
+    {
+        return $this->optionTypes;
+    }
+
+    /**
+     * @param array<string, array{min: int, max: int, default: int|null}>|null $optionTypes
+     */
+    public function setOptionTypes(?array $optionTypes): void
+    {
+        $this->optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

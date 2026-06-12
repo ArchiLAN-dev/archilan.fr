@@ -22,6 +22,13 @@ interface RunnerGatewayInterface
     public function uploadApworld(string $fileContents, string $filename): array;
 
     /**
+     * Authoritative range bounds per option key for an uploaded apworld (story 9.25).
+     *
+     * @return array<string, array{min: int, max: int, default: int|null}>
+     */
+    public function fetchOptionTypes(string $hash): array;
+
+    /**
      * @param list<array{slotName: string, apworldHash: string, playerYaml: string}> $slots
      *
      * @return array{valid: bool, errors: list<array{playerName: string, errors: list<string>}>}

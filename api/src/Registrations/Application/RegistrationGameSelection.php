@@ -79,6 +79,7 @@ final readonly class RegistrationGameSelection
                 'availability' => $game->getAvailability(),
                 'isApworldReady' => $game->isApworldReady(),
                 'defaultYaml' => $game->getDefaultYaml(),
+                'optionTypes' => $game->getOptionTypes(),
                 'coverImageUrl' => $game->getCoverImageUrl(),
                 'coverImageAlt' => $game->getCoverImageAlt(),
             ];

@@ -218,6 +218,7 @@ final readonly class AdminGameLibrary
 
         $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, new \DateTimeImmutable());
         $game->setApworldMinioKey($minioKey);
+        $game->setOptionTypes(self::normalizeOptionTypes($result['optionTypes'] ?? null));
         $this->gameRepository->save($game);
 
         $this->logger->info('game.apworld_configured', ['gameId' => $gameId, 'hash' => $hash, 'archipelagoGameName' => $archipelagoGameName]);
@@ -457,6 +458,7 @@ final readonly class AdminGameLibrary
 
         return array_merge($this->payload($game), [
             'defaultYaml' => $game->getDefaultYaml(),
+            'optionTypes' => $game->getOptionTypes(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
             'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),
@@ -507,5 +509,31 @@ final readonly class AdminGameLibrary
         return null !== $parsed['catalogSheetName']
             || null !== $parsed['apworldSourceUrl']
             || null !== $parsed['igdbId'];
+    }
+
+    /**
+     * @return array<string, array{min: int, max: int, default: int|null}>
+     */
+    private static function normalizeOptionTypes(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $types = [];
+        foreach ($raw as $key => $bounds) {
+            if (!is_string($key) || !is_array($bounds)) {
+                continue;
+            }
+            $min = $bounds['min'] ?? null;
+            $max = $bounds['max'] ?? null;
+            if (!is_int($min) || !is_int($max)) {
+                continue;
+            }
+            $default = $bounds['default'] ?? null;
+            $types[$key] = ['min' => $min, 'max' => $max, 'default' => is_int($default) ? $default : null];
+        }
+
+        return $types;
     }
 }

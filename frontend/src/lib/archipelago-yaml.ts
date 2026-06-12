@@ -23,10 +23,24 @@ function isRandomAlias(k: string): boolean {
 // Keys always rendered as freeform dicts regardless of value shape
 const FREEFORM_DICT_KEYS = new Set(["start_inventory", "start_inventory_from_pool"]);
 
-// Top-level scalar options that are range options - value alone doesn't reveal the type
-const KNOWN_SCALAR_RANGES = new Map<string, { min: number; max: number }>([
-  ["progression_balancing", { min: 0, max: 99 }],
-]);
+// Authoritative range bounds + default per option key, from apworld introspection (story 9.25).
+// Supplied by the API; preferred over template-comment scraping when present.
+export type OptionBounds = { min: number; max: number; default: number | null };
+export type OptionTypesMap = Record<string, OptionBounds>;
+
+/** Validates an API `optionTypes` payload (unknown) into an OptionTypesMap, or null. */
+export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
+  if (typeof value !== "object" || value === null) return null;
+  const out: OptionTypesMap = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const b = raw as Record<string, unknown>;
+    if (typeof b.min === "number" && typeof b.max === "number") {
+      out[key] = { min: b.min, max: b.max, default: typeof b.default === "number" ? b.default : null };
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 // Top-level keys that are never shown to the player
 const METADATA_KEYS = new Set(["name", "description", "game", "requires"]);
@@ -383,18 +397,18 @@ function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
 
 // ─── Option type detection ────────────────────────────────────────────────────
 
-function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
+function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?: OptionTypesMap | null): GameOption {
   const label = labelFromKey(key);
   const description = extractDescription(yamlStr, key);
 
-  // Scalar value
+  // Scalar value: a scalar option that introspection knows to be a range is a range
+  // (covers e.g. progression_balancing); otherwise it's free text.
   if (typeof value !== "object" || value === null) {
-    const knownRange = KNOWN_SCALAR_RANGES.get(key);
-    if (knownRange && !isNaN(Number(value))) {
-      const bounds = extractRange(yamlStr, key) ?? knownRange;
+    const introspected = optionTypes?.[key];
+    if (introspected && !isNaN(Number(value))) {
       return {
         type: "range", key, label,
-        min: bounds.min, max: bounds.max,
+        min: introspected.min, max: introspected.max,
         entries: [createRangeEntry(String(Math.round(Number(value))), 50, false)],
         description,
       };
@@ -453,7 +467,9 @@ function buildOption(key: string, value: unknown, yamlStr: string): GameOption {
 
   // Range: all keys are numeric or random aliases
   if (keys.every((k) => !isNaN(Number(k)) || isRandomAlias(k))) {
-    const bounds = extractRange(yamlStr, key) ?? { min: 0, max: 100 };
+    // Authoritative introspected bounds first; template-comment scraping is the
+    // fallback for apworlds not yet backfilled (story 9.25).
+    const bounds = optionTypes?.[key] ?? extractRange(yamlStr, key) ?? { min: 0, max: 100 };
     const valueComments = extractValueComments(yamlStr, key);
     const fixedAliasEntries: RangeEntry[] = RANDOM_ALIASES.filter((r) => r.key in obj).map((r) => ({
       id: uid(), key: r.key, weight: clampWeight(obj[r.key]), isCustom: false,
@@ -557,7 +573,7 @@ export function mergePlayerValues(base: ParsedYaml, player: ParsedYaml): ParsedY
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export function parseDefaultYaml(yamlStr: string): ParsedYaml | null {
+export function parseDefaultYaml(yamlStr: string, optionTypes?: OptionTypesMap | null): ParsedYaml | null {
   try {
     const rawDoc = yaml.load(yamlStr, { schema: yaml.CORE_SCHEMA }) as Record<string, unknown>;
     if (!rawDoc || typeof rawDoc !== "object") return null;
@@ -573,14 +589,14 @@ export function parseDefaultYaml(yamlStr: string): ParsedYaml | null {
     const categories = parseCategories(yamlStr, gameName);
 
     const gameOptions: GameOption[] = Object.entries(gameBlock as Record<string, unknown>).map(
-      ([k, v]) => ({ ...buildOption(k, v, yamlStr), category: categories.get(k) }),
+      ([k, v]) => ({ ...buildOption(k, v, yamlStr, optionTypes), category: categories.get(k) }),
     );
     const gameOptionKeys = new Set(gameOptions.map((o) => o.key));
 
     // Top-level configurable options not already covered by the game block
     const topLevelOptions: GameOption[] = Object.entries(rawDoc)
       .filter(([k]) => STANDARD_KEYS.has(k) && !METADATA_KEYS.has(k) && !gameOptionKeys.has(k))
-      .map(([k, v]) => buildOption(k, v, yamlStr));
+      .map(([k, v]) => buildOption(k, v, yamlStr, optionTypes));
     const topLevelOptionKeys = new Set(topLevelOptions.map((o) => o.key));
 
     return {
