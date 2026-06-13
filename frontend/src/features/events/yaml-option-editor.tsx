@@ -80,6 +80,8 @@ export function YamlOptionEditor({
   const [nameError, setNameError] = useState(false);
   const [zeroWeightLabels, setZeroWeightLabels] = useState<string[]>([]);
   const [boundsErrors, setBoundsErrors] = useState<OutOfBoundsRange[]>([]);
+  // Keys of options flagged invalid on the last save attempt (highlighted in red).
+  const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set());
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
@@ -163,6 +165,7 @@ export function YamlOptionEditor({
     if (zeroWeight.length > 0) {
       setZeroWeightLabels(zeroWeight.map((o) => o.label));
       setBoundsErrors([]);
+      setInvalidKeys(new Set(zeroWeight.map((o) => o.key)));
       setPanelSave({ kind: "idle" });
       return;
     }
@@ -173,10 +176,12 @@ export function YamlOptionEditor({
     const outOfBounds = findOutOfBoundsRangeOptions(validationOptions);
     if (outOfBounds.length > 0) {
       setBoundsErrors(outOfBounds);
+      setInvalidKeys(new Set(outOfBounds.map((o) => o.key)));
       setPanelSave({ kind: "idle" });
       return;
     }
     setBoundsErrors([]);
+    setInvalidKeys(new Set());
 
     if (onChange) {
       onChange(yamlToSave);
@@ -292,6 +297,7 @@ export function YamlOptionEditor({
                 {section.options.map((opt) => (
                   <OptionField
                     key={opt.key}
+                    invalid={invalidKeys.has(opt.key)}
                     mode={mode}
                     option={opt}
                     readOnly={!effectivelyOpen}
@@ -340,7 +346,7 @@ export function YamlOptionEditor({
             <span>
               Ces options n&apos;ont aucune valeur active (tous les poids sont à 0) :{" "}
               <strong>{zeroWeightLabels.join(", ")}</strong>. Mets au moins une valeur à un poids
-              supérieur à 0 — sinon la génération échoue.
+              supérieur à 0 - sinon la génération échoue.
             </span>
           </span>
         ) : null}
@@ -542,11 +548,13 @@ function InfoTooltip({ content }: { content: string }) {
 // ─── Option field dispatcher ──────────────────────────────────────────────────
 
 function OptionField({
+  invalid = false,
   mode,
   option,
   readOnly,
   onChange,
 }: {
+  invalid?: boolean;
   mode: Mode;
   option: GameOption;
   readOnly: boolean;
@@ -555,7 +563,9 @@ function OptionField({
   return (
     <div className="grid gap-2 py-5">
       <div className="flex items-center gap-1.5">
-        <p className="break-words text-base font-semibold text-foreground">{option.label}</p>
+        <p className={`break-words text-base font-semibold ${invalid ? "text-danger" : "text-foreground"}`}>
+          {option.label}
+        </p>
         {option.description ? <InfoTooltip content={option.description} /> : null}
       </div>
       {option.type === "freeform" && option.kind === "list" && (

@@ -16,7 +16,7 @@ when the max is 99).
 Story 9.25 surfaced authoritative range bounds (`min`/`max`/`default`) from introspection into the
 editor (`optionTypes` → `RangeOption.min`/`max`). In **simple** mode the value picker (`NumberStepper`)
 already clamps to `[min, max]`. But in **advanced** mode the YAML is edited freely, and the only
-save-time guard so far (story 4.15) checks *"a weighted option has ≥1 weight > 0"* — it does **not**
+save-time guard so far (story 4.15) checks *"a weighted option has ≥1 weight > 0"* - it does **not**
 check that range values respect their bounds. So `progression_balancing: 100` (max 99) passes the
 frontend and only fails later, opaquely, at generation. (Reported by Jean.)
 
@@ -29,7 +29,8 @@ This adds a save-time bounds check, complementing 4.15, using the same authorita
    never returned.
 2. `YamlOptionEditor.handleSave` **blocks** the save (API + `onChange` paths) when any range value is
    out of bounds, and shows an inline error naming the option, the offending value(s) and the allowed
-   range. No PUT / `onChange` fires.
+   range. No PUT / `onChange` fires. The offending option's **label is shown in red** in the option
+   list (when the per-option fields are rendered). Same red treatment for the zero-weight guard (4.15).
 3. Works in **advanced/raw** mode too: the final YAML is parsed **with `optionTypes`** so range options
    carry their real bounds (fixes a gap where the 4.15 re-parse dropped `optionTypes`).
 4. A valid config saves normally; the 4.15 zero-weight guard still applies (checked first).
@@ -78,6 +79,10 @@ claude-opus-4-8 (Claude Code).
 - `handleSave` blocks the save with an inline "valeurs hors limites" banner naming option/value/range;
   validates the final YAML with `optionTypes` (also fixes the 4.15 re-parse missing `optionTypes`).
 - Jest extended (6 cases total); typecheck/lint/build green. Frontend-only.
+- Added: the flagged option's label turns **red** (`text-danger`) in the option list via an
+  `invalidKeys` set passed to `OptionField` (`invalid` prop); covers both the bounds and zero-weight
+  guards. Cleared on a clean save. (For the raw-textarea fallback where no per-option fields render,
+  the inline banner remains the feedback.)
 
 ### File List
 
