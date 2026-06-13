@@ -119,7 +119,8 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
 
         $this->makeHandler($sessions, $reconciler, $gateway, $hub, $advancer)(new CleanupStaleSessionsTask());
 
-        self::assertSame(Session::STATUS_CRASHED, $session->getStatus());
+        // A stale RUNNING session is crash-recovered to idle so the owner can resume it (story 17.12).
+        self::assertSame(Session::STATUS_IDLE, $session->getStatus());
     }
 
     public function testRunningRunnerSessionCallsStopOnCrash(): void
@@ -146,7 +147,8 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
 
         $this->makeHandler($sessions, $reconciler, $gateway, $hub, $advancer)(new CleanupStaleSessionsTask());
 
-        self::assertSame(Session::STATUS_CRASHED, $session->getStatus());
+        // A stale RUNNING session is crash-recovered to idle so the owner can resume it (story 17.12).
+        self::assertSame(Session::STATUS_IDLE, $session->getStatus());
     }
 
     private function makeStaleSession(string $targetStatus): Session

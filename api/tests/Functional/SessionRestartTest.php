@@ -124,6 +124,24 @@ final class SessionRestartTest extends FunctionalTestCase
         self::assertSame(Session::STATUS_RESTARTING, $reloaded->getStatus());
     }
 
+    public function testCrashedSessionIsRelaunchable(): void
+    {
+        // The bridge died / the containers were stopped out-of-band, leaving the session "crashed";
+        // the owner must still be able to relaunch it from the retained volume/seed (story 17.12).
+        $admin = $this->createAdmin('admin@example.org');
+        $session = $this->createCrashedSession();
+
+        $this->loginAs($admin);
+        $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
+
+        self::assertResponseStatusCodeSame(202);
+
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $reloaded);
+        self::assertSame(Session::STATUS_RESTARTING, $reloaded->getStatus());
+    }
+
     public function testNonIdleSessionReturns422InvalidStatus(): void
     {
         $admin = $this->createAdmin('admin@example.org');
@@ -267,6 +285,15 @@ final class SessionRestartTest extends FunctionalTestCase
     {
         $session = $this->createRunningSession();
         $session->transition(Session::STATUS_STOPPED, new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        return $session;
+    }
+
+    private function createCrashedSession(): Session
+    {
+        $session = $this->createRunningSession();
+        $session->transition(Session::STATUS_CRASHED, new \DateTimeImmutable());
         $this->entityManager->flush();
 
         return $session;
