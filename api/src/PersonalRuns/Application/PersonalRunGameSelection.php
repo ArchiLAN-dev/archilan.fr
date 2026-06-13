@@ -69,6 +69,7 @@ final readonly class PersonalRunGameSelection
             'availability' => $g->getAvailability(),
             'isApworldReady' => $g->isApworldReady(),
             'defaultYaml' => $g->getDefaultYaml(),
+            'optionTypes' => $g->getOptionTypes(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
         ], $allGames);

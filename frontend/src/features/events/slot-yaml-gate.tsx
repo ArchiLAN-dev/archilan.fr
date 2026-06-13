@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react";
 import { AlertCircle, ArrowLeft, Lock, XCircle } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
+import { asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
 
@@ -22,6 +23,7 @@ type GameInfo = {
   id: string;
   isApworldReady: boolean;
   defaultYaml: string | null;
+  optionTypes: OptionTypesMap | null;
 };
 
 type GateData = {
@@ -199,6 +201,7 @@ export function SlotYamlGate({
 
       <YamlOptionEditor
         defaultYaml={data.game.defaultYaml}
+        optionTypes={data.game.optionTypes}
         playerYaml={data.slot.playerYaml}
         registrationId={registrationId}
         registrationOpen={data.registrationOpen}
@@ -272,6 +275,7 @@ function parseGateData(payload: unknown, targetSlotId: string): GateData | null 
     id: g.id,
     isApworldReady: g.isApworldReady === true,
     defaultYaml: typeof g.defaultYaml === "string" ? g.defaultYaml : null,
+    optionTypes: asOptionTypesMap(g.optionTypes),
   };
 
   // Compute slot label - need sibling count for same game

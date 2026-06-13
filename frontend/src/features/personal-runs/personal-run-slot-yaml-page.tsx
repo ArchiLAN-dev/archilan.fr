@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft } from "lucide-react";
 
 import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
 import { apiFetch } from "@/lib/apiFetch";
+import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ type GameInfo = {
   id: string;
   isApworldReady: boolean;
   defaultYaml: string | null;
+  optionTypes: OptionTypesMap | null;
 };
 
 type PageData = {
@@ -84,6 +86,7 @@ export function PersonalRunSlotYamlPage({
             id: string;
             isApworldReady: boolean;
             defaultYaml: string | null;
+            optionTypes: OptionTypesMap | null;
           }>;
         };
       };
@@ -193,6 +196,7 @@ export function PersonalRunSlotYamlPage({
 
       <YamlOptionEditor
         defaultYaml={data.game.defaultYaml}
+        optionTypes={data.game.optionTypes}
         playerYaml={data.slot.playerYaml}
         registrationId={runId}
         registrationOpen

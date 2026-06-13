@@ -21,6 +21,7 @@ import {
   type ParsedYaml,
   type ItemLinkEntry,
   type ItemLinksOption,
+  type OptionTypesMap,
   type PlandoItem,
   type PlandoItemRow,
   type PlandoItemsOption,
@@ -44,6 +45,7 @@ type PanelSave =
 export function YamlOptionEditor({
   defaultYaml,
   playerYaml,
+  optionTypes,
   registrationId,
   registrationOpen = true,
   slotId,
@@ -54,6 +56,7 @@ export function YamlOptionEditor({
 }: {
   defaultYaml: string | null;
   playerYaml: string | null;
+  optionTypes?: OptionTypesMap | null;
   registrationId?: string;
   registrationOpen?: boolean;
   slotId?: string;
@@ -63,10 +66,10 @@ export function YamlOptionEditor({
   onChange?: (yaml: string) => void;
 }) {
   const [parsed, setParsed] = useState<ParsedYaml | null>(() => {
-    const base = parseDefaultYaml(defaultYaml ?? "");
+    const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
     if (!base) return null;
     if (!playerYaml) return base;
-    const player = parseDefaultYaml(playerYaml);
+    const player = parseDefaultYaml(playerYaml, optionTypes);
     return player ? mergePlayerValues(base, player) : base;
   });
   const [rawYaml, setRawYaml] = useState(playerYaml ?? defaultYaml ?? "");
@@ -76,7 +79,7 @@ export function YamlOptionEditor({
   const [zeroWeightLabels, setZeroWeightLabels] = useState<string[]>([]);
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
-    const base = parseDefaultYaml(defaultYaml ?? "");
+    const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
     if (!base) return new Set();
     const firstKey = groupByCategory(base.options)
       .map((s, i) => s.category ?? `__${i}`)
