@@ -645,7 +645,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             <PersonalRunStatusBadge status={run.status} />
           </div>
 
-          {run.isOwner && (
+          {run.isOwner && run.inviteToken !== null && (
             <div className="mt-4">
               <InviteLinkPanel
                 inviteToken={run.inviteToken}

@@ -29,7 +29,7 @@ export type PersonalRun = {
   ownerId: string;
   title: string;
   status: PersonalRunStatus;
-  inviteToken: string;
+  inviteToken: string | null;
   gameSelectionConfig: PersonalRunGame[] | null;
   connectionHost: string | null;
   connectionPort: number | null;

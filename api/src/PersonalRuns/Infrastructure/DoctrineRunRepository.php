@@ -28,6 +28,31 @@ final readonly class DoctrineRunRepository implements RunRepositoryInterface
         );
     }
 
+    public function findJoinedByUserId(string $userId): array
+    {
+        $qb = $this->entityManager->getConnection()->createQueryBuilder();
+        $ids = $qb
+            ->select('rp.personal_run_id')
+            ->from('run_participant', 'rp')
+            ->innerJoin('rp', 'run', 'r', $qb->expr()->eq('r.id', 'rp.personal_run_id'))
+            ->where($qb->expr()->eq('rp.user_id', ':userId'))
+            ->andWhere($qb->expr()->neq('r.owner_id', ':userId'))
+            ->setParameter('userId', $userId)
+            ->executeQuery()
+            ->fetchFirstColumn();
+
+        $ids = array_values(array_unique(array_filter($ids, 'is_string')));
+        if ([] === $ids) {
+            return [];
+        }
+
+        /* @var list<Run> */
+        return $this->entityManager->getRepository(Run::class)->findBy(
+            ['id' => $ids],
+            ['createdAt' => 'DESC', 'id' => 'DESC'],
+        );
+    }
+
     public function findByInviteToken(string $inviteToken): ?Run
     {
         /* @var Run|null */
