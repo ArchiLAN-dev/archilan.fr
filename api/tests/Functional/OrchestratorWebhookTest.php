@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Domain\Session;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
@@ -80,6 +81,46 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         $refreshed = $this->entityManager->find(Session::class, $session->getId());
         self::assertInstanceOf(Session::class, $refreshed);
         self::assertSame(Session::STATUS_CRASHED, $refreshed->getStatus());
+    }
+
+    public function testSessionCrashedFromGeneratingFailsAndResetsRun(): void
+    {
+        // Story 17.11: a generation crash must not leave the session on "generating"
+        // and the personal run on "starting" forever.
+        $session = $this->createSessionInStatus(Session::STATUS_GENERATING);
+        $now = new \DateTimeImmutable();
+        $run = Run::create('owner-1', 'Ma partie', $now);
+        $run->start($now);
+        $run->setSessionId($session->getId());
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        $this->sendWebhook(['event' => 'session.crashed', 'sessionId' => $session->getId(), 'error' => 'generate boom']);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+
+        $refreshedSession = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshedSession);
+        self::assertSame(Session::STATUS_FAILED, $refreshedSession->getStatus());
+        self::assertNotNull($refreshedSession->getValidationErrors());
+
+        $refreshedRun = $this->entityManager->find(Run::class, $run->getId());
+        self::assertInstanceOf(Run::class, $refreshedRun);
+        self::assertSame(Run::STATUS_DRAFT, $refreshedRun->getStatus());
+    }
+
+    public function testSessionCrashedFromGeneratingReachesFailedWithoutRun(): void
+    {
+        $session = $this->createSessionInStatus(Session::STATUS_GENERATING);
+
+        $this->sendWebhook(['event' => 'session.crashed', 'sessionId' => $session->getId()]);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshed);
+        self::assertSame(Session::STATUS_FAILED, $refreshed->getStatus());
     }
 
     // ─── weekly-gen-* generator sessions ──────────────────────────────────────
