@@ -186,6 +186,59 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return ['found' => true, 'session' => $session->payload()];
     }
 
+    /**
+     * Record a crash reported by the orchestrateur, mapping it to a *valid terminal* state by
+     * the current status so the session never hangs (story 17.11):
+     *  - generating/launching  → failed (terminal) + the personal run is reset off "starting"
+     *    and the reason surfaced, so the owner can fix & retry;
+     *  - running               → crashed (existing idle-recovery via transition()).
+     * Any other state is logged at error level rather than silently succeeding.
+     *
+     * @return array<string, mixed>
+     */
+    public function recordCrash(string $sessionId, ?string $reason = null): array
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return ['found' => false];
+        }
+
+        $from = $session->getStatus();
+
+        // Runtime crash keeps the existing crashed → idle recovery path.
+        if (Session::STATUS_RUNNING === $from) {
+            return $this->transition($sessionId, Session::STATUS_CRASHED, lastLogs: $reason);
+        }
+
+        if (!in_array($from, [Session::STATUS_GENERATING, Session::STATUS_LAUNCHING], true)) {
+            // Crash from an unexpected state: don't 200 blindly - log it loudly.
+            $this->logger->error('session.crash.unexpected_state', ['sessionId' => $sessionId, 'from' => $from]);
+
+            return ['found' => true, 'errors' => ["Crash signalé depuis un état inattendu '$from'."]];
+        }
+
+        $now = new \DateTimeImmutable();
+        $session->transition(Session::STATUS_FAILED, $now);
+
+        $message = 'La génération a échoué côté serveur. Vérifie ta configuration (YAML / jeux) puis relance.';
+        $session->setValidationErrors([['slotName' => 'Génération', 'errors' => [$message]]]);
+        if (null !== $reason && '' !== trim($reason)) {
+            $session->setLastLogs($reason);
+        }
+
+        $personalRun = $this->runs->findBySessionId($sessionId);
+        if ($personalRun instanceof Run && Run::STATUS_STARTING === $personalRun->getStatus()) {
+            $personalRun->resetAfterValidationFailure($now);
+        }
+
+        $this->sessions->flush();
+        $this->publish($session);
+
+        $this->logger->error('session.crash.failed', ['sessionId' => $sessionId, 'from' => $from, 'reason' => $reason]);
+
+        return ['found' => true];
+    }
+
     /** @return array{found: bool} */
     public function heartbeat(string $sessionId): array
     {

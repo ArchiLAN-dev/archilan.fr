@@ -103,7 +103,8 @@ final readonly class OrchestratorWebhookController
         }
 
         if ('session.crashed' === $event) {
-            $result = $this->sessionLifecycleManager->transition($sessionId, 'crashed');
+            $reason = is_string($body['error'] ?? null) ? $body['error'] : null;
+            $result = $this->sessionLifecycleManager->recordCrash($sessionId, $reason);
             if (!($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }

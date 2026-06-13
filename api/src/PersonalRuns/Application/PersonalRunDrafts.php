@@ -337,7 +337,10 @@ final readonly class PersonalRunDrafts
                     $pausedWithoutSave = $session->isPausedWithoutSave();
                 }
 
-                if (Run::STATUS_DRAFT === $run->getStatus() && Session::STATUS_DRAFT === $session->getStatus()) {
+                // Surface the reason on a reset run: validation failure (session draft) or a
+                // generation/launch crash (session failed - story 17.11).
+                if (Run::STATUS_DRAFT === $run->getStatus()
+                    && in_array($session->getStatus(), [Session::STATUS_DRAFT, Session::STATUS_FAILED], true)) {
                     $validationErrors = $session->getValidationErrors();
                 }
 

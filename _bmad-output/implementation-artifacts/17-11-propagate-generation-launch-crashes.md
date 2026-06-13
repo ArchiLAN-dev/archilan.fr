@@ -1,6 +1,6 @@
 # Story 17.11: Session lifecycle — propagate generation/launch crashes (don't hang on "generating"/"starting")
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 17 - Session restart / idle lifecycle
 **Date:** 2026-06-11
 
@@ -135,8 +135,35 @@ error, OOM, …) still hangs. This story makes crashes terminal and visible.
 
 claude-opus-4-8 (Claude Code).
 
+### Completion Notes List
+
+- `SessionLifecycleManager::recordCrash($sessionId, $reason)`: maps a crash to a valid terminal
+  state by current status — `generating`/`launching` → **`failed`** (sets a friendly
+  `validationErrors` message + stores the raw reason in `lastLogs`, resets the personal run via
+  `resetAfterValidationFailure` → `draft`); `running` → delegates to the existing `crashed`→idle
+  recovery; any other state is **logged at error** (no silent 200).
+- `OrchestratorWebhookController` `session.crashed` now calls `recordCrash` (with `body.error` as the
+  reason) instead of the illegal `transition('crashed')` that was being swallowed.
+- `PersonalRunDrafts::payload` surfaces the session's `validationErrors` on a reset run when the
+  session is `draft` **or `failed`** — so the existing `ValidationErrorBanner` on the run page shows
+  the "génération échouée" reason. **Backend-only** (the frontend banner already renders when
+  `run.validationErrors` is present).
+- Non-owner sees a coherent state (run back to `draft`), no hang.
+- Tests: functional `OrchestratorWebhookTest` — crash from `generating` → session `failed` + run
+  `draft` + `validationErrors` set; and crash from `generating` without a run still reaches `failed`.
+  The existing running-crash test still passes. Gates green: phpstan / php-cs-fixer / phpunit (1009) /
+  `app:architecture:ddd`.
+
+### File List
+
+- `api/src/Sessions/Application/SessionLifecycleManager.php` (`recordCrash`)
+- `api/src/Sessions/Presentation/OrchestratorWebhookController.php` (`session.crashed` → `recordCrash`)
+- `api/src/PersonalRuns/Application/PersonalRunDrafts.php` (surface validationErrors on `failed`)
+- `api/tests/Functional/OrchestratorWebhookTest.php` (2 new tests)
+
 ### Change Log
 
 | Date       | Change |
 |------------|--------|
 | 2026-06-11 | Story created from the `8771220b…` diagnosis: `session.crashed` from `generating` is an illegal transition, swallowed by `SessionLifecycleManager`, so the session hangs on `generating` and the run on `starting`; no run-side crash path exists. Scope: map crash → valid terminal state by status, stop silently 200-ing, propagate failure to the run, surface the reason. Status → ready-for-dev. |
+| 2026-06-13 | Implemented: `recordCrash` (gen/launch → failed + run reset + reason; running → crashed; other → logged); webhook switched to it; run payload surfaces `validationErrors` when session `failed`. Backend-only; functional tests + all gates green. Status → review. |
