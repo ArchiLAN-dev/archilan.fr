@@ -1,8 +1,20 @@
 import {
   createRangeEntry,
+  findOutOfBoundsRangeOptions,
   findZeroWeightOptions,
   type GameOption,
 } from "./archipelago-yaml";
+
+function rangeWithKeys(key: string, min: number, max: number, entryKeys: string[]): GameOption {
+  return {
+    type: "range",
+    key,
+    label: key,
+    min,
+    max,
+    entries: entryKeys.map((k) => createRangeEntry(k, 50, true)),
+  };
+}
 
 function toggle(key: string, weightFalse: number, weightTrue: number): GameOption {
   return { type: "toggle", key, label: key, weightFalse, weightTrue };
@@ -57,5 +69,33 @@ describe("findZeroWeightOptions", () => {
       { type: "text", key: "item_links", label: "item_links", value: "0" },
     ]);
     expect(offending).toEqual([]);
+  });
+});
+
+describe("findOutOfBoundsRangeOptions", () => {
+  test("flags numeric range values outside [min, max]", () => {
+    const out = findOutOfBoundsRangeOptions([
+      rangeWithKeys("progression_balancing", 0, 99, ["50", "100"]),
+      rangeWithKeys("luigi_max_health", 1, 1000, ["0"]),
+    ]);
+    expect(out.map((o) => o.key).sort()).toEqual(["luigi_max_health", "progression_balancing"]);
+    expect(out.find((o) => o.key === "progression_balancing")?.values).toEqual([100]);
+    expect(out.find((o) => o.key === "luigi_max_health")?.values).toEqual([0]);
+  });
+
+  test("accepts in-bounds values and ignores random aliases", () => {
+    expect(
+      findOutOfBoundsRangeOptions([
+        rangeWithKeys("progression_balancing", 0, 99, ["0", "50", "99", "random", "random-range-0-99"]),
+      ]),
+    ).toEqual([]);
+  });
+
+  test("ignores non-range options", () => {
+    expect(
+      findOutOfBoundsRangeOptions([
+        { type: "toggle", key: "death_link", label: "death_link", weightFalse: 50, weightTrue: 0 },
+      ]),
+    ).toEqual([]);
   });
 });

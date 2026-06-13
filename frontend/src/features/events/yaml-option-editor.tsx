@@ -7,6 +7,7 @@ import {
   RANDOM_ALIASES,
   addCustomRangeEntry,
   createRangeEntry,
+  findOutOfBoundsRangeOptions,
   findZeroWeightOptions,
   labelFromAlias,
   labelFromKey,
@@ -22,6 +23,7 @@ import {
   type ItemLinkEntry,
   type ItemLinksOption,
   type OptionTypesMap,
+  type OutOfBoundsRange,
   type PlandoItem,
   type PlandoItemRow,
   type PlandoItemsOption,
@@ -77,6 +79,9 @@ export function YamlOptionEditor({
   const [panelSave, setPanelSave] = useState<PanelSave>({ kind: "idle" });
   const [nameError, setNameError] = useState(false);
   const [zeroWeightLabels, setZeroWeightLabels] = useState<string[]>([]);
+  const [boundsErrors, setBoundsErrors] = useState<OutOfBoundsRange[]>([]);
+  // Keys of options flagged invalid on the last save attempt (highlighted in red).
+  const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set());
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
@@ -149,16 +154,34 @@ export function YamlOptionEditor({
     }
     const yamlToSave = parsed ? serializeToYaml({ ...parsed, playerName: parsed.playerName.trim() }) : rawYaml;
 
+    // Validate the final YAML (covers simple + advanced/raw edits) against the authoritative
+    // option metadata. Parse with optionTypes so range options carry their real [min,max].
+    const validationTarget = parsed ?? parseDefaultYaml(yamlToSave, optionTypes);
+    const validationOptions = validationTarget?.options ?? [];
+
     // A weighted option (toggle/choice/range) whose weights all sum to 0 can never be
     // rolled and fails generation - block the save and point at the offending options.
-    const validationTarget = parsed ?? parseDefaultYaml(yamlToSave);
-    const zeroWeight = validationTarget ? findZeroWeightOptions(validationTarget.options) : [];
+    const zeroWeight = findZeroWeightOptions(validationOptions);
     if (zeroWeight.length > 0) {
       setZeroWeightLabels(zeroWeight.map((o) => o.label));
+      setBoundsErrors([]);
+      setInvalidKeys(new Set(zeroWeight.map((o) => o.key)));
       setPanelSave({ kind: "idle" });
       return;
     }
     setZeroWeightLabels([]);
+
+    // A range value outside its [min, max] bounds is rejected by Archipelago at generation
+    // (e.g. progression_balancing 100 when the max is 99) - block it here instead.
+    const outOfBounds = findOutOfBoundsRangeOptions(validationOptions);
+    if (outOfBounds.length > 0) {
+      setBoundsErrors(outOfBounds);
+      setInvalidKeys(new Set(outOfBounds.map((o) => o.key)));
+      setPanelSave({ kind: "idle" });
+      return;
+    }
+    setBoundsErrors([]);
+    setInvalidKeys(new Set());
 
     if (onChange) {
       onChange(yamlToSave);
@@ -274,6 +297,7 @@ export function YamlOptionEditor({
                 {section.options.map((opt) => (
                   <OptionField
                     key={opt.key}
+                    invalid={invalidKeys.has(opt.key)}
                     mode={mode}
                     option={opt}
                     readOnly={!effectivelyOpen}
@@ -322,7 +346,22 @@ export function YamlOptionEditor({
             <span>
               Ces options n&apos;ont aucune valeur active (tous les poids sont à 0) :{" "}
               <strong>{zeroWeightLabels.join(", ")}</strong>. Mets au moins une valeur à un poids
-              supérieur à 0 — sinon la génération échoue.
+              supérieur à 0 - sinon la génération échoue.
+            </span>
+          </span>
+        ) : null}
+        {boundsErrors.length > 0 ? (
+          <span className="flex items-start gap-1.5 text-sm text-danger">
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Valeurs hors limites :{" "}
+              {boundsErrors.map((b, i) => (
+                <span key={b.key}>
+                  {i > 0 ? "; " : ""}
+                  <strong>{b.label}</strong> = {b.values.join(", ")} (autorisé&nbsp;: {b.min}–{b.max})
+                </span>
+              ))}
+              . Corrige ces valeurs avant de sauvegarder.
             </span>
           </span>
         ) : null}
@@ -509,11 +548,13 @@ function InfoTooltip({ content }: { content: string }) {
 // ─── Option field dispatcher ──────────────────────────────────────────────────
 
 function OptionField({
+  invalid = false,
   mode,
   option,
   readOnly,
   onChange,
 }: {
+  invalid?: boolean;
   mode: Mode;
   option: GameOption;
   readOnly: boolean;
@@ -522,7 +563,9 @@ function OptionField({
   return (
     <div className="grid gap-2 py-5">
       <div className="flex items-center gap-1.5">
-        <p className="break-words text-base font-semibold text-foreground">{option.label}</p>
+        <p className={`break-words text-base font-semibold ${invalid ? "text-danger" : "text-foreground"}`}>
+          {option.label}
+        </p>
         {option.description ? <InfoTooltip content={option.description} /> : null}
       </div>
       {option.type === "freeform" && option.kind === "list" && (
