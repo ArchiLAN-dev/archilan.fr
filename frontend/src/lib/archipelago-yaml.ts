@@ -673,6 +673,28 @@ export function findZeroWeightOptions(options: GameOption[]): { key: string; lab
   return offending;
 }
 
+export type OutOfBoundsRange = { key: string; label: string; min: number; max: number; values: number[] };
+
+/**
+ * Range options whose numeric value(s) fall outside the authoritative `[min, max]` bounds
+ * (story 9.25 `optionTypes`). Archipelago rejects such values at generation - block at save.
+ * Random aliases (`random`, `random-range-…`) are ignored; only literal numeric values count.
+ */
+export function findOutOfBoundsRangeOptions(options: GameOption[]): OutOfBoundsRange[] {
+  const offending: OutOfBoundsRange[] = [];
+  for (const opt of options) {
+    if (opt.type !== "range") continue;
+    const values = opt.entries
+      .filter((e) => e.key.trim() !== "" && !isNaN(Number(e.key)))
+      .map((e) => Number(e.key))
+      .filter((n) => n < opt.min || n > opt.max);
+    if (values.length > 0) {
+      offending.push({ key: opt.key, label: opt.label, min: opt.min, max: opt.max, values });
+    }
+  }
+  return offending;
+}
+
 function serializeOption(opt: GameOption): unknown {
   if (opt.type === "plando_items") {
     const out = opt.entries
