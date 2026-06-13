@@ -1,13 +1,13 @@
 name: Frontend Quality
 
 on:
-  pull_request:
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
+  # CI runs only on the integration branches (develop) and prod (main) to stay within
+  # the monthly Actions minutes budget. Feature branches/PRs rely on local quality gates;
+  # use workflow_dispatch to run on demand.
   push:
     branches:
       - main
+      - develop
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'
