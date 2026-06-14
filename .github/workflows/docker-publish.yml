@@ -30,7 +30,7 @@ concurrency:
 jobs:
   api-web:
     name: API (web)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -94,7 +94,7 @@ jobs:
 
   api-worker:
     name: API (worker)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -160,7 +160,7 @@ jobs:
 
   frontend:
     name: Frontend
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
