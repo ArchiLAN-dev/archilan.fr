@@ -23,7 +23,7 @@ concurrency:
 jobs:
   backend:
     name: Backend
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # NB: a PHP 8.3 matrix leg was attempted but the lockfile requires 8.4
     # (doctrine/doctrine-bundle 3.2.2 needs php ^8.4), so 8.3 can't even install.
     # The project effectively requires 8.4; composer.json's "^8.3" is aspirational
