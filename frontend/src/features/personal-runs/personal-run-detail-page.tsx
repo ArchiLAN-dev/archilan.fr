@@ -382,20 +382,20 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     return () => clearTimeout(timeout);
   }, [authLoading, user, router, runId, fetchRun]);
 
-  // Polling for transitional statuses
+  // Polling: fast (3s) during transitional states; slow (30s) while active so a container that
+  // stops itself (idle / auto_shutdown) is reflected without a manual refresh.
   useEffect(() => {
     if (state.kind !== "ready") return;
 
     const status = state.run.status;
-    const shouldPoll = (POLLING_STATUSES as readonly string[]).includes(status);
+    const transitional = (POLLING_STATUSES as readonly string[]).includes(status);
+    const intervalMs = transitional ? 3_000 : status === "active" ? 30_000 : null;
 
-    if (shouldPoll) {
-      intervalRef.current = setInterval(() => { void fetchRun(); }, 3000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+    if (intervalMs !== null) {
+      intervalRef.current = setInterval(() => { void fetchRun(); }, intervalMs);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
 
     return () => {

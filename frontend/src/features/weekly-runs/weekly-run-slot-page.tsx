@@ -77,6 +77,11 @@ export function WeeklyRunSlotPage({
     queryKey: ["weekly-runs", "current"],
     queryFn: fetchCurrentWeeklyRuns,
     staleTime: DEFAULT_STALE_TIME,
+    // While a relaunch is in flight, poll fast so the page leaves the "serveur en pause" /
+    // restarting screen and shows the live tracking on its own; else a slow refresh detects a
+    // killed container within a minute. (Story 17.13)
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((r) => r.myEntry?.sessionStatus === "restarting") ? 3_000 : 60_000,
   });
   const run = runs.find((r) => r.weeklyRunId === weeklyRunId) ?? null;
   const myEntry = run?.myEntry ?? null;

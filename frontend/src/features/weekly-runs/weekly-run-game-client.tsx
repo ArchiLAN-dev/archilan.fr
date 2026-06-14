@@ -668,7 +668,10 @@ export function WeeklyRunGameClientPage({ params }: Props) {
     queryKey: ["weekly-runs", "current"],
     queryFn: fetchCurrentWeeklyRuns,
     staleTime: DEFAULT_STALE_TIME,
-    refetchInterval: 60_000,
+    // Poll fast while a relaunch is in flight so the page flips back to "Serveur prêt" on its own
+    // (restarting → running); otherwise a slow background refresh is enough. (Story 17.13)
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((r) => r.myEntry?.sessionStatus === "restarting") ? 3_000 : 60_000,
   });
 
   if (loading || (user && !isAdmin && membershipLoading) || runsLoading) {
