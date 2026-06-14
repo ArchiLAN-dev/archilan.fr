@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { YamlOptionEditor } from "@/features/events/yaml-option-editor";
+import { YamlOptionEditor, type YamlEditorHandle } from "@/features/events/yaml-option-editor";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { AdminGamePicker } from "./admin-game-picker";
 import {
@@ -43,6 +43,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
   const [initialTemplateYaml, setInitialTemplateYaml] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<string>("");
   const [yamlEditorKey, setYamlEditorKey] = useState(0);
+  const yamlEditorRef = useRef<YamlEditorHandle>(null);
 
   useEffect(() => {
     async function load() {
@@ -105,6 +106,12 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
     }
     if (!yamlConfig.trim()) {
       setError("La configuration YAML est obligatoire.");
+      return;
+    }
+    // Same save-time guards as the player slot editor (zero-weight + range bounds): the
+    // editor shows the inline banners / red labels; we just gate the submit. (Story 4.16.)
+    if (yamlEditorRef.current && !yamlEditorRef.current.validate()) {
+      setError("La configuration YAML comporte des erreurs. Corrigez-les avant d'enregistrer.");
       return;
     }
 
@@ -232,6 +239,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
           <label className="text-sm font-medium text-foreground">Configuration YAML</label>
           <YamlOptionEditor
             key={yamlEditorKey}
+            ref={yamlEditorRef}
             defaultYaml={defaultYaml}
             optionTypes={optionTypes}
             playerYaml={initialTemplateYaml}

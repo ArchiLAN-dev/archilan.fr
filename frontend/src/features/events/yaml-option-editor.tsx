@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, Info, Plus, X } from "lucide-react";
 
 import {
@@ -44,18 +44,7 @@ type PanelSave =
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function YamlOptionEditor({
-  defaultYaml,
-  playerYaml,
-  optionTypes,
-  registrationId,
-  registrationOpen = true,
-  slotId,
-  onDirty,
-  onSaved,
-  saveUrl,
-  onChange,
-}: {
+type YamlOptionEditorProps = {
   defaultYaml: string | null;
   playerYaml: string | null;
   optionTypes?: OptionTypesMap | null;
@@ -66,7 +55,32 @@ export function YamlOptionEditor({
   onSaved?: (slotId: string) => void;
   saveUrl?: string;
   onChange?: (yaml: string) => void;
-}) {
+};
+
+/**
+ * Imperative handle for consumers that drive their own save button (template mode,
+ * `onChange`). `validate()` runs the same save-time guards as the internal Save button
+ * (zero-weight + range bounds), updates the inline banners / red labels, and returns
+ * `true` only when the config is clean. See story 4.16 AC2 (block the `onChange` path).
+ */
+export type YamlEditorHandle = { validate: () => boolean };
+
+export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorProps>(
+  function YamlOptionEditor(
+    {
+      defaultYaml,
+      playerYaml,
+      optionTypes,
+      registrationId,
+      registrationOpen = true,
+      slotId,
+      onDirty,
+      onSaved,
+      saveUrl,
+      onChange,
+    },
+    ref,
+  ) {
   const [parsed, setParsed] = useState<ParsedYaml | null>(() => {
     const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
     if (!base) return null;
@@ -141,6 +155,45 @@ export function YamlOptionEditor({
     URL.revokeObjectURL(url);
   }
 
+  // Save-time guards (story 4.15 zero-weight + 4.16 range bounds). Updates the inline
+  // banners / red labels and returns false when the config must not be saved. Shared by
+  // the internal Save button and the imperative `validate()` handle (template mode).
+  const runValidation = useCallback((): boolean => {
+    // Parse the raw/advanced edits with optionTypes so range options carry their real
+    // [min,max]; in the field-based model `parsed` is already the authoritative target.
+    const validationTarget = parsed ?? parseDefaultYaml(rawYaml, optionTypes);
+    const validationOptions = validationTarget?.options ?? [];
+
+    // A weighted option (toggle/choice/range) whose weights all sum to 0 can never be
+    // rolled and fails generation - block the save and point at the offending options.
+    const zeroWeight = findZeroWeightOptions(validationOptions);
+    if (zeroWeight.length > 0) {
+      setZeroWeightLabels(zeroWeight.map((o) => o.label));
+      setBoundsErrors([]);
+      setInvalidKeys(new Set(zeroWeight.map((o) => o.key)));
+      setPanelSave({ kind: "idle" });
+      return false;
+    }
+    setZeroWeightLabels([]);
+
+    // A range value outside its [min, max] bounds is rejected by Archipelago at generation
+    // (e.g. progression_balancing 100 when the max is 99) - block it here instead.
+    const outOfBounds = findOutOfBoundsRangeOptions(validationOptions);
+    if (outOfBounds.length > 0) {
+      setBoundsErrors(outOfBounds);
+      setInvalidKeys(new Set(outOfBounds.map((o) => o.key)));
+      setPanelSave({ kind: "idle" });
+      return false;
+    }
+    setBoundsErrors([]);
+    setInvalidKeys(new Set());
+    return true;
+  }, [parsed, rawYaml, optionTypes]);
+
+  // Template consumers (onChange) drive their own save button: let them gate it on the
+  // same validation the internal Save button enforces. (Story 4.16 AC2: onChange path.)
+  useImperativeHandle(ref, () => ({ validate: runValidation }), [runValidation]);
+
   async function handleSave() {
     if (parsed) {
       const trimmedName = parsed.playerName.trim();
@@ -152,36 +205,8 @@ export function YamlOptionEditor({
         setParsed((p) => (p ? { ...p, playerName: trimmedName } : p));
       }
     }
+    if (!runValidation()) return;
     const yamlToSave = parsed ? serializeToYaml({ ...parsed, playerName: parsed.playerName.trim() }) : rawYaml;
-
-    // Validate the final YAML (covers simple + advanced/raw edits) against the authoritative
-    // option metadata. Parse with optionTypes so range options carry their real [min,max].
-    const validationTarget = parsed ?? parseDefaultYaml(yamlToSave, optionTypes);
-    const validationOptions = validationTarget?.options ?? [];
-
-    // A weighted option (toggle/choice/range) whose weights all sum to 0 can never be
-    // rolled and fails generation - block the save and point at the offending options.
-    const zeroWeight = findZeroWeightOptions(validationOptions);
-    if (zeroWeight.length > 0) {
-      setZeroWeightLabels(zeroWeight.map((o) => o.label));
-      setBoundsErrors([]);
-      setInvalidKeys(new Set(zeroWeight.map((o) => o.key)));
-      setPanelSave({ kind: "idle" });
-      return;
-    }
-    setZeroWeightLabels([]);
-
-    // A range value outside its [min, max] bounds is rejected by Archipelago at generation
-    // (e.g. progression_balancing 100 when the max is 99) - block it here instead.
-    const outOfBounds = findOutOfBoundsRangeOptions(validationOptions);
-    if (outOfBounds.length > 0) {
-      setBoundsErrors(outOfBounds);
-      setInvalidKeys(new Set(outOfBounds.map((o) => o.key)));
-      setPanelSave({ kind: "idle" });
-      return;
-    }
-    setBoundsErrors([]);
-    setInvalidKeys(new Set());
 
     if (onChange) {
       onChange(yamlToSave);
@@ -389,7 +414,7 @@ export function YamlOptionEditor({
       </div>
     </div>
   );
-}
+});
 
 // ─── Mode toggle button ───────────────────────────────────────────────────────
 

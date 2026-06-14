@@ -88,6 +88,7 @@ claude-opus-4-8 (Claude Code).
 
 - `frontend/src/lib/archipelago-yaml.ts`
 - `frontend/src/features/events/yaml-option-editor.tsx`
+- `frontend/src/features/admin/admin-weekly-template-form.tsx` (2026-06-14: gate submit on `validate()`)
 - `frontend/src/lib/archipelago-yaml-validation.test.ts`
 
 ### Change Log
@@ -95,3 +96,4 @@ claude-opus-4-8 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-06-13 | Created + implemented. Block saving a range value outside [min,max] (advanced mode let `progression_balancing: 100` through). Reuses 9.25 `optionTypes`; complements 4.15. Frontend-only; tested; gates green. Status → review. |
+| 2026-06-14 | Gap fix for AC2 (`onChange` path). The guard was only reachable via the editor's internal Save button, which is hidden in template mode (`onChange`), so the admin weekly-template form (`/admin/weekly-runs/[id]/modifier`) bypassed it entirely. Factored the checks into `runValidation()` and exposed them via an imperative `YamlEditorHandle.validate()` (`forwardRef` + `useImperativeHandle`); the admin form now gates its submit on `validate()` and the editor shows the same banners / red labels. Frontend-only; typecheck/lint/build + validation unit tests green. (Reported by Jean.) |
