@@ -20,11 +20,12 @@ final class RefreshTokenFactory
         \DateTimeImmutable $now,
         ?string $userAgent = null,
         bool $rememberMe = true,
+        ?string $familyId = null,
     ): array {
         $ttlDays = $rememberMe ? self::TOKEN_TTL_LONG_DAYS : self::TOKEN_TTL_SHORT_DAYS;
         $rawToken = $this->generateRawToken();
         $expiresAt = $now->modify(sprintf('+%d days', $ttlDays));
-        $entity = RefreshToken::issue($userId, $rawToken, $expiresAt, $now, $userAgent, $rememberMe);
+        $entity = RefreshToken::issue($userId, $rawToken, $expiresAt, $now, $userAgent, $rememberMe, $familyId);
 
         return ['rawToken' => $rawToken, 'entity' => $entity];
     }

@@ -6,6 +6,8 @@ namespace App\Tests\Unit\WeeklyRuns;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\WeeklyRuns\Application\LaunchWeeklyEntry;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
@@ -119,7 +121,16 @@ final class LaunchWeeklyEntryTest extends TestCase
                 ];
             });
 
-        $result = $this->makeHandler($runs, $entries, $gateway)->execute('run-1', 'entry-1', 'user-1');
+        // Story 17.13: a Session aggregate is registered for the entry so the lifecycle/relaunch apply.
+        $sessions = $this->createMock(SessionRepositoryInterface::class);
+        $sessions->expects(self::once())->method('persist')
+            ->with(self::callback(static function (Session $session): bool {
+                return 'sess-1' === $session->getId()
+                    && Session::STATUS_RUNNING === $session->getStatus()
+                    && 'run-1' === $session->getEventId();
+            }));
+
+        $result = $this->makeHandler($runs, $entries, $gateway, null, $sessions)->execute('run-1', 'entry-1', 'user-1');
 
         self::assertSame('entry-1', $result['entryId']);
         self::assertSame('sess-1', $result['externalSessionId']);
@@ -239,6 +250,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         WeeklyEntryRepositoryInterface $entries,
         WeeklyRunnerGatewayInterface $gateway,
         ?WeeklyTemplateRepositoryInterface $templates = null,
+        ?SessionRepositoryInterface $sessions = null,
     ): LaunchWeeklyEntry {
         if (null === $templates) {
             $stub = $this->createStub(WeeklyTemplateRepositoryInterface::class);
@@ -251,6 +263,8 @@ final class LaunchWeeklyEntryTest extends TestCase
         $games = $this->createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($gameStub);
 
-        return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock, $this->defaultsResolver());
+        $sessions ??= $this->createStub(SessionRepositoryInterface::class);
+
+        return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock, $this->defaultsResolver(), $sessions);
     }
 }

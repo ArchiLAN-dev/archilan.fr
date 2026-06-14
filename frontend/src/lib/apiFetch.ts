@@ -67,6 +67,19 @@ export async function coordinatedRefresh(): Promise<boolean> {
   }
 }
 
+// Refresh only if the last successful refresh is older than `maxAgeMs` - used by the
+// visibility/focus handlers so a passive tab (whose `setInterval` got throttled while
+// backgrounded/asleep) refreshes the moment it becomes active again, without firing on
+// every quick tab switch. Goes through the same coordinated/deduped path.
+export async function refreshIfStale(maxAgeMs: number): Promise<boolean> {
+  if (typeof localStorage === "undefined") return coordinatedRefresh();
+  const last = Number(localStorage.getItem(REFRESH_TS_KEY) ?? 0);
+  if (last > 0 && Date.now() - last < maxAgeMs) {
+    return true;
+  }
+  return coordinatedRefresh();
+}
+
 const BYPASS_PATHS = ["/auth/refresh", "/auth/login"];
 
 export async function apiFetch(

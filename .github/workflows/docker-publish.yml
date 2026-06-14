@@ -1,17 +1,14 @@
 name: Docker Publish
 
 on:
+  # Build/publish images only on the integration branches (develop), prod (main) and release
+  # tags - not on feature-branch PRs - to stay within the monthly Actions minutes budget.
   push:
     branches:
       - main
       - develop
     tags:
       - 'v*.*.*'
-    paths:
-      - 'api/**'
-      - 'frontend/**'
-      - '.github/workflows/docker-publish.yml'
-  pull_request:
     paths:
       - 'api/**'
       - 'frontend/**'

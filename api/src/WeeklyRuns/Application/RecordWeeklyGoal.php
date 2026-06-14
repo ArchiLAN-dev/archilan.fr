@@ -57,7 +57,12 @@ final readonly class RecordWeeklyGoal
             return null;
         }
 
-        $completionTimeSeconds = max(0, $goalReachedAt->getTimestamp() - $run->getStartedAt()->getTimestamp());
+        // Time the run from when the player launched their game (story 23.14), not from the run's
+        // global generation time — so waiting before starting doesn't inflate the leaderboard time.
+        // launchedAt == the Session's startedAt (17.13) and is stable across relaunch; fall back to
+        // the run start only defensively (a recorded goal always implies a prior launch).
+        $startedAt = $entry->getLaunchedAt() ?? $run->getStartedAt();
+        $completionTimeSeconds = max(0, $goalReachedAt->getTimestamp() - $startedAt->getTimestamp());
         $entry->recordGoal($goalReachedAt, $completionTimeSeconds, $checksTotal, $itemsTotal);
         $this->entries->flush();
 

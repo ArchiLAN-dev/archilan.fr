@@ -34,10 +34,18 @@ const GROUP_LABELS: Partial<Record<PersonalRunStatus, string>> = {
   completed: "Terminées",
 };
 
+type MineData = { owned: PersonalRun[]; joined: PersonalRun[] };
+
+function isMineData(value: unknown): value is MineData {
+  if (typeof value !== "object" || value === null) return false;
+  const data = value as Record<string, unknown>;
+  return Array.isArray(data.owned) && Array.isArray(data.joined);
+}
+
 type PageState =
   | { kind: "loading" }
   | { kind: "error" }
-  | { kind: "ready"; runs: PersonalRun[] };
+  | { kind: "ready"; owned: PersonalRun[]; joined: PersonalRun[] };
 
 export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: authLoading } = useAuth();
@@ -55,8 +63,9 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/runs/mine`);
       if (!res.ok) { setState({ kind: "error" }); return; }
-      const payload = (await res.json()) as { data: PersonalRun[] };
-      setState({ kind: "ready", runs: payload.data });
+      const payload = (await res.json()) as { data?: unknown };
+      if (!isMineData(payload.data)) { setState({ kind: "error" }); return; }
+      setState({ kind: "ready", owned: payload.data.owned, joined: payload.data.joined });
     } catch {
       setState({ kind: "error" });
     }
@@ -151,13 +160,13 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     );
   }
 
-  const runs = state.runs;
+  const { owned, joined } = state;
 
-  // Group runs
+  // Group owned runs by status
   const grouped: Partial<Record<PersonalRunStatus, PersonalRun[]>> = {};
   const cancelledRuns: PersonalRun[] = [];
 
-  for (const run of runs) {
+  for (const run of owned) {
     if (COLLAPSED_STATUSES.includes(run.status)) {
       cancelledRuns.push(run);
     } else {
@@ -257,7 +266,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
         </section>
       )}
 
-      {runs.length === 0 ? (
+      {owned.length === 0 && joined.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface p-10 text-center">
           <Gamepad2 aria-hidden className="mx-auto mb-4 size-10 text-muted-foreground/50" />
           <p className="font-heading font-semibold text-foreground">
@@ -312,6 +321,19 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
                   ))}
                 </div>
               )}
+            </section>
+          )}
+
+          {joined.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Parties rejointes
+              </h2>
+              <div className="grid gap-3">
+                {joined.map((run) => (
+                  <PersonalRunCard key={run.id} run={run} />
+                ))}
+              </div>
             </section>
           )}
         </div>

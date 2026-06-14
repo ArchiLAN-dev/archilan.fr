@@ -263,7 +263,7 @@ final readonly class PlayerStateController
     #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/hints/request', methods: ['POST'])]
     public function requestHint(Request $request, string $sessionId, int $slotIndex): JsonResponse
     {
-        $user = $this->requireAuthenticatedAdmin($request);
+        $user = $this->requireAuthenticatedUser($request);
         if ($user instanceof JsonResponse) {
             return $user;
         }
@@ -271,6 +271,11 @@ final readonly class PlayerStateController
         $session = $this->sessionQuery->findById($sessionId);
         if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        // Story 9.31: the slot owner (or admin) may buy a paid hint with their own points.
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
         if (Session::STATUS_RUNNING !== $session['status']) {
@@ -289,7 +294,8 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('validation_error', 'Corps de requête invalide.', 422);
         }
         $locationId = $body['location_id'] ?? null;
-        $free = (bool) ($body['free'] ?? false);
+        // Only admins may use the free/admin path; a player can only ever pay (story 9.31).
+        $free = $this->isAdmin($user) && (bool) ($body['free'] ?? false);
 
         if (!is_int($locationId) || $locationId <= 0) {
             return $this->apiAccessGuard->errorResponse('validation_error', 'location_id (entier > 0) requis.', 422);
@@ -303,6 +309,62 @@ final readonly class PlayerStateController
                 'ok' => true,
                 'slot' => $response->slot,
                 'locationId' => $response->locationId,
+                'free' => $response->free,
+            ]]);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+    }
+
+    #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/hints/request-item', methods: ['POST'])]
+    public function requestHintItem(Request $request, string $sessionId, int $slotIndex): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        // Story 9.31: the slot owner (or admin) may buy a paid hint with their own points.
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        if (Session::STATUS_RUNNING !== $session['status']) {
+            return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
+        }
+
+        $host = $session['host'];
+        $bridgePort = $session['bridgePort'];
+
+        if (null === $host || null === $bridgePort) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+
+        $body = json_decode($request->getContent(), true);
+        if (!is_array($body)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'Corps de requête invalide.', 422);
+        }
+        $itemName = $body['itemName'] ?? null;
+        // Only admins may use the free/admin path; a player can only ever pay (story 9.31).
+        $free = $this->isAdmin($user) && (bool) ($body['free'] ?? false);
+
+        if (!is_string($itemName) || '' === trim($itemName)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'itemName (non vide) requis.', 422);
+        }
+
+        try {
+            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $response = $bridge->slots()->requestHintItem($slotIndex, $itemName, $free);
+
+            return new JsonResponse(['data' => [
+                'ok' => true,
+                'slot' => $response->slot,
+                'itemName' => $response->itemName,
                 'free' => $response->free,
             ]]);
         } catch (\Throwable) {
@@ -450,10 +512,15 @@ final readonly class PlayerStateController
 
     private function isAuthorized(User $user, string $sessionId, string $eventId): bool
     {
-        if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
+        if ($this->isAdmin($user)) {
             return true;
         }
 
         return $this->sessionQuery->isUserAuthorizedForSession($user->getId(), $eventId, $sessionId);
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return in_array('ROLE_ADMIN', $user->getRoles(), true);
     }
 }

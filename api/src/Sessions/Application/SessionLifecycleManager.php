@@ -19,6 +19,8 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -37,6 +39,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
+        private WeeklyEntryRepositoryInterface $weeklyEntries,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -184,6 +187,59 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         }
 
         return ['found' => true, 'session' => $session->payload()];
+    }
+
+    /**
+     * Record a crash reported by the orchestrateur, mapping it to a *valid terminal* state by
+     * the current status so the session never hangs (story 17.11):
+     *  - generating/launching  → failed (terminal) + the personal run is reset off "starting"
+     *    and the reason surfaced, so the owner can fix & retry;
+     *  - running               → crashed (existing idle-recovery via transition()).
+     * Any other state is logged at error level rather than silently succeeding.
+     *
+     * @return array<string, mixed>
+     */
+    public function recordCrash(string $sessionId, ?string $reason = null): array
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return ['found' => false];
+        }
+
+        $from = $session->getStatus();
+
+        // Runtime crash keeps the existing crashed → idle recovery path.
+        if (Session::STATUS_RUNNING === $from) {
+            return $this->transition($sessionId, Session::STATUS_CRASHED, lastLogs: $reason);
+        }
+
+        if (!in_array($from, [Session::STATUS_GENERATING, Session::STATUS_LAUNCHING], true)) {
+            // Crash from an unexpected state: don't 200 blindly - log it loudly.
+            $this->logger->error('session.crash.unexpected_state', ['sessionId' => $sessionId, 'from' => $from]);
+
+            return ['found' => true, 'errors' => ["Crash signalé depuis un état inattendu '$from'."]];
+        }
+
+        $now = new \DateTimeImmutable();
+        $session->transition(Session::STATUS_FAILED, $now);
+
+        $message = 'La génération a échoué côté serveur. Vérifie ta configuration (YAML / jeux) puis relance.';
+        $session->setValidationErrors([['slotName' => 'Génération', 'errors' => [$message]]]);
+        if (null !== $reason && '' !== trim($reason)) {
+            $session->setLastLogs($reason);
+        }
+
+        $personalRun = $this->runs->findBySessionId($sessionId);
+        if ($personalRun instanceof Run && Run::STATUS_STARTING === $personalRun->getStatus()) {
+            $personalRun->resetAfterValidationFailure($now);
+        }
+
+        $this->sessions->flush();
+        $this->publish($session);
+
+        $this->logger->error('session.crash.failed', ['sessionId' => $sessionId, 'from' => $from, 'reason' => $reason]);
+
+        return ['found' => true];
     }
 
     /** @return array{found: bool} */
@@ -408,9 +464,10 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false, 'error' => null, 'sessionId' => null, 'status' => null];
         }
 
-        // A paused run is "idle" from the owner's POV, but the underlying session may be either IDLE
-        // (auto_shutdown) or STOPPED (orchestrateur session.stopped) — both are relaunchable.
-        if (!in_array($session->getStatus(), [Session::STATUS_IDLE, Session::STATUS_STOPPED], true)) {
+        // A paused run is "idle" from the owner's POV, but the underlying session may be IDLE
+        // (auto_shutdown), STOPPED (orchestrateur session.stopped) or CRASHED (the bridge died / the
+        // containers were stopped out-of-band) — all are relaunchable from the retained volume/seed.
+        if (!in_array($session->getStatus(), [Session::STATUS_IDLE, Session::STATUS_STOPPED, Session::STATUS_CRASHED], true)) {
             return ['found' => true, 'error' => 'invalid_session_status', 'sessionId' => null, 'status' => null];
         }
 
@@ -420,7 +477,13 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $personalRun = $this->runs->findBySessionId($sessionId);
 
         if (!$isAdmin) {
-            if (!$personalRun instanceof Run || !$personalRun->isOwnedBy($callerId)) {
+            // A session belongs either to a personal run or to a weekly entry (story 17.13): the owner
+            // of either may relaunch it. The weekly session id equals the entry's external session id.
+            $ownsPersonalRun = $personalRun instanceof Run && $personalRun->isOwnedBy($callerId);
+            $weeklyEntry = $this->weeklyEntries->findByExternalSessionId($sessionId);
+            $ownsWeeklyEntry = $weeklyEntry instanceof WeeklyEntry && $weeklyEntry->getUserId() === $callerId;
+
+            if (!$ownsPersonalRun && !$ownsWeeklyEntry) {
                 return ['found' => true, 'error' => 'forbidden', 'sessionId' => null, 'status' => null];
             }
         }

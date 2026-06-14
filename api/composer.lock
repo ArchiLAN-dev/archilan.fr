@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "archilan/bridge-client",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client.git",
-                "reference": "39aa3c46da8b2e2bca99d10c8fc2e1cfcaf646b2"
+                "reference": "dc1043c46f7ee3ba14d235fe1add66504839b399"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client/zipball/39aa3c46da8b2e2bca99d10c8fc2e1cfcaf646b2",
-                "reference": "39aa3c46da8b2e2bca99d10c8fc2e1cfcaf646b2",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client/zipball/dc1043c46f7ee3ba14d235fe1add66504839b399",
+                "reference": "dc1043c46f7ee3ba14d235fe1add66504839b399",
                 "shasum": ""
             },
             "require": {
@@ -45,20 +45,20 @@
                 "proprietary"
             ],
             "description": "PHP client for the Archilan Bridge REST API.",
-            "time": "2026-06-04T18:15:38+00:00"
+            "time": "2026-06-14T11:33:30+00:00"
         },
         {
             "name": "archilan/bridge-client-bundle",
-            "version": "v1.0.0",
+            "version": "v1.1.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:ArchiLAN-dev/archilan-bridge-client-bundle.git",
-                "reference": "d9695f80efcdf8507c129845ef493e243e6ff54f"
+                "reference": "66fb7ebcda7b463bd08812c62378fdc396f7dae5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client-bundle/zipball/d9695f80efcdf8507c129845ef493e243e6ff54f",
-                "reference": "d9695f80efcdf8507c129845ef493e243e6ff54f",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-bridge-client-bundle/zipball/66fb7ebcda7b463bd08812c62378fdc396f7dae5",
+                "reference": "66fb7ebcda7b463bd08812c62378fdc396f7dae5",
                 "shasum": ""
             },
             "require": {
@@ -85,7 +85,7 @@
                 "proprietary"
             ],
             "description": "Symfony bundle - autoconfigures the Archilan bridge WebSocket dispatcher.",
-            "time": "2026-06-04T18:15:40+00:00"
+            "time": "2026-06-14T09:42:21+00:00"
         },
         {
             "name": "archilan/orchestrateur-client",

@@ -543,14 +543,29 @@ export function PersonalRunSlotDetailPage({
   }
 
   async function handleHintItem(itemName: string): Promise<void> {
-    if (!sessionId) return;
-    const command = hintFree ? `!hint ${itemName}` : `/hint ${itemName}`;
+    if (!sessionId || state.kind !== "data") return;
+    // Gratuit (admin): `!admin /hint <player> <item>` hints the item for its owner without
+    // being connected as that slot (no point cost) — relayed as a raw admin command.
+    if (hintFree) {
+      const res = await apiFetch(
+        `${env.apiBaseUrl}/admin/sessions/${sessionId}/commands`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: `!admin /hint ${state.data.player} ${itemName}` }),
+        },
+      );
+      if (!res.ok) throw new Error(`hint item failed: ${res.status}`);
+      return;
+    }
+    // Payant: the bridge connects AS this slot and sends `!hint <item>`, charging the slot's
+    // points (story 9.30) — not a self-hint resolved against the bridge's own slot.
     const res = await apiFetch(
-      `${env.apiBaseUrl}/admin/sessions/${sessionId}/commands`,
+      `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/hints/request-item`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
+        body: JSON.stringify({ itemName, free: false }),
       },
     );
     if (!res.ok) throw new Error(`hint item failed: ${res.status}`);
@@ -839,7 +854,7 @@ export function PersonalRunSlotDetailPage({
                     hideSpoilers={hideSpoilers}
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
-                    onHintRequest={isAdminUser ? handleHintLocation : undefined}
+                    onHintRequest={handleHintLocation}
                     title="Checks faisables maintenant"
                     variant="reachable"
                   />
@@ -850,7 +865,7 @@ export function PersonalRunSlotDetailPage({
                     hideSpoilers={hideSpoilers}
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={isAdminUser ? hintFree : false}
-                    onHintRequest={isAdminUser ? handleHintLocation : undefined}
+                    onHintRequest={handleHintLocation}
                     title="Checks non faisables"
                     variant="unreachable"
                   />
@@ -1121,7 +1136,7 @@ export function PersonalRunSlotDetailPage({
                   hintFree={isAdminUser ? hintFree : false}
                   itemLocations={itemLocations}
                   items={state.data.items_not_received ?? []}
-                  onHintRequest={isAdminUser ? handleHintItem : undefined}
+                  onHintRequest={handleHintItem}
                   title="Items non reçus"
                   variant="not-received"
                 />

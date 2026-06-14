@@ -84,23 +84,62 @@ final class PersonalRunTest extends FunctionalTestCase
         $this->client->jsonRequest('GET', '/api/v1/runs/mine');
         self::assertResponseIsSuccessful();
 
-        $data = $this->responseDataList();
-        self::assertCount(2, $data);
-        $titles = array_column($data, 'title');
+        $mine = $this->responseMine();
+        self::assertCount(2, $mine['owned']);
+        self::assertSame([], $mine['joined']);
+        $titles = array_column($mine['owned'], 'title');
         self::assertContains('Alice Run 1', $titles);
         self::assertContains('Alice Run 2', $titles);
         self::assertNotContains('Bob Run', $titles);
     }
 
-    public function testListMineReturnsEmptyArrayWhenNoRuns(): void
+    public function testListMineReturnsEmptyOwnedAndJoinedWhenNoRuns(): void
     {
         $user = $this->createUser('alice@example.org');
         $this->loginAs($user);
 
         $this->client->jsonRequest('GET', '/api/v1/runs/mine');
         self::assertResponseIsSuccessful();
-        $data = $this->responseDataList();
-        self::assertSame([], $data);
+        $mine = $this->responseMine();
+        self::assertSame([], $mine['owned']);
+        self::assertSame([], $mine['joined']);
+    }
+
+    public function testListMineSurfacesJoinedRunsSeparatelyWithoutOwnerSecrets(): void
+    {
+        $alice = $this->createUser('alice@example.org');
+        $bob = $this->createUser('bob@example.org');
+
+        // Alice owns a run; Bob joins it via the invite link.
+        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
+        $run = Run::create($alice->getId(), 'Alice Run', $now);
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        $this->loginAs($bob);
+        $this->client->jsonRequest('GET', '/api/v1/runs/join/'.$run->getInviteToken());
+        self::assertResponseIsSuccessful();
+
+        // Bob sees the run under "joined", never "owned", as a non-owner without owner secrets.
+        $this->client->jsonRequest('GET', '/api/v1/runs/mine');
+        self::assertResponseIsSuccessful();
+        $mine = $this->responseMine();
+        self::assertSame([], $mine['owned']);
+        self::assertCount(1, $mine['joined']);
+        $joined = $mine['joined'][0];
+        self::assertIsArray($joined);
+        self::assertSame($run->getId(), $joined['id']);
+        self::assertFalse($joined['isOwner']);
+        self::assertNull($joined['inviteToken']);
+        self::assertNull($joined['adminPassword']);
+
+        // Alice sees the same run under "owned", never "joined".
+        $this->loginAs($alice);
+        $this->client->jsonRequest('GET', '/api/v1/runs/mine');
+        self::assertResponseIsSuccessful();
+        $aliceMine = $this->responseMine();
+        self::assertCount(1, $aliceMine['owned']);
+        self::assertSame([], $aliceMine['joined']);
     }
 
     public function testGetRunAsOwnerReturns200(): void
@@ -259,15 +298,19 @@ final class PersonalRunTest extends FunctionalTestCase
     }
 
     /**
-     * @return list<mixed>
+     * @return array{owned: list<mixed>, joined: list<mixed>}
      */
-    private function responseDataList(): array
+    private function responseMine(): array
     {
         $decoded = $this->decodedResponse();
         $data = $decoded['data'] ?? null;
         self::assertIsArray($data);
+        $owned = $data['owned'] ?? null;
+        $joined = $data['joined'] ?? null;
+        self::assertIsArray($owned);
+        self::assertIsArray($joined);
 
-        return array_values($data);
+        return ['owned' => array_values($owned), 'joined' => array_values($joined)];
     }
 
     private function errorCode(): string

@@ -8,6 +8,8 @@ use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\SessionConfig\Application\SessionConfigResolver;
 use App\SessionConfig\Domain\SessionType;
+use App\Sessions\Domain\Session;
+use App\Sessions\Domain\SessionRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
@@ -25,6 +27,7 @@ final readonly class LaunchWeeklyEntry
         private WeeklyRunnerGatewayInterface $gateway,
         private ClockInterface $clock,
         private SessionConfigResolver $configResolver,
+        private SessionRepositoryInterface $sessions,
     ) {
     }
 
@@ -92,6 +95,21 @@ final readonly class LaunchWeeklyEntry
 
         $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
         $entry->launch($result['externalSessionId'], $now, $result['connectionInfo'], $result['bridgePort']);
+
+        // Register a Session aggregate (story 17.13) so the entry's container is tracked by the shared
+        // session lifecycle: idle/stopped/crashed webhooks find it and the owner can relaunch it from
+        // the retained save. The orchestrateur session id equals the entryId; eventId carries the
+        // weeklyRunId (column overloaded as for personal runs).
+        $session = Session::createRunning(
+            $result['externalSessionId'],
+            $weeklyRunId,
+            $result['connectionInfo']['host'],
+            $result['connectionInfo']['port'],
+            $result['connectionInfo']['password'],
+            $result['bridgePort'],
+            $now,
+        );
+        $this->sessions->persist($session);
 
         try {
             $this->entries->flush();

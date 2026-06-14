@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_identity_refresh_tokens_token_hash', columns: ['token_hash'])]
 #[ORM\Index(name: 'idx_identity_refresh_tokens_user_revoked', columns: ['user_id', 'revoked_at'])]
+#[ORM\Index(name: 'idx_identity_refresh_tokens_family', columns: ['family_id'])]
 class RefreshToken
 {
     private function __construct(
@@ -29,6 +30,10 @@ class RefreshToken
         private ?\DateTimeImmutable $revokedAt = null,
         #[ORM\Column(name: 'remember_me', type: 'boolean')]
         private readonly bool $rememberMe = true,
+        #[ORM\Column(name: 'family_id', type: 'string', length: 32, nullable: true)]
+        private readonly ?string $familyId = null,
+        #[ORM\Column(name: 'replaced_by_token_hash', type: 'string', length: 64, nullable: true)]
+        private ?string $replacedByTokenHash = null,
     ) {
     }
 
@@ -39,6 +44,7 @@ class RefreshToken
         \DateTimeImmutable $now,
         ?string $userAgent = null,
         bool $rememberMe = true,
+        ?string $familyId = null,
     ): self {
         return new self(
             bin2hex(random_bytes(16)),
@@ -48,6 +54,7 @@ class RefreshToken
             $now,
             null !== $userAgent ? substr($userAgent, 0, 255) : null,
             rememberMe: $rememberMe,
+            familyId: $familyId ?? bin2hex(random_bytes(16)),
         );
     }
 
@@ -106,5 +113,39 @@ class RefreshToken
         if (null === $this->revokedAt) {
             $this->revokedAt = $at;
         }
+    }
+
+    public function getFamilyId(): ?string
+    {
+        return $this->familyId;
+    }
+
+    public function getReplacedByTokenHash(): ?string
+    {
+        return $this->replacedByTokenHash;
+    }
+
+    /**
+     * Mark this token as rotated into a successor: it is revoked and remembers which token
+     * replaced it, so a re-presentation shortly after can be told apart from a genuine reuse.
+     */
+    public function markRotated(string $successorTokenHash, \DateTimeImmutable $at): void
+    {
+        $this->replacedByTokenHash = $successorTokenHash;
+        if (null === $this->revokedAt) {
+            $this->revokedAt = $at;
+        }
+    }
+
+    /**
+     * Whether this token was rotated (has a successor) and revoked within the grace window -
+     * i.e. a re-presentation is very likely a benign retry (lost refresh response / wake race)
+     * rather than a stolen-token reuse.
+     */
+    public function wasRotatedWithinGrace(\DateTimeImmutable $now, int $graceSeconds): bool
+    {
+        return null !== $this->replacedByTokenHash
+            && null !== $this->revokedAt
+            && ($now->getTimestamp() - $this->revokedAt->getTimestamp()) <= $graceSeconds;
     }
 }

@@ -28,6 +28,9 @@ export type WeeklyRunMyEntry = {
   externalSessionId: string | null;
   launchedAt: string | null;
   goalReachedAt: string | null;
+  // Live status of the entry's AP container, from the shared Session lifecycle (story 17.13).
+  // null = never launched. "running" = up; idle/stopped/crashed = relaunchable; restarting = in progress.
+  sessionStatus: string | null;
   connectionInfo: { host: string; port: number; password: string | null } | null;
 };
 
@@ -142,6 +145,23 @@ export async function launchWeeklyEntry(
     return isLaunchPayload(payload) ? payload.data : null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Relaunch an idle/stopped/crashed weekly entry's container (story 17.13). Reuses the shared
+ * session restart endpoint — the orchestrateur session id equals the entry's external session id.
+ * Returns true on 202 (relaunch initiated).
+ */
+export async function relaunchWeeklyEntry(externalSessionId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/sessions/${externalSessionId}/restart`,
+      { method: "POST" },
+    );
+    return res.status === 202;
+  } catch {
+    return false;
   }
 }
 

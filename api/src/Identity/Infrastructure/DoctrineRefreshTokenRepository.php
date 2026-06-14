@@ -51,6 +51,19 @@ final readonly class DoctrineRefreshTokenRepository implements RefreshTokenRepos
             ->executeStatement();
     }
 
+    public function revokeFamily(string $familyId): void
+    {
+        $now = new \DateTimeImmutable();
+        $qb = $this->connection->createQueryBuilder();
+        $qb->update($this->table)
+            ->set('revoked_at', ':now')
+            ->where($qb->expr()->eq('family_id', ':familyId'))
+            ->andWhere($qb->expr()->isNull('revoked_at'))
+            ->setParameter('now', $now, Types::DATETIMETZ_IMMUTABLE)
+            ->setParameter('familyId', $familyId)
+            ->executeStatement();
+    }
+
     public function deleteExpiredBefore(\DateTimeImmutable $threshold): int
     {
         $qb = $this->connection->createQueryBuilder();

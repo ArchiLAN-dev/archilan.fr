@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Infrastructure;
 
 use App\Sessions\Application\RunnerGatewayInterface;
+use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
@@ -85,12 +86,33 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
                 'hash' => $result->hash,
                 'archipelagoGameName' => $archipelagoGameName,
                 'defaultYaml' => $defaultYaml,
+                'optionTypes' => $this->fetchOptionTypes($result->hash),
             ];
         } catch (\Throwable $e) {
             $this->logger->error('runner.apworld_upload_failed', ['filename' => $filename, 'error' => $e->getMessage()]);
 
             return $this->classifyUploadError($e->getMessage());
         }
+    }
+
+    public function fetchOptionTypes(string $hash): array
+    {
+        $types = [];
+        try {
+            foreach ($this->client->apworlds()->getOptions($hash) as $option) {
+                if ($option instanceof RangeTemplateOption) {
+                    $types[$option->key] = [
+                        'min' => $option->rangeMin,
+                        'max' => $option->rangeMax,
+                        'default' => $option->default,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_options_fetch_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+        }
+
+        return $types;
     }
 
     /**

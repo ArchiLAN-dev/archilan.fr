@@ -31,6 +31,7 @@ final readonly class SessionQuery
      *     lastLogs: string|null,
      *     archivedSpoilerPath: string|null,
      *     archivedSavePath: string|null,
+     *     generatedOutputKey: string|null,
      * }|null
      */
     public function findById(string $id): ?array
@@ -50,6 +51,7 @@ final readonly class SessionQuery
             'lastLogs' => $session->getLastLogs(),
             'archivedSpoilerPath' => $session->getArchivedSpoilerPath(),
             'archivedSavePath' => $session->getArchivedSavePath(),
+            'generatedOutputKey' => $session->getGeneratedOutputKey(),
         ];
     }
 

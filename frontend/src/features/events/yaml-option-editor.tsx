@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, Info, Plus, X } from "lucide-react";
 
 import {
   RANDOM_ALIASES,
   addCustomRangeEntry,
   createRangeEntry,
+  findOutOfBoundsRangeOptions,
+  findZeroWeightOptions,
   labelFromAlias,
   labelFromKey,
   mergePlayerValues,
@@ -20,6 +22,8 @@ import {
   type ParsedYaml,
   type ItemLinkEntry,
   type ItemLinksOption,
+  type OptionTypesMap,
+  type OutOfBoundsRange,
   type PlandoItem,
   type PlandoItemRow,
   type PlandoItemsOption,
@@ -40,19 +44,10 @@ type PanelSave =
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function YamlOptionEditor({
-  defaultYaml,
-  playerYaml,
-  registrationId,
-  registrationOpen = true,
-  slotId,
-  onDirty,
-  onSaved,
-  saveUrl,
-  onChange,
-}: {
+type YamlOptionEditorProps = {
   defaultYaml: string | null;
   playerYaml: string | null;
+  optionTypes?: OptionTypesMap | null;
   registrationId?: string;
   registrationOpen?: boolean;
   slotId?: string;
@@ -60,21 +55,50 @@ export function YamlOptionEditor({
   onSaved?: (slotId: string) => void;
   saveUrl?: string;
   onChange?: (yaml: string) => void;
-}) {
+};
+
+/**
+ * Imperative handle for consumers that drive their own save button (template mode,
+ * `onChange`). `validate()` runs the same save-time guards as the internal Save button
+ * (zero-weight + range bounds), updates the inline banners / red labels, and returns
+ * `true` only when the config is clean. See story 4.16 AC2 (block the `onChange` path).
+ */
+export type YamlEditorHandle = { validate: () => boolean };
+
+export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorProps>(
+  function YamlOptionEditor(
+    {
+      defaultYaml,
+      playerYaml,
+      optionTypes,
+      registrationId,
+      registrationOpen = true,
+      slotId,
+      onDirty,
+      onSaved,
+      saveUrl,
+      onChange,
+    },
+    ref,
+  ) {
   const [parsed, setParsed] = useState<ParsedYaml | null>(() => {
-    const base = parseDefaultYaml(defaultYaml ?? "");
+    const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
     if (!base) return null;
     if (!playerYaml) return base;
-    const player = parseDefaultYaml(playerYaml);
+    const player = parseDefaultYaml(playerYaml, optionTypes);
     return player ? mergePlayerValues(base, player) : base;
   });
   const [rawYaml, setRawYaml] = useState(playerYaml ?? defaultYaml ?? "");
   const [mode, setMode] = useState<Mode>("simple");
   const [panelSave, setPanelSave] = useState<PanelSave>({ kind: "idle" });
   const [nameError, setNameError] = useState(false);
+  const [zeroWeightLabels, setZeroWeightLabels] = useState<string[]>([]);
+  const [boundsErrors, setBoundsErrors] = useState<OutOfBoundsRange[]>([]);
+  // Keys of options flagged invalid on the last save attempt (highlighted in red).
+  const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set());
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => {
-    const base = parseDefaultYaml(defaultYaml ?? "");
+    const base = parseDefaultYaml(defaultYaml ?? "", optionTypes);
     if (!base) return new Set();
     const firstKey = groupByCategory(base.options)
       .map((s, i) => s.category ?? `__${i}`)
@@ -131,6 +155,45 @@ export function YamlOptionEditor({
     URL.revokeObjectURL(url);
   }
 
+  // Save-time guards (story 4.15 zero-weight + 4.16 range bounds). Updates the inline
+  // banners / red labels and returns false when the config must not be saved. Shared by
+  // the internal Save button and the imperative `validate()` handle (template mode).
+  const runValidation = useCallback((): boolean => {
+    // Parse the raw/advanced edits with optionTypes so range options carry their real
+    // [min,max]; in the field-based model `parsed` is already the authoritative target.
+    const validationTarget = parsed ?? parseDefaultYaml(rawYaml, optionTypes);
+    const validationOptions = validationTarget?.options ?? [];
+
+    // A weighted option (toggle/choice/range) whose weights all sum to 0 can never be
+    // rolled and fails generation - block the save and point at the offending options.
+    const zeroWeight = findZeroWeightOptions(validationOptions);
+    if (zeroWeight.length > 0) {
+      setZeroWeightLabels(zeroWeight.map((o) => o.label));
+      setBoundsErrors([]);
+      setInvalidKeys(new Set(zeroWeight.map((o) => o.key)));
+      setPanelSave({ kind: "idle" });
+      return false;
+    }
+    setZeroWeightLabels([]);
+
+    // A range value outside its [min, max] bounds is rejected by Archipelago at generation
+    // (e.g. progression_balancing 100 when the max is 99) - block it here instead.
+    const outOfBounds = findOutOfBoundsRangeOptions(validationOptions);
+    if (outOfBounds.length > 0) {
+      setBoundsErrors(outOfBounds);
+      setInvalidKeys(new Set(outOfBounds.map((o) => o.key)));
+      setPanelSave({ kind: "idle" });
+      return false;
+    }
+    setBoundsErrors([]);
+    setInvalidKeys(new Set());
+    return true;
+  }, [parsed, rawYaml, optionTypes]);
+
+  // Template consumers (onChange) drive their own save button: let them gate it on the
+  // same validation the internal Save button enforces. (Story 4.16 AC2: onChange path.)
+  useImperativeHandle(ref, () => ({ validate: runValidation }), [runValidation]);
+
   async function handleSave() {
     if (parsed) {
       const trimmedName = parsed.playerName.trim();
@@ -142,7 +205,9 @@ export function YamlOptionEditor({
         setParsed((p) => (p ? { ...p, playerName: trimmedName } : p));
       }
     }
+    if (!runValidation()) return;
     const yamlToSave = parsed ? serializeToYaml({ ...parsed, playerName: parsed.playerName.trim() }) : rawYaml;
+
     if (onChange) {
       onChange(yamlToSave);
       return;
@@ -257,6 +322,7 @@ export function YamlOptionEditor({
                 {section.options.map((opt) => (
                   <OptionField
                     key={opt.key}
+                    invalid={invalidKeys.has(opt.key)}
                     mode={mode}
                     option={opt}
                     readOnly={!effectivelyOpen}
@@ -299,6 +365,31 @@ export function YamlOptionEditor({
             {panelSave.message}
           </span>
         ) : null}
+        {zeroWeightLabels.length > 0 ? (
+          <span className="flex items-start gap-1.5 text-sm text-danger">
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Ces options n&apos;ont aucune valeur active (tous les poids sont à 0) :{" "}
+              <strong>{zeroWeightLabels.join(", ")}</strong>. Mets au moins une valeur à un poids
+              supérieur à 0 - sinon la génération échoue.
+            </span>
+          </span>
+        ) : null}
+        {boundsErrors.length > 0 ? (
+          <span className="flex items-start gap-1.5 text-sm text-danger">
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Valeurs hors limites :{" "}
+              {boundsErrors.map((b, i) => (
+                <span key={b.key}>
+                  {i > 0 ? "; " : ""}
+                  <strong>{b.label}</strong> = {b.values.join(", ")} (autorisé&nbsp;: {b.min}–{b.max})
+                </span>
+              ))}
+              . Corrige ces valeurs avant de sauvegarder.
+            </span>
+          </span>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
           {!onChange && effectivelyOpen ? (
@@ -323,7 +414,7 @@ export function YamlOptionEditor({
       </div>
     </div>
   );
-}
+});
 
 // ─── Mode toggle button ───────────────────────────────────────────────────────
 
@@ -482,11 +573,13 @@ function InfoTooltip({ content }: { content: string }) {
 // ─── Option field dispatcher ──────────────────────────────────────────────────
 
 function OptionField({
+  invalid = false,
   mode,
   option,
   readOnly,
   onChange,
 }: {
+  invalid?: boolean;
   mode: Mode;
   option: GameOption;
   readOnly: boolean;
@@ -495,7 +588,9 @@ function OptionField({
   return (
     <div className="grid gap-2 py-5">
       <div className="flex items-center gap-1.5">
-        <p className="break-words text-base font-semibold text-foreground">{option.label}</p>
+        <p className={`break-words text-base font-semibold ${invalid ? "text-danger" : "text-foreground"}`}>
+          {option.label}
+        </p>
         {option.description ? <InfoTooltip content={option.description} /> : null}
       </div>
       {option.type === "freeform" && option.kind === "list" && (

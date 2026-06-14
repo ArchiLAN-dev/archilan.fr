@@ -6,12 +6,17 @@ import { env } from "@/lib/env";
 import {
   apiFetch,
   coordinatedRefresh,
+  refreshIfStale,
   registerUnauthenticatedHandler,
 } from "@/lib/apiFetch";
 
 // Refresh the access token (15 min TTL) 2 minutes before expiry.
 // Keeps long-running pages like the tracker alive without user interaction.
 const PROACTIVE_REFRESH_MS = 13 * 60 * 1000; // 13 min
+// When a passive tab becomes active again, refresh if the last one is older than this.
+// Browsers throttle/freeze timers on inactive/background tabs and across sleep, so the
+// interval alone can miss the 15 min window - visibility/focus catches that.
+const REFRESH_ON_RESUME_MS = 2 * 60 * 1000; // 2 min
 
 export type AuthUser = {
   id: string;
@@ -71,11 +76,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
+    // Backstop for long-active (foreground) tabs.
     const id = setInterval(() => {
       void coordinatedRefresh();
     }, PROACTIVE_REFRESH_MS);
 
-    return () => clearInterval(id);
+    // Catch the throttled/frozen-timer case: when the tab becomes active again, refresh
+    // if it's been a while (the interval may not have fired while backgrounded/asleep).
+    const onResume = () => {
+      if (document.visibilityState === "visible") {
+        void refreshIfStale(REFRESH_ON_RESUME_MS);
+      }
+    };
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
+    };
   }, [user]);
 
   return (

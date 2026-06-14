@@ -69,9 +69,16 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         $member = $this->createUser('member@test.com', ['ROLE_USER'], displayName: 'GoalPlayer');
         $game = $this->createGame('Archipelago', 'archipelago');
         $template = $this->createTemplate($game->getId());
+        // Run generated on 05-11, but the player launched on 05-12T08:00 and reached the goal at
+        // 05-12T10:00 → time counts from launch (2h), not from the run start (story 23.14).
         $startedAt = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
         $run = $this->createRun($template->getId(), $startedAt);
-        $entry = $this->createEntry($run->getId(), $member->getId(), self::SESSION_ID);
+        $entry = $this->createEntry(
+            $run->getId(),
+            $member->getId(),
+            self::SESSION_ID,
+            new \DateTimeImmutable('2026-05-12T08:00:00+00:00'),
+        );
 
         $this->client->request(
             'POST',
@@ -93,6 +100,8 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         self::assertNotNull($refreshed->getGoalReachedAt());
         self::assertSame(42, $refreshed->getChecksTotal());
         self::assertSame(87, $refreshed->getItemsTotal());
+        // 05-12T10:00 − 05-12T08:00 = 7200s (from launch), not 05-12T10:00 − 05-11T00:00 = 122400s.
+        self::assertSame(7200, $refreshed->getCompletionTimeSeconds());
 
         $published = $this->hub()->published;
         self::assertCount(1, $published);
@@ -217,6 +226,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
         string $runId,
         string $userId,
         string $externalSessionId,
+        ?\DateTimeImmutable $launchedAt = null,
     ): WeeklyEntry {
         $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
         $entry = new WeeklyEntry(
@@ -227,7 +237,7 @@ final class WeeklyGoalCallbackTest extends FunctionalTestCase
             createdAt: $now,
             updatedAt: $now,
             externalSessionId: $externalSessionId,
-            launchedAt: $now,
+            launchedAt: $launchedAt ?? $now,
         );
         $this->entityManager->persist($entry);
         $this->entityManager->flush();

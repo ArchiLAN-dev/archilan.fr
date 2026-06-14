@@ -53,13 +53,23 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * Runs visible in the user's "Mes parties" space: the ones they own and the ones
+     * they joined (participant but not owner).
+     *
+     * @return array{owned: list<array<string, mixed>>, joined: list<array<string, mixed>>}
      */
-    public function listForOwner(string $ownerId): array
+    public function listMine(string $userId): array
     {
-        $runs = $this->runs->findByOwnerId($ownerId);
+        $owned = array_map(
+            fn (Run $run): array => $this->payload($run, $userId, []),
+            $this->runs->findByOwnerId($userId),
+        );
+        $joined = array_map(
+            fn (Run $run): array => $this->payload($run, $userId, []),
+            $this->runs->findJoinedByUserId($userId),
+        );
 
-        return array_map(fn (Run $run): array => $this->payload($run, $ownerId, []), $runs);
+        return ['owned' => $owned, 'joined' => $joined];
     }
 
     /**
@@ -311,6 +321,7 @@ final readonly class PersonalRunDrafts
     private function payload(Run $run, ?string $callerId, array $participants): array
     {
         $isActive = Run::STATUS_ACTIVE === $run->getStatus();
+        $isOwner = null !== $callerId && $run->isOwnedBy($callerId);
 
         $lastActivityAt = null;
         $pausedWithoutSave = false;
@@ -326,11 +337,14 @@ final readonly class PersonalRunDrafts
                     $pausedWithoutSave = $session->isPausedWithoutSave();
                 }
 
-                if (Run::STATUS_DRAFT === $run->getStatus() && Session::STATUS_DRAFT === $session->getStatus()) {
+                // Surface the reason on a reset run: validation failure (session draft) or a
+                // generation/launch crash (session failed - story 17.11).
+                if (Run::STATUS_DRAFT === $run->getStatus()
+                    && in_array($session->getStatus(), [Session::STATUS_DRAFT, Session::STATUS_FAILED], true)) {
                     $validationErrors = $session->getValidationErrors();
                 }
 
-                if ($isActive && null !== $callerId && $run->isOwnedBy($callerId)) {
+                if ($isActive && $isOwner) {
                     $adminPassword = $session->getAdminPassword();
                 }
             }
@@ -341,12 +355,12 @@ final readonly class PersonalRunDrafts
             'ownerId' => $run->getOwnerId(),
             'title' => $run->getTitle(),
             'status' => $run->getStatus(),
-            'inviteToken' => $run->getInviteToken(),
+            'inviteToken' => $isOwner ? $run->getInviteToken() : null,
             'gameSelectionConfig' => $run->getGameSelectionConfig(),
             'connectionHost' => $isActive ? $run->getConnectionHost() : null,
             'connectionPort' => $isActive ? $run->getConnectionPort() : null,
             'connectionPassword' => $isActive ? $run->getConnectionPassword() : null,
-            'isOwner' => null !== $callerId && $run->isOwnedBy($callerId),
+            'isOwner' => $isOwner,
             'participants' => $participants,
             'sessionId' => $sessionId,
             'lastActivityAt' => $lastActivityAt,

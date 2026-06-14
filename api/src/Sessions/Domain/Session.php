@@ -34,7 +34,7 @@ class Session
         self::STATUS_RUNNING => [self::STATUS_STOPPED, self::STATUS_CRASHED, self::STATUS_FINISHED, self::STATUS_LAUNCHING, self::STATUS_IDLE],
         self::STATUS_IDLE => [self::STATUS_RESTARTING],
         self::STATUS_RESTARTING => [self::STATUS_RUNNING, self::STATUS_IDLE],
-        self::STATUS_CRASHED => [self::STATUS_LAUNCHING, self::STATUS_STOPPED, self::STATUS_IDLE],
+        self::STATUS_CRASHED => [self::STATUS_LAUNCHING, self::STATUS_STOPPED, self::STATUS_IDLE, self::STATUS_RESTARTING],
         self::STATUS_STOPPED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING, self::STATUS_RESTARTING],
         self::STATUS_FAILED => [self::STATUS_GENERATING, self::STATUS_LAUNCHING],
         self::STATUS_FINISHED => [self::STATUS_LAUNCHING],
@@ -148,6 +148,43 @@ class Session
             createdAt: $now,
             startedAt: null,
             stoppedAt: null,
+            lastActivityAt: $now,
+        );
+    }
+
+    /**
+     * Create a session already in RUNNING for a launch that bypasses the generate flow and starts
+     * from a pre-built world (weekly entries reuse the run's generated multidata — story 17.13).
+     * The orchestrateur session id equals the caller's id, so the idle/stopped/crashed webhooks and
+     * relaunch-from-save then apply exactly as for a personal run. `$eventId` carries the owning
+     * weekly-run id (the column is overloaded the same way a personal run stores its run id).
+     */
+    public static function createRunning(
+        string $id,
+        string $eventId,
+        string $host,
+        int $port,
+        ?string $password,
+        ?int $bridgePort,
+        \DateTimeImmutable $now,
+    ): self {
+        if ('' === trim($host) || $port <= 0) {
+            throw new \LogicException('Host et port sont requis pour créer une session running.');
+        }
+
+        return new self(
+            id: $id,
+            eventId: $eventId,
+            status: self::STATUS_RUNNING,
+            host: $host,
+            port: $port,
+            password: $password,
+            serverPassword: $password,
+            bridgePort: $bridgePort,
+            createdAt: $now,
+            startedAt: $now,
+            stoppedAt: null,
+            lastHeartbeatAt: $now,
             lastActivityAt: $now,
         );
     }

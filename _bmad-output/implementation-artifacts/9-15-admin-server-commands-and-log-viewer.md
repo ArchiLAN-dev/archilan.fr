@@ -158,7 +158,7 @@ claude-sonnet-4-6
 
 ### Debug Log References
 
-- Test assertion for `command` payload had a leading-space typo; corrected to `self::assertSame('/hint AliceSlot ItemName', $log->getPayload()['command'])`.
+- Test assertion for `command` payload had a leading-space typo; corrected to `self::assertSame('!hint AliceSlot ItemName', $log->getPayload()['command'])`.
 
 ### Completion Notes List
 

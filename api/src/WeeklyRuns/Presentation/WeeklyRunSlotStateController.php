@@ -8,6 +8,7 @@ use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use App\WeeklyRuns\Application\WeeklyRunSlotQuery;
+use Archilan\BridgeClientBundle\Bridge\BridgeClientPool;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
@@ -23,6 +24,7 @@ final readonly class WeeklyRunSlotStateController
         private WeeklyRunSlotQuery $weeklyRunSlotQuery,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
+        private BridgeClientPool $bridgeClientPool,
         private string $runnerBaseUrl,
     ) {
     }
@@ -83,6 +85,96 @@ final readonly class WeeklyRunSlotStateController
             );
 
             return new JsonResponse(['data' => $response->toArray()]);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+    }
+
+    #[Route('/api/v1/weekly-runs/{runId}/entries/{entryId}/slots/{slotIndex}/hints/request', methods: ['POST'])]
+    public function requestHint(Request $request, string $runId, string $entryId, int $slotIndex): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        // findLaunchedEntryInfo returns 'forbidden' for a non-owner non-admin (story 9.31).
+        $info = $this->weeklyRunSlotQuery->findLaunchedEntryInfo($runId, $entryId, $user->getId(), $this->isAdmin($user));
+
+        if ('ok' !== $info['status']) {
+            return $this->errorFromStatus($info['status']);
+        }
+
+        $body = json_decode($request->getContent(), true);
+        if (!is_array($body)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'Corps de requête invalide.', 422);
+        }
+        $locationId = $body['location_id'] ?? null;
+        if (!is_int($locationId) || $locationId <= 0) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'location_id (entier > 0) requis.', 422);
+        }
+
+        $bridgeHost = $this->bridgeHost();
+
+        try {
+            $bridge = $this->bridgeClientPool->get(
+                $info['externalSessionId'],
+                sprintf('http://%s:%d', $bridgeHost, $info['bridgePort']),
+            );
+            // Player surface: always a paid self-hint (free=false), charged to the slot's own points.
+            $response = $bridge->slots()->requestHint($slotIndex, $locationId, false);
+
+            return new JsonResponse(['data' => [
+                'ok' => true,
+                'slot' => $response->slot,
+                'locationId' => $response->locationId,
+                'free' => $response->free,
+            ]]);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+    }
+
+    #[Route('/api/v1/weekly-runs/{runId}/entries/{entryId}/slots/{slotIndex}/hints/request-item', methods: ['POST'])]
+    public function requestHintItem(Request $request, string $runId, string $entryId, int $slotIndex): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        // findLaunchedEntryInfo returns 'forbidden' for a non-owner non-admin (story 9.31).
+        $info = $this->weeklyRunSlotQuery->findLaunchedEntryInfo($runId, $entryId, $user->getId(), $this->isAdmin($user));
+
+        if ('ok' !== $info['status']) {
+            return $this->errorFromStatus($info['status']);
+        }
+
+        $body = json_decode($request->getContent(), true);
+        if (!is_array($body)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'Corps de requête invalide.', 422);
+        }
+        $itemName = $body['itemName'] ?? null;
+        if (!is_string($itemName) || '' === trim($itemName)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'itemName (non vide) requis.', 422);
+        }
+
+        $bridgeHost = $this->bridgeHost();
+
+        try {
+            $bridge = $this->bridgeClientPool->get(
+                $info['externalSessionId'],
+                sprintf('http://%s:%d', $bridgeHost, $info['bridgePort']),
+            );
+            // Player surface: always a paid self-hint (free=false), charged to the slot's own points.
+            $response = $bridge->slots()->requestHintItem($slotIndex, $itemName, false);
+
+            return new JsonResponse(['data' => [
+                'ok' => true,
+                'slot' => $response->slot,
+                'itemName' => $response->itemName,
+                'free' => $response->free,
+            ]]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }

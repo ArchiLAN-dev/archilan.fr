@@ -75,6 +75,14 @@ final readonly class CleanupStaleSessionsHandler
 
             try {
                 $session->transition($newStatus, $now);
+                // A stale RUNNING session is crash-recovered to idle so the owner can resume it
+                // (mirror SessionLifecycleManager's crashed->idle recovery) instead of being left
+                // in a non-resumable "crashed" state; a missing save just restarts from the seed.
+                // Generating/launching stay terminally failed (story 17.11).
+                if (Session::STATUS_CRASHED === $newStatus) {
+                    $session->markIdle($session->getLastSaveKey(), true, $now);
+                    $newStatus = Session::STATUS_IDLE;
+                }
             } catch (\LogicException) {
                 $session->forceReset($now);
                 $newStatus = Session::STATUS_STOPPED;

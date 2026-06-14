@@ -1,13 +1,13 @@
 name: Backend Quality
 
 on:
-  pull_request:
-    paths:
-      - 'api/**'
-      - '.github/workflows/backend.yml'
+  # CI runs only on the integration branches (develop) and prod (main) to stay within
+  # the monthly Actions minutes budget. Feature branches/PRs rely on local quality gates;
+  # use workflow_dispatch to run on demand.
   push:
     branches:
       - main
+      - develop
     paths:
       - 'api/**'
       - '.github/workflows/backend.yml'
@@ -55,7 +55,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: ctype, iconv, pdo_pgsql, pgsql
+          extensions: ctype, iconv, pdo_pgsql, pgsql, amqp
           coverage: pcov
           tools: composer:v2
 

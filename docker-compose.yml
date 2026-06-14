@@ -65,7 +65,11 @@ services:
             BRIDGE_NETWORK: archilan_default
             WEBHOOK_URL: ${ORCHESTRATEUR_WEBHOOK_URL:-}
             WEBHOOK_SECRET: ${ORCHESTRATEUR_WEBHOOK_SECRET:-}
-            CENTRAL_API_URL: ${CENTRAL_API_URL:-}
+            # Dev: the Symfony API runs on the host (the `api` service is commented out below),
+            # so the bridge/orchestrateur reach it via host.docker.internal. Hardcoded (not
+            # ${CENTRAL_API_URL}) so a stray CENTRAL_API_URL=localhost in the shell can't override
+            # it — that breaks the bridge's callbacks. Prod uses docker-compose.prod.yml.
+            CENTRAL_API_URL: http://host.docker.internal:8000
             CENTRAL_API_SECRET: ${CENTRAL_API_SECRET:-}
             CORS_ORIGINS: ${CORS_ORIGINS:-*}
             MINIO_ENDPOINT: ${ORCHESTRATEUR_MINIO_ENDPOINT:-minio:9000}

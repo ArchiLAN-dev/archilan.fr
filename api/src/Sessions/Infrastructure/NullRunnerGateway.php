@@ -29,6 +29,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return ['error' => 'runner_unavailable'];
     }
 
+    public function fetchOptionTypes(string $hash): array
+    {
+        return [];
+    }
+
     public function preflight(string $sessionId, array $slots): array
     {
         $proposed = [];

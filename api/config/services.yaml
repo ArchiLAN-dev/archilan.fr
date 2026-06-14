@@ -177,6 +177,7 @@ services:
     App\Sessions\Presentation\SessionOrchestrationController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
     App\Sessions\Presentation\PlayerPatchController:
         arguments:
