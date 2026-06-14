@@ -51,14 +51,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: ctype, iconv, pdo_pgsql, pgsql
-          coverage: pcov
-          tools: composer:v2
-
+      # PHP 8.4 + extensions (pdo_pgsql, pcov…) + composer are baked into the self-hosted
+      # runner image (see infra/ci runner Dockerfile) — no setup-php needed. This couples
+      # backend.yml to that runner image; it no longer runs on a vanilla ubuntu-latest.
       - name: Configure Composer GitHub token
         run: composer config -g github-oauth.github.com ${{ secrets.COMPOSER_GITHUB_TOKEN }}
 
