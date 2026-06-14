@@ -7,12 +7,14 @@ namespace App\Sessions\Presentation;
 use App\Sessions\Application\SessionOrchestrator;
 use App\Sessions\Application\SessionQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class SessionOrchestrationController
@@ -23,7 +25,9 @@ final readonly class SessionOrchestrationController
         private ApiAccessGuard $apiAccessGuard,
         private SessionOrchestrator $sessionOrchestrator,
         private SessionQuery $sessionQuery,
+        private MinioStorageInterface $minioStorage,
         private string $workspaceDir,
+        private string $minioSessionsBucket,
     ) {
     }
 
@@ -232,56 +236,34 @@ final readonly class SessionOrchestrationController
             return $guard;
         }
 
-        $sessionDir = $this->workspaceDir.'/'.$sessionId;
-
-        if (!is_dir($sessionDir)) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
-        }
-
-        $tmpFile = tempnam(sys_get_temp_dir(), 'generation_');
-        if (false === $tmpFile) {
-            return $this->apiAccessGuard->errorResponse('server_error', 'Impossible de créer le fichier temporaire.', 500);
-        }
-
-        $zip = new \ZipArchive();
-        $zip->open($tmpFile, \ZipArchive::OVERWRITE);
-
-        $added = 0;
-        foreach (['yamls', 'output', 'apworlds', 'saves', 'seed'] as $subdir) {
-            $dir = $sessionDir.'/'.$subdir;
-            if (!is_dir($dir)) {
-                continue;
-            }
-            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
-            foreach ($iterator as $file) {
-                if (!$file instanceof \SplFileInfo || !$file->isFile()) {
-                    continue;
-                }
-                $relativePath = $subdir.'/'.ltrim(substr($file->getPathname(), \strlen($dir)), '/\\');
-                $zip->addFile($file->getPathname(), $relativePath);
-                ++$added;
-            }
-        }
-
+        // Generated artifacts now live in MinIO (a single flat zip: multidata +
+        // per-player patches + spoiler), recorded as the session's output key on
+        // `session.generated`. The local workspace is no longer the source of truth.
         $sessionData = $this->sessionQuery->findById($sessionId);
-        $archivedSavePath = null !== $sessionData ? $sessionData['archivedSavePath'] : null;
-        if (is_string($archivedSavePath) && is_file($archivedSavePath)) {
-            $zip->addFile($archivedSavePath, 'saves/'.basename($archivedSavePath));
-            ++$added;
+        if (null === $sessionData) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        $zip->close();
-
-        if (0 === $added) {
-            unlink($tmpFile);
-
+        $outputKey = $sessionData['generatedOutputKey'];
+        if (null === $outputKey || '' === $outputKey) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
         }
 
-        $response = new BinaryFileResponse($tmpFile);
+        try {
+            $archive = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
+        }
+
+        if ('' === $archive) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
+        }
+
+        $response = new StreamedResponse(static function () use ($archive): void {
+            echo $archive;
+        });
         $response->headers->set('Content-Type', 'application/zip');
-        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $sessionId.'-generation.zip');
-        $response->deleteFileAfterSend(true);
+        $response->headers->set('Content-Disposition', 'attachment; filename="'.$sessionId.'-generation.zip"');
 
         return $response;
     }

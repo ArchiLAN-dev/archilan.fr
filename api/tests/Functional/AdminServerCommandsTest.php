@@ -38,7 +38,7 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         $this->client->jsonRequest(
             'POST',
             sprintf('/api/v1/admin/sessions/%s/commands', $session->getId()),
-            ['command' => '/hint AliceSlot ItemName'],
+            ['command' => '!hint AliceSlot ItemName'],
         );
         self::assertResponseStatusCodeSame(200);
 
@@ -52,7 +52,7 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         self::assertSame('command', $log->getAction());
         $logPayload = $log->getPayload();
         self::assertIsArray($logPayload);
-        self::assertSame('/hint AliceSlot ItemName', $logPayload['command']);
+        self::assertSame('!hint AliceSlot ItemName', $logPayload['command']);
     }
 
     public function testCommandReturns503WhenBridgeUnreachable(): void
@@ -68,7 +68,7 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         $this->client->jsonRequest(
             'POST',
             sprintf('/api/v1/admin/sessions/%s/commands', $session->getId()),
-            ['command' => '/hint Test Item'],
+            ['command' => '!hint Test Item'],
         );
         self::assertResponseStatusCodeSame(503);
 

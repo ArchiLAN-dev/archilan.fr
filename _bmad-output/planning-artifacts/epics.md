@@ -1885,7 +1885,7 @@ So that I can manage the session without SSH access to the runner.
 
 **Given** a Run is in `running` status
 **When** an admin opens the admin session management page
-**Then** they see a command input form where they can type Archipelago server commands (e.g. `/hint PlayerName game`, `/release PlayerName`, `/collect PlayerName`, free-text broadcast)
+**Then** they see a command input form where they can type Archipelago server commands (e.g. `!hint PlayerName game`, `/release PlayerName`, `/collect PlayerName`, free-text broadcast)
 **And** submitting a command calls `POST /api/v1/admin/sessions/{id}/commands` with `{"command": "..."}`, which Symfony validates and forwards to Bridge.py's internal REST API `POST /commands`, which Bridge.py sends as a WS `Say` packet to MultiServer.py
 **And** the command endpoint requires admin authentication; non-admin requests return 403
 **And** a "Voir les logs" action opens a log viewer panel and immediately dispatches a `FetchLogsJob` via Messenger to the owning runner; the runner executes `docker logs --tail 200 --timestamps archipelago-run-{runId}` and POSTs the output back via callback; the API stores the result and returns it to the admin page

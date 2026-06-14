@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ElementType, use, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -27,7 +27,7 @@ import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
-import { fetchCurrentWeeklyRuns } from "./weekly-runs-api";
+import { fetchCurrentWeeklyRuns, relaunchWeeklyEntry } from "./weekly-runs-api";
 
 type SlotInfo = { index: string; name: string };
 
@@ -70,6 +70,7 @@ export function WeeklyRunSlotPage({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
   // Run data via TanStack Query (shared cache with the main /runs-hebdo page)
   const { data: runs = [], isLoading: runsLoading } = useQuery({
@@ -149,6 +150,7 @@ export function WeeklyRunSlotPage({
   const [hints, setHints] = useState<HintsData | null>(null);
   const [goalInfo, setGoalInfo] = useState<{ slotName: string; playerAlias?: string; gameName: string; checksPercent: number; itemsPercent: number } | null>(null);
   const [goalReachedBySSE, setGoalReachedBySSE] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
   const goalReached = !!myEntry?.goalReachedAt || goalReachedBySSE;
 
   const goalShownRef = useRef(false);
@@ -438,6 +440,48 @@ export function WeeklyRunSlotPage({
     return () => { clearTimeout(id); };
   }, [liveConnected]);
 
+  // ─── Paid hint requests (story 9.31) ─────────────────────────────────────
+  // This is the player's own run: hints are always paid (free=false, charged to the
+  // slot's points). There is no admin/free path on this surface.
+
+  async function handleHintLocation(locationId: number): Promise<void> {
+    if (!entryBaseUrl || !slotIndex) return;
+    const res = await apiFetch(
+      `${entryBaseUrl}/slots/${slotIndex}/hints/request`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: locationId }),
+      },
+    );
+    if (!res.ok) throw new Error(`hint location failed: ${res.status}`);
+  }
+
+  async function handleHintItem(itemName: string): Promise<void> {
+    if (!entryBaseUrl || !slotIndex) return;
+    const res = await apiFetch(
+      `${entryBaseUrl}/slots/${slotIndex}/hints/request-item`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemName }),
+      },
+    );
+    if (!res.ok) throw new Error(`hint item failed: ${res.status}`);
+  }
+
+  // ─── Relaunch a stopped container (story 17.13) ──────────────────────────
+  async function handleRelaunch() {
+    const sessionId = myEntry?.externalSessionId ?? null;
+    if (sessionId === null) return;
+    setRelaunching(true);
+    const ok = await relaunchWeeklyEntry(sessionId);
+    setRelaunching(false);
+    if (ok) {
+      void queryClient.invalidateQueries({ queryKey: ["weekly-runs", "current"] });
+    }
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   // Session still resolving on a cold load: show a loader instead of flashing a
@@ -524,6 +568,52 @@ export function WeeklyRunSlotPage({
 
   const gameName = run.templateName ?? run.gameName;
   const backHref = "/runs-hebdo";
+
+  // Story 17.13: the entry is launched but its container may have been stopped for inactivity.
+  // Don't show the live tracking against a server that no longer exists — offer a relaunch instead.
+  // A null status is a pre-17.13 entry with no Session row; treat it as running.
+  const sessionStatus = myEntry.sessionStatus;
+  const containerRestarting = sessionStatus === "restarting";
+  const containerStopped =
+    sessionStatus === "idle" || sessionStatus === "stopped" || sessionStatus === "crashed";
+
+  if (containerStopped || containerRestarting) {
+    return (
+      <div className="mx-auto max-w-md py-20 text-center">
+        <h1 className="font-heading text-xl font-bold text-foreground">{gameName}</h1>
+        {containerRestarting ? (
+          <div className="mt-6 flex items-center justify-center gap-2.5 text-sm text-muted-foreground">
+            <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-accent-text" />
+            <span>Relance du serveur en cours…</span>
+          </div>
+        ) : (
+          <>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Le serveur a été mis en pause après une période d&apos;inactivité. Relance-le pour
+              reprendre ta partie là où elle s&apos;était arrêtée.
+            </p>
+            <button
+              className="mt-6 inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+              disabled={relaunching}
+              onClick={() => void handleRelaunch()}
+              type="button"
+            >
+              {relaunching ? "Relance…" : "Relancer ma partie"}
+            </button>
+          </>
+        )}
+        <div className="mt-8">
+          <Link
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            href={backHref}
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            Retour aux runs hebdo
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -761,6 +851,7 @@ export function WeeklyRunSlotPage({
                     hideSpoilers={true}
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={false}
+                    onHintRequest={handleHintLocation}
                     title="Checks faisables maintenant"
                     variant="reachable"
                   />
@@ -771,6 +862,7 @@ export function WeeklyRunSlotPage({
                     hideSpoilers={true}
                     hintCost={hints?.hintCost ?? 0}
                     hintFree={false}
+                    onHintRequest={handleHintLocation}
                     title="Checks non faisables"
                     variant="unreachable"
                   />
@@ -792,8 +884,11 @@ export function WeeklyRunSlotPage({
                 <ItemListPanel
                   emptyMessage="Tous les items ont été reçus !"
                   hideSpoilers={true}
+                  hintCost={hints?.hintCost ?? 0}
+                  hintFree={false}
                   itemLocations={{}}
                   items={state.data.items_not_received ?? []}
+                  onHintRequest={handleHintItem}
                   title="Items non reçus"
                   variant="not-received"
                 />

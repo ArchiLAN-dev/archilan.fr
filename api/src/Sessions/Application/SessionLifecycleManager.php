@@ -19,6 +19,8 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -37,6 +39,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
+        private WeeklyEntryRepositoryInterface $weeklyEntries,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -474,7 +477,13 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $personalRun = $this->runs->findBySessionId($sessionId);
 
         if (!$isAdmin) {
-            if (!$personalRun instanceof Run || !$personalRun->isOwnedBy($callerId)) {
+            // A session belongs either to a personal run or to a weekly entry (story 17.13): the owner
+            // of either may relaunch it. The weekly session id equals the entry's external session id.
+            $ownsPersonalRun = $personalRun instanceof Run && $personalRun->isOwnedBy($callerId);
+            $weeklyEntry = $this->weeklyEntries->findByExternalSessionId($sessionId);
+            $ownsWeeklyEntry = $weeklyEntry instanceof WeeklyEntry && $weeklyEntry->getUserId() === $callerId;
+
+            if (!$ownsPersonalRun && !$ownsWeeklyEntry) {
                 return ['found' => true, 'error' => 'forbidden', 'sessionId' => null, 'status' => null];
             }
         }

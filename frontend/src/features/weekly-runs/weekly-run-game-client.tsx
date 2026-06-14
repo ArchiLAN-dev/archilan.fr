@@ -17,6 +17,7 @@ import {
   isGoalReachedEvent,
   launchWeeklyEntry,
   optInToWeeklyRun,
+  relaunchWeeklyEntry,
 } from "./weekly-runs-api";
 import type { CurrentWeeklyRun, WeeklyRunLeaderboardEntry } from "./weekly-runs-api";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
@@ -434,6 +435,16 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
     void queryClient.invalidateQueries({ queryKey: ["weekly-run-patches", run.weeklyRunId] });
   }
 
+  async function handleRelaunch() {
+    const sessionId = run.myEntry?.externalSessionId ?? null;
+    if (sessionId === null) return;
+    setActionLoading(true);
+    const ok = await relaunchWeeklyEntry(sessionId);
+    setActionLoading(false);
+    if (!ok) { showToast("Erreur lors de la relance. Réessayez."); return; }
+    void queryClient.invalidateQueries({ queryKey: ["weekly-runs", "current"] });
+  }
+
   const { myEntry } = run;
   const myEntryId = myEntry?.entryId ?? null;
 
@@ -540,53 +551,90 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
             )
           )}
 
-          {myEntry !== null && myEntry.connectionInfo !== null && (
-            <div className="flex flex-col gap-3">
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-                <p className="mb-3 text-sm font-semibold text-emerald-400">Serveur prêt</p>
-                <div className="flex flex-col gap-2 font-mono text-sm">
-                  <div className="flex items-center">
-                    <span className="w-20 text-muted-foreground">Host</span>
-                    <span className="text-foreground">{myEntry.connectionInfo.host}</span>
-                    <CopyButton value={myEntry.connectionInfo.host} />
-                  </div>
-                  <div className="flex items-center">
-                    <span className="w-20 text-muted-foreground">Port</span>
-                    <span className="text-foreground">{myEntry.connectionInfo.port}</span>
-                    <CopyButton value={String(myEntry.connectionInfo.port)} />
-                  </div>
-                  {myEntry.connectionInfo.password && (
-                    <div className="flex items-center">
-                      <span className="w-20 text-muted-foreground">Password</span>
-                      <span className="text-foreground">{myEntry.connectionInfo.password}</span>
-                      <CopyButton value={myEntry.connectionInfo.password} />
+          {myEntry !== null && myEntry.connectionInfo !== null && (() => {
+            // Story 17.13: the container may have been stopped for inactivity (idle/stopped/crashed).
+            // Only show the live connection info when it is actually running; otherwise offer a relaunch.
+            // A null status is a pre-17.13 entry with no Session row yet — treat it as running.
+            const status = myEntry.sessionStatus;
+            const isRunning = status === "running" || status === null;
+            const isRestarting = status === "restarting";
+            const isRelaunchable = status === "idle" || status === "stopped" || status === "crashed";
+
+            return (
+              <div className="flex flex-col gap-3">
+                {isRunning && (
+                  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+                    <p className="mb-3 text-sm font-semibold text-emerald-400">Serveur prêt</p>
+                    <div className="flex flex-col gap-2 font-mono text-sm">
+                      <div className="flex items-center">
+                        <span className="w-20 text-muted-foreground">Host</span>
+                        <span className="text-foreground">{myEntry.connectionInfo.host}</span>
+                        <CopyButton value={myEntry.connectionInfo.host} />
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-20 text-muted-foreground">Port</span>
+                        <span className="text-foreground">{myEntry.connectionInfo.port}</span>
+                        <CopyButton value={String(myEntry.connectionInfo.port)} />
+                      </div>
+                      {myEntry.connectionInfo.password && (
+                        <div className="flex items-center">
+                          <span className="w-20 text-muted-foreground">Password</span>
+                          <span className="text-foreground">{myEntry.connectionInfo.password}</span>
+                          <CopyButton value={myEntry.connectionInfo.password} />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-              {patches.length > 0 && (
-                <div className="flex flex-wrap gap-3">
-                  {patches.map((filename) => (
+                  </div>
+                )}
+
+                {isRestarting && (
+                  <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface-2/50 px-4 py-3 text-sm text-muted-foreground">
+                    <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-accent-text" />
+                    <span>Relance du serveur en cours…</span>
+                  </div>
+                )}
+
+                {isRelaunchable && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Le serveur a été mis en pause après une période d&apos;inactivité. Relance-le pour
+                      reprendre ta partie là où elle s&apos;était arrêtée.
+                    </p>
                     <button
-                      className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline"
-                      key={filename}
-                      onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
+                      className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                      disabled={actionLoading}
+                      onClick={() => void handleRelaunch()}
                       type="button"
                     >
-                      <Download aria-hidden className="size-3.5" />
-                      {filename}
+                      {actionLoading ? "Relance…" : "Relancer ma partie"}
                     </button>
-                  ))}
-                </div>
-              )}
-              <Link
-                className="inline-flex w-fit items-center gap-1.5 rounded border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-                href={`/runs-hebdo/${run.weeklyRunId}/ma-run`}
-              >
-                Suivre ma progression →
-              </Link>
-            </div>
-          )}
+                  </div>
+                )}
+
+                {patches.length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {patches.map((filename) => (
+                      <button
+                        className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline"
+                        key={filename}
+                        onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
+                        type="button"
+                      >
+                        <Download aria-hidden className="size-3.5" />
+                        {filename}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <Link
+                  className="inline-flex w-fit items-center gap-1.5 rounded border border-border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+                  href={`/runs-hebdo/${run.weeklyRunId}/ma-run`}
+                >
+                  Suivre ma progression →
+                </Link>
+              </div>
+            );
+          })()}
         </div>
       )}
     </section>

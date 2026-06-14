@@ -58,9 +58,11 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                     'we.connection_port',
                     'we.connection_password',
                     'u.display_name AS display_name',
+                    's.status AS session_status',
                 )
                 ->from('weekly_entries', 'we')
                 ->leftJoin('we', $userTable, 'u', 'u.id = we.user_id')
+                ->leftJoin('we', 'session', 's', 's.id = we.external_session_id')
                 ->where('we.weekly_run_id = :runId')
                 ->setParameter('runId', $runId)
                 ->executeQuery()
@@ -84,6 +86,7 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                 $connectionHost = is_string($row['connection_host']) ? $row['connection_host'] : null;
                 $connectionPort = is_numeric($row['connection_port']) ? (int) $row['connection_port'] : null;
                 $connectionPassword = is_string($row['connection_password']) ? $row['connection_password'] : null;
+                $sessionStatus = is_string($row['session_status']) ? $row['session_status'] : null;
 
                 $participants[] = [
                     'entryId' => $entryId,
@@ -119,6 +122,7 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                         'externalSessionId' => $externalSessionId,
                         'launchedAt' => $launchedAt,
                         'goalReachedAt' => $goalReachedAt,
+                        'sessionStatus' => $sessionStatus,
                         'connectionInfo' => null,
                     ];
                     if (null !== $externalSessionId && null !== $connectionHost && null !== $connectionPort) {
