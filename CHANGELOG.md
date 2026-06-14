@@ -5,6 +5,43 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.3.0] - 2026-06-14
+
+Itération centrée sur les indices Archipelago, le cycle de vie des sessions de runs
+hebdomadaires et la fiabilité du suivi temps réel.
+
+### Ajouté
+
+- **Indices payants par le propriétaire** : un joueur peut acheter un indice (item ou
+  location) avec ses propres points sur sa run hebdomadaire et sur sa partie personnelle ;
+  les boutons d'indice « gratuit (admin) » restent réservés aux admins.
+- **Indices live sur tous les slots** + commande admin d'indice par item, via la
+  data-storage Archipelago.
+- **Cycle de vie des sessions de runs hebdomadaires** : la partie hebdo suit désormais le
+  même mécanisme que les parties privées — détection d'arrêt du conteneur (idle/stoppé) et
+  bouton « Relancer ma partie » ; les pages se rafraîchissent automatiquement (poll adaptatif).
+- **Bornes de range introspectées** dans l'éditeur YAML, et validation à la sauvegarde :
+  blocage des poids tous à 0 et des valeurs hors `[min, max]` (modes simple, avancé et
+  template admin).
+- **Runs rejointes** visibles dans « Mes parties ».
+- **Réglages de monde « host-gated »** appliqués à la génération.
+
+### Modifié
+
+- **Temps du leaderboard hebdo** compté depuis le **lancement de la partie** du joueur
+  (et non depuis la génération du run).
+- **Coût d'indice** affiché désormais **autoritaire** (lu depuis Archipelago), corrigeant
+  les valeurs gonflées.
+- Résilience renforcée de la session et du temps réel sur les pages passives.
+- Révocation des refresh-tokens par famille avec fenêtre de grâce anti-rejeu.
+
+### Corrigé
+
+- Un crash de génération/lancement bascule la session en état **échec terminal visible** ;
+  une session crashée/bloquée reste **relançable**.
+- Chargement des mondes Archipelago lors du calcul de réatteignabilité (worlds Universal
+  Tracker comme `pokepark`, et `pokemon_emerald` via `pkg_resources`).
+
 ## [0.2.1] - 2026-06-11
 
 Correctif d'un blocage de génération sur les parties privées, plus deux améliorations
