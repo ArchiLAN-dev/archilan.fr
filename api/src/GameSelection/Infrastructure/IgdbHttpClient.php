@@ -73,8 +73,9 @@ final class IgdbHttpClient implements IgdbHttpClientInterface
     {
         $token = $this->getAccessToken();
 
-        // category = 1 is Steam; uid is the Steam appid (a numeric string).
-        $body = sprintf('fields uid,category; where game = %d & category = 1; limit 1;', $igdbId);
+        // external_game_source = 1 is Steam; uid is the Steam appid (a numeric string).
+        // (IGDB deprecated the older `category` field, which now returns null.)
+        $body = sprintf('fields uid; where game = %d & external_game_source = 1; limit 1;', $igdbId);
 
         $response = $this->httpClient->request('POST', 'https://api.igdb.com/v4/external_games', [
             'headers' => [

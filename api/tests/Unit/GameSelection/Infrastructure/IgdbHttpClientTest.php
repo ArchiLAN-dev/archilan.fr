@@ -112,7 +112,7 @@ final class IgdbHttpClientTest extends TestCase
         $http = new MockHttpClient([
             new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
             new MockResponse(json_encode([
-                ['uid' => '367520', 'category' => 1],
+                ['uid' => '367520', 'external_game_source' => 1],
             ]) ?: ''),
         ]);
 
