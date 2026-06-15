@@ -5,6 +5,34 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.4.0] - 2026-06-15
+
+Itération centrée sur le couplage de la bibliothèque Steam et la refonte de la page Jeux.
+
+### Ajouté
+
+- **Couplage bibliothèque Steam** : sur la page Jeux et sur la sélection de jeux d'une
+  partie, l'utilisateur renseigne son compte Steam (URL de profil, pseudo ou SteamID64) pour
+  voir, dans le catalogue, les jeux qu'il possède et qui sont jouables à ArchiLAN
+  (étiquette « Tu possèdes ce jeu »). Profil privé géré avec un message clair.
+- **Compte Steam enregistrable** : les membres connectés peuvent enregistrer leur compte
+  Steam (dans l'espace compte et depuis la page Jeux) ; le couplage est alors automatique
+  aux visites suivantes.
+- **Refonte de la page Jeux** : catalogue chargé côté client avec **recherche instantanée**,
+  filtres (disponibilité, « Mes jeux »), tri, et couplage Steam intégré à la grille.
+- **Catégories de plateformes** : filtres par familles (Super Nintendo, GameCube, Nintendo 64,
+  PC, PlayStation, Switch, Mobile…) déduites d'IGDB, plus une facette « Steam », sur la page
+  Jeux et la sélection de jeux d'une partie.
+
+### Technique
+
+- Catalogue enrichi du `steamAppId` et des plateformes IGDB (commandes de backfill
+  `app:games:backfill-steam-app-ids` et `app:games:backfill-platforms`).
+- Client Steam Web API + endpoint public de couplage ; endpoint catalogue complet
+  `GET /games?all=1`.
+- Nouvelle variable d'environnement **`STEAM_WEB_API_KEY`** ; migrations
+  `game_catalog_sync.steam_app_id`, `game_catalog_sync.platforms`, `user.steam_profile`.
+
 ## [0.3.0] - 2026-06-14
 
 Itération centrée sur les indices Archipelago, le cycle de vie des sessions de runs
