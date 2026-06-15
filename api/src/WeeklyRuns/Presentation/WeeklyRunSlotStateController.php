@@ -25,7 +25,7 @@ final readonly class WeeklyRunSlotStateController
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
-        private string $runnerBaseUrl,
+        private string $bridgeHttpHost,
     ) {
     }
 
@@ -330,9 +330,7 @@ final readonly class WeeklyRunSlotStateController
 
     private function bridgeHost(): string
     {
-        $host = parse_url($this->runnerBaseUrl, PHP_URL_HOST);
-
-        return is_string($host) ? $host : 'localhost';
+        return $this->bridgeHttpHost;
     }
 
     private function isAdmin(User $user): bool

@@ -24,6 +24,7 @@ final readonly class WeeklyEntryPatchController
         private ApiAccessGuard $apiAccessGuard,
         private WeeklyEntryPatchQuery $patchQuery,
         private HttpClientInterface $httpClient,
+        private string $bridgeHttpHost,
     ) {
     }
 
@@ -108,7 +109,7 @@ final readonly class WeeklyEntryPatchController
         try {
             $response = $this->httpClient->request(
                 'GET',
-                "http://localhost:{$bridgePort}/output",
+                "http://{$this->bridgeHttpHost}:{$bridgePort}/output",
                 ['timeout' => 5],
             );
             if (200 !== $response->getStatusCode()) {
@@ -128,7 +129,7 @@ final readonly class WeeklyEntryPatchController
         try {
             $bridgeResponse = $this->httpClient->request(
                 'GET',
-                "http://localhost:{$bridgePort}/output/".rawurlencode($filename),
+                "http://{$this->bridgeHttpHost}:{$bridgePort}/output/".rawurlencode($filename),
                 ['timeout' => 30],
             );
             if (200 !== $bridgeResponse->getStatusCode()) {
