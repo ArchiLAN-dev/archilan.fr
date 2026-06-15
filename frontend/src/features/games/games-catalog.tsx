@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, Gamepad2, Loader2, Pencil, Search } from "lucide-react";
+import { Gamepad2, Loader2, Pencil, Search } from "lucide-react";
 import { FaSteam } from "react-icons/fa";
 import { useAuth } from "@/features/auth/auth-context";
 import { saveSteamAccount } from "@/features/auth/steam-account-api";
@@ -265,12 +265,7 @@ function SteamCoupling({
           </p>
 
           {loggedIn ? (
-            alreadySaved ? (
-              <p className="inline-flex items-center gap-1.5 text-sm text-success">
-                <Check aria-hidden="true" className="size-4" />
-                Enregistré sur ton compte
-              </p>
-            ) : (
+            alreadySaved ? null : (
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
