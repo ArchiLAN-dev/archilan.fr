@@ -87,6 +87,10 @@ export default function ConfidentialitePage() {
                 purpose="Coordination de la session multijoueur lors de l'événement."
               />
               <ProcessingRow
+                data="Compte Steam (optionnel)"
+                purpose="Couplage facultatif de votre bibliothèque Steam avec le catalogue de jeux. Enregistré uniquement si vous le renseignez, supprimé avec votre compte."
+              />
+              <ProcessingRow
                 data="Statut et historique d'inscription"
                 purpose="Gestion des places disponibles et suivi administratif des événements."
               />

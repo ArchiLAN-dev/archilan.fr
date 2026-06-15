@@ -6,7 +6,7 @@ const availabilityConfig = {
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 } as const;
 
-export function GameCard({ game }: { game: PublicGame }) {
+export function GameCard({ game, owned = false }: { game: PublicGame; owned?: boolean }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
 
   return (
@@ -25,15 +25,19 @@ export function GameCard({ game }: { game: PublicGame }) {
             <Gamepad2 aria-hidden="true" className="size-12 text-muted-foreground/40" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-transparent" />
-        <span
-          className={`absolute right-2 top-2 rounded border px-2 py-0.5 text-xs font-semibold backdrop-blur-sm ${status.className}`}
-        >
-          {status.label}
-        </span>
       </div>
 
       <div className="grid content-start gap-2 p-4">
+        <div className="flex flex-wrap gap-1.5">
+          <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${status.className}`}>
+            {status.label}
+          </span>
+          {owned ? (
+            <span className="rounded border border-success/50 bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+              Tu possèdes ce jeu
+            </span>
+          ) : null}
+        </div>
         <h3 className="font-heading font-semibold leading-tight text-foreground">{game.name}</h3>
         {game.description ? (
           <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{game.description}</p>

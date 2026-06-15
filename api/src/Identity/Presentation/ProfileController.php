@@ -35,7 +35,7 @@ final readonly class ProfileController
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string, discordUsername: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
+     * @return array{id: string, email: string, displayName: string, discordUsername: string|null, steamProfile: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
      */
     private function profilePayload(User $user): array
     {
@@ -44,6 +44,7 @@ final readonly class ProfileController
             'email' => $user->getEmail(),
             'displayName' => $user->getDisplayName(),
             'discordUsername' => $user->getDiscordUsername(),
+            'steamProfile' => $user->getSteamProfile(),
             'roles' => $user->getRoles(),
             'emailVerifiedAt' => $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),
             'createdAt' => $user->getCreatedAt()->format(\DateTimeInterface::ATOM),

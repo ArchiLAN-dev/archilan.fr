@@ -6,6 +6,7 @@ namespace App\PersonalRuns\Application;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\PlatformCategory;
 use App\Identity\Application\ValidationErrors;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
@@ -72,6 +73,8 @@ final readonly class PersonalRunGameSelection
             'optionTypes' => $g->getOptionTypes(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
+            'platforms' => PlatformCategory::families($g->getPlatforms() ?? []),
+            'steamAppId' => $g->getSteamAppId(),
         ], $allGames);
 
         return $this->result(found: true, slots: $slots, availableGames: $availableGames);

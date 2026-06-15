@@ -300,6 +300,8 @@ services:
             $channelLogin: '%env(TWITCH_CHANNEL_LOGIN)%'
 
     App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
+    App\GameSelection\Infrastructure\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\SteamWebApiClient'
+    App\GameSelection\Application\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
     App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
@@ -340,6 +342,10 @@ services:
             $clientId: '%env(TWITCH_CLIENT_ID)%'
             $clientSecret: '%env(TWITCH_CLIENT_SECRET)%'
 
+    App\GameSelection\Infrastructure\SteamWebApiClient:
+        arguments:
+            $apiKey: '%env(STEAM_WEB_API_KEY)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
@@ -370,6 +376,12 @@ when@test:
             class: App\GameSelection\Infrastructure\StubIgdbHttpClient
 
         App\GameSelection\Infrastructure\StubIgdbHttpClient:
+            public: true
+
+        App\GameSelection\Infrastructure\SteamWebApiClientInterface:
+            class: App\GameSelection\Infrastructure\StubSteamWebApiClient
+
+        App\GameSelection\Infrastructure\StubSteamWebApiClient:
             public: true
 
         App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway'

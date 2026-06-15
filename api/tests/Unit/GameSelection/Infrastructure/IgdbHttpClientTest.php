@@ -107,6 +107,101 @@ final class IgdbHttpClientTest extends TestCase
         self::assertNull($results[0]['coverUrl']);
     }
 
+    public function testFetchSteamAppIdMapsUidToInt(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([
+                ['uid' => '367520', 'external_game_source' => 1],
+            ]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertSame(367520, $client->fetchSteamAppId(1234));
+    }
+
+    public function testFetchSteamAppIdReturnsNullWhenNoSteamEntry(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertNull($client->fetchSteamAppId(1234));
+    }
+
+    public function testFetchSteamAppIdReturnsNullWhenUidNotNumeric(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([
+                ['uid' => 'not-a-number', 'category' => 1],
+            ]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertNull($client->fetchSteamAppId(1234));
+    }
+
+    public function testFetchSteamAppIdThrowsOnHttpError(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse('Internal Server Error', ['http_code' => 500]),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        $this->expectException(IgdbSearchException::class);
+        $client->fetchSteamAppId(1234);
+    }
+
+    public function testFetchPlatformsMapsIdAndName(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([
+                ['id' => 1103, 'platforms' => [['id' => 19, 'name' => 'Super Nintendo Entertainment System'], ['id' => 5, 'name' => 'Wii']]],
+            ]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertSame(
+            [['id' => 19, 'name' => 'Super Nintendo Entertainment System'], ['id' => 5, 'name' => 'Wii']],
+            $client->fetchPlatforms(1103),
+        );
+    }
+
+    public function testFetchPlatformsReturnsEmptyWhenNone(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([['id' => 1, 'name' => 'No Platforms']]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertSame([], $client->fetchPlatforms(1));
+    }
+
+    public function testFetchPlatformsThrowsOnHttpError(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse('Internal Server Error', ['http_code' => 500]),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        $this->expectException(IgdbSearchException::class);
+        $client->fetchPlatforms(1);
+    }
+
     public function testTokenTtlIsNinetyPercentOfExpiresIn(): void
     {
         $http = new MockHttpClient([

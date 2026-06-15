@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { AccountRegistrations } from "./account-registrations";
-import { DangerSection, DiscordSection, PrivacySection } from "./account-profile";
+import { DangerSection, DiscordSection, PrivacySection, SteamSection } from "./account-profile";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import { PersonalRunsListPage } from "@/features/personal-runs/personal-runs-list-page";
 import { MembershipSection } from "./membership-section";
@@ -135,6 +135,7 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
                   linkFeedback={discordLinked === "1" ? "1" : discordLinkError}
                 />
               )}
+              {!loadingProfile && <SteamSection steamProfile={profile?.steamProfile ?? null} />}
               <DangerSection />
             </div>
           )}

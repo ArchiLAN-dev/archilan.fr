@@ -20,6 +20,11 @@ final readonly class PublicGameCatalogController
     public function list(Request $request): JsonResponse
     {
         $query = trim((string) $request->query->get('q', ''));
+
+        if ('1' === $request->query->get('all')) {
+            return new JsonResponse(['data' => $this->catalog->all($query)]);
+        }
+
         $page = max(1, (int) $request->query->get('page', 1));
 
         $result = $this->catalog->list($query, $page);

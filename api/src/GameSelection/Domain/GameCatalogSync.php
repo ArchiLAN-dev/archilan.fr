@@ -32,6 +32,15 @@ class GameCatalogSync
         private bool $adultContent = false,
         #[ORM\Column(name: 'bundled_with_ap', type: 'boolean', options: ['default' => false])]
         private bool $bundledWithAp = false,
+        #[ORM\Column(name: 'steam_app_id', type: 'integer', nullable: true)]
+        private ?int $steamAppId = null,
+        /**
+         * Raw IGDB platforms for the game, as resolved from the IGDB `games` endpoint.
+         *
+         * @var list<array{id: int, name: string}>|null
+         */
+        #[ORM\Column(name: 'platforms', type: 'json', nullable: true)]
+        private ?array $platforms = null,
     ) {
         $game->setCatalogSync($this);
     }
@@ -124,6 +133,32 @@ class GameCatalogSync
     public function getIgdbId(): ?int
     {
         return $this->igdbId;
+    }
+
+    public function recordSteamAppId(?int $steamAppId): void
+    {
+        $this->steamAppId = $steamAppId;
+    }
+
+    public function getSteamAppId(): ?int
+    {
+        return $this->steamAppId;
+    }
+
+    /**
+     * @param list<array{id: int, name: string}>|null $platforms
+     */
+    public function recordPlatforms(?array $platforms): void
+    {
+        $this->platforms = null === $platforms || [] === $platforms ? null : $platforms;
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>|null
+     */
+    public function getPlatforms(): ?array
+    {
+        return $this->platforms;
     }
 
     public function isAdultContent(): bool

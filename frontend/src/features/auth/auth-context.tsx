@@ -24,6 +24,7 @@ export type AuthUser = {
   displayName: string | null;
   roles: string[];
   emailVerifiedAt: string | null;
+  steamProfile: string | null;
 };
 
 type AuthContextValue = {

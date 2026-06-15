@@ -6,6 +6,9 @@ import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, FileTex
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { SteamCoupling } from "@/features/games/steam-coupling";
+import { useSteamCoupling } from "@/features/games/use-steam-coupling";
+import { allCategories, categoriesOf, isOwned } from "@/features/games/games-filter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +22,8 @@ type AvailableGame = {
   defaultYaml: string | null;
   coverImageUrl: string | null;
   coverImageAlt: string;
+  platforms: string[];
+  steamAppId: number | null;
 };
 
 type Slot = {
@@ -47,6 +52,11 @@ type SaveState =
 
 const PAGE_SIZE = 20;
 
+const availabilityConfig: Record<string, { label: string; className: string }> = {
+  available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
+  experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function PersonalRunGameSelectionPage({
@@ -65,10 +75,21 @@ export function PersonalRunGameSelectionPage({
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
 
+  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling();
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [ownedOnly, setOwnedOnly] = useState(false);
+
   useEffect(() => {
     const timers = addTimers.current;
     return () => { timers.forEach(([t1, t2]) => { clearTimeout(t1); clearTimeout(t2); }); };
   }, []);
+
+  useEffect(() => {
+    if (!coupled && ownedOnly) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOwnedOnly(false);
+    }
+  }, [coupled, ownedOnly]);
 
   const handleAddGame = useCallback((gameId: string) => {
     setWorkingGameIds((prev) => [...prev, gameId]);
@@ -225,10 +246,18 @@ export function PersonalRunGameSelectionPage({
 
   // Filtered + paginated catalog
   const q = gameSearch.trim().toLowerCase();
-  const filteredGames =
-    q === ""
-      ? data.availableGames
-      : data.availableGames.filter((g) => g.name.toLowerCase().includes(q));
+  const categoryOptions = allCategories(data.availableGames);
+  const selectedCategorySet = new Set(selectedCategories);
+  const filteredGames = data.availableGames.filter((g) => {
+    if (q !== "" && !(g.name.toLowerCase().includes(q) || g.description.toLowerCase().includes(q))) {
+      return false;
+    }
+    if (ownedOnly && !isOwned(g, matchedAppIds)) return false;
+    if (selectedCategorySet.size > 0 && !categoriesOf(g).some((c) => selectedCategorySet.has(c))) {
+      return false;
+    }
+    return true;
+  });
   const totalPages = Math.max(1, Math.ceil(filteredGames.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageGames = filteredGames.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -329,6 +358,9 @@ export function PersonalRunGameSelectionPage({
         </div>
       </section>
 
+      {/* ── Steam coupling ── */}
+      <SteamCoupling {...couplingProps} />
+
       {/* ── Game catalog ── */}
       <section className="grid gap-4">
         <h2 className="font-heading text-xl font-semibold text-foreground">
@@ -354,6 +386,50 @@ export function PersonalRunGameSelectionPage({
             }}
           />
         </div>
+
+        {(categoryOptions.length > 0 || coupled) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {coupled && (
+              <label
+                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3 text-sm font-medium text-foreground"
+              >
+                <input
+                  checked={ownedOnly}
+                  className="size-4 accent-accent"
+                  onChange={(e) => {
+                    setOwnedOnly(e.target.checked);
+                    setCurrentPage(1);
+                  }}
+                  type="checkbox"
+                />
+                Mes jeux
+              </label>
+            )}
+            {categoryOptions.map((category) => {
+              const active = selectedCategories.includes(category);
+              return (
+                <button
+                  key={category}
+                  aria-pressed={active}
+                  className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-accent bg-accent/15 text-accent-text"
+                      : "border-border bg-surface text-muted-foreground hover:border-accent hover:text-foreground"
+                  }`}
+                  onClick={() => {
+                    setSelectedCategories((prev) =>
+                      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
+                    );
+                    setCurrentPage(1);
+                  }}
+                  type="button"
+                >
+                  {category}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {filteredGames.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucun jeu ne correspond à la recherche.</p>
@@ -385,6 +461,20 @@ export function PersonalRunGameSelectionPage({
 
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold leading-tight text-foreground">{game.name}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {availabilityConfig[game.availability] && (
+                          <span
+                            className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${availabilityConfig[game.availability].className}`}
+                          >
+                            {availabilityConfig[game.availability].label}
+                          </span>
+                        )}
+                        {isOwned(game, matchedAppIds) && (
+                          <span className="rounded border border-success/50 bg-success/10 px-1.5 py-0.5 text-[11px] font-semibold text-success">
+                            Tu possèdes ce jeu
+                          </span>
+                        )}
+                      </div>
                       {game.description && (
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{game.description}</p>
                       )}
