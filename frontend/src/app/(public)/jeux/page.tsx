@@ -5,6 +5,7 @@ import Link from "next/link";
 import { GameCard } from "@/features/games/game-card";
 import { getPublicGames } from "@/features/games/public-games-api";
 import { GameRequestSection } from "@/features/games/game-request-section";
+import { SteamCouplingPanel } from "@/features/games/steam-coupling-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,8 @@ export default async function GamesPage({
           l&apos;équipe ArchiLAN.
         </p>
       </section>
+
+      <SteamCouplingPanel />
 
       <section aria-labelledby="games-heading">
         <h2 className="sr-only" id="games-heading">

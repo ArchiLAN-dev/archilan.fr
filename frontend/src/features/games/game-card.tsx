@@ -6,7 +6,7 @@ const availabilityConfig = {
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 } as const;
 
-export function GameCard({ game }: { game: PublicGame }) {
+export function GameCard({ game, owned = false }: { game: PublicGame; owned?: boolean }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
 
   return (
@@ -31,6 +31,11 @@ export function GameCard({ game }: { game: PublicGame }) {
         >
           {status.label}
         </span>
+        {owned ? (
+          <span className="absolute left-2 top-2 rounded border border-success/50 bg-success/10 px-2 py-0.5 text-xs font-semibold text-success backdrop-blur-sm">
+            Tu possèdes ce jeu
+          </span>
+        ) : null}
       </div>
 
       <div className="grid content-start gap-2 p-4">

@@ -14,6 +14,7 @@ const validGame = {
   coverImageAlt: "Cover",
   availability: "available",
   supportedEventTypes: ["lan"],
+  steamAppId: null,
 };
 
 const validResponse = {

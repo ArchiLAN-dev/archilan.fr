@@ -1,6 +1,6 @@
 # Story 28.4: Coupling UI on the Jeux page
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -84,5 +84,21 @@ claude-opus-4-8
 ### Completion Notes List
 
 - Ultimate context engine analysis completed — comprehensive developer guide created.
+- Implemented on branch `feature/epic-28-story-4-coupling-ui` (stacked on 28.3).
+- Used the codebase's established client pattern (useState + async event handler, like `GameRequestSection`) instead of TanStack `useMutation`: the page has no QueryClientProvider and coupling is triggered by a button (no fetch-in-`useEffect`), so this matches the surrounding code while honoring AC-API4's intent.
+- Matched games come back in a lighter shape (`CoupledGame`) than `PublicGame`; mapped to a `PublicGame` for `GameCard` reuse (empty description, alt = name). Steam brand icon via `react-icons/fa` (`FaSteam`) — lucide has no Steam icon.
+- Anonymous prefill via `localStorage`; logged-in prefill from `user.steamProfile` (28.3) + "Enregistrer sur mon compte".
+- Gates green: pnpm typecheck (0), lint (0), jest (71/71), build clean.
 
 ### File List
+
+**Added**
+- `frontend/src/features/games/steam-coupling-api.ts`
+- `frontend/src/features/games/steam-coupling-panel.tsx`
+- `frontend/src/features/games/steam-coupling-api.test.ts`
+
+**Modified**
+- `frontend/src/features/games/public-games-api.ts` (steamAppId on PublicGame + guard)
+- `frontend/src/features/games/public-games-api.test.ts` (fixture steamAppId)
+- `frontend/src/features/games/game-card.tsx` (owned prop + badge)
+- `frontend/src/app/(public)/jeux/page.tsx` (render SteamCouplingPanel)
