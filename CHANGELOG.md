@@ -5,6 +5,24 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.4.1] - 2026-06-15
+
+Correctif de production sur la connectivité API → bridge des sessions.
+
+### Corrigé
+
+- **Runs hebdomadaires & parties en production** : l'API ne parvenait pas à joindre le
+  bridge d'une session lancée (erreur 503 « bridge non disponible » sur la page « ma run »,
+  et liste de patchs vide). En production l'API tourne dans un conteneur et ne pouvait pas
+  atteindre le port publié du bridge via l'IP publique. Les appels API → bridge passent
+  désormais par un host configurable (`BRIDGE_HTTP_HOST`).
+
+### Déploiement
+
+- Nouvelle variable d'environnement **`BRIDGE_HTTP_HOST`** (prod : `host.docker.internal`,
+  dev : `localhost`) et ajout de `extra_hosts: ["host.docker.internal:host-gateway"]` sur
+  `api-web` / `api-worker` dans `docker-compose.prod.yml`.
+
 ## [0.4.0] - 2026-06-15
 
 Itération centrée sur le couplage de la bibliothèque Steam et la refonte de la page Jeux.
