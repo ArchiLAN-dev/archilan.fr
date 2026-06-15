@@ -17,4 +17,12 @@ final readonly class PublicGameCatalog
     {
         return $this->query->list($query, $page);
     }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function all(string $query = ''): array
+    {
+        return $this->query->all($query);
+    }
 }

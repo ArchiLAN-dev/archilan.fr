@@ -10,6 +10,8 @@ export type PublicGame = {
   coverImageAlt: string;
   availability: "available" | "experimental";
   supportedEventTypes: string[];
+  steamAppId: number | null;
+  platforms: string[];
 };
 
 export type GamePage = {
@@ -19,6 +21,24 @@ export type GamePage = {
   perPage: number;
   totalPages: number;
 };
+
+export async function getAllPublicGames(): Promise<PublicGame[]> {
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/games?all=1`, { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null) return [];
+    if (!("data" in payload) || !Array.isArray(payload.data) || !payload.data.every(isPublicGame)) return [];
+
+    return payload.data.map((g) => ({
+      ...g,
+      supportedEventTypes: Array.isArray(g.supportedEventTypes) ? g.supportedEventTypes : [],
+    }));
+  } catch {
+    return [];
+  }
+}
 
 export async function getPublicGames(query = "", page = 1): Promise<GamePage> {
   const empty: GamePage = { games: [], total: 0, page: 1, perPage: 24, totalPages: 1 };
@@ -78,5 +98,7 @@ function isPublicGame(v: unknown): v is PublicGame {
   if (!("coverImageUrl" in v) || (v.coverImageUrl !== null && typeof v.coverImageUrl !== "string")) return false;
   if (!hasStringProp(v, "coverImageAlt")) return false;
   if (!("availability" in v) || !isGameAvailability(v.availability)) return false;
+  if (!("steamAppId" in v) || (v.steamAppId !== null && typeof v.steamAppId !== "number")) return false;
+  if (!("platforms" in v) || !Array.isArray(v.platforms) || !v.platforms.every((item): item is string => typeof item === "string")) return false;
   return "supportedEventTypes" in v && Array.isArray(v.supportedEventTypes) && v.supportedEventTypes.every((item): item is string => typeof item === "string");
 }

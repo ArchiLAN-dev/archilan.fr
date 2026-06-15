@@ -58,11 +58,20 @@ final readonly class DoctrineGameRepository implements GameRepositoryInterface
             return [];
         }
 
-        /* @var list<Game> */
-        return $this->entityManager->getRepository(Game::class)->findBy(
-            ['availability' => $availabilities],
-            ['name' => 'ASC'],
-        );
+        // Eager-load catalogSync (steam_app_id / platforms) to avoid N+1 when callers
+        // map the games into a payload that reads those fields.
+        /** @var list<Game> $games */
+        $games = $this->entityManager->createQueryBuilder()
+            ->select('g', 'cs')
+            ->from(Game::class, 'g')
+            ->leftJoin('g.catalogSync', 'cs')
+            ->where('g.availability IN (:availabilities)')
+            ->setParameter('availabilities', $availabilities)
+            ->orderBy('g.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $games;
     }
 
     public function findByApworldHash(string $sha256): ?Game

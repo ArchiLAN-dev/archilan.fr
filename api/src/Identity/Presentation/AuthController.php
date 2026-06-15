@@ -162,7 +162,7 @@ final readonly class AuthController
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
+     * @return array{id: string, email: string, displayName: string|null, steamProfile: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
      */
     private function userPayload(User $user): array
     {
@@ -170,6 +170,7 @@ final readonly class AuthController
             'id' => $user->getId(),
             'email' => $user->getEmail(),
             'displayName' => $user->getDisplayName(),
+            'steamProfile' => $user->getSteamProfile(),
             'roles' => $user->getRoles(),
             'emailVerifiedAt' => $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),
             'createdAt' => $user->getCreatedAt()->format(\DateTimeInterface::ATOM),

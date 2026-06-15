@@ -69,6 +69,91 @@ final class IgdbHttpClient implements IgdbHttpClientInterface
         }, $data);
     }
 
+    public function fetchSteamAppId(int $igdbId): ?int
+    {
+        $token = $this->getAccessToken();
+
+        // external_game_source = 1 is Steam; uid is the Steam appid (a numeric string).
+        // (IGDB deprecated the older `category` field, which now returns null.)
+        $body = sprintf('fields uid; where game = %d & external_game_source = 1; limit 1;', $igdbId);
+
+        $response = $this->httpClient->request('POST', 'https://api.igdb.com/v4/external_games', [
+            'headers' => [
+                'Client-ID' => $this->clientId,
+                'Authorization' => 'Bearer '.$token,
+            ],
+            'body' => $body,
+        ]);
+
+        if ($response->getStatusCode() >= 400) {
+            throw new IgdbSearchException('IGDB external_games failed with status '.$response->getStatusCode());
+        }
+
+        /** @var list<array<string, mixed>> $data */
+        $data = $response->toArray();
+
+        if ([] === $data) {
+            return null;
+        }
+
+        $uid = $data[0]['uid'] ?? null;
+
+        if (is_string($uid) && 1 === preg_match('/^\d+$/', $uid)) {
+            return (int) $uid;
+        }
+
+        if (is_int($uid)) {
+            return $uid;
+        }
+
+        return null;
+    }
+
+    public function fetchPlatforms(int $igdbId): array
+    {
+        $token = $this->getAccessToken();
+
+        $body = sprintf('fields platforms.name; where id = %d; limit 1;', $igdbId);
+
+        $response = $this->httpClient->request('POST', 'https://api.igdb.com/v4/games', [
+            'headers' => [
+                'Client-ID' => $this->clientId,
+                'Authorization' => 'Bearer '.$token,
+            ],
+            'body' => $body,
+        ]);
+
+        if ($response->getStatusCode() >= 400) {
+            throw new IgdbSearchException('IGDB games (platforms) failed with status '.$response->getStatusCode());
+        }
+
+        /** @var list<array<string, mixed>> $data */
+        $data = $response->toArray();
+
+        if ([] === $data) {
+            return [];
+        }
+
+        $platforms = $data[0]['platforms'] ?? null;
+        if (!is_array($platforms)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($platforms as $platform) {
+            if (!is_array($platform)) {
+                continue;
+            }
+            $id = $platform['id'] ?? null;
+            $name = $platform['name'] ?? null;
+            if (is_int($id) && is_string($name) && '' !== $name) {
+                $result[] = ['id' => $id, 'name' => $name];
+            }
+        }
+
+        return $result;
+    }
+
     private function getAccessToken(): string
     {
         return $this->cache->get('igdb.access_token', function (ItemInterface $item): string {

@@ -55,6 +55,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private ?\DateTimeImmutable $discordRoleSyncedAt = null,
         #[ORM\Column(name: 'discord_sync_error', type: 'string', length: 500, nullable: true)]
         private ?string $discordSyncError = null,
+        #[ORM\Column(name: 'steam_profile', type: 'string', length: 190, nullable: true)]
+        private ?string $steamProfile = null,
     ) {
     }
 
@@ -113,6 +115,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getDiscordUsername(): ?string
     {
         return $this->discordUsername;
+    }
+
+    public function getSteamProfile(): ?string
+    {
+        return $this->steamProfile;
+    }
+
+    public function setSteamProfile(?string $steamProfile): void
+    {
+        $trimmed = null !== $steamProfile ? trim($steamProfile) : null;
+        $this->steamProfile = '' === $trimmed ? null : $trimmed;
     }
 
     public function isDiscordLinked(): bool
@@ -231,6 +244,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->displayName = '[supprimé]';
         $this->passwordHash = 'deleted'; // intentionally invalid - no hasher will match this
         $this->roles = ['ROLE_USER'];
+        $this->steamProfile = null;
         $this->deletedAt = $now;
         $this->updatedAt = $now;
     }

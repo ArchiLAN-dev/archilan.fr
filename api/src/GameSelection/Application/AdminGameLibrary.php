@@ -467,6 +467,7 @@ final readonly class AdminGameLibrary
             'apworldReleaseUrl' => $sync?->getApworldReleaseUrl(),
             'availabilityLocked' => $game->isAvailabilityLocked(),
             'igdbId' => $sync?->getIgdbId(),
+            'steamAppId' => $sync?->getSteamAppId(),
             'updateStatus' => $game->computeApworldUpdateStatus(),
         ]);
     }
