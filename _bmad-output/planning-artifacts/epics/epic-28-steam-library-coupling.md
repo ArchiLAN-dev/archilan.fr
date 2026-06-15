@@ -89,6 +89,10 @@ catalog (which only contains Archipelago-supported games). The coupling is the *
   summary banner ("X of your N Steam games are playable at ArchiLAN"), "you own this" badge overlay on
   matched `GameCard`s, anonymous `localStorage` persistence of the SteamID, and clear private-library
   guidance with a link to the Steam privacy setting. Gates: typecheck / lint / build.
+- **28.5 - Jeux page redesign (frontend + small api/).** Post-MVP rework from local-test feedback:
+  client-driven catalog (full catalog fetched once via `GET /games?all=1`), instant search, filters
+  (availability + "owned only"), sort, and the coupling **merged into the main grid** (owned badge +
+  owned-only filter across the whole catalog instead of a separate result grid). Reuses 28.1-28.4.
 
 ## Sequencing
 

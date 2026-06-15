@@ -21,6 +21,24 @@ export type GamePage = {
   totalPages: number;
 };
 
+export async function getAllPublicGames(): Promise<PublicGame[]> {
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/games?all=1`, { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null) return [];
+    if (!("data" in payload) || !Array.isArray(payload.data) || !payload.data.every(isPublicGame)) return [];
+
+    return payload.data.map((g) => ({
+      ...g,
+      supportedEventTypes: Array.isArray(g.supportedEventTypes) ? g.supportedEventTypes : [],
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getPublicGames(query = "", page = 1): Promise<GamePage> {
   const empty: GamePage = { games: [], total: 0, page: 1, perPage: 24, totalPages: 1 };
 

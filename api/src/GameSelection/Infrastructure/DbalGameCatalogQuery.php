@@ -26,7 +26,31 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
         $totalPages = max(1, (int) ceil($total / 24));
         $page = min($page, $totalPages);
 
-        $qb = $this->buildBaseQuery($query)
+        $qb = $this->selectGames($this->buildBaseQuery($query));
+
+        PaginationHelper::applyTo($qb, $page, 24);
+
+        $items = array_values(array_map($this->mapRow(...), $qb->fetchAllAssociative()));
+
+        return [
+            'items' => $items,
+            'total' => $total,
+            'page' => $page,
+            'perPage' => 24,
+            'totalPages' => $totalPages,
+        ];
+    }
+
+    public function all(string $query = ''): array
+    {
+        $qb = $this->selectGames($this->buildBaseQuery($query));
+
+        return array_values(array_map($this->mapRow(...), $qb->fetchAllAssociative()));
+    }
+
+    private function selectGames(QueryBuilder $qb): QueryBuilder
+    {
+        return $qb
             ->select(
                 'game.id AS id',
                 'game.name AS name',
@@ -39,39 +63,34 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             )
             ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
             ->orderBy('game.name', 'ASC');
+    }
 
-        PaginationHelper::applyTo($qb, $page, 24);
-
-        $items = [];
-        foreach ($qb->fetchAllAssociative() as $row) {
-            $id = $row['id'] ?? null;
-            $name = $row['name'] ?? null;
-            $slug = $row['slug'] ?? null;
-            $description = $row['description'] ?? null;
-            $coverImageUrl = $row['cover_image_url'] ?? null;
-            $coverImageAlt = $row['cover_image_alt'] ?? null;
-            $availability = $row['availability'] ?? null;
-            $steamAppId = $row['steam_app_id'] ?? null;
-
-            $items[] = [
-                'id' => is_string($id) ? $id : '',
-                'name' => is_string($name) ? $name : '',
-                'slug' => is_string($slug) ? $slug : '',
-                'description' => is_string($description) ? $description : '',
-                'coverImageUrl' => is_string($coverImageUrl) ? $coverImageUrl : null,
-                'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
-                'availability' => is_string($availability) ? $availability : '',
-                'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
-                'supportedEventTypes' => [],
-            ];
-        }
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array{id: string, name: string, slug: string, description: string, coverImageUrl: string|null, coverImageAlt: string, availability: string, steamAppId: int|null, supportedEventTypes: list<string>}
+     */
+    private function mapRow(array $row): array
+    {
+        $id = $row['id'] ?? null;
+        $name = $row['name'] ?? null;
+        $slug = $row['slug'] ?? null;
+        $description = $row['description'] ?? null;
+        $coverImageUrl = $row['cover_image_url'] ?? null;
+        $coverImageAlt = $row['cover_image_alt'] ?? null;
+        $availability = $row['availability'] ?? null;
+        $steamAppId = $row['steam_app_id'] ?? null;
 
         return [
-            'items' => $items,
-            'total' => $total,
-            'page' => $page,
-            'perPage' => 24,
-            'totalPages' => $totalPages,
+            'id' => is_string($id) ? $id : '',
+            'name' => is_string($name) ? $name : '',
+            'slug' => is_string($slug) ? $slug : '',
+            'description' => is_string($description) ? $description : '',
+            'coverImageUrl' => is_string($coverImageUrl) ? $coverImageUrl : null,
+            'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
+            'availability' => is_string($availability) ? $availability : '',
+            'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
+            'supportedEventTypes' => [],
         ];
     }
 
