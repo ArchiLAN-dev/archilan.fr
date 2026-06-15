@@ -11,6 +11,7 @@ export type PublicGame = {
   availability: "available" | "experimental";
   supportedEventTypes: string[];
   steamAppId: number | null;
+  platforms: string[];
 };
 
 export type GamePage = {
@@ -98,5 +99,6 @@ function isPublicGame(v: unknown): v is PublicGame {
   if (!hasStringProp(v, "coverImageAlt")) return false;
   if (!("availability" in v) || !isGameAvailability(v.availability)) return false;
   if (!("steamAppId" in v) || (v.steamAppId !== null && typeof v.steamAppId !== "number")) return false;
+  if (!("platforms" in v) || !Array.isArray(v.platforms) || !v.platforms.every((item): item is string => typeof item === "string")) return false;
   return "supportedEventTypes" in v && Array.isArray(v.supportedEventTypes) && v.supportedEventTypes.every((item): item is string => typeof item === "string");
 }

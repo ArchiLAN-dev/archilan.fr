@@ -8,6 +8,7 @@ import { saveSteamAccount } from "@/features/auth/steam-account-api";
 import { GameCard } from "./game-card";
 import { coupleSteamLibrary, type CouplingResult } from "./steam-coupling-api";
 import {
+  allCategories,
   filterAndSortGames,
   isOwned,
   type AvailabilityFilter,
@@ -27,6 +28,8 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [sort, setSort] = useState<SortOrder>("name-asc");
+  const [categories, setCategories] = useState<string[]>([]);
+  const categoryOptions = useMemo(() => allCategories(initialGames), [initialGames]);
 
   // ── Coupling state ────────────────────────────────────────────────────────
   const [steamInput, setSteamInput] = useState("");
@@ -67,11 +70,17 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
     () =>
       filterAndSortGames(
         initialGames,
-        { query: debouncedQuery, availability, ownedOnly, sort },
+        { query: debouncedQuery, availability, ownedOnly, sort, categories },
         matchedAppIds,
       ),
-    [initialGames, debouncedQuery, availability, ownedOnly, sort, matchedAppIds],
+    [initialGames, debouncedQuery, availability, ownedOnly, sort, categories, matchedAppIds],
   );
+
+  function toggleCategory(category: string) {
+    setCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
+    );
+  }
 
   async function handleCouple(event: React.FormEvent) {
     event.preventDefault();
@@ -135,6 +144,10 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
         onQuery={setQuery}
         onSort={setSort}
       />
+
+      {categoryOptions.length > 0 ? (
+        <CategoryChips options={categoryOptions} selected={categories} onToggle={toggleCategory} />
+      ) : null}
 
       <p className="text-sm text-muted-foreground" role="status">
         {visibleGames.length} jeu{visibleGames.length !== 1 ? "x" : ""}
@@ -359,6 +372,39 @@ function CatalogControls({
         />
         Mes jeux
       </label>
+    </div>
+  );
+}
+
+function CategoryChips({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (category: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer par catégorie">
+      {options.map((category) => {
+        const active = selected.includes(category);
+        return (
+          <button
+            key={category}
+            aria-pressed={active}
+            className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
+              active
+                ? "border-accent bg-accent/15 text-accent-text"
+                : "border-border bg-surface text-muted-foreground hover:border-accent hover:text-foreground"
+            }`}
+            onClick={() => onToggle(category)}
+            type="button"
+          >
+            {category}
+          </button>
+        );
+      })}
     </div>
   );
 }

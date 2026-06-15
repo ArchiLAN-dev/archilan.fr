@@ -8,10 +8,27 @@ export type CatalogFilters = {
   availability: AvailabilityFilter;
   ownedOnly: boolean;
   sort: SortOrder;
+  categories: string[];
 };
+
+export const STEAM_CATEGORY = "Steam";
 
 export function isOwned(game: PublicGame, ownedAppIds: Set<number>): boolean {
   return game.steamAppId !== null && ownedAppIds.has(game.steamAppId);
+}
+
+/** A game's category set: its platform families plus the "Steam" store facet when available. */
+export function categoriesOf(game: PublicGame): string[] {
+  return game.steamAppId !== null ? [...game.platforms, STEAM_CATEGORY] : game.platforms;
+}
+
+/** Distinct category chips across the catalog (platform families + "Steam"), sorted. */
+export function allCategories(games: PublicGame[]): string[] {
+  const set = new Set<string>();
+  for (const game of games) {
+    for (const category of categoriesOf(game)) set.add(category);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
 }
 
 /**
@@ -24,10 +41,14 @@ export function filterAndSortGames(
   ownedAppIds: Set<number>,
 ): PublicGame[] {
   const needle = filters.query.trim().toLowerCase();
+  const selectedCategories = new Set(filters.categories);
 
   const filtered = games.filter((game) => {
     if (filters.availability !== "all" && game.availability !== filters.availability) return false;
     if (filters.ownedOnly && !isOwned(game, ownedAppIds)) return false;
+    if (selectedCategories.size > 0 && !categoriesOf(game).some((c) => selectedCategories.has(c))) {
+      return false;
+    }
     if (needle !== "") {
       const haystack = `${game.name} ${game.description}`.toLowerCase();
       if (!haystack.includes(needle)) return false;

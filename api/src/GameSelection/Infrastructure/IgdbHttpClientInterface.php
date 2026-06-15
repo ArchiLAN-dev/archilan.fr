@@ -16,4 +16,11 @@ interface IgdbHttpClientInterface
      * (Steam category), or null when IGDB has no Steam entry for that game.
      */
     public function fetchSteamAppId(int $igdbId): ?int;
+
+    /**
+     * Resolve the platforms an IGDB game released on (raw IGDB platforms), or [] when none.
+     *
+     * @return list<array{id: int, name: string}>
+     */
+    public function fetchPlatforms(int $igdbId): array;
 }

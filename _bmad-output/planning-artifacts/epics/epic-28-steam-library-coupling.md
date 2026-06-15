@@ -93,6 +93,10 @@ catalog (which only contains Archipelago-supported games). The coupling is the *
   client-driven catalog (full catalog fetched once via `GET /games?all=1`), instant search, filters
   (availability + "owned only"), sort, and the coupling **merged into the main grid** (owned badge +
   owned-only filter across the whole catalog instead of a separate result grid). Reuses 28.1-28.4.
+- **28.6 - Platform categories (frontend + api/).** Enrich games with IGDB `platforms`, mapped to a
+  **curated family set** (Super Nintendo, GameCube, N64, PC, PlayStation, Switch…), exposed on the
+  catalog and surfaced as multi-select category chips on `/jeux`, plus a derived "Steam" store facet
+  (from `steamAppId`). Backfill `app:games:backfill-platforms`. Reuses the 28.1/28.5 patterns.
 
 ## Sequencing
 

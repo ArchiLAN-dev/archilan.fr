@@ -15,6 +15,7 @@ const validGame = {
   availability: "available",
   supportedEventTypes: ["lan"],
   steamAppId: null,
+  platforms: ["Super Nintendo"],
 };
 
 const validResponse = {

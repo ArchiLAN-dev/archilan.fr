@@ -1,4 +1,10 @@
-import { filterAndSortGames, isOwned, type CatalogFilters } from "./games-filter";
+import {
+  allCategories,
+  categoriesOf,
+  filterAndSortGames,
+  isOwned,
+  type CatalogFilters,
+} from "./games-filter";
 import type { PublicGame } from "./public-games-api";
 
 function game(overrides: Partial<PublicGame> & { name: string }): PublicGame {
@@ -12,14 +18,26 @@ function game(overrides: Partial<PublicGame> & { name: string }): PublicGame {
     availability: overrides.availability ?? "available",
     supportedEventTypes: overrides.supportedEventTypes ?? [],
     steamAppId: overrides.steamAppId ?? null,
+    platforms: overrides.platforms ?? [],
   };
 }
 
-const base: CatalogFilters = { query: "", availability: "all", ownedOnly: false, sort: "name-asc" };
+const base: CatalogFilters = {
+  query: "",
+  availability: "all",
+  ownedOnly: false,
+  sort: "name-asc",
+  categories: [],
+};
 
-const hollow = game({ name: "Hollow Knight", steamAppId: 367520 });
-const celeste = game({ name: "Celeste", steamAppId: 504230 });
-const zelda = game({ name: "Zelda", availability: "experimental", description: "adventure" });
+const hollow = game({ name: "Hollow Knight", steamAppId: 367520, platforms: ["PC"] });
+const celeste = game({ name: "Celeste", steamAppId: 504230, platforms: ["PC", "Switch"] });
+const zelda = game({
+  name: "Zelda",
+  availability: "experimental",
+  description: "adventure",
+  platforms: ["Nintendo 64"],
+});
 const games = [hollow, celeste, zelda];
 
 describe("filterAndSortGames", () => {
@@ -60,6 +78,37 @@ describe("filterAndSortGames", () => {
       "Celeste",
       "Zelda",
     ]);
+  });
+});
+
+describe("category filtering", () => {
+  it("keeps games matching any selected category", () => {
+    expect(
+      filterAndSortGames(games, { ...base, categories: ["Nintendo 64"] }, new Set()).map((g) => g.name),
+    ).toEqual(["Zelda"]);
+  });
+
+  it("treats Steam as a category facet", () => {
+    expect(
+      filterAndSortGames(games, { ...base, categories: ["Steam"] }, new Set()).map((g) => g.name),
+    ).toEqual(["Celeste", "Hollow Knight"]);
+  });
+
+  it("ORs multiple selected categories", () => {
+    expect(
+      filterAndSortGames(games, { ...base, categories: ["Switch", "Nintendo 64"] }, new Set()).map((g) => g.name),
+    ).toEqual(["Celeste", "Zelda"]);
+  });
+});
+
+describe("categoriesOf / allCategories", () => {
+  it("includes Steam when the game has a steamAppId", () => {
+    expect(categoriesOf(hollow)).toEqual(["PC", "Steam"]);
+    expect(categoriesOf(zelda)).toEqual(["Nintendo 64"]);
+  });
+
+  it("returns the sorted distinct union for the chip list", () => {
+    expect(allCategories(games)).toEqual(["Nintendo 64", "PC", "Steam", "Switch"]);
   });
 });
 

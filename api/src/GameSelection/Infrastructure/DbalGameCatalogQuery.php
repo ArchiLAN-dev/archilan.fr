@@ -6,6 +6,7 @@ namespace App\GameSelection\Infrastructure;
 
 use App\GameSelection\Application\GameCatalogQueryInterface;
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\PlatformCategory;
 use App\Shared\Application\PaginationHelper;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
@@ -60,6 +61,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.cover_image_alt AS cover_image_alt',
                 'game.availability AS availability',
                 'sync.steam_app_id AS steam_app_id',
+                'sync.platforms AS platforms',
             )
             ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
             ->orderBy('game.name', 'ASC');
@@ -68,7 +70,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
     /**
      * @param array<string, mixed> $row
      *
-     * @return array{id: string, name: string, slug: string, description: string, coverImageUrl: string|null, coverImageAlt: string, availability: string, steamAppId: int|null, supportedEventTypes: list<string>}
+     * @return array{id: string, name: string, slug: string, description: string, coverImageUrl: string|null, coverImageAlt: string, availability: string, steamAppId: int|null, platforms: list<string>, supportedEventTypes: list<string>}
      */
     private function mapRow(array $row): array
     {
@@ -90,8 +92,38 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'availability' => is_string($availability) ? $availability : '',
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
+            'platforms' => PlatformCategory::families(self::decodePlatforms($row['platforms'] ?? null)),
             'supportedEventTypes' => [],
         ];
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private static function decodePlatforms(mixed $raw): array
+    {
+        if (!is_string($raw) || '' === $raw) {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $platforms = [];
+        foreach ($decoded as $platform) {
+            if (!is_array($platform)) {
+                continue;
+            }
+            $id = $platform['id'] ?? null;
+            $name = $platform['name'] ?? null;
+            if (is_int($id) && is_string($name) && '' !== $name) {
+                $platforms[] = ['id' => $id, 'name' => $name];
+            }
+        }
+
+        return $platforms;
     }
 
     private function buildBaseQuery(string $searchQuery): QueryBuilder

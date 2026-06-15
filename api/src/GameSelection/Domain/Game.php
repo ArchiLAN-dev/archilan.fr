@@ -420,6 +420,22 @@ class Game
         $this->catalogSync?->recordSteamAppId($steamAppId);
     }
 
+    /**
+     * @return list<array{id: int, name: string}>|null
+     */
+    public function getPlatforms(): ?array
+    {
+        return $this->catalogSync?->getPlatforms();
+    }
+
+    /**
+     * @param list<array{id: int, name: string}>|null $platforms
+     */
+    public function recordPlatforms(?array $platforms): void
+    {
+        $this->catalogSync?->recordPlatforms($platforms);
+    }
+
     public function isAdultContent(): bool
     {
         return $this->catalogSync?->isAdultContent() ?? false;
