@@ -47,6 +47,11 @@ type SaveState =
 
 const PAGE_SIZE = 20;
 
+const availabilityConfig: Record<string, { label: string; className: string }> = {
+  available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
+  experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function PersonalRunGameSelectionPage({
@@ -228,7 +233,9 @@ export function PersonalRunGameSelectionPage({
   const filteredGames =
     q === ""
       ? data.availableGames
-      : data.availableGames.filter((g) => g.name.toLowerCase().includes(q));
+      : data.availableGames.filter(
+          (g) => g.name.toLowerCase().includes(q) || g.description.toLowerCase().includes(q),
+        );
   const totalPages = Math.max(1, Math.ceil(filteredGames.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageGames = filteredGames.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -385,6 +392,13 @@ export function PersonalRunGameSelectionPage({
 
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold leading-tight text-foreground">{game.name}</p>
+                      {availabilityConfig[game.availability] && (
+                        <span
+                          className={`mt-1 inline-block w-fit rounded border px-1.5 py-0.5 text-[11px] font-semibold ${availabilityConfig[game.availability].className}`}
+                        >
+                          {availabilityConfig[game.availability].label}
+                        </span>
+                      )}
                       {game.description && (
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{game.description}</p>
                       )}
