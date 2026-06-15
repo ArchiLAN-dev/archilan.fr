@@ -107,6 +107,59 @@ final class IgdbHttpClientTest extends TestCase
         self::assertNull($results[0]['coverUrl']);
     }
 
+    public function testFetchSteamAppIdMapsUidToInt(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([
+                ['uid' => '367520', 'category' => 1],
+            ]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertSame(367520, $client->fetchSteamAppId(1234));
+    }
+
+    public function testFetchSteamAppIdReturnsNullWhenNoSteamEntry(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertNull($client->fetchSteamAppId(1234));
+    }
+
+    public function testFetchSteamAppIdReturnsNullWhenUidNotNumeric(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse(json_encode([
+                ['uid' => 'not-a-number', 'category' => 1],
+            ]) ?: ''),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        self::assertNull($client->fetchSteamAppId(1234));
+    }
+
+    public function testFetchSteamAppIdThrowsOnHttpError(): void
+    {
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 3600]) ?: ''),
+            new MockResponse('Internal Server Error', ['http_code' => 500]),
+        ]);
+
+        $client = new IgdbHttpClient($http, new ArrayAdapter(), 'cid', 'csec');
+
+        $this->expectException(IgdbSearchException::class);
+        $client->fetchSteamAppId(1234);
+    }
+
     public function testTokenTtlIsNinetyPercentOfExpiresIn(): void
     {
         $http = new MockHttpClient([

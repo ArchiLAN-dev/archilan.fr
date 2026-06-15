@@ -35,7 +35,9 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.cover_image_url AS cover_image_url',
                 'game.cover_image_alt AS cover_image_alt',
                 'game.availability AS availability',
+                'sync.steam_app_id AS steam_app_id',
             )
+            ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
             ->orderBy('game.name', 'ASC');
 
         PaginationHelper::applyTo($qb, $page, 24);
@@ -49,6 +51,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             $coverImageUrl = $row['cover_image_url'] ?? null;
             $coverImageAlt = $row['cover_image_alt'] ?? null;
             $availability = $row['availability'] ?? null;
+            $steamAppId = $row['steam_app_id'] ?? null;
 
             $items[] = [
                 'id' => is_string($id) ? $id : '',
@@ -58,6 +61,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'coverImageUrl' => is_string($coverImageUrl) ? $coverImageUrl : null,
                 'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
                 'availability' => is_string($availability) ? $availability : '',
+                'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
                 'supportedEventTypes' => [],
             ];
         }

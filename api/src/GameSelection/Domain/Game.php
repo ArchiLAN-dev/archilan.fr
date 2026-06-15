@@ -410,6 +410,16 @@ class Game
         return $this->catalogSync?->getIgdbId();
     }
 
+    public function getSteamAppId(): ?int
+    {
+        return $this->catalogSync?->getSteamAppId();
+    }
+
+    public function recordSteamAppId(?int $steamAppId): void
+    {
+        $this->catalogSync?->recordSteamAppId($steamAppId);
+    }
+
     public function isAdultContent(): bool
     {
         return $this->catalogSync?->isAdultContent() ?? false;

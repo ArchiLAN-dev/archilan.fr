@@ -9,6 +9,9 @@ final class StubIgdbHttpClient implements IgdbHttpClientInterface
     public static bool $authFails = false;
     public static bool $searchFails = false;
 
+    /** @var array<int, int> map of IGDB id => Steam appid */
+    public static array $steamAppIds = [1234 => 367520];
+
     /** @var list<array{igdbId: int, name: string, slug: string, summary: string|null, coverUrl: string|null}> */
     public static array $results = [
         [
@@ -24,6 +27,7 @@ final class StubIgdbHttpClient implements IgdbHttpClientInterface
     {
         self::$authFails = false;
         self::$searchFails = false;
+        self::$steamAppIds = [1234 => 367520];
         self::$results = [
             [
                 'igdbId' => 1234,
@@ -46,5 +50,14 @@ final class StubIgdbHttpClient implements IgdbHttpClientInterface
         }
 
         return self::$results;
+    }
+
+    public function fetchSteamAppId(int $igdbId): ?int
+    {
+        if (self::$searchFails) {
+            throw new IgdbSearchException('Stubbed search failure');
+        }
+
+        return self::$steamAppIds[$igdbId] ?? null;
     }
 }

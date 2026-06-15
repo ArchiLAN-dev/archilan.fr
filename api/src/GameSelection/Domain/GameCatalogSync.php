@@ -32,6 +32,8 @@ class GameCatalogSync
         private bool $adultContent = false,
         #[ORM\Column(name: 'bundled_with_ap', type: 'boolean', options: ['default' => false])]
         private bool $bundledWithAp = false,
+        #[ORM\Column(name: 'steam_app_id', type: 'integer', nullable: true)]
+        private ?int $steamAppId = null,
     ) {
         $game->setCatalogSync($this);
     }
@@ -124,6 +126,16 @@ class GameCatalogSync
     public function getIgdbId(): ?int
     {
         return $this->igdbId;
+    }
+
+    public function recordSteamAppId(?int $steamAppId): void
+    {
+        $this->steamAppId = $steamAppId;
+    }
+
+    public function getSteamAppId(): ?int
+    {
+        return $this->steamAppId;
     }
 
     public function isAdultContent(): bool
