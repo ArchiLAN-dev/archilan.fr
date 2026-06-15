@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Gamepad2, Loader2, Search } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Check, Gamepad2, Loader2, Pencil, Search } from "lucide-react";
 import { FaSteam } from "react-icons/fa";
 import { useAuth } from "@/features/auth/auth-context";
 import { saveSteamAccount } from "@/features/auth/steam-account-api";
@@ -20,7 +20,7 @@ const STORAGE_KEY = "archilan.steamProfile";
 const STEAM_PRIVACY_URL = "https://steamcommunity.com/my/edit/settings";
 
 export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
-  const { user, setUser } = useAuth();
+  const { user, setUser, loading: authLoading } = useAuth();
 
   // ── Catalog controls ──────────────────────────────────────────────────────
   const [query, setQuery] = useState("");
@@ -35,8 +35,10 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   const [steamInput, setSteamInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CouplingResult | null>(null);
+  const [editing, setEditing] = useState(true);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const dirty = useRef(false);
+  const autoCoupled = useRef(false);
 
   const matchedAppIds = useMemo(
     () =>
@@ -47,16 +49,42 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   );
 
   const coupled = matchedAppIds.size > 0;
+  const alreadySaved =
+    user !== null && "" !== steamInput.trim() && user.steamProfile === steamInput.trim();
 
-  // Pre-fill the Steam input from the saved account value or localStorage.
+  const couple = useCallback(
+    async (rawValue: string) => {
+      const trimmed = rawValue.trim();
+      if ("" === trimmed) return;
+
+      setSubmitting(true);
+      setSaveMessage(null);
+
+      const coupling = await coupleSteamLibrary(trimmed);
+      setResult(coupling);
+
+      if (coupling.outcome === "ok") {
+        setEditing(false);
+        if (user === null) window.localStorage.setItem(STORAGE_KEY, trimmed);
+      }
+
+      setSubmitting(false);
+    },
+    [user],
+  );
+
+  // Pre-fill from the saved account value (or localStorage) and auto-couple once,
+  // after auth has settled so a logged-in member uses their saved profile.
   useEffect(() => {
-    if (dirty.current) return;
+    if (authLoading || autoCoupled.current || dirty.current) return;
     const prefill = user?.steamProfile ?? window.localStorage.getItem(STORAGE_KEY) ?? "";
-    if (prefill !== "") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSteamInput(prefill);
-    }
-  }, [user]);
+    if ("" === prefill) return;
+
+    autoCoupled.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSteamInput(prefill);
+    void couple(prefill);
+  }, [authLoading, user, couple]);
 
   // Drop the owned-only filter if a coupling is cleared/unsuccessful.
   useEffect(() => {
@@ -82,31 +110,19 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
     );
   }
 
-  async function handleCouple(event: React.FormEvent) {
+  function handleCouple(event: React.FormEvent) {
     event.preventDefault();
-    const trimmed = steamInput.trim();
-    if (trimmed === "" || submitting) return;
-
-    setSubmitting(true);
-    setSaveMessage(null);
-
-    const coupling = await coupleSteamLibrary(trimmed);
-    setResult(coupling);
-
-    if (coupling.outcome === "ok" && user === null) {
-      window.localStorage.setItem(STORAGE_KEY, trimmed);
-    }
-
-    setSubmitting(false);
+    if (submitting) return;
+    void couple(steamInput);
   }
 
   async function handleSaveToAccount() {
     const trimmed = steamInput.trim();
-    if (trimmed === "") return;
+    if ("" === trimmed) return;
     const saved = await saveSteamAccount(trimmed);
     if (saved.ok && user) {
+      // alreadySaved flips to true, switching the control to a "saved" state.
       setUser({ ...user, steamProfile: trimmed });
-      setSaveMessage("Compte Steam enregistré sur ton profil.");
     } else {
       setSaveMessage("Impossible d'enregistrer le compte Steam pour le moment.");
     }
@@ -114,24 +130,23 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
 
   return (
     <div className="grid gap-8">
-      <CouplingForm
+      <SteamCoupling
+        view={result?.outcome === "ok" && !editing ? "summary" : "form"}
         steamInput={steamInput}
         submitting={submitting}
+        result={result}
+        loggedIn={user !== null}
+        alreadySaved={alreadySaved}
+        saveMessage={saveMessage}
         onChange={(v) => {
           dirty.current = true;
           setSteamInput(v);
         }}
         onSubmit={handleCouple}
+        onEdit={() => setEditing(true)}
+        onCancel={() => setEditing(false)}
+        onSave={handleSaveToAccount}
       />
-
-      {result ? (
-        <CouplingFeedback
-          result={result}
-          canSave={result.outcome === "ok" && user !== null}
-          saveMessage={saveMessage}
-          onSave={handleSaveToAccount}
-        />
-      ) : null}
 
       <CatalogControls
         availability={availability}
@@ -175,18 +190,35 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function CouplingForm({
+function SteamCoupling({
+  view,
   steamInput,
   submitting,
+  result,
+  loggedIn,
+  alreadySaved,
+  saveMessage,
   onChange,
   onSubmit,
+  onEdit,
+  onCancel,
+  onSave,
 }: {
+  view: "form" | "summary";
   steamInput: string;
   submitting: boolean;
+  result: CouplingResult | null;
+  loggedIn: boolean;
+  alreadySaved: boolean;
+  saveMessage: string | null;
   onChange: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: () => void;
 }) {
   const inputId = useId();
+  const hasCoupling = result?.outcome === "ok";
 
   return (
     <section
@@ -199,53 +231,111 @@ function CouplingForm({
           id="steam-coupling-heading"
         >
           <FaSteam aria-hidden="true" size={20} />
-          Couple ta bibliothèque Steam
+          {"summary" === view ? "Ta bibliothèque Steam" : "Couple ta bibliothèque Steam"}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Renseigne ton compte Steam pour voir, dans le catalogue, les jeux que tu possèdes et qui
-          sont jouables aux événements ArchiLAN.
-        </p>
+        {"form" === view ? (
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Renseigne ton compte Steam pour voir, dans le catalogue, les jeux que tu possèdes et qui
+            sont jouables aux événements ArchiLAN.
+          </p>
+        ) : null}
       </div>
-      <form className="flex flex-col gap-2 sm:flex-row sm:items-start" onSubmit={onSubmit}>
-        <div className="flex-1">
-          <label className="sr-only" htmlFor={inputId}>
-            URL de profil, pseudo Steam, ou SteamID64
-          </label>
-          <input
-            className="min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={submitting}
-            id={inputId}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="https://steamcommunity.com/id/ton-pseudo"
-            type="text"
-            value={steamInput}
-          />
+
+      {result && !hasCoupling ? <CouplingNotice outcome={result.outcome} /> : null}
+
+      {"summary" === view && null !== result ? (
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-foreground">
+              Bibliothèque de <span className="font-semibold text-accent-text">{steamInput}</span>
+            </span>
+            <button
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              type="button"
+              onClick={onEdit}
+            >
+              <Pencil aria-hidden="true" className="size-3.5" />
+              Modifier
+            </button>
+          </div>
+
+          <p className="text-sm font-semibold text-foreground" role="status">
+            {result.matchedCount} de tes {result.ownedCount} jeux Steam{" "}
+            {result.matchedCount > 1 ? "sont jouables" : "est jouable"} à ArchiLAN.
+          </p>
+
+          {loggedIn ? (
+            alreadySaved ? (
+              <p className="inline-flex items-center gap-1.5 text-sm text-success">
+                <Check aria-hidden="true" className="size-4" />
+                Enregistré sur ton compte
+              </p>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+                  type="button"
+                  onClick={onSave}
+                >
+                  Enregistrer sur mon compte
+                </button>
+                {saveMessage ? (
+                  <span className="text-sm text-danger" role="alert">
+                    {saveMessage}
+                  </span>
+                ) : null}
+              </div>
+            )
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              <a className="underline transition-colors hover:text-foreground" href="/connexion">
+                Connecte-toi
+              </a>{" "}
+              pour enregistrer ton compte Steam et retrouver tes jeux à chaque visite.
+            </p>
+          )}
         </div>
-        <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0"
-          disabled={submitting || steamInput.trim() === ""}
-          type="submit"
-        >
-          {submitting ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
-          Coupler
-        </button>
-      </form>
+      ) : (
+        <form className="flex flex-col gap-2 sm:flex-row sm:items-start" onSubmit={onSubmit}>
+          <div className="flex-1">
+            <label className="sr-only" htmlFor={inputId}>
+              URL de profil, pseudo Steam, ou SteamID64
+            </label>
+            <input
+              className="min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={submitting}
+              id={inputId}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="https://steamcommunity.com/id/ton-pseudo"
+              type="text"
+              value={steamInput}
+            />
+          </div>
+          <button
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0"
+            disabled={submitting || "" === steamInput.trim()}
+            type="submit"
+          >
+            {submitting ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+            Coupler
+          </button>
+          {hasCoupling ? (
+            <button
+              className="inline-flex min-h-11 items-center justify-center rounded px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:shrink-0"
+              type="button"
+              onClick={onCancel}
+            >
+              Annuler
+            </button>
+          ) : null}
+        </form>
+      )}
     </section>
   );
 }
 
-function CouplingFeedback({
-  result,
-  canSave,
-  saveMessage,
-  onSave,
-}: {
-  result: CouplingResult;
-  canSave: boolean;
-  saveMessage: string | null;
-  onSave: () => void;
-}) {
-  if (result.outcome === "invalid_input") {
+function CouplingNotice({ outcome }: { outcome: CouplingResult["outcome"] }) {
+  if ("invalid_input" === outcome) {
     return (
       <Notice tone="error">
         Profil Steam non reconnu — colle l&apos;URL de ton profil, ton pseudo Steam, ou ton
@@ -254,11 +344,11 @@ function CouplingFeedback({
     );
   }
 
-  if (result.outcome === "steam_error") {
+  if ("steam_error" === outcome) {
     return <Notice tone="error">Steam est indisponible pour l&apos;instant. Réessaie dans un moment.</Notice>;
   }
 
-  if (result.outcome === "private_profile") {
+  if ("private_profile" === outcome) {
     return (
       <Notice tone="status">
         Ta bibliothèque Steam est privée. Passe tes «&nbsp;détails de jeu&nbsp;» en public le temps
@@ -271,30 +361,7 @@ function CouplingFeedback({
     );
   }
 
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-success/40 bg-success/5 p-4">
-      <p className="text-sm font-semibold text-foreground" role="status">
-        {result.matchedCount} de tes {result.ownedCount} jeux Steam{" "}
-        {result.matchedCount > 1 ? "sont jouables" : "est jouable"} à ArchiLAN.
-      </p>
-      {canSave ? (
-        <div className="flex flex-wrap items-center gap-3">
-          {saveMessage ? (
-            <span className="text-sm text-muted-foreground" role="status">
-              {saveMessage}
-            </span>
-          ) : null}
-          <button
-            className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-            type="button"
-            onClick={onSave}
-          >
-            Enregistrer sur mon compte
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
+  return null;
 }
 
 function CatalogControls({
