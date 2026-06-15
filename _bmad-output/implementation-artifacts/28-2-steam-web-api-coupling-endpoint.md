@@ -1,6 +1,6 @@
 # Story 28.2: Steam Web API integration + coupling endpoint
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -102,5 +102,28 @@ claude-opus-4-8
 ### Completion Notes List
 
 - Ultimate context engine analysis completed — comprehensive developer guide created.
+- Implemented on branch `feature/epic-28-story-2-steam-coupling-endpoint` (stacked on the 28.1 branch).
+- Steam client interface placed in Infrastructure (codebase convention), not Application. Errors surface as a typed `SteamApiException`, caught by the coupling query → `steam_error` outcome (endpoint returns 502, never 500).
+- Private "Game details" profiles map to `private_profile` (Steam returns no `games` list — no API workaround). `STEAM_WEB_API_KEY` added to `.env`; `.env.example` not present in repo, so only `.env` updated.
+- All four quality gates green: php-cs-fixer (0), phpstan src+tests (0), app:architecture:ddd (exit 0), phpunit (1044/1044).
 
 ### File List
+
+**Added**
+- `api/src/GameSelection/Domain/SteamProfileReference.php`
+- `api/src/GameSelection/Infrastructure/SteamApiException.php`
+- `api/src/GameSelection/Infrastructure/SteamWebApiClientInterface.php`
+- `api/src/GameSelection/Infrastructure/SteamWebApiClient.php`
+- `api/src/GameSelection/Infrastructure/StubSteamWebApiClient.php`
+- `api/src/GameSelection/Application/SteamCatalogQueryInterface.php`
+- `api/src/GameSelection/Infrastructure/DbalSteamCatalogQuery.php`
+- `api/src/GameSelection/Application/SteamLibraryCouplingQuery.php`
+- `api/src/GameSelection/Presentation/SteamCouplingController.php`
+- `api/tests/Unit/GameSelection/SteamProfileReferenceTest.php`
+- `api/tests/Unit/GameSelection/Infrastructure/SteamWebApiClientTest.php`
+- `api/tests/Unit/GameSelection/SteamLibraryCouplingQueryTest.php`
+- `api/tests/Functional/SteamCouplingEndpointTest.php`
+
+**Modified**
+- `api/config/services.yaml` (bindings + apiKey arg + when@test stub)
+- `api/.env` (STEAM_WEB_API_KEY)
