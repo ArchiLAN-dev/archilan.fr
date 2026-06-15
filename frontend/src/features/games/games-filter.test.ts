@@ -67,15 +67,18 @@ describe("filterAndSortGames", () => {
     ).toEqual(["Zelda"]);
   });
 
-  it("filters to owned only and lists owned first when coupled", () => {
+  it("filters to owned only", () => {
     const owned = new Set([367520]);
     expect(filterAndSortGames(games, { ...base, ownedOnly: true }, owned).map((g) => g.name)).toEqual([
       "Hollow Knight",
     ]);
-    // owned-first ordering when a coupling is active (not filtered)
+  });
+
+  it("keeps the classic name sort even when coupled (no owned-first)", () => {
+    const owned = new Set([367520]);
     expect(filterAndSortGames(games, base, owned).map((g) => g.name)).toEqual([
-      "Hollow Knight",
       "Celeste",
+      "Hollow Knight",
       "Zelda",
     ]);
   });
