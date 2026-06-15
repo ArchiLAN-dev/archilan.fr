@@ -17,6 +17,10 @@ parameters:
     default_minio_secret_key: 'minioadmin'
     default_empty_string: ''
     default_inactivity_timeout: 3600
+    # Host the API uses to reach the per-session bridge over HTTP. On the host (dev) the bridge's
+    # published port is on localhost; in prod the API is containerised and must reach the host's
+    # published port via the docker gateway → set BRIDGE_HTTP_HOST=host.docker.internal.
+    default_bridge_http_host: 'localhost'
     default_cleanup_token_consumed_grace_days: 7
     default_cleanup_helloasso_sync_log_retention_days: 90
     default_cleanup_event_access_log_retention_days: 365
@@ -42,6 +46,7 @@ services:
             string $siteUrl: '%env(FRONTEND_ORIGIN)%'
             string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
             string $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
+            string $bridgeHttpHost: '%env(default:default_bridge_http_host:BRIDGE_HTTP_HOST)%'
             int $tokenConsumedGraceDays: '%env(default:default_cleanup_token_consumed_grace_days:int:CLEANUP_TOKEN_CONSUMED_GRACE_DAYS)%'
             int $helloAssoSyncLogRetentionDays: '%env(default:default_cleanup_helloasso_sync_log_retention_days:int:CLEANUP_HELLOASSO_SYNC_LOG_RETENTION_DAYS)%'
             int $eventAccessLogRetentionDays: '%env(default:default_cleanup_event_access_log_retention_days:int:CLEANUP_EVENT_ACCESS_LOG_RETENTION_DAYS)%'
@@ -183,10 +188,6 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-
-    App\WeeklyRuns\Presentation\WeeklyRunSlotStateController:
-        arguments:
-            $runnerBaseUrl: '%env(RUNNER_BASE_URL)%'
 
     App\WeeklyRuns\Application\WeeklyEntryPatchQuery:
         arguments:

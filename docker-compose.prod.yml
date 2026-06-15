@@ -92,6 +92,10 @@ services:
             rabbitmq:
                 condition: service_healthy
         env_file: envs/api.env
+        # Reach the per-session bridge's host-published ports from inside the container
+        # (BRIDGE_HTTP_HOST=host.docker.internal in envs/api.env).
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
         networks:
             - default
             - archilan-proxy
@@ -123,6 +127,8 @@ services:
             rabbitmq:
                 condition: service_healthy
         env_file: envs/api.env
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives

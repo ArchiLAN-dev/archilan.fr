@@ -28,6 +28,7 @@ final readonly class PlayerStateController
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
+        private string $bridgeHttpHost,
     ) {
     }
 
@@ -57,10 +58,10 @@ final readonly class PlayerStateController
             );
         }
 
-        $host = $session['host'];
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 
@@ -179,10 +180,10 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session['host'];
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 
@@ -282,10 +283,10 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session['host'];
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 
@@ -338,10 +339,10 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session['host'];
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 
@@ -393,10 +394,10 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $session['host'];
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 
@@ -443,10 +444,10 @@ final readonly class PlayerStateController
             );
         }
 
-        $host = $session['host'];
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 

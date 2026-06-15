@@ -19,6 +19,7 @@ final readonly class SendBridgeCommand
         private RunAuditLogRepositoryInterface $auditLogs,
         private SessionSlotRepositoryInterface $slots,
         private HttpClientInterface $httpClient,
+        private string $bridgeHttpHost,
     ) {
     }
 
@@ -36,10 +37,10 @@ final readonly class SendBridgeCommand
             return ['found' => true, 'error' => 'session_not_running'];
         }
 
-        $host = $session->getHost();
+        $host = $this->bridgeHttpHost;
         $bridgePort = $session->getBridgePort();
 
-        if (null === $host || null === $bridgePort) {
+        if (null === $bridgePort) {
             return ['found' => true, 'error' => 'bridge_unavailable'];
         }
 
