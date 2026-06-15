@@ -1,6 +1,6 @@
 # Story 28.3: Save Steam account on the member profile
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -91,5 +91,31 @@ claude-opus-4-8
 ### Completion Notes List
 
 - Ultimate context engine analysis completed — comprehensive developer guide created.
+- Implemented on branch `feature/epic-28-story-3-save-steam-account` (stacked on 28.2).
+- Gated with `requireAuthenticatedUser` (any logged-in account), not member-only, per the documented decision.
+- `steam_profile` cleared in `User::anonymizeForDeletion` (RGPD); `SaveSteamAccount` reuses `GameSelection\Domain\SteamProfileReference` (pure VO; cross-context Application→Domain import is allowed by the DDD validator — candidate to move to Shared\Domain later).
+- `steamProfile` added to both the profile payload (`ProfileController`) and the login/me payload (`AuthController`) so `AuthUser` is consistent right after login (enables 28.4 pre-fill).
+- All gates green: php-cs-fixer 0, phpstan 0, app:architecture:ddd exit 0, phpunit 1052/1052; frontend typecheck/lint/build clean.
 
 ### File List
+
+**Added (api)**
+- `api/migrations/Version20260615120001.php`
+- `api/src/Identity/Application/SaveSteamAccount.php`
+- `api/src/Identity/Presentation/SteamAccountController.php`
+- `api/tests/Unit/Identity/SaveSteamAccountTest.php`
+- `api/tests/Functional/SteamAccountEndpointTest.php`
+
+**Modified (api)**
+- `api/src/Identity/Domain/User.php` (steam_profile column, get/set, anonymize clears it)
+- `api/src/Identity/Presentation/ProfileController.php` (steamProfile in payload)
+- `api/src/Identity/Presentation/AuthController.php` (steamProfile in login/me payload)
+
+**Added (frontend)**
+- `frontend/src/features/auth/steam-account-api.ts`
+
+**Modified (frontend)**
+- `frontend/src/features/auth/account-profile.tsx` (Profile type + SteamSection)
+- `frontend/src/features/auth/account-tabs.tsx` (render SteamSection)
+- `frontend/src/features/auth/auth-context.tsx` (AuthUser.steamProfile)
+- `frontend/src/app/(public)/confidentialite/page.tsx` (RGPD mention)

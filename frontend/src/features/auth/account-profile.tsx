@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
-import { FaDiscord } from "react-icons/fa";
+import { FaDiscord, FaSteam } from "react-icons/fa";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { removeSteamAccount, saveSteamAccount } from "./steam-account-api";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export type Profile = {
   email: string;
   displayName: string;
   discordUsername: string | null;
+  steamProfile: string | null;
   roles: string[];
   emailVerifiedAt: string | null;
   createdAt: string;
@@ -103,6 +105,153 @@ export function DiscordSection({ discordUsername, linkFeedback }: DiscordSection
             <FaDiscord aria-hidden="true" size={16} />
             Lier Discord
           </a>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ── SteamSection ──────────────────────────────────────────────────────────────
+
+type SteamSectionProps = {
+  steamProfile: string | null;
+};
+
+export function SteamSection({ steamProfile }: SteamSectionProps) {
+  const inputId = useId();
+  const [saved, setSaved] = useState<string | null>(steamProfile);
+  const [value, setValue] = useState<string>(steamProfile ?? "");
+  const [editing, setEditing] = useState<boolean>(steamProfile === null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
+
+  async function handleSave() {
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      setMessage({ text: "Renseigne ton profil Steam.", isError: true });
+      return;
+    }
+
+    setBusy(true);
+    setMessage(null);
+
+    const result = await saveSteamAccount(trimmed);
+
+    if (result.ok) {
+      setSaved(trimmed);
+      setEditing(false);
+      setMessage({ text: "Compte Steam enregistré.", isError: false });
+    } else if (result.invalid) {
+      setMessage({
+        text: "Profil Steam non reconnu — colle l'URL de ton profil, ton pseudo Steam, ou ton SteamID64.",
+        isError: true,
+      });
+    } else {
+      setMessage({ text: "Impossible d'enregistrer le compte Steam pour le moment.", isError: true });
+    }
+
+    setBusy(false);
+  }
+
+  async function handleRemove() {
+    setBusy(true);
+    setMessage(null);
+
+    const ok = await removeSteamAccount();
+
+    if (ok) {
+      setSaved(null);
+      setValue("");
+      setEditing(true);
+      setMessage({ text: "Compte Steam retiré.", isError: false });
+    } else {
+      setMessage({ text: "Impossible de retirer le compte Steam pour le moment.", isError: true });
+    }
+
+    setBusy(false);
+  }
+
+  return (
+    <section className="card-glow grid gap-4 rounded-lg border border-border p-6">
+      <div>
+        <h2 className="flex items-center gap-2 font-heading text-xl font-semibold text-foreground">
+          <FaSteam aria-hidden="true" size={18} />
+          Compte Steam
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Enregistre ton compte Steam pour retrouver, sur la page Jeux, les titres de ta
+          bibliothèque jouables aux événements ArchiLAN.
+        </p>
+      </div>
+
+      {message ? (
+        <p
+          className="rounded border border-border bg-background p-3 text-sm text-muted-foreground"
+          role={message.isError ? "alert" : "status"}
+        >
+          {message.text}
+        </p>
+      ) : null}
+
+      {!editing && saved !== null ? (
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-sm text-foreground">
+            Enregistré : <span className="font-semibold text-accent-text">{saved}</span>
+          </p>
+          <button
+            className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+            type="button"
+            onClick={() => setEditing(true)}
+          >
+            Modifier
+          </button>
+          <button
+            className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-danger hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={busy}
+            type="button"
+            onClick={handleRemove}
+          >
+            {busy ? "..." : "Retirer"}
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          <label className="text-sm font-semibold text-foreground" htmlFor={inputId}>
+            URL de profil, pseudo Steam, ou SteamID64
+          </label>
+          <input
+            className="min-h-11 rounded border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+            id={inputId}
+            placeholder="https://steamcommunity.com/id/ton-pseudo"
+            type="text"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={busy}
+              type="button"
+              onClick={handleSave}
+            >
+              {busy ? "Enregistrement..." : "Enregistrer"}
+            </button>
+            {saved !== null ? (
+              <button
+                className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busy}
+                type="button"
+                onClick={() => {
+                  setValue(saved);
+                  setEditing(false);
+                  setMessage(null);
+                }}
+              >
+                Annuler
+              </button>
+            ) : null}
+          </div>
         </div>
       )}
     </section>
