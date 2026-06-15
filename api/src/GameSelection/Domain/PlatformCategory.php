@@ -20,7 +20,7 @@ final class PlatformCategory
      * @var list<array{family: string, needles: list<string>}>
      */
     private const RULES = [
-        ['family' => 'Super Nintendo', 'needles' => ['super nintendo', 'super famicom']],
+        ['family' => 'Super Nintendo', 'needles' => ['super nintendo', 'super famicom', 'satellaview']],
         ['family' => 'NES', 'needles' => ['nintendo entertainment system', 'family computer', 'famicom']],
         ['family' => 'Nintendo 64', 'needles' => ['nintendo 64', '64dd']],
         ['family' => 'GameCube', 'needles' => ['gamecube']],
@@ -31,11 +31,17 @@ final class PlatformCategory
         ['family' => 'Nintendo 3DS', 'needles' => ['3ds']],
         ['family' => 'Nintendo DS', 'needles' => ['nintendo ds']],
         ['family' => 'Game Boy', 'needles' => ['game boy']],
+        // PlayStation before VR so "PlayStation VR" stays under PlayStation.
         ['family' => 'PlayStation', 'needles' => ['playstation', 'psp', 'ps vita', 'playstation vita']],
         ['family' => 'Xbox', 'needles' => ['xbox']],
         ['family' => 'Sega', 'needles' => ['sega', 'dreamcast', 'mega drive', 'genesis', 'saturn', 'game gear']],
+        // VR before PC/Mobile (e.g. "visionOS" contains "ios" → must resolve to VR first).
+        ['family' => 'VR', 'needles' => ['oculus', 'meta quest', 'quest', 'steamvr', 'gear vr', 'daydream', 'visionos']],
+        ['family' => 'Cloud', 'needles' => ['stadia', 'amazon luna', 'geforce now']],
+        ['family' => 'Navigateur', 'needles' => ['web browser', 'browser']],
+        ['family' => 'MSX', 'needles' => ['msx']],
         ['family' => 'PC', 'needles' => ['windows', 'mac', 'linux', 'dos', 'pc']],
-        ['family' => 'Mobile', 'needles' => ['ios', 'android']],
+        ['family' => 'Mobile', 'needles' => ['ios', 'android', 'mobile', 'fire tv', 'ouya']],
         ['family' => 'Arcade', 'needles' => ['arcade']],
     ];
 

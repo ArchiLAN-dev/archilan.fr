@@ -58,6 +58,27 @@ final class PlatformCategoryTest extends TestCase
         );
     }
 
+    public function testFoldsTheNoisyLongTail(): void
+    {
+        $platforms = [
+            ['id' => 1, 'name' => 'SteamVR'],
+            ['id' => 2, 'name' => 'Oculus Rift'],
+            ['id' => 3, 'name' => 'Meta Quest 2'],
+            ['id' => 4, 'name' => 'visionOS'],
+            ['id' => 5, 'name' => 'Google Stadia'],
+            ['id' => 6, 'name' => 'Web browser'],
+            ['id' => 7, 'name' => 'MSX2'],
+            ['id' => 8, 'name' => 'Amazon Fire TV'],
+            ['id' => 9, 'name' => 'Satellaview'],
+            ['id' => 10, 'name' => 'PlayStation VR'],
+        ];
+
+        self::assertSame(
+            ['Cloud', 'MSX', 'Mobile', 'Navigateur', 'PlayStation', 'Super Nintendo', 'VR'],
+            PlatformCategory::families($platforms),
+        );
+    }
+
     public function testFallsBackToIgdbNameWhenUnmapped(): void
     {
         self::assertSame(['Neo Geo'], PlatformCategory::families([['id' => 80, 'name' => 'Neo Geo']]));
