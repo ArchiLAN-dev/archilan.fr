@@ -97,6 +97,10 @@ catalog (which only contains Archipelago-supported games). The coupling is the *
   **curated family set** (Super Nintendo, GameCube, N64, PC, PlayStation, Switch…), exposed on the
   catalog and surfaced as multi-select category chips on `/jeux`, plus a derived "Steam" store facet
   (from `steamAppId`). Backfill `app:games:backfill-platforms`. Reuses the 28.1/28.5 patterns.
+- **28.7 - Categories + Steam coupling on the run game-selection page (frontend + api/).** Bring the
+  category chips and Steam coupling to `/runs/{runId}/jeux`: enrich the run selection payload with
+  `platforms`/`steamAppId`, extract a shared `SteamCoupling` component + `useSteamCoupling` hook reused
+  by both pages, and add the owned label + "Mes jeux" filter to the run catalog.
 
 ## Sequencing
 

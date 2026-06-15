@@ -13,17 +13,20 @@ export type CatalogFilters = {
 
 export const STEAM_CATEGORY = "Steam";
 
-export function isOwned(game: PublicGame, ownedAppIds: Set<number>): boolean {
+/** Minimal shape needed for categories/ownership — satisfied by PublicGame and the run's AvailableGame. */
+export type Categorizable = { platforms: string[]; steamAppId: number | null };
+
+export function isOwned(game: Categorizable, ownedAppIds: Set<number>): boolean {
   return game.steamAppId !== null && ownedAppIds.has(game.steamAppId);
 }
 
 /** A game's category set: its platform families plus the "Steam" store facet when available. */
-export function categoriesOf(game: PublicGame): string[] {
+export function categoriesOf(game: Categorizable): string[] {
   return game.steamAppId !== null ? [...game.platforms, STEAM_CATEGORY] : game.platforms;
 }
 
 /** Distinct category chips across the catalog (platform families + "Steam"), sorted. */
-export function allCategories(games: PublicGame[]): string[] {
+export function allCategories(games: Categorizable[]): string[] {
   const set = new Set<string>();
   for (const game of games) {
     for (const category of categoriesOf(game)) set.add(category);
