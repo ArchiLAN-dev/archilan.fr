@@ -49,6 +49,33 @@ final readonly class SessionRestartController
         return new JsonResponse(['data' => ['sessionId' => $result['sessionId'], 'status' => $result['status']]], 202);
     }
 
+    #[Route('/api/v1/sessions/{sessionId}/reconcile', methods: ['POST'])]
+    public function reconcile(Request $request, string $sessionId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
+
+        $result = $this->sessionLifecycleManager->forceReconcile($sessionId, $user->getId(), $isAdmin);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        if ('forbidden' === $result['error']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès non autorisé.', 403);
+        }
+
+        if ('not_pending' === $result['error']) {
+            return $this->apiAccessGuard->errorResponse('not_pending', "La session n'est pas dans un état en attente.", 422);
+        }
+
+        return new JsonResponse(['data' => ['action' => $result['action'] ?? null, 'status' => $result['to'] ?? null]], 200);
+    }
+
     #[Route('/api/v1/internal/sessions/{sessionId}/restart-failed', methods: ['POST'])]
     public function restartFailed(Request $request, string $sessionId): JsonResponse
     {

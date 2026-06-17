@@ -14,10 +14,14 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var list<array{slotName: string, apworldHash: string, playerYaml: string}>|null Records the slots passed to the last configureSession() call (test inspection). */
     public static ?array $lastConfigureSlots = null;
 
+    /** @var array{status: string, bridgePort: ?int, apPort: ?int}|null Canned getSessionInfo() return for reconciliation tests. */
+    public static ?array $nextSessionInfo = null;
+
     public static function reset(): void
     {
         self::$apworldUploadResult = null;
         self::$lastConfigureSlots = null;
+        self::$nextSessionInfo = null;
     }
 
     public function uploadApworld(string $fileContents, string $filename): array
@@ -94,6 +98,6 @@ final class NullRunnerGateway implements RunnerGatewayInterface
 
     public function getSessionInfo(string $sessionId): ?array
     {
-        return null;
+        return self::$nextSessionInfo;
     }
 }

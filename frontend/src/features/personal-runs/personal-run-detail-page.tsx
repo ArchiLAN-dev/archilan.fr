@@ -527,6 +527,27 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     }
   }
 
+  // Garde-fou (story 17.14) : force la résolution d'une partie coincée dans une transition
+  // (redémarrage / démarrage bloqué). Le serveur la ramène à un état stable (idle / draft) ou la
+  // confirme active si elle tourne réellement, afin que le proprio ne reste jamais bloqué "en attente".
+  async function handleForceReconcile(sessionId: string) {
+    setActioning(true);
+    setActionError(null);
+    try {
+      const res = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/reconcile`, { method: "POST" });
+      if (!res.ok) {
+        const payload = (await res.json()) as { error?: { message?: string } };
+        setActionError(payload.error?.message ?? "Impossible de débloquer la partie.");
+        return;
+      }
+      await fetchRun();
+    } catch {
+      setActionError("Erreur réseau.");
+    } finally {
+      setActioning(false);
+    }
+  }
+
   if (authLoading || state.kind === "loading") {
     return (
       <div className="mx-auto max-w-2xl">
@@ -806,6 +827,17 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                   <p className="text-xs text-muted-foreground">
                     La page se mettra à jour automatiquement.
                   </p>
+                  {run.sessionId !== null && (
+                    <button
+                      className="mt-2 inline-flex items-center gap-2 rounded border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                      disabled={actioning}
+                      onClick={() => { if (run.sessionId) void handleForceReconcile(run.sessionId); }}
+                      type="button"
+                    >
+                      {actioning ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <RotateCcw aria-hidden className="size-3.5" />}
+                      Bloqué ? Forcer la résolution
+                    </button>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -908,6 +940,17 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 <p className="text-xs text-muted-foreground">
                   La page se mettra à jour automatiquement.
                 </p>
+                {run.sessionId !== null && (
+                  <button
+                    className="mt-2 inline-flex items-center gap-2 rounded border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                    disabled={actioning}
+                    onClick={() => { if (run.sessionId) void handleForceReconcile(run.sessionId); }}
+                    type="button"
+                  >
+                    {actioning ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <RotateCcw aria-hidden className="size-3.5" />}
+                    Bloqué ? Forcer la résolution
+                  </button>
+                )}
               </div>
             )}
 

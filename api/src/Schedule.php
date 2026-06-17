@@ -10,6 +10,7 @@ use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
+use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
@@ -52,6 +53,11 @@ final class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),
+            )
+            ->add(
+                // Backstop côté run : tourne juste après le watchdog session, pour avancer une run dont
+                // le webhook de cycle de vie s'est perdu une fois la session résolue (story 17.14).
+                RecurringMessage::every('2 minutes', new ReconcileStuckRunsMessage()),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),
