@@ -26,7 +26,7 @@ final class ActivateMembershipTest extends TestCase
         $memberships->method('findActiveByUserId')->willReturn(null);
         $memberships->expects($this->once())->method('save')->with($this->isInstanceOf(Membership::class));
 
-        $gateway = $this->createMock(UserRoleGatewayInterface::class);
+        $gateway = $this->createStub(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => self::DISCORD_ID, 'roles' => ['ROLE_USER', 'ROLE_MEMBER']]);
 
         $bus = $this->createMock(MessageBusInterface::class);
@@ -48,7 +48,7 @@ final class ActivateMembershipTest extends TestCase
         $memberships->expects($this->once())->method('flush');
         $memberships->expects($this->never())->method('save');
 
-        $gateway = $this->createMock(UserRoleGatewayInterface::class);
+        $gateway = $this->createStub(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => self::DISCORD_ID, 'roles' => ['ROLE_USER', 'ROLE_MEMBER']]);
 
         $bus = $this->createMock(MessageBusInterface::class);

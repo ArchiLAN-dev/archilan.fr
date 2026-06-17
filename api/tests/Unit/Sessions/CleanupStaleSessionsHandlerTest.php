@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Application\PersonalRunAdvancerInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsHandler;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\Sessions\Application\SessionReconcilerInterface;
@@ -13,148 +11,59 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\Component\Mercure\HubInterface;
 
 final class CleanupStaleSessionsHandlerTest extends TestCase
 {
-    public function testGeneratingSessionReconciledToGeneratedWhenOrchestateurConfirms(): void
+    public function testStaleSessionIsDelegatedToReconciler(): void
     {
-        $session = $this->makeStaleSession(Session::STATUS_GENERATING);
+        $session = $this->makeSession(Session::STATUS_RESTARTING, '-30 minutes');
 
         $sessions = $this->createStub(SessionRepositoryInterface::class);
         $sessions->method('findByStatuses')->willReturn([$session]);
-
-        $lifecycleManager = $this->createMock(SessionReconcilerInterface::class);
-        $lifecycleManager->expects($this->once())
-            ->method('transition')
-            ->with($session->getId(), Session::STATUS_GENERATED);
-
-        $gateway = $this->createStub(RunnerGatewayInterface::class);
-        $gateway->method('getSessionInfo')->willReturn(['status' => 'generated', 'bridgePort' => null]);
-
-        $this->makeHandler($sessions, $lifecycleManager, $gateway)(new CleanupStaleSessionsTask());
-    }
-
-    public function testLaunchingSessionReconciledToRunningWhenOrchestateurConfirms(): void
-    {
-        $session = $this->makeStaleSession(Session::STATUS_LAUNCHING);
-
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
-        $sessions->method('findByStatuses')->willReturn([$session]);
-
-        $lifecycleManager = $this->createMock(SessionReconcilerInterface::class);
-        $lifecycleManager->expects($this->once())
-            ->method('transitionToRunningFromOrchestrateur')
-            ->with($session->getId(), 48281, 38281);
-
-        $gateway = $this->createStub(RunnerGatewayInterface::class);
-        $gateway->method('getSessionInfo')->willReturn(['status' => 'running', 'bridgePort' => 38281, 'apPort' => 48281]);
-
-        $this->makeHandler($sessions, $lifecycleManager, $gateway)(new CleanupStaleSessionsTask());
-    }
-
-    public function testLaunchingSessionNotReconciledWhenBridgePortMissing(): void
-    {
-        $session = $this->makeStaleSession(Session::STATUS_LAUNCHING);
-
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
-        $sessions->method('findByStatuses')->willReturn([$session]);
-        $sessions->method('flush');
 
         $reconciler = $this->createMock(SessionReconcilerInterface::class);
-        $reconciler->expects($this->never())->method('transitionToRunningFromOrchestrateur');
+        $reconciler->expects($this->once())
+            ->method('reconcilePending')
+            ->with($session->getId())
+            ->willReturn(['found' => true, 'from' => Session::STATUS_RESTARTING, 'action' => 'forced_idle', 'to' => Session::STATUS_IDLE]);
 
-        $gateway = $this->createStub(RunnerGatewayInterface::class);
-        $gateway->method('getSessionInfo')->willReturn(['status' => 'running', 'bridgePort' => null, 'apPort' => null]);
-
-        $hub = $this->createStub(HubInterface::class);
-
-        $this->makeHandler($sessions, $reconciler, $gateway, $hub)(new CleanupStaleSessionsTask());
-
-        self::assertSame(Session::STATUS_FAILED, $session->getStatus());
+        $this->makeHandler($sessions, $reconciler)(new CleanupStaleSessionsTask());
     }
 
-    public function testGeneratingSessionMarkedFailedWhenOrchestateurUnknown(): void
+    public function testFreshSessionIsLeftUntouched(): void
     {
-        $session = $this->makeStaleSession(Session::STATUS_GENERATING);
+        // A session that has not crossed its threshold must not be reconciled.
+        $session = $this->makeSession(Session::STATUS_RESTARTING, 'now');
 
         $sessions = $this->createStub(SessionRepositoryInterface::class);
         $sessions->method('findByStatuses')->willReturn([$session]);
-        $sessions->method('flush');
 
         $reconciler = $this->createMock(SessionReconcilerInterface::class);
-        $reconciler->expects($this->never())->method('transition');
+        $reconciler->expects($this->never())->method('reconcilePending');
 
-        $gateway = $this->createStub(RunnerGatewayInterface::class);
-        $gateway->method('getSessionInfo')->willReturn(null);
-
-        $hub = $this->createStub(HubInterface::class);
-
-        $this->makeHandler($sessions, $reconciler, $gateway, $hub)(new CleanupStaleSessionsTask());
-
-        self::assertSame(Session::STATUS_FAILED, $session->getStatus());
+        $this->makeHandler($sessions, $reconciler)(new CleanupStaleSessionsTask());
     }
 
-    public function testRunningSessionMarkedCrashedWithoutOrchestateurQuery(): void
+    public function testReconcilerSkipDoesNotCount(): void
     {
-        // Orchestrateur-managed session (runnerId = null): stopSession must NOT be called.
-        $session = $this->makeStaleSession(Session::STATUS_RUNNING);
+        // A reconciler that reports "skipped" (nothing to do) must not raise the handler.
+        $session = $this->makeSession(Session::STATUS_RUNNING, '-30 minutes');
 
         $sessions = $this->createStub(SessionRepositoryInterface::class);
         $sessions->method('findByStatuses')->willReturn([$session]);
-        $sessions->method('flush');
 
         $reconciler = $this->createMock(SessionReconcilerInterface::class);
-        $reconciler->expects($this->never())->method('transition');
-        $reconciler->expects($this->never())->method('transitionToRunningFromOrchestrateur');
+        $reconciler->expects($this->once())
+            ->method('reconcilePending')
+            ->willReturn(['found' => true, 'from' => Session::STATUS_RUNNING, 'action' => 'skipped', 'to' => null]);
 
-        $gateway = $this->createMock(RunnerGatewayInterface::class);
-        $gateway->expects($this->never())->method('getSessionInfo');
-        $gateway->expects($this->never())->method('stopSession');
-
-        $advancer = $this->createMock(PersonalRunAdvancerInterface::class);
-        $advancer->expects($this->once())->method('markPersonalRunStopped')->with($session->getId());
-
-        $hub = $this->createStub(HubInterface::class);
-
-        $this->makeHandler($sessions, $reconciler, $gateway, $hub, $advancer)(new CleanupStaleSessionsTask());
-
-        // A stale RUNNING session is crash-recovered to idle so the owner can resume it (story 17.12).
-        self::assertSame(Session::STATUS_IDLE, $session->getStatus());
+        $this->makeHandler($sessions, $reconciler)(new CleanupStaleSessionsTask());
     }
 
-    public function testRunningRunnerSessionCallsStopOnCrash(): void
+    private function makeSession(string $targetStatus, string $clock): Session
     {
-        // Runner-managed session (runnerId set): stopSession must be called.
-        $session = $this->makeStaleSession(Session::STATUS_RUNNING);
-        $past = new \DateTimeImmutable('-30 minutes');
-        $session->lockTo('runner-1', $past);
-
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
-        $sessions->method('findByStatuses')->willReturn([$session]);
-        $sessions->method('flush');
-
-        $reconciler = $this->createStub(SessionReconcilerInterface::class);
-
-        $gateway = $this->createMock(RunnerGatewayInterface::class);
-        $gateway->expects($this->never())->method('getSessionInfo');
-        $gateway->expects($this->once())->method('stopSession')->with($session->getId());
-
-        $advancer = $this->createMock(PersonalRunAdvancerInterface::class);
-        $advancer->expects($this->once())->method('markPersonalRunStopped')->with($session->getId());
-
-        $hub = $this->createStub(HubInterface::class);
-
-        $this->makeHandler($sessions, $reconciler, $gateway, $hub, $advancer)(new CleanupStaleSessionsTask());
-
-        // A stale RUNNING session is crash-recovered to idle so the owner can resume it (story 17.12).
-        self::assertSame(Session::STATUS_IDLE, $session->getStatus());
-    }
-
-    private function makeStaleSession(string $targetStatus): Session
-    {
-        $past = new \DateTimeImmutable('-30 minutes');
-        $session = Session::create('sess-test', 'evt-001', $past);
+        $at = new \DateTimeImmutable($clock);
+        $session = Session::create('sess-test', 'evt-001', $at);
 
         $path = [
             Session::STATUS_VALIDATING,
@@ -167,13 +76,18 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
 
         foreach ($path as $step) {
             if (Session::STATUS_RUNNING === $step) {
-                $session->transition($step, $past, 'bridge.local', 38281, 'secret');
+                $session->transition($step, $at, 'bridge.local', 38281, 'secret');
             } else {
-                $session->transition($step, $past);
+                $session->transition($step, $at);
             }
             if ($step === $targetStatus) {
-                break;
+                return $session;
             }
+        }
+
+        if (Session::STATUS_RESTARTING === $targetStatus) {
+            $session->markIdle('sessions/abc/save.apsave', false, $at);
+            $session->markRestarting($at);
         }
 
         return $session;
@@ -181,20 +95,8 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
 
     private function makeHandler(
         SessionRepositoryInterface $sessions,
-        ?SessionReconcilerInterface $reconciler,
-        RunnerGatewayInterface $gateway,
-        ?HubInterface $hub = null,
-        ?PersonalRunAdvancerInterface $personalRunAdvancer = null,
+        SessionReconcilerInterface $reconciler,
     ): CleanupStaleSessionsHandler {
-        $reconciler ??= $this->createStub(SessionReconcilerInterface::class);
-
-        return new CleanupStaleSessionsHandler(
-            $sessions,
-            $reconciler,
-            $personalRunAdvancer ?? $this->createStub(PersonalRunAdvancerInterface::class),
-            $hub ?? $this->createStub(HubInterface::class),
-            $gateway,
-            new NullLogger(),
-        );
+        return new CleanupStaleSessionsHandler($sessions, $reconciler, new NullLogger());
     }
 }

@@ -24,6 +24,13 @@ interface RunRepositoryInterface
 
     public function findBySessionId(string $sessionId): ?Run;
 
+    /**
+     * @param list<string> $statuses
+     *
+     * @return list<Run>
+     */
+    public function findByStatuses(array $statuses): array;
+
     public function save(Run $run): void;
 
     public function delete(Run $run): void;

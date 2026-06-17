@@ -22,6 +22,19 @@ final class Run
     /** Statuses that block deletion or modification */
     public const ACTIVE_STATUSES = [self::STATUS_STARTING, self::STATUS_ACTIVE, self::STATUS_STOPPING];
 
+    /**
+     * Statuts transitoires où une run peut rester bloquée si la session liée se coince ou si un webhook
+     * de cycle de vie se perd. Réconciliés par le backstop planifié (story 17.14).
+     */
+    public const STUCK_STATUSES = [self::STATUS_STARTING, self::STATUS_STOPPING, self::STATUS_RESTARTING];
+
+    /** Seuils (secondes) sur updatedAt au-delà desquels la run transitoire est considérée bloquée. */
+    public const STUCK_THRESHOLDS = [
+        self::STATUS_STARTING => 1800,    // 30 min - couvre une génération complète
+        self::STATUS_STOPPING => 300,     // 5 min - l'arrêt est rapide
+        self::STATUS_RESTARTING => 300,   // 5 min - la relance est rapide
+    ];
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -156,6 +169,17 @@ final class Run
         $this->status = self::STATUS_DRAFT;
         $this->connectionPassword = null;
         $this->updatedAt = $now;
+    }
+
+    /** True si la run est dans un statut transitoire depuis plus longtemps que son seuil. */
+    public function isStuck(\DateTimeImmutable $now): bool
+    {
+        $threshold = self::STUCK_THRESHOLDS[$this->status] ?? null;
+        if (null === $threshold) {
+            return false;
+        }
+
+        return ($now->getTimestamp() - $this->updatedAt->getTimestamp()) > $threshold;
     }
 
     public function getId(): string

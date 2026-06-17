@@ -342,6 +342,164 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return $this->transition($sessionId, Session::STATUS_RUNNING, $host, $apPort, $password, null, $bridgePort, null, null, $serverPassword);
     }
 
+    /**
+     * Forçage manuel (proprio de la run/entrée weekly, ou admin) de la résolution d'une session
+     * bloquée dans un statut transitoire ("en attente"), sans attendre le seuil du watchdog. Seuls les
+     * statuts réellement transitoires sont éligibles : `running` (session saine) n'en fait pas partie.
+     *
+     * @return array{found: bool, error: string|null, action?: string|null, to?: string|null}
+     */
+    public function forceReconcile(string $sessionId, string $callerId, bool $isAdmin): array
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return ['found' => false, 'error' => null];
+        }
+
+        if (!$isAdmin) {
+            $personalRun = $this->runs->findBySessionId($sessionId);
+            $ownsPersonalRun = $personalRun instanceof Run && $personalRun->isOwnedBy($callerId);
+            $weeklyEntry = $this->weeklyEntries->findByExternalSessionId($sessionId);
+            $ownsWeeklyEntry = $weeklyEntry instanceof WeeklyEntry && $weeklyEntry->getUserId() === $callerId;
+
+            if (!$ownsPersonalRun && !$ownsWeeklyEntry) {
+                return ['found' => true, 'error' => 'forbidden'];
+            }
+        }
+
+        $forceable = [
+            Session::STATUS_VALIDATING,
+            Session::STATUS_GENERATING,
+            Session::STATUS_LAUNCHING,
+            Session::STATUS_RESTARTING,
+        ];
+        if (!in_array($session->getStatus(), $forceable, true)) {
+            return ['found' => true, 'error' => 'not_pending'];
+        }
+
+        $this->logger->warning('session.force_reconcile', ['sessionId' => $sessionId, 'from' => $session->getStatus(), 'callerId' => $callerId]);
+
+        $result = $this->reconcilePending($sessionId);
+
+        return ['found' => true, 'error' => null, 'action' => $result['action'] ?? null, 'to' => $result['to'] ?? null];
+    }
+
+    /**
+     * Garde-fou : réconcilie une session bloquée dans un statut transitoire ("en attente") en forçant
+     * une résolution selon son statut courant et l'état réel rapporté par l'orchestrateur :
+     *  - restarting → running (resumeRunning) si l'orchestrateur tourne, sinon → idle (markRestartFailed) ;
+     *  - generating/launching → l'état atteint (generated/running) si l'orchestrateur a progressé, sinon
+     *    → failed (recordCrash, qui réinitialise le run lié en draft et remonte un message) ;
+     *  - running → crashed récupéré en idle (relançable) + arrêt du container côté runner-managed ;
+     *  - validating → draft (réinitialise le run) avec un message d'erreur.
+     * Réutilisé par le watchdog planifié (au-delà du seuil) et par le forçage manuel (à la demande) :
+     * chaque résolution passe par les transitions existantes, donc le run lié est avancé et la session
+     * republiée sur Mercure.
+     *
+     * @return array{found: bool, from?: string, action?: string, to?: string|null}
+     */
+    public function reconcilePending(string $sessionId): array
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return ['found' => false];
+        }
+
+        $from = $session->getStatus();
+
+        switch ($from) {
+            case Session::STATUS_RESTARTING:
+                $info = $this->runnerGateway->getSessionInfo($sessionId);
+                if (null !== $info && 'running' === $info['status'] && null !== $info['apPort']) {
+                    $this->recordRestarted($sessionId, '', $info['apPort'], $info['bridgePort'] ?? 0);
+
+                    return ['found' => true, 'from' => $from, 'action' => 'forced_running', 'to' => Session::STATUS_RUNNING];
+                }
+                $this->markRestartFailed($sessionId);
+
+                return ['found' => true, 'from' => $from, 'action' => 'forced_idle', 'to' => Session::STATUS_IDLE];
+
+            case Session::STATUS_GENERATING:
+                $info = $this->runnerGateway->getSessionInfo($sessionId);
+                if (null !== $info && 'generated' === $info['status']) {
+                    $this->transition($sessionId, Session::STATUS_GENERATED);
+
+                    return ['found' => true, 'from' => $from, 'action' => 'reconciled', 'to' => Session::STATUS_GENERATED];
+                }
+                $this->recordCrash($sessionId, "Génération bloquée : aucun retour de l'orchestrateur.");
+
+                return ['found' => true, 'from' => $from, 'action' => 'forced_failed', 'to' => Session::STATUS_FAILED];
+
+            case Session::STATUS_LAUNCHING:
+                $info = $this->runnerGateway->getSessionInfo($sessionId);
+                if (null !== $info && 'running' === $info['status'] && null !== $info['apPort']) {
+                    $this->transitionToRunningFromOrchestrateur($sessionId, $info['apPort'], $info['bridgePort']);
+
+                    return ['found' => true, 'from' => $from, 'action' => 'reconciled', 'to' => Session::STATUS_RUNNING];
+                }
+                $this->recordCrash($sessionId, "Lancement bloqué : aucun retour de l'orchestrateur.");
+
+                return ['found' => true, 'from' => $from, 'action' => 'forced_failed', 'to' => Session::STATUS_FAILED];
+
+            case Session::STATUS_RUNNING:
+                $to = $this->recoverStaleRunningToIdle($session);
+                if (null !== $session->getRunnerId()) {
+                    $this->runnerGateway->stopSession($sessionId);
+                }
+
+                return ['found' => true, 'from' => $from, 'action' => 'crash_recovered', 'to' => $to];
+
+            case Session::STATUS_VALIDATING:
+                $this->transition(
+                    $sessionId,
+                    Session::STATUS_DRAFT,
+                    validationErrors: [['slotName' => 'Validation', 'errors' => ['Validation bloquée côté serveur : relance la partie.']]],
+                );
+
+                return ['found' => true, 'from' => $from, 'action' => 'forced_draft', 'to' => Session::STATUS_DRAFT];
+
+            default:
+                return ['found' => true, 'from' => $from, 'action' => 'skipped', 'to' => null];
+        }
+    }
+
+    /**
+     * Recover a stale RUNNING session to a resumable resting state for *every* session type (personal,
+     * weekly, event): crash → idle so the owner can relaunch from the retained save; a missing save just
+     * restarts from the seed. The linked personal run (if any) is moved off "active". Falls back to a
+     * forced reset (→ stopped) only if the crash→idle transition is somehow illegal.
+     */
+    private function recoverStaleRunningToIdle(Session $session): string
+    {
+        $now = new \DateTimeImmutable();
+
+        try {
+            $session->transition(Session::STATUS_CRASHED, $now);
+            $session->markIdle($session->getLastSaveKey(), true, $now);
+            $to = Session::STATUS_IDLE;
+        } catch (\LogicException) {
+            $session->forceReset($now);
+            $to = Session::STATUS_STOPPED;
+        }
+
+        $personalRun = $this->runs->findBySessionId($session->getId());
+        if ($personalRun instanceof Run) {
+            try {
+                $personalRun->markStopped($now);
+            } catch (\Throwable $e) {
+                $this->logger->error('session.reconcile.run_mark_stopped_failed', [
+                    'sessionId' => $session->getId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $this->sessions->flush();
+        $this->publish($session);
+
+        return $to;
+    }
+
     private function dispatchRunningNotifications(Session $session): void
     {
         $slotsList = $this->slots->findBySessionId($session->getId());

@@ -141,7 +141,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             $saved = $run;
         });
 
-        $generator = $this->createMock(WeeklyRunGeneratorInterface::class);
+        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate')->willThrowException(new \RuntimeException('orchestrator unreachable'));
 
         // A failed dispatch is logged, not thrown: it leaves the run not-launchable

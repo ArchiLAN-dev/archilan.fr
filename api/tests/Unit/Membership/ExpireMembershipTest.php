@@ -32,7 +32,7 @@ final class ExpireMembershipTest extends TestCase
             ->willReturn($membership);
         $memberships->expects($this->once())->method('flush');
 
-        $gateway = $this->createMock(UserRoleGatewayInterface::class);
+        $gateway = $this->createStub(UserRoleGatewayInterface::class);
         $gateway->method('getUserDiscordInfo')->willReturn(['discordId' => self::DISCORD_ID, 'roles' => ['ROLE_USER']]);
 
         $bus = $this->createMock(MessageBusInterface::class);

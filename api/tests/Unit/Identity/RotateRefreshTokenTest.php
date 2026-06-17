@@ -110,7 +110,7 @@ final class RotateRefreshTokenTest extends TestCase
 
     public function testUnknownTokenIsInvalid(): void
     {
-        $repo = $this->createMock(RefreshTokenRepositoryInterface::class);
+        $repo = $this->createStub(RefreshTokenRepositoryInterface::class);
         $repo->method('findByTokenHash')->willReturn(null);
 
         self::assertSame('invalid', $this->rotator($repo)->rotate('raw', $this->now(), 'UA', $this->req())->outcome);

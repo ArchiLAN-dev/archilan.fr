@@ -149,7 +149,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $entries = $this->createMock(WeeklyEntryRepositoryInterface::class);
+        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findById')->willReturn($entry);
         $entries->method('flush');
 
