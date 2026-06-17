@@ -184,4 +184,68 @@ So that I can participate in the game and see connection details.
 **And** `src/app/runs/join/[inviteToken]/page.tsx` handles the join route
 **And** the join API call is triggered client-side on page load (not server-side, to avoid join on crawler visits)
 
+## Story 16.11: Named YAML Templates for Personal Run Slots
+
+As a member who configures Archipelago YAMLs for personal runs,
+I want to save my YAML configurations as named, reusable templates and apply them to a slot in one click,
+So that I stop re-entering the same settings every run and can keep several presets per game.
+
+> Status: planned (not started). Date: 2026-06-17. Moved here from Epic 28 (28.9) - it completes the
+> personal-run slot-config flow and belongs to this context, not to Steam Library Coupling. The minimum
+> viable ask is "at least be able to name them". Sharing / import-export / cross-user templates are out.
+>
+> **Numbering note.** Stories 16.7-16.10 already exist as implementation stories (patch/spoiler download,
+> participant patch, joined-runs listing) under `_bmad-output/implementation-artifacts/` but were never
+> back-documented in this planning epic; this story takes the next free number, **16.11**.
+
+**Acceptance Criteria:**
+
+**Given** a member is editing a slot YAML in the personal-run slot editor and calls `POST /api/v1/yaml-templates` with `{ "gameId", "name", "yaml" }`
+**When** the YAML is valid, the game is `apworldReady`, and no template with that name exists for this `(user, game)`
+**Then** a `YamlTemplate` record is created (`id`, `user_id`, `game_id`, `name`, `yaml`, `created_at`, `updated_at`) and returned
+**And** the template appears in the member's template list for that game
+
+**Given** the member saves a template with a name that already exists for the same `(user, game)`
+**When** the request is processed
+**Then** the response is 422 (code `template_name_taken`) - no silent overwrite
+
+**Given** invalid/malformed YAML is submitted as a template
+**When** the request is processed
+**Then** the response is 422 (same validation as the slot-save path) - the template is not created
+
+**Given** a member calls `GET /api/v1/yaml-templates?gameId=...`
+**When** the request is processed
+**Then** the response lists only that member's templates for the given game
+**And** another member's templates are never returned or applicable (privacy enforced server-side by `user_id`)
+
+**Given** a member applies a template in the slot editor
+**When** the template is selected
+**Then** the editor loads the template's `yaml` into the form
+**And** the slot is persisted only when the member saves (applying does not auto-save - consistent with the current flow)
+
+**Given** a member calls `PUT /api/v1/yaml-templates/{id}` to rename or update its stored YAML
+**When** the caller owns the template and the new name/YAML is valid
+**Then** the template is updated; a foreign `id` returns 404 and a duplicate name returns 422
+
+**Given** a member calls `DELETE /api/v1/yaml-templates/{id}`
+**When** the caller owns the template
+**Then** the template is deleted (204) and can no longer be listed or applied; a foreign `id` returns 404
+
+**Given** a member's account is erased (Story 2.4 path)
+**When** erasure runs
+**Then** all of that member's `YamlTemplate` records are removed (personal data cascade)
+
+**And** the `YamlTemplate` aggregate lives in `App\PersonalRuns\Domain` (`final` class, no public setters - `rename()` / `updateYaml()` business methods) with a `YamlTemplateRepositoryInterface`
+**And** a Doctrine migration creates table `yaml_template` (id, user_id FK users, game_id, name, yaml TEXT, created_at, updated_at) with a UNIQUE index on `(user_id, game_id, name)`; reversible `down()`
+**And** Application provides command services `SaveYamlTemplate` / `RenameYamlTemplate` / `UpdateYamlTemplate` / `DeleteYamlTemplate` (return `void`) and a `YamlTemplateListQuery` (read), reusing the existing YAML validation - no new engine
+**And** endpoints are member-gated via `ApiAccessGuard`
+**And** the frontend layers template controls onto the shared `YamlOptionEditor` via additive props (no editor fork; the event-registration caller is untouched): a template picker (apply on click), an "Enregistrer comme template" action with a name prompt, plus rename/delete affordances, wired through `features/personal-runs/yaml-templates-api.ts` (typed `is*` guards, TanStack Query with explicit `staleTime`)
+**And** functional tests cover: create, duplicate-name (422), invalid YAML (422), list scoped to owner, privacy isolation, apply, rename, delete, foreign id (404), erasure cascade
+
+**Open questions (resolve before dev):**
+- Context placement: keep in `PersonalRuns` (MVP, only consumer today) or introduce a neutral `Presets`/`Library` context now to pre-empt event-registration reuse? Recommendation: `PersonalRuns`, lift later.
+- "Update applied template" (overwrite) vs "Save as new": MVP ships "save as new" + explicit rename/update; defer an inline "overwrite current template" button.
+- Surface the built-in `Game::defaultYaml` as a "Défaut du jeu" pseudo-template in the same picker? Cheap nice-to-have - flag, don't block.
+- Future "reprendre ce jeu avec ma dernière config" from the Epic 28.8 recently-played surface builds on this aggregate - keep it clean/context-neutral.
+
 ---

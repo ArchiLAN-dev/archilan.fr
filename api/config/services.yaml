@@ -283,6 +283,7 @@ services:
 
     App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
     App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
+    App\PersonalRuns\Application\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\DbalRecentlyPlayedGamesQuery'
 
     App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
     App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
