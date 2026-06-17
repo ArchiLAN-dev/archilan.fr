@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type PlayerStats = {
   runsParticipated: number;
@@ -10,11 +10,31 @@ export type PlayerStats = {
   totalItemsReceived: number;
 };
 
+export type ProfileSocialLink = { label: string; url: string };
+
+export type ProfileFavoriteGame = {
+  id: string;
+  name: string;
+  slug: string;
+  coverImageUrl: string | null;
+};
+
+export type ProfileCustomization = {
+  bio: string | null;
+  tagline: string | null;
+  pronouns: string | null;
+  bannerPreset: string;
+  socialLinks: ProfileSocialLink[];
+  favoriteGames: ProfileFavoriteGame[];
+};
+
 export type PlayerProfile = {
   slug: string;
   displayName: string | null;
   joinedAt: string;
   avatarUrl: string | null;
+  audience: string;
+  customization: ProfileCustomization | null;
   stats: PlayerStats;
 };
 
@@ -46,6 +66,18 @@ function isPlayerStats(v: unknown): v is PlayerStats {
   );
 }
 
+function isProfileCustomization(v: unknown): v is ProfileCustomization {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasNullableStringProp(v, "bio") || !hasNullableStringProp(v, "tagline") || !hasNullableStringProp(v, "pronouns")) {
+    return false;
+  }
+  if (!hasStringProp(v, "bannerPreset")) return false;
+  if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
+  if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
+  if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;
+  return v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"));
+}
+
 function isPlayerProfilePayload(payload: unknown): payload is { data: PlayerProfile } {
   if (typeof payload !== "object" || payload === null) return false;
   if (!("data" in payload) || typeof payload.data !== "object" || payload.data === null) return false;
@@ -54,6 +86,9 @@ function isPlayerProfilePayload(payload: unknown): payload is { data: PlayerProf
   if (!("displayName" in data) || (data.displayName !== null && typeof data.displayName !== "string")) return false;
   if (!hasStringProp(data, "joinedAt")) return false;
   if ("avatarUrl" in data && data.avatarUrl !== null && typeof data.avatarUrl !== "string") return false;
+  if ("customization" in data && data.customization !== null && !isProfileCustomization(data.customization)) {
+    return false;
+  }
   if (!("stats" in data)) return false;
   return isPlayerStats(data.stats);
 }
@@ -92,7 +127,16 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       return null;
     }
 
-    return { ...payload.data, avatarUrl: payload.data.avatarUrl ?? null };
+    const data = payload.data;
+    return {
+      slug: data.slug,
+      displayName: data.displayName,
+      joinedAt: data.joinedAt,
+      avatarUrl: data.avatarUrl ?? null,
+      audience: typeof data.audience === "string" ? data.audience : "members",
+      customization: data.customization ?? null,
+      stats: data.stats,
+    };
   } catch {
     return null;
   }

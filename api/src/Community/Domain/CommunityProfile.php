@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Domain;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -32,6 +33,23 @@ final class CommunityProfile
         private ?string $avatarUrl = null,
         #[ORM\Column(name: 'avatar_resolved_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $avatarResolvedAt = null,
+        // ── Customization (story 30.3) ──
+        #[ORM\Column(type: 'text', nullable: true)]
+        private ?string $bio = null,
+        #[ORM\Column(type: 'string', length: 120, nullable: true)]
+        private ?string $tagline = null,
+        #[ORM\Column(type: 'string', length: 40, nullable: true)]
+        private ?string $pronouns = null,
+        #[ORM\Column(name: 'banner_preset', type: 'string', length: 32)]
+        private string $bannerPreset = BannerPreset::DEFAULT,
+        /** @var list<array{label: string, url: string}> */
+        #[ORM\Column(name: 'social_links', type: Types::JSON)]
+        private array $socialLinks = [],
+        /** @var list<string> */
+        #[ORM\Column(name: 'favorite_game_ids', type: Types::JSON)]
+        private array $favoriteGameIds = [],
+        #[ORM\Column(type: 'string', length: 16)]
+        private string $audience = Audience::MEMBERS,
     ) {
     }
 
@@ -68,6 +86,71 @@ final class CommunityProfile
     public function getAvatarResolvedAt(): ?\DateTimeImmutable
     {
         return $this->avatarResolvedAt;
+    }
+
+    /**
+     * @param list<array{label: string, url: string}> $socialLinks
+     * @param list<string>                            $favoriteGameIds
+     */
+    public function customize(
+        ?string $bio,
+        ?string $tagline,
+        ?string $pronouns,
+        string $bannerPreset,
+        array $socialLinks,
+        array $favoriteGameIds,
+        string $audience,
+        \DateTimeImmutable $now,
+    ): void {
+        $this->bio = $bio;
+        $this->tagline = $tagline;
+        $this->pronouns = $pronouns;
+        $this->bannerPreset = $bannerPreset;
+        $this->socialLinks = $socialLinks;
+        $this->favoriteGameIds = $favoriteGameIds;
+        $this->audience = $audience;
+        $this->updatedAt = $now;
+    }
+
+    public function getBio(): ?string
+    {
+        return $this->bio;
+    }
+
+    public function getTagline(): ?string
+    {
+        return $this->tagline;
+    }
+
+    public function getPronouns(): ?string
+    {
+        return $this->pronouns;
+    }
+
+    public function getBannerPreset(): string
+    {
+        return $this->bannerPreset;
+    }
+
+    /**
+     * @return list<array{label: string, url: string}>
+     */
+    public function getSocialLinks(): array
+    {
+        return $this->socialLinks;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getFavoriteGameIds(): array
+    {
+        return $this->favoriteGameIds;
+    }
+
+    public function getAudience(): string
+    {
+        return $this->audience;
     }
 
     public function getId(): string

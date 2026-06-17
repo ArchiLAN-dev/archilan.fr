@@ -1,6 +1,24 @@
 import Link from "next/link";
-import type { PlayerHistory, PlayerProfile, RunHistoryEntry } from "./player-profile-api";
+import type {
+  PlayerHistory,
+  PlayerProfile,
+  ProfileCustomization as ProfileCustomizationData,
+  RunHistoryEntry,
+} from "./player-profile-api";
 import { ProfileAvatar } from "./profile-avatar";
+
+const BANNER_CLASSES: Record<string, string> = {
+  default: "bg-gradient-to-r from-accent/30 via-accent/10 to-transparent",
+  sunset: "bg-gradient-to-r from-orange-500/40 via-pink-500/20 to-transparent",
+  forest: "bg-gradient-to-r from-emerald-600/40 via-emerald-400/15 to-transparent",
+  arcade: "bg-gradient-to-r from-fuchsia-500/40 via-cyan-400/20 to-transparent",
+  midnight: "bg-gradient-to-r from-indigo-800/50 via-indigo-500/20 to-transparent",
+  aurora: "bg-gradient-to-r from-teal-400/40 via-violet-500/20 to-transparent",
+};
+
+function bannerClass(preset: string): string {
+  return BANNER_CLASSES[preset] ?? BANNER_CLASSES.default;
+}
 
 export function PlayerProfilePage({
   profile,
@@ -16,8 +34,7 @@ export function PlayerProfilePage({
   return (
     <article className="mx-auto w-full max-w-4xl grid gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
-        {/* Banner (curated presets land in story 30.3; gradient placeholder for now) */}
-        <div className="h-28 bg-gradient-to-r from-accent/30 via-accent/10 to-transparent sm:h-36" />
+        <div className={`h-28 sm:h-36 ${bannerClass(profile.customization?.bannerPreset ?? "default")}`} />
 
         <div className="grid gap-6 p-5 sm:p-8">
           <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
@@ -26,9 +43,19 @@ export function PlayerProfilePage({
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-text">
                 Profil joueur
               </p>
-              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground md:text-4xl">
-                {displayName}
-              </h1>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground md:text-4xl">
+                  {displayName}
+                </h1>
+                {profile.customization?.pronouns ? (
+                  <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                    {profile.customization.pronouns}
+                  </span>
+                ) : null}
+              </div>
+              {profile.customization?.tagline ? (
+                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
+              ) : null}
               <p className="text-sm text-muted-foreground">
                 Membre depuis{" "}
                 <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
@@ -51,6 +78,8 @@ export function PlayerProfilePage({
           </div>
         </div>
       </header>
+
+      {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
 
       <section aria-labelledby="history-heading" className="grid gap-4">
         <h2 className="font-heading text-xl font-semibold text-foreground" id="history-heading">
@@ -79,6 +108,76 @@ export function PlayerProfilePage({
         )}
       </section>
     </article>
+  );
+}
+
+function ProfileCustomization({ customization }: { customization: ProfileCustomizationData }) {
+  const { bio, socialLinks, favoriteGames } = customization;
+  if (!bio && socialLinks.length === 0 && favoriteGames.length === 0) return null;
+
+  return (
+    <section className="grid gap-8">
+      {bio ? (
+        <div className="grid gap-2">
+          <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
+          <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
+        </div>
+      ) : null}
+
+      {favoriteGames.length > 0 ? (
+        <div className="grid gap-3">
+          <h2 className="font-heading text-lg font-semibold text-foreground">Jeux favoris</h2>
+          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6" role="list">
+            {favoriteGames.map((game) => (
+              <li key={game.id}>
+                <Link
+                  className="group grid gap-1.5 text-center"
+                  href={`/jeux/${game.slug}`}
+                >
+                  <span className="block aspect-[3/4] overflow-hidden rounded border border-border bg-surface">
+                    {game.coverImageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- external IGDB cover URL
+                      <img
+                        alt={game.name}
+                        className="h-full w-full object-cover object-top transition-transform group-hover:scale-105"
+                        src={game.coverImageUrl}
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                        {game.name.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </span>
+                  <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">
+                    {game.name}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {socialLinks.length > 0 ? (
+        <div className="grid gap-3">
+          <h2 className="font-heading text-lg font-semibold text-foreground">Liens</h2>
+          <ul className="flex flex-wrap gap-2" role="list">
+            {socialLinks.map((link) => (
+              <li key={link.url}>
+                <a
+                  className="inline-flex min-h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent-text"
+                  href={link.url}
+                  rel="nofollow noopener noreferrer"
+                  target="_blank"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

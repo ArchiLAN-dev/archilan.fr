@@ -18,7 +18,7 @@ describe("getPlayerProfile", () => {
     server.use(
       http.get(`${BASE}/community/profiles/jean`, () =>
         HttpResponse.json({
-          data: { slug: "jean", displayName: "Jean", joinedAt: "2024-01-01", avatarUrl: null, stats: validStats },
+          data: { slug: "jean", displayName: "Jean", joinedAt: "2024-01-01", avatarUrl: null, audience: "public", customization: null, stats: validStats },
         }),
       ),
     );
@@ -33,7 +33,7 @@ describe("getPlayerProfile", () => {
     server.use(
       http.get(`${BASE}/community/profiles/anon`, () =>
         HttpResponse.json({
-          data: { slug: "anon", displayName: null, joinedAt: "2024-01-01", avatarUrl: null, stats: validStats },
+          data: { slug: "anon", displayName: null, joinedAt: "2024-01-01", avatarUrl: null, audience: "public", customization: null, stats: validStats },
         }),
       ),
     );

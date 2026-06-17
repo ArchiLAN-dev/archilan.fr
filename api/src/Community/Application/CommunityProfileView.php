@@ -4,20 +4,28 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Domain\Audience;
+use App\Community\Domain\AudiencePolicy;
+use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Membership\Application\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
- * Read facade for the public community profile page (story 30.1). Composes the enriched read model and
- * lazily ensures the member has a `CommunityProfile` row (idempotent upsert on the unique userId, so
- * later stories - customization, avatar cache, showcases - always have a row to attach to).
+ * Read facade for the community profile (stories 30.1-30.3). Composes the enriched read model, lazily
+ * ensures the profile row, and gates the customization surface by audience vs the viewer's tier
+ * (server-side, every read). Identity + aggregate stats stay public regardless.
  */
 final readonly class CommunityProfileView
 {
     public function __construct(
         private CommunityProfileQueryInterface $query,
         private CommunityProfileRepositoryInterface $profiles,
+        private ActiveMembershipQueryInterface $memberships,
+        private GameRepositoryInterface $games,
     ) {
     }
 
@@ -27,16 +35,12 @@ final readonly class CommunityProfileView
      *     displayName: string|null,
      *     joinedAt: string,
      *     avatarUrl: string|null,
-     *     stats: array{
-     *         runsParticipated: int,
-     *         goalCompletions: int,
-     *         goalCompletionRate: float,
-     *         totalChecksDone: int,
-     *         totalItemsReceived: int
-     *     }
+     *     audience: string,
+     *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
+     *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>}|null
      * }|null
      */
-    public function forSlug(string $slug): ?array
+    public function forSlug(string $slug, ?string $viewerId): ?array
     {
         $model = $this->query->forSlug($slug);
         if (null === $model) {
@@ -44,15 +48,97 @@ final readonly class CommunityProfileView
         }
 
         $profile = $this->ensureProfile($model['userId']);
+        $audience = $profile?->getAudience() ?? Audience::MEMBERS;
+        $tier = $this->viewerTier($viewerId, $model['userId']);
+
+        $customization = null;
+        if (null !== $profile && AudiencePolicy::canView($tier, $audience)) {
+            $customization = [
+                'bio' => $profile->getBio(),
+                'tagline' => $profile->getTagline(),
+                'pronouns' => $profile->getPronouns(),
+                'bannerPreset' => $profile->getBannerPreset(),
+                'socialLinks' => $profile->getSocialLinks(),
+                'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
+            ];
+        }
 
         return [
             'slug' => $model['slug'],
             'displayName' => $model['displayName'],
             'joinedAt' => $model['joinedAt'],
-            // Cached snapshot (story 30.2); refreshed off the request path by community:avatars:refresh.
             'avatarUrl' => $profile?->getAvatarUrl(),
+            'audience' => $audience,
             'stats' => $model['stats'],
+            'customization' => $customization,
         ];
+    }
+
+    /**
+     * Raw, always-full customization for the owner's edit form (self only).
+     *
+     * @return array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string}
+     */
+    public function editableForUser(string $userId): array
+    {
+        $profile = $this->ensureProfile($userId);
+
+        return [
+            'bio' => $profile?->getBio(),
+            'tagline' => $profile?->getTagline(),
+            'pronouns' => $profile?->getPronouns(),
+            'bannerPreset' => $profile?->getBannerPreset() ?? BannerPreset::DEFAULT,
+            'socialLinks' => $profile?->getSocialLinks() ?? [],
+            'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
+            'audience' => $profile?->getAudience() ?? Audience::MEMBERS,
+        ];
+    }
+
+    private function viewerTier(?string $viewerId, string $ownerId): string
+    {
+        if (null === $viewerId) {
+            return AudiencePolicy::TIER_ANONYMOUS;
+        }
+        if ($viewerId === $ownerId) {
+            return AudiencePolicy::TIER_SELF;
+        }
+        if ($this->memberships->hasActiveMembership($viewerId)) {
+            return AudiencePolicy::TIER_MEMBER;
+        }
+
+        return AudiencePolicy::TIER_AUTHENTICATED;
+    }
+
+    /**
+     * @param list<string> $gameIds
+     *
+     * @return list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>
+     */
+    private function resolveFavoriteGames(array $gameIds): array
+    {
+        if ([] === $gameIds) {
+            return [];
+        }
+
+        $byId = [];
+        foreach ($this->games->findByIds($gameIds) as $game) {
+            $byId[$game->getId()] = $game;
+        }
+
+        $result = [];
+        foreach ($gameIds as $id) {
+            $game = $byId[$id] ?? null;
+            if ($game instanceof Game) {
+                $result[] = [
+                    'id' => $game->getId(),
+                    'name' => $game->getName(),
+                    'slug' => $game->getSlug(),
+                    'coverImageUrl' => $game->getCoverImageUrl(),
+                ];
+            }
+        }
+
+        return $result;
     }
 
     private function ensureProfile(string $userId): ?CommunityProfile
@@ -68,7 +154,6 @@ final readonly class CommunityProfileView
 
             return $profile;
         } catch (UniqueConstraintViolationException) {
-            // A concurrent first view won the insert race - reload the row that now exists.
             return $this->profiles->findByUserId($userId);
         }
     }
