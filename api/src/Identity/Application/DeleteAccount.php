@@ -8,6 +8,7 @@ use App\Identity\Domain\DeletionAudit;
 use App\Identity\Domain\DeletionAuditRepositoryInterface;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
+use App\PersonalRuns\Domain\YamlTemplateRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class DeleteAccount
@@ -15,6 +16,7 @@ final readonly class DeleteAccount
     public function __construct(
         private UserRepositoryInterface $userRepository,
         private DeletionAuditRepositoryInterface $auditRepository,
+        private YamlTemplateRepositoryInterface $yamlTemplates,
         private string $emailHashSecret,
         private LoggerInterface $logger,
     ) {
@@ -31,6 +33,9 @@ final readonly class DeleteAccount
         );
 
         $user->anonymizeForDeletion($now);
+
+        // Personal data the member created (named YAML templates) is hard-deleted on erasure.
+        $this->yamlTemplates->deleteByUserId($user->getId());
 
         $this->auditRepository->save($audit);
         $this->userRepository->save($user);
