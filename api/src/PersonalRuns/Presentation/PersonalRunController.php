@@ -242,6 +242,7 @@ final readonly class PersonalRunController
         return new JsonResponse(['data' => [
             'slots' => $result['slots'],
             'availableGames' => $result['availableGames'],
+            'recentlyPlayedGames' => $result['recentlyPlayedGames'],
         ]]);
     }
 

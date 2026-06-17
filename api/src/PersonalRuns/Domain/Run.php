@@ -23,6 +23,19 @@ final class Run
     public const ACTIVE_STATUSES = [self::STATUS_STARTING, self::STATUS_ACTIVE, self::STATUS_STOPPING];
 
     /**
+     * Statuses indicating the run has been launched at least once - i.e. the games in it were
+     * actually played. Used to surface "recently played" games (story 28.8). Excludes `draft`
+     * (never launched) and `cancelled`/`starting` (no gameplay yet).
+     */
+    public const LAUNCHED_STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_STOPPING,
+        self::STATUS_IDLE,
+        self::STATUS_RESTARTING,
+        self::STATUS_COMPLETED,
+    ];
+
+    /**
      * Statuts transitoires où une run peut rester bloquée si la session liée se coince ou si un webhook
      * de cycle de vie se perd. Réconciliés par le backstop planifié (story 17.14).
      */

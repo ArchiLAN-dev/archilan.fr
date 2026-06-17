@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { SteamCoupling } from "@/features/games/steam-coupling";
 import { useSteamCoupling } from "@/features/games/use-steam-coupling";
+import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
 import { allCategories, categoriesOf, isOwned } from "@/features/games/games-filter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,9 +34,16 @@ type Slot = {
   playerYaml: string | null;
 };
 
+type RecentlyPlayedGame = {
+  gameId: string;
+  lastPlayedAt: string;
+  runTitle: string;
+};
+
 type SelectionData = {
   slots: Slot[];
   availableGames: AvailableGame[];
+  recentlyPlayedGames: RecentlyPlayedGame[];
 };
 
 type PageState =
@@ -56,6 +64,17 @@ const availabilityConfig: Record<string, { label: string; className: string }> =
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 };
+
+/** Short FR relative-time label ("à l'instant", "il y a 3 j"). Returns "" on an unparsable date. */
+function relativeTime(iso: string): string {
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return "";
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "à l'instant";
+  if (diff < 3_600_000) return `il y a ${Math.floor(diff / 60_000)} min`;
+  if (diff < 86_400_000) return `il y a ${Math.floor(diff / 3_600_000)} h`;
+  return `il y a ${Math.floor(diff / 86_400_000)} j`;
+}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -78,6 +97,7 @@ export function PersonalRunGameSelectionPage({
   const { matchedAppIds, coupled, couplingProps } = useSteamCoupling();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [ownedOnly, setOwnedOnly] = useState(false);
+  const [recentOnly, setRecentOnly] = useState(false);
 
   useEffect(() => {
     const timers = addTimers.current;
@@ -136,10 +156,13 @@ export function PersonalRunGameSelectionPage({
         return;
       }
 
-      const payload = (await res.json()) as { data: { slots: Slot[]; availableGames: AvailableGame[] } };
+      const payload = (await res.json()) as {
+        data: { slots: Slot[]; availableGames: AvailableGame[]; recentlyPlayedGames?: RecentlyPlayedGame[] };
+      };
       const data: SelectionData = {
         slots: payload.data.slots,
         availableGames: payload.data.availableGames,
+        recentlyPlayedGames: payload.data.recentlyPlayedGames ?? [],
       };
 
       setPageState({ kind: "data", data });
@@ -244,6 +267,11 @@ export function PersonalRunGameSelectionPage({
     return { gameId, idx, label: total > 1 ? `${name} (monde ${n})` : name, slot, hasYaml };
   });
 
+  // Recently played: map gameId → metadata + recency rank (from the run history payload).
+  const recentById = new Map(data.recentlyPlayedGames.map((r) => [r.gameId, r]));
+  const recentRank = new Map(data.recentlyPlayedGames.map((r, i) => [r.gameId, i]));
+  const hasRecent = data.recentlyPlayedGames.length > 0;
+
   // Filtered + paginated catalog
   const q = gameSearch.trim().toLowerCase();
   const categoryOptions = allCategories(data.availableGames);
@@ -253,14 +281,81 @@ export function PersonalRunGameSelectionPage({
       return false;
     }
     if (ownedOnly && !isOwned(g, matchedAppIds)) return false;
+    if (recentOnly && !recentById.has(g.id)) return false;
     if (selectedCategorySet.size > 0 && !categoriesOf(g).some((c) => selectedCategorySet.has(c))) {
       return false;
     }
     return true;
   });
-  const totalPages = Math.max(1, Math.ceil(filteredGames.length / PAGE_SIZE));
+
+  // Default view: bubble recently-played games to the top (recency order), excluding ones already
+  // selected (they live under "Ma sélection"). A live search reverts to the flat, name-ordered list.
+  let displayGames = filteredGames;
+  if (q === "" && hasRecent) {
+    const workingSet = new Set(workingGameIds);
+    const pinned = filteredGames
+      .filter((g) => recentById.has(g.id) && !workingSet.has(g.id))
+      .sort((a, b) => (recentRank.get(a.id) ?? 0) - (recentRank.get(b.id) ?? 0));
+    if (pinned.length > 0) {
+      const pinnedIds = new Set(pinned.map((g) => g.id));
+      displayGames = [...pinned, ...filteredGames.filter((g) => !pinnedIds.has(g.id))];
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(displayGames.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
-  const pageGames = filteredGames.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageGames = displayGames.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const hasActiveFilters = q !== "" || recentOnly || ownedOnly || selectedCategories.length > 0;
+  const clearFilters = () => {
+    setGameSearch("");
+    setRecentOnly(false);
+    setOwnedOnly(false);
+    setSelectedCategories([]);
+    setCurrentPage(1);
+  };
+
+  // Filters as cumulable tokens via the shared FilterTokenBar. (Search stays a separate field above.)
+  const addFilter = (value: string) => {
+    if ("__recent" === value) setRecentOnly(true);
+    else if ("__owned" === value) setOwnedOnly(true);
+    else if (value.startsWith("cat:")) {
+      const category = value.slice(4);
+      setSelectedCategories((prev) => (prev.includes(category) ? prev : [...prev, category]));
+    }
+    setCurrentPage(1);
+  };
+
+  const filterGroups: FilterGroup[] = [
+    {
+      label: "Filtres",
+      options: [
+        ...(hasRecent && !recentOnly ? [{ value: "__recent", label: "Récemment joués" }] : []),
+        ...(coupled && !ownedOnly ? [{ value: "__owned", label: "Mes jeux" }] : []),
+      ],
+    },
+    {
+      label: "Plateformes",
+      options: categoryOptions
+        .filter((c) => !selectedCategories.includes(c))
+        .map((c) => ({ value: `cat:${c}`, label: c })),
+    },
+  ];
+
+  const activeTokens: ActiveFilterToken[] = [];
+  if (recentOnly) {
+    activeTokens.push({ key: "__recent", label: "Récemment joués", icon: "clock", remove: () => { setRecentOnly(false); setCurrentPage(1); } });
+  }
+  if (ownedOnly) {
+    activeTokens.push({ key: "__owned", label: "Mes jeux", icon: "gamepad", remove: () => { setOwnedOnly(false); setCurrentPage(1); } });
+  }
+  for (const category of selectedCategories) {
+    activeTokens.push({
+      key: `cat:${category}`,
+      label: category,
+      remove: () => { setSelectedCategories((prev) => prev.filter((c) => c !== category)); setCurrentPage(1); },
+    });
+  }
 
   return (
     <article className="mx-auto max-w-2xl grid gap-8">
@@ -387,49 +482,13 @@ export function PersonalRunGameSelectionPage({
           />
         </div>
 
-        {(categoryOptions.length > 0 || coupled) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {coupled && (
-              <label
-                className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3 text-sm font-medium text-foreground"
-              >
-                <input
-                  checked={ownedOnly}
-                  className="size-4 accent-accent"
-                  onChange={(e) => {
-                    setOwnedOnly(e.target.checked);
-                    setCurrentPage(1);
-                  }}
-                  type="checkbox"
-                />
-                Mes jeux
-              </label>
-            )}
-            {categoryOptions.map((category) => {
-              const active = selectedCategories.includes(category);
-              return (
-                <button
-                  key={category}
-                  aria-pressed={active}
-                  className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
-                    active
-                      ? "border-accent bg-accent/15 text-accent-text"
-                      : "border-border bg-surface text-muted-foreground hover:border-accent hover:text-foreground"
-                  }`}
-                  onClick={() => {
-                    setSelectedCategories((prev) =>
-                      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
-                    );
-                    setCurrentPage(1);
-                  }}
-                  type="button"
-                >
-                  {category}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        <FilterTokenBar
+          activeTokens={activeTokens}
+          groups={filterGroups}
+          hasActiveFilters={hasActiveFilters}
+          onAdd={addFilter}
+          onClear={clearFilters}
+        />
 
         {filteredGames.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucun jeu ne correspond à la recherche.</p>
@@ -439,6 +498,8 @@ export function PersonalRunGameSelectionPage({
               {pageGames.map((game) => {
                 const added = justAdded.has(game.id);
                 const fading = fadingOut.has(game.id);
+                const recent = recentById.get(game.id) ?? null;
+                const recentRel = recent ? relativeTime(recent.lastPlayedAt) : "";
                 return (
                   <li
                     className="flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface"
@@ -472,6 +533,14 @@ export function PersonalRunGameSelectionPage({
                         {isOwned(game, matchedAppIds) && (
                           <span className="rounded border border-success/50 bg-success/10 px-1.5 py-0.5 text-[11px] font-semibold text-success">
                             Tu possèdes ce jeu
+                          </span>
+                        )}
+                        {recent && (
+                          <span
+                            className="rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[11px] font-semibold text-accent-text"
+                            title={`Joué dans « ${recent.runTitle} »`}
+                          >
+                            {recentRel !== "" ? `Joué ${recentRel}` : "Récemment joué"}
                           </span>
                         )}
                       </div>

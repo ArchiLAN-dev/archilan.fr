@@ -20,12 +20,13 @@ final readonly class PersonalRunGameSelection
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
         private GameRepositoryInterface $games,
+        private RecentlyPlayedGamesQueryInterface $recentlyPlayedGames,
         private LoggerInterface $logger,
     ) {
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null}
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
      */
     public function getMySlots(string $runId, string $userId): array
     {
@@ -77,7 +78,9 @@ final readonly class PersonalRunGameSelection
             'steamAppId' => $g->getSteamAppId(),
         ], $allGames);
 
-        return $this->result(found: true, slots: $slots, availableGames: $availableGames);
+        $recentlyPlayed = $this->recentlyPlayedGames->recentlyPlayed($userId, $runId, 3);
+
+        return $this->result(found: true, slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
     }
 
     /**
@@ -259,10 +262,11 @@ final readonly class PersonalRunGameSelection
     }
 
     /**
-     * @param list<array<string, mixed>>|null $slots
-     * @param list<array<string, mixed>>|null $availableGames
+     * @param list<array<string, mixed>>|null                                     $slots
+     * @param list<array<string, mixed>>|null                                     $availableGames
+     * @param list<array{gameId: string, lastPlayedAt: string, runTitle: string}> $recentlyPlayedGames
      *
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null}
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
      */
     private function result(
         bool $found = false,
@@ -271,6 +275,7 @@ final readonly class PersonalRunGameSelection
         ?string $blockReason = null,
         ?array $slots = null,
         ?array $availableGames = null,
+        array $recentlyPlayedGames = [],
     ): array {
         return [
             'found' => $found,
@@ -279,6 +284,7 @@ final readonly class PersonalRunGameSelection
             'blockReason' => $blockReason,
             'slots' => $slots,
             'availableGames' => $availableGames,
+            'recentlyPlayedGames' => $recentlyPlayedGames,
         ];
     }
 
