@@ -30,6 +30,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
@@ -540,6 +541,7 @@ export function AdminSessionDetailPage({
         session={session}
         slots={slots}
       />
+      <OverlayLinksPanel sessionId={sessionId} />
       <CollapsibleConfigPanel title="Configuration avancée (override de la session)">
         <SessionConfigOverrideForm
           adapter={{

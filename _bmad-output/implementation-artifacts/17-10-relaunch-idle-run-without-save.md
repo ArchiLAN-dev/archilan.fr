@@ -2,13 +2,13 @@
 
 Status: done
 
-Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) — branch from `develop`.
+Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) - branch from `develop`.
 
 ## Story
 
 As the owner of a private run that went idle **without a usable save**,
 I want to relaunch it without recreating the whole private game,
-so that I keep my configuration, slots and invite link — the game simply restarts from its generated
+so that I keep my configuration, slots and invite link - the game simply restarts from its generated
 seed when no save can be reloaded.
 
 ## Context
@@ -18,7 +18,7 @@ After the epic-17 restart redesign, `initiateRestart` still blocked resume when
 orchestrateur's `relaunch-from-save` (story 17.6) already handles the no-save case gracefully: it
 re-creates the AP server on the **retained volume**, where AP loads the latest `.apsave` if present
 and otherwise **starts fresh from the multidata** (the generated seed). So the only blocker was the
-Symfony gate. A paused-without-save run should be relaunchable (progress restarts) — no recreation.
+Symfony gate. A paused-without-save run should be relaunchable (progress restarts) - no recreation.
 
 ## Acceptance Criteria
 
@@ -37,15 +37,15 @@ Symfony gate. A paused-without-save run should be relaunchable (progress restart
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — Remove the `no_save_available` gate (and the save-key assert) in `initiateRestart`;
+- [x] Task 1 - Remove the `no_save_available` gate (and the save-key assert) in `initiateRestart`;
       dispatch `ResumeRunJob` with `getLastSaveKey() ?? ''` (AC 1, 2).
-- [x] Task 2 — Frontend: active button + conditional copy/label for the no-save case (AC 3).
-- [x] Task 3 — Update `SessionRestartTest` (former 422 cases → 202) (AC 4).
+- [x] Task 2 - Frontend: active button + conditional copy/label for the no-save case (AC 3).
+- [x] Task 3 - Update `SessionRestartTest` (former 422 cases → 202) (AC 4).
 
 ## Dev Notes
 
 - The orchestrateur relaunch requires the session's generated output (multidata), which always exists
-  for a session that has run; the retained volume holds it. No new backend call — reuses 17.8's
+  for a session that has run; the retained volume holds it. No new backend call - reuses 17.8's
   `ResumeRunJobHandler` → `RunnerGatewayInterface::relaunchFromSave`.
 - Without a save, relaunching discards any unsaved progress (there is none recoverable anyway). The UI
   copy states this; no confirm modal (deletion already has one).
@@ -53,13 +53,13 @@ Symfony gate. A paused-without-save run should be relaunchable (progress restart
 
 ### References
 
-- `api/src/Sessions/Application/SessionLifecycleManager.php` — `initiateRestart`.
+- `api/src/Sessions/Application/SessionLifecycleManager.php` - `initiateRestart`.
 - Orchestrateur relaunch (no-save = fresh seed): story 17.6, `archipelago/ap_server.sh` (loads
   `*.zip`/`.archipelago` from `/data/output`; `.apsave` auto-loaded if adjacent).
-- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` — IDLE panel.
+- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` - IDLE panel.
 
 ## Dev Agent Record
 
 ## Change Log
 
-- 2026-06-10 — Story created and implemented (status: review).
+- 2026-06-10 - Story created and implemented (status: review).

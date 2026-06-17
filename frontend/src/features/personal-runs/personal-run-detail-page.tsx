@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -23,10 +23,10 @@ import { useAuth } from "@/features/auth/auth-context";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
-import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
@@ -324,10 +324,20 @@ function DeleteDialog({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+type RunTab = "overview" | "progress" | "participants" | "streaming" | "settings";
+
+const RUN_TABS: readonly RunTab[] = ["overview", "progress", "participants", "streaming", "settings"];
+
+function isRunTab(value: string | null): value is RunTab {
+  return value !== null && (RUN_TABS as readonly string[]).includes(value);
+}
+
 export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = use(params);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [state, setState] = useState<PageState>({ kind: "loading" });
   const [actionError, setActionError] = useState<string | null>(null);
   const [actioning, setActioning] = useState(false);
@@ -338,6 +348,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  // Active tab lives in the URL (?tab=) so a reload (or a shared link) keeps the same tab open.
+  const tabParam = searchParams.get("tab");
+  const tab: RunTab = isRunTab(tabParam) ? tabParam : "overview";
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevStatusRef = useRef<string | null>(null);
   const restartRequestedRef = useRef(false);
@@ -587,6 +600,24 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const mySlotCount = myParticipant?.slotCount ?? 0;
   const hasConfiguredGames = run.participants.some(p => p.slotCount > 0);
   const isStartable = (run.status === "draft" || run.status === "idle") && hasConfiguredGames;
+  const isAdmin = user?.roles.includes("ROLE_ADMIN") ?? false;
+  const sessionLive = run.sessionId !== null && (run.status === "active" || run.status === "idle");
+
+  // Tabs adapt to role + lifecycle; "Vue d'ensemble" and "Participants" are always present.
+  const tabs: { key: RunTab; label: string }[] = [
+    { key: "overview", label: "Vue d'ensemble" },
+    ...(sessionLive ? [{ key: "progress" as const, label: "Progression" }] : []),
+    { key: "participants", label: "Participants" },
+    ...(sessionLive && (run.isOwner || isAdmin) ? [{ key: "streaming" as const, label: "Streaming" }] : []),
+    ...(run.isOwner ? [{ key: "settings" as const, label: "Réglages" }] : []),
+  ];
+  const activeTab: RunTab = tabs.some((t) => t.key === tab) ? tab : "overview";
+
+  function selectTab(next: RunTab): void {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   return (
     <>
@@ -661,13 +692,39 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           )}
         </header>
 
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-1 border-b border-border" role="tablist">
+          {tabs.map((t) => {
+            const active = t.key === activeTab;
+            return (
+              <button
+                aria-selected={active}
+                className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+                  active
+                    ? "border-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+                key={t.key}
+                onClick={() => {
+                  selectTab(t.key);
+                }}
+                role="tab"
+                type="button"
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* My games card - visible to owner + participants when configurable */}
-        {(run.isOwner || myParticipant !== null) && (run.status === "draft" || run.status === "idle") && (
+        {activeTab === "overview" && (run.isOwner || myParticipant !== null) && (run.status === "draft" || run.status === "idle") && (
           <MyGamesCard mySlotCount={mySlotCount} run={run} />
         )}
 
-        {run.isOwner && (
-          <CollapsibleConfigPanel title="Configuration avancée (override)">
+        {activeTab === "settings" && run.isOwner && (
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Configuration avancée (override)</h2>
             <SessionConfigOverrideForm
               adapter={{
                 queryKey: ["session-override", "private-run", run.id],
@@ -679,11 +736,11 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               lockedKeys={["autoShutdown"]}
               scopeLabel="cette run"
             />
-          </CollapsibleConfigPanel>
+          </section>
         )}
 
         {/* Status-conditional panels - owner actions */}
-        {run.isOwner && (
+        {activeTab === "overview" && run.isOwner && (
           <section className="grid min-w-0 grid-cols-1 gap-4">
             {actionError && (
               <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 px-4 py-3 text-sm text-[color:var(--color-danger)]">
@@ -890,7 +947,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         )}
 
         {/* Non-owner: show status message when not configurable */}
-        {!run.isOwner && !["draft", "idle"].includes(run.status) && (
+        {activeTab === "overview" && !run.isOwner && !["draft", "idle"].includes(run.status) && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <p className="text-sm text-muted-foreground">
               {run.status === "starting" && "La partie est en cours de démarrage…"}
@@ -904,7 +961,8 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         )}
 
         {/* Active: connection info for non-owner participants */}
-        {!run.isOwner &&
+        {activeTab === "overview" &&
+          !run.isOwner &&
           run.status === "active" &&
           run.connectionHost !== null &&
           run.connectionPort !== null &&
@@ -916,33 +974,42 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             />
           )}
 
-        {/* Generated patch download — each participant gets their own slot's patch.
-            Served from the durable MinIO archive, so available once generated whatever the state. */}
-        <PersonalRunPatchPanel enabled={run.sessionId !== null} runId={run.id} />
-
-        {/* Full spoiler download — owner or admin only, served from durable storage */}
-        <PersonalRunSpoilerPanel
-          enabled={(run.isOwner || (user?.roles.includes("ROLE_ADMIN") ?? false)) && run.sessionId !== null}
-          runId={run.id}
-        />
+        {/* Downloads - patch (each participant's slot) + full spoiler (owner/admin). Served from the
+            durable MinIO archive, so available once generated whatever the state. */}
+        {activeTab === "overview" && (
+          <>
+            <PersonalRunPatchPanel enabled={run.sessionId !== null} runId={run.id} />
+            <PersonalRunSpoilerPanel
+              enabled={(run.isOwner || isAdmin) && run.sessionId !== null}
+              runId={run.id}
+            />
+          </>
+        )}
 
         {/* Player progress grid - visible to all when active or idle */}
-        {run.sessionId && (run.status === "active" || run.status === "idle") && (
+        {activeTab === "progress" && run.sessionId && (
           <PlayerProgressGrid personalRunId={run.id} runId={run.sessionId} />
         )}
 
+        {/* OBS stream overlays - owner or admin only, when a session exists */}
+        {activeTab === "streaming" && run.sessionId && (run.isOwner || isAdmin) && (
+          <OverlayLinksPanel sessionId={run.sessionId} />
+        )}
+
         {/* Participants section */}
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-foreground">
-            Participants
-            {run.participants.length > 0 && (
-              <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                {run.participants.length}
-              </span>
-            )}
-          </h2>
-          <ParticipantList participants={run.participants} />
-        </section>
+        {activeTab === "participants" && (
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">
+              Participants
+              {run.participants.length > 0 && (
+                <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-xs font-normal text-muted-foreground">
+                  {run.participants.length}
+                </span>
+              )}
+            </h2>
+            <ParticipantList participants={run.participants} />
+          </section>
+        )}
       </div>
     </>
   );

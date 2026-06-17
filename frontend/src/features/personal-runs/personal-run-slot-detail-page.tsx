@@ -545,7 +545,7 @@ export function PersonalRunSlotDetailPage({
   async function handleHintItem(itemName: string): Promise<void> {
     if (!sessionId || state.kind !== "data") return;
     // Gratuit (admin): `!admin /hint <player> <item>` hints the item for its owner without
-    // being connected as that slot (no point cost) — relayed as a raw admin command.
+    // being connected as that slot (no point cost) - relayed as a raw admin command.
     if (hintFree) {
       const res = await apiFetch(
         `${env.apiBaseUrl}/admin/sessions/${sessionId}/commands`,
@@ -559,7 +559,7 @@ export function PersonalRunSlotDetailPage({
       return;
     }
     // Payant: the bridge connects AS this slot and sends `!hint <item>`, charging the slot's
-    // points (story 9.30) — not a self-hint resolved against the bridge's own slot.
+    // points (story 9.30) - not a self-hint resolved against the bridge's own slot.
     const res = await apiFetch(
       `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/hints/request-item`,
       {

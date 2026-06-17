@@ -575,7 +575,7 @@ export function WeeklyRunSlotPage({
   const backHref = "/runs-hebdo";
 
   // Story 17.13: the entry is launched but its container may have been stopped for inactivity.
-  // Don't show the live tracking against a server that no longer exists — offer a relaunch instead.
+  // Don't show the live tracking against a server that no longer exists - offer a relaunch instead.
   // A null status is a pre-17.13 entry with no Session row; treat it as running.
   const sessionStatus = myEntry.sessionStatus;
   const containerRestarting = sessionStatus === "restarting";

@@ -88,12 +88,12 @@ Prefer **MinIO-as-handoff** over a streaming endpoint: at the end of `runGenerat
 - `orchestrateur/internal/storage/client.go` - add `UploadSessionOutput` / `DownloadSessionOutput`.
 - `orchestrateur/internal/docker/client.go` - add copy-from-volume for the output file.
 - `orchestrateur/internal/api/{router,session_handlers}.go` - optional `GET /sessions/{id}/output`.
-- `api/src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunGenerator.php` — real generation + store artifact.
-- `api/src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunnerGateway.php` — `launchEntry` → `launchFromFile` (already in client).
-- `api/src/WeeklyRuns/Domain/WeeklyRun.php` — artifact reference field.
-- `api/src/WeeklyRuns/Application/Handler/GenerateWeeklyRunsMessageHandler.php` — unchanged in shape (still calls `generator->generate`), but `generate` now does the heavy work; mind the per-template timeout (generation can take minutes — ensure the Messenger transport/worker timeout accommodates it, or make generation async and mark the run generated via webhook).
+- `api/src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunGenerator.php` - real generation + store artifact.
+- `api/src/WeeklyRuns/Infrastructure/OrchestratorWeeklyRunnerGateway.php` - `launchEntry` → `launchFromFile` (already in client).
+- `api/src/WeeklyRuns/Domain/WeeklyRun.php` - artifact reference field.
+- `api/src/WeeklyRuns/Application/Handler/GenerateWeeklyRunsMessageHandler.php` - unchanged in shape (still calls `generator->generate`), but `generate` now does the heavy work; mind the per-template timeout (generation can take minutes - ensure the Messenger transport/worker timeout accommodates it, or make generation async and mark the run generated via webhook).
 
-### Async flow (locked — option b)
+### Async flow (locked - option b)
 
 ```
 Monday 00:00  GenerateWeeklyRunsMessageHandler
@@ -123,14 +123,14 @@ artifact (duplicate webhooks, retries).
 
 ### Open design points to confirm with the architect
 
-1. **Generator session id convention** — `weekly-gen-{weeklyRunId}` (parsed in the webhook) vs storing the generator session id on the `WeeklyRun`. Convention chosen for zero extra state; confirm it can't collide with real session ids.
-2. **Retry policy on generation failure** — none + manual admin re-trigger (chosen) vs bounded auto-retry.
-3. **Generator-session cleanup owner** — API deletes it on `session.generated` (chosen) vs orchestrator self-cleans after upload.
-4. **Frontend "génération en cours" state** — in this story or a separate slice (Task 11).
+1. **Generator session id convention** - `weekly-gen-{weeklyRunId}` (parsed in the webhook) vs storing the generator session id on the `WeeklyRun`. Convention chosen for zero extra state; confirm it can't collide with real session ids.
+2. **Retry policy on generation failure** - none + manual admin re-trigger (chosen) vs bounded auto-retry.
+3. **Generator-session cleanup owner** - API deletes it on `session.generated` (chosen) vs orchestrator self-cleans after upload.
+4. **Frontend "génération en cours" state** - in this story or a separate slice (Task 11).
 
 ### Cross-repo / delivery
 
-Spans three repos: `archilan-orchestrateur` (Go, master), `archilan/orchestrateur-client` (PHP package — only if a download endpoint is added), and the `api/` monorepo. Sequence carefully: orchestrator + client first (publish), then API against the new capability.
+Spans three repos: `archilan-orchestrateur` (Go, master), `archilan/orchestrateur-client` (PHP package - only if a download endpoint is added), and the `api/` monorepo. Sequence carefully: orchestrator + client first (publish), then API against the new capability.
 
 ### Out of scope
 
@@ -143,4 +143,4 @@ Spans three repos: `archilan-orchestrateur` (Go, master), `archilan/orchestrateu
 |------------|------------------------------------------------------------------------|
 | 2026-06-06 | Story drafted after investigating the orchestrator. Confirmed `launch-from-file` reuse primitive exists (Go + PHP client); the missing piece is retrieving the generated output bytes for storage/reuse. Pending architect grooming on sync-vs-async Monday generation. |
 | 2026-06-06 | Refined to the **async/webhook-driven** design (option b): non-blocking Monday dispatch, `weekly-gen-{runId}` generator sessions, orchestrator uploads output to MinIO + fires `session.generated`, `OrchestratorWebhookController` routes weekly ids to a new `MarkWeeklyRunGenerated` (idempotent, cleans up the generator session). No new `WeeklyRun` status needed (`generatedSeedPath===null` already gates launch). Tasks re-split (orchestrator output-persistence; API dispatch/webhook/launchFromFile). 4 open points listed for confirmation. |
-| 2026-06-07 | 4 open points confirmed (deterministic `weekly-gen-{runId}`, no auto-retry + admin re-trigger, API-side cleanup, frontend = separate slice). **Implemented Tasks 1–10** across two repos. Artifact handoff uses an additive `outputKey` field on the `session.generated` webhook (PHP MinIO has no `list`, so a derivable key alone is insufficient — the key carries the real filename/extension). Column `generated_seed_path` renamed to `generated_output_key`; legacy `DockerWeeklyRunGenerator` deleted (incompatible with async model). Orchestrator: PR [archilan-orchestrateur#1](https://github.com/ArchiLAN-dev/archilan-orchestrateur/pull/1) (`go build/vet/test` green). API: branch `feature/epic-23-story-8-generate-once-reuse-seed` (phpstan, cs-fixer, phpunit 923/923, ddd green). Task 11 (member "génération en cours" UI) deferred to a separate slice. Pending: live end-to-end integration (orchestrator + MinIO + Docker). |
+| 2026-06-07 | 4 open points confirmed (deterministic `weekly-gen-{runId}`, no auto-retry + admin re-trigger, API-side cleanup, frontend = separate slice). **Implemented Tasks 1–10** across two repos. Artifact handoff uses an additive `outputKey` field on the `session.generated` webhook (PHP MinIO has no `list`, so a derivable key alone is insufficient - the key carries the real filename/extension). Column `generated_seed_path` renamed to `generated_output_key`; legacy `DockerWeeklyRunGenerator` deleted (incompatible with async model). Orchestrator: PR [archilan-orchestrateur#1](https://github.com/ArchiLAN-dev/archilan-orchestrateur/pull/1) (`go build/vet/test` green). API: branch `feature/epic-23-story-8-generate-once-reuse-seed` (phpstan, cs-fixer, phpunit 923/923, ddd green). Task 11 (member "génération en cours" UI) deferred to a separate slice. Pending: live end-to-end integration (orchestrator + MinIO + Docker). |

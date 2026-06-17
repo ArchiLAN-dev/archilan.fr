@@ -554,7 +554,7 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
           {myEntry !== null && myEntry.connectionInfo !== null && (() => {
             // Story 17.13: the container may have been stopped for inactivity (idle/stopped/crashed).
             // Only show the live connection info when it is actually running; otherwise offer a relaunch.
-            // A null status is a pre-17.13 entry with no Session row yet — treat it as running.
+            // A null status is a pre-17.13 entry with no Session row yet - treat it as running.
             const status = myEntry.sessionStatus;
             const isRunning = status === "running" || status === null;
             const isRestarting = status === "restarting";

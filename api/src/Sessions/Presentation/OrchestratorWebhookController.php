@@ -121,8 +121,8 @@ final readonly class OrchestratorWebhookController
 
         // Archipelago auto_shutdown after inactivity: the AP server stopped itself and the
         // orchestrateur retained the session volume (which holds the .apsave). Mark the session
-        // idle and resumable. There is no MinIO save key under this model — the orchestrateur
-        // relaunches from the volume — so a non-empty marker is stored to satisfy the resume gate.
+        // idle and resumable. There is no MinIO save key under this model - the orchestrateur
+        // relaunches from the volume - so a non-empty marker is stored to satisfy the resume gate.
         if ('session.idle' === $event) {
             $this->sessionLifecycleManager->recordPaused($sessionId, self::VOLUME_SAVE_MARKER, false);
 

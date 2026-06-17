@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { PersonalRunDetailPage } from "@/features/personal-runs/personal-run-detail-page";
 
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function RunDetailPage({ params }: { params: Promise<{ runId: string }> }) {
-  return <PersonalRunDetailPage params={params} />;
+  return (
+    <Suspense>
+      <PersonalRunDetailPage params={params} />
+    </Suspense>
+  );
 }

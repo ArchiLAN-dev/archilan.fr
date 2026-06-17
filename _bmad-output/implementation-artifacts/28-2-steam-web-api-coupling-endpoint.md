@@ -24,14 +24,14 @@ This is the **coupling engine** of Epic 28. It depends on story **28.1** (`steam
 ## Tasks / Subtasks
 
 - [ ] **Domain: pure input parser** (AC: 1)
-  - [ ] `api/src/GameSelection/Domain/SteamProfileReference.php` — a `final readonly` value object or static parser `SteamProfileReference::parse(string $raw): ?self` returning `{ kind: 'steamid64'|'vanity', value: string }`. Pure (no HTTP). Validate SteamID64 as `^7656\d{13}$`; extract vanity/id64 from the two URL forms; trim and lowercase the host comparison. Return `null` for empty/invalid.
+  - [ ] `api/src/GameSelection/Domain/SteamProfileReference.php` - a `final readonly` value object or static parser `SteamProfileReference::parse(string $raw): ?self` returning `{ kind: 'steamid64'|'vanity', value: string }`. Pure (no HTTP). Validate SteamID64 as `^7656\d{13}$`; extract vanity/id64 from the two URL forms; trim and lowercase the host comparison. Return `null` for empty/invalid.
   - [ ] Unit-test every input form (AC-T1).
 - [ ] **Infrastructure: Steam Web API client** (AC: 2, 5)
   - [ ] `api/src/GameSelection/Infrastructure/SteamWebApiClientInterface.php` with the two methods from AC2 (interface in Infrastructure, mirroring `IgdbHttpClientInterface` / `TwitchApiClientInterface`).
   - [ ] `api/src/GameSelection/Infrastructure/SteamWebApiClient.php` (`final`), constructor `HttpClientInterface $httpClient`, `string $apiKey`. Mirror `TwitchApiClient`'s graceful style: if `'' === $apiKey` return null / empty; wrap calls in try/catch.
     - `resolveVanityUrl`: `GET https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/` query `key`, `vanityurl`. Response `response.success === 1` → `response.steamid` (string); else null.
     - `fetchOwnedAppIds`: `GET https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/` query `key`, `steamid`, `include_appinfo=0`, `format=json`. If `response.games` present → map each `appid` to int → `visibility: 'public'`. If `response` is empty / no `games` key → `visibility: 'private', appIds: []`. Narrow all `mixed` (PHPStan max): no `(int) $mixed` without `is_numeric`.
-  - [ ] `api/src/GameSelection/Infrastructure/StubSteamWebApiClient.php` — static `$vanityMap` (vanity → id64), `$ownedAppIds` (list<int>), `$visibility`, `$fails` toggles, `reset()`. Mirror `StubIgdbHttpClient` shape.
+  - [ ] `api/src/GameSelection/Infrastructure/StubSteamWebApiClient.php` - static `$vanityMap` (vanity → id64), `$ownedAppIds` (list<int>), `$visibility`, `$fails` toggles, `reset()`. Mirror `StubIgdbHttpClient` shape.
   - [ ] `services.yaml`: bind `SteamWebApiClientInterface: '@...SteamWebApiClient'`; configure `SteamWebApiClient` arg `$apiKey: '%env(STEAM_WEB_API_KEY)%'`; in `when@test` map the interface to `StubSteamWebApiClient` and make the stub `public: true` (mirror the IGDB block at services.yaml:338-373). Add `STEAM_WEB_API_KEY=` to `.env` and `.env.example` next to the `TWITCH_*` keys.
 - [ ] **Application: catalog query for coupling** (AC: 3)
   - [ ] `api/src/GameSelection/Application/SteamCatalogQueryInterface.php` → `allWithSteamAppId(): list<array{id,name,slug,coverImageUrl,availability,steamAppId:int}>` (only available/experimental games that have a non-null `steam_app_id`).
@@ -57,24 +57,24 @@ This is the **coupling engine** of Epic 28. It depends on story **28.1** (`steam
 
 ### Steam Web API contract (stable public endpoints)
 - Vanity: `GET https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=<KEY>&vanityurl=<name>` → `{ response: { steamid, success } }`, `success === 1` means resolved.
-- Owned games: `GET https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=<KEY>&steamid=<id64>&include_appinfo=0&format=json` → `{ response: { game_count, games: [{ appid }, ...] } }`. **A private "Game details" profile returns `{ response: {} }`** (no `games`) — there is no API path around this (the key is ours, not OAuth scoped). Treat missing `games` as `private`.
+- Owned games: `GET https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=<KEY>&steamid=<id64>&include_appinfo=0&format=json` → `{ response: { game_count, games: [{ appid }, ...] } }`. **A private "Game details" profile returns `{ response: {} }`** (no `games`) - there is no API path around this (the key is ours, not OAuth scoped). Treat missing `games` as `private`.
 - `include_appinfo=0` keeps the payload small (we only need appids for matching).
 
 ### Architecture guardrails (api/CLAUDE.md)
-- External client interface lives in **Infrastructure** (precedent: `IgdbHttpClientInterface`, `TwitchApiClientInterface`, `DiscordOAuthClientInterface`). The epic text said "Application" — follow the **codebase convention (Infrastructure)** instead.
+- External client interface lives in **Infrastructure** (precedent: `IgdbHttpClientInterface`, `TwitchApiClientInterface`, `DiscordOAuthClientInterface`). The epic text said "Application" - follow the **codebase convention (Infrastructure)** instead.
 - `SteamLibraryCouplingQuery` is a **read** (CQRS Query): returns a typed array, no transaction, no `flush`. Application may inject the Infrastructure client interface (precedent: `TwitchStatusChecker`). [api/CLAUDE.md CQRS + AC-A2/A5]
 - Controller: deserialize → validate → one Application call → `JsonResponse`; no SQL, no `EntityManager`/`Connection`. Use `ApiAccessGuard::errorResponse(code, message, status)` (see `AdminIgdbController:37,46,48`). [AC-P1..P5]
-- PHPStan level max: narrow all `mixed` from `$response->toArray()` (`is_array`, `is_numeric`, `is_string`) before use — see how `IgdbHttpClient` does it. Yoda comparisons, `declare(strict_types=1)`, `final`/`final readonly`.
+- PHPStan level max: narrow all `mixed` from `$response->toArray()` (`is_array`, `is_numeric`, `is_string`) before use - see how `IgdbHttpClient` does it. Yoda comparisons, `declare(strict_types=1)`, `final`/`final readonly`.
 
 ### Reuse, don't reinvent
-- HTTP client shape + token/empty-key graceful degradation: copy `TwitchApiClient` (no token needed for Steam — it uses a static key, simpler). [api/src/Streaming/Infrastructure/TwitchApiClient.php]
+- HTTP client shape + token/empty-key graceful degradation: copy `TwitchApiClient` (no token needed for Steam - it uses a static key, simpler). [api/src/Streaming/Infrastructure/TwitchApiClient.php]
 - Stub trio + `when@test` registration: copy the IGDB block. [api/config/services.yaml:338-373, api/src/GameSelection/Infrastructure/StubIgdbHttpClient.php]
 - DBAL query shape: copy `DbalGameCatalogQuery` (same table join to `game_catalog_sync`). [api/src/GameSelection/Infrastructure/DbalGameCatalogQuery.php]
-- In `when@test`, `HttpClientInterface` is already mapped to `MockHttpClient` (services.yaml:353-356) — unit tests should construct the client with their own `MockHttpClient` directly (like `IgdbHttpClientTest`), not rely on the container.
+- In `when@test`, `HttpClientInterface` is already mapped to `MockHttpClient` (services.yaml:353-356) - unit tests should construct the client with their own `MockHttpClient` directly (like `IgdbHttpClientTest`), not rely on the container.
 
 ### Scope boundaries
 - No caching of the owned list in this story (note it as a 28.x follow-up for Steam rate limits). No persistence of the SteamID (that's 28.3). No "games you don't own" suggestions (deferred per epic).
-- Endpoint is **public** — do not gate it. The save-for-members part is story 28.3.
+- Endpoint is **public** - do not gate it. The save-for-members part is story 28.3.
 
 ### Testing standards
 - Unit: `TestCase`, `MockHttpClient`/`MockResponse`, mock interfaces. Functional: `FunctionalTestCase` (full schema, Postgres `archilan_test`), `createGame()` + manual `GameCatalogSync`. [api/tests/Functional/FunctionalTestCase.php:24-52,148-168; api/tests/Unit/GameSelection/Infrastructure/IgdbHttpClientTest.php]
@@ -101,10 +101,10 @@ claude-opus-4-8
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed — comprehensive developer guide created.
+- Ultimate context engine analysis completed - comprehensive developer guide created.
 - Implemented on branch `feature/epic-28-story-2-steam-coupling-endpoint` (stacked on the 28.1 branch).
 - Steam client interface placed in Infrastructure (codebase convention), not Application. Errors surface as a typed `SteamApiException`, caught by the coupling query → `steam_error` outcome (endpoint returns 502, never 500).
-- Private "Game details" profiles map to `private_profile` (Steam returns no `games` list — no API workaround). `STEAM_WEB_API_KEY` added to `.env`; `.env.example` not present in repo, so only `.env` updated.
+- Private "Game details" profiles map to `private_profile` (Steam returns no `games` list - no API workaround). `STEAM_WEB_API_KEY` added to `.env`; `.env.example` not present in repo, so only `.env` updated.
 - All four quality gates green: php-cs-fixer (0), phpstan src+tests (0), app:architecture:ddd (exit 0), phpunit (1044/1044).
 
 ### File List

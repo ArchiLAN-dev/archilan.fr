@@ -1,8 +1,8 @@
-# Story 17.8: api + frontend — drop the custom inactivity watchdog; idle via AP, manual resume
+# Story 17.8: api + frontend - drop the custom inactivity watchdog; idle via AP, manual resume
 
 Status: done
 
-Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) — implemented on `feature/epic-17-restart-redesign-stories` (PR #102), in two commits (non-package, then the orchestrateur-client repoint after story 17.9 / v1.2.0).
+Repo: `archilan.fr` (monorepo, `api/` + `frontend/`) - implemented on `feature/epic-17-restart-redesign-stories` (PR #102), in two commits (non-package, then the orchestrateur-client repoint after story 17.9 / v1.2.0).
 
 ## Story
 
@@ -39,7 +39,7 @@ Today (to change):
    `PauseRunJobHandler`, and their tests. Nothing in Symfony pauses a session on a timer.
 2. **Remove the wake trigger:** delete `POST /api/v1/internal/sessions/{id}/restarting` and
    `SessionLifecycleManager::markRestartingBridge()`; drop the matching `BridgeLifecycleCallbackTest`
-   cases (keep `/restart-failed` + `/restarted` — the manual flow uses them).
+   cases (keep `/restart-failed` + `/restarted` - the manual flow uses them).
 3. **Idle from the orchestrateur:** handle the new `session.idle` webhook (`{ sessionId, saveKey }`) →
    `recordPaused`-equivalent (mark session idle, set `lastSaveKey`, `pausedWithoutSave` when
    `saveKey` is null). The bridge no longer triggers idle.
@@ -56,20 +56,20 @@ Today (to change):
    (and owners cannot, per 27.9). Adjust the affected functional tests.
 7. **Email + UI copy:** `SessionRestartFailedEmail` drops the "wake-on-connect" wording. The frontend
    IDLE panel copy becomes manual-only (e.g. *"La partie est en pause après une période d'inactivité.
-   Relance-la pour reprendre — la dernière sauvegarde sera chargée."*); the `pausedWithoutSave`
+   Relance-la pour reprendre - la dernière sauvegarde sera chargée."*); the `pausedWithoutSave`
    disabled-button branch is unchanged.
 8. Gates green: API (`phpstan`, `php-cs-fixer`, `phpunit`, `app:architecture:ddd`), Frontend
    (`typecheck`, `lint`, `build`).
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Remove watchdog + pause job + cron + tests (AC 1).
-- [ ] Task 2 — Remove `/restarting` + `markRestartingBridge` + tests (AC 2).
-- [ ] Task 3 — `session.idle` webhook handler → mark idle (AC 3).
-- [ ] Task 4 — `relaunchFromSave` gateway method + repoint `ResumeRunJobHandler` (AC 4, 5).
-- [ ] Task 5 — Non-zero `autoShutdown` profile default + test adjustments (AC 6).
-- [ ] Task 6 — Email reword + frontend IDLE copy (AC 7).
-- [ ] Task 7 — Gates (AC 8).
+- [ ] Task 1 - Remove watchdog + pause job + cron + tests (AC 1).
+- [ ] Task 2 - Remove `/restarting` + `markRestartingBridge` + tests (AC 2).
+- [ ] Task 3 - `session.idle` webhook handler → mark idle (AC 3).
+- [ ] Task 4 - `relaunchFromSave` gateway method + repoint `ResumeRunJobHandler` (AC 4, 5).
+- [ ] Task 5 - Non-zero `autoShutdown` profile default + test adjustments (AC 6).
+- [ ] Task 6 - Email reword + frontend IDLE copy (AC 7).
+- [ ] Task 7 - Gates (AC 8).
 
 ## Dev Notes
 
@@ -78,7 +78,7 @@ Today (to change):
 `relaunchFromSave` is added to `RunnerGatewayInterface` (`Sessions/Application`), implemented in
 `Infrastructure/RunnerGateway` over `Archilan\OrchestratorClient`. If the installed client lacks a
 `sessions()->relaunchFromSave()` method, that's a **separate package story** (per `packages/CLAUDE.md`:
-adapt to the package, bump it, `composer update`) — flag during implementation.
+adapt to the package, bump it, `composer update`) - flag during implementation.
 
 ### Where the `session.idle` webhook is consumed
 
@@ -114,7 +114,7 @@ No new session states. `restarting` + `/restarted` + `/restart-failed` retained 
 
 - **`session.idle` → resumable:** mapped to `recordPaused($sessionId, 'orchestrateur:volume', false)`.
   Under the new model the save lives in the orchestrateur session volume (not MinIO), so a marker
-  save key is stored only to satisfy the existing `initiateRestart` "has a save" gate — keeping that
+  save key is stored only to satisfy the existing `initiateRestart` "has a save" gate - keeping that
   gate and `testNullSaveKeyReturns422NoSaveAvailable` intact rather than relaxing the domain.
 - **`session.ready` after relaunch needs no special-casing:** `restarting → running` is already an
   allowed transition, so the existing `session.ready` handler (`transitionToRunningFromOrchestrateur`)
@@ -128,21 +128,21 @@ No new session states. `restarting` + `/restarted` + `/restart-failed` retained 
 
 ### File List
 
-- `api/src/Schedule.php`, `api/config/packages/messenger.yaml`, `api/config/services.yaml` — watchdog removed.
+- `api/src/Schedule.php`, `api/config/packages/messenger.yaml`, `api/config/services.yaml` - watchdog removed.
 - Deleted: `InactivityWatchdogHandler`, `InactivityWatchdogMessage`, `PauseRunJob`, `PauseRunJobHandler`,
   `InactivityWatchdogTest`.
-- `SessionRestartController.php`, `SessionLifecycleManager.php` — removed `/restarting` + `markRestartingBridge`.
-- `BridgeLifecycleCallbackTest.php` — dropped `/restarting` cases.
-- `OrchestratorWebhookController.php` — `session.idle` handler.
-- `SessionConfig.php` — Private autoShutdown default 1800.
-- `SessionRestartFailedEmail.php` — reworded.
-- `RunnerGatewayInterface.php` / `RunnerGateway.php` / `NullRunnerGateway.php` — `relaunchFromSave`.
-- `Handler/ResumeRunJobHandler.php` — repointed to the gateway; `tests/Unit/Sessions/ResumeRunJobHandlerTest.php`.
-- `api/composer.lock` — orchestrateur-client 1.2.0.
-- `frontend/.../personal-run-detail-page.tsx` — IDLE copy.
+- `SessionRestartController.php`, `SessionLifecycleManager.php` - removed `/restarting` + `markRestartingBridge`.
+- `BridgeLifecycleCallbackTest.php` - dropped `/restarting` cases.
+- `OrchestratorWebhookController.php` - `session.idle` handler.
+- `SessionConfig.php` - Private autoShutdown default 1800.
+- `SessionRestartFailedEmail.php` - reworded.
+- `RunnerGatewayInterface.php` / `RunnerGateway.php` / `NullRunnerGateway.php` - `relaunchFromSave`.
+- `Handler/ResumeRunJobHandler.php` - repointed to the gateway; `tests/Unit/Sessions/ResumeRunJobHandlerTest.php`.
+- `api/composer.lock` - orchestrateur-client 1.2.0.
+- `frontend/.../personal-run-detail-page.tsx` - IDLE copy.
 
 ## Change Log
 
-- 2026-06-10 — Story created.
-- 2026-06-10 — Revised: also remove the redundant Symfony `InactivityWatchdog` + `PauseRunJob`; idle now
+- 2026-06-10 - Story created.
+- 2026-06-10 - Revised: also remove the redundant Symfony `InactivityWatchdog` + `PauseRunJob`; idle now
   arrives via the orchestrateur `session.idle` webhook; set a non-zero `autoShutdown` profile default.

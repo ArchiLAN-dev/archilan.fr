@@ -154,7 +154,7 @@ class Session
 
     /**
      * Create a session already in RUNNING for a launch that bypasses the generate flow and starts
-     * from a pre-built world (weekly entries reuse the run's generated multidata — story 17.13).
+     * from a pre-built world (weekly entries reuse the run's generated multidata - story 17.13).
      * The orchestrateur session id equals the caller's id, so the idle/stopped/crashed webhooks and
      * relaunch-from-save then apply exactly as for a personal run. `$eventId` carries the owning
      * weekly-run id (the column is overloaded the same way a personal run stores its run id).

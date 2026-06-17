@@ -1,4 +1,4 @@
-# Story 13.8: Refresh tokens — per-family revocation + reuse grace (stop nuking every session)
+# Story 13.8: Refresh tokens - per-family revocation + reuse grace (stop nuking every session)
 
 **Status:** review
 **Epic:** 13 - Auth, refresh tokens & cleanup
@@ -21,7 +21,7 @@ token is valid (verified live: profile 200 → `/auth/refresh` 204 → profile 2
 
 So a *persistent* logout means the refresh token got **revoked**. The only path that revokes
 it is `RotateRefreshToken`: on a re-presented **already-revoked** token it called
-`revokeAllForUser` — revoking **every** session the user has, on every device, irreversibly.
+`revokeAllForUser` - revoking **every** session the user has, on every device, irreversibly.
 A single benign reuse (a passive tab whose `setInterval` refresh was throttled then retried,
 or a refresh whose response was lost on wake) therefore logged the user out *everywhere* and
 *persistently* (even a reload then fails with `token_reuse_detected`).
@@ -35,8 +35,8 @@ Two fixes:
    is treated as a benign retry: re-rotate it in the same family instead of tripping reuse
    detection. This is the standard "refresh token rotation with leeway".
 
-(The frontend-side mitigations — refresh on `visibilitychange`/expiry instead of a throttled
-`setInterval`, and the SSE re-fetching its subscriber token — are tracked separately; this
+(The frontend-side mitigations - refresh on `visibilitychange`/expiry instead of a throttled
+`setInterval`, and the SSE re-fetching its subscriber token - are tracked separately; this
 story is the server-side blast-radius fix that stops the *persistent* logout.)
 
 ## Acceptance Criteria
@@ -78,7 +78,7 @@ story is the server-side blast-radius fix that stops the *persistent* logout.)
 - Login call sites unchanged (`AuthController`, `DiscordAuthController` call `factory->issue`
   without a family id → new family).
 - The grace re-rotation issues a fresh token in the family without revoking the (possibly
-  orphaned) original successor — a tiny, bounded fork the cleanup job (story 13.6) reaps.
+  orphaned) original successor - a tiny, bounded fork the cleanup job (story 13.6) reaps.
 - Files: `RefreshToken.php`, `RefreshTokenFactory.php`, `RefreshTokenRepositoryInterface.php`,
   `DoctrineRefreshTokenRepository.php`, `RotateRefreshToken.php`, migration
   `Version20260611100003`.

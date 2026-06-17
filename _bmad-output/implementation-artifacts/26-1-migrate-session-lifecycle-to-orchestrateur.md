@@ -126,13 +126,13 @@ Supprime le traitement des statuts de cycle de vie (`running`, `failed`, `crashe
 - `CENTRAL_API_URL`
 
 **Conservées (encore utilisées par weekly runs, archive, ou logs) :**
-- `ARCHIPELAGO_GENERATE_IMAGE` — `DockerWeeklyRunGenerator`
-- `DOCKER_HOST` — `DockerSocketClient` pour weekly runs
-- `WORKSPACE_DIR` — weekly runs
-- `ARCHIVE_DIR` — `ArchiveRunJobHandler`
-- `RUNNER_API_KEY` — `HttpWeeklyRunnerGateway::launchFromSeed()` (gap connu)
+- `ARCHIPELAGO_GENERATE_IMAGE` - `DockerWeeklyRunGenerator`
+- `DOCKER_HOST` - `DockerSocketClient` pour weekly runs
+- `WORKSPACE_DIR` - weekly runs
+- `ARCHIVE_DIR` - `ArchiveRunJobHandler`
+- `RUNNER_API_KEY` - `HttpWeeklyRunnerGateway::launchFromSeed()` (gap connu)
 
-### AC10 — Classes supprimées / infrastructure nettoyée
+### AC10 - Classes supprimées / infrastructure nettoyée
 
 | Classe | Sort |
 |---|---|
@@ -146,37 +146,37 @@ Supprime le traitement des statuts de cycle de vie (`running`, `failed`, `crashe
 | `StopRunJob` (message) | Supprimé |
 | `RestartRunJob` (message) | Supprimé |
 | `RunHealthCheckJob` (message) | Supprimé |
-| `RunnerCallbackClient` | Supprimé si `ArchiveRunJobHandler` et `FetchLogsJobHandler` n'en ont plus besoin — sinon conservé |
+| `RunnerCallbackClient` | Supprimé si `ArchiveRunJobHandler` et `FetchLogsJobHandler` n'en ont plus besoin - sinon conservé |
 | `PortPool` | Supprimé |
 
-### AC11 — Quality gates verts
+### AC11 - Quality gates verts
 
-`phpstan`, `php-cs-fixer`, `phpunit`, `app:architecture:ddd` — 0 erreurs.
+`phpstan`, `php-cs-fixer`, `phpunit`, `app:architecture:ddd` - 0 erreurs.
 
 ---
 
 ## Known gaps (hors scope)
 
-### `DockerWeeklyRunGenerator` — weekly runs
+### `DockerWeeklyRunGenerator` - weekly runs
 Le flux weekly runs passe encore par Docker local (`DockerWeeklyRunGenerator`) et
 `HttpWeeklyRunnerGateway::launchFromSeed()` (gap déjà documenté en 25.1). À traiter
 dans une story dédiée.
 
 ### `ArchiveRunJobHandler` / `FetchLogsJobHandler`
-Ces handlers utilisent encore `DockerSocketClient` ou `RunnerCallbackClient`. Hors scope —
+Ces handlers utilisent encore `DockerSocketClient` ou `RunnerCallbackClient`. Hors scope -
 ils continueront de fonctionner en parallèle du nouveau webhook controller.
 
 ---
 
 ## Tasks
 
-- [ ] T1 : Lire `SessionLifecycleManager` — identifier où et comment stocker les credentials pending (AC3)
+- [ ] T1 : Lire `SessionLifecycleManager` - identifier où et comment stocker les credentials pending (AC3)
 - [ ] T2 : Ajouter `storePendingCredentials()` à `SessionLifecycleManager`
-- [ ] T3 : Réécrire `orchestrateValidate()` — `configure()` en lieu et place du dispatch Messenger
-- [ ] T4 : Réécrire `orchestrateGenerate()` — `generate()` en lieu et place du dispatch Messenger
-- [ ] T5 : Réécrire `orchestrateLaunch()` — `launch()` en lieu et place du dispatch Messenger
-- [ ] T6 : Réécrire `orchestrateStop()` — `stop()` direct
-- [ ] T7 : Réécrire `orchestrateRestart()` — `restart()` direct
+- [ ] T3 : Réécrire `orchestrateValidate()` - `configure()` en lieu et place du dispatch Messenger
+- [ ] T4 : Réécrire `orchestrateGenerate()` - `generate()` en lieu et place du dispatch Messenger
+- [ ] T5 : Réécrire `orchestrateLaunch()` - `launch()` en lieu et place du dispatch Messenger
+- [ ] T6 : Réécrire `orchestrateStop()` - `stop()` direct
+- [ ] T7 : Réécrire `orchestrateRestart()` - `restart()` direct
 - [ ] T8 : Créer `OrchestratorWebhookController`
 - [ ] T9 : Alléger `RunnerCallbackController` (AC8)
 - [ ] T10 : Supprimer les 5 handlers + 5 messages

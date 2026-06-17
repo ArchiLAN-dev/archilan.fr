@@ -17,7 +17,7 @@ type Props = {
  *
  * The popover is positioned with `position: fixed` and clamped to the viewport (measured on open in
  * a layout effect, before paint), so it can never cross the right/left edge and push the document
- * sideways — which previously caused a horizontal scroll on narrow screens. Position is applied
+ * sideways - which previously caused a horizontal scroll on narrow screens. Position is applied
  * imperatively on the node (not via state) to avoid a cascading re-render.
  */
 export function InfoTooltip({ text, label = "Aide" }: Props) {

@@ -2,7 +2,7 @@
 
 Status: done
 
-Repo: `archilan.fr` (monorepo, `frontend/`) — branch from `develop`.
+Repo: `archilan.fr` (monorepo, `frontend/`) - branch from `develop`.
 
 ## Story
 
@@ -24,7 +24,7 @@ popover** (hover + keyboard focus + tap) as the unified help mechanism, with rew
 1. A reusable `InfoTooltip` component: an ⓘ button that reveals a short description on hover, on
    keyboard focus, and on tap/click (mobile). Accessible: `aria-label`, the popover is `role="tooltip"`
    referenced via `aria-describedby` while open.
-2. A single shared help map keyed by option (`sessionConfigHelp`) — one source of truth for the
+2. A single shared help map keyed by option (`sessionConfigHelp`) - one source of truth for the
    wording, reused by both surfaces.
 3. The override form shows an ⓘ next to every field label, with reworked, jargon-light labels +
    help text.
@@ -34,11 +34,11 @@ popover** (hover + keyboard focus + tap) as the unified help mechanism, with rew
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — `components/info-tooltip.tsx` (hover/focus/tap, accessible) (AC 1).
-- [x] Task 2 — `features/admin/session-config-help.ts` shared map (AC 2).
-- [x] Task 3 — wire into the override form (AC 3).
-- [x] Task 4 — wire into the per-type admin page (AC 4).
-- [x] Task 5 — gates (AC 5).
+- [x] Task 1 - `components/info-tooltip.tsx` (hover/focus/tap, accessible) (AC 1).
+- [x] Task 2 - `features/admin/session-config-help.ts` shared map (AC 2).
+- [x] Task 3 - wire into the override form (AC 3).
+- [x] Task 4 - wire into the per-type admin page (AC 4).
+- [x] Task 5 - gates (AC 5).
 
 ## Dev Notes
 
@@ -55,4 +55,4 @@ popover** (hover + keyboard focus + tap) as the unified help mechanism, with rew
 
 ## Change Log
 
-- 2026-06-10 — Story created and implemented (status: review).
+- 2026-06-10 - Story created and implemented (status: review).

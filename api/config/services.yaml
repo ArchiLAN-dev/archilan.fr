@@ -350,6 +350,21 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+when@dev:
+    services:
+        # The dev Mercure hub is served over HTTPS (for HTTP/2) with a local mkcert cert that PHP/curl
+        # doesn't trust. Decorate the default http_client so requests to the local hub skip TLS
+        # verification; every other outbound HTTP client (IGDB, Steam, …) is untouched.
+        app.dev.insecure_local_mercure_http_client:
+            class: Symfony\Component\HttpClient\ScopingHttpClient
+            decorates: http_client
+            arguments:
+                $client: '@.inner'
+                $defaultOptionsByRegexp:
+                    '^https://localhost:3001':
+                        verify_peer: false
+                        verify_host: false
+
 when@test:
     services:
         App\Realtime\Infrastructure\SpyHub:

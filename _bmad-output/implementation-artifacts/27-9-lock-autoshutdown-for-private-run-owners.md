@@ -7,7 +7,7 @@ Status: done
 As an administrator of ArchiLAN,
 I want the **inactivity auto-shutdown** (`autoShutdown`) to be configurable only on the
 admin-managed "Sessions privées" type profile (the template),
-so that private-run owners cannot change it from their per-run override — it is a
+so that private-run owners cannot change it from their per-run override - it is a
 platform-resource concern, not a per-player setting.
 
 ## Context
@@ -31,7 +31,7 @@ the resolved value always falls back to the admin profile.
 ## Acceptance Criteria
 
 1. `PersonalRunConfigOverride::set` strips the `autoShutdown` key from the incoming override before
-   delegating to `SetSessionConfigOverride` — an owner cannot persist it (no error; the field is
+   delegating to `SetSessionConfigOverride` - an owner cannot persist it (no error; the field is
    silently ignored, the rest of the override is saved).
 2. `PersonalRunConfigOverride::get` does not echo a (legacy) stored `autoShutdown` value back to the
    owner, so the field is never re-surfaced from stale data.
@@ -47,29 +47,29 @@ the resolved value always falls back to the admin profile.
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — API: strip locked fields in `PersonalRunConfigOverride` (AC 1, 2).
+- [x] Task 1 - API: strip locked fields in `PersonalRunConfigOverride` (AC 1, 2).
   - [x] `OWNER_LOCKED_FIELDS = ['autoShutdown']`; filter the array on `set`; filter the returned
         override on `get`.
-- [x] Task 2 — Frontend: `lockedKeys` prop on `SessionConfigOverrideForm`; filter `FIELDS`; wire
+- [x] Task 2 - Frontend: `lockedKeys` prop on `SessionConfigOverrideForm`; filter `FIELDS`; wire
       `["autoShutdown"]` from the private-run panel (AC 4).
-- [x] Task 3 — Tests: unit test that an owner's `autoShutdown` is dropped while sibling fields persist;
+- [x] Task 3 - Tests: unit test that an owner's `autoShutdown` is dropped while sibling fields persist;
       existing tests stay green (AC 1, 5).
 
 ## Dev Notes
 
 ### Project Structure Notes
 
-- `api/src/PersonalRuns/Application/PersonalRunConfigOverride.php` — owner-scoped application service;
+- `api/src/PersonalRuns/Application/PersonalRunConfigOverride.php` - owner-scoped application service;
   the only write path for private-run overrides. Locking lives here (PersonalRuns Application owns the
   owner policy), not in `SessionConfig`, which stays scope-agnostic.
-- `frontend/src/features/admin/session-config-override-form.tsx` — shared editor (admin + owner).
-- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` — owner panel wiring.
+- `frontend/src/features/admin/session-config-override-form.tsx` - shared editor (admin + owner).
+- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` - owner panel wiring.
 
 ### References
 
-- `SessionConfigResolver` — applies the stored override for a scope key; no owner/admin distinction,
+- `SessionConfigResolver` - applies the stored override for a scope key; no owner/admin distinction,
   hence enforcement at the owner write path.
-- Epic 17 — inactivity watchdog (`InactivityWatchdogHandler`) consumes `autoShutdown`.
+- Epic 17 - inactivity watchdog (`InactivityWatchdogHandler`) consumes `autoShutdown`.
 - Pre-existing data: the owner override UI is recent (≤ v0.1.0) and `autoShutdown` overrides on
   private runs are not expected in the wild; no data migration. AC 2 defends against any stale value.
 
@@ -80,4 +80,4 @@ the resolved value always falls back to the admin profile.
 
 ## Change Log
 
-- 2026-06-10 — Story created and implemented (status: review).
+- 2026-06-10 - Story created and implemented (status: review).
