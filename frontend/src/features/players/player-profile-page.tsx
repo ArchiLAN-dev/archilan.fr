@@ -9,6 +9,7 @@ import type {
   RunHistoryEntry,
 } from "./player-profile-api";
 import { ProfileAvatar } from "./profile-avatar";
+import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
 
 const BANNER_CLASSES: Record<string, string> = {
   default: "bg-gradient-to-r from-accent/30 via-accent/10 to-transparent",
@@ -67,6 +68,9 @@ export function PlayerProfilePage({
                 <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
               </p>
               <LevelBar level={profile.level} />
+            </div>
+            <div className="sm:ml-auto sm:pb-1">
+              <ProfileRelationshipActions slug={profile.slug} />
             </div>
           </div>
 

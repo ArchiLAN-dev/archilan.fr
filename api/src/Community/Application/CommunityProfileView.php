@@ -9,9 +9,11 @@ use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Audience;
 use App\Community\Domain\AudiencePolicy;
 use App\Community\Domain\BannerPreset;
+use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\CommunityXp;
+use App\Community\Domain\FriendshipRepositoryInterface;
 use App\Community\Domain\Level;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
@@ -31,6 +33,8 @@ final readonly class CommunityProfileView
         private ActiveMembershipQueryInterface $memberships,
         private GameRepositoryInterface $games,
         private AchievementGrantRepositoryInterface $achievementGrants,
+        private FriendshipRepositoryInterface $friendships,
+        private BlockRepositoryInterface $blocks,
     ) {
     }
 
@@ -68,8 +72,11 @@ final readonly class CommunityProfileView
         );
         $level = Level::fromXp($xp);
 
+        // Block overrides every audience: a blocked viewer (either direction) sees no social surface.
+        $blocked = null !== $viewerId && $this->blocks->existsEitherWay($viewerId, $model['userId']);
+
         $customization = null;
-        if (null !== $profile && AudiencePolicy::canView($tier, $audience)) {
+        if (!$blocked && null !== $profile && AudiencePolicy::canView($tier, $audience)) {
             $customization = [
                 'bio' => $profile->getBio(),
                 'tagline' => $profile->getTagline(),
@@ -149,6 +156,9 @@ final readonly class CommunityProfileView
         }
         if ($viewerId === $ownerId) {
             return AudiencePolicy::TIER_SELF;
+        }
+        if ($this->friendships->areFriends($viewerId, $ownerId)) {
+            return AudiencePolicy::TIER_FRIEND;
         }
         if ($this->memberships->hasActiveMembership($viewerId)) {
             return AudiencePolicy::TIER_MEMBER;
