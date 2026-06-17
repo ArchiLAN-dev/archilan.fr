@@ -50,6 +50,9 @@ final class CommunityProfile
         private array $favoriteGameIds = [],
         #[ORM\Column(type: 'string', length: 16)]
         private string $audience = Audience::MEMBERS,
+        /** @var list<string> ordered enabled showcase widget keys */
+        #[ORM\Column(name: 'showcase_layout', type: Types::JSON)]
+        private array $showcaseLayout = [],
     ) {
     }
 
@@ -91,6 +94,7 @@ final class CommunityProfile
     /**
      * @param list<array{label: string, url: string}> $socialLinks
      * @param list<string>                            $favoriteGameIds
+     * @param list<string>                            $showcaseLayout
      */
     public function customize(
         ?string $bio,
@@ -100,6 +104,7 @@ final class CommunityProfile
         array $socialLinks,
         array $favoriteGameIds,
         string $audience,
+        array $showcaseLayout,
         \DateTimeImmutable $now,
     ): void {
         $this->bio = $bio;
@@ -109,6 +114,7 @@ final class CommunityProfile
         $this->socialLinks = $socialLinks;
         $this->favoriteGameIds = $favoriteGameIds;
         $this->audience = $audience;
+        $this->showcaseLayout = $showcaseLayout;
         $this->updatedAt = $now;
     }
 
@@ -151,6 +157,14 @@ final class CommunityProfile
     public function getAudience(): string
     {
         return $this->audience;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShowcaseLayout(): array
+    {
+        return $this->showcaseLayout;
     }
 
     public function getId(): string

@@ -1,4 +1,5 @@
 import { Lock, Trophy } from "lucide-react";
+import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type {
   Achievement,
@@ -85,6 +86,15 @@ export function PlayerProfilePage({
         </div>
       </header>
 
+      {profile.customization && profile.customization.showcaseLayout.length > 0 ? (
+        <ProfileShowcase
+          achievements={profile.achievements}
+          entries={entries}
+          favorites={profile.customization.favoriteGames}
+          layout={profile.customization.showcaseLayout}
+        />
+      ) : null}
+
       {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
 
       {profile.achievements.length > 0 ? <ProfileAchievements achievements={profile.achievements} /> : null}
@@ -117,6 +127,152 @@ export function PlayerProfilePage({
       </section>
     </article>
   );
+}
+
+function ProfileShowcase({
+  layout,
+  favorites,
+  achievements,
+  entries,
+}: {
+  layout: string[];
+  favorites: ProfileCustomizationData["favoriteGames"];
+  achievements: Achievement[];
+  entries: RunHistoryEntry[];
+}) {
+  const unlocked = achievements.filter((a) => a.unlocked);
+  const bestRuns = [...entries]
+    .filter((e) => !e.isInvalidated)
+    .sort((a, b) => b.checksDone - a.checksDone)
+    .slice(0, 3);
+  const mostPlayed = topGames(entries);
+
+  const widgets = layout
+    .map((key) => renderShowcaseWidget(key, favorites, unlocked, bestRuns, mostPlayed))
+    .filter((w): w is ReactElement => w !== null);
+
+  if (widgets.length === 0) return null;
+
+  return (
+    <section className="grid gap-6 rounded-2xl border border-border bg-surface/40 p-5">
+      <h2 className="font-heading text-lg font-semibold text-foreground">Vitrine</h2>
+      {widgets}
+    </section>
+  );
+}
+
+function renderShowcaseWidget(
+  key: string,
+  favorites: ProfileCustomizationData["favoriteGames"],
+  unlocked: Achievement[],
+  bestRuns: RunHistoryEntry[],
+  mostPlayed: { game: string; count: number }[],
+): ReactElement | null {
+  if (key === "favorite_games" && favorites.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Jeux favoris">
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6" role="list">
+          {favorites.map((game) => (
+            <li key={game.id}>
+              <Link className="group grid gap-1.5 text-center" href={`/jeux/${game.slug}`}>
+                <span className="block aspect-[3/4] overflow-hidden rounded border border-border bg-surface">
+                  {game.coverImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- external IGDB cover
+                    <img alt={game.name} className="h-full w-full object-cover object-top" src={game.coverImageUrl} />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                      {game.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </span>
+                <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">{game.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  if (key === "featured_achievements" && unlocked.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Succès en vedette">
+        <ul className="flex flex-wrap gap-2" role="list">
+          {unlocked.slice(0, 6).map((a) => (
+            <li
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-text"
+              key={a.key}
+            >
+              <Trophy aria-hidden className="size-3.5" />
+              {a.name}
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  if (key === "best_runs" && bestRuns.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Meilleures runs">
+        <ul className="grid gap-2" role="list">
+          {bestRuns.map((entry) => (
+            <li
+              className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2 text-sm"
+              key={`${entry.sessionId}-${entry.game}`}
+            >
+              <span className="min-w-0 truncate text-foreground">{entry.game}</span>
+              <span className="shrink-0 text-muted-foreground">
+                <span className="font-semibold text-foreground">{entry.checksDone}</span> checks
+              </span>
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  if (key === "most_played" && mostPlayed.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Les plus joués">
+        <ul className="grid gap-2" role="list">
+          {mostPlayed.map((row) => (
+            <li
+              className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2 text-sm"
+              key={row.game}
+            >
+              <span className="min-w-0 truncate text-foreground">{row.game}</span>
+              <span className="shrink-0 text-muted-foreground">
+                <span className="font-semibold text-foreground">{row.count}</span> partie{row.count > 1 ? "s" : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  return null;
+}
+
+function ShowcaseBlock({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-3">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function topGames(entries: RunHistoryEntry[]): { game: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.game) counts.set(entry.game, (counts.get(entry.game) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([game, count]) => ({ game, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 }
 
 function LevelBar({ level }: { level: PlayerProfile["level"] }) {

@@ -8,6 +8,7 @@ use App\Community\Domain\Audience;
 use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
+use App\Community\Domain\ShowcaseWidget;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
 
@@ -51,6 +52,7 @@ final readonly class UpdateCommunityProfile
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
         $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors);
+        $showcaseLayout = $this->parseShowcaseLayout($input['showcaseLayout'] ?? null);
 
         $errorsArray = $errors->toArray();
         if ([] !== $errorsArray) {
@@ -64,10 +66,29 @@ final readonly class UpdateCommunityProfile
             $this->profiles->save($profile);
         }
 
-        $profile->customize($bio, $tagline, $pronouns, $bannerPreset, $socialLinks, $favoriteGameIds, $audience, $now);
+        $profile->customize($bio, $tagline, $pronouns, $bannerPreset, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         $this->profiles->flush();
 
         return ['errorCode' => null, 'errors' => []];
+    }
+
+    /**
+     * @return list<string> deduped, valid widget keys in the requested order
+     */
+    private function parseShowcaseLayout(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $layout = [];
+        foreach ($raw as $widget) {
+            if (is_string($widget) && ShowcaseWidget::isValid($widget) && !in_array($widget, $layout, true)) {
+                $layout[] = $widget;
+            }
+        }
+
+        return $layout;
     }
 
     private function nullableString(mixed $raw, int $max, string $field, ValidationErrors $errors): ?string

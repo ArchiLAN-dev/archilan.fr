@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle, Loader2, Plus, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, CheckCircle, Loader2, Plus, X } from "lucide-react";
 
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
 import {
   AUDIENCES,
   BANNER_PRESETS,
   fetchMyCommunityProfile,
+  SHOWCASE_WIDGETS,
+  SHOWCASE_WIDGET_LABELS,
   updateMyCommunityProfile,
   type EditableFavoriteGame,
   type EditableSocialLink,
@@ -35,6 +37,7 @@ export function CommunityProfileCustomizationForm() {
   const [audience, setAudience] = useState<string>("members");
   const [socialLinks, setSocialLinks] = useState<EditableSocialLink[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
+  const [showcase, setShowcase] = useState<string[]>([]);
   const [catalog, setCatalog] = useState<PublicGame[]>([]);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
 
@@ -53,6 +56,7 @@ export function CommunityProfileCustomizationForm() {
         setAudience(profile.audience);
         setSocialLinks(profile.socialLinks);
         setFavorites(profile.favoriteGames);
+        setShowcase(profile.showcaseLayout);
       }
       setLoading(false);
     })();
@@ -69,6 +73,7 @@ export function CommunityProfileCustomizationForm() {
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== ""),
       favoriteGameIds: favorites.map((g) => g.id),
+      showcaseLayout: showcase,
     });
     if (result?.ok) {
       setFavorites(result.profile.favoriteGames);
@@ -78,6 +83,17 @@ export function CommunityProfileCustomizationForm() {
     } else {
       setSave({ kind: "error", message: "Impossible de sauvegarder le profil." });
     }
+  }
+
+  function moveShowcase(index: number, direction: -1 | 1) {
+    setShowcase((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+    setSave({ kind: "idle" });
   }
 
   if (loading) {
@@ -205,6 +221,72 @@ export function CommunityProfileCustomizationForm() {
               <option disabled value="">+ Ajouter un jeu…</option>
               {addableGames.map((game) => (
                 <option key={game.id} value={game.id}>{game.name}</option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+      </Field>
+
+      {/* Showcase widgets */}
+      <Field label="Vitrine du profil">
+        <div className="grid gap-2">
+          {showcase.length > 0 ? (
+            <ul className="grid gap-1.5" role="list">
+              {showcase.map((widget, index) => (
+                <li
+                  className="flex items-center justify-between gap-2 rounded border border-border bg-background px-3 py-2"
+                  key={widget}
+                >
+                  <span className="text-sm text-foreground">{SHOWCASE_WIDGET_LABELS[widget] ?? widget}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      aria-label="Monter"
+                      className="inline-flex size-8 items-center justify-center rounded text-muted-foreground hover:bg-surface hover:text-foreground disabled:opacity-30"
+                      disabled={index === 0}
+                      onClick={() => moveShowcase(index, -1)}
+                      type="button"
+                    >
+                      <ArrowUp aria-hidden className="size-3.5" />
+                    </button>
+                    <button
+                      aria-label="Descendre"
+                      className="inline-flex size-8 items-center justify-center rounded text-muted-foreground hover:bg-surface hover:text-foreground disabled:opacity-30"
+                      disabled={index === showcase.length - 1}
+                      onClick={() => moveShowcase(index, 1)}
+                      type="button"
+                    >
+                      <ArrowDown aria-hidden className="size-3.5" />
+                    </button>
+                    <button
+                      aria-label={`Retirer ${SHOWCASE_WIDGET_LABELS[widget] ?? widget}`}
+                      className="inline-flex size-8 items-center justify-center rounded text-muted-foreground hover:bg-[color:var(--color-danger)]/10 hover:text-[color:var(--color-danger)]"
+                      onClick={() => { setShowcase((prev) => prev.filter((w) => w !== widget)); setSave({ kind: "idle" }); }}
+                      type="button"
+                    >
+                      <X aria-hidden className="size-3.5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">Aucun widget — ajoute-en pour mettre ton profil en avant.</p>
+          )}
+          {SHOWCASE_WIDGETS.some((w) => !showcase.includes(w)) ? (
+            <select
+              aria-label="Ajouter un widget de vitrine"
+              className={`${inputClass} sm:w-72`}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setShowcase((prev) => [...prev, e.target.value]);
+                  setSave({ kind: "idle" });
+                }
+              }}
+              value=""
+            >
+              <option disabled value="">+ Ajouter un widget…</option>
+              {SHOWCASE_WIDGETS.filter((w) => !showcase.includes(w)).map((w) => (
+                <option key={w} value={w}>{SHOWCASE_WIDGET_LABELS[w] ?? w}</option>
               ))}
             </select>
           ) : null}

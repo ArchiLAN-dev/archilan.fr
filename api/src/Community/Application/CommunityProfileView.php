@@ -44,7 +44,7 @@ final readonly class CommunityProfileView
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null}>,
-     *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>}|null
+     *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
      */
     public function forSlug(string $slug, ?string $viewerId): ?array
@@ -77,6 +77,7 @@ final readonly class CommunityProfileView
                 'bannerPreset' => $profile->getBannerPreset(),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
+                'showcaseLayout' => $profile->getShowcaseLayout(),
             ];
         }
 
@@ -123,7 +124,7 @@ final readonly class CommunityProfileView
     /**
      * Raw, always-full customization for the owner's edit form (self only).
      *
-     * @return array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string}
+     * @return array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId): array
     {
@@ -137,6 +138,7 @@ final readonly class CommunityProfileView
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
             'audience' => $profile?->getAudience() ?? Audience::MEMBERS,
+            'showcaseLayout' => $profile?->getShowcaseLayout() ?? [],
         ];
     }
 

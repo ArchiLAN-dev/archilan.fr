@@ -73,6 +73,22 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         self::assertIsArray($data['stats']);
     }
 
+    public function testShowcaseLayoutIsSavedDedupedAndFiltered(): void
+    {
+        $user = $this->createUser('jade@example.org', slug: 'jade');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', [
+            'showcaseLayout' => ['favorite_games', 'best_runs', 'bogus_widget', 'favorite_games'],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->client->jsonRequest('GET', '/api/v1/community/profile');
+        self::assertResponseIsSuccessful();
+        $data = $this->data();
+        self::assertSame(['favorite_games', 'best_runs'], $data['showcaseLayout']);
+    }
+
     public function testInvalidAudienceIsRejected(): void
     {
         $user = $this->createUser('gwen@example.org', slug: 'gwen');

@@ -21,6 +21,7 @@ export type MyCommunityProfile = {
   socialLinks: EditableSocialLink[];
   favoriteGames: EditableFavoriteGame[];
   audience: string;
+  showcaseLayout: string[];
 };
 
 export type UpdateCommunityProfileInput = {
@@ -31,6 +32,7 @@ export type UpdateCommunityProfileInput = {
   audience: string;
   socialLinks: EditableSocialLink[];
   favoriteGameIds: string[];
+  showcaseLayout: string[];
 };
 
 export type UpdateResult = { ok: true; profile: MyCommunityProfile } | { ok: false };
@@ -50,7 +52,11 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;
-  return v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"));
+  if (!v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"))) {
+    return false;
+  }
+  if (!("showcaseLayout" in v) || !Array.isArray(v.showcaseLayout)) return false;
+  return v.showcaseLayout.every((w) => typeof w === "string");
 }
 
 export async function fetchMyCommunityProfile(): Promise<MyCommunityProfile | null> {
@@ -92,3 +98,17 @@ export async function updateMyCommunityProfile(input: UpdateCommunityProfileInpu
 
 export const BANNER_PRESETS = ["default", "sunset", "forest", "arcade", "midnight", "aurora"] as const;
 export const AUDIENCES = ["public", "members", "friends"] as const;
+
+export const SHOWCASE_WIDGETS = [
+  "favorite_games",
+  "featured_achievements",
+  "best_runs",
+  "most_played",
+] as const;
+
+export const SHOWCASE_WIDGET_LABELS: Record<string, string> = {
+  favorite_games: "Jeux favoris",
+  featured_achievements: "Succès en vedette",
+  best_runs: "Meilleures runs",
+  most_played: "Les plus joués",
+};

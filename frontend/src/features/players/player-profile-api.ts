@@ -26,6 +26,7 @@ export type ProfileCustomization = {
   bannerPreset: string;
   socialLinks: ProfileSocialLink[];
   favoriteGames: ProfileFavoriteGame[];
+  showcaseLayout: string[];
 };
 
 export type Achievement = {
@@ -94,7 +95,11 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;
-  return v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"));
+  if (!v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"))) {
+    return false;
+  }
+  if (!("showcaseLayout" in v) || !Array.isArray(v.showcaseLayout)) return false;
+  return v.showcaseLayout.every((w) => typeof w === "string");
 }
 
 function isProfileLevel(v: unknown): v is ProfileLevel {
