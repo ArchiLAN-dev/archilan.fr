@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, Check, Gamepad2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Check, Gamepad2, ListChecks, ListX, Minus, ShieldAlert, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
@@ -11,6 +11,8 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
 type AvailabilityScope = "available" | "available_experimental";
+type ApworldFilter = "all" | "ready" | "not_ready";
+type SortDir = "asc" | "desc";
 
 type AvailableGame = {
   id: string;
@@ -19,6 +21,7 @@ type AvailableGame = {
   availability: string;
   isApworldReady: boolean;
   coverImageUrl: string | null;
+  platforms: string[];
 };
 
 type GameSelectionEntry = {
@@ -46,6 +49,11 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
   const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<AvailabilityScope>("available");
   const [search, setSearch] = useState("");
+  const [apworldFilter, setApworldFilter] = useState<ApworldFilter>("all");
+  const [platform, setPlatform] = useState<string>("");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selectedOnly, setSelectedOnly] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -103,20 +111,53 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
     [state],
   );
 
+  const platformOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const game of allGames) {
+      for (const family of game.platforms) set.add(family);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [allGames]);
+
   const filteredGames = useMemo(() => {
-    const scopeFiltered = allGames.filter((g) =>
+    let list = allGames.filter((g) =>
       scope === "available"
         ? g.availability === "available"
         : g.availability === "available" || g.availability === "experimental",
     );
 
-    if (!search) return scopeFiltered;
+    if (apworldFilter === "ready") {
+      list = list.filter((g) => g.isApworldReady);
+    } else if (apworldFilter === "not_ready") {
+      list = list.filter((g) => !g.isApworldReady);
+    }
 
-    const q = search.toLowerCase();
-    return scopeFiltered.filter(
-      (g) => g.name.toLowerCase().includes(q) || g.slug.includes(q),
-    );
-  }, [allGames, scope, search]);
+    if (platform) {
+      list = list.filter((g) => g.platforms.includes(platform));
+    }
+
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((g) => g.name.toLowerCase().includes(q) || g.slug.includes(q));
+    }
+
+    if (selectedOnly) {
+      list = list.filter((g) => selectedGameIds.has(g.id));
+    }
+
+    return [...list].sort((a, b) => {
+      const cmp = a.name.localeCompare(b.name);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [allGames, scope, apworldFilter, platform, search, selectedOnly, selectedGameIds, sortDir]);
+
+  // Tri-state for the "select all filtered" header checkbox.
+  const filteredSelectedCount = useMemo(
+    () => filteredGames.reduce((n, g) => (selectedGameIds.has(g.id) ? n + 1 : n), 0),
+    [filteredGames, selectedGameIds],
+  );
+  const allFilteredSelected = filteredGames.length > 0 && filteredSelectedCount === filteredGames.length;
+  const someFilteredSelected = filteredSelectedCount > 0 && !allFilteredSelected;
 
   function toggleGame(gameId: string) {
     setSelectedGameIds((prev) => {
@@ -128,6 +169,44 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
       }
       return next;
     });
+  }
+
+  function selectAllFiltered() {
+    const next = new Set(selectedGameIds);
+    let skipped = 0;
+    for (const game of filteredGames) {
+      if (next.has(game.id)) continue;
+      if (maxGames !== null && next.size >= maxGames) {
+        skipped += 1;
+        continue;
+      }
+      next.add(game.id);
+    }
+    setSelectedGameIds(next);
+    setBulkNotice(
+      skipped > 0
+        ? `Limite de ${maxGames} atteinte, ${skipped} jeu${skipped > 1 ? "x" : ""} non ajouté${skipped > 1 ? "s" : ""}.`
+        : null,
+    );
+  }
+
+  function deselectAllFiltered() {
+    const filteredIds = new Set(filteredGames.map((g) => g.id));
+    setSelectedGameIds(new Set([...selectedGameIds].filter((id) => !filteredIds.has(id))));
+    setBulkNotice(null);
+  }
+
+  function clearSelection() {
+    setSelectedGameIds(new Set());
+    setBulkNotice(null);
+  }
+
+  function toggleAllFiltered() {
+    if (allFilteredSelected) {
+      deselectAllFiltered();
+    } else {
+      selectAllFiltered();
+    }
   }
 
   async function submit(formEvent: FormEvent<HTMLFormElement>) {
@@ -271,14 +350,14 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
               <div className="flex gap-0.5 rounded border border-border p-0.5">
                 <button
                   className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${scope === "available" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => setScope("available")}
+                  onClick={() => { setScope("available"); setBulkNotice(null); }}
                   type="button"
                 >
                   Disponibles
                 </button>
                 <button
                   className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${scope === "available_experimental" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => setScope("available_experimental")}
+                  onClick={() => { setScope("available_experimental"); setBulkNotice(null); }}
                   type="button"
                 >
                   + Expérimentaux
@@ -286,19 +365,97 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
               </div>
             </div>
 
-            <input
-              className="min-h-10 w-full rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
-              placeholder="Rechercher par nom ou slug…"
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                className="min-h-10 min-w-48 flex-1 rounded border border-border bg-background px-3 text-sm outline-none focus:border-accent"
+                placeholder="Rechercher par nom ou slug…"
+                type="search"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setBulkNotice(null); }}
+              />
+              <select
+                aria-label="Filtrer par disponibilité apworld"
+                className="min-h-10 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+                value={apworldFilter}
+                onChange={(e) => { setApworldFilter(e.target.value as ApworldFilter); setBulkNotice(null); }}
+              >
+                <option value="all">Apworld : tous</option>
+                <option value="ready">Apworld prêt</option>
+                <option value="not_ready">Apworld non prêt</option>
+              </select>
+              <select
+                aria-label="Filtrer par plateforme"
+                className="min-h-10 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+                value={platform}
+                onChange={(e) => { setPlatform(e.target.value); setBulkNotice(null); }}
+              >
+                <option value="">Plateforme : toutes</option>
+                {platformOptions.map((family) => (
+                  <option key={family} value={family}>{family}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Trier"
+                className="min-h-10 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+                value={sortDir}
+                onChange={(e) => setSortDir(e.target.value as SortDir)}
+              >
+                <option value="asc">Nom (A→Z)</option>
+                <option value="desc">Nom (Z→A)</option>
+              </select>
+              <button
+                aria-pressed={selectedOnly}
+                className={`inline-flex min-h-10 items-center gap-1.5 rounded border px-3 text-sm font-semibold transition-colors ${selectedOnly ? "border-accent bg-accent/10 text-accent-text" : "border-border text-muted-foreground hover:text-foreground"}`}
+                onClick={() => setSelectedOnly((v) => !v)}
+                type="button"
+              >
+                <Check aria-hidden="true" className="size-3.5" />
+                Sélectionnés
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className="inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={filteredGames.length === 0 || allFilteredSelected}
+                onClick={selectAllFiltered}
+                type="button"
+              >
+                <ListChecks aria-hidden="true" className="size-3.5" />
+                Tout sélectionner ({filteredGames.length})
+              </button>
+              <button
+                className="inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={filteredSelectedCount === 0}
+                onClick={deselectAllFiltered}
+                type="button"
+              >
+                <ListX aria-hidden="true" className="size-3.5" />
+                Désélectionner les résultats
+              </button>
+              <button
+                className="inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-muted-foreground transition-colors hover:border-danger hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedCount === 0}
+                onClick={clearSelection}
+                type="button"
+              >
+                <Trash2 aria-hidden="true" className="size-3.5" />
+                Vider la sélection
+              </button>
+              {bulkNotice ? (
+                <span className="text-xs text-accent-warm" role="status">{bulkNotice}</span>
+              ) : null}
+            </div>
 
             {filteredGames.length === 0 ? (
               <div className="grid justify-items-center gap-3 rounded-lg border border-border bg-surface p-8 text-center">
                 <Gamepad2 aria-hidden="true" className="size-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  {search ? "Aucun jeu ne correspond à la recherche." : "Aucun jeu dans cette catégorie."}
+                  {selectedOnly
+                    ? "Aucun jeu sélectionné."
+                    : search
+                      ? "Aucun jeu ne correspond à la recherche."
+                      : "Aucun jeu dans cette catégorie."}
                 </p>
               </div>
             ) : (
@@ -309,8 +466,13 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
                       <th className="w-16 px-4 py-3"><span className="sr-only">Couverture</span></th>
                       <th className="px-4 py-3 font-medium">Jeu</th>
                       <th className="px-4 py-3 font-medium">Disponibilité</th>
-                      <th className="w-px px-4 py-3 font-medium">
-                        <span className="sr-only">Sélectionner</span>
+                      <th className="w-px px-4 py-3 text-right font-medium">
+                        <Checkbox
+                          ariaLabel="Tout sélectionner (résultats filtrés)"
+                          checked={allFilteredSelected}
+                          indeterminate={someFilteredSelected}
+                          onChange={toggleAllFiltered}
+                        />
                       </th>
                     </tr>
                   </thead>
@@ -388,14 +550,28 @@ function Checkbox({
   checked,
   onChange,
   onClick,
+  indeterminate = false,
+  ariaLabel,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   onClick?: (e: React.MouseEvent) => void;
+  indeterminate?: boolean;
+  ariaLabel?: string;
 }) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate && !checked;
+    }
+  }, [indeterminate, checked]);
+
   return (
     <span className="relative inline-flex shrink-0">
       <input
+        ref={ref}
+        aria-label={ariaLabel}
         checked={checked}
         className="peer sr-only"
         type="checkbox"
@@ -403,7 +579,11 @@ function Checkbox({
         onClick={onClick}
       />
       <span className="flex size-5 items-center justify-center rounded border border-border bg-background transition-colors peer-checked:border-accent peer-checked:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-1 peer-focus-visible:ring-offset-background">
-        {checked ? <Check aria-hidden="true" className="size-3 text-white" strokeWidth={3} /> : null}
+        {checked ? (
+          <Check aria-hidden="true" className="size-3 text-white" strokeWidth={3} />
+        ) : indeterminate ? (
+          <Minus aria-hidden="true" className="size-3 text-accent-text" strokeWidth={3} />
+        ) : null}
       </span>
     </span>
   );
