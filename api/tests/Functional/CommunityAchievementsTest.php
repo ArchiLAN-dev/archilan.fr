@@ -38,5 +38,13 @@ final class CommunityAchievementsTest extends FunctionalTestCase
         self::assertTrue($byKey['first_goal']['unlocked']);
         self::assertFalse($byKey['veteran']['unlocked']);
         self::assertNull($byKey['veteran']['unlockedAt']);
+
+        // Level/XP: 2 achievements * 100 XP, no run stats -> 200 XP -> level 1 (next at 200).
+        $level = $data['level'] ?? null;
+        self::assertIsArray($level);
+        self::assertSame(200, $level['xp']);
+        self::assertSame(1, $level['level']);
+        self::assertSame(100, $level['xpIntoLevel']);
+        self::assertSame(200, $level['xpForNextLevel']);
     }
 }

@@ -11,6 +11,8 @@ use App\Community\Domain\AudiencePolicy;
 use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
+use App\Community\Domain\CommunityXp;
+use App\Community\Domain\Level;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;
@@ -40,6 +42,7 @@ final readonly class CommunityProfileView
      *     avatarUrl: string|null,
      *     audience: string,
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
+     *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null}>,
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>}|null
      * }|null
@@ -54,6 +57,16 @@ final readonly class CommunityProfileView
         $profile = $this->ensureProfile($model['userId']);
         $audience = $profile?->getAudience() ?? Audience::MEMBERS;
         $tier = $this->viewerTier($viewerId, $model['userId']);
+
+        $achievements = $this->achievementsFor($model['userId']);
+        $unlockedCount = count(array_filter($achievements, static fn (array $a): bool => true === $a['unlocked']));
+        $xp = CommunityXp::compute(
+            $model['stats']['goalCompletions'],
+            $model['stats']['totalChecksDone'],
+            $model['stats']['runsParticipated'],
+            $unlockedCount,
+        );
+        $level = Level::fromXp($xp);
 
         $customization = null;
         if (null !== $profile && AudiencePolicy::canView($tier, $audience)) {
@@ -74,7 +87,13 @@ final readonly class CommunityProfileView
             'avatarUrl' => $profile?->getAvatarUrl(),
             'audience' => $audience,
             'stats' => $model['stats'],
-            'achievements' => $this->achievementsFor($model['userId']),
+            'level' => [
+                'level' => $level->level,
+                'xp' => $xp,
+                'xpIntoLevel' => $level->xpIntoLevel,
+                'xpForNextLevel' => $level->xpForNextLevel,
+            ],
+            'achievements' => $achievements,
             'customization' => $customization,
         ];
     }

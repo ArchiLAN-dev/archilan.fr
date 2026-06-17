@@ -36,16 +36,26 @@ export type Achievement = {
   unlockedAt: string | null;
 };
 
+export type ProfileLevel = {
+  level: number;
+  xp: number;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+};
+
 export type PlayerProfile = {
   slug: string;
   displayName: string | null;
   joinedAt: string;
   avatarUrl: string | null;
   audience: string;
+  level: ProfileLevel;
   achievements: Achievement[];
   customization: ProfileCustomization | null;
   stats: PlayerStats;
 };
+
+const DEFAULT_LEVEL: ProfileLevel = { level: 0, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100 };
 
 export type RunHistoryEntry = {
   sessionId: string;
@@ -85,6 +95,16 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;
   return v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"));
+}
+
+function isProfileLevel(v: unknown): v is ProfileLevel {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasNumberProp(v, "level") &&
+    hasNumberProp(v, "xp") &&
+    hasNumberProp(v, "xpIntoLevel") &&
+    hasNumberProp(v, "xpForNextLevel")
+  );
 }
 
 function isAchievement(v: unknown): v is Achievement {
@@ -157,6 +177,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       joinedAt: data.joinedAt,
       avatarUrl: data.avatarUrl ?? null,
       audience: typeof data.audience === "string" ? data.audience : "members",
+      level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
       achievements: Array.isArray(data.achievements) ? data.achievements : [],
       customization: data.customization ?? null,
       stats: data.stats,
