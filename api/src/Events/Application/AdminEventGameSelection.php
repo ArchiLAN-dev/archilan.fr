@@ -8,6 +8,7 @@ use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\PlatformCategory;
 use App\Identity\Application\ValidationErrors;
 use Psr\Log\LoggerInterface;
 
@@ -23,7 +24,7 @@ final readonly class AdminEventGameSelection
     /**
      * Returns the enriched game selection config for the event, or null if the event does not exist.
      *
-     * @return array{gameSelectionEnabled: bool, gameSelectionMax: int|null, selectedGames: list<array{gameId: string, gameName: string, gameSlug: string}>, availableGames: list<array{id: string, name: string, slug: string, availability: string, isApworldReady: bool, coverImageUrl: string|null}>}|null
+     * @return array{gameSelectionEnabled: bool, gameSelectionMax: int|null, selectedGames: list<array{gameId: string, gameName: string, gameSlug: string}>, availableGames: list<array{id: string, name: string, slug: string, availability: string, isApworldReady: bool, coverImageUrl: string|null, platforms: list<string>}>}|null
      */
     public function getConfig(string $eventId): ?array
     {
@@ -62,6 +63,7 @@ final readonly class AdminEventGameSelection
                 'availability' => $game->getAvailability(),
                 'isApworldReady' => $game->isApworldReady(),
                 'coverImageUrl' => $game->getCoverImageUrl(),
+                'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
             ],
             array_values(array_filter(
                 $allGames,
