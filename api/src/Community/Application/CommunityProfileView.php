@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Domain\AchievementCatalog;
+use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Audience;
 use App\Community\Domain\AudiencePolicy;
 use App\Community\Domain\BannerPreset;
@@ -26,6 +28,7 @@ final readonly class CommunityProfileView
         private CommunityProfileRepositoryInterface $profiles,
         private ActiveMembershipQueryInterface $memberships,
         private GameRepositoryInterface $games,
+        private AchievementGrantRepositoryInterface $achievementGrants,
     ) {
     }
 
@@ -37,6 +40,7 @@ final readonly class CommunityProfileView
      *     avatarUrl: string|null,
      *     audience: string,
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null}>,
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>}|null
      * }|null
      */
@@ -70,8 +74,31 @@ final readonly class CommunityProfileView
             'avatarUrl' => $profile?->getAvatarUrl(),
             'audience' => $audience,
             'stats' => $model['stats'],
+            'achievements' => $this->achievementsFor($model['userId']),
             'customization' => $customization,
         ];
+    }
+
+    /**
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null}>
+     */
+    private function achievementsFor(string $userId): array
+    {
+        $unlockedAt = [];
+        foreach ($this->achievementGrants->findByUser($userId) as $grant) {
+            $unlockedAt[$grant->getAchievementKey()] = $grant->getUnlockedAt()->format(\DateTimeInterface::ATOM);
+        }
+
+        return array_map(
+            static fn ($definition): array => [
+                'key' => $definition->key,
+                'name' => $definition->name,
+                'description' => $definition->description,
+                'unlocked' => isset($unlockedAt[$definition->key]),
+                'unlockedAt' => $unlockedAt[$definition->key] ?? null,
+            ],
+            AchievementCatalog::all(),
+        );
     }
 
     /**

@@ -28,12 +28,21 @@ export type ProfileCustomization = {
   favoriteGames: ProfileFavoriteGame[];
 };
 
+export type Achievement = {
+  key: string;
+  name: string;
+  description: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+};
+
 export type PlayerProfile = {
   slug: string;
   displayName: string | null;
   joinedAt: string;
   avatarUrl: string | null;
   audience: string;
+  achievements: Achievement[];
   customization: ProfileCustomization | null;
   stats: PlayerStats;
 };
@@ -78,6 +87,17 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
   return v.favoriteGames.every((g) => hasStringProp(g, "id") && hasStringProp(g, "name") && hasStringProp(g, "slug"));
 }
 
+function isAchievement(v: unknown): v is Achievement {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasStringProp(v, "key") &&
+    hasStringProp(v, "name") &&
+    hasStringProp(v, "description") &&
+    hasBooleanProp(v, "unlocked") &&
+    hasNullableStringProp(v, "unlockedAt")
+  );
+}
+
 function isPlayerProfilePayload(payload: unknown): payload is { data: PlayerProfile } {
   if (typeof payload !== "object" || payload === null) return false;
   if (!("data" in payload) || typeof payload.data !== "object" || payload.data === null) return false;
@@ -87,6 +107,9 @@ function isPlayerProfilePayload(payload: unknown): payload is { data: PlayerProf
   if (!hasStringProp(data, "joinedAt")) return false;
   if ("avatarUrl" in data && data.avatarUrl !== null && typeof data.avatarUrl !== "string") return false;
   if ("customization" in data && data.customization !== null && !isProfileCustomization(data.customization)) {
+    return false;
+  }
+  if ("achievements" in data && (!Array.isArray(data.achievements) || !data.achievements.every(isAchievement))) {
     return false;
   }
   if (!("stats" in data)) return false;
@@ -134,6 +157,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       joinedAt: data.joinedAt,
       avatarUrl: data.avatarUrl ?? null,
       audience: typeof data.audience === "string" ? data.audience : "members",
+      achievements: Array.isArray(data.achievements) ? data.achievements : [],
       customization: data.customization ?? null,
       stats: data.stats,
     };

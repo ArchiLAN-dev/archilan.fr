@@ -289,6 +289,8 @@ services:
     App\Community\Domain\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\DoctrineCommunityProfileRepository'
     App\Community\Application\CommunityProfileQueryInterface: '@App\Community\Infrastructure\DbalCommunityProfileQuery'
     App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
+    App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
+    App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
     App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
 
     App\Community\Infrastructure\DiscordAvatarResolver:
