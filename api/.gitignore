@@ -23,6 +23,11 @@
 /.phpunit.cache/
 ###< phpunit/phpunit ###
 
+###> coverage (generated locally / in CI) ###
+/coverage.xml
+/coverage-html/
+###< coverage ###
+
 ###> app ###
 workspace/
 ###< app ###
