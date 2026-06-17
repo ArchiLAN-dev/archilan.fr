@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { PlayerHistory, PlayerProfile, RunHistoryEntry } from "./player-profile-api";
+import { ProfileAvatar } from "./profile-avatar";
 
 export function PlayerProfilePage({
   profile,
@@ -14,32 +15,40 @@ export function PlayerProfilePage({
 
   return (
     <article className="mx-auto w-full max-w-4xl grid gap-12">
-      <header className="grid gap-6 border-b border-border pb-8">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
-            Profil joueur
-          </p>
-          <h1 className="mt-2 font-heading text-3xl font-bold text-foreground md:text-4xl">
-            {displayName}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Membre depuis{" "}
-            <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
-          </p>
-        </div>
+      <header className="overflow-hidden rounded-2xl border border-border bg-surface">
+        {/* Banner (curated presets land in story 30.3; gradient placeholder for now) */}
+        <div className="h-28 bg-gradient-to-r from-accent/30 via-accent/10 to-transparent sm:h-36" />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Runs" value={String(profile.stats.runsParticipated)} />
-          <StatCard label="Objectifs" value={String(profile.stats.goalCompletions)} />
-          <StatCard label="Checks" value={String(profile.stats.totalChecksDone)} />
-          <StatCard
-            label="Taux de complétion"
-            value={
-              profile.stats.runsParticipated > 0
-                ? `${Math.round(profile.stats.goalCompletionRate * 100)}%`
-                : "-"
-            }
-          />
+        <div className="grid gap-6 p-5 sm:p-8">
+          <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
+            <ProfileAvatar avatarUrl={profile.avatarUrl} name={displayName} />
+            <div className="grid gap-1 pb-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-text">
+                Profil joueur
+              </p>
+              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground md:text-4xl">
+                {displayName}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Membre depuis{" "}
+                <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Runs" value={String(profile.stats.runsParticipated)} />
+            <StatCard label="Objectifs" value={String(profile.stats.goalCompletions)} />
+            <StatCard label="Checks" value={String(profile.stats.totalChecksDone)} />
+            <StatCard
+              label="Taux de complétion"
+              value={
+                profile.stats.runsParticipated > 0
+                  ? `${Math.round(profile.stats.goalCompletionRate * 100)}%`
+                  : "-"
+              }
+            />
+          </div>
         </div>
       </header>
 
@@ -75,8 +84,8 @@ export function PlayerProfilePage({
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 text-center">
-      <p className="text-2xl font-bold text-foreground">{value}</p>
+    <div className="card-glow rounded-lg border border-border bg-background p-4 text-center">
+      <p className="font-heading text-2xl font-bold text-foreground">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{label}</p>
     </div>
   );

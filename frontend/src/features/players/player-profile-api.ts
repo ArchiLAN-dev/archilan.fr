@@ -14,6 +14,7 @@ export type PlayerProfile = {
   slug: string;
   displayName: string | null;
   joinedAt: string;
+  avatarUrl: string | null;
   stats: PlayerStats;
 };
 
@@ -52,6 +53,7 @@ function isPlayerProfilePayload(payload: unknown): payload is { data: PlayerProf
   if (!hasStringProp(data, "slug")) return false;
   if (!("displayName" in data) || (data.displayName !== null && typeof data.displayName !== "string")) return false;
   if (!hasStringProp(data, "joinedAt")) return false;
+  if ("avatarUrl" in data && data.avatarUrl !== null && typeof data.avatarUrl !== "string") return false;
   if (!("stats" in data)) return false;
   return isPlayerStats(data.stats);
 }
@@ -77,7 +79,7 @@ function isPlayerHistoryPayload(payload: unknown): payload is PlayerHistory {
 
 export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfile | null> => {
   try {
-    const response = await fetch(`${env.apiBaseUrl}/players/${encodeURIComponent(slug)}`, {
+    const response = await fetch(`${env.apiBaseUrl}/community/profiles/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
 
@@ -90,7 +92,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       return null;
     }
 
-    return payload.data;
+    return { ...payload.data, avatarUrl: payload.data.avatarUrl ?? null };
   } catch {
     return null;
   }
