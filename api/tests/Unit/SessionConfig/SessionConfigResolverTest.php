@@ -17,7 +17,7 @@ final class SessionConfigResolverTest extends TestCase
 {
     public function testResolveReturnsProfileWhenNoSessionId(): void
     {
-        $profiles = $this->createMock(SessionConfigProfileRepositoryInterface::class);
+        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Weekly));
         $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
         $overrides->expects(self::never())->method('find');
@@ -29,9 +29,9 @@ final class SessionConfigResolverTest extends TestCase
 
     public function testResolveMergesOverrideWhenPresent(): void
     {
-        $profiles = $this->createMock(SessionConfigProfileRepositoryInterface::class);
+        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Weekly));
-        $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
         $overrides->method('find')->willReturn(new SessionConfigOverride(releaseMode: ReleaseCollectMode::Goal));
 
         $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Weekly, 'sess-1');
@@ -43,9 +43,9 @@ final class SessionConfigResolverTest extends TestCase
 
     public function testResolveIgnoresEmptyOverride(): void
     {
-        $profiles = $this->createMock(SessionConfigProfileRepositoryInterface::class);
+        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Private));
-        $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
         $overrides->method('find')->willReturn(new SessionConfigOverride());
 
         $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Private, 'sess-2');

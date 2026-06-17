@@ -19,7 +19,7 @@ Both files are loaded automatically by the agent runtime. Do not skip them.
 # API
 vendor/bin/phpstan analyse src tests    → 0 errors
 vendor/bin/php-cs-fixer check src       → 0 violations
-php bin/phpunit                         → all tests green
+php bin/phpunit                         → all tests green, 0 notices/deprecations/warnings
 php bin/console app:architecture:ddd    → exit 0
 
 # Frontend
