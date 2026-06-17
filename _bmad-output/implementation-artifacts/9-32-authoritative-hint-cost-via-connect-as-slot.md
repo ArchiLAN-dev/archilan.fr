@@ -19,15 +19,15 @@ authoritative `checked_locations + missing_locations` (`ap_client.py:664-668`). 
 
 For **every other slot** the cost is set by `_apply_location_totals` → `_slot_location_total`
 (`ap_client.py:986`), which uses the **spoiler placements** when resolved, else falls back to the
-**DataPackage size** — *"far larger than the locations actually in this seed, so using it inflates both
+**DataPackage size** - *"far larger than the locations actually in this seed, so using it inflates both
 checks_total and the hint cost"* (its own docstring). When the spoiler placements for a slot aren't
 resolved (e.g. a player-name mismatch → the `spoiler: no placements resolved` warning), the cost is
 computed from the inflated DataPackage count: that's the reported `38 = 10% × 380` instead of the real
 `13 = 10% × 130`. (Reported by Jean.)
 
 The authoritative count is **already in hand but discarded**: story 9.30's `_connect_as_slot`
-(`ap_client.py:415`) — used by **both** `fetch_hint_points` (the `GET /hints` probe) and
-`run_self_hint` — receives the target slot's `Connected` packet, which carries that slot's
+(`ap_client.py:415`) - used by **both** `fetch_hint_points` (the `GET /hints` probe) and
+`run_self_hint` - receives the target slot's `Connected` packet, which carries that slot's
 `checked_locations + missing_locations`. But the handler keeps only `hint_points` (`_store_hint_points`)
 and drops the locations.
 
@@ -50,18 +50,18 @@ and drops the locations.
 
 ## Tasks / Subtasks
 
-- [x] **Task 1 — Capture the authoritative total in `_connect_as_slot`** (AC 1, 3, 4)
+- [x] **Task 1 - Capture the authoritative total in `_connect_as_slot`** (AC 1, 3, 4)
   - [x] 1.1 Added `_apply_authoritative_locations(slot, connected)`: reads `checked_locations` +
     `missing_locations` (list-type guard), and when `total > 0` calls `set_checks_total(slot, total)` +
-    `apply_hint_cost_for_slot(slot, total)` — mirrors `_handle_connected`. Empty/non-list/0 → no-op
+    `apply_hint_cost_for_slot(slot, total)` - mirrors `_handle_connected`. Empty/non-list/0 → no-op
     (AC 3); 0% pct → `apply_hint_cost_for_slot` already no-ops (AC 4).
   - [x] 1.2 Called from `_connect_as_slot` right before returning `Connected`, so both
     `fetch_hint_points` (GET /hints probe) and `run_self_hint` benefit; no extra connection.
-- [x] **Task 2 — Test** (AC 5)
+- [x] **Task 2 - Test** (AC 5)
   - [x] 2.1 `test_self_hint.py::test_connect_as_slot_sets_authoritative_hint_cost`: `_hint_cost_pct=10`
     + a `Connected` of 130 locations → `ensure_slot(2).hint_cost == 13` and `checks_total == 130` after
     `fetch_hint_points`.
-- [x] **Task 3 — Quality gates** (AC 5) — ruff ✓ / mypy ✓ (22 files) / pytest 170 ✓.
+- [x] **Task 3 - Quality gates** (AC 5) - ruff ✓ / mypy ✓ (22 files) / pytest 170 ✓.
 
 ## Dev Notes
 
@@ -69,24 +69,24 @@ and drops the locations.
   `GET /hints` panel already triggers `fetch_hint_points`, so the corrected cost lands on the existing
   path. The DataPackage/spoiler estimate (`_apply_location_totals`) stays as the pre-probe fallback.
 - **Why TextOnly still gets locations:** AP's `Connected` includes `checked_locations`/
-  `missing_locations` for the authenticated slot regardless of `TextOnly`/`items_handling` — the same
+  `missing_locations` for the authenticated slot regardless of `TextOnly`/`items_handling` - the same
   fields `_handle_connected` consumes for the Bridge slot.
 - Also corrects the same inflation for the slot's `checks_total` (set together, as `_handle_connected`
-  does) — a free side-benefit, not the primary goal.
-- **API/frontend:** unchanged — `hintCost` already flows `bridge → /hints → ps.hint_cost → panel`.
+  does) - a free side-benefit, not the primary goal.
+- **API/frontend:** unchanged - `hintCost` already flows `bridge → /hints → ps.hint_cost → panel`.
 
 ### Project Structure Notes
 
-- `bridge/core/ap_client.py` — `_connect_as_slot` + new `_apply_authoritative_locations`
-- `bridge/tests/test_hint_cost.py` (or `test_self_hint.py`) — new assertion
+- `bridge/core/ap_client.py` - `_connect_as_slot` + new `_apply_authoritative_locations`
+- `bridge/tests/test_hint_cost.py` (or `test_self_hint.py`) - new assertion
 
 ### References
 
-- [Source: bridge/core/ap_client.py:415] — `_connect_as_slot` (Connected packet, both probe + self-hint)
-- [Source: bridge/core/ap_client.py:664] — `_handle_connected` sets cost from checked+missing for `_my_slot`
-- [Source: bridge/core/ap_client.py:986] — `_slot_location_total` (spoiler/DataPackage estimate that inflates)
-- [Source: bridge/core/state.py:82] — `apply_hint_cost_for_slot` / `compute_hint_cost`
-- Story 9.30 — connect-as-slot machinery this builds on
+- [Source: bridge/core/ap_client.py:415] - `_connect_as_slot` (Connected packet, both probe + self-hint)
+- [Source: bridge/core/ap_client.py:664] - `_handle_connected` sets cost from checked+missing for `_my_slot`
+- [Source: bridge/core/ap_client.py:986] - `_slot_location_total` (spoiler/DataPackage estimate that inflates)
+- [Source: bridge/core/state.py:82] - `apply_hint_cost_for_slot` / `compute_hint_cost`
+- Story 9.30 - connect-as-slot machinery this builds on
 
 ## Change Log
 

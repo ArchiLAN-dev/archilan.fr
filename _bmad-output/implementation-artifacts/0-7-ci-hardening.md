@@ -109,19 +109,19 @@ After these land, set required status checks on `develop`/`main`: Backend, Front
 
 ## File List
 
-- `.github/dependabot.yml` — new
-- `.github/workflows/codeql.yml` — new
-- `.github/workflows/backend.yml` — modified (concurrency, composer audit, Postgres service, coverage floor, PHP matrix)
-- `.github/workflows/frontend.yml` — modified (concurrency, pnpm audit)
-- `.github/workflows/docker-publish.yml` — modified (concurrency, Trivy scan + SARIF)
-- `api/tests/Functional/AdminGameLibraryTest.php` — modified (re-enable ILIKE/search assertions under Postgres)
-- `api/.trivyignore` — new (if needed)
-- `CLAUDE.md` — modified only if gate commands change
+- `.github/dependabot.yml` - new
+- `.github/workflows/codeql.yml` - new
+- `.github/workflows/backend.yml` - modified (concurrency, composer audit, Postgres service, coverage floor, PHP matrix)
+- `.github/workflows/frontend.yml` - modified (concurrency, pnpm audit)
+- `.github/workflows/docker-publish.yml` - modified (concurrency, Trivy scan + SARIF)
+- `api/tests/Functional/AdminGameLibraryTest.php` - modified (re-enable ILIKE/search assertions under Postgres)
+- `api/.trivyignore` - new (if needed)
+- `CLAUDE.md` - modified only if gate commands change
 
 ## Change Log
 
 | Date       | Change                                                                 |
 |------------|------------------------------------------------------------------------|
 | 2026-06-06 | Story drafted. Covers dependency automation (Dependabot), security scanning (composer/pnpm audit, CodeQL, Trivy), Postgres-backed backend tests (re-enabling the ILIKE search paths deferred in 23.7), and run hygiene (concurrency, coverage floor, PHP 8.3/8.4 matrix). Microservices CI and branch protection noted as out-of-scope follow-ups. |
-| 2026-06-06 | Approved. **Lot 1 (quick wins)** implemented: Dependabot, `concurrency` on all 3 workflows, and composer/pnpm audits (warn-only — real advisories found: Next.js <16.2.5 high, symfony/yaml low; Dependabot will open bumps, then flip audits to blocking). **CodeQL removed and deferred**: no PHP support, and private-repo code scanning needs paid GHAS/Code Security (public repo = free). Lot 1 shipped via PR #18 (other 4 checks green). Lots 2 (Postgres tests) and 3 (Trivy/coverage/matrix) pending. |
-| 2026-06-06 | **Lot 2 (Postgres-backed tests)** done. Root finding: per-class `SchemaTool` subsets only worked on SQLite via table leakage; on Postgres (strict FK) they failed. Refactored `FunctionalTestCase` to build the FULL schema each test (`DROP SCHEMA CASCADE` + `createSchema(getAllMetadata())`) and removed the per-class subset blocks from ~85 files (3 `KernelTestCase` tests converted to `FunctionalTestCase`). `.env.test` → Postgres (parity local+CI; needs `archilan_test` DB, `doctrine:database:create --env=test`); `backend.yml` gains a `postgres:17` service + `pdo_pgsql`. `ILIKE` search assertions re-enabled (closes 23.7 AC2). Suite: **912/912 on Postgres** (~3 min; full-schema-per-test is the cost — DAMA transactional tests a possible future optimisation). |
+| 2026-06-06 | Approved. **Lot 1 (quick wins)** implemented: Dependabot, `concurrency` on all 3 workflows, and composer/pnpm audits (warn-only - real advisories found: Next.js <16.2.5 high, symfony/yaml low; Dependabot will open bumps, then flip audits to blocking). **CodeQL removed and deferred**: no PHP support, and private-repo code scanning needs paid GHAS/Code Security (public repo = free). Lot 1 shipped via PR #18 (other 4 checks green). Lots 2 (Postgres tests) and 3 (Trivy/coverage/matrix) pending. |
+| 2026-06-06 | **Lot 2 (Postgres-backed tests)** done. Root finding: per-class `SchemaTool` subsets only worked on SQLite via table leakage; on Postgres (strict FK) they failed. Refactored `FunctionalTestCase` to build the FULL schema each test (`DROP SCHEMA CASCADE` + `createSchema(getAllMetadata())`) and removed the per-class subset blocks from ~85 files (3 `KernelTestCase` tests converted to `FunctionalTestCase`). `.env.test` → Postgres (parity local+CI; needs `archilan_test` DB, `doctrine:database:create --env=test`); `backend.yml` gains a `postgres:17` service + `pdo_pgsql`. `ILIKE` search assertions re-enabled (closes 23.7 AC2). Suite: **912/912 on Postgres** (~3 min; full-schema-per-test is the cost - DAMA transactional tests a possible future optimisation). |

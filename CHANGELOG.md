@@ -64,7 +64,7 @@ hebdomadaires et la fiabilité du suivi temps réel.
 - **Indices live sur tous les slots** + commande admin d'indice par item, via la
   data-storage Archipelago.
 - **Cycle de vie des sessions de runs hebdomadaires** : la partie hebdo suit désormais le
-  même mécanisme que les parties privées — détection d'arrêt du conteneur (idle/stoppé) et
+  même mécanisme que les parties privées - détection d'arrêt du conteneur (idle/stoppé) et
   bouton « Relancer ma partie » ; les pages se rafraîchissent automatiquement (poll adaptatif).
 - **Bornes de range introspectées** dans l'éditeur YAML, et validation à la sauvegarde :
   blocage des poids tous à 0 et des valeurs hors `[min, max]` (modes simple, avancé et
@@ -104,7 +104,7 @@ autour des fichiers générés (servis depuis le stockage durable MinIO).
 ### Ajouté
 
 - **Téléchargement du spoiler** d'une partie privée par son propriétaire (ou un admin),
-  servi depuis le stockage durable — disponible quel que soit l'état de la partie.
+  servi depuis le stockage durable - disponible quel que soit l'état de la partie.
 - **Patchs des joueurs** d'une partie privée servis depuis le stockage durable : chaque
   joueur récupère le patch de son slot même partie arrêtée/en veille.
 

@@ -466,7 +466,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         // A paused run is "idle" from the owner's POV, but the underlying session may be IDLE
         // (auto_shutdown), STOPPED (orchestrateur session.stopped) or CRASHED (the bridge died / the
-        // containers were stopped out-of-band) — all are relaunchable from the retained volume/seed.
+        // containers were stopped out-of-band) - all are relaunchable from the retained volume/seed.
         if (!in_array($session->getStatus(), [Session::STATUS_IDLE, Session::STATUS_STOPPED, Session::STATUS_CRASHED], true)) {
             return ['found' => true, 'error' => 'invalid_session_status', 'sessionId' => null, 'status' => null];
         }

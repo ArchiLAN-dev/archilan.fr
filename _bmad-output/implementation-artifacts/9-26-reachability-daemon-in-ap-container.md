@@ -16,12 +16,12 @@ faster, since the apworld/seed stay loaded).
 
 The bridge's `DockerRuntimeAdapter.run_reachable` spawned a **new ephemeral AP container** per
 reachability compute (`docker create` + `start` + `delete`), once per slot whose `(checks, items)` cache
-key changed — i.e. roughly every 30s / on WS events during active play (observed by Jean:
+key changed - i.e. roughly every 30s / on WS events during active play (observed by Jean:
 "il continue de lancer des containers pour calculer la reachability"). No leak (cleaned up in `finally`),
 but heavy churn and repeated apworld/seed loading.
 
 The agreed design (recalled by Jean): run the computation **in the archipelago container that's already
-running** — the AP server (`ap-server-{sessionId}`), which has the AP runtime (`/reachable/reachable.py`),
+running** - the AP server (`ap-server-{sessionId}`), which has the AP runtime (`/reachable/reachable.py`),
 the session volume (`/data`), and is up during play. The bridge already has a `reachable.py --daemon`
 protocol (`{"ready":true}` then one JSON state line in → one JSON result line out) used by the
 local-subprocess path; this wires that daemon over a `docker exec` into the AP container.

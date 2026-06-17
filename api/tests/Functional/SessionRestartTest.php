@@ -74,7 +74,7 @@ final class SessionRestartTest extends FunctionalTestCase
 
     public function testPausedWithoutSaveIsStillRelaunchable(): void
     {
-        // Without a save the run restarts from the seed on the retained volume (story 17.10) —
+        // Without a save the run restarts from the seed on the retained volume (story 17.10) -
         // no recreation needed, so the restart is accepted.
         $admin = $this->createAdmin('admin@example.org');
         $session = $this->createIdleSessionWithoutSave();

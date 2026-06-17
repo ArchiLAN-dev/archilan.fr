@@ -17,3 +17,6 @@ packages/
 .env.prod
 traefik/.env
 envs/*.env
+
+# Local Mercure dev TLS certs (generated with mkcert - never commit)
+/certs/*.pem

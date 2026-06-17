@@ -8,11 +8,19 @@ import { env } from "@/lib/env";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type FeedActor = { slot: number; name: string; game: string };
+type FeedRef = { id: number; name: string };
+
 type FeedEvent = {
   type: string;
   text: string;
   color?: string;
   timestamp: string;
+  // Item events only (story 29.4): structured origin, present when resolved. Fall back to `text`.
+  item?: FeedRef;
+  location?: FeedRef;
+  sender?: FeedActor;
+  receiver?: FeedActor;
 };
 
 type FeedMessage = FeedEvent & { _key: string };
@@ -257,7 +265,10 @@ export function EventFeed({ runId }: { runId: string }) {
                     </time>
                     <TypeBadge type={msg.type} />
                     <span className="flex-1 text-sm text-foreground">
-                      {msg.text}
+                      {msg.item?.name ?? msg.text}
+                      {itemOrigin(msg) ? (
+                        <span className="text-muted-foreground"> - {itemOrigin(msg)}</span>
+                      ) : null}
                     </span>
                   </li>
                 );
@@ -288,6 +299,14 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Origin of an item event: "{check} - {world} ({sender})", or "" when the structured origin is absent
+// (older bridge / non-item event) so the row degrades to plain `text`.
+function itemOrigin(msg: FeedEvent): string {
+  if (!msg.sender) return "";
+  const head = [msg.location?.name, msg.sender.game].filter((s) => !!s).join(" - ");
+  return head ? `${head} (${msg.sender.name})` : msg.sender.name;
+}
 
 // Recalculated only on re-render triggered by new messages - no setInterval needed.
 function relativeTime(iso: string): string {

@@ -152,7 +152,7 @@ function CouplingNotice({ outcome }: { outcome: CouplingResult["outcome"] }) {
   if ("invalid_input" === outcome) {
     return (
       <Notice tone="error">
-        Profil Steam non reconnu — colle l&apos;URL de ton profil, ton pseudo Steam, ou ton
+        Profil Steam non reconnu - colle l&apos;URL de ton profil, ton pseudo Steam, ou ton
         SteamID64.
       </Notice>
     );

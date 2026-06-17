@@ -167,31 +167,31 @@ The library depends on `symfony/http-client-contracts` (not PSR-18) because:
 2. `symfony/http-client` is installable standalone for CLI consumers.
 3. Avoids a PSR-17 factory dependency that adds friction for simple use cases.
 
-For multipart (apworld upload, launch-from-file), use `Symfony\Component\Mime\Part\DataPart` + `Symfony\Component\Mime\Part\Multipart\FormDataPart` — the same pattern already used in `RunnerGateway.php`.
+For multipart (apworld upload, launch-from-file), use `Symfony\Component\Mime\Part\DataPart` + `Symfony\Component\Mime\Part\Multipart\FormDataPart` - the same pattern already used in `RunnerGateway.php`.
 
-### HttpTransport — extensibility pattern
+### HttpTransport - extensibility pattern
 
 `HttpTransport` is `final` and `@internal`. Sub-clients receive it via constructor injection. Its public surface:
 
 ```php
-// Returns decoded JSON array — throws on non-2xx
+// Returns decoded JSON array - throws on non-2xx
 /** @return array<string, mixed> */
 public function postJson(string $path, mixed $body = []): array {}
 
-// Returns nothing — throws on non-2xx
+// Returns nothing - throws on non-2xx
 public function postVoid(string $path, mixed $body = []): void {}
 
-// Sends multipart/form-data — throws on non-2xx
+// Sends multipart/form-data - throws on non-2xx
 public function postMultipart(string $path, FormDataPart $form): array {}
 
-// GET → decoded JSON — throws on non-2xx
+// GET → decoded JSON - throws on non-2xx
 /** @return array<string, mixed> */
 public function getJson(string $path): array {}
 
-// GET → raw string (for YAML) — throws on non-2xx
+// GET → raw string (for YAML) - throws on non-2xx
 public function getRaw(string $path): string {}
 
-// DELETE — throws on non-2xx
+// DELETE - throws on non-2xx
 public function deleteVoid(string $path): void {}
 ```
 
@@ -211,7 +211,7 @@ final class SnapshotsClient {
 public function snapshots(): SnapshotsClient { return $this->snapshotsClient; }
 ```
 
-No error-handling code to write, no auth to wire — `HttpTransport` handles it all.
+No error-handling code to write, no auth to wire - `HttpTransport` handles it all.
 
 ### Authentication header
 
@@ -235,7 +235,7 @@ The orchestrateur uses `Authorization: Bearer {apiKey}` (confirmed from `orchest
 
 ### Future migration (not in scope here)
 
-Once this library is available, future stories should migrate `RunnerGateway.php` and `HttpWeeklyRunnerGateway.php` to use it internally, removing their duplicated raw HTTP logic. This story only introduces the package and registers it — it does not change existing gateways.
+Once this library is available, future stories should migrate `RunnerGateway.php` and `HttpWeeklyRunnerGateway.php` to use it internally, removing their duplicated raw HTTP logic. This story only introduces the package and registers it - it does not change existing gateways.
 
 ### Symfony service registration example
 

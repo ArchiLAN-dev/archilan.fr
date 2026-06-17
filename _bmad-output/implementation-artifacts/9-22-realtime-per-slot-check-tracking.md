@@ -131,8 +131,8 @@ tarball is fetched at build, so `MultiServer.py` is available in the image / dow
 - [Source: _bmad-output/implementation-artifacts/9-14-player-progress-dashboard.md] - consumer UI
 - [Source: _bmad-output/implementation-artifacts/9-20-bridge-reachability-push-to-mercure.md] - push pattern
 - [Source: Archipelago-Bridge core/ap_client.py, core/loops.py, bridge.py] - observer + reconcile + push
-- [Source: Archipelago-Bridge PR #1 — apsave reconcile now pushes (notify_state_changed)]
-- [Source: archilan-archipelago/ap_server.sh, Dockerfile (AP 0.6.7)] — server launch, no save-interval flag
+- [Source: Archipelago-Bridge PR #1 - apsave reconcile now pushes (notify_state_changed)]
+- [Source: archilan-archipelago/ap_server.sh, Dockerfile (AP 0.6.7)] - server launch, no save-interval flag
 
 ---
 
@@ -146,11 +146,11 @@ claude-opus-4-8 (Claude Code).
 
 Read `MultiServer.py` @ tag 0.6.7 (`register_location_checks`, RoomUpdate emission, auto-save):
 
-- **AP broadcasts `PrintJSON ItemSend` to the whole team for every check** — `ctx.broadcast_team(team, info_texts)`, with `info_texts` appended for **every** item in the newly-checked locations, **no** filtering by flags/filler/self. So the bridge's TextOnly observer **does** receive an ItemSend for every check (my earlier "filler isn't broadcast" hypothesis was wrong).
-- `RoomUpdate { checked_locations, hint_points }` is sent only to `ctx.clients[team][slot]` — i.e. only to clients connected to *that* slot, **not** to the observer. So candidate (A) would require per-slot connections (items_handling mismatch / item-delivery pitfalls) — rejected as overkill/risky.
-- `self.auto_save_interval = 60` — the `.apsave` is flushed ~every 60 s, confirming the apsave fallback latency (the ">5 s / only on refresh" symptom).
+- **AP broadcasts `PrintJSON ItemSend` to the whole team for every check** - `ctx.broadcast_team(team, info_texts)`, with `info_texts` appended for **every** item in the newly-checked locations, **no** filtering by flags/filler/self. So the bridge's TextOnly observer **does** receive an ItemSend for every check (my earlier "filler isn't broadcast" hypothesis was wrong).
+- `RoomUpdate { checked_locations, hint_points }` is sent only to `ctx.clients[team][slot]` - i.e. only to clients connected to *that* slot, **not** to the observer. So candidate (A) would require per-slot connections (items_handling mismatch / item-delivery pitfalls) - rejected as overkill/risky.
+- `self.auto_save_interval = 60` - the `.apsave` is flushed ~every 60 s, confirming the apsave fallback latency (the ">5 s / only on refresh" symptom).
 
-**Decision → candidate (C), refined:** the observer already receives every check via ItemSend; the bug is that `_track_item_send` resolves the slot/location by **parsing the human-readable `data` text parts**, which is fragile across games/message shapes (intermittent misses → only the apsave catches them, 60 s later). The ItemSend packet also carries a **structured `item` (NetworkItem: item/location/player/flags) and top-level `receiving`** — authoritative and game-agnostic. Fix: read those structured fields (fast path), keep text-parsing as a fallback for `ItemCheat`/unusual shapes. No per-slot connections, no apsave dependence; the merged apsave-reconcile push stays as the backstop.
+**Decision → candidate (C), refined:** the observer already receives every check via ItemSend; the bug is that `_track_item_send` resolves the slot/location by **parsing the human-readable `data` text parts**, which is fragile across games/message shapes (intermittent misses → only the apsave catches them, 60 s later). The ItemSend packet also carries a **structured `item` (NetworkItem: item/location/player/flags) and top-level `receiving`** - authoritative and game-agnostic. Fix: read those structured fields (fast path), keep text-parsing as a fallback for `ItemCheat`/unusual shapes. No per-slot connections, no apsave dependence; the merged apsave-reconcile push stays as the backstop.
 
 ### Completion Notes List
 
@@ -159,10 +159,10 @@ Read `MultiServer.py` @ tag 0.6.7 (`register_location_checks`, RoomUpdate emissi
   read the structured `item` NetworkItem (`item`/`location`/`player`/`flags`) + top-level `receiving` as a
   fast path in `_track_item_send`, falling back to the existing text parse for `ItemCheat`/odd shapes.
   Extracted `_apply_item_send()` shared by both paths.
-- No per-slot connections (avoids items_handling-mismatch / duplicate-delivery pitfalls — candidate A
+- No per-slot connections (avoids items_handling-mismatch / duplicate-delivery pitfalls - candidate A
   rejected per spike). The merged apsave-reconcile push (PR #1) remains the backstop.
 - Idempotent: checks accumulate in a set, so a repeated/duplicate ItemSend (or overlap with the apsave
-  reconcile) does not double-count — covered by a test.
+  reconcile) does not double-count - covered by a test.
 - **Verification:** unit tests prove a self-find with empty `data` text parts is now tracked (the failing
   case). Live verification on a solo-with-filler run is pending a bridge image rebuild/redeploy.
 
@@ -170,7 +170,7 @@ Read `MultiServer.py` @ tag 0.6.7 (`register_location_checks`, RoomUpdate emissi
 
 - `Archipelago-Bridge` (PR #2): `core/ap_client.py` (structured ItemSend fast path + `_apply_item_send`),
   `tests/test_item_send_tracking.py` (new: self-find / cross-player / idempotence).
-- Related prior: `Archipelago-Bridge` PR #1 (apsave reconcile now pushes — `core/loops.py`,
+- Related prior: `Archipelago-Bridge` PR #1 (apsave reconcile now pushes - `core/loops.py`,
   `core/ap_client.py`, `bridge.py`).
 
 ### Change Log

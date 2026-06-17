@@ -1,8 +1,8 @@
-# Story 17.9: orchestrateur-client — add `relaunchFromSave()`
+# Story 17.9: orchestrateur-client - add `relaunchFromSave()`
 
 Status: done
 
-Repo: `archilan-orchestrateur-client` (`packages/orchestrateur-client/`) — PR + tag `v1.2.0`.
+Repo: `archilan-orchestrateur-client` (`packages/orchestrateur-client/`) - PR + tag `v1.2.0`.
 
 ## Story
 
@@ -32,9 +32,9 @@ package (never the reverse). User approved the package change on 2026-06-10.
 
 ## Tasks / Subtasks
 
-- [x] Task 1 — `relaunchFromSave()` on `SessionsClient` (AC 1, 2).
-- [x] Task 2 — `testRelaunchFromSave_void` asserts the URL (AC 3).
-- [x] Task 3 — bump `composer.json` to 1.2.0; PR + tag (AC 4).
+- [x] Task 1 - `relaunchFromSave()` on `SessionsClient` (AC 1, 2).
+- [x] Task 2 - `testRelaunchFromSave_void` asserts the URL (AC 3).
+- [x] Task 3 - bump `composer.json` to 1.2.0; PR + tag (AC 4).
 
 ## Dev Notes
 
@@ -52,4 +52,4 @@ package (never the reverse). User approved the package change on 2026-06-10.
 
 ## Change Log
 
-- 2026-06-10 — Story created and implemented (status: review).
+- 2026-06-10 - Story created and implemented (status: review).

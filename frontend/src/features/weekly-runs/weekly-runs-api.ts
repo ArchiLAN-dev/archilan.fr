@@ -150,7 +150,7 @@ export async function launchWeeklyEntry(
 
 /**
  * Relaunch an idle/stopped/crashed weekly entry's container (story 17.13). Reuses the shared
- * session restart endpoint — the orchestrateur session id equals the entry's external session id.
+ * session restart endpoint - the orchestrateur session id equals the entry's external session id.
  * Returns true on 202 (relaunch initiated).
  */
 export async function relaunchWeeklyEntry(externalSessionId: string): Promise<boolean> {

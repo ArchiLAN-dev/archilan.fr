@@ -104,24 +104,24 @@ export async function searchAdminGameOptions(query: string): Promise<AdminGameOp
 ```
 
 The server now applies the apworld-ready filter, so the client `isApworldReady` filter is
-no longer load-bearing — but keep the type guard (defensive). Pass `AbortSignal` through
+no longer load-bearing - but keep the type guard (defensive). Pass `AbortSignal` through
 `apiFetch` for request cancellation; confirm `apiFetch` forwards `signal` (it wraps
 `fetch` with `credentials: 'include'`). If it does not accept `signal`, use raw `fetch`
 with `credentials: 'include'` as `igdb-game-search.tsx` does.
 
-### Frontend — combobox component (Task 5)
+### Frontend - combobox component (Task 5)
 
 Model it on `features/admin/igdb-game-search.tsx` (debounce via `setTimeout` ref,
 `AbortController` ref, outside-click + Escape `useEffect`s, dropdown with
 loading/error/empty/results states). Differences:
-- No cover image / pagination footer — games are `{ id, name }`, render the name only.
+- No cover image / pagination footer - games are `{ id, name }`, render the name only.
 - On select: call `onSelect(game)`, set the input value to the chosen game name, close.
 - Controlled `value` prop so the parent can display the current selection.
 
 Respect `AGENTS.md`: type guards at the boundary (no `as`), no `process.env`
 (use `env`), stable list keys (`game.id`).
 
-### Frontend — form wiring (Task 6)
+### Frontend - form wiring (Task 6)
 
 In `admin-weekly-template-form.tsx`:
 - **create:** replace the `<select>`…`</select>` block with `<AdminGamePicker value={...} onSelect={(g) => void handleGameChange(g.id)} />`. Keep `handleGameChange` (loads `defaultYaml`). Drop the `useEffect` bulk `fetchAdminGameOptions` call and the `games` state.
@@ -130,64 +130,64 @@ In `admin-weekly-template-form.tsx`:
 ### Out of scope
 
 - No keyboard navigation in the dropdown (parity with igdb widget).
-- No change to template create/update endpoints — `game_not_ready` validation on POST stays as-is.
+- No change to template create/update endpoints - `game_not_ready` validation on POST stays as-is.
 - The IGDB widget is untouched.
 
 ## File List
 
 ### API
-- `api/src/GameSelection/Presentation/AdminGameLibraryController.php` — modified (parse `apworld_ready`)
-- `api/src/GameSelection/Application/AdminGameLibrary.php` — modified (`list()` signature)
-- `api/src/GameSelection/Application/AdminGameListQueryInterface.php` — modified (`find()` signature)
-- `api/src/GameSelection/Infrastructure/DbalAdminGameListQuery.php` — modified (`find()` + `applyFilters()`)
-- `api/tests/Functional/AdminGameLibraryTest.php` — modified (new filter cases)
+- `api/src/GameSelection/Presentation/AdminGameLibraryController.php` - modified (parse `apworld_ready`)
+- `api/src/GameSelection/Application/AdminGameLibrary.php` - modified (`list()` signature)
+- `api/src/GameSelection/Application/AdminGameListQueryInterface.php` - modified (`find()` signature)
+- `api/src/GameSelection/Infrastructure/DbalAdminGameListQuery.php` - modified (`find()` + `applyFilters()`)
+- `api/tests/Functional/AdminGameLibraryTest.php` - modified (new filter cases)
 
 ### Frontend
-- `frontend/src/features/admin/admin-weekly-runs-api.ts` — modified (`searchAdminGameOptions`, remove paginated `fetchAdminGameOptions`)
-- `frontend/src/features/admin/admin-game-picker.tsx` — new (searchable combobox)
-- `frontend/src/features/admin/admin-weekly-template-form.tsx` — modified (use picker in create, static name in edit)
+- `frontend/src/features/admin/admin-weekly-runs-api.ts` - modified (`searchAdminGameOptions`, remove paginated `fetchAdminGameOptions`)
+- `frontend/src/features/admin/admin-game-picker.tsx` - new (searchable combobox)
+- `frontend/src/features/admin/admin-weekly-template-form.tsx` - modified (use picker in create, static name in edit)
 
 ## Change Log
 
 | Date       | Change                                                                                          |
 |------------|-------------------------------------------------------------------------------------------------|
-| 2026-06-06 | Story created — completes the `apworldReady` server filter sketched in 23.5; supersedes the interim client-side pagination fix with a debounced server-side searchable game picker. |
-| 2026-06-06 | Implemented. AC2 caveat: the `apworld_ready` + `search` combination exercises Postgres `ILIKE`, which the SQLite functional-test DB rejects — the combined path is covered in prod, not in tests; the filter alone (+ `meta.total`) is tested. Bonus gate fix: `AdminGameLibraryTest::setUp` was missing `GameCatalogSync` in its `SchemaTool` array (two pre-existing reds: `no such table: game_catalog_sync`) — added it. All gates green. |
+| 2026-06-06 | Story created - completes the `apworldReady` server filter sketched in 23.5; supersedes the interim client-side pagination fix with a debounced server-side searchable game picker. |
+| 2026-06-06 | Implemented. AC2 caveat: the `apworld_ready` + `search` combination exercises Postgres `ILIKE`, which the SQLite functional-test DB rejects - the combined path is covered in prod, not in tests; the filter alone (+ `meta.total`) is tested. Bonus gate fix: `AdminGameLibraryTest::setUp` was missing `GameCatalogSync` in its `SchemaTool` array (two pre-existing reds: `no such table: game_catalog_sync`) - added it. All gates green. |
 | 2026-06-06 | Picker enhancement: dropdown options now show a cover thumbnail (`coverImageUrl`, already returned by `GET /admin/games`) with a `Gamepad2` fallback, matching the IGDB widget. `coverImageUrl` added to `AdminGameOption` and `searchAdminGameOptions`. Gates re-run green. |
 | 2026-06-06 | Follow-up fix (create-flow UX): after create/update, the form now invalidates the dashboard query so the listing reflects the change immediately instead of waiting for the 30s `staleTime`/`refetchInterval`. Extracted a shared `ADMIN_WEEKLY_DASHBOARD_QUERY_KEY` used by both the dashboard `useQuery` and the form's `invalidateQueries`. Gates green. |
-| 2026-06-07 | **Addendum — game-grouped navigation** (see section below). Gates green (API: phpunit 920/920, phpstan, cs-fixer, ddd; frontend: typecheck, lint, build). |
+| 2026-06-07 | **Addendum - game-grouped navigation** (see section below). Gates green (API: phpunit 920/920, phpstan, cs-fixer, ddd; frontend: typecheck, lint, build). |
 
-## Addendum (2026-06-07) — Game-grouped weekly-runs navigation
+## Addendum (2026-06-07) - Game-grouped weekly-runs navigation
 
 The flat admin dashboard (`/admin/weekly-runs`) was reorganised **by targeted game** so it
 scales as templates/games multiply.
 
 ### New acceptance criteria
 
-**AC8 — Game grid landing.** `GET /api/v1/admin/weekly-runs/games` returns one entry per
+**AC8 - Game grid landing.** `GET /api/v1/admin/weekly-runs/games` returns one entry per
 game that has ≥ 1 weekly template: `{ gameId, gameName, coverImageUrl, coverImageAlt,
 templateCount, runCount }`, ordered by game name. `runCount` = total `weekly_runs` (all
 weeks) attached to the game. `403` non-admin. The landing page renders these as a card grid
 (cover thumbnail + run-count badge in a corner) plus the "Nouveau template" button.
 
-**AC9 — Per-game detail page.** Clicking a game card opens `/admin/weekly-runs/jeu/{gameId}`:
+**AC9 - Per-game detail page.** Clicking a game card opens `/admin/weekly-runs/jeu/{gameId}`:
 game header (cover + name + counts), actions ("Générer maintenant" + "Nouveau template"
 pre-filled with the game), and the list of that game's templates. `notFound()` when the game
-has no template. (Per follow-up: the current-week runs table was **removed** from this page —
+has no template. (Per follow-up: the current-week runs table was **removed** from this page -
 run monitoring now lives on the per-template page, AC11.)
 
-**AC10 — Pre-filled template creation.** `/admin/weekly-runs/nouveau?gameId=<id>` locks the
+**AC10 - Pre-filled template creation.** `/admin/weekly-runs/nouveau?gameId=<id>` locks the
 game (static read-only name, no combobox) and pre-loads its `defaultYaml`. Without the param,
 the searchable combobox (AC4) is unchanged.
 
-**AC11 — Per-template run history.** `GET /api/v1/admin/weekly-templates/{templateId}/runs`
+**AC11 - Per-template run history.** `GET /api/v1/admin/weekly-templates/{templateId}/runs`
 returns all runs of a template (current + past), most recent ISO week first, each with
 `weekYear/weekNumber/status/seed/entryCount/entries[]`. Unknown template → `200 { data: [] }`
 (template existence is validated client-side via the template-detail fetch). The template
 card body links to `/admin/weekly-runs/template/{templateId}`, which lists the run history
 (participants expandable per run). `403` non-admin.
 
-**AC12 — gameId on current runs.** `GET /admin/weekly-runs/current` entries now carry
+**AC12 - gameId on current runs.** `GET /admin/weekly-runs/current` entries now carry
 `gameId` (additive).
 
 ### Tasks

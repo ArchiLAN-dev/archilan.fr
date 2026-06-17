@@ -180,12 +180,12 @@ Expired-but-never-consumed tokens are deleted as soon as `expires_at < now()` (n
 
 - [Source: api/src/Schedule.php] - scheduler, existing cron entries
 - [Source: api/src/Identity/Application/Message/CleanupRefreshTokensMessage.php + CleanupRefreshTokensHandler.php]
-- [Source: api/src/Identity/Infrastructure/DoctrineRefreshTokenRepository.php] — DBAL delete pattern + table-from-metadata
-- [Source: api/src/Identity/Presentation/CleanupRefreshTokensCommand.php] — command pattern
-- [Source: _bmad-output/implementation-artifacts/13-6-expired-token-cleanup-command.md] — prior cleanup story
-- [Source: api/src/Identity/Domain/EmailConfirmationToken.php, PasswordResetToken.php] — columns
-- [Source: api/src/Payments/Domain/HelloAssoSyncLog.php, api/src/Events/Domain/EventPrivateAccessLog.php] — log columns
-- [Source: api/CLAUDE.md] — DDD layer rules (AC-A2, DBAL QueryBuilder, command placement)
+- [Source: api/src/Identity/Infrastructure/DoctrineRefreshTokenRepository.php] - DBAL delete pattern + table-from-metadata
+- [Source: api/src/Identity/Presentation/CleanupRefreshTokensCommand.php] - command pattern
+- [Source: _bmad-output/implementation-artifacts/13-6-expired-token-cleanup-command.md] - prior cleanup story
+- [Source: api/src/Identity/Domain/EmailConfirmationToken.php, PasswordResetToken.php] - columns
+- [Source: api/src/Payments/Domain/HelloAssoSyncLog.php, api/src/Events/Domain/EventPrivateAccessLog.php] - log columns
+- [Source: api/CLAUDE.md] - DDD layer rules (AC-A2, DBAL QueryBuilder, command placement)
 
 ### Project Structure Notes
 
@@ -208,15 +208,15 @@ claude-opus-4-8 (Claude Code).
 ### Debug Log References
 
 - Test fake IDs initially exceeded `varchar(32)` (SQLSTATE 22001) → switched seed user/event IDs to `bin2hex(random_bytes(16))` (32 chars).
-- Full suite showed 1 transient error at schema creation for an unrelated test (`AdminEventPrivateAccessTest`); passes in isolation and on a clean re-run (977/977) — the documented local `archilan_test` schema-race flakiness, not this change. CI on fresh Postgres is authoritative.
+- Full suite showed 1 transient error at schema creation for an unrelated test (`AdminEventPrivateAccessTest`); passes in isolation and on a clean re-run (977/977) - the documented local `archilan_test` schema-race flakiness, not this change. CI on fresh Postgres is authoritative.
 
 ### Completion Notes List
 
 - Deletes implemented in **Infrastructure** behind **Domain** interfaces using DBAL `Connection->createQueryBuilder()->delete($table)->executeStatement()` (table resolved via ORM metadata), mirroring `DoctrineRefreshTokenRepository`. Added `Connection` to the two log repos (were ORM-only).
-- One marker `*Message` + `#[AsMessageHandler]` `*Handler` per target (Identity x2, Payments, Events); handlers inject the Domain interface + `LoggerInterface` + an injected retention/grace int (no `Connection`/`EM` in Application — AC-A2 respected, `app:architecture:ddd` green).
+- One marker `*Message` + `#[AsMessageHandler]` `*Handler` per target (Identity x2, Payments, Events); handlers inject the Domain interface + `LoggerInterface` + an injected retention/grace int (no `Connection`/`EM` in Application - AC-A2 respected, `app:architecture:ddd` green).
 - Retention windows configurable via `services.yaml` binds with env overrides + parameter defaults: token consumed grace 7 d, helloasso_sync_log 90 d, event_private_access_log 365 d. Documented (commented) in `api/.env`.
 - Scheduled in `Schedule.php` (cron 03:15 / 03:20 / 03:25 / 03:30, staggered after the 03:00 refresh-token job); messages routed to `async` in `messenger.yaml`.
-- Manual run: `app:auth:cleanup-tokens` (Identity, both token types), `app:payments:cleanup-sync-log`, `app:events:cleanup-access-log` — per context to respect bounded-context boundaries.
+- Manual run: `app:auth:cleanup-tokens` (Identity, both token types), `app:payments:cleanup-sync-log`, `app:events:cleanup-access-log` - per context to respect bounded-context boundaries.
 - **GameCatalogSync** deliberately untouched (it is per-game state, not a log) and audit/compliance tables excluded; cleanup code never references them.
 - Tests: 4 functional (seed stale + fresh, assert only stale deleted, survivors remain) + 3 unit (handler delegation + grace/retention applied + structured log key). New: 8 tests / 38 assertions green; full suite 977 green.
 
