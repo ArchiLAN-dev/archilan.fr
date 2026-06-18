@@ -124,6 +124,36 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testDisplayNameOverrideReplacesAccountNameButKeepsSlug(): void
+    {
+        $user = $this->createUser('gwen@example.org', slug: 'gwen', displayName: 'gwen');
+        $this->loginAs($user);
+
+        // No override yet: the editor echoes the account name + a null override.
+        $this->client->jsonRequest('GET', '/api/v1/community/profile');
+        self::assertSame('gwen', $this->data()['accountName']);
+        self::assertNull($this->data()['displayName']);
+
+        // Set an override.
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['displayName' => 'Gwendoline']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('Gwendoline', $this->data()['displayName']);
+
+        // The public profile now shows the override; the URL slug is unchanged.
+        $this->client->getCookieJar()->clear();
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/gwen');
+        self::assertSame('Gwendoline', $this->data()['displayName']);
+        self::assertSame('gwen', $this->data()['slug']);
+
+        // Clearing it falls back to the account name.
+        $this->loginAs($user);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['displayName' => '']);
+        self::assertResponseIsSuccessful();
+        self::assertNull($this->data()['displayName']);
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/gwen');
+        self::assertSame('gwen', $this->data()['displayName']);
+    }
+
     /**
      * @return array<mixed>
      */

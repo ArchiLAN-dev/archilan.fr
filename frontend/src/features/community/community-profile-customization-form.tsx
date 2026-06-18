@@ -20,6 +20,7 @@ import {
 
 const MAX_SOCIAL_LINKS = 5;
 const MAX_FAVORITES = 6;
+const MAX_DISPLAY_NAME = 80;
 const MAX_TAGLINE = 120;
 const MAX_PRONOUNS = 40;
 const MAX_BIO = 2000;
@@ -40,6 +41,7 @@ const AUDIENCE_HINTS: Record<string, string> = {
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string };
 
 type FormValues = {
+  displayName: string;
   bio: string;
   tagline: string;
   pronouns: string;
@@ -55,6 +57,7 @@ type FormValues = {
 // the form dirty.
 function serialize(v: FormValues): string {
   return JSON.stringify({
+    displayName: v.displayName.trim(),
     bio: v.bio.trim(),
     tagline: v.tagline.trim(),
     pronouns: v.pronouns.trim(),
@@ -71,6 +74,8 @@ function serialize(v: FormValues): string {
 export function CommunityProfileCustomizationForm() {
   const [loading, setLoading] = useState(true);
   const [slug, setSlug] = useState<string | null>(null);
+  const [accountName, setAccountName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [tagline, setTagline] = useState("");
   const [pronouns, setPronouns] = useState("");
@@ -84,14 +89,16 @@ export function CommunityProfileCustomizationForm() {
   const [baseline, setBaseline] = useState<string>("");
 
   const values: FormValues = useMemo(
-    () => ({ bio, tagline, pronouns, bannerPreset, audience, socialLinks, favorites, showcase }),
-    [bio, tagline, pronouns, bannerPreset, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
 
   function hydrate(profile: MyCommunityProfile): void {
     setSlug(profile.slug);
+    setAccountName(profile.accountName ?? "");
+    setDisplayName(profile.displayName ?? "");
     setBio(profile.bio ?? "");
     setTagline(profile.tagline ?? "");
     setPronouns(profile.pronouns ?? "");
@@ -102,6 +109,7 @@ export function CommunityProfileCustomizationForm() {
     setShowcase(profile.showcaseLayout);
     setBaseline(
       serialize({
+        displayName: profile.displayName ?? "",
         bio: profile.bio ?? "",
         tagline: profile.tagline ?? "",
         pronouns: profile.pronouns ?? "",
@@ -142,6 +150,7 @@ export function CommunityProfileCustomizationForm() {
   async function handleSave() {
     setSave({ kind: "saving" });
     const result = await updateMyCommunityProfile({
+      displayName: displayName.trim() === "" ? null : displayName.trim(),
       bio: bio.trim() === "" ? null : bio.trim(),
       tagline: tagline.trim() === "" ? null : tagline.trim(),
       pronouns: pronouns.trim() === "" ? null : pronouns.trim(),
@@ -192,6 +201,24 @@ export function CommunityProfileCustomizationForm() {
       </div>
 
       <Section title="Identité" description="Ce qui te présente en haut de ton profil.">
+        <Field
+          label="Pseudo affiché"
+          counter={<CharCount value={displayName} max={MAX_DISPLAY_NAME} />}
+          hint={
+            displayName.trim() === ""
+              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL /joueurs/${slug ?? ""} ne change pas.`
+              : "Affiché à la place de ton nom de compte. Ton URL de profil ne change pas."
+          }
+        >
+          <input
+            className={inputClass}
+            maxLength={MAX_DISPLAY_NAME}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={accountName !== "" ? accountName : "Ton pseudo affiché…"}
+            type="text"
+            value={displayName}
+          />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
             <input
@@ -262,72 +289,43 @@ export function CommunityProfileCustomizationForm() {
         </Field>
       </Section>
 
-      <Section title={`Jeux favoris (${favorites.length}/${MAX_FAVORITES})`} description="Mets en avant les jeux que tu préfères.">
-        {favorites.length > 0 ? (
-          <ul className="flex flex-wrap gap-2" role="list">
-            {favorites.map((game) => (
-              <li
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-accent bg-accent/15 py-0.5 pl-1.5 pr-1.5 text-sm font-medium text-accent-text"
-                key={game.id}
-              >
-                <GameCover coverImageUrl={game.coverImageUrl} name={game.name} size="chip" />
-                {game.name}
-                <button
-                  aria-label={`Retirer ${game.name}`}
-                  className="inline-flex size-5 items-center justify-center rounded-full text-accent-text/70 hover:bg-accent/25 hover:text-accent-text"
-                  onClick={() => setFavorites((prev) => prev.filter((g) => g.id !== game.id))}
-                  type="button"
-                >
-                  <X aria-hidden className="size-3" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-xs text-muted-foreground">Aucun jeu favori pour le moment.</p>
-        )}
-        {favorites.length < MAX_FAVORITES ? (
-          <FavoriteGamePicker
-            catalog={catalog}
-            chosenIds={new Set(favorites.map((g) => g.id))}
-            onPick={(game) =>
-              setFavorites((prev) => [
-                ...prev,
-                { id: game.id, name: game.name, slug: game.slug, coverImageUrl: game.coverImageUrl },
-              ])
-            }
-          />
-        ) : (
-          <p className="text-xs text-muted-foreground">Limite atteinte ({MAX_FAVORITES}). Retire un jeu pour en ajouter un autre.</p>
-        )}
-      </Section>
-
-      <Section title="Vitrine" description="Les blocs affichés sur ton profil, dans l'ordre.">
+      <Section
+        title="Vitrine"
+        description="Les blocs affichés sur ton profil, et leur ordre. Le bloc « Jeux favoris » contient les jeux que tu choisis ici."
+      >
         {showcase.length > 0 ? (
-          <ul className="grid gap-1.5" role="list">
-            {showcase.map((widget, index) => (
-              <li
-                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2"
-                key={widget}
-              >
-                <span className="text-sm text-foreground">{SHOWCASE_WIDGET_LABELS[widget] ?? widget}</span>
-                <div className="flex items-center gap-1">
-                  <IconBtn label="Monter" disabled={index === 0} onClick={() => moveShowcase(index, -1)}>
-                    <ArrowUp aria-hidden className="size-3.5" />
-                  </IconBtn>
-                  <IconBtn label="Descendre" disabled={index === showcase.length - 1} onClick={() => moveShowcase(index, 1)}>
-                    <ArrowDown aria-hidden className="size-3.5" />
-                  </IconBtn>
-                  <IconBtn
-                    danger
-                    label={`Retirer ${SHOWCASE_WIDGET_LABELS[widget] ?? widget}`}
-                    onClick={() => setShowcase((prev) => prev.filter((w) => w !== widget))}
-                  >
-                    <X aria-hidden className="size-3.5" />
-                  </IconBtn>
-                </div>
-              </li>
-            ))}
+          <ul className="grid gap-2" role="list">
+            {showcase.map((widget, index) => {
+              const label = SHOWCASE_WIDGET_LABELS[widget] ?? widget;
+              const isFavorites = widget === "favorite_games";
+              return (
+                <li className="grid gap-2 rounded-lg border border-border bg-background px-3 py-2.5" key={widget}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {label}
+                      {isFavorites ? (
+                        <span className="font-normal text-muted-foreground">
+                          {" "}
+                          ({favorites.length}/{MAX_FAVORITES})
+                        </span>
+                      ) : null}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <IconBtn label="Monter" disabled={index === 0} onClick={() => moveShowcase(index, -1)}>
+                        <ArrowUp aria-hidden className="size-3.5" />
+                      </IconBtn>
+                      <IconBtn label="Descendre" disabled={index === showcase.length - 1} onClick={() => moveShowcase(index, 1)}>
+                        <ArrowDown aria-hidden className="size-3.5" />
+                      </IconBtn>
+                      <IconBtn danger label={`Retirer ${label}`} onClick={() => setShowcase((prev) => prev.filter((w) => w !== widget))}>
+                        <X aria-hidden className="size-3.5" />
+                      </IconBtn>
+                    </div>
+                  </div>
+                  {isFavorites ? <FavoritesEditor catalog={catalog} favorites={favorites} setFavorites={setFavorites} /> : null}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-xs text-muted-foreground">Aucun bloc — ajoutes-en pour mettre ton profil en avant.</p>
@@ -487,6 +485,58 @@ function SaveStatus({ dirty, save }: { dirty: boolean; save: SaveState }) {
     );
   }
   return <span className="text-sm text-muted-foreground">Tout est à jour.</span>;
+}
+
+function FavoritesEditor({
+  catalog,
+  favorites,
+  setFavorites,
+}: {
+  catalog: PublicGame[];
+  favorites: EditableFavoriteGame[];
+  setFavorites: React.Dispatch<React.SetStateAction<EditableFavoriteGame[]>>;
+}) {
+  return (
+    <div className="grid gap-2 border-t border-border/60 pt-2.5">
+      {favorites.length > 0 ? (
+        <ul className="flex flex-wrap gap-2" role="list">
+          {favorites.map((game) => (
+            <li
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-accent bg-accent/15 py-0.5 pl-1.5 pr-1.5 text-sm font-medium text-accent-text"
+              key={game.id}
+            >
+              <GameCover coverImageUrl={game.coverImageUrl} name={game.name} size="chip" />
+              {game.name}
+              <button
+                aria-label={`Retirer ${game.name}`}
+                className="inline-flex size-5 items-center justify-center rounded-full text-accent-text/70 hover:bg-accent/25 hover:text-accent-text"
+                onClick={() => setFavorites((prev) => prev.filter((g) => g.id !== game.id))}
+                type="button"
+              >
+                <X aria-hidden className="size-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-xs text-muted-foreground">Aucun jeu choisi — ajoute tes jeux favoris ci-dessous.</p>
+      )}
+      {favorites.length < MAX_FAVORITES ? (
+        <FavoriteGamePicker
+          catalog={catalog}
+          chosenIds={new Set(favorites.map((g) => g.id))}
+          onPick={(game) =>
+            setFavorites((prev) => [
+              ...prev,
+              { id: game.id, name: game.name, slug: game.slug, coverImageUrl: game.coverImageUrl },
+            ])
+          }
+        />
+      ) : (
+        <p className="text-xs text-muted-foreground">Limite atteinte ({MAX_FAVORITES}).</p>
+      )}
+    </div>
+  );
 }
 
 function FavoriteGamePicker({

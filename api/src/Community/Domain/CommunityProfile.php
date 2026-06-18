@@ -53,6 +53,9 @@ final class CommunityProfile
         /** @var list<string> ordered enabled showcase widget keys */
         #[ORM\Column(name: 'showcase_layout', type: Types::JSON, options: ['default' => '[]'])]
         private array $showcaseLayout = [],
+        /** Optional display-name override; when set, shown on the profile instead of the account name. */
+        #[ORM\Column(name: 'display_name', type: 'string', length: 80, nullable: true)]
+        private ?string $displayName = null,
     ) {
     }
 
@@ -97,6 +100,7 @@ final class CommunityProfile
      * @param list<string>                            $showcaseLayout
      */
     public function customize(
+        ?string $displayName,
         ?string $bio,
         ?string $tagline,
         ?string $pronouns,
@@ -107,6 +111,7 @@ final class CommunityProfile
         array $showcaseLayout,
         \DateTimeImmutable $now,
     ): void {
+        $this->displayName = $displayName;
         $this->bio = $bio;
         $this->tagline = $tagline;
         $this->pronouns = $pronouns;
@@ -116,6 +121,12 @@ final class CommunityProfile
         $this->audience = $audience;
         $this->showcaseLayout = $showcaseLayout;
         $this->updatedAt = $now;
+    }
+
+    /** The display-name override, or null to fall back to the account name. */
+    public function getDisplayName(): ?string
+    {
+        return $this->displayName;
     }
 
     public function getBio(): ?string

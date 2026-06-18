@@ -13,6 +13,9 @@ export type EditableFavoriteGame = {
 
 export type MyCommunityProfile = {
   slug: string | null;
+  // The account name (Identity), shown as the fallback when no override is set.
+  accountName: string | null;
+  // Optional display-name override; null falls back to accountName.
   displayName: string | null;
   bio: string | null;
   tagline: string | null;
@@ -25,6 +28,7 @@ export type MyCommunityProfile = {
 };
 
 export type UpdateCommunityProfileInput = {
+  displayName: string | null;
   bio: string | null;
   tagline: string | null;
   pronouns: string | null;
@@ -44,6 +48,7 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
     !hasNullableStringProp(v, "tagline") ||
     !hasNullableStringProp(v, "pronouns") ||
     !hasNullableStringProp(v, "slug") ||
+    !hasNullableStringProp(v, "accountName") ||
     !hasNullableStringProp(v, "displayName")
   ) {
     return false;

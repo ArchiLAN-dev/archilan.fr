@@ -36,6 +36,7 @@ final readonly class UpdateCommunityProfile
     {
         $errors = new ValidationErrors();
 
+        $displayName = $this->nullableString($input['displayName'] ?? null, 80, 'displayName', $errors);
         $bio = $this->nullableString($input['bio'] ?? null, 2000, 'bio', $errors);
         $tagline = $this->nullableString($input['tagline'] ?? null, 120, 'tagline', $errors);
         $pronouns = $this->nullableString($input['pronouns'] ?? null, 40, 'pronouns', $errors);
@@ -66,7 +67,7 @@ final readonly class UpdateCommunityProfile
             $this->profiles->save($profile);
         }
 
-        $profile->customize($bio, $tagline, $pronouns, $bannerPreset, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
+        $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         $this->profiles->flush();
 
         return ['errorCode' => null, 'errors' => []];

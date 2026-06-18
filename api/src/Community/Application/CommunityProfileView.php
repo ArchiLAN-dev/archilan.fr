@@ -111,7 +111,8 @@ final readonly class CommunityProfileView
 
         return [
             'slug' => $model['slug'],
-            'displayName' => $model['displayName'],
+            // The owner's display-name override wins over the account name; falls back when unset.
+            'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
             'joinedAt' => $model['joinedAt'],
             'avatarUrl' => $profile?->getAvatarUrl(),
             'audience' => $audience,
@@ -173,13 +174,14 @@ final readonly class CommunityProfileView
     /**
      * Raw, always-full customization for the owner's edit form (self only).
      *
-     * @return array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId): array
     {
         $profile = $this->ensureProfile($userId);
 
         return [
+            'displayName' => $profile?->getDisplayName(),
             'bio' => $profile?->getBio(),
             'tagline' => $profile?->getTagline(),
             'pronouns' => $profile?->getPronouns(),
