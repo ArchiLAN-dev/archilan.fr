@@ -50,6 +50,12 @@ export function NotificationCenter() {
       es.onmessage = () => {
         void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       };
+      // Stop the browser's automatic reconnect loop on a rejected/dropped private subscription
+      // (e.g. an expired token); the 60 s poll keeps the center fresh as the fallback.
+      es.onerror = () => {
+        es?.close();
+        es = null;
+      };
     })();
     return () => {
       cancelled = true;

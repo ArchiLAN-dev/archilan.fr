@@ -7,6 +7,7 @@ namespace App\Community\Application;
 use App\Community\Domain\Notification;
 use App\Community\Domain\NotificationRepositoryInterface;
 use App\Realtime\Application\RealtimePublisher;
+use Psr\Log\LoggerInterface;
 
 /**
  * In-app notification center (story 30.12): write side (emit + realtime push) and read side (recent list,
@@ -21,6 +22,7 @@ final readonly class NotificationService implements Notifier
         private NotificationRepositoryInterface $notifications,
         private CommunityUserDirectoryQueryInterface $directory,
         private RealtimePublisher $realtime,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -31,13 +33,23 @@ final readonly class NotificationService implements Notifier
             return;
         }
 
-        $notification = Notification::create($recipientId, $type, $payload, new \DateTimeImmutable());
-        $this->notifications->save($notification);
+        // Best-effort: a notification is a side effect of an already-committed action, so a failure here
+        // must never roll back or 500 the primary write (friend accept, comment, kudos, achievement).
+        try {
+            $notification = Notification::create($recipientId, $type, $payload, new \DateTimeImmutable());
+            $this->notifications->save($notification);
 
-        $this->realtime->userNotification($recipientId, [
-            'type' => $type,
-            'id' => $notification->getId(),
-        ]);
+            $this->realtime->userNotification($recipientId, [
+                'type' => $type,
+                'id' => $notification->getId(),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('community.notification_emit_failed', [
+                'recipientId' => $recipientId,
+                'type' => $type,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
