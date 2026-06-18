@@ -16,6 +16,7 @@ use App\Community\Domain\KudosRepositoryInterface;
 use App\Community\Domain\Level;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Membership\Application\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
@@ -35,6 +36,7 @@ final readonly class CommunityProfileView
         private ProfileVisibility $visibility,
         private KudosRepositoryInterface $kudos,
         private CommunityPresenceQueryInterface $presence,
+        private ActiveMembershipQueryInterface $memberships,
     ) {
     }
 
@@ -45,6 +47,7 @@ final readonly class CommunityProfileView
      *     joinedAt: string,
      *     avatarUrl: string|null,
      *     audience: string,
+     *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>,
@@ -86,6 +89,13 @@ final readonly class CommunityProfileView
             'game' => $live['game'] ?? null,
         ];
 
+        // Public recognition badges (always visible, never audience-gated). Member status is a *live*
+        // membership lookup, never the stale-prone ROLE_MEMBER (AC-M2); admin is a stable role.
+        $badges = [
+            'member' => $this->memberships->hasActiveMembership($model['userId']),
+            'admin' => $model['isAdmin'],
+        ];
+
         $customization = null;
         if (null !== $profile && $this->visibility->canSee($viewerId, $model['userId'])) {
             $customization = [
@@ -105,6 +115,7 @@ final readonly class CommunityProfileView
             'joinedAt' => $model['joinedAt'],
             'avatarUrl' => $profile?->getAvatarUrl(),
             'audience' => $audience,
+            'badges' => $badges,
             'stats' => $model['stats'],
             'level' => [
                 'level' => $level->level,

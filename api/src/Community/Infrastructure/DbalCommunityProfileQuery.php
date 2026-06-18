@@ -24,7 +24,7 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
     {
         $qb = $this->connection->createQueryBuilder();
         $row = $qb
-            ->select('u.id', 'u.slug', 'u.display_name', 'u.created_at')
+            ->select('u.id', 'u.slug', 'u.display_name', 'u.created_at', 'u.roles')
             ->from($this->userTable, 'u')
             ->where($qb->expr()->eq('u.slug', ':slug'))
             ->andWhere($qb->expr()->isNull('u.deleted_at'))
@@ -56,6 +56,7 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
             'slug' => $resolvedSlug,
             'displayName' => $displayName,
             'joinedAt' => $joinedAt,
+            'isAdmin' => $this->isAdmin($row['roles'] ?? null),
             'stats' => [
                 'runsParticipated' => $runsParticipated,
                 'goalCompletions' => $goalCompletions,
@@ -66,5 +67,19 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
                 'totalItemsReceived' => $stats['total_items_received'],
             ],
         ];
+    }
+
+    /**
+     * ROLE_ADMIN is a stable role (unlike the stale-prone ROLE_MEMBER), so reading it from the user row is
+     * fine for a display-only badge. The column stores a JSON array of role strings.
+     */
+    private function isAdmin(mixed $rawRoles): bool
+    {
+        if (!is_string($rawRoles)) {
+            return false;
+        }
+        $decoded = json_decode($rawRoles, true);
+
+        return is_array($decoded) && in_array('ROLE_ADMIN', $decoded, true);
     }
 }

@@ -1,4 +1,4 @@
-import { Trophy } from "lucide-react";
+import { BadgeCheck, ShieldCheck, Trophy } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type {
@@ -58,6 +58,16 @@ export function PlayerProfilePage({
                 <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                   Niv. {profile.level.level}
                 </span>
+                {profile.badges.admin ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+                    <ShieldCheck aria-hidden className="size-3.5" /> Admin
+                  </span>
+                ) : null}
+                {profile.badges.member ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                    <BadgeCheck aria-hidden className="size-3.5" /> Adhérent
+                  </span>
+                ) : null}
                 {profile.presence.playing ? <PresenceBadge presence={profile.presence} /> : null}
                 {profile.customization?.pronouns ? (
                   <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
