@@ -34,16 +34,16 @@ export function PlayerProfilePage({
 
         {/* z-10 keeps the overlapping content above the positioned banner. */}
         <div className="relative z-10 grid gap-5 px-5 pb-6 sm:px-8">
-          {/* Identity: the avatar and the name straddle the banner's bottom edge (name centered on the
-              avatar, not shifted). The badges sit on their own row right under the name, aligned with it. */}
-          <div className="grid gap-2">
+          {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
+              badges sit just below the name and beside the avatar — pulled up so they aren't below the photo. */}
+          <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
               <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
               <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] md:text-4xl">
                 {displayName}
               </h1>
             </div>
-            <div className="flex flex-wrap items-center gap-2 pl-28 sm:pl-32">
+            <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">
               <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                 Niv. {profile.level.level}
               </span>
