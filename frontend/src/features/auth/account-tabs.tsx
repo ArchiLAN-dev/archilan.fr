@@ -16,17 +16,43 @@ import type { Profile } from "./account-profile";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Tab = "inscriptions" | "parties" | "activite" | "profil" | "amis" | "adhesion" | "confidentialite" | "compte";
+type GroupId = "communaute" | "jeux" | "compte";
 
-const TABS: Array<{ id: Tab; label: string; danger?: true }> = [
-  { id: "inscriptions", label: "Inscriptions" },
-  { id: "parties", label: "Mes parties" },
-  { id: "activite", label: "Activité" },
-  { id: "profil", label: "Profil" },
-  { id: "amis", label: "Amis" },
-  { id: "adhesion", label: "Adhésion" },
-  { id: "confidentialite", label: "Confidentialité" },
-  { id: "compte", label: "Compte", danger: true },
+type SubTab = { id: Tab; label: string; danger?: true };
+type Group = { id: GroupId; label: string; tabs: SubTab[] };
+
+const GROUPS: Group[] = [
+  {
+    id: "communaute",
+    label: "Communauté",
+    tabs: [
+      { id: "profil", label: "Profil" },
+      { id: "amis", label: "Amis" },
+      { id: "activite", label: "Activité" },
+    ],
+  },
+  {
+    id: "jeux",
+    label: "Jeux",
+    tabs: [
+      { id: "inscriptions", label: "Inscriptions" },
+      { id: "parties", label: "Mes parties" },
+    ],
+  },
+  {
+    id: "compte",
+    label: "Compte",
+    tabs: [
+      { id: "adhesion", label: "Adhésion" },
+      { id: "confidentialite", label: "Confidentialité" },
+      { id: "compte", label: "Connexions & sécurité", danger: true },
+    ],
+  },
 ];
+
+function groupOf(tab: Tab): Group {
+  return GROUPS.find((g) => g.tabs.some((t) => t.id === tab)) ?? GROUPS[0];
+}
 
 // ── AccountTabs ───────────────────────────────────────────────────────────────
 
@@ -36,9 +62,10 @@ type AccountTabsProps = {
 };
 
 export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("inscriptions");
+  const [activeTab, setActiveTab] = useState<Tab>("profil");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const activeGroup = groupOf(activeTab);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,14 +125,39 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
         )}
       </div>
 
-      {/* ── Tab navigation + content ─────────────────────────────────────── */}
-      <div className="grid gap-6">
+      {/* ── Two-level navigation + content ───────────────────────────────── */}
+      <div className="grid gap-4">
+        {/* Top level: groups */}
+        <nav aria-label="Catégories de l'espace membre" className="flex flex-wrap gap-2" role="tablist">
+          {GROUPS.map((group) => {
+            const active = activeGroup.id === group.id;
+            return (
+              <button
+                key={group.id}
+                aria-selected={active}
+                className={[
+                  "min-h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  active
+                    ? "bg-accent text-white"
+                    : "border border-border text-muted-foreground hover:border-accent hover:text-foreground",
+                ].join(" ")}
+                role="tab"
+                type="button"
+                onClick={() => setActiveTab(group.tabs[0].id)}
+              >
+                {group.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Second level: sub-tabs of the active group */}
         <nav
-          aria-label="Sections de l'espace membre"
+          aria-label={`Sections : ${activeGroup.label}`}
           className="-mb-px flex overflow-x-auto border-b border-border"
           role="tablist"
         >
-          {TABS.map((tab) => (
+          {activeGroup.tabs.map((tab) => (
             <button
               key={tab.id}
               aria-selected={activeTab === tab.id}
