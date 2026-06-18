@@ -39,7 +39,8 @@ final class RecomputeAchievementsCommand extends Command
 
         $granted = 0;
         foreach ($userIds as $userId) {
-            $granted += $this->recompute->recomputeForUser($userId);
+            // Bulk/backfill recompute must not spam every historical unlock as a notification.
+            $granted += $this->recompute->recomputeForUser($userId, notify: false);
         }
 
         $output->writeln(sprintf('Recomputed %d user(s), %d new grant(s).', count($userIds), $granted));

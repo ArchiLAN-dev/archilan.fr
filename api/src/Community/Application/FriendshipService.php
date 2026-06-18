@@ -9,6 +9,7 @@ use App\Community\Domain\Block;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\Friendship;
 use App\Community\Domain\FriendshipRepositoryInterface;
+use App\Community\Domain\Notification;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
@@ -23,6 +24,7 @@ final readonly class FriendshipService
         private BlockRepositoryInterface $blocks,
         private CommunityUserDirectoryQueryInterface $directory,
         private RecordActivity $recordActivity,
+        private Notifier $notifier,
     ) {
     }
 
@@ -48,6 +50,11 @@ final readonly class FriendshipService
                     $existing->accept($now);
                     $this->friendships->save($existing);
                     $this->recordFriendshipActivity($existing, $userId, $now);
+                    $this->notifier->notify(
+                        $existing->otherParty($userId),
+                        Notification::TYPE_FRIEND_REQUEST_ACCEPTED,
+                        ['fromUserId' => $userId],
+                    );
                 }
 
                 return 'ok';
@@ -55,12 +62,14 @@ final readonly class FriendshipService
             // Declined -> a fresh request re-opens it.
             $existing->reopen($userId, $targetUserId, $now);
             $this->friendships->save($existing);
+            $this->notifier->notify($targetUserId, Notification::TYPE_FRIEND_REQUEST_RECEIVED, ['fromUserId' => $userId]);
 
             return 'ok';
         }
 
         try {
             $this->friendships->save(Friendship::request($userId, $targetUserId, $now));
+            $this->notifier->notify($targetUserId, Notification::TYPE_FRIEND_REQUEST_RECEIVED, ['fromUserId' => $userId]);
         } catch (UniqueConstraintViolationException) {
             // A concurrent request created the pair first - idempotent.
         }
@@ -79,6 +88,11 @@ final readonly class FriendshipService
         $friendship->accept($now);
         $this->friendships->save($friendship);
         $this->recordFriendshipActivity($friendship, $userId, $now);
+        $this->notifier->notify(
+            $friendship->otherParty($userId),
+            Notification::TYPE_FRIEND_REQUEST_ACCEPTED,
+            ['fromUserId' => $userId],
+        );
 
         return 'ok';
     }

@@ -8,6 +8,7 @@ use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
 use App\Community\Domain\Kudos;
 use App\Community\Domain\KudosRepositoryInterface;
+use App\Community\Domain\Notification;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
@@ -19,6 +20,7 @@ final readonly class KudosService
         private KudosRepositoryInterface $kudos,
         private ActivityEntryRepositoryInterface $activityEntries,
         private AchievementGrantRepositoryInterface $achievementGrants,
+        private Notifier $notifier,
     ) {
     }
 
@@ -31,7 +33,8 @@ final readonly class KudosService
      */
     public function toggle(string $actorId, string $targetType, string $targetId): array
     {
-        if ($actorId === $this->ownerOf($targetType, $targetId)) {
+        $ownerId = $this->ownerOf($targetType, $targetId);
+        if ($actorId === $ownerId) {
             throw new CannotKudosOwnContentException();
         }
 
@@ -44,6 +47,13 @@ final readonly class KudosService
 
         try {
             $this->kudos->save(Kudos::give($actorId, $targetType, $targetId, new \DateTimeImmutable()));
+            if (null !== $ownerId) {
+                $this->notifier->notify($ownerId, Notification::TYPE_KUDOS_RECEIVED, [
+                    'fromUserId' => $actorId,
+                    'targetType' => $targetType,
+                    'targetId' => $targetId,
+                ]);
+            }
         } catch (UniqueConstraintViolationException) {
             // Concurrent give - already recorded.
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\Notifier;
 use App\Community\Application\RecomputeAchievements;
 use App\Community\Domain\AchievementCatalog;
 use App\Community\Domain\AchievementGrant;
@@ -35,7 +36,7 @@ final class RecomputeAchievementsTest extends TestCase
         $history->method('fetchForUser')->willReturn([['game' => 'A'], ['game' => 'B'], ['game' => 'A']]);
 
         $repo = $this->inMemoryRepo();
-        $service = new RecomputeAchievements($stats, $history, $repo);
+        $service = new RecomputeAchievements($stats, $history, $repo, $this->nullNotifier());
 
         // runs=1 unlocks first_run; 2 distinct games does not reach polyglot(5).
         self::assertSame(1, $service->recomputeForUser('u1'));
@@ -61,7 +62,7 @@ final class RecomputeAchievementsTest extends TestCase
         ]);
 
         $repo = $this->inMemoryRepo();
-        $added = (new RecomputeAchievements($stats, $history, $repo))->recomputeForUser('u2');
+        $added = (new RecomputeAchievements($stats, $history, $repo, $this->nullNotifier()))->recomputeForUser('u2');
 
         $keys = $repo->grantedKeys('u2');
         self::assertSame(7, $added);
@@ -72,6 +73,15 @@ final class RecomputeAchievementsTest extends TestCase
         self::assertContains('polyglot', $keys);
         self::assertNotContains('veteran', $keys);
         self::assertNotContains('omnivore', $keys);
+    }
+
+    private function nullNotifier(): Notifier
+    {
+        return new class implements Notifier {
+            public function notify(string $recipientId, string $type, array $payload): void
+            {
+            }
+        };
     }
 
     private function inMemoryRepo(): AchievementGrantRepositoryInterface

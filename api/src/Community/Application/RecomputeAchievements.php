@@ -8,6 +8,7 @@ use App\Community\Domain\AchievementCatalog;
 use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\AchievementMetrics;
+use App\Community\Domain\Notification;
 use App\Identity\Application\PlayerHistoryQueryInterface;
 use App\Identity\Application\PlayerStatsQueryInterface;
 
@@ -22,13 +23,16 @@ final readonly class RecomputeAchievements
         private PlayerStatsQueryInterface $stats,
         private PlayerHistoryQueryInterface $history,
         private AchievementGrantRepositoryInterface $grants,
+        private Notifier $notifier,
     ) {
     }
 
     /**
+     * @param bool $notify emit an in-app notification per newly-granted achievement (off for bulk backfill)
+     *
      * @return int the number of newly granted achievements
      */
-    public function recomputeForUser(string $userId): int
+    public function recomputeForUser(string $userId, bool $notify = true): int
     {
         $metrics = $this->metricsFor($userId);
         $alreadyGranted = array_flip($this->grants->grantedKeys($userId));
@@ -41,6 +45,9 @@ final readonly class RecomputeAchievements
             }
             if ($definition->isUnlockedBy($metrics)) {
                 $this->grants->save(AchievementGrant::grant($userId, $definition->key, $now));
+                if ($notify) {
+                    $this->notifier->notify($userId, Notification::TYPE_ACHIEVEMENT_UNLOCKED, ['achievementKey' => $definition->key]);
+                }
                 ++$added;
             }
         }
