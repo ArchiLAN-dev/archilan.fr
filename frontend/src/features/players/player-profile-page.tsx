@@ -32,52 +32,58 @@ export function PlayerProfilePage({
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
         <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
-        {/* relative + z-10 keeps the overlapping avatar/name above the positioned banner. */}
-        <div className="relative z-10 grid gap-6 p-5 sm:p-8">
-          <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
-            <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
-            <div className="grid gap-1 pb-1">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_1px_4px_rgba(0,0,0,0.6)] md:text-4xl">
-                  {displayName}
-                </h1>
-                <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
-                  Niv. {profile.level.level}
+        {/* z-10 keeps the overlapping content above the positioned banner. */}
+        <div className="relative z-10 grid gap-5 px-5 pb-6 sm:px-8">
+          {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
+              badges sit just below the name and beside the avatar — pulled up so they aren't below the photo. */}
+          <div>
+            <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
+              <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
+              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] md:text-4xl">
+                {displayName}
+              </h1>
+            </div>
+            <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">
+              <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
+                Niv. {profile.level.level}
+              </span>
+              {profile.badges.admin ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+                  <ShieldCheck aria-hidden className="size-3.5" /> Admin
                 </span>
-                {profile.badges.admin ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
-                    <ShieldCheck aria-hidden className="size-3.5" /> Admin
-                  </span>
-                ) : null}
-                {profile.badges.member ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
-                    <BadgeCheck aria-hidden className="size-3.5" /> Adhérent
-                  </span>
-                ) : null}
-                {profile.presence.playing ? <PresenceBadge presence={profile.presence} /> : null}
-                {profile.customization?.pronouns ? (
-                  <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
-                    {profile.customization.pronouns}
-                  </span>
-                ) : null}
-              </div>
+              ) : null}
+              {profile.badges.member ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                  <BadgeCheck aria-hidden className="size-3.5" /> Adhérent
+                </span>
+              ) : null}
+              {profile.presence.playing ? <PresenceBadge presence={profile.presence} /> : null}
+              {profile.customization?.pronouns ? (
+                <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                  {profile.customization.pronouns}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Details sit on the surface below — readable, off the bright banner. */}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="grid gap-2">
               {profile.customization?.tagline ? (
-                <p className="text-sm italic text-foreground/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
-                  {profile.customization.tagline}
-                </p>
+                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
               ) : null}
               <p className="text-sm text-muted-foreground">
                 Membre depuis{" "}
                 <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
               </p>
-              <LevelBar level={profile.level} />
+              <div className="w-full max-w-sm">
+                <LevelBar level={profile.level} />
+              </div>
               {profile.customization && profile.customization.socialLinks.length > 0 ? (
                 <SocialLinkIcons links={profile.customization.socialLinks} />
               ) : null}
             </div>
-            <div className="sm:ml-auto sm:pb-1">
-              <ProfileRelationshipActions slug={profile.slug} />
-            </div>
+            <ProfileRelationshipActions slug={profile.slug} />
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
