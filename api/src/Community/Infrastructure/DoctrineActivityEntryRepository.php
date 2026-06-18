@@ -20,6 +20,13 @@ final readonly class DoctrineActivityEntryRepository implements ActivityEntryRep
             ->findOneBy(['actorId' => $actorId, 'type' => $type, 'subjectRef' => $subjectRef]);
     }
 
+    public function ownerOf(string $entryId): ?string
+    {
+        $entry = $this->entityManager->getRepository(ActivityEntry::class)->find($entryId);
+
+        return $entry instanceof ActivityEntry ? $entry->getActorId() : null;
+    }
+
     public function save(ActivityEntry $entry): void
     {
         $this->entityManager->persist($entry);

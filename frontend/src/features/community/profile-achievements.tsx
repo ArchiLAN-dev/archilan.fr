@@ -19,16 +19,21 @@ function formatDate(iso: string): string {
  */
 export function ProfileAchievements({ achievements }: { achievements: Achievement[] }) {
   const [given, setGiven] = useState<Record<string, KudosState>>({});
+  // Until the viewer's given-state is known, kudos buttons stay disabled so an early click can't
+  // toggle off a kudos that was already given (the initial render assumes "not given").
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const targets = achievements
       .filter((a) => a.unlocked && a.grantId !== null)
       .map((a) => ({ targetType: TARGET_ACHIEVEMENT, targetId: a.grantId as string }));
-    if (targets.length === 0) return;
     void (async () => {
-      const state = await fetchKudosState(targets);
-      if (!cancelled) setGiven(state);
+      const state = targets.length === 0 ? {} : await fetchKudosState(targets);
+      if (!cancelled) {
+        setGiven(state);
+        setReady(true);
+      }
     })();
     return () => {
       cancelled = true;
@@ -80,6 +85,7 @@ export function ProfileAchievements({ achievements }: { achievements: Achievemen
                 {achievement.unlocked && achievement.grantId !== null ? (
                   <div className="mt-2">
                     <KudosButton
+                      disabled={!ready}
                       initialCount={kudos?.count ?? achievement.kudosCount}
                       initialGiven={kudos?.given ?? false}
                       key={`${achievement.grantId}-${kudos?.given ?? false}-${kudos?.count ?? achievement.kudosCount}`}

@@ -64,7 +64,9 @@ final readonly class CommunityProfileView
 
         $audience = $profile?->getAudience() ?? Audience::MEMBERS;
 
-        $achievements = $this->achievementsFor($model['userId']);
+        // Kudos are peer-only: a viewer can't kudos their own achievements, so the target is suppressed
+        // when the owner views their own profile (story 30.11).
+        $achievements = $this->achievementsFor($model['userId'], $viewerId !== $model['userId']);
         $unlockedCount = count(array_filter($achievements, static fn (array $a): bool => true === $a['unlocked']));
         $xp = CommunityXp::compute(
             $model['stats']['goalCompletions'],
@@ -106,23 +108,26 @@ final readonly class CommunityProfileView
     }
 
     /**
+     * @param bool $kudosable whether the viewer may kudos these achievements (false for the owner's own view)
+     *
      * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>
      */
-    private function achievementsFor(string $userId): array
+    private function achievementsFor(string $userId, bool $kudosable): array
     {
         $grantByKey = [];
         foreach ($this->achievementGrants->findByUser($userId) as $grant) {
             $grantByKey[$grant->getAchievementKey()] = $grant;
         }
-        $kudosCounts = $this->kudos->countsFor(
+        $kudosCounts = $kudosable ? $this->kudos->countsFor(
             Kudos::TARGET_ACHIEVEMENT,
             array_values(array_map(static fn ($g): string => $g->getId(), $grantByKey)),
-        );
+        ) : [];
 
         return array_map(
-            static function ($definition) use ($grantByKey, $kudosCounts): array {
+            static function ($definition) use ($grantByKey, $kudosCounts, $kudosable): array {
                 $grant = $grantByKey[$definition->key] ?? null;
-                $grantId = $grant?->getId();
+                // grantId is the kudos target; null it for the owner's own view so no button renders.
+                $grantId = $kudosable ? $grant?->getId() : null;
 
                 return [
                     'key' => $definition->key,

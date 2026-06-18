@@ -14,18 +14,21 @@ export function KudosButton({
   targetId,
   initialCount,
   initialGiven,
+  disabled = false,
 }: {
   targetType: string;
   targetId: string;
   initialCount: number;
   initialGiven: boolean;
+  /** Block interaction until the viewer's given-state is known (avoids an unintended toggle). */
+  disabled?: boolean;
 }) {
   const [count, setCount] = useState(initialCount);
   const [given, setGiven] = useState(initialGiven);
   const [busy, setBusy] = useState(false);
 
   async function handleToggle() {
-    if (busy) return;
+    if (busy || disabled) return;
     setBusy(true);
     const result = await toggleKudos(targetType, targetId);
     setBusy(false);
@@ -44,7 +47,7 @@ export function KudosButton({
           ? "border-accent bg-accent/15 text-accent-text"
           : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
       }`}
-      disabled={busy}
+      disabled={busy || disabled}
       onClick={() => { void handleToggle(); }}
       type="button"
     >

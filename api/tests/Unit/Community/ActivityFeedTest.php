@@ -63,6 +63,17 @@ final class ActivityFeedTest extends TestCase
                 return false;
             }
 
+            public function ownerOf(string $entryId): ?string
+            {
+                foreach ($this->stored as $entry) {
+                    if ($entry->getId() === $entryId) {
+                        return $entry->getActorId();
+                    }
+                }
+
+                return null;
+            }
+
             public function save(ActivityEntry $entry): void
             {
                 $this->stored[] = $entry;

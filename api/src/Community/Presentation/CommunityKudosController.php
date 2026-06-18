@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
+use App\Community\Application\CannotKudosOwnContentException;
 use App\Community\Application\KudosService;
 use App\Community\Domain\Kudos;
 use App\Identity\Domain\User;
@@ -35,7 +36,11 @@ final readonly class CommunityKudosController
             return $this->apiAccessGuard->errorResponse('invalid', 'Cible de kudos invalide.', 422);
         }
 
-        return new JsonResponse(['data' => $this->kudos->toggle($user->getId(), $type, $id)]);
+        try {
+            return new JsonResponse(['data' => $this->kudos->toggle($user->getId(), $type, $id)]);
+        } catch (CannotKudosOwnContentException) {
+            return $this->apiAccessGuard->errorResponse('self_kudos', 'On ne peut pas s\'envoyer de kudos.', 422);
+        }
     }
 
     #[Route('/api/v1/community/kudos/state', name: 'api_community_kudos_state', methods: ['POST'])]

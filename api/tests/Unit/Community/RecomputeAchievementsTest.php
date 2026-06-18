@@ -100,6 +100,17 @@ final class RecomputeAchievementsTest extends TestCase
             {
                 $this->stored[] = $grant;
             }
+
+            public function ownerOf(string $grantId): ?string
+            {
+                foreach ($this->stored as $grant) {
+                    if ($grant->getId() === $grantId) {
+                        return $grant->getUserId();
+                    }
+                }
+
+                return null;
+            }
         };
     }
 }

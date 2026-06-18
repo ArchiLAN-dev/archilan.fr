@@ -90,7 +90,8 @@ final readonly class CommunityFeedQuery
         $items = [];
         foreach ($entries as $entry) {
             $payload = $entry->getPayload();
-            $isRun = ActivityEntry::TYPE_RUN_FINISHED === $entry->getType();
+            // A run can be kudos'd by anyone but its own actor (no self-kudos, story 30.11).
+            $canKudos = ActivityEntry::TYPE_RUN_FINISHED === $entry->getType() && $entry->getActorId() !== $viewerId;
             $item = [
                 'type' => $entry->getType(),
                 'occurredAt' => $entry->getOccurredAt()->format(\DateTimeInterface::ATOM),
@@ -99,10 +100,10 @@ final readonly class CommunityFeedQuery
                 'sessionId' => is_string($payload['sessionId'] ?? null) ? $payload['sessionId'] : null,
                 'withSlug' => null,
                 'withName' => null,
-                'kudosTargetType' => $isRun ? Kudos::TARGET_RUN : null,
-                'kudosTargetId' => $isRun ? $entry->getId() : null,
-                'kudosCount' => $isRun ? ($kudosCounts[$entry->getId()] ?? 0) : 0,
-                'viewerHasKudos' => $isRun && isset($kudosGiven[$entry->getId()]),
+                'kudosTargetType' => $canKudos ? Kudos::TARGET_RUN : null,
+                'kudosTargetId' => $canKudos ? $entry->getId() : null,
+                'kudosCount' => $canKudos ? ($kudosCounts[$entry->getId()] ?? 0) : 0,
+                'viewerHasKudos' => $canKudos && isset($kudosGiven[$entry->getId()]),
             ];
 
             $withUserId = $payload['withUserId'] ?? null;
