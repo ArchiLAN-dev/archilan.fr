@@ -304,8 +304,10 @@ function LevelBar({ level }: { level: PlayerProfile["level"] }) {
 }
 
 function ProfileCustomization({ customization }: { customization: ProfileCustomizationData }) {
-  const { bio, socialLinks, favoriteGames } = customization;
-  if (!bio && socialLinks.length === 0 && favoriteGames.length === 0) return null;
+  const { bio, socialLinks } = customization;
+  // Favorite games are not rendered here: they are a Vitrine block (showcase), shown by ProfileShowcase
+  // when the "favorite_games" widget is enabled — rendering them here too would duplicate the panel.
+  if (!bio && socialLinks.length === 0) return null;
 
   return (
     <section className="grid gap-8">
@@ -313,40 +315,6 @@ function ProfileCustomization({ customization }: { customization: ProfileCustomi
         <div className="grid gap-2">
           <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
           <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
-        </div>
-      ) : null}
-
-      {favoriteGames.length > 0 ? (
-        <div className="grid gap-3">
-          <h2 className="font-heading text-lg font-semibold text-foreground">Jeux favoris</h2>
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6" role="list">
-            {favoriteGames.map((game) => (
-              <li key={game.id}>
-                <Link
-                  className="group grid gap-1.5 text-center"
-                  href={`/jeux/${game.slug}`}
-                >
-                  <span className="block aspect-[3/4] overflow-hidden rounded border border-border bg-surface">
-                    {game.coverImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- external IGDB cover URL
-                      <img
-                        alt={game.name}
-                        className="h-full w-full object-cover object-top transition-transform group-hover:scale-105"
-                        src={game.coverImageUrl}
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-                        {game.name.slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </span>
-                  <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">
-                    {game.name}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
         </div>
       ) : null}
 
