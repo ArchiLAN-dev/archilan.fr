@@ -71,6 +71,9 @@ export function PlayerProfilePage({
                 <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
               </p>
               <LevelBar level={profile.level} />
+              {profile.customization && profile.customization.socialLinks.length > 0 ? (
+                <SocialLinkIcons links={profile.customization.socialLinks} />
+              ) : null}
             </div>
             <div className="sm:ml-auto sm:pb-1">
               <ProfileRelationshipActions slug={profile.slug} />
@@ -281,47 +284,42 @@ function LevelBar({ level }: { level: PlayerProfile["level"] }) {
 }
 
 function ProfileCustomization({ customization }: { customization: ProfileCustomizationData }) {
-  const { bio, socialLinks } = customization;
-  // Favorite games are not rendered here: they are a Vitrine block (showcase), shown by ProfileShowcase
-  // when the "favorite_games" widget is enabled — rendering them here too would duplicate the panel.
-  if (!bio && socialLinks.length === 0) return null;
+  const { bio } = customization;
+  // Favorite games render as a Vitrine block (ProfileShowcase); social links live in the header card.
+  // This section now holds only the "À propos" text.
+  if (!bio) return null;
 
   return (
-    <section className="grid gap-8">
-      {bio ? (
-        <div className="grid gap-2">
-          <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
-          <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
-        </div>
-      ) : null}
-
-      {socialLinks.length > 0 ? (
-        <div className="grid gap-3">
-          <h2 className="font-heading text-lg font-semibold text-foreground">Liens</h2>
-          <ul className="flex flex-wrap gap-2" role="list">
-            {socialLinks.map((link) => {
-              const type = resolveLinkType(link.label);
-              const Icon = type.icon;
-              const name = type.key === "other" ? link.label || "Lien" : type.label;
-              return (
-                <li key={link.url}>
-                  <a
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent-text"
-                    href={link.url}
-                    rel="nofollow noopener noreferrer"
-                    target="_blank"
-                    title={name}
-                  >
-                    <Icon aria-hidden className="size-4" />
-                    {name}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
+    <section className="grid gap-2">
+      <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
+      <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
     </section>
+  );
+}
+
+function SocialLinkIcons({ links }: { links: ProfileCustomizationData["socialLinks"] }) {
+  return (
+    <ul className="flex flex-wrap items-center gap-1.5 pt-0.5" role="list">
+      {links.map((link) => {
+        const type = resolveLinkType(link.label);
+        const Icon = type.icon;
+        const name = type.key === "other" ? link.label || "Lien" : type.label;
+        return (
+          <li key={link.url}>
+            <a
+              aria-label={name}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-accent hover:text-accent-text"
+              href={link.url}
+              rel="nofollow noopener noreferrer"
+              target="_blank"
+              title={name}
+            >
+              <Icon aria-hidden className="size-4" />
+            </a>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
