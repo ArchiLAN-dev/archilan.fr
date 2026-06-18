@@ -9,16 +9,18 @@ import { EmailVerificationBanner } from "./email-verification-banner";
 import { PersonalRunsListPage } from "@/features/personal-runs/personal-runs-list-page";
 import { CommunityProfileCustomizationForm } from "@/features/community/community-profile-customization-form";
 import { CommunityFriendsPanel } from "@/features/community/community-friends-panel";
+import { CommunityFeedPanel } from "@/features/community/community-activity";
 import { MembershipSection } from "./membership-section";
 import type { Profile } from "./account-profile";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = "inscriptions" | "parties" | "profil" | "amis" | "adhesion" | "confidentialite" | "compte";
+type Tab = "inscriptions" | "parties" | "activite" | "profil" | "amis" | "adhesion" | "confidentialite" | "compte";
 
 const TABS: Array<{ id: Tab; label: string; danger?: true }> = [
   { id: "inscriptions", label: "Inscriptions" },
   { id: "parties", label: "Mes parties" },
+  { id: "activite", label: "Activité" },
   { id: "profil", label: "Profil" },
   { id: "amis", label: "Amis" },
   { id: "adhesion", label: "Adhésion" },
@@ -129,6 +131,7 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
         <div role="tabpanel">
           {activeTab === "inscriptions" && <AccountRegistrations />}
           {activeTab === "parties" && <PersonalRunsListPage embedded />}
+          {activeTab === "activite" && <CommunityFeedPanel />}
           {activeTab === "profil" && <CommunityProfileCustomizationForm />}
           {activeTab === "amis" && <CommunityFriendsPanel />}
           {activeTab === "adhesion" && <MembershipSection />}

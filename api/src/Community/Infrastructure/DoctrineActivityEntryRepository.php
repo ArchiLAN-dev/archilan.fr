@@ -26,21 +26,25 @@ final readonly class DoctrineActivityEntryRepository implements ActivityEntryRep
         $this->entityManager->flush();
     }
 
-    public function recentForActors(array $actorIds, int $limit): array
+    public function recentForActors(array $actorIds, int $limit, ?\DateTimeImmutable $before = null): array
     {
         if ([] === $actorIds) {
             return [];
         }
 
         $qb = $this->entityManager->getRepository(ActivityEntry::class)->createQueryBuilder('a');
-        $result = $qb
+        $qb
             ->where($qb->expr()->in('a.actorId', ':actors'))
             ->setParameter('actors', $actorIds)
             ->orderBy('a.occurredAt', 'DESC')
             ->addOrderBy('a.id', 'DESC')
-            ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
+            ->setMaxResults($limit);
+
+        if (null !== $before) {
+            $qb->andWhere($qb->expr()->lt('a.occurredAt', ':before'))->setParameter('before', $before);
+        }
+
+        $result = $qb->getQuery()->getResult();
 
         if (!is_array($result)) {
             return [];

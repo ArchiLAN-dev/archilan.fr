@@ -10,6 +10,7 @@ import type {
 } from "./player-profile-api";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
+import { ProfileActivity } from "@/features/community/community-activity";
 
 const BANNER_CLASSES: Record<string, string> = {
   default: "bg-gradient-to-r from-accent/30 via-accent/10 to-transparent",
@@ -102,6 +103,8 @@ export function PlayerProfilePage({
       {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
 
       {profile.achievements.length > 0 ? <ProfileAchievements achievements={profile.achievements} /> : null}
+
+      <ProfileActivity slug={profile.slug} />
 
       <section aria-labelledby="history-heading" className="grid gap-4">
         <h2 className="font-heading text-xl font-semibold text-foreground" id="history-heading">

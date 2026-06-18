@@ -11,11 +11,12 @@ interface ActivityEntryRepositoryInterface
     public function save(ActivityEntry $entry): void;
 
     /**
-     * Recent entries by any of the given actors, newest first (feed read, story 30.9).
+     * Recent entries by any of the given actors, newest first (feed read, story 30.9). `$before` paginates
+     * by returning only entries strictly older than the given instant.
      *
      * @param list<string> $actorIds
      *
      * @return list<ActivityEntry>
      */
-    public function recentForActors(array $actorIds, int $limit): array;
+    public function recentForActors(array $actorIds, int $limit, ?\DateTimeImmutable $before = null): array;
 }

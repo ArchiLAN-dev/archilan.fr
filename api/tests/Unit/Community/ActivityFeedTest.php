@@ -68,11 +68,12 @@ final class ActivityFeedTest extends TestCase
                 $this->stored[] = $entry;
             }
 
-            public function recentForActors(array $actorIds, int $limit): array
+            public function recentForActors(array $actorIds, int $limit, ?\DateTimeImmutable $before = null): array
             {
                 return array_values(array_filter(
                     $this->stored,
-                    static fn (ActivityEntry $e): bool => in_array($e->getActorId(), $actorIds, true),
+                    static fn (ActivityEntry $e): bool => in_array($e->getActorId(), $actorIds, true)
+                        && (null === $before || $e->getOccurredAt() < $before),
                 ));
             }
         };
