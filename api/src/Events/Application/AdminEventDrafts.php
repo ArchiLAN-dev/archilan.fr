@@ -115,7 +115,7 @@ final readonly class AdminEventDrafts
             return ['found' => true, 'errors' => ['body' => ["L'événement est incomplet."]]];
         }
 
-        $photoGallery = $this->reconcilePhotoGallery($event, $parsed['photoGallery']);
+        $photoGallery = $this->reconcilePhotoGallery($parsed['photoGallery']);
 
         $event->updateDetails(
             $complete['title'],
@@ -407,36 +407,60 @@ final readonly class AdminEventDrafts
     }
 
     /**
+     * Re-key submitted gallery entries so uploaded photos stay re-signable.
+     *
+     * The admin form round-trips the *presigned* URLs produced by
+     * {@see resolvePhotoGallery()}. A presigned URL is non-deterministic - its
+     * signature and expiry change on every call - so it must never be matched
+     * by string equality nor stored verbatim (it would freeze and expire ~1h
+     * later). Any entry that points at an object in our media bucket is stored
+     * as an {source: 'upload', key} item and re-signed on every read; genuinely
+     * external URLs are kept as plain strings.
+     *
      * @param list<string> $submittedUrls
      *
      * @return list<string|array{source: string, key: string}>
      */
-    private function reconcilePhotoGallery(Event $event, array $submittedUrls): array
+    private function reconcilePhotoGallery(array $submittedUrls): array
     {
-        $currentItems = $event->getPhotoGallery();
-        $currentUrls = $this->resolvePhotoGallery($event);
-        $matchedIndexes = [];
         $result = [];
-
         foreach ($submittedUrls as $submittedUrl) {
-            $preservedUpload = null;
-            foreach ($currentUrls as $index => $currentUrl) {
-                if (isset($matchedIndexes[$index]) || $currentUrl !== $submittedUrl) {
-                    continue;
-                }
-
-                $currentItem = $currentItems[$index] ?? null;
-                if ('upload' === ($currentItem['source'] ?? null) && isset($currentItem['key'])) {
-                    $preservedUpload = ['source' => 'upload', 'key' => $currentItem['key']];
-                    $matchedIndexes[$index] = true;
-                    break;
-                }
-            }
-
-            $result[] = $preservedUpload ?? $submittedUrl;
+            $key = $this->extractMediaObjectKey($submittedUrl);
+            $result[] = null !== $key
+                ? ['source' => 'upload', 'key' => $key]
+                : $submittedUrl;
         }
 
         return $result;
+    }
+
+    /**
+     * Return the media-bucket object key for a gallery upload URL, or null when
+     * the URL is not one of our managed gallery objects.
+     *
+     * Matches the stable key layout produced by AdminEventGalleryController
+     * (events/{eventId}/gallery/{file}) on the URL path only, ignoring the
+     * presign query string and host.
+     */
+    private function extractMediaObjectKey(string $url): ?string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path)) {
+            return null;
+        }
+
+        $prefix = '/'.$this->minioMediaBucket.'/';
+        if (!str_starts_with($path, $prefix)) {
+            return null;
+        }
+
+        $key = rawurldecode(substr($path, strlen($prefix)));
+
+        if (1 !== preg_match('#^events/[^/]+/gallery/[^/]+$#', $key)) {
+            return null;
+        }
+
+        return $key;
     }
 
     /**
