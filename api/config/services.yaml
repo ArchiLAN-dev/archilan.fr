@@ -294,6 +294,7 @@ services:
     App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
     App\Community\Domain\FriendshipRepositoryInterface: '@App\Community\Infrastructure\DoctrineFriendshipRepository'
     App\Community\Domain\BlockRepositoryInterface: '@App\Community\Infrastructure\DoctrineBlockRepository'
+    App\Community\Domain\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\DoctrineActivityEntryRepository'
     App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
 
     App\Community\Infrastructure\DiscordAvatarResolver:

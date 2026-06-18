@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\Block;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\Friendship;
@@ -20,6 +21,7 @@ final readonly class FriendshipService
         private FriendshipRepositoryInterface $friendships,
         private BlockRepositoryInterface $blocks,
         private CommunityUserDirectoryQueryInterface $directory,
+        private RecordActivity $recordActivity,
     ) {
     }
 
@@ -44,6 +46,7 @@ final readonly class FriendshipService
                 if ($existing->isAddressee($userId)) {
                     $existing->accept($now);
                     $this->friendships->save($existing);
+                    $this->recordFriendshipActivity($existing, $userId, $now);
                 }
 
                 return 'ok';
@@ -67,8 +70,10 @@ final readonly class FriendshipService
             return 'not_found';
         }
 
-        $friendship->accept(new \DateTimeImmutable());
+        $now = new \DateTimeImmutable();
+        $friendship->accept($now);
         $this->friendships->save($friendship);
+        $this->recordFriendshipActivity($friendship, $userId, $now);
 
         return 'ok';
     }
@@ -120,6 +125,18 @@ final readonly class FriendshipService
         if ($block instanceof Block) {
             $this->blocks->remove($block);
         }
+    }
+
+    /** Record a feed entry for the user who accepted, referencing the friendship (idempotent). */
+    private function recordFriendshipActivity(Friendship $friendship, string $accepterId, \DateTimeImmutable $now): void
+    {
+        $this->recordActivity->record(
+            $accepterId,
+            ActivityEntry::TYPE_FRIENDSHIP,
+            $friendship->getId(),
+            $now,
+            ['withUserId' => $friendship->otherParty($accepterId)],
+        );
     }
 
     /**
