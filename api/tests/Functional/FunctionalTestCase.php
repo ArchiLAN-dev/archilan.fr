@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Domain\AchievementDefinition;
+use App\Community\Domain\DefaultAchievementDefinitions;
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
 use App\Identity\Application\AuthSessionSigner;
@@ -49,6 +51,24 @@ abstract class FunctionalTestCase extends WebTestCase
         if ([] !== $metadata) {
             $schemaTool->createSchema($metadata);
         }
+    }
+
+    /**
+     * Seeds the historical achievement catalogue as DB-backed definitions (story 30.16). Tests that read a
+     * profile's achievements or grant one need the matching definition present, since the catalogue is no
+     * longer code-defined.
+     */
+    protected function seedDefaultAchievementDefinitions(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $position = 1;
+        foreach (DefaultAchievementDefinitions::all() as $def) {
+            $this->entityManager->persist(
+                AchievementDefinition::create($def['key'], $def['name'], $def['description'], $def['rule'], $position, $now),
+            );
+            ++$position;
+        }
+        $this->entityManager->flush();
     }
 
     protected function loginAs(User $user): void
