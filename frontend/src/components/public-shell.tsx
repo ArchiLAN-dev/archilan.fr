@@ -11,6 +11,7 @@ import { LiveTwitchBadge } from "@/features/streaming/live-twitch-badge";
 import { TwitchPlayerProvider } from "@/features/streaming/twitch-player-context";
 import { TwitchPersistentPlayer } from "@/features/streaming/twitch-mini-player";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
+import { NotificationCenter } from "@/features/community/notification-center";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -86,6 +87,7 @@ function AuthNavDesktop() {
     const isAdmin = user.roles.includes("ROLE_ADMIN");
     return (
       <div className="flex items-center gap-2">
+        <NotificationCenter />
         {isAdmin && (
           <Link
             className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"

@@ -298,6 +298,8 @@ services:
     App\Community\Domain\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\DoctrineProfileCommentRepository'
     App\Community\Domain\ContentReportRepositoryInterface: '@App\Community\Infrastructure\DoctrineContentReportRepository'
     App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\DoctrineKudosRepository'
+    App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\DoctrineNotificationRepository'
+    App\Community\Application\Notifier: '@App\Community\Application\NotificationService'
     App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
 
     App\Community\Infrastructure\DiscordAvatarResolver:

@@ -7,6 +7,7 @@ namespace App\Community\Application;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\ContentReport;
 use App\Community\Domain\ContentReportRepositoryInterface;
+use App\Community\Domain\Notification;
 use App\Community\Domain\ProfileComment;
 use App\Community\Domain\ProfileCommentRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;
@@ -30,6 +31,7 @@ final readonly class ProfileCommentService
         private ActiveMembershipQueryInterface $memberships,
         private BlockRepositoryInterface $blocks,
         private CommunityUserDirectoryQueryInterface $directory,
+        private Notifier $notifier,
     ) {
     }
 
@@ -95,6 +97,7 @@ final readonly class ProfileCommentService
         }
 
         $this->comments->save(ProfileComment::create($ownerId, $writerId, $body, new \DateTimeImmutable()));
+        $this->notifier->notify($ownerId, Notification::TYPE_COMMENT_RECEIVED, ['fromUserId' => $writerId]);
 
         return ['status' => 'ok'];
     }

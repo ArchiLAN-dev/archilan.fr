@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Realtime\Presentation;
 
+use App\Realtime\Application\RealtimePublisher;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -49,6 +50,32 @@ final readonly class RealtimeController
 
         return new JsonResponse([
             'data' => ['token' => $token, 'hubUrl' => $this->hub->getPublicUrl()],
+            'meta' => [],
+        ]);
+    }
+
+    #[Route('/api/v1/realtime/notifications-token', name: 'api_realtime_notifications_token', methods: ['GET'])]
+    public function notificationsToken(Request $request): JsonResponse
+    {
+        $user = $this->apiAccessGuard->requireUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        // A user may only subscribe to their own private notification topic.
+        $topic = RealtimePublisher::userNotificationsTopic($user->getId());
+        $factory = $this->hub->getFactory();
+        if (null === $factory) {
+            return $this->apiAccessGuard->errorResponse('service_unavailable', 'Service de token non disponible.', 503);
+        }
+
+        $token = $factory->create(
+            subscribe: [$topic],
+            additionalClaims: ['exp' => new \DateTimeImmutable('+1 hour')],
+        );
+
+        return new JsonResponse([
+            'data' => ['token' => $token, 'hubUrl' => $this->hub->getPublicUrl(), 'topic' => $topic],
             'meta' => [],
         ]);
     }

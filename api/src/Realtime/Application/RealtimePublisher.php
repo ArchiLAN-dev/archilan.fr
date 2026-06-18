@@ -26,6 +26,26 @@ final readonly class RealtimePublisher
         return sprintf('https://archilan.fr/events/%s/registrations', $eventId);
     }
 
+    public static function userNotificationsTopic(string $userId): string
+    {
+        return sprintf('https://archilan.fr/users/%s/notifications', $userId);
+    }
+
+    /**
+     * Push a private notification to a single user's topic (best-effort; the in-app center is the source
+     * of truth, this only makes it live).
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function userNotification(string $userId, array $payload): void
+    {
+        $this->publish(new Update(
+            self::userNotificationsTopic($userId),
+            (string) json_encode($payload),
+            true,
+        ), 'realtime.user_notification_publish_failed', ['userId' => $userId]);
+    }
+
     public function seatCounter(string $eventId, int $remainingSeats): void
     {
         $this->publish(new Update(
