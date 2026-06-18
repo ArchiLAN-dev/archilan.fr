@@ -45,6 +45,12 @@ final class ProfileComment
         }
     }
 
+    /** Un-hide a previously soft-hidden comment (admin restore, story 30.13). */
+    public function restore(): void
+    {
+        $this->hiddenAt = null;
+    }
+
     public function isHidden(): bool
     {
         return null !== $this->hiddenAt;
