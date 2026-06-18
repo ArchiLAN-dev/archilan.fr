@@ -69,11 +69,11 @@
   opacity: 0.6;
 }
 
-/* Gentle darken at the bottom so overlapping avatar/name stay readable. */
+/* Darken the bottom so the overlapping avatar/name/badges stay readable on any preset (incl. light ones). */
 .shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(11, 16, 32, 0.35), transparent 60%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.18) 38%, transparent 68%);
   pointer-events: none;
 }
 

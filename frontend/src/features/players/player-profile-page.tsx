@@ -37,11 +37,8 @@ export function PlayerProfilePage({
           <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
             <ProfileAvatar avatarUrl={profile.avatarUrl} name={displayName} />
             <div className="grid gap-1 pb-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-text">
-                Profil joueur
-              </p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground md:text-4xl">
+                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_1px_4px_rgba(0,0,0,0.6)] md:text-4xl">
                   {displayName}
                 </h1>
                 <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
@@ -65,7 +62,9 @@ export function PlayerProfilePage({
                 ) : null}
               </div>
               {profile.customization?.tagline ? (
-                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
+                <p className="text-sm italic text-foreground/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+                  {profile.customization.tagline}
+                </p>
               ) : null}
               <p className="text-sm text-muted-foreground">
                 Membre depuis{" "}
