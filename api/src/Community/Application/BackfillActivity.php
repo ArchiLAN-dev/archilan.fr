@@ -46,7 +46,9 @@ final readonly class BackfillActivity
                 $added = $this->recordActivity->record(
                     $userId,
                     ActivityEntry::TYPE_RUN_FINISHED,
-                    $sessionId.':'.$game,
+                    // Hash the game so the dedupe key stays bounded (subject_ref is VARCHAR; game names
+                    // can be long); the human-readable game/event live in the payload.
+                    $sessionId.':'.substr(sha1($game), 0, 16),
                     $occurredAt,
                     ['game' => $game, 'event' => $event, 'sessionId' => $sessionId],
                 );

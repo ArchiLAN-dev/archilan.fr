@@ -9,6 +9,7 @@ use App\Community\Domain\Block;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\Friendship;
 use App\Community\Domain\FriendshipRepositoryInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
  * Friendships + blocks (story 30.7): request/accept/decline/remove, block/unblock, and the relationship
@@ -58,7 +59,11 @@ final readonly class FriendshipService
             return 'ok';
         }
 
-        $this->friendships->save(Friendship::request($userId, $targetUserId, $now));
+        try {
+            $this->friendships->save(Friendship::request($userId, $targetUserId, $now));
+        } catch (UniqueConstraintViolationException) {
+            // A concurrent request created the pair first - idempotent.
+        }
 
         return 'ok';
     }
@@ -113,7 +118,11 @@ final readonly class FriendshipService
         }
 
         if (null === $this->blocks->find($userId, $targetUserId)) {
-            $this->blocks->save(Block::create($userId, $targetUserId, new \DateTimeImmutable()));
+            try {
+                $this->blocks->save(Block::create($userId, $targetUserId, new \DateTimeImmutable()));
+            } catch (UniqueConstraintViolationException) {
+                // Concurrent block - idempotent.
+            }
         }
 
         return 'ok';

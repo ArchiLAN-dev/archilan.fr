@@ -10,6 +10,7 @@ use App\Community\Domain\ContentReportRepositoryInterface;
 use App\Community\Domain\ProfileComment;
 use App\Community\Domain\ProfileCommentRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
  * Profile guestbook (story 30.10). Two audiences: *viewing* follows the profile audience; *writing*
@@ -129,13 +130,17 @@ final readonly class ProfileCommentService
 
         if (!$this->reports->exists($userId, ContentReport::TARGET_COMMENT, $commentId)) {
             $trimmed = trim($reason);
-            $this->reports->save(ContentReport::create(
-                $userId,
-                ContentReport::TARGET_COMMENT,
-                $commentId,
-                '' === $trimmed ? 'inappropriate' : mb_substr($trimmed, 0, 500),
-                new \DateTimeImmutable(),
-            ));
+            try {
+                $this->reports->save(ContentReport::create(
+                    $userId,
+                    ContentReport::TARGET_COMMENT,
+                    $commentId,
+                    '' === $trimmed ? 'inappropriate' : mb_substr($trimmed, 0, 500),
+                    new \DateTimeImmutable(),
+                ));
+            } catch (UniqueConstraintViolationException) {
+                // Concurrent duplicate report - idempotent.
+            }
         }
 
         return 'ok';

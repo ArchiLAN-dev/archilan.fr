@@ -6,16 +6,11 @@ namespace App\Community\Application;
 
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
-use App\Community\Domain\Audience;
-use App\Community\Domain\AudiencePolicy;
-use App\Community\Domain\BlockRepositoryInterface;
-use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\FriendshipRepositoryInterface;
-use App\Membership\Application\ActiveMembershipQueryInterface;
 
 /**
- * Reads the activity feed (story 30.9). Visibility is resolved at read time per actor (never stored on
- * the entry): an actor's profile audience vs the viewer's tier, with block overriding everything.
+ * Reads the activity feed (story 30.9). Visibility is resolved at read time per actor via the shared
+ * ProfileVisibility (audience vs viewer tier, block overrides) - never stored on the entry.
  */
 final readonly class CommunityFeedQuery
 {
@@ -25,9 +20,7 @@ final readonly class CommunityFeedQuery
     public function __construct(
         private ActivityEntryRepositoryInterface $entries,
         private FriendshipRepositoryInterface $friendships,
-        private BlockRepositoryInterface $blocks,
-        private CommunityProfileRepositoryInterface $profiles,
-        private ActiveMembershipQueryInterface $memberships,
+        private ProfileVisibility $visibility,
         private CommunityUserDirectoryQueryInterface $directory,
     ) {
     }
@@ -39,7 +32,7 @@ final readonly class CommunityFeedQuery
      */
     public function forActor(string $actorId, ?string $viewerId, int $limit, ?\DateTimeImmutable $before): array
     {
-        if (!$this->canSee($viewerId, $actorId)) {
+        if (!$this->visibility->canSee($viewerId, $actorId)) {
             return [];
         }
 
@@ -63,39 +56,6 @@ final readonly class CommunityFeedQuery
         $entries = $this->entries->recentForActors(array_values(array_unique($actorIds)), $this->clampLimit($limit), $before);
 
         return $this->present($entries, withActor: true);
-    }
-
-    private function canSee(?string $viewerId, string $actorId): bool
-    {
-        if ($viewerId === $actorId) {
-            return true;
-        }
-        if (null !== $viewerId && $this->blocks->existsEitherWay($viewerId, $actorId)) {
-            return false;
-        }
-
-        $profile = $this->profiles->findByUserId($actorId);
-        $audience = $profile?->getAudience() ?? Audience::MEMBERS;
-
-        return AudiencePolicy::canView($this->viewerTier($viewerId, $actorId), $audience);
-    }
-
-    private function viewerTier(?string $viewerId, string $actorId): string
-    {
-        if (null === $viewerId) {
-            return AudiencePolicy::TIER_ANONYMOUS;
-        }
-        if ($viewerId === $actorId) {
-            return AudiencePolicy::TIER_SELF;
-        }
-        if ($this->friendships->areFriends($viewerId, $actorId)) {
-            return AudiencePolicy::TIER_FRIEND;
-        }
-        if ($this->memberships->hasActiveMembership($viewerId)) {
-            return AudiencePolicy::TIER_MEMBER;
-        }
-
-        return AudiencePolicy::TIER_AUTHENTICATED;
     }
 
     /**

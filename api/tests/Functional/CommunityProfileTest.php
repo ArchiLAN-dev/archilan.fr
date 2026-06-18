@@ -51,16 +51,26 @@ final class CommunityProfileTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testProfileRowIsCreatedLazilyAndIdempotently(): void
+    public function testAnonymousViewDoesNotCreateAProfileRow(): void
     {
         $user = $this->createUser('bob@example.org', slug: 'bob');
-
         $repo = $this->entityManager->getRepository(CommunityProfile::class);
-        self::assertCount(0, $repo->findBy(['userId' => $user->getId()]));
 
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/bob');
         self::assertResponseIsSuccessful();
 
+        self::assertCount(0, $repo->findBy(['userId' => $user->getId()]), 'a foreign/anonymous read must not write');
+    }
+
+    public function testOwnerViewCreatesProfileRowLazilyAndIdempotently(): void
+    {
+        $user = $this->createUser('bob@example.org', slug: 'bob');
+        $repo = $this->entityManager->getRepository(CommunityProfile::class);
+        self::assertCount(0, $repo->findBy(['userId' => $user->getId()]));
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/bob');
+        self::assertResponseIsSuccessful();
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/bob');
         self::assertResponseIsSuccessful();
 
@@ -69,9 +79,10 @@ final class CommunityProfileTest extends FunctionalTestCase
 
     public function testAvatarIsCachedByRefreshAndReturnedOnView(): void
     {
-        $this->createUser('carol@example.org', slug: 'carol');
+        $carol = $this->createUser('carol@example.org', slug: 'carol');
 
-        // First view: the row exists but no avatar is resolved yet.
+        // Owner self-view creates the profile row; no avatar resolved yet.
+        $this->loginAs($carol);
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/carol');
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse()['data'] ?? null;

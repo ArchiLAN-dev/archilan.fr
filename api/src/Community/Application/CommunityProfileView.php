@@ -7,34 +7,29 @@ namespace App\Community\Application;
 use App\Community\Domain\AchievementCatalog;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Audience;
-use App\Community\Domain\AudiencePolicy;
 use App\Community\Domain\BannerPreset;
-use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\CommunityXp;
-use App\Community\Domain\FriendshipRepositoryInterface;
 use App\Community\Domain\Level;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Membership\Application\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
- * Read facade for the community profile (stories 30.1-30.3). Composes the enriched read model, lazily
- * ensures the profile row, and gates the customization surface by audience vs the viewer's tier
- * (server-side, every read). Identity + aggregate stats stay public regardless.
+ * Read facade for the community profile (stories 30.1-30.6). Composes the enriched read model and gates
+ * the customization surface via the shared ProfileVisibility (audience vs viewer tier, block overrides).
+ * Identity + aggregate stats + achievements + level stay public. The profile row is created lazily only
+ * when the owner views their own profile (or edits it) - never on an anonymous/foreign read.
  */
 final readonly class CommunityProfileView
 {
     public function __construct(
         private CommunityProfileQueryInterface $query,
         private CommunityProfileRepositoryInterface $profiles,
-        private ActiveMembershipQueryInterface $memberships,
         private GameRepositoryInterface $games,
         private AchievementGrantRepositoryInterface $achievementGrants,
-        private FriendshipRepositoryInterface $friendships,
-        private BlockRepositoryInterface $blocks,
+        private ProfileVisibility $visibility,
     ) {
     }
 
@@ -58,9 +53,13 @@ final readonly class CommunityProfileView
             return null;
         }
 
-        $profile = $this->ensureProfile($model['userId']);
+        // Create the row lazily only when the owner views their own profile; a foreign/anonymous read
+        // must never write.
+        $profile = $viewerId === $model['userId']
+            ? $this->ensureProfile($model['userId'])
+            : $this->profiles->findByUserId($model['userId']);
+
         $audience = $profile?->getAudience() ?? Audience::MEMBERS;
-        $tier = $this->viewerTier($viewerId, $model['userId']);
 
         $achievements = $this->achievementsFor($model['userId']);
         $unlockedCount = count(array_filter($achievements, static fn (array $a): bool => true === $a['unlocked']));
@@ -72,11 +71,8 @@ final readonly class CommunityProfileView
         );
         $level = Level::fromXp($xp);
 
-        // Block overrides every audience: a blocked viewer (either direction) sees no social surface.
-        $blocked = null !== $viewerId && $this->blocks->existsEitherWay($viewerId, $model['userId']);
-
         $customization = null;
-        if (!$blocked && null !== $profile && AudiencePolicy::canView($tier, $audience)) {
+        if (null !== $profile && $this->visibility->canSee($viewerId, $model['userId'])) {
             $customization = [
                 'bio' => $profile->getBio(),
                 'tagline' => $profile->getTagline(),
@@ -147,24 +143,6 @@ final readonly class CommunityProfileView
             'audience' => $profile?->getAudience() ?? Audience::MEMBERS,
             'showcaseLayout' => $profile?->getShowcaseLayout() ?? [],
         ];
-    }
-
-    private function viewerTier(?string $viewerId, string $ownerId): string
-    {
-        if (null === $viewerId) {
-            return AudiencePolicy::TIER_ANONYMOUS;
-        }
-        if ($viewerId === $ownerId) {
-            return AudiencePolicy::TIER_SELF;
-        }
-        if ($this->friendships->areFriends($viewerId, $ownerId)) {
-            return AudiencePolicy::TIER_FRIEND;
-        }
-        if ($this->memberships->hasActiveMembership($viewerId)) {
-            return AudiencePolicy::TIER_MEMBER;
-        }
-
-        return AudiencePolicy::TIER_AUTHENTICATED;
     }
 
     /**
