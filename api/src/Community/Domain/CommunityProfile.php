@@ -40,18 +40,18 @@ final class CommunityProfile
         private ?string $tagline = null,
         #[ORM\Column(type: 'string', length: 40, nullable: true)]
         private ?string $pronouns = null,
-        #[ORM\Column(name: 'banner_preset', type: 'string', length: 32)]
+        #[ORM\Column(name: 'banner_preset', type: 'string', length: 32, options: ['default' => BannerPreset::DEFAULT])]
         private string $bannerPreset = BannerPreset::DEFAULT,
         /** @var list<array{label: string, url: string}> */
-        #[ORM\Column(name: 'social_links', type: Types::JSON)]
+        #[ORM\Column(name: 'social_links', type: Types::JSON, options: ['default' => '[]'])]
         private array $socialLinks = [],
         /** @var list<string> */
-        #[ORM\Column(name: 'favorite_game_ids', type: Types::JSON)]
+        #[ORM\Column(name: 'favorite_game_ids', type: Types::JSON, options: ['default' => '[]'])]
         private array $favoriteGameIds = [],
-        #[ORM\Column(type: 'string', length: 16)]
+        #[ORM\Column(type: 'string', length: 16, options: ['default' => Audience::MEMBERS])]
         private string $audience = Audience::MEMBERS,
         /** @var list<string> ordered enabled showcase widget keys */
-        #[ORM\Column(name: 'showcase_layout', type: Types::JSON)]
+        #[ORM\Column(name: 'showcase_layout', type: Types::JSON, options: ['default' => '[]'])]
         private array $showcaseLayout = [],
     ) {
     }

@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Table(name: 'community_achievement_grant')]
 #[ORM\UniqueConstraint(name: 'uniq_community_achievement_grant', columns: ['user_id', 'achievement_key'])]
+#[ORM\Index(name: 'idx_community_achievement_grant_user', columns: ['user_id'])]
 final class AchievementGrant
 {
     public function __construct(
