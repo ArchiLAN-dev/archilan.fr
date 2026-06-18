@@ -3,7 +3,16 @@
 // lives in <AvatarFrame>; this file holds only the (serialisable) configuration.
 
 export type AvatarFrameCategory = "Couleurs" | "Néon" | "Effets";
-export type AvatarFrameVariant = "solid" | "glow" | "fire" | "electric" | "rainbow" | "aurora" | "frost";
+export type AvatarFrameVariant =
+  | "solid"
+  | "glow"
+  | "fire"
+  | "electric"
+  | "rainbow"
+  | "aurora"
+  | "frost"
+  | "embers"
+  | "spectral";
 
 export type AvatarFrameConfig = {
   key: string;
@@ -30,10 +39,12 @@ export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [
   { key: "toxic", label: "Toxique", category: "Néon", variant: "glow", color: "#a3e635" },
   // Effets animés
   { key: "fire", label: "Flammes", category: "Effets", variant: "fire" },
+  { key: "embers", label: "Braises", category: "Effets", variant: "embers" },
   { key: "electric", label: "Électricité", category: "Effets", variant: "electric" },
   { key: "rainbow", label: "Arc-en-ciel", category: "Effets", variant: "rainbow" },
   { key: "aurora", label: "Aurore", category: "Effets", variant: "aurora" },
   { key: "frost", label: "Givre", category: "Effets", variant: "frost" },
+  { key: "spectral", label: "Spectre", category: "Effets", variant: "spectral" },
 ] as const;
 
 export const AVATAR_FRAME_KEYS: readonly string[] = AVATAR_FRAMES.map((f) => f.key);

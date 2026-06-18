@@ -74,6 +74,49 @@
   animation: flicker var(--d, 0.9s) ease-in-out infinite alternate;
 }
 
+/* Particle systems (Steam-like): glowing motes that drift up and fade. */
+.particleLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.particle {
+  position: absolute;
+  bottom: var(--from, 0%);
+  border-radius: 9999px;
+  background: var(--p, #fb923c);
+  box-shadow:
+    0 0 6px 1px var(--p, #fb923c),
+    0 0 2px 0 var(--p, #fb923c);
+  opacity: 0;
+  animation: rise var(--d, 3.4s) ease-in infinite;
+}
+
+.embers {
+  box-shadow:
+    0 0 16px 2px rgba(249, 115, 22, 0.55),
+    inset 0 0 10px rgba(249, 115, 22, 0.4);
+  background: linear-gradient(180deg, #7c2d12, #b45309);
+}
+.embers .particle {
+  --p: #fb923c;
+}
+
+.spectral {
+  background: linear-gradient(160deg, #7c3aed, #a855f7, #6366f1);
+  box-shadow:
+    0 0 18px 2px rgba(168, 85, 247, 0.6),
+    0 0 5px 0 rgba(192, 132, 252, 0.85);
+  animation: haze 3.2s ease-in-out infinite;
+}
+.spectral .particle {
+  --p: #d8b4fe;
+}
+.fire .particle {
+  --p: #fdba74;
+}
+
 .electric {
   box-shadow: 0 0 13px 1px rgba(59, 130, 246, 0.8);
 }
@@ -131,9 +174,45 @@
   }
 }
 
+/* Particles drift up the whole frame (animating `bottom`) and fade. */
+@keyframes rise {
+  0% {
+    bottom: var(--from, 0%);
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    bottom: 118%;
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes haze {
+  0%,
+  100% {
+    box-shadow:
+      0 0 12px 1px rgba(168, 85, 247, 0.45),
+      0 0 4px 0 rgba(192, 132, 252, 0.7);
+  }
+  50% {
+    box-shadow:
+      0 0 22px 4px rgba(168, 85, 247, 0.7),
+      0 0 7px 1px rgba(216, 180, 254, 0.9);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .glow,
   .flame,
+  .particle,
+  .spectral,
   .electric::before,
   .rainbow::before,
   .aurora::before,

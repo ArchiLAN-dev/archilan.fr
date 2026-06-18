@@ -23,10 +23,12 @@ final class AvatarFrame
         'neon_green',
         'toxic',
         'fire',
+        'embers',
         'electric',
         'rainbow',
         'aurora',
         'frost',
+        'spectral',
     ];
 
     public static function isValid(string $value): bool
