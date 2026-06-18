@@ -1,8 +1,7 @@
-import { Trophy } from "lucide-react";
+import { BadgeCheck, ShieldCheck } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type {
-  Achievement,
   PlayerHistory,
   PlayerProfile,
   ProfileCustomization as ProfileCustomizationData,
@@ -14,19 +13,8 @@ import { ProfileRelationshipActions } from "@/features/community/profile-relatio
 import { ProfileActivity } from "@/features/community/community-activity";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
 import { ProfileComments } from "@/features/community/profile-comments";
-
-const BANNER_CLASSES: Record<string, string> = {
-  default: "bg-gradient-to-r from-accent/30 via-accent/10 to-transparent",
-  sunset: "bg-gradient-to-r from-orange-500/40 via-pink-500/20 to-transparent",
-  forest: "bg-gradient-to-r from-emerald-600/40 via-emerald-400/15 to-transparent",
-  arcade: "bg-gradient-to-r from-fuchsia-500/40 via-cyan-400/20 to-transparent",
-  midnight: "bg-gradient-to-r from-indigo-800/50 via-indigo-500/20 to-transparent",
-  aurora: "bg-gradient-to-r from-teal-400/40 via-violet-500/20 to-transparent",
-};
-
-function bannerClass(preset: string): string {
-  return BANNER_CLASSES[preset] ?? BANNER_CLASSES.default;
-}
+import { ProfileBanner } from "@/features/community/profile-banner";
+import { resolveLinkType } from "@/features/community/social-links";
 
 export function PlayerProfilePage({
   profile,
@@ -42,22 +30,30 @@ export function PlayerProfilePage({
   return (
     <article className="mx-auto w-full max-w-4xl grid gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <div className={`h-28 sm:h-36 ${bannerClass(profile.customization?.bannerPreset ?? "default")}`} />
+        <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
-        <div className="grid gap-6 p-5 sm:p-8">
+        {/* relative + z-10 keeps the overlapping avatar/name above the positioned banner. */}
+        <div className="relative z-10 grid gap-6 p-5 sm:p-8">
           <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
-            <ProfileAvatar avatarUrl={profile.avatarUrl} name={displayName} />
+            <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
             <div className="grid gap-1 pb-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-text">
-                Profil joueur
-              </p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground md:text-4xl">
+                <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_1px_4px_rgba(0,0,0,0.6)] md:text-4xl">
                   {displayName}
                 </h1>
                 <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                   Niv. {profile.level.level}
                 </span>
+                {profile.badges.admin ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+                    <ShieldCheck aria-hidden className="size-3.5" /> Admin
+                  </span>
+                ) : null}
+                {profile.badges.member ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                    <BadgeCheck aria-hidden className="size-3.5" /> Adhérent
+                  </span>
+                ) : null}
                 {profile.presence.playing ? <PresenceBadge presence={profile.presence} /> : null}
                 {profile.customization?.pronouns ? (
                   <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
@@ -66,13 +62,18 @@ export function PlayerProfilePage({
                 ) : null}
               </div>
               {profile.customization?.tagline ? (
-                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
+                <p className="text-sm italic text-foreground/90 [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]">
+                  {profile.customization.tagline}
+                </p>
               ) : null}
               <p className="text-sm text-muted-foreground">
                 Membre depuis{" "}
                 <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
               </p>
               <LevelBar level={profile.level} />
+              {profile.customization && profile.customization.socialLinks.length > 0 ? (
+                <SocialLinkIcons links={profile.customization.socialLinks} />
+              ) : null}
             </div>
             <div className="sm:ml-auto sm:pb-1">
               <ProfileRelationshipActions slug={profile.slug} />
@@ -97,7 +98,6 @@ export function PlayerProfilePage({
 
       {profile.customization && profile.customization.showcaseLayout.length > 0 ? (
         <ProfileShowcase
-          achievements={profile.achievements}
           entries={entries}
           favorites={profile.customization.favoriteGames}
           layout={profile.customization.showcaseLayout}
@@ -145,15 +145,12 @@ export function PlayerProfilePage({
 function ProfileShowcase({
   layout,
   favorites,
-  achievements,
   entries,
 }: {
   layout: string[];
   favorites: ProfileCustomizationData["favoriteGames"];
-  achievements: Achievement[];
   entries: RunHistoryEntry[];
 }) {
-  const unlocked = achievements.filter((a) => a.unlocked);
   const bestRuns = [...entries]
     .filter((e) => !e.isInvalidated)
     .sort((a, b) => b.checksDone - a.checksDone)
@@ -161,7 +158,7 @@ function ProfileShowcase({
   const mostPlayed = topGames(entries);
 
   const widgets = layout
-    .map((key) => renderShowcaseWidget(key, favorites, unlocked, bestRuns, mostPlayed))
+    .map((key) => renderShowcaseWidget(key, favorites, bestRuns, mostPlayed))
     .filter((w): w is ReactElement => w !== null);
 
   if (widgets.length === 0) return null;
@@ -177,7 +174,6 @@ function ProfileShowcase({
 function renderShowcaseWidget(
   key: string,
   favorites: ProfileCustomizationData["favoriteGames"],
-  unlocked: Achievement[],
   bestRuns: RunHistoryEntry[],
   mostPlayed: { game: string; count: number }[],
 ): ReactElement | null {
@@ -200,24 +196,6 @@ function renderShowcaseWidget(
                 </span>
                 <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">{game.name}</span>
               </Link>
-            </li>
-          ))}
-        </ul>
-      </ShowcaseBlock>
-    );
-  }
-
-  if (key === "featured_achievements" && unlocked.length > 0) {
-    return (
-      <ShowcaseBlock key={key} title="Succès en vedette">
-        <ul className="flex flex-wrap gap-2" role="list">
-          {unlocked.slice(0, 6).map((a) => (
-            <li
-              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-text"
-              key={a.key}
-            >
-              <Trophy aria-hidden className="size-3.5" />
-              {a.name}
             </li>
           ))}
         </ul>
@@ -306,72 +284,42 @@ function LevelBar({ level }: { level: PlayerProfile["level"] }) {
 }
 
 function ProfileCustomization({ customization }: { customization: ProfileCustomizationData }) {
-  const { bio, socialLinks, favoriteGames } = customization;
-  if (!bio && socialLinks.length === 0 && favoriteGames.length === 0) return null;
+  const { bio } = customization;
+  // Favorite games render as a Vitrine block (ProfileShowcase); social links live in the header card.
+  // This section now holds only the "À propos" text.
+  if (!bio) return null;
 
   return (
-    <section className="grid gap-8">
-      {bio ? (
-        <div className="grid gap-2">
-          <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
-          <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
-        </div>
-      ) : null}
-
-      {favoriteGames.length > 0 ? (
-        <div className="grid gap-3">
-          <h2 className="font-heading text-lg font-semibold text-foreground">Jeux favoris</h2>
-          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6" role="list">
-            {favoriteGames.map((game) => (
-              <li key={game.id}>
-                <Link
-                  className="group grid gap-1.5 text-center"
-                  href={`/jeux/${game.slug}`}
-                >
-                  <span className="block aspect-[3/4] overflow-hidden rounded border border-border bg-surface">
-                    {game.coverImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- external IGDB cover URL
-                      <img
-                        alt={game.name}
-                        className="h-full w-full object-cover object-top transition-transform group-hover:scale-105"
-                        src={game.coverImageUrl}
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
-                        {game.name.slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </span>
-                  <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">
-                    {game.name}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {socialLinks.length > 0 ? (
-        <div className="grid gap-3">
-          <h2 className="font-heading text-lg font-semibold text-foreground">Liens</h2>
-          <ul className="flex flex-wrap gap-2" role="list">
-            {socialLinks.map((link) => (
-              <li key={link.url}>
-                <a
-                  className="inline-flex min-h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent-text"
-                  href={link.url}
-                  rel="nofollow noopener noreferrer"
-                  target="_blank"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+    <section className="grid gap-2">
+      <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
+      <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
     </section>
+  );
+}
+
+function SocialLinkIcons({ links }: { links: ProfileCustomizationData["socialLinks"] }) {
+  return (
+    <ul className="flex flex-wrap items-center gap-1.5 pt-0.5" role="list">
+      {links.map((link) => {
+        const type = resolveLinkType(link.label);
+        const Icon = type.icon;
+        const name = type.key === "other" ? link.label || "Lien" : type.label;
+        return (
+          <li key={link.url}>
+            <a
+              aria-label={name}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-accent hover:text-accent-text"
+              href={link.url}
+              rel="nofollow noopener noreferrer"
+              target="_blank"
+              title={name}
+            >
+              <Icon aria-hidden className="size-4" />
+            </a>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

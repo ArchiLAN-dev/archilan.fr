@@ -14,8 +14,10 @@ use App\Community\Domain\CommunityXp;
 use App\Community\Domain\Kudos;
 use App\Community\Domain\KudosRepositoryInterface;
 use App\Community\Domain\Level;
+use App\Community\Domain\ShowcaseWidget;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Membership\Application\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**
@@ -35,6 +37,7 @@ final readonly class CommunityProfileView
         private ProfileVisibility $visibility,
         private KudosRepositoryInterface $kudos,
         private CommunityPresenceQueryInterface $presence,
+        private ActiveMembershipQueryInterface $memberships,
     ) {
     }
 
@@ -45,11 +48,12 @@ final readonly class CommunityProfileView
      *     joinedAt: string,
      *     avatarUrl: string|null,
      *     audience: string,
+     *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>,
      *     presence: array{playing: bool, sessionId: string|null, game: string|null},
-     *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
+     *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
      */
     public function forSlug(string $slug, ?string $viewerId): ?array
@@ -86,6 +90,13 @@ final readonly class CommunityProfileView
             'game' => $live['game'] ?? null,
         ];
 
+        // Public recognition badges (always visible, never audience-gated). Member status is a *live*
+        // membership lookup, never the stale-prone ROLE_MEMBER (AC-M2); admin is a stable role.
+        $badges = [
+            'member' => $this->memberships->hasActiveMembership($model['userId']),
+            'admin' => $model['isAdmin'],
+        ];
+
         $customization = null;
         if (null !== $profile && $this->visibility->canSee($viewerId, $model['userId'])) {
             $customization = [
@@ -93,18 +104,21 @@ final readonly class CommunityProfileView
                 'tagline' => $profile->getTagline(),
                 'pronouns' => $profile->getPronouns(),
                 'bannerPreset' => $profile->getBannerPreset(),
+                'avatarFrame' => $profile->getAvatarFrame(),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
-                'showcaseLayout' => $profile->getShowcaseLayout(),
+                'showcaseLayout' => $this->validShowcase($profile->getShowcaseLayout()),
             ];
         }
 
         return [
             'slug' => $model['slug'],
-            'displayName' => $model['displayName'],
+            // The owner's display-name override wins over the account name; falls back when unset.
+            'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
             'joinedAt' => $model['joinedAt'],
             'avatarUrl' => $profile?->getAvatarUrl(),
             'audience' => $audience,
+            'badges' => $badges,
             'stats' => $model['stats'],
             'level' => [
                 'level' => $level->level,
@@ -162,22 +176,37 @@ final readonly class CommunityProfileView
     /**
      * Raw, always-full customization for the owner's edit form (self only).
      *
-     * @return array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId): array
     {
         $profile = $this->ensureProfile($userId);
 
         return [
+            'displayName' => $profile?->getDisplayName(),
             'bio' => $profile?->getBio(),
             'tagline' => $profile?->getTagline(),
             'pronouns' => $profile?->getPronouns(),
             'bannerPreset' => $profile?->getBannerPreset() ?? BannerPreset::DEFAULT,
+            'avatarFrame' => $profile?->getAvatarFrame(),
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
             'audience' => $profile?->getAudience() ?? Audience::MEMBERS,
-            'showcaseLayout' => $profile?->getShowcaseLayout() ?? [],
+            'showcaseLayout' => $this->validShowcase($profile?->getShowcaseLayout() ?? []),
         ];
+    }
+
+    /**
+     * Drop retired/unknown showcase widget keys on read, so a layout saved before a widget was retired
+     * (e.g. featured_achievements) never surfaces a raw key to the frontend.
+     *
+     * @param list<string> $layout
+     *
+     * @return list<string>
+     */
+    private function validShowcase(array $layout): array
+    {
+        return array_values(array_filter($layout, static fn (string $w): bool => ShowcaseWidget::isValid($w)));
     }
 
     /**

@@ -34,7 +34,7 @@ final readonly class CommunityProfileController
 
         return new JsonResponse(['data' => [
             'slug' => $user->getSlug(),
-            'displayName' => $user->getDisplayName(),
+            'accountName' => $user->getDisplayName(),
             ...$this->profileView->editableForUser($user->getId()),
         ]]);
     }
@@ -54,7 +54,7 @@ final readonly class CommunityProfileController
 
         return new JsonResponse(['data' => [
             'slug' => $user->getSlug(),
-            'displayName' => $user->getDisplayName(),
+            'accountName' => $user->getDisplayName(),
             ...$this->profileView->editableForUser($user->getId()),
         ]]);
     }

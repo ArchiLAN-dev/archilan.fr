@@ -13,11 +13,15 @@ export type EditableFavoriteGame = {
 
 export type MyCommunityProfile = {
   slug: string | null;
+  // The account name (Identity), shown as the fallback when no override is set.
+  accountName: string | null;
+  // Optional display-name override; null falls back to accountName.
   displayName: string | null;
   bio: string | null;
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  avatarFrame: string | null;
   socialLinks: EditableSocialLink[];
   favoriteGames: EditableFavoriteGame[];
   audience: string;
@@ -25,10 +29,12 @@ export type MyCommunityProfile = {
 };
 
 export type UpdateCommunityProfileInput = {
+  displayName: string | null;
   bio: string | null;
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
   favoriteGameIds: string[];
@@ -44,11 +50,13 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
     !hasNullableStringProp(v, "tagline") ||
     !hasNullableStringProp(v, "pronouns") ||
     !hasNullableStringProp(v, "slug") ||
+    !hasNullableStringProp(v, "accountName") ||
     !hasNullableStringProp(v, "displayName")
   ) {
     return false;
   }
   if (!hasStringProp(v, "bannerPreset") || !hasStringProp(v, "audience")) return false;
+  if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;
@@ -96,19 +104,12 @@ export async function updateMyCommunityProfile(input: UpdateCommunityProfileInpu
   }
 }
 
-export const BANNER_PRESETS = ["default", "sunset", "forest", "arcade", "midnight", "aurora"] as const;
 export const AUDIENCES = ["public", "members", "friends"] as const;
 
-export const SHOWCASE_WIDGETS = [
-  "favorite_games",
-  "featured_achievements",
-  "best_runs",
-  "most_played",
-] as const;
+export const SHOWCASE_WIDGETS = ["favorite_games", "best_runs", "most_played"] as const;
 
 export const SHOWCASE_WIDGET_LABELS: Record<string, string> = {
   favorite_games: "Jeux favoris",
-  featured_achievements: "Succès en vedette",
   best_runs: "Meilleures runs",
   most_played: "Les plus joués",
 };

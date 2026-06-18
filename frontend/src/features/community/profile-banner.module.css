@@ -1,0 +1,110 @@
+.banner {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #0b1020;
+  --blur: 44px;
+}
+
+.compact {
+  --blur: 16px;
+}
+
+/* Animated linear-gradient base. */
+.gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, var(--c1), var(--c2), var(--c3), var(--c1));
+  background-size: 300% 300%;
+  animation: pan 16s ease infinite;
+}
+
+/* Soft blurred colour blobs (mesh look). */
+.blob {
+  position: absolute;
+  aspect-ratio: 1 / 1;
+  border-radius: 9999px;
+  background: var(--blob);
+  filter: blur(var(--blur));
+  opacity: 0.75;
+  transform: translate(-50%, -50%);
+  animation: float 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+.blob:nth-child(2) {
+  animation-duration: 24s;
+  animation-direction: reverse;
+}
+
+.blob:nth-child(3) {
+  animation-duration: 28s;
+}
+
+/* Texture overlays. */
+.texture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.grain {
+  /* fractal-noise film grain */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.16;
+  mix-blend-mode: soft-light;
+}
+
+.dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px);
+  background-size: 12px 12px;
+  opacity: 0.5;
+}
+
+.grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.6;
+}
+
+/* Darken the bottom so the overlapping avatar/name/badges stay readable on any preset (incl. light ones). */
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.18) 38%, transparent 68%);
+  pointer-events: none;
+}
+
+@keyframes pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate(-50%, -50%);
+  }
+  33% {
+    transform: translate(-38%, -62%);
+  }
+  66% {
+    transform: translate(-60%, -42%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient,
+  .blob {
+    animation: none;
+  }
+}

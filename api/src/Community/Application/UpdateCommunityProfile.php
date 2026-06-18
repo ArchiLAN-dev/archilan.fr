@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application;
 
 use App\Community\Domain\Audience;
+use App\Community\Domain\AvatarFrame;
 use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
@@ -36,6 +37,7 @@ final readonly class UpdateCommunityProfile
     {
         $errors = new ValidationErrors();
 
+        $displayName = $this->nullableString($input['displayName'] ?? null, 80, 'displayName', $errors);
         $bio = $this->nullableString($input['bio'] ?? null, 2000, 'bio', $errors);
         $tagline = $this->nullableString($input['tagline'] ?? null, 120, 'tagline', $errors);
         $pronouns = $this->nullableString($input['pronouns'] ?? null, 40, 'pronouns', $errors);
@@ -48,6 +50,11 @@ final readonly class UpdateCommunityProfile
         $audience = is_string($input['audience'] ?? null) ? $input['audience'] : Audience::MEMBERS;
         if (!Audience::isValid($audience)) {
             $errors->add('audience', 'Audience invalide.');
+        }
+
+        $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
+        if (null !== $avatarFrame && !AvatarFrame::isValid($avatarFrame)) {
+            $errors->add('avatarFrame', 'Cadre invalide.');
         }
 
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
@@ -66,7 +73,7 @@ final readonly class UpdateCommunityProfile
             $this->profiles->save($profile);
         }
 
-        $profile->customize($bio, $tagline, $pronouns, $bannerPreset, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
+        $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $avatarFrame, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         $this->profiles->flush();
 
         return ['errorCode' => null, 'errors' => []];

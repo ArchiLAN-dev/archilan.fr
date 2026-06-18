@@ -53,6 +53,12 @@ final class CommunityProfile
         /** @var list<string> ordered enabled showcase widget keys */
         #[ORM\Column(name: 'showcase_layout', type: Types::JSON, options: ['default' => '[]'])]
         private array $showcaseLayout = [],
+        /** Optional display-name override; when set, shown on the profile instead of the account name. */
+        #[ORM\Column(name: 'display_name', type: 'string', length: 80, nullable: true)]
+        private ?string $displayName = null,
+        /** Optional decorative avatar frame key (see AvatarFrame); null = no frame. */
+        #[ORM\Column(name: 'avatar_frame', type: 'string', length: 32, nullable: true)]
+        private ?string $avatarFrame = null,
     ) {
     }
 
@@ -97,25 +103,41 @@ final class CommunityProfile
      * @param list<string>                            $showcaseLayout
      */
     public function customize(
+        ?string $displayName,
         ?string $bio,
         ?string $tagline,
         ?string $pronouns,
         string $bannerPreset,
+        ?string $avatarFrame,
         array $socialLinks,
         array $favoriteGameIds,
         string $audience,
         array $showcaseLayout,
         \DateTimeImmutable $now,
     ): void {
+        $this->displayName = $displayName;
         $this->bio = $bio;
         $this->tagline = $tagline;
         $this->pronouns = $pronouns;
         $this->bannerPreset = $bannerPreset;
+        $this->avatarFrame = $avatarFrame;
         $this->socialLinks = $socialLinks;
         $this->favoriteGameIds = $favoriteGameIds;
         $this->audience = $audience;
         $this->showcaseLayout = $showcaseLayout;
         $this->updatedAt = $now;
+    }
+
+    /** The display-name override, or null to fall back to the account name. */
+    public function getDisplayName(): ?string
+    {
+        return $this->displayName;
+    }
+
+    /** The decorative avatar frame key, or null for none. */
+    public function getAvatarFrame(): ?string
+    {
+        return $this->avatarFrame;
     }
 
     public function getBio(): ?string

@@ -18,6 +18,10 @@ final class BannerPreset
         'arcade',
         'midnight',
         'aurora',
+        'ocean',
+        'neon',
+        'retrowave',
+        'pastel',
     ];
 
     public static function isValid(string $value): bool

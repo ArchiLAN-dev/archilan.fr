@@ -15,6 +15,7 @@ interface CommunityProfileQueryInterface
      *     slug: string,
      *     displayName: string|null,
      *     joinedAt: string,
+     *     isAdmin: bool,
      *     stats: array{
      *         runsParticipated: int,
      *         goalCompletions: int,

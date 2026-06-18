@@ -1,5 +1,6 @@
 "use client";
 
+import { type LucideIcon, Gamepad2, Settings, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -16,17 +17,46 @@ import type { Profile } from "./account-profile";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Tab = "inscriptions" | "parties" | "activite" | "profil" | "amis" | "adhesion" | "confidentialite" | "compte";
+type GroupId = "communaute" | "jeux" | "compte";
 
-const TABS: Array<{ id: Tab; label: string; danger?: true }> = [
-  { id: "inscriptions", label: "Inscriptions" },
-  { id: "parties", label: "Mes parties" },
-  { id: "activite", label: "Activité" },
-  { id: "profil", label: "Profil" },
-  { id: "amis", label: "Amis" },
-  { id: "adhesion", label: "Adhésion" },
-  { id: "confidentialite", label: "Confidentialité" },
-  { id: "compte", label: "Compte", danger: true },
+type SubTab = { id: Tab; label: string; danger?: true };
+type Group = { id: GroupId; label: string; icon: LucideIcon; tabs: SubTab[] };
+
+const GROUPS: Group[] = [
+  {
+    id: "communaute",
+    label: "Communauté",
+    icon: Users,
+    tabs: [
+      { id: "profil", label: "Profil" },
+      { id: "amis", label: "Amis" },
+      { id: "activite", label: "Activité" },
+    ],
+  },
+  {
+    id: "jeux",
+    label: "Jeux",
+    icon: Gamepad2,
+    tabs: [
+      { id: "inscriptions", label: "Inscriptions" },
+      { id: "parties", label: "Mes parties" },
+    ],
+  },
+  {
+    id: "compte",
+    label: "Compte",
+    icon: Settings,
+    tabs: [
+      { id: "adhesion", label: "Adhésion" },
+      { id: "confidentialite", label: "Confidentialité" },
+      { id: "compte", label: "Connexions & sécurité", danger: true },
+    ],
+  },
 ];
+
+function groupOf(tab: Tab): Group {
+  return GROUPS.find((g) => g.tabs.some((t) => t.id === tab)) ?? GROUPS[0];
+}
 
 // ── AccountTabs ───────────────────────────────────────────────────────────────
 
@@ -36,9 +66,10 @@ type AccountTabsProps = {
 };
 
 export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("inscriptions");
+  const [activeTab, setActiveTab] = useState<Tab>("profil");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const activeGroup = groupOf(activeTab);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,14 +129,45 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
         )}
       </div>
 
-      {/* ── Tab navigation + content ─────────────────────────────────────── */}
-      <div className="grid gap-6">
+      {/* ── Two-level navigation + content ───────────────────────────────── */}
+      <div className="grid gap-4">
+        {/* Top level: segmented control of groups */}
         <nav
-          aria-label="Sections de l'espace membre"
+          aria-label="Catégories de l'espace membre"
+          className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface p-1"
+          role="tablist"
+        >
+          {GROUPS.map((group) => {
+            const active = activeGroup.id === group.id;
+            const Icon = group.icon;
+            return (
+              <button
+                key={group.id}
+                aria-selected={active}
+                className={[
+                  "inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  active
+                    ? "bg-accent text-white shadow-sm"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                ].join(" ")}
+                role="tab"
+                type="button"
+                onClick={() => setActiveTab(group.tabs[0].id)}
+              >
+                <Icon aria-hidden className="size-4 shrink-0" />
+                <span className="truncate">{group.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Second level: sub-tabs of the active group */}
+        <nav
+          aria-label={`Sections : ${activeGroup.label}`}
           className="-mb-px flex overflow-x-auto border-b border-border"
           role="tablist"
         >
-          {TABS.map((tab) => (
+          {activeGroup.tabs.map((tab) => (
             <button
               key={tab.id}
               aria-selected={activeTab === tab.id}

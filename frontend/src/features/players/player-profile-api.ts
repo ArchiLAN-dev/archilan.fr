@@ -24,6 +24,7 @@ export type ProfileCustomization = {
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  avatarFrame: string | null;
   socialLinks: ProfileSocialLink[];
   favoriteGames: ProfileFavoriteGame[];
   showcaseLayout: string[];
@@ -48,12 +49,16 @@ export type ProfileLevel = {
 
 export type ProfilePresence = { playing: boolean; sessionId: string | null; game: string | null };
 
+/** Public recognition badges: active membership (live lookup) and admin role. */
+export type ProfileBadges = { member: boolean; admin: boolean };
+
 export type PlayerProfile = {
   slug: string;
   displayName: string | null;
   joinedAt: string;
   avatarUrl: string | null;
   audience: string;
+  badges: ProfileBadges;
   level: ProfileLevel;
   achievements: Achievement[];
   presence: ProfilePresence;
@@ -63,6 +68,15 @@ export type PlayerProfile = {
 
 const DEFAULT_LEVEL: ProfileLevel = { level: 0, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100 };
 const OFFLINE: ProfilePresence = { playing: false, sessionId: null, game: null };
+const NO_BADGES: ProfileBadges = { member: false, admin: false };
+
+function parseBadges(v: unknown): ProfileBadges {
+  if (typeof v !== "object" || v === null) return NO_BADGES;
+  return {
+    member: hasBooleanProp(v, "member") && v.member,
+    admin: hasBooleanProp(v, "admin") && v.admin,
+  };
+}
 
 function parsePresence(v: unknown): ProfilePresence {
   if (typeof v !== "object" || v === null || !hasBooleanProp(v, "playing")) return OFFLINE;
@@ -107,6 +121,7 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
     return false;
   }
   if (!hasStringProp(v, "bannerPreset")) return false;
+  if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;
@@ -199,6 +214,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       joinedAt: data.joinedAt,
       avatarUrl: data.avatarUrl ?? null,
       audience: typeof data.audience === "string" ? data.audience : "members",
+      badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
       achievements: Array.isArray(data.achievements) ? data.achievements : [],
       presence: parsePresence("presence" in data ? data.presence : null),
