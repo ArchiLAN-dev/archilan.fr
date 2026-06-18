@@ -1,8 +1,7 @@
-import { BadgeCheck, ShieldCheck, Trophy } from "lucide-react";
+import { BadgeCheck, ShieldCheck } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type {
-  Achievement,
   PlayerHistory,
   PlayerProfile,
   ProfileCustomization as ProfileCustomizationData,
@@ -15,6 +14,7 @@ import { ProfileActivity } from "@/features/community/community-activity";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
 import { ProfileComments } from "@/features/community/profile-comments";
 import { bannerClass } from "@/features/community/banner-presets";
+import { resolveLinkType } from "@/features/community/social-links";
 
 export function PlayerProfilePage({
   profile,
@@ -95,7 +95,6 @@ export function PlayerProfilePage({
 
       {profile.customization && profile.customization.showcaseLayout.length > 0 ? (
         <ProfileShowcase
-          achievements={profile.achievements}
           entries={entries}
           favorites={profile.customization.favoriteGames}
           layout={profile.customization.showcaseLayout}
@@ -143,15 +142,12 @@ export function PlayerProfilePage({
 function ProfileShowcase({
   layout,
   favorites,
-  achievements,
   entries,
 }: {
   layout: string[];
   favorites: ProfileCustomizationData["favoriteGames"];
-  achievements: Achievement[];
   entries: RunHistoryEntry[];
 }) {
-  const unlocked = achievements.filter((a) => a.unlocked);
   const bestRuns = [...entries]
     .filter((e) => !e.isInvalidated)
     .sort((a, b) => b.checksDone - a.checksDone)
@@ -159,7 +155,7 @@ function ProfileShowcase({
   const mostPlayed = topGames(entries);
 
   const widgets = layout
-    .map((key) => renderShowcaseWidget(key, favorites, unlocked, bestRuns, mostPlayed))
+    .map((key) => renderShowcaseWidget(key, favorites, bestRuns, mostPlayed))
     .filter((w): w is ReactElement => w !== null);
 
   if (widgets.length === 0) return null;
@@ -175,7 +171,6 @@ function ProfileShowcase({
 function renderShowcaseWidget(
   key: string,
   favorites: ProfileCustomizationData["favoriteGames"],
-  unlocked: Achievement[],
   bestRuns: RunHistoryEntry[],
   mostPlayed: { game: string; count: number }[],
 ): ReactElement | null {
@@ -198,24 +193,6 @@ function renderShowcaseWidget(
                 </span>
                 <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">{game.name}</span>
               </Link>
-            </li>
-          ))}
-        </ul>
-      </ShowcaseBlock>
-    );
-  }
-
-  if (key === "featured_achievements" && unlocked.length > 0) {
-    return (
-      <ShowcaseBlock key={key} title="Succès en vedette">
-        <ul className="flex flex-wrap gap-2" role="list">
-          {unlocked.slice(0, 6).map((a) => (
-            <li
-              className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-text"
-              key={a.key}
-            >
-              <Trophy aria-hidden className="size-3.5" />
-              {a.name}
             </li>
           ))}
         </ul>
@@ -322,18 +299,25 @@ function ProfileCustomization({ customization }: { customization: ProfileCustomi
         <div className="grid gap-3">
           <h2 className="font-heading text-lg font-semibold text-foreground">Liens</h2>
           <ul className="flex flex-wrap gap-2" role="list">
-            {socialLinks.map((link) => (
-              <li key={link.url}>
-                <a
-                  className="inline-flex min-h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent-text"
-                  href={link.url}
-                  rel="nofollow noopener noreferrer"
-                  target="_blank"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
+            {socialLinks.map((link) => {
+              const type = resolveLinkType(link.label);
+              const Icon = type.icon;
+              const name = type.key === "other" ? link.label || "Lien" : type.label;
+              return (
+                <li key={link.url}>
+                  <a
+                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent-text"
+                    href={link.url}
+                    rel="nofollow noopener noreferrer"
+                    target="_blank"
+                    title={name}
+                  >
+                    <Icon aria-hidden className="size-4" />
+                    {name}
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}

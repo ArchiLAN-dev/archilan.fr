@@ -6,6 +6,7 @@ import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, Loader2, Plus, Sea
 
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
 import { BANNER_CLASSES, BANNER_LABELS } from "./banner-presets";
+import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
   AUDIENCES,
   BANNER_PRESETS,
@@ -351,37 +352,20 @@ export function CommunityProfileCustomizationForm() {
         ) : null}
       </Section>
 
-      <Section title={`Liens (${socialLinks.length}/${MAX_SOCIAL_LINKS})`} description="Twitch, site perso, réseaux…">
+      <Section title={`Liens (${socialLinks.length}/${MAX_SOCIAL_LINKS})`} description="Choisis une plateforme et colle ton lien.">
         <div className="grid gap-2">
           {socialLinks.map((link, index) => (
-            <div className="flex flex-wrap items-center gap-2" key={index}>
-              <input
-                aria-label="Libellé du lien"
-                className={`${inputClass} sm:w-40`}
-                maxLength={40}
-                onChange={(e) => updateLink(setSocialLinks, index, { label: e.target.value })}
-                placeholder="Twitch, site…"
-                type="text"
-                value={link.label}
-              />
-              <input
-                aria-label="URL du lien"
-                className={`${inputClass} min-w-0 flex-1`}
-                maxLength={300}
-                onChange={(e) => updateLink(setSocialLinks, index, { url: e.target.value })}
-                placeholder="https://…"
-                type="url"
-                value={link.url}
-              />
-              <IconBtn danger label="Supprimer le lien" onClick={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}>
-                <X aria-hidden className="size-4" />
-              </IconBtn>
-            </div>
+            <SocialLinkRow
+              key={index}
+              link={link}
+              onChange={(patch) => updateLink(setSocialLinks, index, patch)}
+              onRemove={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}
+            />
           ))}
           {socialLinks.length < MAX_SOCIAL_LINKS ? (
             <button
               className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground hover:border-accent hover:text-foreground"
-              onClick={() => setSocialLinks((prev) => [...prev, { label: "", url: "" }])}
+              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "" }])}
               type="button"
             >
               <Plus aria-hidden className="size-3.5" />
@@ -485,6 +469,64 @@ function SaveStatus({ dirty, save }: { dirty: boolean; save: SaveState }) {
     );
   }
   return <span className="text-sm text-muted-foreground">Tout est à jour.</span>;
+}
+
+function SocialLinkRow({
+  link,
+  onChange,
+  onRemove,
+}: {
+  link: EditableSocialLink;
+  onChange: (patch: Partial<EditableSocialLink>) => void;
+  onRemove: () => void;
+}) {
+  const type = resolveLinkType(link.label);
+  const isOther = !isKnownLinkType(link.label);
+  const Icon = type.icon;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-foreground">
+        <Icon aria-hidden className="size-4" />
+      </span>
+      <select
+        aria-label="Type de lien"
+        className={`${inputClass} sm:w-40`}
+        onChange={(e) => onChange({ label: e.target.value === OTHER_LINK_TYPE.key ? "" : e.target.value })}
+        value={isOther ? OTHER_LINK_TYPE.key : type.key}
+      >
+        {LINK_TYPES.map((t) => (
+          <option key={t.key} value={t.key}>
+            {t.label}
+          </option>
+        ))}
+        <option value={OTHER_LINK_TYPE.key}>{OTHER_LINK_TYPE.label}</option>
+      </select>
+      {isOther ? (
+        <input
+          aria-label="Nom du lien"
+          className={`${inputClass} sm:w-32`}
+          maxLength={40}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder="Nom"
+          type="text"
+          value={link.label}
+        />
+      ) : null}
+      <input
+        aria-label="URL du lien"
+        className={`${inputClass} min-w-0 flex-1`}
+        maxLength={300}
+        onChange={(e) => onChange({ url: e.target.value })}
+        placeholder={type.placeholder}
+        type="url"
+        value={link.url}
+      />
+      <IconBtn danger label="Supprimer le lien" onClick={onRemove}>
+        <X aria-hidden className="size-4" />
+      </IconBtn>
+    </div>
+  );
 }
 
 function FavoritesEditor({
