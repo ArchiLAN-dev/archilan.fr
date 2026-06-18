@@ -1,21 +1,8 @@
 "use client";
 
-import { useId, useSyncExternalStore } from "react";
+import { useId } from "react";
+import { usePrefersReducedMotion } from "./use-reduced-motion";
 import styles from "./avatar-frame.module.css";
-
-const QUERY = "(prefers-reduced-motion: reduce)";
-
-function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const mq = window.matchMedia(QUERY);
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(QUERY).matches,
-    () => false,
-  );
-}
 
 /**
  * Organic fire ring rendered with an SVG turbulence + displacement filter: a fiery rounded-rect stroke is

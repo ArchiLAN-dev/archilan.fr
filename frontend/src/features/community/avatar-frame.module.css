@@ -16,6 +16,19 @@
   background: var(--color-surface, #111030);
 }
 
+/* Lottie overlay frame: a designer animation sitting on top of (and overflowing) the avatar. */
+.lottieFrame {
+  padding: 0;
+  background: transparent;
+  overflow: visible;
+}
+.lottieOverlay {
+  position: absolute;
+  inset: -20%;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* Flat colour ring. */
 .solid {
   background: var(--c1);

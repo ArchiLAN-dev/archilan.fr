@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getAvatarFrame } from "./avatar-frames";
 import { FireSvg } from "./fire-svg";
+import { LottieFrame } from "./lottie-frame";
 import styles from "./avatar-frame.module.css";
 
 const PLAIN = "overflow-hidden rounded-2xl border-4 border-surface ring-1 ring-border bg-surface";
@@ -32,16 +33,29 @@ export function AvatarFrame({
   frameKey,
   className,
   children,
+  animated = true,
 }: {
   frameKey: string | null;
   className?: string;
   children: ReactNode;
+  /** false (e.g. editor swatches) renders the lightweight CSS/SVG preview instead of the live Lottie. */
+  animated?: boolean;
 }) {
   const frame = getAvatarFrame(frameKey);
   const size = className ?? "";
 
   if (!frame) {
     return <div className={`${PLAIN} ${size}`}>{children}</div>;
+  }
+
+  // A designer-made Lottie overlay (only when animated — never 16× in the picker).
+  if (frame.lottie && animated) {
+    return (
+      <div className={`${styles.frame} ${styles.lottieFrame} ${size}`}>
+        <div className={styles.inner}>{children}</div>
+        <LottieFrame className={styles.lottieOverlay} src={frame.lottie} />
+      </div>
+    );
   }
 
   const style = frame.color ? ({ "--c1": frame.color } as CSSProperties) : undefined;

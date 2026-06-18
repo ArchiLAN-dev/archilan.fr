@@ -521,7 +521,7 @@ function FrameSwatch({
       title={label}
       type="button"
     >
-      <AvatarFrame className="size-11" frameKey={frameKey}>
+      <AvatarFrame animated={false} className="size-11" frameKey={frameKey}>
         <span className="flex h-full w-full items-center justify-center bg-surface-2 text-xs text-muted-foreground">
           {selected ? <Check aria-hidden className="size-4 text-accent-text" /> : "★"}
         </span>
