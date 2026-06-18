@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
 import { getAvatarFrame } from "./avatar-frames";
-import { FireSvg } from "./fire-svg";
 import { LottieFrame } from "./lottie-frame";
 import styles from "./avatar-frame.module.css";
 
@@ -59,12 +58,10 @@ export function AvatarFrame({
   }
 
   const style = frame.color ? ({ "--c1": frame.color } as CSSProperties) : undefined;
-  const hasParticles = frame.variant === "fire" || frame.variant === "embers" || frame.variant === "spectral";
 
   return (
     <div className={`${styles.frame} ${styles[frame.variant]} ${size}`} style={style}>
-      {frame.variant === "fire" ? <FireSvg /> : null}
-      {hasParticles ? (
+      {frame.variant === "spectral" ? (
         <span aria-hidden className={styles.particleLayer}>
           {PARTICLES.map((p, i) => (
             <i

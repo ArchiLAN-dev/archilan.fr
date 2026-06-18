@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, Loader2, Plus, Search, X } from "lucide-react";
 
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
-import { AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
+import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
 import { AvatarFrame } from "./avatar-frame";
 import { BANNER_PRESETS } from "./banner-presets";
 import { ProfileBanner } from "./profile-banner";
@@ -104,6 +104,8 @@ export function CommunityProfileCustomizationForm() {
   const isDirty = baseline !== "" && serialized !== baseline;
 
   function hydrate(profile: MyCommunityProfile): void {
+    // A frame key that no longer exists (retired) resets to "none" so saving can't 422 on it.
+    const frame = profile.avatarFrame && AVATAR_FRAME_KEYS.includes(profile.avatarFrame) ? profile.avatarFrame : null;
     setSlug(profile.slug);
     setAccountName(profile.accountName ?? "");
     setDisplayName(profile.displayName ?? "");
@@ -111,7 +113,7 @@ export function CommunityProfileCustomizationForm() {
     setTagline(profile.tagline ?? "");
     setPronouns(profile.pronouns ?? "");
     setBannerPreset(profile.bannerPreset);
-    setAvatarFrame(profile.avatarFrame ?? null);
+    setAvatarFrame(frame);
     setAudience(profile.audience);
     setSocialLinks(profile.socialLinks);
     setFavorites(profile.favoriteGames);
@@ -123,7 +125,7 @@ export function CommunityProfileCustomizationForm() {
         tagline: profile.tagline ?? "",
         pronouns: profile.pronouns ?? "",
         bannerPreset: profile.bannerPreset,
-        avatarFrame: profile.avatarFrame ?? null,
+        avatarFrame: frame,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
         favorites: profile.favoriteGames,

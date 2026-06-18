@@ -22,12 +22,8 @@ final class AvatarFrame
         'neon_cyan',
         'neon_green',
         'toxic',
-        'fire',
-        'embers',
-        'electric',
-        'rainbow',
-        'aurora',
-        'frost',
+        'holographic',
+        'gold_shimmer',
         'spectral',
     ];
 

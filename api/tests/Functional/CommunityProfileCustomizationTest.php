@@ -130,15 +130,15 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         $this->loginAs($user);
 
         // A valid frame round-trips and surfaces on the public profile customization.
-        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'fire', 'audience' => 'public']);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'holographic', 'audience' => 'public']);
         self::assertResponseIsSuccessful();
-        self::assertSame('fire', $this->data()['avatarFrame']);
+        self::assertSame('holographic', $this->data()['avatarFrame']);
 
         $this->client->getCookieJar()->clear();
         $this->client->jsonRequest('GET', '/api/v1/community/profiles/hank');
         $customization = $this->data()['customization'] ?? null;
         self::assertIsArray($customization);
-        self::assertSame('fire', $customization['avatarFrame']);
+        self::assertSame('holographic', $customization['avatarFrame']);
 
         // An unknown frame is rejected.
         $this->loginAs($user);

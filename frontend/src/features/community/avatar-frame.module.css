@@ -41,75 +41,21 @@
   animation: pulse 2.4s ease-in-out infinite;
 }
 
-/* Animated effects: a spinning conic ring behind the avatar, clipped to the rounded square. */
-.electric,
-.rainbow,
-.aurora,
-.frost {
-  overflow: hidden;
+/* Holographic: a glowing ring that smoothly cycles through iridescent hues (loops). */
+.holographic {
+  background: #f472b6;
+  animation: holo 5s linear infinite;
 }
 
-.electric::before,
-.rainbow::before,
-.aurora::before,
-.frost::before {
-  content: "";
-  position: absolute;
-  inset: -40%;
-  z-index: 0;
-  animation: spin 6s linear infinite;
+/* Gold shimmer: a metallic gold ring with a bright highlight sweeping across (loops). */
+.goldshimmer {
+  background: linear-gradient(110deg, #a16207 0%, #fbbf24 35%, #fef9c3 50%, #fbbf24 65%, #a16207 100%);
+  background-size: 200% 100%;
+  box-shadow: 0 0 9px 1px rgba(251, 191, 36, 0.5);
+  animation: shimmer 2.8s linear infinite;
 }
 
-/* Fire: real flame tongues that lick around the avatar and rise upward (overflow visible). */
-.fire {
-  box-shadow: 0 0 16px 2px rgba(249, 115, 22, 0.65);
-}
-.fire .inner {
-  box-shadow:
-    0 0 0 2px #ea580c,
-    0 0 0 4px #f59e0b;
-}
-/* Organic SVG fire ring (turbulence + displacement), overflowing the frame so flames lick beyond it. */
-.fireSvg {
-  position: absolute;
-  inset: -24%;
-  width: 148%;
-  height: 148%;
-  z-index: 0;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 5px rgba(249, 115, 22, 0.6));
-}
-
-/* Particle systems (Steam-like): glowing motes that drift up and fade. */
-.particleLayer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-.particle {
-  position: absolute;
-  bottom: var(--from, 0%);
-  border-radius: 9999px;
-  background: var(--p, #fb923c);
-  box-shadow:
-    0 0 6px 1px var(--p, #fb923c),
-    0 0 2px 0 var(--p, #fb923c);
-  opacity: 0;
-  animation: rise var(--d, 3.4s) ease-in infinite;
-}
-
-.embers {
-  box-shadow:
-    0 0 16px 2px rgba(249, 115, 22, 0.55),
-    inset 0 0 10px rgba(249, 115, 22, 0.4);
-  background: linear-gradient(180deg, #7c2d12, #b45309);
-}
-.embers .particle {
-  --p: #fb923c;
-}
-
+/* Spectral: purple glow + floating violet motes. */
 .spectral {
   background: linear-gradient(160deg, #7c3aed, #a855f7, #6366f1);
   box-shadow:
@@ -120,43 +66,24 @@
 .spectral .particle {
   --p: #d8b4fe;
 }
-.fire .particle {
-  --p: #fdba74;
-}
 
-.electric {
-  box-shadow: 0 0 13px 1px rgba(59, 130, 246, 0.8);
+/* Particle motes that drift up the frame and fade. */
+.particleLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
-.electric::before {
-  background: conic-gradient(from 0deg, #a5f3fc, #3b82f6, #67e8f9, #1d4ed8, #a5f3fc);
-  animation-duration: 2.4s;
-}
-
-.rainbow::before {
-  background: conic-gradient(from 0deg, #f43f5e, #f59e0b, #facc15, #4ade80, #22d3ee, #6366f1, #a855f7, #f43f5e);
-  animation-duration: 6s;
-}
-
-.aurora {
-  box-shadow: 0 0 11px 1px rgba(45, 212, 191, 0.55);
-}
-.aurora::before {
-  background: conic-gradient(from 0deg, #2dd4bf, #a78bfa, #4ade80, #22d3ee, #2dd4bf);
-  animation-duration: 11s;
-}
-
-.frost {
-  box-shadow: 0 0 11px 1px rgba(125, 211, 252, 0.6);
-}
-.frost::before {
-  background: conic-gradient(from 0deg, #e0f2fe, #67e8f9, #bae6fd, #38bdf8, #e0f2fe);
-  animation-duration: 9s;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.particle {
+  position: absolute;
+  bottom: var(--from, 0%);
+  border-radius: 9999px;
+  background: var(--p, #d8b4fe);
+  box-shadow:
+    0 0 6px 1px var(--p, #d8b4fe),
+    0 0 2px 0 var(--p, #d8b4fe);
+  opacity: 0;
+  animation: rise var(--d, 3.4s) ease-in infinite;
 }
 
 @keyframes pulse {
@@ -166,6 +93,35 @@
   }
   50% {
     box-shadow: 0 0 14px 3px var(--c1);
+  }
+}
+
+@keyframes holo {
+  0%,
+  100% {
+    background: #f472b6;
+    box-shadow: 0 0 12px 2px rgba(244, 114, 182, 0.7);
+  }
+  25% {
+    background: #22d3ee;
+    box-shadow: 0 0 12px 2px rgba(34, 211, 238, 0.7);
+  }
+  50% {
+    background: #a78bfa;
+    box-shadow: 0 0 12px 2px rgba(167, 139, 250, 0.7);
+  }
+  75% {
+    background: #5eead4;
+    box-shadow: 0 0 12px 2px rgba(94, 234, 212, 0.7);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: 0% 0;
   }
 }
 
@@ -205,12 +161,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .glow,
-  .particle,
+  .holographic,
+  .goldshimmer,
   .spectral,
-  .electric::before,
-  .rainbow::before,
-  .aurora::before,
-  .frost::before {
+  .particle {
     animation: none;
   }
 }

@@ -1,18 +1,9 @@
 // Avatar frames shared by the profile editor (picker) and the public profile. A frame is a decorative ring
-// around the (rounded-square) avatar: a flat colour, a pulsing neon glow, or an animated effect. Rendering
-// lives in <AvatarFrame>; this file holds only the (serialisable) configuration.
+// around the (rounded-square) avatar: a flat colour, a pulsing neon glow, or a clean animated effect.
+// Rendering lives in <AvatarFrame>; this file holds only the (serialisable) configuration.
 
 export type AvatarFrameCategory = "Couleurs" | "Néon" | "Effets";
-export type AvatarFrameVariant =
-  | "solid"
-  | "glow"
-  | "fire"
-  | "electric"
-  | "rainbow"
-  | "aurora"
-  | "frost"
-  | "embers"
-  | "spectral";
+export type AvatarFrameVariant = "solid" | "glow" | "spectral" | "holographic" | "goldshimmer";
 
 export type AvatarFrameConfig = {
   key: string;
@@ -39,13 +30,9 @@ export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [
   { key: "neon_cyan", label: "Néon cyan", category: "Néon", variant: "glow", color: "#22d3ee" },
   { key: "neon_green", label: "Néon vert", category: "Néon", variant: "glow", color: "#4ade80" },
   { key: "toxic", label: "Toxique", category: "Néon", variant: "glow", color: "#a3e635" },
-  // Effets animés
-  { key: "fire", label: "Flammes", category: "Effets", variant: "fire" },
-  { key: "embers", label: "Braises", category: "Effets", variant: "embers" },
-  { key: "electric", label: "Électricité", category: "Effets", variant: "electric" },
-  { key: "rainbow", label: "Arc-en-ciel", category: "Effets", variant: "rainbow" },
-  { key: "aurora", label: "Aurore", category: "Effets", variant: "aurora" },
-  { key: "frost", label: "Givre", category: "Effets", variant: "frost" },
+  // Effets (clean, animés)
+  { key: "holographic", label: "Holographique", category: "Effets", variant: "holographic" },
+  { key: "gold_shimmer", label: "Or scintillant", category: "Effets", variant: "goldshimmer" },
   { key: "spectral", label: "Spectre", category: "Effets", variant: "spectral" },
 ] as const;
 
