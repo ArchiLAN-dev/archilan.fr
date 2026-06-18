@@ -36,37 +36,42 @@ export function FireSvg() {
           <stop offset="78%" stopColor="#ef4444" />
           <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
         </linearGradient>
-        <filter height="200%" id={`${id}f`} width="180%" x="-40%" y="-55%">
-          <feTurbulence baseFrequency="0.02 0.05" numOctaves="2" result="noise" seed="6" type="fractalNoise">
-            {reduced ? null : (
-              <animate
-                attributeName="baseFrequency"
-                dur="5s"
-                repeatCount="indefinite"
-                values="0.02 0.05;0.024 0.07;0.02 0.05"
-              />
-            )}
-          </feTurbulence>
+        {/* The rect bbox is 100×100 and the filter region is 200% tall (= 200 user units); with
+            baseFrequencyY=0.05 the stitched noise tiles exactly 10× → period 20, so offsetting dy by -20
+            loops with no visible seam. */}
+        <filter height="200%" id={`${id}f`} width="180%" x="-40%" y="-50%">
+          <feTurbulence
+            baseFrequency="0.015 0.05"
+            numOctaves="3"
+            result="noise"
+            seed="6"
+            stitchTiles="stitch"
+            type="fractalNoise"
+          />
           <feOffset dy="0" in="noise" result="scrolled">
             {reduced ? null : (
-              <animate attributeName="dy" dur="1.4s" repeatCount="indefinite" values="0;-42" />
+              <animate attributeName="dy" calcMode="linear" dur="2.6s" repeatCount="indefinite" values="0;-20" />
             )}
           </feOffset>
-          <feDisplacementMap in="SourceGraphic" in2="scrolled" scale="22" xChannelSelector="R" yChannelSelector="G" />
-          <feGaussianBlur stdDeviation="0.7" />
+          <feDisplacementMap in="SourceGraphic" in2="scrolled" result="disp" scale="20" xChannelSelector="R" yChannelSelector="G">
+            {reduced ? null : (
+              <animate attributeName="scale" dur="2.2s" repeatCount="indefinite" values="17;26;17" />
+            )}
+          </feDisplacementMap>
+          <feGaussianBlur stdDeviation="0.6" />
         </filter>
       </defs>
       <rect
         fill="none"
         filter={`url(#${id}f)`}
-        height="92"
-        rx="18"
-        ry="18"
+        height="100"
+        rx="20"
+        ry="20"
         stroke={`url(#${id}g)`}
         strokeWidth="13"
-        width="92"
-        x="14"
-        y="14"
+        width="100"
+        x="10"
+        y="10"
       />
     </svg>
   );
