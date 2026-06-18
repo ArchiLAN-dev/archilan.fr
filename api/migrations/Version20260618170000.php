@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DoctrineMigrations;
 
 use App\Community\Domain\DefaultAchievementDefinitions;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
@@ -46,8 +47,8 @@ final class Version20260618170000 extends AbstractMigration
                 'created_at' => $now,
                 'updated_at' => $now,
             ], [
-                'active' => \PDO::PARAM_BOOL,
-                'position' => \PDO::PARAM_INT,
+                'active' => ParameterType::BOOLEAN,
+                'position' => ParameterType::INTEGER,
             ]);
             ++$position;
         }
