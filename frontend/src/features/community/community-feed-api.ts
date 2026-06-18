@@ -2,7 +2,12 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
-export type ActivityActor = { slug: string; displayName: string | null; avatarUrl: string | null };
+export type ActivityActor = {
+  slug: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  playing: boolean;
+};
 
 export type ActivityItem = {
   type: "run_finished" | "friendship";
@@ -25,7 +30,8 @@ function isActor(v: unknown): v is ActivityActor {
     v !== null &&
     hasStringProp(v, "slug") &&
     hasNullableStringProp(v, "displayName") &&
-    hasNullableStringProp(v, "avatarUrl")
+    hasNullableStringProp(v, "avatarUrl") &&
+    hasBooleanProp(v, "playing")
   );
 }
 

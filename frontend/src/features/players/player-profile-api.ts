@@ -46,6 +46,8 @@ export type ProfileLevel = {
   xpForNextLevel: number;
 };
 
+export type ProfilePresence = { playing: boolean; sessionId: string | null; game: string | null };
+
 export type PlayerProfile = {
   slug: string;
   displayName: string | null;
@@ -54,11 +56,22 @@ export type PlayerProfile = {
   audience: string;
   level: ProfileLevel;
   achievements: Achievement[];
+  presence: ProfilePresence;
   customization: ProfileCustomization | null;
   stats: PlayerStats;
 };
 
 const DEFAULT_LEVEL: ProfileLevel = { level: 0, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100 };
+const OFFLINE: ProfilePresence = { playing: false, sessionId: null, game: null };
+
+function parsePresence(v: unknown): ProfilePresence {
+  if (typeof v !== "object" || v === null || !hasBooleanProp(v, "playing")) return OFFLINE;
+  return {
+    playing: v.playing,
+    sessionId: hasNullableStringProp(v, "sessionId") ? v.sessionId : null,
+    game: hasNullableStringProp(v, "game") ? v.game : null,
+  };
+}
 
 export type RunHistoryEntry = {
   sessionId: string;
@@ -188,6 +201,7 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       audience: typeof data.audience === "string" ? data.audience : "members",
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
       achievements: Array.isArray(data.achievements) ? data.achievements : [],
+      presence: parsePresence("presence" in data ? data.presence : null),
       customization: data.customization ?? null,
       stats: data.stats,
     };

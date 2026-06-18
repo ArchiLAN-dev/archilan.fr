@@ -6,6 +6,7 @@ import type {
   PlayerHistory,
   PlayerProfile,
   ProfileCustomization as ProfileCustomizationData,
+  ProfilePresence,
   RunHistoryEntry,
 } from "./player-profile-api";
 import { ProfileAvatar } from "./profile-avatar";
@@ -57,6 +58,7 @@ export function PlayerProfilePage({
                 <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                   Niv. {profile.level.level}
                 </span>
+                {profile.presence.playing ? <PresenceBadge presence={profile.presence} /> : null}
                 {profile.customization?.pronouns ? (
                   <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
                     {profile.customization.pronouns}
@@ -370,6 +372,27 @@ function ProfileCustomization({ customization }: { customization: ProfileCustomi
         </div>
       ) : null}
     </section>
+  );
+}
+
+function PresenceBadge({ presence }: { presence: ProfilePresence }) {
+  const label = presence.game ? `En jeu · ${presence.game}` : "En jeu";
+  const dot = <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-emerald-400" />;
+  const className =
+    "inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300";
+
+  if (presence.sessionId) {
+    return (
+      <Link className={`${className} hover:bg-emerald-500/20`} href={`/runs/${presence.sessionId}`}>
+        {dot} {label}
+      </Link>
+    );
+  }
+
+  return (
+    <span className={className}>
+      {dot} {label}
+    </span>
   );
 }
 
