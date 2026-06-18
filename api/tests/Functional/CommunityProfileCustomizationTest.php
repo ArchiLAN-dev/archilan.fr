@@ -4,8 +4,33 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Domain\CommunityProfile;
+
 final class CommunityProfileCustomizationTest extends FunctionalTestCase
 {
+    public function testRetiredShowcaseKeyIsStrippedOnRead(): void
+    {
+        $user = $this->createUser('ivy@example.org', slug: 'ivy');
+        $now = new \DateTimeImmutable();
+        // Legacy layout holding a since-retired widget key (bypasses the write-path validation).
+        $profile = new CommunityProfile(
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            $now,
+            $now,
+            audience: 'public',
+            showcaseLayout: ['featured_achievements', 'best_runs'],
+        );
+        $this->entityManager->persist($profile);
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/ivy');
+        self::assertResponseIsSuccessful();
+        $customization = $this->data()['customization'] ?? null;
+        self::assertIsArray($customization);
+        self::assertSame(['best_runs'], $customization['showcaseLayout'], 'retired widget keys are filtered on read');
+    }
+
     public function testOwnerCanCustomizeAndReadBack(): void
     {
         $user = $this->createUser('dave@example.org', slug: 'dave', displayName: 'Dave');

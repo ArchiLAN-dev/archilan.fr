@@ -62,8 +62,6 @@ export const BANNER_PRESETS: readonly BannerPresetConfig[] = [
   { key: "pastel", label: "Pastel", gradient: ["#fbcfe8", "#bfdbfe", "#ddd6fe"], texture: "dots" },
 ] as const;
 
-export const BANNER_PRESET_KEYS: readonly string[] = BANNER_PRESETS.map((p) => p.key);
-
 const BY_KEY = new Map(BANNER_PRESETS.map((p) => [p.key, p]));
 
 export function getBannerPreset(key: string): BannerPresetConfig {

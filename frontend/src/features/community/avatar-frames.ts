@@ -12,8 +12,6 @@ export type AvatarFrameConfig = {
   variant: AvatarFrameVariant;
   /** ring colour for the solid / glow variants */
   color?: string;
-  /** optional designer-made Lottie overlay (path under /public/avatar-frames); falls back to the variant */
-  lottie?: string;
 };
 
 export const AVATAR_FRAMES: readonly AvatarFrameConfig[] = [

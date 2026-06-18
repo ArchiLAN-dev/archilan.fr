@@ -14,6 +14,7 @@ use App\Community\Domain\CommunityXp;
 use App\Community\Domain\Kudos;
 use App\Community\Domain\KudosRepositoryInterface;
 use App\Community\Domain\Level;
+use App\Community\Domain\ShowcaseWidget;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;
@@ -106,7 +107,7 @@ final readonly class CommunityProfileView
                 'avatarFrame' => $profile->getAvatarFrame(),
                 'socialLinks' => $profile->getSocialLinks(),
                 'favoriteGames' => $this->resolveFavoriteGames($profile->getFavoriteGameIds()),
-                'showcaseLayout' => $profile->getShowcaseLayout(),
+                'showcaseLayout' => $this->validShowcase($profile->getShowcaseLayout()),
             ];
         }
 
@@ -191,8 +192,21 @@ final readonly class CommunityProfileView
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
             'audience' => $profile?->getAudience() ?? Audience::MEMBERS,
-            'showcaseLayout' => $profile?->getShowcaseLayout() ?? [],
+            'showcaseLayout' => $this->validShowcase($profile?->getShowcaseLayout() ?? []),
         ];
+    }
+
+    /**
+     * Drop retired/unknown showcase widget keys on read, so a layout saved before a widget was retired
+     * (e.g. featured_achievements) never surfaces a raw key to the frontend.
+     *
+     * @param list<string> $layout
+     *
+     * @return list<string>
+     */
+    private function validShowcase(array $layout): array
+    {
+        return array_values(array_filter($layout, static fn (string $w): bool => ShowcaseWidget::isValid($w)));
     }
 
     /**
