@@ -143,13 +143,12 @@ final class CommunityKudosTest extends FunctionalTestCase
      *
      * @param array<mixed> $items
      *
-     * @return array<string, mixed>
+     * @return array<mixed>
      */
     private function runItem(array $items): array
     {
         foreach ($items as $item) {
             if (is_array($item) && ($item['type'] ?? null) === ActivityEntry::TYPE_RUN_FINISHED) {
-                /** @var array<string, mixed> $item */
                 return $item;
             }
         }
