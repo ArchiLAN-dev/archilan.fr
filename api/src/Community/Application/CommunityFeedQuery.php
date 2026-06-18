@@ -25,6 +25,7 @@ final readonly class CommunityFeedQuery
         private ProfileVisibility $visibility,
         private CommunityUserDirectoryQueryInterface $directory,
         private KudosRepositoryInterface $kudos,
+        private CommunityPresenceQueryInterface $presence,
     ) {
     }
 
@@ -83,6 +84,14 @@ final readonly class CommunityFeedQuery
         }
         $cards = [] === $userIds ? [] : $this->directory->cards(array_values(array_unique($userIds)));
 
+        // "Currently playing" presence for the rendered actors (feed only; the profile-activity view has
+        // no actor row).
+        $playing = [];
+        if ($withActor) {
+            $actorIds = array_values(array_unique(array_map(static fn (ActivityEntry $e): string => $e->getActorId(), $entries)));
+            $playing = $this->presence->playing($actorIds);
+        }
+
         // Kudos on run entries (one batch count + the viewer's given set).
         $kudosCounts = $this->kudos->countsFor(Kudos::TARGET_RUN, $runEntryIds);
         $kudosGiven = null === $viewerId ? [] : array_flip($this->kudos->givenBy($viewerId, Kudos::TARGET_RUN, $runEntryIds));
@@ -118,6 +127,7 @@ final readonly class CommunityFeedQuery
                     'slug' => $card['slug'],
                     'displayName' => $card['displayName'],
                     'avatarUrl' => $card['avatarUrl'],
+                    'playing' => isset($playing[$entry->getActorId()]),
                 ];
             }
 

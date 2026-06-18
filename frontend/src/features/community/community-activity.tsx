@@ -93,9 +93,18 @@ function ActivityRow({ item, showActor }: { item: ActivityItem; showActor: boole
       <div className="min-w-0 flex-1 text-sm">
         <p className="text-foreground">
           {showActor && item.actor ? (
-            <Link className="font-semibold hover:text-accent-text" href={`/joueurs/${item.actor.slug}`}>
-              {item.actor.displayName ?? item.actor.slug}
-            </Link>
+            <>
+              <Link className="font-semibold hover:text-accent-text" href={`/joueurs/${item.actor.slug}`}>
+                {item.actor.displayName ?? item.actor.slug}
+              </Link>
+              {item.actor.playing ? (
+                <span
+                  aria-label="En jeu"
+                  className="ml-1 inline-block size-1.5 animate-pulse rounded-full bg-emerald-400 align-middle"
+                  title="En jeu"
+                />
+              ) : null}
+            </>
           ) : null}{" "}
           <ActivityText item={item} />
         </p>

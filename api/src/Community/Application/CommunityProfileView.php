@@ -33,6 +33,7 @@ final readonly class CommunityProfileView
         private AchievementGrantRepositoryInterface $achievementGrants,
         private ProfileVisibility $visibility,
         private KudosRepositoryInterface $kudos,
+        private CommunityPresenceQueryInterface $presence,
     ) {
     }
 
@@ -46,6 +47,7 @@ final readonly class CommunityProfileView
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>,
+     *     presence: array{playing: bool, sessionId: string|null, game: string|null},
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
      */
@@ -76,6 +78,13 @@ final readonly class CommunityProfileView
         );
         $level = Level::fromXp($xp);
 
+        $live = $this->presence->playing([$model['userId']])[$model['userId']] ?? null;
+        $presence = [
+            'playing' => null !== $live,
+            'sessionId' => $live['sessionId'] ?? null,
+            'game' => $live['game'] ?? null,
+        ];
+
         $customization = null;
         if (null !== $profile && $this->visibility->canSee($viewerId, $model['userId'])) {
             $customization = [
@@ -103,6 +112,7 @@ final readonly class CommunityProfileView
                 'xpForNextLevel' => $level->xpForNextLevel,
             ],
             'achievements' => $achievements,
+            'presence' => $presence,
             'customization' => $customization,
         ];
     }
