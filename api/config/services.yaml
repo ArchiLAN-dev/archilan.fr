@@ -74,6 +74,7 @@ services:
             - '../src/Membership/Domain/'
             - '../src/WeeklyRuns/Domain/'
             - '../src/SessionConfig/Domain/'
+            - '../src/Community/Domain/'
 
     App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigOverrideRepository'
@@ -284,6 +285,23 @@ services:
     App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
     App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
     App\PersonalRuns\Domain\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineYamlTemplateRepository'
+
+    App\Community\Domain\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\DoctrineCommunityProfileRepository'
+    App\Community\Application\CommunityProfileQueryInterface: '@App\Community\Infrastructure\DbalCommunityProfileQuery'
+    App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
+    App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
+    App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
+    App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
+    App\Community\Domain\FriendshipRepositoryInterface: '@App\Community\Infrastructure\DoctrineFriendshipRepository'
+    App\Community\Domain\BlockRepositoryInterface: '@App\Community\Infrastructure\DoctrineBlockRepository'
+    App\Community\Domain\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\DoctrineActivityEntryRepository'
+    App\Community\Domain\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\DoctrineProfileCommentRepository'
+    App\Community\Domain\ContentReportRepositoryInterface: '@App\Community\Infrastructure\DoctrineContentReportRepository'
+    App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
+
+    App\Community\Infrastructure\DiscordAvatarResolver:
+        arguments:
+            $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
     App\PersonalRuns\Application\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\DbalRecentlyPlayedGamesQuery'
 
     App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
@@ -415,3 +433,6 @@ when@test:
 
         App\Membership\Application\DolibarrClientInterface:
             class: App\Membership\Infrastructure\NullDolibarrClient
+
+        App\Community\Application\AvatarResolverInterface:
+            class: App\Community\Infrastructure\StubAvatarResolver

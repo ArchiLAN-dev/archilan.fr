@@ -16,9 +16,9 @@ const validStats = {
 describe("getPlayerProfile", () => {
   it("returns profile on success", async () => {
     server.use(
-      http.get(`${BASE}/players/jean`, () =>
+      http.get(`${BASE}/community/profiles/jean`, () =>
         HttpResponse.json({
-          data: { slug: "jean", displayName: "Jean", joinedAt: "2024-01-01", stats: validStats },
+          data: { slug: "jean", displayName: "Jean", joinedAt: "2024-01-01", avatarUrl: null, audience: "public", customization: null, stats: validStats },
         }),
       ),
     );
@@ -26,13 +26,14 @@ describe("getPlayerProfile", () => {
     expect(result).not.toBeNull();
     expect(result?.slug).toBe("jean");
     expect(result?.displayName).toBe("Jean");
+    expect(result?.avatarUrl).toBeNull();
   });
 
   it("returns profile when displayName is null", async () => {
     server.use(
-      http.get(`${BASE}/players/anon`, () =>
+      http.get(`${BASE}/community/profiles/anon`, () =>
         HttpResponse.json({
-          data: { slug: "anon", displayName: null, joinedAt: "2024-01-01", stats: validStats },
+          data: { slug: "anon", displayName: null, joinedAt: "2024-01-01", avatarUrl: null, audience: "public", customization: null, stats: validStats },
         }),
       ),
     );
@@ -42,13 +43,13 @@ describe("getPlayerProfile", () => {
   });
 
   it("returns null on network error", async () => {
-    server.use(http.get(`${BASE}/players/errslug`, () => HttpResponse.error()));
+    server.use(http.get(`${BASE}/community/profiles/errslug`, () => HttpResponse.error()));
     expect(await getPlayerProfile("errslug")).toBeNull();
   });
 
   it("returns null when response fails type guard", async () => {
     server.use(
-      http.get(`${BASE}/players/badslug`, () => HttpResponse.json({ data: { wrong: true } })),
+      http.get(`${BASE}/community/profiles/badslug`, () => HttpResponse.json({ data: { wrong: true } })),
     );
     expect(await getPlayerProfile("badslug")).toBeNull();
   });
