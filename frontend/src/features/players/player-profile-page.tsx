@@ -14,19 +14,7 @@ import { ProfileRelationshipActions } from "@/features/community/profile-relatio
 import { ProfileActivity } from "@/features/community/community-activity";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
 import { ProfileComments } from "@/features/community/profile-comments";
-
-const BANNER_CLASSES: Record<string, string> = {
-  default: "bg-gradient-to-r from-accent/30 via-accent/10 to-transparent",
-  sunset: "bg-gradient-to-r from-orange-500/40 via-pink-500/20 to-transparent",
-  forest: "bg-gradient-to-r from-emerald-600/40 via-emerald-400/15 to-transparent",
-  arcade: "bg-gradient-to-r from-fuchsia-500/40 via-cyan-400/20 to-transparent",
-  midnight: "bg-gradient-to-r from-indigo-800/50 via-indigo-500/20 to-transparent",
-  aurora: "bg-gradient-to-r from-teal-400/40 via-violet-500/20 to-transparent",
-};
-
-function bannerClass(preset: string): string {
-  return BANNER_CLASSES[preset] ?? BANNER_CLASSES.default;
-}
+import { bannerClass } from "@/features/community/banner-presets";
 
 export function PlayerProfilePage({
   profile,
