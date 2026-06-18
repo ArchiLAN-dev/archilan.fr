@@ -45,7 +45,20 @@ export function PlayerProfilePage({
           {/* Details sit on the surface below — readable, off the bright banner. */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="grid gap-2">
-              <div className="flex flex-wrap items-center gap-2">
+              {profile.customization?.tagline ? (
+                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
+              ) : null}
+              <p className="text-sm text-muted-foreground">
+                Membre depuis{" "}
+                <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
+              </p>
+              <div className="w-full max-w-sm">
+                <LevelBar level={profile.level} />
+              </div>
+              {profile.customization && profile.customization.socialLinks.length > 0 ? (
+                <SocialLinkIcons links={profile.customization.socialLinks} />
+              ) : null}
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
                   Niv. {profile.level.level}
                 </span>
@@ -66,19 +79,6 @@ export function PlayerProfilePage({
                   </span>
                 ) : null}
               </div>
-              {profile.customization?.tagline ? (
-                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
-              ) : null}
-              <p className="text-sm text-muted-foreground">
-                Membre depuis{" "}
-                <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
-              </p>
-              <div className="w-full max-w-sm">
-                <LevelBar level={profile.level} />
-              </div>
-              {profile.customization && profile.customization.socialLinks.length > 0 ? (
-                <SocialLinkIcons links={profile.customization.socialLinks} />
-              ) : null}
             </div>
             <ProfileRelationshipActions slug={profile.slug} />
           </div>
