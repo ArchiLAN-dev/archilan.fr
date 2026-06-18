@@ -32,7 +32,8 @@ export function PlayerProfilePage({
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
         <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
-        <div className="grid gap-6 p-5 sm:p-8">
+        {/* relative + z-10 keeps the overlapping avatar/name above the positioned banner. */}
+        <div className="relative z-10 grid gap-6 p-5 sm:p-8">
           <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
             <ProfileAvatar avatarUrl={profile.avatarUrl} name={displayName} />
             <div className="grid gap-1 pb-1">
