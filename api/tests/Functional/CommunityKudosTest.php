@@ -95,6 +95,7 @@ final class CommunityKudosTest extends FunctionalTestCase
 
     public function testCannotKudosOwnAchievement(): void
     {
+        $this->seedDefaultAchievementDefinitions();
         $alice = $this->createUser('alice@example.org', slug: 'alice');
         $grant = AchievementGrant::grant($alice->getId(), 'first_run', new \DateTimeImmutable());
         $this->entityManager->persist($grant);
@@ -116,6 +117,7 @@ final class CommunityKudosTest extends FunctionalTestCase
 
     public function testProfileAchievementExposesGrantIdAndKudosCount(): void
     {
+        $this->seedDefaultAchievementDefinitions();
         $alice = $this->createUser('alice@example.org', slug: 'alice');
         $grant = AchievementGrant::grant($alice->getId(), 'first_run', new \DateTimeImmutable());
         $this->entityManager->persist($grant);

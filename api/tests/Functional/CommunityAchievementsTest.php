@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\AchievementCatalog;
 use App\Community\Domain\AchievementGrant;
+use App\Community\Domain\DefaultAchievementDefinitions;
 
 final class CommunityAchievementsTest extends FunctionalTestCase
 {
     public function testProfileSurfacesUnlockedAndLockedAchievements(): void
     {
+        $this->seedDefaultAchievementDefinitions();
         $user = $this->createUser('alice@example.org', slug: 'alice');
         $this->entityManager->persist(AchievementGrant::grant($user->getId(), 'first_run', new \DateTimeImmutable('2026-06-01T10:00:00+00:00')));
         $this->entityManager->persist(AchievementGrant::grant($user->getId(), 'first_goal', new \DateTimeImmutable('2026-06-02T10:00:00+00:00')));
@@ -23,7 +24,7 @@ final class CommunityAchievementsTest extends FunctionalTestCase
         self::assertIsArray($data);
         $achievements = $data['achievements'] ?? null;
         self::assertIsArray($achievements);
-        self::assertCount(count(AchievementCatalog::all()), $achievements);
+        self::assertCount(count(DefaultAchievementDefinitions::all()), $achievements);
 
         $byKey = [];
         foreach ($achievements as $achievement) {

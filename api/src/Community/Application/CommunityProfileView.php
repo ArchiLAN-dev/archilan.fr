@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
-use App\Community\Domain\AchievementCatalog;
+use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Audience;
 use App\Community\Domain\BannerPreset;
@@ -31,6 +31,7 @@ final readonly class CommunityProfileView
         private CommunityProfileRepositoryInterface $profiles,
         private GameRepositoryInterface $games,
         private AchievementGrantRepositoryInterface $achievementGrants,
+        private AchievementDefinitionRepositoryInterface $achievementDefinitions,
         private ProfileVisibility $visibility,
         private KudosRepositoryInterface $kudos,
         private CommunityPresenceQueryInterface $presence,
@@ -133,24 +134,29 @@ final readonly class CommunityProfileView
             array_values(array_map(static fn ($g): string => $g->getId(), $grantByKey)),
         ) : [];
 
-        return array_map(
-            static function ($definition) use ($grantByKey, $kudosCounts, $kudosable): array {
-                $grant = $grantByKey[$definition->key] ?? null;
-                // grantId is the kudos target; null it for the owner's own view so no button renders.
-                $grantId = $kudosable ? $grant?->getId() : null;
+        $out = [];
+        foreach ($this->achievementDefinitions->all() as $definition) {
+            $grant = $grantByKey[$definition->getKey()] ?? null;
+            // A deactivated definition stays visible only for users who already earned it (monotonic);
+            // otherwise it drops off the public catalogue.
+            if (!$definition->isActive() && null === $grant) {
+                continue;
+            }
+            // grantId is the kudos target; null it for the owner's own view so no button renders.
+            $grantId = $kudosable ? $grant?->getId() : null;
 
-                return [
-                    'key' => $definition->key,
-                    'name' => $definition->name,
-                    'description' => $definition->description,
-                    'unlocked' => null !== $grant,
-                    'unlockedAt' => $grant?->getUnlockedAt()->format(\DateTimeInterface::ATOM),
-                    'grantId' => $grantId,
-                    'kudosCount' => null !== $grantId ? ($kudosCounts[$grantId] ?? 0) : 0,
-                ];
-            },
-            AchievementCatalog::all(),
-        );
+            $out[] = [
+                'key' => $definition->getKey(),
+                'name' => $definition->getName(),
+                'description' => $definition->getDescription(),
+                'unlocked' => null !== $grant,
+                'unlockedAt' => $grant?->getUnlockedAt()->format(\DateTimeInterface::ATOM),
+                'grantId' => $grantId,
+                'kudosCount' => null !== $grantId ? ($kudosCounts[$grantId] ?? 0) : 0,
+            ];
+        }
+
+        return $out;
     }
 
     /**
