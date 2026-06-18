@@ -1,5 +1,6 @@
 "use client";
 
+import { type LucideIcon, Gamepad2, Settings, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -19,12 +20,13 @@ type Tab = "inscriptions" | "parties" | "activite" | "profil" | "amis" | "adhesi
 type GroupId = "communaute" | "jeux" | "compte";
 
 type SubTab = { id: Tab; label: string; danger?: true };
-type Group = { id: GroupId; label: string; tabs: SubTab[] };
+type Group = { id: GroupId; label: string; icon: LucideIcon; tabs: SubTab[] };
 
 const GROUPS: Group[] = [
   {
     id: "communaute",
     label: "Communauté",
+    icon: Users,
     tabs: [
       { id: "profil", label: "Profil" },
       { id: "amis", label: "Amis" },
@@ -34,6 +36,7 @@ const GROUPS: Group[] = [
   {
     id: "jeux",
     label: "Jeux",
+    icon: Gamepad2,
     tabs: [
       { id: "inscriptions", label: "Inscriptions" },
       { id: "parties", label: "Mes parties" },
@@ -42,6 +45,7 @@ const GROUPS: Group[] = [
   {
     id: "compte",
     label: "Compte",
+    icon: Settings,
     tabs: [
       { id: "adhesion", label: "Adhésion" },
       { id: "confidentialite", label: "Confidentialité" },
@@ -127,25 +131,31 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
 
       {/* ── Two-level navigation + content ───────────────────────────────── */}
       <div className="grid gap-4">
-        {/* Top level: groups */}
-        <nav aria-label="Catégories de l'espace membre" className="flex flex-wrap gap-2" role="tablist">
+        {/* Top level: segmented control of groups */}
+        <nav
+          aria-label="Catégories de l'espace membre"
+          className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface p-1"
+          role="tablist"
+        >
           {GROUPS.map((group) => {
             const active = activeGroup.id === group.id;
+            const Icon = group.icon;
             return (
               <button
                 key={group.id}
                 aria-selected={active}
                 className={[
-                  "min-h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  "inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                   active
-                    ? "bg-accent text-white"
-                    : "border border-border text-muted-foreground hover:border-accent hover:text-foreground",
+                    ? "bg-accent text-white shadow-sm"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                 ].join(" ")}
                 role="tab"
                 type="button"
                 onClick={() => setActiveTab(group.tabs[0].id)}
               >
-                {group.label}
+                <Icon aria-hidden className="size-4 shrink-0" />
+                <span className="truncate">{group.label}</span>
               </button>
             );
           })}
