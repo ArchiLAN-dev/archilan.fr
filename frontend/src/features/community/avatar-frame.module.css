@@ -29,7 +29,6 @@
 }
 
 /* Animated effects: a spinning conic ring behind the avatar, clipped to the rounded square. */
-.fire,
 .electric,
 .rainbow,
 .aurora,
@@ -37,7 +36,6 @@
   overflow: hidden;
 }
 
-.fire::before,
 .electric::before,
 .rainbow::before,
 .aurora::before,
@@ -49,12 +47,31 @@
   animation: spin 6s linear infinite;
 }
 
+/* Fire: real flame tongues that lick around the avatar and rise upward (overflow visible). */
 .fire {
-  box-shadow: 0 0 13px 1px rgba(249, 115, 22, 0.75);
+  box-shadow: 0 0 16px 2px rgba(249, 115, 22, 0.65);
 }
-.fire::before {
-  background: conic-gradient(from 0deg, #fde047, #fb923c, #dc2626, #ea580c, #f59e0b, #fde047);
-  animation-duration: 5s;
+.fire .inner {
+  box-shadow:
+    0 0 0 2px #ea580c,
+    0 0 0 4px #f59e0b;
+}
+.fireLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.flame {
+  position: absolute;
+  width: var(--w, 12px);
+  height: var(--h, 28px);
+  transform-origin: 50% 100%;
+  border-radius: 50% 50% 38% 38% / 72% 72% 40% 40%;
+  background: radial-gradient(ellipse at 50% 100%, #fef9c3 0%, #fde047 22%, #fb923c 48%, #ef4444 72%, rgba(239, 68, 68, 0) 84%);
+  filter: blur(1.5px);
+  mix-blend-mode: screen;
+  animation: flicker var(--d, 0.9s) ease-in-out infinite alternate;
 }
 
 .electric {
@@ -102,9 +119,21 @@
   }
 }
 
+/* Flames rise (translate up), narrow and fade as they go. */
+@keyframes flicker {
+  0% {
+    transform: translateY(8%) scaleY(0.9) scaleX(1.05);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-34%) scaleY(1.55) scaleX(0.65);
+    opacity: 0.35;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .glow,
-  .fire::before,
+  .flame,
   .electric::before,
   .rainbow::before,
   .aurora::before,
