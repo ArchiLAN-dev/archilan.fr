@@ -19,6 +19,31 @@ final readonly class DoctrineProfileCommentRepository implements ProfileCommentR
         return $this->entityManager->find(ProfileComment::class, $id);
     }
 
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $qb = $this->entityManager->getRepository(ProfileComment::class)->createQueryBuilder('c');
+        $result = $qb
+            ->where($qb->expr()->in('c.id', ':ids'))
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+
+        $byId = [];
+        if (is_array($result)) {
+            foreach ($result as $comment) {
+                if ($comment instanceof ProfileComment) {
+                    $byId[$comment->getId()] = $comment;
+                }
+            }
+        }
+
+        return $byId;
+    }
+
     public function visibleForProfile(string $profileUserId, int $limit): array
     {
         $qb = $this->entityManager->getRepository(ProfileComment::class)->createQueryBuilder('c');

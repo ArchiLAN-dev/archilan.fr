@@ -21,7 +21,7 @@ export default function ConfidentialitePage() {
           et Libertés.
         </p>
         <p className="text-xs text-muted-foreground">
-          Dernière mise à jour : 13 mai 2026
+          Dernière mise à jour : 18 juin 2026
         </p>
       </header>
 
@@ -95,6 +95,18 @@ export default function ConfidentialitePage() {
                 purpose="Gestion des places disponibles et suivi administratif des événements."
               />
               <ProcessingRow
+                data="Profil public et personnalisation (bio, pseudo, avatar, liens, jeux favoris)"
+                purpose="Affichage de votre profil joueur communautaire. La visibilité (public, membres, amis) est réglable et vos données de personnalisation sont supprimables depuis votre espace."
+              />
+              <ProcessingRow
+                data="Relations communautaires (amis, blocages)"
+                purpose="Fonctionnement du graphe social : demandes d'ami, liste d'amis et blocages."
+              />
+              <ProcessingRow
+                data="Activité, succès et interactions (fil d'activité, kudos, commentaires de profil, notifications)"
+                purpose="Animation de la communauté : fil d'activité entre amis, réactions, livre d'or de profil et centre de notifications. Les commentaires signalés sont modérés."
+              />
+              <ProcessingRow
                 data="Données de paiement"
                 purpose="Traitement des achats (cotisation, billetterie, boutique) via HelloAsso. ArchiLAN ne conserve pas de numéro de carte."
               />
@@ -149,6 +161,10 @@ export default function ConfidentialitePage() {
         <dl className="divide-y divide-border card-glow rounded-lg border border-border text-sm">
           <LegalRow label="Données de compte actif">
             Conservées tant que le compte est actif ou jusqu&apos;à demande de suppression.
+          </LegalRow>
+          <LegalRow label="Profil, relations et activité communautaires">
+            Conservées tant que le compte est actif ; supprimées (ou anonymisées) avec le compte. Les
+            commentaires signalés conservent une trace de modération.
           </LegalRow>
           <LegalRow label="Après suppression du compte">
             30 jours

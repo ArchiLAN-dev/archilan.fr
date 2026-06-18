@@ -9,6 +9,15 @@ interface ProfileCommentRepositoryInterface
     public function findById(string $id): ?ProfileComment;
 
     /**
+     * Resolve comments by id (moderation queue enrichment), keyed by id.
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, ProfileComment>
+     */
+    public function findByIds(array $ids): array;
+
+    /**
      * Visible (non-hidden) comments on a profile, newest first.
      *
      * @return list<ProfileComment>
