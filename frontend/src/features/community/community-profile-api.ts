@@ -101,7 +101,6 @@ export async function updateMyCommunityProfile(input: UpdateCommunityProfileInpu
   }
 }
 
-export const BANNER_PRESETS = ["default", "sunset", "forest", "arcade", "midnight", "aurora"] as const;
 export const AUDIENCES = ["public", "members", "friends"] as const;
 
 export const SHOWCASE_WIDGETS = ["favorite_games", "best_runs", "most_played"] as const;

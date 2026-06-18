@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, Loader2, Plus, Search, X } from "lucide-react";
 
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
-import { BANNER_CLASSES, BANNER_LABELS } from "./banner-presets";
+import { BANNER_PRESETS } from "./banner-presets";
+import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
   AUDIENCES,
-  BANNER_PRESETS,
   fetchMyCommunityProfile,
   SHOWCASE_WIDGETS,
   SHOWCASE_WIDGET_LABELS,
@@ -253,23 +253,23 @@ export function CommunityProfileCustomizationForm() {
         </Field>
       </Section>
 
-      <Section title="Apparence" description="La bannière colorée en tête de ton profil.">
+      <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
-            const selected = bannerPreset === preset;
+            const selected = bannerPreset === preset.key;
             return (
               <button
                 aria-pressed={selected}
                 className={`group overflow-hidden rounded-lg border text-left transition-colors ${
                   selected ? "border-accent ring-2 ring-accent/40" : "border-border hover:border-accent/60"
                 }`}
-                key={preset}
-                onClick={() => setBannerPreset(preset)}
+                key={preset.key}
+                onClick={() => setBannerPreset(preset.key)}
                 type="button"
               >
-                <span className={`block h-12 ${BANNER_CLASSES[preset] ?? BANNER_CLASSES.default}`} />
+                <ProfileBanner className="h-12 w-full" compact presetKey={preset.key} />
                 <span className="flex items-center justify-between gap-1 px-2.5 py-1.5 text-xs font-medium text-foreground">
-                  {BANNER_LABELS[preset] ?? preset}
+                  {preset.label}
                   {selected ? <Check aria-hidden className="size-3.5 text-accent-text" /> : null}
                 </span>
               </button>

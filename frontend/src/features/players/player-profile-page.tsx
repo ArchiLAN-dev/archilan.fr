@@ -13,7 +13,7 @@ import { ProfileRelationshipActions } from "@/features/community/profile-relatio
 import { ProfileActivity } from "@/features/community/community-activity";
 import { ProfileAchievements } from "@/features/community/profile-achievements";
 import { ProfileComments } from "@/features/community/profile-comments";
-import { bannerClass } from "@/features/community/banner-presets";
+import { ProfileBanner } from "@/features/community/profile-banner";
 import { resolveLinkType } from "@/features/community/social-links";
 
 export function PlayerProfilePage({
@@ -30,7 +30,7 @@ export function PlayerProfilePage({
   return (
     <article className="mx-auto w-full max-w-4xl grid gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
-        <div className={`h-28 sm:h-36 ${bannerClass(profile.customization?.bannerPreset ?? "default")}`} />
+        <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
         <div className="grid gap-6 p-5 sm:p-8">
           <div className="-mt-16 flex flex-col gap-4 sm:-mt-20 sm:flex-row sm:items-end">
