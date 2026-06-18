@@ -56,22 +56,16 @@
     0 0 0 2px #ea580c,
     0 0 0 4px #f59e0b;
 }
-.fireLayer {
+/* Organic SVG fire ring (turbulence + displacement), overflowing the frame so flames lick beyond it. */
+.fireSvg {
   position: absolute;
-  inset: 0;
+  inset: -24%;
+  width: 148%;
+  height: 148%;
   z-index: 0;
   pointer-events: none;
-}
-.flame {
-  position: absolute;
-  width: var(--w, 12px);
-  height: var(--h, 28px);
-  transform-origin: 50% 100%;
-  border-radius: 50% 50% 38% 38% / 72% 72% 40% 40%;
-  background: radial-gradient(ellipse at 50% 100%, #fef9c3 0%, #fde047 22%, #fb923c 48%, #ef4444 72%, rgba(239, 68, 68, 0) 84%);
-  filter: blur(1.5px);
   mix-blend-mode: screen;
-  animation: flicker var(--d, 0.9s) ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 5px rgba(249, 115, 22, 0.6));
 }
 
 /* Particle systems (Steam-like): glowing motes that drift up and fade. */
@@ -162,18 +156,6 @@
   }
 }
 
-/* Flames rise (translate up), narrow and fade as they go. */
-@keyframes flicker {
-  0% {
-    transform: translateY(8%) scaleY(0.9) scaleX(1.05);
-    opacity: 0.9;
-  }
-  100% {
-    transform: translateY(-34%) scaleY(1.55) scaleX(0.65);
-    opacity: 0.35;
-  }
-}
-
 /* Particles drift up the whole frame (animating `bottom`) and fade. */
 @keyframes rise {
   0% {
@@ -210,7 +192,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .glow,
-  .flame,
   .particle,
   .spectral,
   .electric::before,
