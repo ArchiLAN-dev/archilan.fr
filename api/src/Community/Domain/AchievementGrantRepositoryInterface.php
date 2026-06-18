@@ -16,5 +16,10 @@ interface AchievementGrantRepositoryInterface
      */
     public function findByUser(string $userId): array;
 
+    /**
+     * The id of the user who owns the grant, or null if no grant has that id.
+     */
+    public function ownerOf(string $grantId): ?string;
+
     public function save(AchievementGrant $grant): void;
 }

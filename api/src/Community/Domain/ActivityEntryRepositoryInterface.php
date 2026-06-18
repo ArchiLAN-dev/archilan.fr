@@ -8,6 +8,11 @@ interface ActivityEntryRepositoryInterface
 {
     public function exists(string $actorId, string $type, string $subjectRef): bool;
 
+    /**
+     * The id of the actor who owns the entry, or null if no entry has that id.
+     */
+    public function ownerOf(string $entryId): ?string;
+
     public function save(ActivityEntry $entry): void;
 
     /**

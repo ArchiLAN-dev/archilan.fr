@@ -35,6 +35,8 @@ export type Achievement = {
   description: string;
   unlocked: boolean;
   unlockedAt: string | null;
+  grantId: string | null;
+  kudosCount: number;
 };
 
 export type ProfileLevel = {
@@ -119,7 +121,9 @@ function isAchievement(v: unknown): v is Achievement {
     hasStringProp(v, "name") &&
     hasStringProp(v, "description") &&
     hasBooleanProp(v, "unlocked") &&
-    hasNullableStringProp(v, "unlockedAt")
+    hasNullableStringProp(v, "unlockedAt") &&
+    hasNullableStringProp(v, "grantId") &&
+    hasNumberProp(v, "kudosCount")
   );
 }
 
