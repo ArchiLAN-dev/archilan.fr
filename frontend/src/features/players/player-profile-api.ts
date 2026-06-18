@@ -24,6 +24,7 @@ export type ProfileCustomization = {
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  avatarFrame: string | null;
   socialLinks: ProfileSocialLink[];
   favoriteGames: ProfileFavoriteGame[];
   showcaseLayout: string[];
@@ -120,6 +121,7 @@ function isProfileCustomization(v: unknown): v is ProfileCustomization {
     return false;
   }
   if (!hasStringProp(v, "bannerPreset")) return false;
+  if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;

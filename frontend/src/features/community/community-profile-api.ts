@@ -21,6 +21,7 @@ export type MyCommunityProfile = {
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  avatarFrame: string | null;
   socialLinks: EditableSocialLink[];
   favoriteGames: EditableFavoriteGame[];
   audience: string;
@@ -33,6 +34,7 @@ export type UpdateCommunityProfileInput = {
   tagline: string | null;
   pronouns: string | null;
   bannerPreset: string;
+  avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
   favoriteGameIds: string[];
@@ -54,6 +56,7 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
     return false;
   }
   if (!hasStringProp(v, "bannerPreset") || !hasStringProp(v, "audience")) return false;
+  if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
   if (!("favoriteGames" in v) || !Array.isArray(v.favoriteGames)) return false;

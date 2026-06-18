@@ -124,6 +124,28 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testAvatarFrameRoundTripAndValidation(): void
+    {
+        $user = $this->createUser('hank@example.org', slug: 'hank');
+        $this->loginAs($user);
+
+        // A valid frame round-trips and surfaces on the public profile customization.
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'fire', 'audience' => 'public']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('fire', $this->data()['avatarFrame']);
+
+        $this->client->getCookieJar()->clear();
+        $this->client->jsonRequest('GET', '/api/v1/community/profiles/hank');
+        $customization = $this->data()['customization'] ?? null;
+        self::assertIsArray($customization);
+        self::assertSame('fire', $customization['avatarFrame']);
+
+        // An unknown frame is rejected.
+        $this->loginAs($user);
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['avatarFrame' => 'bogus_frame']);
+        self::assertResponseStatusCodeSame(422);
+    }
+
     public function testDisplayNameOverrideReplacesAccountNameButKeepsSlug(): void
     {
         $user = $this->createUser('gwen@example.org', slug: 'gwen', displayName: 'gwen');

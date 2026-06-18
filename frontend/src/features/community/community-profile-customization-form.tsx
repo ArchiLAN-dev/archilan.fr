@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, Loader2, Plus, Search, X } from "lucide-react";
 
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
+import { AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
+import { AvatarFrame } from "./avatar-frame";
 import { BANNER_PRESETS } from "./banner-presets";
 import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
@@ -21,6 +23,8 @@ import {
 
 const MAX_SOCIAL_LINKS = 5;
 const MAX_FAVORITES = 6;
+const FRAME_CATEGORIES: readonly AvatarFrameCategory[] = ["Couleurs", "Néon", "Effets"];
+
 const MAX_DISPLAY_NAME = 80;
 const MAX_TAGLINE = 120;
 const MAX_PRONOUNS = 40;
@@ -47,6 +51,7 @@ type FormValues = {
   tagline: string;
   pronouns: string;
   bannerPreset: string;
+  avatarFrame: string | null;
   audience: string;
   socialLinks: EditableSocialLink[];
   favorites: EditableFavoriteGame[];
@@ -63,6 +68,7 @@ function serialize(v: FormValues): string {
     tagline: v.tagline.trim(),
     pronouns: v.pronouns.trim(),
     bannerPreset: v.bannerPreset,
+    avatarFrame: v.avatarFrame,
     audience: v.audience,
     socialLinks: v.socialLinks
       .filter((l) => l.url.trim() !== "")
@@ -81,6 +87,7 @@ export function CommunityProfileCustomizationForm() {
   const [tagline, setTagline] = useState("");
   const [pronouns, setPronouns] = useState("");
   const [bannerPreset, setBannerPreset] = useState<string>("default");
+  const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
   const [audience, setAudience] = useState<string>("members");
   const [socialLinks, setSocialLinks] = useState<EditableSocialLink[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
@@ -90,8 +97,8 @@ export function CommunityProfileCustomizationForm() {
   const [baseline, setBaseline] = useState<string>("");
 
   const values: FormValues = useMemo(
-    () => ({ displayName, bio, tagline, pronouns, bannerPreset, audience, socialLinks, favorites, showcase }),
-    [displayName, bio, tagline, pronouns, bannerPreset, audience, socialLinks, favorites, showcase],
+    () => ({ displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase }),
+    [displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase],
   );
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
@@ -104,6 +111,7 @@ export function CommunityProfileCustomizationForm() {
     setTagline(profile.tagline ?? "");
     setPronouns(profile.pronouns ?? "");
     setBannerPreset(profile.bannerPreset);
+    setAvatarFrame(profile.avatarFrame ?? null);
     setAudience(profile.audience);
     setSocialLinks(profile.socialLinks);
     setFavorites(profile.favoriteGames);
@@ -115,6 +123,7 @@ export function CommunityProfileCustomizationForm() {
         tagline: profile.tagline ?? "",
         pronouns: profile.pronouns ?? "",
         bannerPreset: profile.bannerPreset,
+        avatarFrame: profile.avatarFrame ?? null,
         audience: profile.audience,
         socialLinks: profile.socialLinks,
         favorites: profile.favoriteGames,
@@ -156,6 +165,7 @@ export function CommunityProfileCustomizationForm() {
       tagline: tagline.trim() === "" ? null : tagline.trim(),
       pronouns: pronouns.trim() === "" ? null : pronouns.trim(),
       bannerPreset,
+      avatarFrame,
       audience,
       socialLinks: socialLinks.filter((l) => l.url.trim() !== ""),
       favoriteGameIds: favorites.map((g) => g.id),
@@ -275,6 +285,24 @@ export function CommunityProfileCustomizationForm() {
               </button>
             );
           })}
+        </div>
+      </Section>
+
+      <Section title="Cadre d'avatar" description="Un cadre décoratif (animé) autour de ton avatar.">
+        <div className="grid gap-3">
+          {FRAME_CATEGORIES.map((category) => (
+            <div className="grid gap-1.5" key={category}>
+              <span className="text-xs font-medium text-muted-foreground">{category}</span>
+              <div className="flex flex-wrap gap-2.5">
+                {category === FRAME_CATEGORIES[0] ? (
+                  <FrameSwatch frameKey={null} label="Aucun" onPick={setAvatarFrame} selected={null === avatarFrame} />
+                ) : null}
+                {AVATAR_FRAMES.filter((f) => f.category === category).map((f) => (
+                  <FrameSwatch frameKey={f.key} key={f.key} label={f.label} onPick={setAvatarFrame} selected={avatarFrame === f.key} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </Section>
 
@@ -469,6 +497,38 @@ function SaveStatus({ dirty, save }: { dirty: boolean; save: SaveState }) {
     );
   }
   return <span className="text-sm text-muted-foreground">Tout est à jour.</span>;
+}
+
+function FrameSwatch({
+  frameKey,
+  label,
+  selected,
+  onPick,
+}: {
+  frameKey: string | null;
+  label: string;
+  selected: boolean;
+  onPick: (key: string | null) => void;
+}) {
+  return (
+    <button
+      aria-label={label}
+      aria-pressed={selected}
+      className={`grid w-16 justify-items-center gap-1 rounded-lg border p-1.5 transition-colors ${
+        selected ? "border-accent bg-accent/10" : "border-transparent hover:bg-surface-2"
+      }`}
+      onClick={() => onPick(frameKey)}
+      title={label}
+      type="button"
+    >
+      <AvatarFrame className="size-11" frameKey={frameKey}>
+        <span className="flex h-full w-full items-center justify-center bg-surface-2 text-xs text-muted-foreground">
+          {selected ? <Check aria-hidden className="size-4 text-accent-text" /> : "★"}
+        </span>
+      </AvatarFrame>
+      <span className="w-full truncate text-center text-[11px] text-muted-foreground">{label}</span>
+    </button>
+  );
 }
 
 function SocialLinkRow({

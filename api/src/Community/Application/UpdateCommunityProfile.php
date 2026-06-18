@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application;
 
 use App\Community\Domain\Audience;
+use App\Community\Domain\AvatarFrame;
 use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
@@ -51,6 +52,11 @@ final readonly class UpdateCommunityProfile
             $errors->add('audience', 'Audience invalide.');
         }
 
+        $avatarFrame = is_string($input['avatarFrame'] ?? null) && '' !== $input['avatarFrame'] ? $input['avatarFrame'] : null;
+        if (null !== $avatarFrame && !AvatarFrame::isValid($avatarFrame)) {
+            $errors->add('avatarFrame', 'Cadre invalide.');
+        }
+
         $socialLinks = $this->parseSocialLinks($input['socialLinks'] ?? null, $errors);
         $favoriteGameIds = $this->parseFavorites($input['favoriteGameIds'] ?? null, $errors);
         $showcaseLayout = $this->parseShowcaseLayout($input['showcaseLayout'] ?? null);
@@ -67,7 +73,7 @@ final readonly class UpdateCommunityProfile
             $this->profiles->save($profile);
         }
 
-        $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
+        $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $avatarFrame, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         $this->profiles->flush();
 
         return ['errorCode' => null, 'errors' => []];

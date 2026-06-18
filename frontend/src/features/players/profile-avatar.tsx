@@ -1,36 +1,48 @@
 "use client";
 
 import { useState } from "react";
+import { AvatarFrame } from "@/features/community/avatar-frame";
 
-const RING = "size-24 shrink-0 rounded-2xl border-4 border-surface ring-1 ring-border sm:size-28";
+const SIZE = "size-24 shrink-0 sm:size-28";
 
 /**
- * Profile avatar with a deterministic initials fallback. The fallback covers both a missing URL and a
- * *load error* of a cached URL (a snapshotted Discord/Steam URL can later 404) - never a broken image
- * (epic 30, review #4).
+ * Profile avatar with a deterministic initials fallback and an optional decorative frame. The fallback
+ * covers both a missing URL and a *load error* of a cached URL (a snapshotted Discord/Steam URL can later
+ * 404) - never a broken image (epic 30, review #4).
  */
-export function ProfileAvatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+export function ProfileAvatar({
+  avatarUrl,
+  name,
+  frame = null,
+}: {
+  avatarUrl: string | null;
+  name: string;
+  frame?: string | null;
+}) {
   const [failed, setFailed] = useState(false);
 
-  if (avatarUrl !== null && !failed) {
-    return (
+  const content =
+    avatarUrl !== null && !failed ? (
       // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam CDN URL, not a local asset
       <img
         alt={name}
-        className={`${RING} bg-surface object-cover`}
+        className="h-full w-full bg-surface object-cover"
         onError={() => setFailed(true)}
         src={avatarUrl}
       />
+    ) : (
+      <div
+        aria-hidden
+        className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent/40 to-accent/10 font-heading text-3xl font-bold text-accent-text"
+      >
+        {initials(name)}
+      </div>
     );
-  }
 
   return (
-    <div
-      aria-hidden
-      className={`${RING} flex items-center justify-center bg-gradient-to-br from-accent/40 to-accent/10 font-heading text-3xl font-bold text-accent-text`}
-    >
-      {initials(name)}
-    </div>
+    <AvatarFrame className={SIZE} frameKey={frame}>
+      {content}
+    </AvatarFrame>
   );
 }
 
