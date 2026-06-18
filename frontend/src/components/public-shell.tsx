@@ -246,6 +246,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <NavLink href="/evenements" label="Événements" />
             <NavLink href="/runs-hebdo" label="Runs hebdo" />
             <NavLink href="/jeux" label="Jeux" />
+            <NavLink href="/communaute" label="Communauté" />
             <NavLink href="/actualites" label="Actualités" />
             <NavLink href={externalLinks.archilanDiscord} label="Discord" />
             <LiveTwitchBadge />
@@ -285,6 +286,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/runs-hebdo" label="Runs hebdo" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/actualites" label="Actualités" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href={externalLinks.archilanDiscord} label="Discord" onNavigate={() => setMenuState({ open: false, pathname })} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
