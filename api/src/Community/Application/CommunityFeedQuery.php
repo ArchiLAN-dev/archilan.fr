@@ -7,6 +7,8 @@ namespace App\Community\Application;
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
 use App\Community\Domain\FriendshipRepositoryInterface;
+use App\Community\Domain\Kudos;
+use App\Community\Domain\KudosRepositoryInterface;
 
 /**
  * Reads the activity feed (story 30.9). Visibility is resolved at read time per actor via the shared
@@ -22,6 +24,7 @@ final readonly class CommunityFeedQuery
         private FriendshipRepositoryInterface $friendships,
         private ProfileVisibility $visibility,
         private CommunityUserDirectoryQueryInterface $directory,
+        private KudosRepositoryInterface $kudos,
     ) {
     }
 
@@ -38,7 +41,7 @@ final readonly class CommunityFeedQuery
 
         $entries = $this->entries->recentForActors([$actorId], $this->clampLimit($limit), $before);
 
-        return $this->present($entries, withActor: false);
+        return $this->present($entries, false, $viewerId);
     }
 
     /**
@@ -55,7 +58,7 @@ final readonly class CommunityFeedQuery
 
         $entries = $this->entries->recentForActors(array_values(array_unique($actorIds)), $this->clampLimit($limit), $before);
 
-        return $this->present($entries, withActor: true);
+        return $this->present($entries, true, $viewerId);
     }
 
     /**
@@ -63,22 +66,31 @@ final readonly class CommunityFeedQuery
      *
      * @return list<array<string, mixed>>
      */
-    private function present(array $entries, bool $withActor): array
+    private function present(array $entries, bool $withActor, ?string $viewerId): array
     {
         // Resolve every referenced user (actors + friendship counterparts) in one query.
         $userIds = [];
+        $runEntryIds = [];
         foreach ($entries as $entry) {
             $userIds[] = $entry->getActorId();
             $withUserId = $entry->getPayload()['withUserId'] ?? null;
             if (is_string($withUserId)) {
                 $userIds[] = $withUserId;
             }
+            if (ActivityEntry::TYPE_RUN_FINISHED === $entry->getType()) {
+                $runEntryIds[] = $entry->getId();
+            }
         }
         $cards = [] === $userIds ? [] : $this->directory->cards(array_values(array_unique($userIds)));
+
+        // Kudos on run entries (one batch count + the viewer's given set).
+        $kudosCounts = $this->kudos->countsFor(Kudos::TARGET_RUN, $runEntryIds);
+        $kudosGiven = null === $viewerId ? [] : array_flip($this->kudos->givenBy($viewerId, Kudos::TARGET_RUN, $runEntryIds));
 
         $items = [];
         foreach ($entries as $entry) {
             $payload = $entry->getPayload();
+            $isRun = ActivityEntry::TYPE_RUN_FINISHED === $entry->getType();
             $item = [
                 'type' => $entry->getType(),
                 'occurredAt' => $entry->getOccurredAt()->format(\DateTimeInterface::ATOM),
@@ -87,6 +99,10 @@ final readonly class CommunityFeedQuery
                 'sessionId' => is_string($payload['sessionId'] ?? null) ? $payload['sessionId'] : null,
                 'withSlug' => null,
                 'withName' => null,
+                'kudosTargetType' => $isRun ? Kudos::TARGET_RUN : null,
+                'kudosTargetId' => $isRun ? $entry->getId() : null,
+                'kudosCount' => $isRun ? ($kudosCounts[$entry->getId()] ?? 0) : 0,
+                'viewerHasKudos' => $isRun && isset($kudosGiven[$entry->getId()]),
             ];
 
             $withUserId = $payload['withUserId'] ?? null;

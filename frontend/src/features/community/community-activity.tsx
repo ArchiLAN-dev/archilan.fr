@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Gamepad2, Loader2, Users } from "lucide-react";
 
 import { fetchFriendsFeed, fetchProfileActivity, type ActivityItem } from "./community-feed-api";
+import { KudosButton } from "./kudos-button";
 
 /** One actor's recent activity, on their public profile (audience-gated server-side). */
 export function ProfileActivity({ slug }: { slug: string }) {
@@ -98,9 +99,19 @@ function ActivityRow({ item, showActor }: { item: ActivityItem; showActor: boole
           ) : null}{" "}
           <ActivityText item={item} />
         </p>
-        <time className="text-xs text-muted-foreground" dateTime={item.occurredAt}>
-          {relativeTime(item.occurredAt)}
-        </time>
+        <div className="mt-1 flex items-center gap-2">
+          <time className="text-xs text-muted-foreground" dateTime={item.occurredAt}>
+            {relativeTime(item.occurredAt)}
+          </time>
+          {item.kudosTargetType && item.kudosTargetId ? (
+            <KudosButton
+              initialCount={item.kudosCount}
+              initialGiven={item.viewerHasKudos}
+              targetId={item.kudosTargetId}
+              targetType={item.kudosTargetType}
+            />
+          ) : null}
+        </div>
       </div>
     </li>
   );

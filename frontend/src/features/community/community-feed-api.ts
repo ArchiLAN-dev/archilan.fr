@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type ActivityActor = { slug: string; displayName: string | null; avatarUrl: string | null };
 
@@ -13,6 +13,10 @@ export type ActivityItem = {
   withSlug: string | null;
   withName: string | null;
   actor: ActivityActor | null;
+  kudosTargetType: string | null;
+  kudosTargetId: string | null;
+  kudosCount: number;
+  viewerHasKudos: boolean;
 };
 
 function isActor(v: unknown): v is ActivityActor {
@@ -33,7 +37,8 @@ function isActivityItem(v: unknown): v is ActivityItem {
     if (!hasNullableStringProp(v, key)) return false;
   }
   if ("actor" in v && v.actor !== null && !isActor(v.actor)) return false;
-  return true;
+  if (!hasNullableStringProp(v, "kudosTargetType") || !hasNullableStringProp(v, "kudosTargetId")) return false;
+  return hasNumberProp(v, "kudosCount") && hasBooleanProp(v, "viewerHasKudos");
 }
 
 function normalize(item: ActivityItem & { actor?: ActivityActor | null }): ActivityItem {

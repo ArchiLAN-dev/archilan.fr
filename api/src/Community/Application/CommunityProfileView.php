@@ -11,6 +11,8 @@ use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\CommunityXp;
+use App\Community\Domain\Kudos;
+use App\Community\Domain\KudosRepositoryInterface;
 use App\Community\Domain\Level;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
@@ -30,6 +32,7 @@ final readonly class CommunityProfileView
         private GameRepositoryInterface $games,
         private AchievementGrantRepositoryInterface $achievementGrants,
         private ProfileVisibility $visibility,
+        private KudosRepositoryInterface $kudos,
     ) {
     }
 
@@ -42,7 +45,7 @@ final readonly class CommunityProfileView
      *     audience: string,
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
-     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null}>,
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>,
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
      */
@@ -103,23 +106,34 @@ final readonly class CommunityProfileView
     }
 
     /**
-     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null}>
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>
      */
     private function achievementsFor(string $userId): array
     {
-        $unlockedAt = [];
+        $grantByKey = [];
         foreach ($this->achievementGrants->findByUser($userId) as $grant) {
-            $unlockedAt[$grant->getAchievementKey()] = $grant->getUnlockedAt()->format(\DateTimeInterface::ATOM);
+            $grantByKey[$grant->getAchievementKey()] = $grant;
         }
+        $kudosCounts = $this->kudos->countsFor(
+            Kudos::TARGET_ACHIEVEMENT,
+            array_values(array_map(static fn ($g): string => $g->getId(), $grantByKey)),
+        );
 
         return array_map(
-            static fn ($definition): array => [
-                'key' => $definition->key,
-                'name' => $definition->name,
-                'description' => $definition->description,
-                'unlocked' => isset($unlockedAt[$definition->key]),
-                'unlockedAt' => $unlockedAt[$definition->key] ?? null,
-            ],
+            static function ($definition) use ($grantByKey, $kudosCounts): array {
+                $grant = $grantByKey[$definition->key] ?? null;
+                $grantId = $grant?->getId();
+
+                return [
+                    'key' => $definition->key,
+                    'name' => $definition->name,
+                    'description' => $definition->description,
+                    'unlocked' => null !== $grant,
+                    'unlockedAt' => $grant?->getUnlockedAt()->format(\DateTimeInterface::ATOM),
+                    'grantId' => $grantId,
+                    'kudosCount' => null !== $grantId ? ($kudosCounts[$grantId] ?? 0) : 0,
+                ];
+            },
             AchievementCatalog::all(),
         );
     }
