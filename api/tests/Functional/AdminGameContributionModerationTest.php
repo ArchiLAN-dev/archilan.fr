@@ -142,6 +142,101 @@ final class AdminGameContributionModerationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testFiltersStatusTargetAndSearch(): void
+    {
+        $alice = $this->createUser('alice@example.org', ['ROLE_USER'], 'Alice Author');
+        $bob = $this->createUser('bob@example.org', ['ROLE_USER'], 'Bob Builder');
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $base = new \DateTimeImmutable('2026-06-19T10:00:00+00:00');
+
+        $listedPending = GameTutorialContribution::submitForGame(bin2hex(random_bytes(16)), $alice->getId(), $game->getId(), self::PROPOSED, 'super tuto', $base);
+        $unlistedPending = GameTutorialContribution::submitForProposedName(bin2hex(random_bytes(16)), $bob->getId(), 'Jeu Inconnu', self::PROPOSED, 'propose un jeu', $base->modify('+1 minute'));
+        $listedApproved = GameTutorialContribution::submitForGame(bin2hex(random_bytes(16)), $alice->getId(), $game->getId(), self::PROPOSED, null, $base->modify('+2 minutes'));
+        $listedApproved->approve($admin->getId(), $base->modify('+3 minutes'));
+        $unlistedRejected = GameTutorialContribution::submitForProposedName(bin2hex(random_bytes(16)), $bob->getId(), 'Autre Jeu', self::PROPOSED, null, $base->modify('+4 minutes'));
+        $unlistedRejected->reject($admin->getId(), 'hors sujet', $base->modify('+5 minutes'));
+
+        foreach ([$listedPending, $unlistedPending, $listedApproved, $unlistedRejected] as $entity) {
+            $this->entityManager->persist($entity);
+        }
+        $this->entityManager->flush();
+
+        $this->loginAs($admin);
+
+        // Default: pending only, badge count = pending, newest first.
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions');
+        self::assertResponseIsSuccessful();
+        self::assertSame([$unlistedPending->getId(), $listedPending->getId()], $this->ids());
+        self::assertSame(2, $this->pendingCount());
+
+        // Oldest first flips the order.
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?sort=oldest');
+        self::assertSame([$listedPending->getId(), $unlistedPending->getId()], $this->ids());
+
+        // Status buckets; the badge stays the pending count.
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=approved');
+        self::assertSame([$listedApproved->getId()], $this->ids());
+        self::assertSame(2, $this->pendingCount());
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=rejected');
+        self::assertSame([$unlistedRejected->getId()], $this->ids());
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all');
+        self::assertCount(4, $this->ids());
+
+        // Target filter.
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&target=unlisted&sort=oldest');
+        self::assertSame([$unlistedPending->getId(), $unlistedRejected->getId()], $this->ids());
+
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&target=listed&sort=oldest');
+        self::assertSame([$listedPending->getId(), $listedApproved->getId()], $this->ids());
+
+        // Search on proposed name...
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&q=Inconnu');
+        self::assertSame([$unlistedPending->getId()], $this->ids());
+
+        // ...game name...
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&q=Hollow&sort=oldest');
+        self::assertSame([$listedPending->getId(), $listedApproved->getId()], $this->ids());
+
+        // ...author display name...
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&q=Alice&sort=oldest');
+        self::assertSame([$listedPending->getId(), $listedApproved->getId()], $this->ids());
+
+        // ...and the message.
+        $this->client->jsonRequest('GET', '/api/v1/admin/game-contributions?status=all&q=super');
+        self::assertSame([$listedPending->getId()], $this->ids());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function ids(): array
+    {
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $ids = [];
+        foreach ($data as $row) {
+            self::assertIsArray($row);
+            $id = $row['id'] ?? null;
+            self::assertIsString($id);
+            $ids[] = $id;
+        }
+
+        return $ids;
+    }
+
+    private function pendingCount(): int
+    {
+        $meta = $this->decodedJsonResponse()['meta'] ?? null;
+        self::assertIsArray($meta);
+        $count = $meta['count'] ?? null;
+        self::assertIsInt($count);
+
+        return $count;
+    }
+
     private function persistPendingForGame(): string
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');

@@ -4,18 +4,25 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_REPORT_FILTERS, fetchModerationQueue } from "./admin-moderation-api";
+import { DEFAULT_CONTRIBUTION_FILTERS, fetchContributionQueue } from "./admin-game-contributions-api";
 import { ContributionsModerationPanel } from "./contributions-moderation-panel";
 import { ReportsModerationPanel } from "./reports-moderation-panel";
 
-const COUNT_QUERY_KEY = ["admin-moderation", "pending-count"] as const;
+const REPORTS_COUNT_QUERY_KEY = ["admin-moderation", "pending-count"] as const;
+const CONTRIBUTIONS_COUNT_QUERY_KEY = ["admin-game-contributions", "pending-count"] as const;
 const STALE_TIME = 15_000;
 
 type ModerationTab = "reports" | "contributions";
 
 export function AdminModerationDashboard() {
   const { data } = useQuery({
-    queryKey: COUNT_QUERY_KEY,
+    queryKey: REPORTS_COUNT_QUERY_KEY,
     queryFn: () => fetchModerationQueue(DEFAULT_REPORT_FILTERS),
+    staleTime: STALE_TIME,
+  });
+  const { data: contributions } = useQuery({
+    queryKey: CONTRIBUTIONS_COUNT_QUERY_KEY,
+    queryFn: () => fetchContributionQueue(DEFAULT_CONTRIBUTION_FILTERS),
     staleTime: STALE_TIME,
   });
   const [tab, setTab] = useState<ModerationTab>("reports");
@@ -44,7 +51,7 @@ export function AdminModerationDashboard() {
           role="tab"
           type="button"
         >
-          Contributions tutoriels
+          Contributions tutoriels{contributions ? ` · ${contributions.count}` : ""}
         </button>
       </div>
 

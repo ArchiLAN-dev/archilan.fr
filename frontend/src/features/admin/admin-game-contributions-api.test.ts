@@ -1,7 +1,13 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { approveContribution, fetchContributionQueue, rejectContribution } from "./admin-game-contributions-api";
+import {
+  approveContribution,
+  buildContributionsQuery,
+  DEFAULT_CONTRIBUTION_FILTERS,
+  fetchContributionQueue,
+  rejectContribution,
+} from "./admin-game-contributions-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -17,17 +23,73 @@ const item = {
   currentSteps: [],
 };
 
-describe("fetchContributionQueue", () => {
-  it("returns the queue on success", async () => {
-    server.use(http.get(`${BASE}/admin/game-contributions`, () => HttpResponse.json({ data: [item] })));
-    const result = await fetchContributionQueue();
-    expect(result).toHaveLength(1);
-    expect(result[0].target).toBe("Hollow Knight");
+describe("buildContributionsQuery", () => {
+  it("omits 'any' target and empty search by default", () => {
+    const params = new URLSearchParams(buildContributionsQuery(DEFAULT_CONTRIBUTION_FILTERS));
+    expect(params.get("status")).toBe("pending");
+    expect(params.get("sort")).toBe("recent");
+    expect(params.has("target")).toBe(false);
+    expect(params.has("q")).toBe(false);
   });
 
-  it("returns empty on malformed item", async () => {
+  it("includes active filters and trims the search term", () => {
+    const params = new URLSearchParams(
+      buildContributionsQuery({ status: "all", target: "unlisted", sort: "oldest", search: "  inconnu  " }),
+    );
+    expect(params.get("status")).toBe("all");
+    expect(params.get("target")).toBe("unlisted");
+    expect(params.get("sort")).toBe("oldest");
+    expect(params.get("q")).toBe("inconnu");
+  });
+});
+
+describe("fetchContributionQueue", () => {
+  it("sends the filters as query params and parses items + count", async () => {
+    let requestUrl = "";
+    server.use(
+      http.get(`${BASE}/admin/game-contributions`, ({ request }) => {
+        requestUrl = request.url;
+        return HttpResponse.json({ data: [item], meta: { count: 5 } });
+      }),
+    );
+
+    const result = await fetchContributionQueue({
+      status: "approved",
+      target: "listed",
+      sort: "oldest",
+      search: "hollow",
+    });
+
+    expect(result.count).toBe(5);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].target).toBe("Hollow Knight");
+
+    const params = new URL(requestUrl).searchParams;
+    expect(params.get("status")).toBe("approved");
+    expect(params.get("target")).toBe("listed");
+    expect(params.get("sort")).toBe("oldest");
+    expect(params.get("q")).toBe("hollow");
+  });
+
+  it("falls back to the item count when meta is absent", async () => {
+    server.use(http.get(`${BASE}/admin/game-contributions`, () => HttpResponse.json({ data: [item] })));
+    const result = await fetchContributionQueue();
+    expect(result.items).toHaveLength(1);
+    expect(result.count).toBe(1);
+  });
+
+  it("returns an empty queue on malformed item", async () => {
     server.use(http.get(`${BASE}/admin/game-contributions`, () => HttpResponse.json({ data: [{ id: "c1" }] })));
-    expect(await fetchContributionQueue()).toHaveLength(0);
+    const result = await fetchContributionQueue();
+    expect(result.items).toHaveLength(0);
+    expect(result.count).toBe(0);
+  });
+
+  it("returns an empty queue on error", async () => {
+    server.use(http.get(`${BASE}/admin/game-contributions`, () => HttpResponse.error()));
+    const result = await fetchContributionQueue();
+    expect(result.items).toHaveLength(0);
+    expect(result.count).toBe(0);
   });
 });
 

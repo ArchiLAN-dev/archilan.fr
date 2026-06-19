@@ -1,64 +1,175 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 import { InstallStepsView } from "@/features/games/install-steps-view";
 import {
   approveContribution,
+  DEFAULT_CONTRIBUTION_FILTERS,
   fetchContributionQueue,
   rejectContribution,
+  type ContributionFilters,
   type ContributionItem,
+  type ContributionSort,
+  type ContributionStatus,
+  type ContributionTarget,
 } from "./admin-game-contributions-api";
 
-const QUERY_KEY = ["admin-game-contributions"] as const;
+const QUERY_PREFIX = ["admin-game-contributions"] as const;
+const STALE_TIME = 15_000;
+const SEARCH_DEBOUNCE_MS = 300;
+
+const STATUS_OPTIONS: { value: ContributionStatus; label: string }[] = [
+  { value: "pending", label: "En attente" },
+  { value: "approved", label: "Approuvées" },
+  { value: "rejected", label: "Rejetées" },
+  { value: "all", label: "Toutes" },
+];
+
+const TARGET_OPTIONS: { value: ContributionTarget; label: string }[] = [
+  { value: "any", label: "Toutes cibles" },
+  { value: "listed", label: "Jeux listés" },
+  { value: "unlisted", label: "Jeux non listés" },
+];
+
+const SORT_OPTIONS: { value: ContributionSort; label: string }[] = [
+  { value: "recent", label: "Plus récentes" },
+  { value: "oldest", label: "Plus anciennes" },
+];
 
 export function ContributionsModerationPanel() {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useQuery({ queryKey: QUERY_KEY, queryFn: fetchContributionQueue, staleTime: 15_000 });
+  const [status, setStatus] = useState<ContributionStatus>("pending");
+  const [target, setTarget] = useState<ContributionTarget>("any");
+  const [sort, setSort] = useState<ContributionSort>("recent");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
+  const filters: ContributionFilters = { status, target, sort, search };
+  const { data, isLoading, isError, isFetching } = useQuery({
+    queryKey: [...QUERY_PREFIX, "list", filters],
+    queryFn: () => fetchContributionQueue(filters),
+    staleTime: STALE_TIME,
+  });
 
   async function run(id: string, action: () => Promise<boolean>): Promise<void> {
     setBusyId(id);
     await action();
-    await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    await queryClient.invalidateQueries({ queryKey: QUERY_PREFIX });
     setBusyId(null);
   }
 
-  if (isLoading) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 aria-hidden="true" className="size-4 animate-spin" /> Chargement…
-      </p>
-    );
-  }
-
-  if (isError || !data) {
-    return <p className="text-sm text-muted-foreground">Impossible de charger les contributions.</p>;
-  }
-
-  if (data.length === 0) {
-    return (
-      <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-        Aucune contribution en attente. 🎉
-      </p>
-    );
-  }
+  const isDefault =
+    status === DEFAULT_CONTRIBUTION_FILTERS.status &&
+    target === DEFAULT_CONTRIBUTION_FILTERS.target &&
+    search === "";
 
   return (
-    <ul className="grid gap-4" role="list">
-      {data.map((item) => (
-        <li key={item.id}>
-          <ContributionCard
-            busy={busyId === item.id}
-            item={item}
-            onApprove={() => void run(item.id, () => approveContribution(item.id))}
-            onReject={(reason) => void run(item.id, () => rejectContribution(item.id, reason))}
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Statut des contributions">
+        {STATUS_OPTIONS.map((option) => (
+          <button
+            aria-selected={status === option.value}
+            className={`min-h-9 rounded-full border px-3 text-sm font-semibold transition-colors ${
+              status === option.value
+                ? "border-accent bg-accent/15 text-foreground"
+                : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
+            }`}
+            key={option.value}
+            onClick={() => setStatus(option.value)}
+            role="tab"
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          Cible
+          <FilterSelect
+            onChange={(value) => setTarget(value as ContributionTarget)}
+            options={TARGET_OPTIONS}
+            value={target}
           />
-        </li>
+        </label>
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          Tri
+          <FilterSelect onChange={(value) => setSort(value as ContributionSort)} options={SORT_OPTIONS} value={sort} />
+        </label>
+        <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
+          Recherche
+          <span className="relative">
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="min-h-9 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Jeu, nom proposé, auteur ou message…"
+              type="search"
+              value={searchInput}
+            />
+          </span>
+        </label>
+      </div>
+
+      {isLoading ? (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
+        </p>
+      ) : isError || data === undefined ? (
+        <p className="text-sm text-muted-foreground">Impossible de charger les contributions.</p>
+      ) : data.items.length === 0 ? (
+        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+          {isDefault ? "Aucune contribution en attente. 🎉" : "Aucune contribution ne correspond à ces filtres."}
+        </p>
+      ) : (
+        <ul aria-busy={isFetching} className="grid gap-4" role="list">
+          {data.items.map((item) => (
+            <li key={item.id}>
+              <ContributionCard
+                busy={busyId === item.id}
+                item={item}
+                onApprove={() => void run(item.id, () => approveContribution(item.id))}
+                onReject={(reason) => void run(item.id, () => rejectContribution(item.id, reason))}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function FilterSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      className="min-h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:border-accent focus:outline-none"
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
       ))}
-    </ul>
+    </select>
   );
 }
 

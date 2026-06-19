@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure;
 
 use App\GameSelection\Application\AdminGameContributionsQueryInterface;
+use App\GameSelection\Application\ContributionQueryFilters;
+use App\GameSelection\Domain\GameTutorialContribution;
 use App\GameSelection\Domain\InstallStepType;
 use Doctrine\DBAL\Connection;
 
@@ -18,10 +20,10 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
         $this->userTable = $connection->quoteSingleIdentifier('user');
     }
 
-    public function list(string $status): array
+    public function list(ContributionQueryFilters $filters): array
     {
         $qb = $this->connection->createQueryBuilder();
-        $rows = $qb
+        $qb
             ->select(
                 'c.id AS id',
                 'c.status AS status',
@@ -36,14 +38,47 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
             )
             ->from('game_tutorial_contribution', 'c')
             ->leftJoin('c', 'game', 'g', $qb->expr()->eq('g.id', 'c.game_id'))
-            ->leftJoin('c', $this->userTable, 'u', $qb->expr()->eq('u.id', 'c.author_id'))
-            ->where($qb->expr()->eq('c.status', ':status'))
-            ->setParameter('status', $status)
-            ->orderBy('c.created_at', 'ASC')
+            ->leftJoin('c', $this->userTable, 'u', $qb->expr()->eq('u.id', 'c.author_id'));
+
+        if (ContributionQueryFilters::STATUS_ALL !== $filters->status) {
+            $qb->andWhere($qb->expr()->eq('c.status', ':status'))
+                ->setParameter('status', $filters->status);
+        }
+
+        match ($filters->target) {
+            ContributionQueryFilters::TARGET_LISTED => $qb->andWhere('c.game_id IS NOT NULL'),
+            ContributionQueryFilters::TARGET_UNLISTED => $qb->andWhere('c.game_id IS NULL'),
+            default => $qb,
+        };
+
+        if ('' !== $filters->search) {
+            $escaped = addcslashes($filters->search, '%_\\');
+            $qb->andWhere('(g.name ILIKE :q OR c.proposed_game_name ILIKE :q OR u.display_name ILIKE :q OR c.message ILIKE :q)')
+                ->setParameter('q', '%'.$escaped.'%');
+        }
+
+        $direction = ContributionQueryFilters::SORT_OLDEST === $filters->sort ? 'ASC' : 'DESC';
+        $rows = $qb
+            ->orderBy('c.created_at', $direction)
+            ->addOrderBy('c.id', $direction)
             ->executeQuery()
             ->fetchAllAssociative();
 
         return array_map(self::mapRow(...), $rows);
+    }
+
+    public function pendingCount(): int
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $count = $qb
+            ->select('COUNT(c.id)')
+            ->from('game_tutorial_contribution', 'c')
+            ->where($qb->expr()->eq('c.status', ':status'))
+            ->setParameter('status', GameTutorialContribution::STATUS_PENDING)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($count) ? (int) $count : 0;
     }
 
     /**

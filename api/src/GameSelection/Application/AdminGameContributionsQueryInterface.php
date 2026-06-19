@@ -19,5 +19,7 @@ interface AdminGameContributionsQueryInterface
      *   currentSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
      * }>
      */
-    public function list(string $status): array;
+    public function list(ContributionQueryFilters $filters): array;
+
+    public function pendingCount(): int;
 }

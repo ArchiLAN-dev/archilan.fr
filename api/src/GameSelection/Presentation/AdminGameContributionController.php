@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\GameSelection\Presentation;
 
 use App\GameSelection\Application\AdminGameContributionsQueryInterface;
+use App\GameSelection\Application\ContributionQueryFilters;
 use App\GameSelection\Application\ModerateGameTutorialContribution;
-use App\GameSelection\Domain\GameTutorialContribution;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,12 +29,24 @@ final readonly class AdminGameContributionController
             return $admin;
         }
 
-        $status = (string) $request->query->get('status', GameTutorialContribution::STATUS_PENDING);
-        if (!in_array($status, [GameTutorialContribution::STATUS_PENDING, GameTutorialContribution::STATUS_APPROVED, GameTutorialContribution::STATUS_REJECTED], true)) {
-            $status = GameTutorialContribution::STATUS_PENDING;
-        }
+        $filters = ContributionQueryFilters::fromRaw(
+            $this->queryString($request, 'status'),
+            $this->queryString($request, 'target'),
+            $this->queryString($request, 'sort'),
+            $this->queryString($request, 'q'),
+        );
 
-        return new JsonResponse(['data' => $this->query->list($status)]);
+        return new JsonResponse([
+            'data' => $this->query->list($filters),
+            'meta' => ['count' => $this->query->pendingCount()],
+        ]);
+    }
+
+    private function queryString(Request $request, string $key): ?string
+    {
+        $value = $request->query->get($key);
+
+        return is_string($value) ? $value : null;
     }
 
     #[Route('/api/v1/admin/game-contributions/{id}/approve', name: 'api_admin_game_contributions_approve', methods: ['POST'])]
