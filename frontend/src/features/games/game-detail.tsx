@@ -102,7 +102,7 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
       {game.installSteps.length > 0 ? (
         <section className="grid gap-5">
           <h2 className="font-heading text-2xl font-semibold text-foreground">Installation</h2>
-          <InstallStepsView steps={game.installSteps} />
+          <InstallStepsView steps={game.installSteps} storageKey={`game-${game.slug}`} />
         </section>
       ) : null}
 
