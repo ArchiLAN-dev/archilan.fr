@@ -247,8 +247,6 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <NavLink href="/runs-hebdo" label="Runs hebdo" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink href="/communaute" label="Communauté" />
-            <NavLink href="/actualites" label="Actualités" />
-            <NavLink href={externalLinks.archilanDiscord} label="Discord" />
             <LiveTwitchBadge />
           </div>
 
@@ -287,8 +285,6 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
               <NavLink href="/runs-hebdo" label="Runs hebdo" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink href="/actualites" label="Actualités" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink href={externalLinks.archilanDiscord} label="Discord" onNavigate={() => setMenuState({ open: false, pathname })} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>
             <div className="mt-auto grid gap-3 border-t border-border pt-6">
@@ -320,6 +316,19 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <Link className="inline-flex items-center hover:text-foreground" href="/aide/archipelago">
               Installer Archipelago
             </Link>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <Link className="inline-flex items-center hover:text-foreground" href="/actualites">
+              Actualités
+            </Link>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <a
+              className="inline-flex items-center hover:text-foreground"
+              href={externalLinks.archilanDiscord}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Discord
+            </a>
           </div>
           <nav aria-label="Liens légaux" className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {legalLinks.map((link, i) => (
