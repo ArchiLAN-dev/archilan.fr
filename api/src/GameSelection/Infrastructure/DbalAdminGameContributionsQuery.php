@@ -6,16 +6,18 @@ namespace App\GameSelection\Infrastructure;
 
 use App\GameSelection\Application\AdminGameContributionsQueryInterface;
 use App\GameSelection\Application\ContributionQueryFilters;
+use App\GameSelection\Application\InstallStepsReader;
 use App\GameSelection\Domain\GameTutorialContribution;
-use App\GameSelection\Domain\InstallStepType;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminGameContributionsQuery implements AdminGameContributionsQueryInterface
 {
     private string $userTable;
 
-    public function __construct(private Connection $connection)
-    {
+    public function __construct(
+        private Connection $connection,
+        private InstallStepsReader $installStepsReader,
+    ) {
         // "user" is a reserved word in Postgres - quote it like the other DBAL queries do.
         $this->userTable = $connection->quoteSingleIdentifier('user');
     }
@@ -64,7 +66,7 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
             ->executeQuery()
             ->fetchAllAssociative();
 
-        return array_map(self::mapRow(...), $rows);
+        return array_map($this->mapRow(...), $rows);
     }
 
     public function pendingCount(): int
@@ -84,9 +86,9 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
     /**
      * @param array<string, mixed> $row
      *
-     * @return array{id: string, status: string, createdAt: string, authorName: string, message: string|null, target: string, gameSlug: string|null, proposedSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>, currentSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>}
+     * @return array{id: string, status: string, createdAt: string, authorName: string, message: string|null, target: string, gameSlug: string|null, proposedSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>, currentSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>}
      */
-    private static function mapRow(array $row): array
+    private function mapRow(array $row): array
     {
         $id = $row['id'] ?? null;
         $status = $row['status'] ?? null;
@@ -109,67 +111,8 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
             'message' => is_string($message) ? $message : null,
             'target' => $target,
             'gameSlug' => is_string($gameSlug) ? $gameSlug : null,
-            'proposedSteps' => self::decodeSteps($row['steps'] ?? null),
-            'currentSteps' => self::decodeSteps($row['game_install_steps'] ?? null),
+            'proposedSteps' => $this->installStepsReader->presentJson($row['steps'] ?? null),
+            'currentSteps' => $this->installStepsReader->presentJson($row['game_install_steps'] ?? null),
         ];
-    }
-
-    /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
-     */
-    private static function decodeSteps(mixed $raw): array
-    {
-        if (!is_string($raw) || '' === $raw) {
-            return [];
-        }
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        $steps = [];
-        foreach ($decoded as $step) {
-            if (!is_array($step)) {
-                continue;
-            }
-            $type = $step['type'] ?? null;
-            $title = $step['title'] ?? null;
-            if (!is_string($type) || !is_string($title) || !InstallStepType::isValid($type)) {
-                continue;
-            }
-            $description = $step['description'] ?? null;
-            $steps[] = [
-                'type' => $type,
-                'title' => $title,
-                'description' => is_string($description) ? $description : '',
-                'links' => self::decodeLinks($step['links'] ?? null),
-            ];
-        }
-
-        return $steps;
-    }
-
-    /**
-     * @return list<array{label: string, url: string|null}>
-     */
-    private static function decodeLinks(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-        $links = [];
-        foreach ($raw as $link) {
-            if (!is_array($link)) {
-                continue;
-            }
-            $label = $link['label'] ?? null;
-            if (!is_string($label)) {
-                continue;
-            }
-            $url = $link['url'] ?? null;
-            $links[] = ['label' => $label, 'url' => is_string($url) ? $url : null];
-        }
-
-        return $links;
     }
 }

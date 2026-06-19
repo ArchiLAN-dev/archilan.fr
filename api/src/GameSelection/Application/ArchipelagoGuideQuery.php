@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface;
-use App\GameSelection\Domain\InstallStepType;
 
 final readonly class ArchipelagoGuideQuery
 {
     public function __construct(
         private ArchipelagoGuideRepositoryInterface $repository,
+        private InstallStepsReader $installStepsReader,
     ) {
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
      */
     public function steps(): array
     {
@@ -24,11 +24,8 @@ final readonly class ArchipelagoGuideQuery
             return [];
         }
 
-        // Drop any step with an unknown type so a stale row never invalidates the whole guide
-        // on the client (the public type guard is all-or-nothing) - mirrors the game-detail read.
-        return array_values(array_filter(
-            $guide->getSteps(),
-            static fn (array $step): bool => InstallStepType::isValid($step['type']),
-        ));
+        // The reader drops unknown-type steps and resolves each image (presigning an uploaded imageKey),
+        // mirroring the game-detail read.
+        return $this->installStepsReader->present($guide->getSteps());
     }
 }

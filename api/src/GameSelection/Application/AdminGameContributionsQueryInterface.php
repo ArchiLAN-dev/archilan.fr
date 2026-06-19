@@ -15,8 +15,8 @@ interface AdminGameContributionsQueryInterface
      *   message: string|null,
      *   target: string,
      *   gameSlug: string|null,
-     *   proposedSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>,
-     *   currentSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     *   proposedSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>,
+     *   currentSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
      * }>
      */
     public function list(ContributionQueryFilters $filters): array;
