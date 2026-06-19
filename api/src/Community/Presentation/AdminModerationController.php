@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Presentation;
 
 use App\Community\Application\ModerationService;
+use App\Community\Application\ReportQueryFilters;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -29,9 +30,25 @@ final readonly class AdminModerationController
             return $admin;
         }
 
-        $result = $this->moderation->queue($request->query->getInt('limit', 50));
+        $filters = ReportQueryFilters::fromRaw(
+            $this->queryString($request, 'status'),
+            $this->queryString($request, 'commentState'),
+            $this->queryString($request, 'targetType'),
+            $this->queryString($request, 'sort'),
+            $this->queryString($request, 'q'),
+            $request->query->getInt('limit', 50),
+        );
+
+        $result = $this->moderation->list($filters);
 
         return new JsonResponse(['data' => $result['reports'], 'meta' => ['count' => $result['count']]]);
+    }
+
+    private function queryString(Request $request, string $key): ?string
+    {
+        $value = $request->query->get($key);
+
+        return is_string($value) ? $value : null;
     }
 
     #[Route('/api/v1/admin/community/reports/{id}/resolve', name: 'api_admin_community_report_resolve', methods: ['POST'])]

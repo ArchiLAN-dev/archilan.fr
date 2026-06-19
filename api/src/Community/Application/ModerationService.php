@@ -15,13 +15,11 @@ use App\Community\Domain\ProfileCommentRepositoryInterface;
  */
 final readonly class ModerationService
 {
-    private const DEFAULT_LIMIT = 50;
-    private const MAX_LIMIT = 200;
-
     public function __construct(
         private ContentReportRepositoryInterface $reports,
         private ProfileCommentRepositoryInterface $comments,
         private CommunityUserDirectoryQueryInterface $directory,
+        private AdminReportsQueryInterface $reportsQuery,
     ) {
     }
 
@@ -36,10 +34,26 @@ final readonly class ModerationService
      *     }>
      * }
      */
-    public function queue(int $limit): array
+    public function list(ReportQueryFilters $filters): array
     {
-        $reports = $this->reports->pending($this->clampLimit($limit));
+        $ids = $this->reportsQuery->matchingIds($filters);
+        $reports = $this->orderByIds($this->reports->findByIds($ids), $ids);
 
+        return ['count' => $this->reports->countPending(), 'reports' => $this->assemble($reports)];
+    }
+
+    /**
+     * @param list<ContentReport> $reports
+     *
+     * @return list<array{
+     *     id: string, targetType: string, targetId: string, reason: string, createdAt: string,
+     *     reporter: array{slug: string, displayName: string|null, avatarUrl: string|null}|null,
+     *     comment: array{id: string, body: string, hidden: bool, createdAt: string, author: array{slug: string, displayName: string|null, avatarUrl: string|null}|null, profileSlug: string|null}|null,
+     *     profile: array{slug: string, displayName: string|null, avatarUrl: string|null}|null
+     * }>
+     */
+    private function assemble(array $reports): array
+    {
         // Resolve the comments referenced by comment-type reports, then every user card in one batch.
         $commentIds = [];
         foreach ($reports as $report) {
@@ -88,7 +102,30 @@ final readonly class ModerationService
             ];
         }
 
-        return ['count' => $this->reports->countPending(), 'reports' => $items];
+        return $items;
+    }
+
+    /**
+     * @param list<ContentReport> $reports
+     * @param list<string>        $ids
+     *
+     * @return list<ContentReport>
+     */
+    private function orderByIds(array $reports, array $ids): array
+    {
+        $byId = [];
+        foreach ($reports as $report) {
+            $byId[$report->getId()] = $report;
+        }
+
+        $ordered = [];
+        foreach ($ids as $id) {
+            if (isset($byId[$id])) {
+                $ordered[] = $byId[$id];
+            }
+        }
+
+        return $ordered;
     }
 
     public function hideComment(string $commentId): string
@@ -143,14 +180,5 @@ final readonly class ModerationService
         }
 
         return ['slug' => $card['slug'], 'displayName' => $card['displayName'], 'avatarUrl' => $card['avatarUrl']];
-    }
-
-    private function clampLimit(int $limit): int
-    {
-        if ($limit <= 0) {
-            return self::DEFAULT_LIMIT;
-        }
-
-        return min($limit, self::MAX_LIMIT);
     }
 }
