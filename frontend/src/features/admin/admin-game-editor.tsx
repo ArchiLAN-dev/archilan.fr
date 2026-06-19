@@ -53,8 +53,18 @@ type GithubAsset = { name: string; downloadUrl: string; size: number };
 
 // ─── Root component ────────────────────────────────────────────────────────────
 
+const EDITOR_TABS = [
+    {id: "general", label: "Général"},
+    {id: "catalogue", label: "Catalogue"},
+    {id: "apworld", label: "APWorld"},
+    {id: "tutoriel", label: "Tutoriel"},
+] as const;
+
+type EditorTab = (typeof EDITOR_TABS)[number]["id"];
+
 export function AdminGameEditor({gameId}: { gameId: string }) {
     const [loadState, setLoadState] = useState<LoadState>({kind: "loading"});
+    const [activeTab, setActiveTab] = useState<EditorTab>("general");
 
     function refreshGame(updated: AdminGame) {
         setLoadState({kind: "ready", game: updated});
@@ -139,14 +149,43 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 <p className="font-mono text-sm text-muted-foreground">{game.slug}</p>
             </header>
 
-            <div className="grid gap-6">
+            <div
+                aria-label="Sections de configuration du jeu"
+                className="mb-6 flex flex-wrap gap-2 border-b border-border"
+                role="tablist"
+            >
+                {EDITOR_TABS.map((tab) => (
+                    <button
+                        aria-controls={`panel-${tab.id}`}
+                        aria-selected={activeTab === tab.id}
+                        className={`-mb-px min-h-10 border-b-2 px-4 text-sm font-semibold transition-colors ${
+                            activeTab === tab.id
+                                ? "border-accent text-foreground"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                        id={`tab-${tab.id}`}
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        role="tab"
+                        type="button"
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* All panels stay mounted (hidden when inactive) so unsaved edits survive tab switches. */}
+            <div aria-labelledby="tab-general" hidden={activeTab !== "general"} id="panel-general" role="tabpanel">
                 <BasicInfoSection game={game} onUpdate={refreshGame}/>
-
+            </div>
+            <div aria-labelledby="tab-catalogue" hidden={activeTab !== "catalogue"} id="panel-catalogue" role="tabpanel">
                 <CatalogSyncSection game={game} onUpdate={refreshGame}/>
-
-                <InstallTutorialSection game={game} onUpdate={refreshGame}/>
-
+            </div>
+            <div aria-labelledby="tab-apworld" hidden={activeTab !== "apworld"} id="panel-apworld" role="tabpanel">
                 <ApworldSection game={game} onUpdate={refreshGame}/>
+            </div>
+            <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
+                <InstallTutorialSection game={game} onUpdate={refreshGame}/>
             </div>
         </div>
     );
