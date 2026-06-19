@@ -25,6 +25,15 @@ final readonly class DoctrineContentReportRepository implements ContentReportRep
         return $this->entityManager->find(ContentReport::class, $id);
     }
 
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return $this->entityManager->getRepository(ContentReport::class)->findBy(['id' => $ids]);
+    }
+
     public function pending(int $limit): array
     {
         $qb = $this->entityManager->getRepository(ContentReport::class)->createQueryBuilder('r');

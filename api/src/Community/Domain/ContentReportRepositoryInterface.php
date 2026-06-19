@@ -11,6 +11,13 @@ interface ContentReportRepositoryInterface
     public function findById(string $id): ?ContentReport;
 
     /**
+     * @param list<string> $ids
+     *
+     * @return list<ContentReport> in no particular order; callers reorder as needed
+     */
+    public function findByIds(array $ids): array;
+
+    /**
      * Unresolved reports for the moderation queue, oldest first (FIFO).
      *
      * @return list<ContentReport>

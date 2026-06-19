@@ -26,6 +26,27 @@ export type ModerationReport = {
 
 export type ModerationQueue = { reports: ModerationReport[]; count: number };
 
+export type ReportStatus = "pending" | "resolved" | "all";
+export type ReportCommentState = "any" | "hidden" | "visible";
+export type ReportTargetType = "any" | "comment" | "profile";
+export type ReportSort = "recent" | "oldest";
+
+export type ReportFilters = {
+  status: ReportStatus;
+  commentState: ReportCommentState;
+  targetType: ReportTargetType;
+  sort: ReportSort;
+  search: string;
+};
+
+export const DEFAULT_REPORT_FILTERS: ReportFilters = {
+  status: "pending",
+  commentState: "any",
+  targetType: "any",
+  sort: "recent",
+  search: "",
+};
+
 function isActor(v: unknown): v is ModerationActor {
   return (
     typeof v === "object" &&
@@ -57,9 +78,22 @@ function isReport(v: unknown): v is ModerationReport {
   return "profile" in v && isNullableActor(v.profile);
 }
 
-export async function fetchModerationQueue(): Promise<ModerationQueue | null> {
+export function buildReportsQuery(filters: ReportFilters): string {
+  const params = new URLSearchParams();
+  params.set("status", filters.status);
+  params.set("sort", filters.sort);
+  if (filters.commentState !== "any") params.set("commentState", filters.commentState);
+  if (filters.targetType !== "any") params.set("targetType", filters.targetType);
+  const q = filters.search.trim();
+  if (q !== "") params.set("q", q);
+  return params.toString();
+}
+
+export async function fetchModerationQueue(
+  filters: ReportFilters = DEFAULT_REPORT_FILTERS,
+): Promise<ModerationQueue | null> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/reports`);
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/reports?${buildReportsQuery(filters)}`);
     if (!res.ok) return null;
     const json: unknown = await res.json();
     if (typeof json !== "object" || json === null || !("data" in json) || !Array.isArray(json.data)) return null;

@@ -293,6 +293,7 @@ services:
     App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
     App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
     App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
+    App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
     App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
     App\Community\Domain\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementDefinitionRepository'
     App\Community\Domain\FriendshipRepositoryInterface: '@App\Community\Infrastructure\DoctrineFriendshipRepository'
