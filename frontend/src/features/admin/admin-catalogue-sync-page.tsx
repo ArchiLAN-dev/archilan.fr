@@ -26,8 +26,6 @@ import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { ArchipelagoClientSettings } from "@/features/admin/archipelago-client-settings";
-import { ArchipelagoGuideSettings } from "@/features/admin/archipelago-guide-settings";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -346,10 +344,6 @@ export function AdminCatalogueSyncPage() {
           </p>
         ) : null}
       </header>
-
-      <ArchipelagoClientSettings />
-
-      <ArchipelagoGuideSettings />
 
       {flash ? (
         <p
