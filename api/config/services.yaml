@@ -329,6 +329,7 @@ services:
     App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
     App\GameSelection\Infrastructure\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\SteamWebApiClient'
     App\GameSelection\Application\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
+    App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
     App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'

@@ -1,6 +1,6 @@
 # Story 31.1: Per-game install steps - model + admin authoring + auto-seed
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -139,6 +139,40 @@ claude-opus-4-8
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- Implemented on branch `feature/epic-31-story-1-install-steps-model` (from develop).
+- `InstallStepType` PHP enum (6 cases). `Game.install_steps` JSON column (mirrors `option_types`) + get/set; migration `Version20260619090000`.
+- Shared `InstallStepsNormalizer` (first-class): enum/trim/links coercion, **http(s)-only url validation** (drops `javascript:` etc.), plain-text descriptions, length caps. Used by `AdminGameLibrary::saveTutorial` and the seeder.
+- `GameTutorialSeeder` composes the draft (bundled note / apworld step + sheet links + yaml + connect) through the normalizer; `GameCatalogLinksProviderInterface` (GameSelection) implemented by `CatalogSyncGameLinksProvider` (CatalogSync) - direction respected, sheet failures degrade to no links.
+- `AdminGameLibrary::saveTutorial`/`seedTutorial` + `installSteps` exposed in the admin detail payload. Endpoints `PATCH .../tutorial` and `POST .../tutorial/seed`.
+- Bulk seed: `SeedGameTutorials` + `app:games:seed-tutorials [--force]` (idempotent, per-game failures skipped).
+- Frontend: reusable `InstallStepsEditor` (type/title/description/links, add/remove/↑↓) + `InstallTutorialSection` in the admin editor (Save + "Générer un brouillon").
+- Gates green: php-cs-fixer 0, phpstan 0 (src+tests), DDD exit 0, phpunit 1265 (+16); FE typecheck/lint/build, jest 42.
+- Public render of the steps is **out of scope** (story 31.2), as planned.
 
 ### File List
+
+**Added (api)**
+- `api/src/GameSelection/Domain/InstallStepType.php`
+- `api/src/GameSelection/Application/InstallStepsNormalizer.php`
+- `api/src/GameSelection/Application/GameCatalogLinksProviderInterface.php`
+- `api/src/GameSelection/Application/GameTutorialSeeder.php`
+- `api/src/GameSelection/Application/SeedGameTutorials.php`
+- `api/src/GameSelection/Presentation/SeedGameTutorialsCommand.php`
+- `api/src/CatalogSync/Infrastructure/CatalogSyncGameLinksProvider.php`
+- `api/migrations/Version20260619090000.php`
+- `api/tests/Functional/AdminGameTutorialTest.php`
+- `api/tests/Unit/GameSelection/InstallStepsNormalizerTest.php`
+- `api/tests/Unit/GameSelection/GameTutorialSeederTest.php`
+- `api/tests/Unit/GameSelection/SeedGameTutorialsTest.php`
+
+**Modified (api)**
+- `api/src/GameSelection/Domain/Game.php` (install_steps column + get/set)
+- `api/src/GameSelection/Application/AdminGameLibrary.php` (deps + saveTutorial/seedTutorial + payload)
+- `api/src/GameSelection/Presentation/AdminGameLibraryController.php` (2 routes)
+- `api/config/services.yaml` (GameCatalogLinksProviderInterface alias)
+
+**Added (frontend)**
+- `frontend/src/features/games/install-steps-editor.tsx`
+
+**Modified (frontend)**
+- `frontend/src/features/admin/admin-game-editor.tsx` (AdminGame.installSteps + InstallTutorialSection)
