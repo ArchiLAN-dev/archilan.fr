@@ -5,15 +5,6 @@ import { ExternalLink } from "lucide-react";
 
 import type { GameStep } from "./public-games-api";
 
-const STEP_TYPE_LABELS: Record<GameStep["type"], string> = {
-  acquire: "Se procurer le jeu",
-  apworld: "Apworld",
-  client: "Client / patcher",
-  yaml: "Configuration YAML",
-  connect: "Connexion",
-  note: "Note",
-};
-
 /**
  * Read-only render of an ordered list of install steps (story 31.1/31.3/31.5). Descriptions are
  * plain text (never raw HTML); links/media URLs are http(s) (validated server-side). When a
@@ -60,12 +51,12 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
         const checked = done.has(step.title);
         return (
           <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={index}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               {lsKey !== null ? (
                 <input
                   aria-label={`Marquer « ${step.title} » comme fait`}
                   checked={checked}
-                  className="size-4 shrink-0 accent-[color:var(--color-accent)]"
+                  className="mt-1 size-4 shrink-0 accent-[color:var(--color-accent)]"
                   onChange={() => toggle(step.title)}
                   type="checkbox"
                 />
@@ -74,14 +65,10 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
                   {index + 1}
                 </span>
               )}
-              <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {STEP_TYPE_LABELS[step.type]}
-              </span>
+              <h3 className={`font-heading font-semibold leading-tight text-foreground ${checked ? "line-through opacity-60" : ""}`}>
+                {step.title}
+              </h3>
             </div>
-
-            <h3 className={`font-heading font-semibold leading-tight text-foreground ${checked ? "line-through opacity-60" : ""}`}>
-              {step.title}
-            </h3>
             {step.description ? (
               <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground">{step.description}</p>
             ) : null}
