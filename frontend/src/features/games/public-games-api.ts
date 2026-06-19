@@ -30,6 +30,8 @@ export type GameStep = {
   title: string;
   description: string;
   links: GameLink[];
+  imageUrl?: string | null;
+  videoUrl?: string | null;
 };
 export type GameApworld = {
   deployedVersion: string | null;
@@ -148,10 +150,15 @@ function isGameStepType(v: unknown): v is GameStepType {
   return v === "acquire" || v === "apworld" || v === "client" || v === "yaml" || v === "connect" || v === "note";
 }
 
+function isOptionalNullableString(v: object, key: string): boolean {
+  return !(key in v) || hasNullableStringProp(v, key);
+}
+
 export function isGameStep(v: unknown): v is GameStep {
   if (typeof v !== "object" || v === null) return false;
   if (!("type" in v) || !isGameStepType(v.type)) return false;
   if (!hasStringProp(v, "title") || !hasStringProp(v, "description")) return false;
+  if (!isOptionalNullableString(v, "imageUrl") || !isOptionalNullableString(v, "videoUrl")) return false;
   return "links" in v && Array.isArray(v.links) && v.links.every(isGameLink);
 }
 

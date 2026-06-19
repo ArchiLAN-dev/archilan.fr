@@ -9,6 +9,8 @@ export type InstallStep = {
   title: string;
   description: string;
   links: InstallLink[];
+  imageUrl?: string | null;
+  videoUrl?: string | null;
 };
 
 const TYPE_LABELS: Record<InstallStepType, string> = {
@@ -108,6 +110,25 @@ export function InstallStepsEditor({
             placeholder="Description (texte)"
             value={step.description}
           />
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              aria-label={`Image (URL) de l'étape ${index + 1}`}
+              className="min-h-9 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-accent"
+              onChange={(e) => updateStep(index, { imageUrl: e.target.value })}
+              placeholder="Image (URL, optionnel)"
+              type="url"
+              value={step.imageUrl ?? ""}
+            />
+            <input
+              aria-label={`Vidéo (URL) de l'étape ${index + 1}`}
+              className="min-h-9 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-accent"
+              onChange={(e) => updateStep(index, { videoUrl: e.target.value })}
+              placeholder="Vidéo YouTube (URL, optionnel)"
+              type="url"
+              value={step.videoUrl ?? ""}
+            />
+          </div>
 
           <div className="grid gap-2">
             {step.links.map((link, linkIndex) => (

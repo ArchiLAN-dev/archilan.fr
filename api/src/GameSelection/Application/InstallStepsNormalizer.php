@@ -25,7 +25,7 @@ final readonly class InstallStepsNormalizer
     /**
      * @param array<mixed> $rawSteps
      *
-     * @return array{steps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>, errors: list<string>}
+     * @return array{steps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageUrl: string|null, videoUrl: string|null}>, errors: list<string>}
      */
     public function normalize(array $rawSteps): array
     {
@@ -60,6 +60,8 @@ final readonly class InstallStepsNormalizer
                 'title' => mb_substr($title, 0, self::MAX_TITLE),
                 'description' => mb_substr($description, 0, self::MAX_DESCRIPTION),
                 'links' => $this->normalizeLinks($raw['links'] ?? null, $index, $errors),
+                'imageUrl' => self::optionalUrl($raw['imageUrl'] ?? null),
+                'videoUrl' => self::optionalUrl($raw['videoUrl'] ?? null),
             ];
         }
 
@@ -109,6 +111,19 @@ final readonly class InstallStepsNormalizer
      * Returns a safe http(s) URL, assuming https for a bare host/path (e.g. "example.org/x"),
      * or null when the URL carries a non-http scheme (e.g. "javascript:", "ftp:").
      */
+    /**
+     * Optional media URL (image/video): null when absent/empty/unsafe; otherwise a safe http(s) URL
+     * (https assumed when the scheme is missing). Invalid schemes are dropped silently (no error).
+     */
+    private static function optionalUrl(mixed $raw): ?string
+    {
+        if (!is_string($raw) || '' === trim($raw)) {
+            return null;
+        }
+
+        return self::normalizeUrl(trim($raw));
+    }
+
     private static function normalizeUrl(string $candidate): ?string
     {
         if (null === parse_url($candidate, PHP_URL_SCHEME)) {

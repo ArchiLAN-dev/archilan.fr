@@ -7,11 +7,12 @@ __pycache__/
 .claude/settings.local.json
 .claude/worktrees/
 
-# Separate repos - managed independently
-bridge/
-orchestrateur/
-archipelago/
-packages/
+# Separate repos - managed independently (root-level only; anchored so nested dirs
+# like frontend route group app/(public)/aide/archipelago/ are NOT ignored)
+/bridge/
+/orchestrateur/
+/archipelago/
+/packages/
 
 # Production secrets - never commit
 .env.prod

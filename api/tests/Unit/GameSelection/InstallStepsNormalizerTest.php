@@ -67,6 +67,17 @@ final class InstallStepsNormalizerTest extends TestCase
         self::assertSame('https://example.org/guide', $result['steps'][0]['links'][0]['url']);
     }
 
+    public function testCarriesAndSanitizesMediaUrls(): void
+    {
+        $result = $this->normalizer->normalize([
+            ['type' => 'note', 'title' => 'x', 'links' => [], 'imageUrl' => 'example.org/shot.png', 'videoUrl' => 'javascript:alert(1)'],
+        ]);
+
+        self::assertSame([], $result['errors']);
+        self::assertSame('https://example.org/shot.png', $result['steps'][0]['imageUrl']);
+        self::assertNull($result['steps'][0]['videoUrl']);
+    }
+
     public function testKeepsNullUrlAndDropsEmptyLabel(): void
     {
         $result = $this->normalizer->normalize([

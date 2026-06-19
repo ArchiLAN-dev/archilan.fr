@@ -96,6 +96,28 @@ final class PublicGameDetailTest extends FunctionalTestCase
         self::assertSame('https://example.org/r', $link['url']);
     }
 
+    public function testExposesStepImageAndVideo(): void
+    {
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $game->setInstallSteps([
+            ['type' => 'note', 'title' => 'Avec média', 'description' => '', 'links' => [], 'imageUrl' => 'https://example.org/shot.png', 'videoUrl' => 'https://youtu.be/abcdefghijk'],
+        ]);
+        $this->entityManager->flush();
+
+        $this->configureSheetMock(self::EMPTY_CSV);
+
+        $this->client->jsonRequest('GET', '/api/v1/games/hollow-knight');
+        self::assertResponseStatusCodeSame(200);
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['installSteps']);
+        $step = $data['installSteps'][0];
+        self::assertIsArray($step);
+        self::assertSame('https://example.org/shot.png', $step['imageUrl']);
+        self::assertSame('https://youtu.be/abcdefghijk', $step['videoUrl']);
+    }
+
     public function testInstallStepsWithUnknownTypeAreDropped(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');

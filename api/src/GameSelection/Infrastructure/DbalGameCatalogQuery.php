@@ -168,7 +168,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageUrl: string|null, videoUrl: string|null}>
      */
     private static function decodeInstallSteps(mixed $raw): array
     {
@@ -196,12 +196,16 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             }
 
             $description = $step['description'] ?? null;
+            $imageUrl = $step['imageUrl'] ?? null;
+            $videoUrl = $step['videoUrl'] ?? null;
 
             $steps[] = [
                 'type' => $type,
                 'title' => $title,
                 'description' => is_string($description) ? $description : '',
                 'links' => self::decodeStepLinks($step['links'] ?? null),
+                'imageUrl' => is_string($imageUrl) ? $imageUrl : null,
+                'videoUrl' => is_string($videoUrl) ? $videoUrl : null,
             ];
         }
 
