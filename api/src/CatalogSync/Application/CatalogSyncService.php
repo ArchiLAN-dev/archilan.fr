@@ -424,6 +424,43 @@ final readonly class CatalogSyncService
     }
 
     /**
+     * Resolve the catalog entry matching a game, mirroring {@see findMatch}'s precedence
+     * (catalog sheet name → archipelago game name → name, all trimmed/case-insensitive).
+     *
+     * Used by the public game detail view to surface the sheet notes/links on demand.
+     */
+    public function findEntryForNames(?string $catalogSheetName, ?string $archipelagoGameName, string $name): ?CatalogEntry
+    {
+        $entries = $this->fetchSheet();
+
+        if (null !== $catalogSheetName && '' !== $catalogSheetName) {
+            foreach ($entries as $entry) {
+                if ($entry->name === $catalogSheetName) {
+                    return $entry;
+                }
+            }
+        }
+
+        if (null !== $archipelagoGameName && '' !== $archipelagoGameName) {
+            $normalizedArchipelago = mb_strtolower(trim($archipelagoGameName));
+            foreach ($entries as $entry) {
+                if (mb_strtolower(trim($entry->name)) === $normalizedArchipelago) {
+                    return $entry;
+                }
+            }
+        }
+
+        $normalizedName = mb_strtolower(trim($name));
+        foreach ($entries as $entry) {
+            if (mb_strtolower(trim($entry->name)) === $normalizedName) {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Compare sheet entries against existing games and return a categorised diff.
      *
      * @param list<CatalogEntry> $sheetEntries

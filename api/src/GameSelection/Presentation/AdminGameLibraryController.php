@@ -142,6 +142,33 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Jeu mis à jour.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/resync-platforms', name: 'api_admin_game_resync_platforms', methods: ['POST'])]
+    public function resyncPlatforms(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->resyncPlatforms($gameId);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('platforms_resync_failed', 'La synchronisation des plateformes a échoué.', 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('platforms_resync_failed', 'La synchronisation des plateformes a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Plateformes synchronisées.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/apworld', name: 'api_admin_game_configure_apworld', methods: ['PATCH'])]
     public function configureApworld(Request $request, string $gameId): JsonResponse
     {

@@ -1,6 +1,6 @@
 "use client";
 
-import {ArrowLeft, Info, ShieldAlert} from "lucide-react";
+import {ArrowLeft, Info, RefreshCw, ShieldAlert} from "lucide-react";
 import Link from "next/link";
 import type {FormEvent} from "react";
 import {useEffect, useRef, useState} from "react";
@@ -36,6 +36,7 @@ type AdminGame = {
     apworldReleaseUrl: string | null;
     availabilityLocked: boolean;
     igdbId: number | null;
+    platforms: string[];
     updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
 };
 
@@ -162,12 +163,15 @@ type BasicInfoFields = {
     coverImageAlt: string;
     coverImageCredit: string;
     availability: GameAvailability;
+    igdbId: number | null;
 };
 
 function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
     const [errors, setErrors] = useState<BasicInfoErrors>({});
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [resyncing, setResyncing] = useState(false);
+    const [platformsMessage, setPlatformsMessage] = useState<string | null>(null);
     const [fields, setFields] = useState<BasicInfoFields>({
         name: game.name,
         slug: game.slug,
@@ -176,6 +180,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
         coverImageAlt: game.coverImageAlt,
         coverImageCredit: game.coverImageCredit,
         availability: game.availability,
+        igdbId: game.igdbId,
     });
 
     function setField<K extends keyof BasicInfoFields>(key: K, value: BasicInfoFields[K]) {
@@ -189,6 +194,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             description: result.summary ? result.summary.slice(0, 500) : f.description,
             coverImageUrl: result.coverUrl ?? f.coverImageUrl,
             coverImageCredit: "© IGDB",
+            igdbId: result.igdbId,
         }));
     }
 
@@ -206,6 +212,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             coverImageAlt: fields.coverImageAlt,
             coverImageCredit: fields.coverImageCredit,
             availability: fields.availability,
+            igdb_id: fields.igdbId,
         };
 
         try {
@@ -233,6 +240,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     coverImageAlt: updated.coverImageAlt,
                     coverImageCredit: updated.coverImageCredit,
                     availability: updated.availability,
+                    igdbId: updated.igdbId,
                 });
                 setSuccess(true);
             }
@@ -240,6 +248,30 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             setErrors({name: "Impossible de contacter le serveur."});
         } finally {
             setSubmitting(false);
+        }
+    }
+
+    async function resyncPlatforms() {
+        setPlatformsMessage(null);
+        setResyncing(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/resync-platforms`, {
+                method: "POST",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setPlatformsMessage(
+                    extractDetails(payload)["platforms"]?.[0] ?? "Échec de la synchronisation des plateformes.",
+                );
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+            }
+        } catch {
+            setPlatformsMessage("Impossible de contacter le serveur.");
+        } finally {
+            setResyncing(false);
         }
     }
 
@@ -251,6 +283,43 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     <FieldTooltip text="Optionnel - les champs restent modifiables après import."/>
                 </p>
                 <IgdbGameSearch onSelect={handleIgdbSelect}/>
+            </div>
+
+            <div className="mb-5">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                        Plateformes
+                        <FieldTooltip text="Familles de plateformes résolues depuis IGDB (lecture seule)."/>
+                    </p>
+                    <button
+                        className="inline-flex min-h-9 items-center gap-2 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={game.igdbId === null || resyncing}
+                        onClick={resyncPlatforms}
+                        type="button"
+                    >
+                        <RefreshCw aria-hidden="true" className={`size-4 ${resyncing ? "animate-spin" : ""}`}/>
+                        Synchroniser depuis IGDB
+                    </button>
+                </div>
+                {game.platforms.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                        {game.platforms.map((platform) => (
+                            <span
+                                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-muted-foreground"
+                                key={platform}
+                            >
+                                {platform}
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-xs text-muted-foreground">
+                        {game.igdbId === null
+                            ? "Associe un jeu IGDB ci-dessus puis enregistre pour récupérer les plateformes."
+                            : "Aucune plateforme enregistrée — clique sur Synchroniser depuis IGDB."}
+                    </p>
+                )}
+                {platformsMessage ? <p className="mt-2 text-xs text-danger">{platformsMessage}</p> : null}
             </div>
 
             <form className="grid gap-4" onSubmit={submit}>

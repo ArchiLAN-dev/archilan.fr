@@ -107,6 +107,14 @@ catalog (which only contains Archipelago-supported games). The coupling is the *
   on the run game-selection payload, **bubble them to the top of the catalog listing** with a
   recency-aware "Récemment joué" badge, add a "Récemment joués" filter chip (consistent with the 28.7
   "Mes jeux"/category chips), and handle the "déjà sélectionné" state. See the detailed spec below.
+- **28.9 - Public game detail page `/jeux/[slug]` (api/ + frontend).** Add the missing public per-game
+  read: `GET /api/v1/games/{slug}` (query interface + DBAL `bySlug`, 404 on unknown/unavailable) returning
+  a richer detail payload (base catalog fields + apworld/randomizer options from `Game::optionTypes`,
+  bundled/adult flags, and the Google-Sheet `notes`/`links`). Persistence enabler: store `CatalogEntry`
+  `notes`/`links` on `GameCatalogSync` (new columns + migration), populated during catalog sync. Frontend:
+  dynamic route `app/(public)/jeux/[slug]/page.tsx` with `generateMetadata` (SEO/OpenGraph) + `notFound()`,
+  detail components, a "Voir sur Steam" link + reused "owned" badge (no new coupling endpoint), and
+  clickable `GameCard`s. Reuses 28.1/28.5/28.6.
 
 ## Sequencing
 
@@ -261,3 +269,4 @@ So that I can re-pick the games I actually play without searching the whole libr
 | 2026-06-17 | Story 28.8 added: surface the user's 3 most recently played games (from `run` history) bubbled to the top of the run game-selection catalog with a "Récemment joué" badge. |
 | 2026-06-17 | Story 28.8 refined (UX): added "Récemment joués" filter chip, recency-aware badge (`lastPlayedAt` + `runTitle`), and "déjà sélectionné" handling; payload now returns game metadata, not a bare id list. |
 | 2026-06-17 | Named YAML templates story (briefly drafted here as 28.9) moved to Epic 16 as Story 16.11 - it belongs to the Personal Runs context, not Steam coupling. 28.8 cross-references it. |
+| 2026-06-19 | Story 28.9 added: public game detail page `/jeux/[slug]` (per-game read endpoint + dynamic route with SEO, randomizer/apworld options, Google-Sheet notes/links persistence enabler, Steam link + owned badge, clickable cards). |

@@ -71,28 +71,12 @@ class GameCatalogSync
 
     public function computeApworldUpdateStatus(): string
     {
-        if (null === $this->apworldSourceUrl || '' === $this->apworldSourceUrl) {
-            return Game::UPDATE_STATUS_NOT_TRACKED;
-        }
-
-        if (!str_starts_with($this->apworldSourceUrl, 'https://github.com/')) {
-            return Game::UPDATE_STATUS_NOT_TRACKED;
-        }
-
-        if (null === $this->apworldCheckedAt || null === $this->apworldLatestVersion) {
-            return Game::UPDATE_STATUS_UNKNOWN;
-        }
-
-        if (null === $this->apworldDeployedVersion) {
-            return Game::UPDATE_STATUS_UNKNOWN;
-        }
-
-        $latest = ltrim($this->apworldLatestVersion, 'vV');
-        $deployed = ltrim($this->apworldDeployedVersion, 'vV');
-
-        return $latest === $deployed
-            ? Game::UPDATE_STATUS_UP_TO_DATE
-            : Game::UPDATE_STATUS_UPDATE_AVAILABLE;
+        return ApworldUpdateStatus::compute(
+            $this->apworldSourceUrl,
+            $this->apworldCheckedAt,
+            $this->apworldLatestVersion,
+            $this->apworldDeployedVersion,
+        );
     }
 
     public function getGame(): Game
