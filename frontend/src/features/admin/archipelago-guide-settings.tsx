@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { getArchipelagoGuide, saveArchipelagoGuide } from "@/features/games/archipelago-guide-api";
-import { InstallStepsEditor, type InstallStep } from "@/features/games/install-steps-editor";
+import { InstallStepsEditor, serializeStepsForSave, type InstallStep } from "@/features/games/install-steps-editor";
 
 /**
  * Admin editor for the generic "Installer Archipelago" guide steps (story 31.3), reusing the
@@ -32,7 +32,7 @@ export function ArchipelagoGuideSettings() {
   async function save() {
     setSaving(true);
     setMessage(null);
-    const ok = await saveArchipelagoGuide(steps);
+    const ok = await saveArchipelagoGuide(serializeStepsForSave(steps));
     setMessage(
       ok
         ? { tone: "ok", text: "Guide enregistré." }

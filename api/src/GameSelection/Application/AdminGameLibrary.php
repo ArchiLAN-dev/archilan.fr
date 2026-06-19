@@ -28,6 +28,7 @@ final readonly class AdminGameLibrary
         private GamePlatformResolver $platformResolver,
         private InstallStepsNormalizer $stepsNormalizer,
         private GameTutorialSeeder $tutorialSeeder,
+        private InstallStepsReader $stepsReader,
     ) {
     }
 
@@ -546,7 +547,7 @@ final readonly class AdminGameLibrary
             'igdbId' => $sync?->getIgdbId(),
             'steamAppId' => $sync?->getSteamAppId(),
             'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
-            'installSteps' => $game->getInstallSteps(),
+            'installSteps' => $this->stepsReader->present($game->getInstallSteps()),
             'updateStatus' => $game->computeApworldUpdateStatus(),
         ]);
     }

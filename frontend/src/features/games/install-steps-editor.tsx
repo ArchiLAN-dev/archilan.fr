@@ -1,6 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ImagePlus, Loader2, Plus, X } from "lucide-react";
+import { useState } from "react";
+
+import { uploadTutorialImage } from "./tutorial-image-api";
 
 export type InstallStepType = "acquire" | "apworld" | "client" | "yaml" | "connect" | "note";
 export type InstallLink = { label: string; url: string | null };
@@ -9,9 +12,22 @@ export type InstallStep = {
   title: string;
   description: string;
   links: InstallLink[];
+  imageKey?: string | null;
   imageUrl?: string | null;
   videoUrl?: string | null;
 };
+
+/**
+ * Strips a step list down to the persisted shape before saving (story 31.10): when a step carries an
+ * uploaded `imageKey`, its `imageUrl` holds a transient presigned preview that must NOT be persisted
+ * (it expires) - the key wins and the URL is dropped. Steps with only an external `imageUrl` keep it.
+ */
+export function serializeStepsForSave(steps: InstallStep[]): InstallStep[] {
+  return steps.map((step) => {
+    const imageKey = step.imageKey ?? null;
+    return { ...step, imageKey, imageUrl: imageKey !== null ? null : (step.imageUrl ?? null) };
+  });
+}
 
 /**
  * Controlled, reusable editor for an ordered list of install-tutorial steps (story 31.1).
@@ -91,24 +107,16 @@ export function InstallStepsEditor({
             value={step.description}
           />
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input
-              aria-label={`Image (URL) de l'étape ${index + 1}`}
-              className="min-h-9 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-accent"
-              onChange={(e) => updateStep(index, { imageUrl: e.target.value })}
-              placeholder="Image (URL, optionnel)"
-              type="url"
-              value={step.imageUrl ?? ""}
-            />
-            <input
-              aria-label={`Vidéo (URL) de l'étape ${index + 1}`}
-              className="min-h-9 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-accent"
-              onChange={(e) => updateStep(index, { videoUrl: e.target.value })}
-              placeholder="Vidéo YouTube (URL, optionnel)"
-              type="url"
-              value={step.videoUrl ?? ""}
-            />
-          </div>
+          <StepImageField index={index} step={step} onChange={(patch) => updateStep(index, patch)} />
+
+          <input
+            aria-label={`Vidéo (URL) de l'étape ${index + 1}`}
+            className="min-h-9 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-accent"
+            onChange={(e) => updateStep(index, { videoUrl: e.target.value })}
+            placeholder="Vidéo YouTube (URL, optionnel)"
+            type="url"
+            value={step.videoUrl ?? ""}
+          />
 
           <div className="grid gap-2">
             {step.links.map((link, linkIndex) => (
@@ -155,6 +163,83 @@ export function InstallStepsEditor({
       >
         <Plus aria-hidden="true" className="size-4" /> Ajouter une étape
       </button>
+    </div>
+  );
+}
+
+function StepImageField({
+  index,
+  step,
+  onChange,
+}: {
+  index: number;
+  step: InstallStep;
+  onChange: (patch: Partial<InstallStep>) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hasUpload = (step.imageKey ?? null) !== null;
+  const previewUrl = step.imageUrl ?? "";
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const result = await uploadTutorialImage(file);
+    setUploading(false);
+    if (result === null) {
+      setError("Échec de l'envoi : format non supporté (JPEG, PNG, WebP, GIF) ou image > 10 Mo.");
+      return;
+    }
+    onChange({ imageKey: result.key, imageUrl: result.url });
+  }
+
+  return (
+    <div className="grid gap-2">
+      {previewUrl !== "" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt="" className="max-h-40 w-auto rounded border border-border" src={previewUrl} />
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent">
+          {uploading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : <ImagePlus aria-hidden="true" className="size-4" />}
+          {uploading ? "Envoi…" : "Téléverser une image"}
+          <input
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            aria-label={`Téléverser une image pour l'étape ${index + 1}`}
+            className="sr-only"
+            disabled={uploading}
+            onChange={(e) => void handleFile(e.target.files?.[0])}
+            type="file"
+          />
+        </label>
+        {previewUrl !== "" ? (
+          <button
+            className="inline-flex min-h-9 items-center gap-1.5 rounded border border-border px-3 text-sm text-muted-foreground transition-colors hover:border-danger hover:text-foreground"
+            onClick={() => {
+              onChange({ imageKey: null, imageUrl: null });
+              setError(null);
+            }}
+            type="button"
+          >
+            <X aria-hidden="true" className="size-4" /> Retirer l&apos;image
+          </button>
+        ) : null}
+      </div>
+
+      {!hasUpload ? (
+        <input
+          aria-label={`Image (URL) de l'étape ${index + 1}`}
+          className="min-h-9 w-full rounded border border-border bg-background px-2 text-sm outline-none focus:border-accent"
+          onChange={(e) => onChange({ imageUrl: e.target.value, imageKey: null })}
+          placeholder="…ou coller une URL d'image (optionnel)"
+          type="url"
+          value={step.imageUrl ?? ""}
+        />
+      ) : null}
+
+      {error !== null ? <p className="text-xs text-danger">{error}</p> : null}
     </div>
   );
 }

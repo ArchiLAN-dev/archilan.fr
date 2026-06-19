@@ -118,6 +118,30 @@ final class PublicGameDetailTest extends FunctionalTestCase
         self::assertSame('https://youtu.be/abcdefghijk', $step['videoUrl']);
     }
 
+    public function testStepImageKeyIsPresignedAtRead(): void
+    {
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $game->setInstallSteps([
+            ['type' => 'note', 'title' => 'Image uploadée', 'description' => '', 'links' => [], 'imageKey' => 'tutorials/abc123.png'],
+        ]);
+        $this->entityManager->flush();
+
+        $this->configureSheetMock(self::EMPTY_CSV);
+
+        $this->client->jsonRequest('GET', '/api/v1/games/hollow-knight');
+        self::assertResponseStatusCodeSame(200);
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['installSteps']);
+        $step = $data['installSteps'][0];
+        self::assertIsArray($step);
+        // The uploaded key wins and is resolved to a presigned URL that embeds the object key.
+        self::assertSame('tutorials/abc123.png', $step['imageKey']);
+        self::assertIsString($step['imageUrl']);
+        self::assertStringContainsString('tutorials/abc123.png', $step['imageUrl']);
+    }
+
     public function testInstallStepsWithUnknownTypeAreDropped(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');

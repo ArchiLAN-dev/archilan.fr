@@ -6,7 +6,7 @@ import type {FormEvent} from "react";
 import {useEffect, useRef, useState} from "react";
 
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
-import {InstallStepsEditor, type InstallStep} from "@/features/games/install-steps-editor";
+import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 
@@ -807,7 +807,7 @@ function InstallTutorialSection({game, onUpdate}: { game: AdminGame; onUpdate: (
         setSubmitting(true);
         try {
             const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/tutorial`, {
-                body: JSON.stringify({steps}),
+                body: JSON.stringify({steps: serializeStepsForSave(steps)}),
                 headers: {"Content-Type": "application/json"},
                 method: "PATCH",
             });

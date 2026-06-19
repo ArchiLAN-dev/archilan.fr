@@ -21,11 +21,12 @@ final readonly class InstallStepsNormalizer
     public const MAX_TITLE = 200;
     public const MAX_DESCRIPTION = 2000;
     public const MAX_LABEL = 200;
+    public const MAX_IMAGE_KEY = 256;
 
     /**
      * @param array<mixed> $rawSteps
      *
-     * @return array{steps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageUrl: string|null, videoUrl: string|null}>, errors: list<string>}
+     * @return array{steps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>, errors: list<string>}
      */
     public function normalize(array $rawSteps): array
     {
@@ -60,6 +61,7 @@ final readonly class InstallStepsNormalizer
                 'title' => mb_substr($title, 0, self::MAX_TITLE),
                 'description' => mb_substr($description, 0, self::MAX_DESCRIPTION),
                 'links' => $this->normalizeLinks($raw['links'] ?? null, $index, $errors),
+                'imageKey' => self::optionalImageKey($raw['imageKey'] ?? null),
                 'imageUrl' => self::optionalUrl($raw['imageUrl'] ?? null),
                 'videoUrl' => self::optionalUrl($raw['videoUrl'] ?? null),
             ];
@@ -122,6 +124,22 @@ final readonly class InstallStepsNormalizer
         }
 
         return self::normalizeUrl(trim($raw));
+    }
+
+    /**
+     * Uploaded image reference: an opaque MinIO object key under the `tutorials/` prefix (story 31.10).
+     * Anything else (empty, wrong prefix, over-long) is dropped to null so a hand-crafted body can't make
+     * the read side presign an arbitrary object.
+     */
+    private static function optionalImageKey(mixed $raw): ?string
+    {
+        if (!is_string($raw)) {
+            return null;
+        }
+
+        $key = trim($raw);
+
+        return '' !== $key && str_starts_with($key, 'tutorials/') && mb_strlen($key) <= self::MAX_IMAGE_KEY ? $key : null;
     }
 
     private static function normalizeUrl(string $candidate): ?string

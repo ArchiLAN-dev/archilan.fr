@@ -30,6 +30,7 @@ export type GameStep = {
   title: string;
   description: string;
   links: GameLink[];
+  imageKey?: string | null;
   imageUrl?: string | null;
   videoUrl?: string | null;
 };
@@ -158,7 +159,8 @@ export function isGameStep(v: unknown): v is GameStep {
   if (typeof v !== "object" || v === null) return false;
   if (!("type" in v) || !isGameStepType(v.type)) return false;
   if (!hasStringProp(v, "title") || !hasStringProp(v, "description")) return false;
-  if (!isOptionalNullableString(v, "imageUrl") || !isOptionalNullableString(v, "videoUrl")) return false;
+  if (!isOptionalNullableString(v, "imageKey") || !isOptionalNullableString(v, "imageUrl") || !isOptionalNullableString(v, "videoUrl"))
+    return false;
   return "links" in v && Array.isArray(v.links) && v.links.every(isGameLink);
 }
 

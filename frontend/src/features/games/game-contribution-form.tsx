@@ -6,7 +6,7 @@ import { PenLine } from "lucide-react";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { submitContribution } from "./game-contribution-api";
-import { InstallStepsEditor, type InstallStep } from "./install-steps-editor";
+import { InstallStepsEditor, serializeStepsForSave, type InstallStep } from "./install-steps-editor";
 
 type Props =
   | { mode: "game"; gameSlug: string; initialSteps: InstallStep[] }
@@ -69,7 +69,7 @@ export function GameContributionForm(props: Props) {
     const ok = await submitContribution({
       gameSlug: props.mode === "game" ? props.gameSlug : undefined,
       proposedGameName: props.mode === "proposed" ? proposedName : undefined,
-      steps,
+      steps: serializeStepsForSave(steps),
       message: message.trim() === "" ? undefined : message,
     });
     if (ok) {

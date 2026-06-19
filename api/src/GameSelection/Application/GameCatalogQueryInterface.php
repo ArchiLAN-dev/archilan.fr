@@ -41,7 +41,7 @@ interface GameCatalogQueryInterface
      *   catalogSheetName: string|null,
      *   apworld: array{deployedVersion: string|null, latestVersion: string|null, sourceUrl: string|null, releaseUrl: string|null, updateStatus: string},
      *   options: list<array{key: string, min: int, max: int, default: int|null}>,
-     *   installSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     *   installSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
      * }|null
      */
     public function bySlug(string $slug): ?array;

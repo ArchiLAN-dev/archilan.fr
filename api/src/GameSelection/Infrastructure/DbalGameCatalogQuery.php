@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure;
 
 use App\GameSelection\Application\GameCatalogQueryInterface;
+use App\GameSelection\Application\InstallStepsReader;
 use App\GameSelection\Domain\ApworldUpdateStatus;
 use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\InstallStepType;
 use App\GameSelection\Domain\PlatformCategory;
 use App\Shared\Application\PaginationHelper;
 use Doctrine\DBAL\Connection;
@@ -15,8 +15,10 @@ use Doctrine\DBAL\Query\QueryBuilder;
 
 final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
 {
-    public function __construct(private Connection $connection)
-    {
+    public function __construct(
+        private Connection $connection,
+        private InstallStepsReader $installStepsReader,
+    ) {
     }
 
     public function list(string $query = '', int $page = 1): array
@@ -110,7 +112,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
      *   catalogSheetName: string|null,
      *   apworld: array{deployedVersion: string|null, latestVersion: string|null, sourceUrl: string|null, releaseUrl: string|null, updateStatus: string},
      *   options: list<array{key: string, min: int, max: int, default: int|null}>,
-     *   installSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     *   installSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
      * }
      */
     private function mapDetailRow(array $row): array
@@ -163,80 +165,8 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 ),
             ],
             'options' => self::decodeOptions($row['option_types'] ?? null),
-            'installSteps' => self::decodeInstallSteps($row['install_steps'] ?? null),
+            'installSteps' => $this->installStepsReader->presentJson($row['install_steps'] ?? null),
         ];
-    }
-
-    /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageUrl: string|null, videoUrl: string|null}>
-     */
-    private static function decodeInstallSteps(mixed $raw): array
-    {
-        if (!is_string($raw) || '' === $raw) {
-            return [];
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        $steps = [];
-        foreach ($decoded as $step) {
-            if (!is_array($step)) {
-                continue;
-            }
-
-            $type = $step['type'] ?? null;
-            $title = $step['title'] ?? null;
-            // Drop steps with an unknown type so one stale/hand-edited row never invalidates the
-            // whole payload (the public type guard is all-or-nothing).
-            if (!is_string($type) || !is_string($title) || !InstallStepType::isValid($type)) {
-                continue;
-            }
-
-            $description = $step['description'] ?? null;
-            $imageUrl = $step['imageUrl'] ?? null;
-            $videoUrl = $step['videoUrl'] ?? null;
-
-            $steps[] = [
-                'type' => $type,
-                'title' => $title,
-                'description' => is_string($description) ? $description : '',
-                'links' => self::decodeStepLinks($step['links'] ?? null),
-                'imageUrl' => is_string($imageUrl) ? $imageUrl : null,
-                'videoUrl' => is_string($videoUrl) ? $videoUrl : null,
-            ];
-        }
-
-        return $steps;
-    }
-
-    /**
-     * @return list<array{label: string, url: string|null}>
-     */
-    private static function decodeStepLinks(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-
-        $links = [];
-        foreach ($raw as $link) {
-            if (!is_array($link)) {
-                continue;
-            }
-
-            $label = $link['label'] ?? null;
-            if (!is_string($label)) {
-                continue;
-            }
-
-            $url = $link['url'] ?? null;
-            $links[] = ['label' => $label, 'url' => is_string($url) ? $url : null];
-        }
-
-        return $links;
     }
 
     /**
