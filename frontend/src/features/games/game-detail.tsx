@@ -3,6 +3,7 @@ import { AlertTriangle, BookOpen, ExternalLink, Gamepad2, Settings2, ShieldAlert
 import { AdminEditLink } from "@/components/admin-edit-link";
 import type { ArchipelagoClient } from "./archipelago-client-api";
 import { availabilityConfig } from "./game-card";
+import { GameContributionForm } from "./game-contribution-form";
 import { GameOwnedBadge } from "./game-owned-badge";
 import { InstallStepsView } from "./install-steps-view";
 import type { GameApworld, PublicGameDetail } from "./public-games-api";
@@ -104,6 +105,14 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
           <InstallStepsView steps={game.installSteps} />
         </section>
       ) : null}
+
+      <section className="grid gap-3 border-t border-border pt-8">
+        <h2 className="font-heading text-lg font-semibold text-foreground">Améliorer ce tutoriel</h2>
+        <p className="text-sm text-muted-foreground">
+          Tu connais une meilleure procédure ? Propose une modification, l&apos;équipe la relira.
+        </p>
+        <GameContributionForm gameSlug={game.slug} initialSteps={game.installSteps} mode="game" />
+      </section>
 
       {game.supportedEventTypes.length > 0 ? (
         <ChipSection title="Types d'événements" items={game.supportedEventTypes} />

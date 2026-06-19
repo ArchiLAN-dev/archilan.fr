@@ -1,6 +1,6 @@
 # Story 31.6: Community contributions - public submission
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -160,6 +160,35 @@ claude-opus-4-8
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- Implemented on branch `feature/epic-31-story-6-community-submission` (from develop).
+- `GameTutorialContribution` aggregate (private ctor + `submitForGame`/`submitForProposedName`, `approve`/`reject` for 31.7, no public setters) + repo interface + Doctrine impl + migration (FK game ON DELETE SET NULL, indexes on author/status).
+- `SubmitGameTutorialContribution`: exactly-one target (gameSlug XOR proposedGameName), reuses the shared `InstallStepsNormalizer`, light pending cap per (author, target), 404 on unknown/unavailable game. `MyGameTutorialContributionsQueryInterface` + DBAL impl (joins game for the target label). `GameContributionController` POST + GET `/me` via `ApiAccessGuard::requireUser` (authenticated, not member-gated).
+- Frontend: `game-contribution-api.ts` (`submitContribution`, `getMyContributions` + guard); reusable `GameContributionForm` (game mode prefilled with current steps / proposed mode) using the shared `InstallStepsEditor`; wired on `/jeux/[slug]` ("Améliorer ce tutoriel") and `/jeux` ("Proposer une doc").
+- Scope decision: proposed-name contributions are stored as-is (no fragile name→game auto-attach; the moderator links them in 31.7).
+- Gates green: php-cs-fixer 0, phpstan 0 (src+tests), DDD exit 0, phpunit 1285 (+7); FE typecheck/lint/build, jest 55.
+
+### File List
+
+**Added (api)**
+- `api/src/GameSelection/Domain/GameTutorialContribution.php`
+- `api/src/GameSelection/Domain/GameTutorialContributionRepositoryInterface.php`
+- `api/src/GameSelection/Application/SubmitGameTutorialContribution.php`
+- `api/src/GameSelection/Application/MyGameTutorialContributionsQueryInterface.php`
+- `api/src/GameSelection/Infrastructure/DoctrineGameTutorialContributionRepository.php`
+- `api/src/GameSelection/Infrastructure/DbalMyGameTutorialContributionsQuery.php`
+- `api/src/GameSelection/Presentation/GameContributionController.php`
+- `api/migrations/Version20260619120000.php`
+- `api/tests/Functional/GameContributionTest.php`
+
+**Modified (api)**
+- `api/config/services.yaml` (repository + query aliases)
+
+**Added (frontend)**
+- `frontend/src/features/games/game-contribution-api.ts` (+ test)
+- `frontend/src/features/games/game-contribution-form.tsx`
+
+**Modified (frontend)**
+- `frontend/src/features/games/game-detail.tsx` (contribution form on the game page)
+- `frontend/src/app/(public)/jeux/page.tsx` (proposed-doc form)
 
 ### File List

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { GamesCatalog } from "@/features/games/games-catalog";
 import { getAllPublicGames } from "@/features/games/public-games-api";
 import { GameRequestSection } from "@/features/games/game-request-section";
+import { GameContributionForm } from "@/features/games/game-contribution-form";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,15 @@ export default async function GamesPage() {
       <GamesCatalog initialGames={games} />
 
       <GameRequestSection />
+
+      <section className="grid gap-3">
+        <h2 className="font-heading text-2xl font-semibold text-foreground">Proposer une doc</h2>
+        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+          Tu sais installer un jeu qui n&apos;est pas encore listé ? Propose sa documentation, l&apos;équipe
+          la relira avant publication.
+        </p>
+        <GameContributionForm mode="proposed" />
+      </section>
     </div>
   );
 }
