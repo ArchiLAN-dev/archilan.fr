@@ -5,6 +5,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Search, Trash2, X, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
+import { InstallNudge } from "@/features/games/install-nudge";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -299,6 +300,15 @@ export function GameSelectionGate({
     return { gameId, idx, label: total > 1 ? `${name} (monde ${n})` : name };
   });
 
+  // Distinct selected games (name + slug) for the post-selection install nudge (story 31.4).
+  // Only games with a public detail page (available/experimental) - others would 404.
+  const selectedGamesForNudge = Array.from(new Set(workingGameIds)).flatMap((id) => {
+    const g = gameMap.get(id);
+    return g && (g.availability === "available" || g.availability === "experimental")
+      ? [{ name: g.name, slug: g.slug }]
+      : [];
+  });
+
   // Filtered + paginated games
   const q = gameSearch.trim().toLowerCase();
   const filteredGames =
@@ -430,6 +440,8 @@ export function GameSelectionGate({
           </button>
         )}
       </section>
+
+      <InstallNudge games={selectedGamesForNudge} />
 
       {/* ── Game catalog ── */}
       {!data.gameSelectionEnabled ? (
