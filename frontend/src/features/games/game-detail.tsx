@@ -2,7 +2,16 @@ import { ExternalLink, Gamepad2, Settings2, ShieldAlert } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
 import { availabilityConfig } from "./game-card";
 import { GameOwnedBadge } from "./game-owned-badge";
-import type { PublicGameDetail } from "./public-games-api";
+import type { GameStep, PublicGameDetail } from "./public-games-api";
+
+const STEP_TYPE_LABELS: Record<GameStep["type"], string> = {
+  acquire: "Se procurer le jeu",
+  apworld: "Apworld",
+  client: "Client / patcher",
+  yaml: "Configuration YAML",
+  connect: "Connexion",
+  note: "Note",
+};
 
 export function GameDetail({ game }: { game: PublicGameDetail }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
@@ -85,6 +94,53 @@ export function GameDetail({ game }: { game: PublicGameDetail }) {
         </div>
       </header>
 
+      {game.installSteps.length > 0 ? (
+        <section className="grid gap-5">
+          <h2 className="font-heading text-2xl font-semibold text-foreground">Installation</h2>
+          <ol className="grid gap-4">
+            {game.installSteps.map((step, index) => (
+              <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={index}>
+                <div className="flex items-center gap-2">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent-text">
+                    {index + 1}
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {STEP_TYPE_LABELS[step.type]}
+                  </span>
+                </div>
+                <h3 className="font-heading font-semibold leading-tight text-foreground">{step.title}</h3>
+                {step.description ? (
+                  <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground">{step.description}</p>
+                ) : null}
+                {step.links.length > 0 ? (
+                  <ul className="grid gap-1.5">
+                    {step.links.map((link, linkIndex) =>
+                      link.url !== null ? (
+                        <li key={`${link.label}-${linkIndex}`}>
+                          <a
+                            className="inline-flex items-center gap-2 text-accent-text underline-offset-2 hover:underline"
+                            href={link.url}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            {link.label}
+                            <ExternalLink aria-hidden="true" className="size-3.5" />
+                          </a>
+                        </li>
+                      ) : (
+                        <li className="text-sm text-muted-foreground" key={`${link.label}-${linkIndex}`}>
+                          {link.label}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
       {game.supportedEventTypes.length > 0 ? (
         <ChipSection title="Types d'événements" items={game.supportedEventTypes} />
       ) : null}
@@ -112,7 +168,8 @@ export function GameDetail({ game }: { game: PublicGameDetail }) {
         </section>
       ) : null}
 
-      {game.catalog.links.length > 0 || game.catalog.notes || game.bundledWithAp ? (
+      {game.installSteps.length === 0
+      && (game.catalog.links.length > 0 || game.catalog.notes || game.bundledWithAp) ? (
         <section className="grid gap-5">
           <h2 className="font-heading text-2xl font-semibold text-foreground">Liens & ressources</h2>
           {game.catalog.links.length > 0 || game.bundledWithAp ? (

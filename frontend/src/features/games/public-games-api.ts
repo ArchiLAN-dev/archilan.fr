@@ -24,6 +24,13 @@ export type GamePage = {
 
 export type GameOption = { key: string; min: number; max: number; default: number | null };
 export type GameLink = { label: string; url: string | null };
+export type GameStepType = "acquire" | "apworld" | "client" | "yaml" | "connect" | "note";
+export type GameStep = {
+  type: GameStepType;
+  title: string;
+  description: string;
+  links: GameLink[];
+};
 export type GameApworld = {
   deployedVersion: string | null;
   latestVersion: string | null;
@@ -38,6 +45,7 @@ export type PublicGameDetail = PublicGame & {
   adultContent: boolean;
   apworld: GameApworld;
   options: GameOption[];
+  installSteps: GameStep[];
   catalog: { notes: string | null; links: GameLink[] };
 };
 
@@ -136,6 +144,17 @@ function isGameLink(v: unknown): v is GameLink {
   return hasStringProp(v, "label") && hasNullableStringProp(v, "url");
 }
 
+function isGameStepType(v: unknown): v is GameStepType {
+  return v === "acquire" || v === "apworld" || v === "client" || v === "yaml" || v === "connect" || v === "note";
+}
+
+function isGameStep(v: unknown): v is GameStep {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("type" in v) || !isGameStepType(v.type)) return false;
+  if (!hasStringProp(v, "title") || !hasStringProp(v, "description")) return false;
+  return "links" in v && Array.isArray(v.links) && v.links.every(isGameLink);
+}
+
 function isGameApworld(v: unknown): v is GameApworld {
   if (typeof v !== "object" || v === null) return false;
   if (!hasNullableStringProp(v, "deployedVersion") || !hasNullableStringProp(v, "latestVersion")) return false;
@@ -149,6 +168,7 @@ function isPublicGameDetail(v: unknown): v is PublicGameDetail {
   if (!hasBooleanProp(v, "bundledWithAp") || !hasBooleanProp(v, "adultContent")) return false;
   if (!("apworld" in v) || !isGameApworld(v.apworld)) return false;
   if (!("options" in v) || !Array.isArray(v.options) || !v.options.every(isGameOption)) return false;
+  if (!("installSteps" in v) || !Array.isArray(v.installSteps) || !v.installSteps.every(isGameStep)) return false;
   if (!("catalog" in v) || typeof v.catalog !== "object" || v.catalog === null) return false;
   if (!hasNullableStringProp(v.catalog, "notes")) return false;
   return "links" in v.catalog && Array.isArray(v.catalog.links) && v.catalog.links.every(isGameLink);

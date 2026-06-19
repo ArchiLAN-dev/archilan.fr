@@ -68,6 +68,57 @@ final class PublicGameDetailTest extends FunctionalTestCase
         self::assertSame([], $data['options']);
     }
 
+    public function testExposesInstallSteps(): void
+    {
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $game->setInstallSteps([
+            ['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'desc', 'links' => [
+                ['label' => 'Releases', 'url' => 'https://example.org/r'],
+            ]],
+        ]);
+        $this->entityManager->flush();
+
+        $this->configureSheetMock(self::EMPTY_CSV);
+
+        $this->client->jsonRequest('GET', '/api/v1/games/hollow-knight');
+        self::assertResponseStatusCodeSame(200);
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['installSteps']);
+        self::assertCount(1, $data['installSteps']);
+        $step = $data['installSteps'][0];
+        self::assertIsArray($step);
+        self::assertSame('apworld', $step['type']);
+        self::assertIsArray($step['links']);
+        $link = $step['links'][0];
+        self::assertIsArray($link);
+        self::assertSame('https://example.org/r', $link['url']);
+    }
+
+    public function testInstallStepsWithUnknownTypeAreDropped(): void
+    {
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $game->setInstallSteps([
+            ['type' => 'bogus', 'title' => 'Mauvaise étape', 'description' => '', 'links' => []],
+            ['type' => 'connect', 'title' => 'Se connecter', 'description' => '', 'links' => []],
+        ]);
+        $this->entityManager->flush();
+
+        $this->configureSheetMock(self::EMPTY_CSV);
+
+        $this->client->jsonRequest('GET', '/api/v1/games/hollow-knight');
+        self::assertResponseStatusCodeSame(200);
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertIsArray($data['installSteps']);
+        self::assertCount(1, $data['installSteps']);
+        $step = $data['installSteps'][0];
+        self::assertIsArray($step);
+        self::assertSame('connect', $step['type']);
+    }
+
     public function testReturns404ForUnknownSlug(): void
     {
         $this->client->jsonRequest('GET', '/api/v1/games/does-not-exist');

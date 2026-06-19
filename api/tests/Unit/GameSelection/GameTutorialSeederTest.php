@@ -22,6 +22,7 @@ final class GameTutorialSeederTest extends TestCase
 
         self::assertSame(['note', 'yaml', 'connect'], array_map(static fn (array $s): string => $s['type'], $steps));
         self::assertSame('Rien à installer', $steps[0]['title']);
+        self::assertSame('https://archipelago.gg/games', $steps[0]['links'][0]['url']);
     }
 
     public function testApworldGameFoldsSourceUrlAndProviderLinks(): void

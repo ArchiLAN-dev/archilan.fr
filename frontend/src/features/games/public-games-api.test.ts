@@ -83,6 +83,9 @@ const validDetail = {
     updateStatus: "up_to_date",
   },
   options: [{ key: "goal", min: 0, max: 3, default: 1 }],
+  installSteps: [
+    { type: "apworld", title: "Installer l'apworld", description: "desc", links: [{ label: "Releases", url: "https://example.org" }] },
+  ],
   catalog: { notes: "Tested", links: [{ label: "Releases", url: "https://example.org" }] },
 };
 
@@ -108,6 +111,15 @@ describe("getPublicGame", () => {
   it("returns null when payload fails the type guard", async () => {
     server.use(
       http.get(`${BASE}/games/alttp`, () => HttpResponse.json({ data: { ...validDetail, apworld: null } })),
+    );
+    expect(await getPublicGame("alttp")).toBeNull();
+  });
+
+  it("returns null when an install step is malformed", async () => {
+    server.use(
+      http.get(`${BASE}/games/alttp`, () =>
+        HttpResponse.json({ data: { ...validDetail, installSteps: [{ type: "bogus", title: "x", description: "", links: [] }] } }),
+      ),
     );
     expect(await getPublicGame("alttp")).toBeNull();
   });

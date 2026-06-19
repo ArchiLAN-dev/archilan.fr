@@ -32,7 +32,9 @@ final readonly class GameTutorialSeeder
                 'type' => 'note',
                 'title' => 'Rien à installer',
                 'description' => 'Ce jeu est inclus dans Archipelago : aucun apworld à installer.',
-                'links' => [],
+                'links' => [
+                    ['label' => 'Jeux supportés par Archipelago', 'url' => 'https://archipelago.gg/games'],
+                ],
             ];
         } else {
             $links = [];
