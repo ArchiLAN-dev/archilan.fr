@@ -13,17 +13,6 @@ export type InstallStep = {
   videoUrl?: string | null;
 };
 
-const TYPE_LABELS: Record<InstallStepType, string> = {
-  acquire: "Se procurer le jeu",
-  apworld: "Installer l'apworld",
-  client: "Installer le client / patcher",
-  yaml: "Configurer le YAML",
-  connect: "Se connecter",
-  note: "Note",
-};
-
-const TYPES = Object.keys(TYPE_LABELS) as InstallStepType[];
-
 /**
  * Controlled, reusable editor for an ordered list of install-tutorial steps (story 31.1).
  * Used by the admin game editor and (later, 31.6) the community submission form.
@@ -67,21 +56,12 @@ export function InstallStepsEditor({
 
       {steps.map((step, index) => (
         <div className="grid gap-3 rounded-lg border border-border bg-surface p-4" key={index}>
-          <div className="flex items-center gap-2">
-            <select
-              aria-label={`Type de l'étape ${index + 1}`}
-              className="min-h-9 rounded border border-border bg-background px-2 text-sm text-foreground outline-none focus:border-accent"
-              onChange={(e) => updateStep(index, { type: e.target.value as InstallStepType })}
-              value={step.type}
-            >
-              {TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {TYPE_LABELS[type]}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Étape {index + 1}
+            </span>
 
-            <div className="ml-auto flex items-center gap-1">
+            <div className="flex items-center gap-1">
               <IconButton label="Monter" onClick={() => moveStep(index, -1)} disabled={index === 0}>
                 <ChevronUp aria-hidden="true" className="size-4" />
               </IconButton>
