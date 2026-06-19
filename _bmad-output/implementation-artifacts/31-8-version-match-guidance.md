@@ -1,6 +1,6 @@
 # Story 31.8: Version-match guidance (apworld + Archipelago client)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -115,6 +115,37 @@ claude-opus-4-8
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- Implemented on branch `feature/epic-31-story-8-version-match` (from develop).
+- Pinned dedicated single-row entity `ArchipelagoClientInfo` (GameSelection/Domain, id `default`) + repo interface + Doctrine impl + migration. Application `ArchipelagoClientQuery` (read) + `UpdateArchipelagoClient` (validates http(s) url). Public `GET /api/v1/archipelago-client`; admin `PUT /api/v1/admin/archipelago-client` (admin-gated via `ApiAccessGuard::requireAdmin`).
+- Per-game apworld version + download already in the `apworld` block (28.9); no backend change needed there.
+- Frontend: `archipelago-client-api.ts` (`getArchipelagoClient` + guard, `saveArchipelagoClient`); `VersionMatchCallout` on `/jeux/[slug]` (required apworld version + download — release else source — or "version non figée"; client version + download; "doit correspondre à la session" warning); page fetches the client server-side and passes it to `GameDetail`.
+- Admin editing surfaced on `/admin/catalogue` via `ArchipelagoClientSettings` (no new nav entry).
+- Generic-guide rendering (AC3) deferred with story 31.3 (the guide does not exist yet); the client version is surfaced via the callout instead.
+- Gates green: php-cs-fixer 0, phpstan 0 (src+tests), DDD exit 0, phpunit 1272 (+5); FE typecheck/lint/build, jest 47.
+
+### File List
+
+**Added (api)**
+- `api/src/GameSelection/Domain/ArchipelagoClientInfo.php`
+- `api/src/GameSelection/Domain/ArchipelagoClientInfoRepositoryInterface.php`
+- `api/src/GameSelection/Application/ArchipelagoClientQuery.php`
+- `api/src/GameSelection/Application/UpdateArchipelagoClient.php`
+- `api/src/GameSelection/Infrastructure/DoctrineArchipelagoClientInfoRepository.php`
+- `api/src/GameSelection/Presentation/ArchipelagoClientController.php`
+- `api/src/GameSelection/Presentation/AdminArchipelagoClientController.php`
+- `api/migrations/Version20260619100000.php`
+- `api/tests/Functional/ArchipelagoClientTest.php`
+
+**Modified (api)**
+- `api/config/services.yaml` (repository alias)
+
+**Added (frontend)**
+- `frontend/src/features/games/archipelago-client-api.ts` (+ test)
+- `frontend/src/features/admin/archipelago-client-settings.tsx`
+
+**Modified (frontend)**
+- `frontend/src/features/games/game-detail.tsx` (VersionMatchCallout + client prop)
+- `frontend/src/app/(public)/jeux/[slug]/page.tsx` (fetch + pass client)
+- `frontend/src/features/admin/admin-catalogue-sync-page.tsx` (mount settings)
 
 ### File List

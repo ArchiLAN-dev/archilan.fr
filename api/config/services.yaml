@@ -332,6 +332,7 @@ services:
     App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
+    App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoClientInfoRepository'
     App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
     App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
     App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'

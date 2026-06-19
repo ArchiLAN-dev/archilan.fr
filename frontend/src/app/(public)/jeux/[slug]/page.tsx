@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { env } from "@/lib/env";
+import { getArchipelagoClient } from "@/features/games/archipelago-client-api";
 import { GameDetail } from "@/features/games/game-detail";
 import { getPublicGame } from "@/features/games/public-games-api";
 
@@ -52,5 +53,7 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
     notFound();
   }
 
-  return <GameDetail game={game} />;
+  const client = await getArchipelagoClient();
+
+  return <GameDetail client={client} game={game} />;
 }
