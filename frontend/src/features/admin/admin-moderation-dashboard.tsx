@@ -12,9 +12,12 @@ import {
   restoreModerationComment,
   type ModerationReport,
 } from "./admin-moderation-api";
+import { ContributionsModerationPanel } from "./contributions-moderation-panel";
 
 const QUERY_KEY = ["admin-moderation"] as const;
 const STALE_TIME = 15_000;
+
+type ModerationTab = "reports" | "contributions";
 
 export function AdminModerationDashboard() {
   const queryClient = useQueryClient();
@@ -24,6 +27,7 @@ export function AdminModerationDashboard() {
     staleTime: STALE_TIME,
   });
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [tab, setTab] = useState<ModerationTab>("reports");
 
   async function run(id: string, action: () => Promise<boolean>): Promise<void> {
     setBusyId(id);
@@ -36,13 +40,33 @@ export function AdminModerationDashboard() {
     <section className="grid gap-6">
       <header className="grid gap-1">
         <h1 className="font-heading text-2xl font-bold text-foreground">Modération</h1>
-        <p className="text-sm text-muted-foreground">
-          File des signalements en attente
-          {data ? <span className="font-semibold text-foreground"> · {data.count}</span> : null}.
-        </p>
+        <p className="text-sm text-muted-foreground">Signalements de commentaires et contributions aux tutoriels.</p>
       </header>
 
-      {isLoading ? (
+      <div className="flex flex-wrap gap-2 border-b border-border" role="tablist">
+        <button
+          aria-selected={tab === "reports"}
+          className={`-mb-px min-h-10 border-b-2 px-4 text-sm font-semibold transition-colors ${tab === "reports" ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setTab("reports")}
+          role="tab"
+          type="button"
+        >
+          Signalements{data ? ` · ${data.count}` : ""}
+        </button>
+        <button
+          aria-selected={tab === "contributions"}
+          className={`-mb-px min-h-10 border-b-2 px-4 text-sm font-semibold transition-colors ${tab === "contributions" ? "border-accent text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          onClick={() => setTab("contributions")}
+          role="tab"
+          type="button"
+        >
+          Contributions tutoriels
+        </button>
+      </div>
+
+      {tab === "contributions" ? (
+        <ContributionsModerationPanel />
+      ) : isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
         </p>
