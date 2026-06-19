@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { Gamepad2 } from "lucide-react";
 import type { PublicGame } from "./public-games-api";
 
-const availabilityConfig = {
+export const availabilityConfig = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 } as const;
@@ -10,7 +11,10 @@ export function GameCard({ game, owned = false }: { game: PublicGame; owned?: bo
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
 
   return (
-    <article className="card-glow grid grid-rows-[auto_1fr] overflow-hidden rounded-lg border border-border transition-colors hover:border-accent">
+    <Link
+      className="card-glow grid grid-rows-[auto_1fr] overflow-hidden rounded-lg border border-border transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      href={`/jeux/${game.slug}`}
+    >
       <div className="relative aspect-[3/4] overflow-hidden bg-surface">
         {game.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -55,6 +59,6 @@ export function GameCard({ game, owned = false }: { game: PublicGame; owned?: bo
           </div>
         ) : null}
       </div>
-    </article>
+    </Link>
   );
 }
