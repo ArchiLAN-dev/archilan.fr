@@ -26,7 +26,58 @@ final readonly class AdminGameLibrary
         private ApworldVersionChecker $apworldVersionChecker,
         private GameUsageCounterInterface $gameUsageCounter,
         private GamePlatformResolver $platformResolver,
+        private InstallStepsNormalizer $stepsNormalizer,
+        private GameTutorialSeeder $tutorialSeeder,
     ) {
+    }
+
+    /**
+     * Replace a game's install tutorial with the given ordered steps (story 31.1).
+     *
+     * @param array<mixed> $rawSteps
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function saveTutorial(string $gameId, array $rawSteps): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $result = $this->stepsNormalizer->normalize($rawSteps);
+        if ([] !== $result['errors']) {
+            return ['found' => true, 'errors' => ['steps' => $result['errors']]];
+        }
+
+        $game->setInstallSteps($result['steps']);
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.tutorial_saved', ['gameId' => $gameId, 'stepCount' => count($result['steps'])]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
+     * Seed a draft install tutorial from existing data (bundled / apworld / sheet links). Only
+     * overwrites an existing tutorial when $force is true.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function seedTutorial(string $gameId, bool $force): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        if ($force || [] === $game->getInstallSteps()) {
+            $game->setInstallSteps($this->tutorialSeeder->buildFor($game));
+            $this->gameRepository->save($game);
+            $this->logger->info('game.tutorial_seeded', ['gameId' => $gameId]);
+        }
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
 
     /**
@@ -495,6 +546,7 @@ final readonly class AdminGameLibrary
             'igdbId' => $sync?->getIgdbId(),
             'steamAppId' => $sync?->getSteamAppId(),
             'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
+            'installSteps' => $game->getInstallSteps(),
             'updateStatus' => $game->computeApworldUpdateStatus(),
         ]);
     }

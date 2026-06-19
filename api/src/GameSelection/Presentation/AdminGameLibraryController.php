@@ -142,6 +142,59 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Jeu mis à jour.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/tutorial', name: 'api_admin_game_save_tutorial', methods: ['PATCH'])]
+    public function saveTutorial(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = $this->jsonPayload($request);
+        $steps = is_array($payload['steps'] ?? null) ? $payload['steps'] : [];
+
+        $result = $this->adminGameLibrary->saveTutorial($gameId, $steps);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le tutoriel contient des erreurs.', 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('tutorial_save_failed', 'L\'enregistrement du tutoriel a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Tutoriel enregistré.']]);
+    }
+
+    #[Route('/api/v1/admin/games/{gameId}/tutorial/seed', name: 'api_admin_game_seed_tutorial', methods: ['POST'])]
+    public function seedTutorial(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->seedTutorial($gameId, '1' === $request->query->get('force'));
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('tutorial_seed_failed', 'La génération du brouillon a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Brouillon généré.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/resync-platforms', name: 'api_admin_game_resync_platforms', methods: ['POST'])]
     public function resyncPlatforms(Request $request, string $gameId): JsonResponse
     {

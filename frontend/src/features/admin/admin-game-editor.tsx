@@ -6,6 +6,7 @@ import type {FormEvent} from "react";
 import {useEffect, useRef, useState} from "react";
 
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
+import {InstallStepsEditor, type InstallStep} from "@/features/games/install-steps-editor";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 
@@ -37,6 +38,7 @@ type AdminGame = {
     availabilityLocked: boolean;
     igdbId: number | null;
     platforms: string[];
+    installSteps: InstallStep[];
     updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
 };
 
@@ -141,6 +143,8 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 <BasicInfoSection game={game} onUpdate={refreshGame}/>
 
                 <CatalogSyncSection game={game} onUpdate={refreshGame}/>
+
+                <InstallTutorialSection game={game} onUpdate={refreshGame}/>
 
                 <ApworldSection game={game} onUpdate={refreshGame}/>
             </div>
@@ -748,6 +752,97 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
 }
 
 // ─── Shared UI primitives ─────────────────────────────────────────────────────
+
+// ─── Section: Tutoriel d'installation (story 31.1) ─────────────────────────────
+
+function InstallTutorialSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [steps, setSteps] = useState<InstallStep[]>(game.installSteps);
+    const [submitting, setSubmitting] = useState(false);
+    const [seeding, setSeeding] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function save() {
+        setError(null);
+        setSuccess(false);
+        setSubmitting(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/tutorial`, {
+                body: JSON.stringify({steps}),
+                headers: {"Content-Type": "application/json"},
+                method: "PATCH",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError(extractDetails(payload)["steps"]?.[0] ?? "Le tutoriel contient des erreurs.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setSteps(payload.data.installSteps);
+                setSuccess(true);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function seed() {
+        setError(null);
+        setSuccess(false);
+        setSeeding(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/tutorial/seed`, {method: "POST"});
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError("La génération du brouillon a échoué.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setSteps(payload.data.installSteps);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSeeding(false);
+        }
+    }
+
+    return (
+        <Section
+            description="Étapes d'installation affichées aux joueurs sur la fiche publique du jeu."
+            title="Tutoriel d'installation"
+        >
+            <div className="grid gap-4">
+                <InstallStepsEditor onChange={setSteps} steps={steps}/>
+
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                        disabled={submitting}
+                        onClick={save}
+                        type="button"
+                    >
+                        {submitting ? "Enregistrement…" : "Enregistrer le tutoriel"}
+                    </button>
+                    <button
+                        className="inline-flex min-h-10 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-50"
+                        disabled={seeding}
+                        onClick={seed}
+                        type="button"
+                    >
+                        {seeding ? "Génération…" : "Générer un brouillon"}
+                    </button>
+                    {success ? <span className="text-sm text-success">Tutoriel enregistré.</span> : null}
+                    {error ? <span className="text-sm text-danger">{error}</span> : null}
+                </div>
+            </div>
+        </Section>
+    );
+}
 
 function Section({
                      children,
