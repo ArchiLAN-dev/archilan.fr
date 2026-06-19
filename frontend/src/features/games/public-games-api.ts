@@ -148,7 +148,7 @@ function isGameStepType(v: unknown): v is GameStepType {
   return v === "acquire" || v === "apworld" || v === "client" || v === "yaml" || v === "connect" || v === "note";
 }
 
-function isGameStep(v: unknown): v is GameStep {
+export function isGameStep(v: unknown): v is GameStep {
   if (typeof v !== "object" || v === null) return false;
   if (!("type" in v) || !isGameStepType(v.type)) return false;
   if (!hasStringProp(v, "title") || !hasStringProp(v, "description")) return false;

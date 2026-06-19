@@ -1,18 +1,11 @@
-import { AlertTriangle, ExternalLink, Gamepad2, Settings2, ShieldAlert } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, BookOpen, ExternalLink, Gamepad2, Settings2, ShieldAlert } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
 import type { ArchipelagoClient } from "./archipelago-client-api";
 import { availabilityConfig } from "./game-card";
 import { GameOwnedBadge } from "./game-owned-badge";
-import type { GameApworld, GameStep, PublicGameDetail } from "./public-games-api";
-
-const STEP_TYPE_LABELS: Record<GameStep["type"], string> = {
-  acquire: "Se procurer le jeu",
-  apworld: "Apworld",
-  client: "Client / patcher",
-  yaml: "Configuration YAML",
-  connect: "Connexion",
-  note: "Note",
-};
+import { InstallStepsView } from "./install-steps-view";
+import type { GameApworld, PublicGameDetail } from "./public-games-api";
 
 export function GameDetail({ game, client }: { game: PublicGameDetail; client: ArchipelagoClient | null }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
@@ -97,50 +90,18 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
 
       <VersionMatchCallout apworld={game.apworld} bundled={game.bundledWithAp} client={client} />
 
+      <Link
+        className="inline-flex w-fit min-h-10 items-center gap-2 rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+        href="/aide/archipelago"
+      >
+        <BookOpen aria-hidden="true" className="size-4" />
+        Nouveau ? Débuter : installer Archipelago
+      </Link>
+
       {game.installSteps.length > 0 ? (
         <section className="grid gap-5">
           <h2 className="font-heading text-2xl font-semibold text-foreground">Installation</h2>
-          <ol className="grid gap-4">
-            {game.installSteps.map((step, index) => (
-              <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={index}>
-                <div className="flex items-center gap-2">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent-text">
-                    {index + 1}
-                  </span>
-                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    {STEP_TYPE_LABELS[step.type]}
-                  </span>
-                </div>
-                <h3 className="font-heading font-semibold leading-tight text-foreground">{step.title}</h3>
-                {step.description ? (
-                  <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground">{step.description}</p>
-                ) : null}
-                {step.links.length > 0 ? (
-                  <ul className="grid gap-1.5">
-                    {step.links.map((link, linkIndex) =>
-                      link.url !== null ? (
-                        <li key={`${link.label}-${linkIndex}`}>
-                          <a
-                            className="inline-flex items-center gap-2 text-accent-text underline-offset-2 hover:underline"
-                            href={link.url}
-                            rel="noopener noreferrer"
-                            target="_blank"
-                          >
-                            {link.label}
-                            <ExternalLink aria-hidden="true" className="size-3.5" />
-                          </a>
-                        </li>
-                      ) : (
-                        <li className="text-sm text-muted-foreground" key={`${link.label}-${linkIndex}`}>
-                          {link.label}
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+          <InstallStepsView steps={game.installSteps} />
         </section>
       ) : null}
 

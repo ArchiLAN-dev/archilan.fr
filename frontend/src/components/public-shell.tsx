@@ -304,16 +304,22 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
 
       <footer className="border-t border-border bg-background/92 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:gap-6 md:px-12 lg:px-20">
-          <div className="flex items-center gap-2.5">
-            <Image
-              alt=""
-              aria-hidden="true"
-              className="size-6 shrink-0 opacity-70"
-              height={24}
-              src="/images/logo.webp"
-              width={24}
-            />
-            <p>© ArchiLAN. Association gaming et Archipelago.</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="flex items-center gap-2.5">
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="size-6 shrink-0 opacity-70"
+                height={24}
+                src="/images/logo.webp"
+                width={24}
+              />
+              <span>© ArchiLAN. Association gaming et Archipelago.</span>
+            </span>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <Link className="inline-flex items-center hover:text-foreground" href="/aide/archipelago">
+              Installer Archipelago
+            </Link>
           </div>
           <nav aria-label="Liens légaux" className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {legalLinks.map((link, i) => (
