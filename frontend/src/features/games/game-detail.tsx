@@ -1,8 +1,9 @@
-import { ExternalLink, Gamepad2, Settings2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, ExternalLink, Gamepad2, Settings2, ShieldAlert } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
+import type { ArchipelagoClient } from "./archipelago-client-api";
 import { availabilityConfig } from "./game-card";
 import { GameOwnedBadge } from "./game-owned-badge";
-import type { GameStep, PublicGameDetail } from "./public-games-api";
+import type { GameApworld, GameStep, PublicGameDetail } from "./public-games-api";
 
 const STEP_TYPE_LABELS: Record<GameStep["type"], string> = {
   acquire: "Se procurer le jeu",
@@ -13,7 +14,7 @@ const STEP_TYPE_LABELS: Record<GameStep["type"], string> = {
   note: "Note",
 };
 
-export function GameDetail({ game }: { game: PublicGameDetail }) {
+export function GameDetail({ game, client }: { game: PublicGameDetail; client: ArchipelagoClient | null }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
   const steamUrl = game.steamAppId !== null ? `https://store.steampowered.com/app/${game.steamAppId}` : null;
 
@@ -93,6 +94,8 @@ export function GameDetail({ game }: { game: PublicGameDetail }) {
           ) : null}
         </div>
       </header>
+
+      <VersionMatchCallout apworld={game.apworld} bundled={game.bundledWithAp} client={client} />
 
       {game.installSteps.length > 0 ? (
         <section className="grid gap-5">
@@ -214,6 +217,88 @@ export function GameDetail({ game }: { game: PublicGameDetail }) {
         </section>
       ) : null}
     </article>
+  );
+}
+
+function VersionMatchCallout({
+  apworld,
+  bundled,
+  client,
+}: {
+  apworld: GameApworld;
+  bundled: boolean;
+  client: ArchipelagoClient | null;
+}) {
+  const apworldDownload = apworld.releaseUrl ?? apworld.sourceUrl;
+  const hasApworldInfo = bundled || apworld.deployedVersion !== null || apworldDownload !== null;
+
+  if (!hasApworldInfo && client === null) {
+    return null;
+  }
+
+  return (
+    <section className="grid gap-3 rounded-lg border border-warning/40 bg-warning/5 p-5">
+      <div className="flex items-center gap-2">
+        <AlertTriangle aria-hidden="true" className="size-5 text-warning" />
+        <h2 className="font-heading text-lg font-semibold text-foreground">Versions à installer</h2>
+      </div>
+
+      <dl className="grid gap-2 text-sm">
+        {hasApworldInfo ? (
+          <VersionRow label="Apworld">
+            {bundled ? (
+              <span className="text-muted-foreground">Inclus dans Archipelago — pas d&apos;apworld à installer.</span>
+            ) : apworld.deployedVersion !== null ? (
+              <VersionValue url={apworldDownload} version={apworld.deployedVersion} />
+            ) : (
+              <span className="text-muted-foreground">Version non figée — prends la dernière compatible.</span>
+            )}
+          </VersionRow>
+        ) : null}
+        <VersionRow label="Client Archipelago">
+          {client !== null ? (
+            <VersionValue url={client.downloadUrl} version={client.version} />
+          ) : (
+            <span className="text-muted-foreground">Non précisé — utilise la dernière version stable.</span>
+          )}
+        </VersionRow>
+      </dl>
+
+      <p className="text-sm leading-6 text-muted-foreground">
+        Ton apworld <strong className="text-foreground">et</strong> ton client doivent correspondre à la
+        version de la session, sinon la génération ou la connexion échoue.
+      </p>
+    </section>
+  );
+}
+
+function VersionRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2">
+      <dt className="font-medium text-foreground">{label} :</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+function VersionValue({ version, url }: { version: string; url: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="rounded border border-border bg-surface px-2 py-0.5 font-mono text-xs text-foreground">
+        {version}
+      </span>
+      {url !== null ? (
+        <a
+          className="inline-flex items-center gap-1 text-accent-text underline-offset-2 hover:underline"
+          href={url}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          Télécharger
+          <ExternalLink aria-hidden="true" className="size-3.5" />
+        </a>
+      ) : null}
+    </span>
   );
 }
 
