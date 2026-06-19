@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, FileTex
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { InstallNudge } from "@/features/games/install-nudge";
 import { SteamCoupling } from "@/features/games/steam-coupling";
 import { useSteamCoupling } from "@/features/games/use-steam-coupling";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
@@ -267,6 +268,15 @@ export function PersonalRunGameSelectionPage({
     return { gameId, idx, label: total > 1 ? `${name} (monde ${n})` : name, slot, hasYaml };
   });
 
+  // Distinct selected games (name + slug) for the post-selection install nudge (story 31.4).
+  // Only games with a public detail page (available/experimental) - others would 404.
+  const selectedGamesForNudge = Array.from(new Set(workingGameIds)).flatMap((id) => {
+    const g = gameMap.get(id);
+    return g && (g.availability === "available" || g.availability === "experimental")
+      ? [{ name: g.name, slug: g.slug }]
+      : [];
+  });
+
   // Recently played: map gameId → metadata + recency rank (from the run history payload).
   const recentById = new Map(data.recentlyPlayedGames.map((r) => [r.gameId, r]));
   const recentRank = new Map(data.recentlyPlayedGames.map((r, i) => [r.gameId, i]));
@@ -452,6 +462,8 @@ export function PersonalRunGameSelectionPage({
           )}
         </div>
       </section>
+
+      <InstallNudge games={selectedGamesForNudge} />
 
       {/* ── Steam coupling ── */}
       <SteamCoupling {...couplingProps} />
