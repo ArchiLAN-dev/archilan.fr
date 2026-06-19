@@ -1,6 +1,6 @@
 # Story 31.7: Community contributions - admin moderation & apply
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -144,6 +144,31 @@ claude-opus-4-8
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
+- Implemented on branch `feature/epic-31-story-7-admin-moderation` (from develop).
+- `ModerateGameTutorialContribution` approve/reject: approve applies the (optionally moderator-edited) steps to the target game's `install_steps` and marks the contribution approved **in one flush** (game is a managed entity, flushed with the contribution); not-yet-listed → approved without a game write. Reject requires a reason. Only `pending` → 409 otherwise.
+- Author notified **post-commit** via the reused `Community\Application\Notifier` (type `tutorial_contribution_reviewed`); wrapped in try/catch so a notify failure never undoes the moderation.
+- `AdminGameContributionsQuery` (DBAL): lists by status with author display name (quoted `user` join), target, the proposed steps **and** the game's current steps for the diff; drops unknown-type steps.
+- `AdminGameContributionController`: GET list + POST approve/reject (admin-gated; 404/409/422).
+- Frontend: tabbed `/admin/moderation` (Signalements + Contributions tutoriels); `ContributionsModerationPanel` (TanStack queue, current-vs-proposed diff via `InstallStepsView`, Approve / Reject-with-reason, explicit "remplace l'intégralité" note). `admin-game-contributions-api.ts` (+ test).
+- Gates green: php-cs-fixer 0, phpstan 0 (src+tests), DDD exit 0, `AdminGameContributionModerationTest` 5/5; FE typecheck/lint/build, jest 59.
+
+### File List
+
+**Added (api)**
+- `api/src/GameSelection/Application/ModerateGameTutorialContribution.php`
+- `api/src/GameSelection/Application/AdminGameContributionsQueryInterface.php`
+- `api/src/GameSelection/Infrastructure/DbalAdminGameContributionsQuery.php`
+- `api/src/GameSelection/Presentation/AdminGameContributionController.php`
+- `api/tests/Functional/AdminGameContributionModerationTest.php`
+
+**Modified (api)**
+- `api/config/services.yaml` (query alias)
+
+**Added (frontend)**
+- `frontend/src/features/admin/admin-game-contributions-api.ts` (+ test)
+- `frontend/src/features/admin/contributions-moderation-panel.tsx`
+
+**Modified (frontend)**
+- `frontend/src/features/admin/admin-moderation-dashboard.tsx` (tabbed: reports + contributions)
 
 ### File List
