@@ -54,6 +54,9 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
             ->join('s', self::RUN_TABLE, 'pr', $prQb->expr()->eq('pr.session_id', 's.id'))
             ->where($prQb->expr()->eq('slot.registration_id', ':userId'))
             ->andWhere($prQb->expr()->eq('s.status', ':status'))
+            // A personal run counts only when the player reached their goal (story 17.15): finishing a run
+            // without a goal (abandon) finalizes/archives it but must not inflate stats.
+            ->andWhere($prQb->expr()->isNotNull('slot.goal_reached_at'))
             ->setParameter('userId', $userId)
             ->setParameter('status', 'finished')
             ->executeQuery()

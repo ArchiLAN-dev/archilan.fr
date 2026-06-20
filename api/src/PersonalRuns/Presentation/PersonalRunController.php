@@ -188,6 +188,33 @@ final readonly class PersonalRunController
         return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]], 202);
     }
 
+    #[Route('/api/v1/runs/{runId}/finish', name: 'api_runs_finish', methods: ['POST'])]
+    public function finish(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $result = $this->lifecycle->finish($runId, $user->getId());
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        if ($result['blocked']) {
+            $code = $result['blockReason'] ?? 'run_not_active';
+
+            return $this->apiAccessGuard->errorResponse($code, 'Impossible de terminer la run dans son état actuel.', 409);
+        }
+
+        return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
+    }
+
     #[Route('/api/v1/runs/{runId}/games', name: 'api_runs_configure_games', methods: ['PATCH'])]
     public function configureGames(Request $request, string $runId): JsonResponse
     {

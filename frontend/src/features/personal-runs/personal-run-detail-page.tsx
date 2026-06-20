@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
+  Flag,
   Gamepad2,
   Loader2,
   PackageX,
@@ -232,6 +233,52 @@ function StopDialog({
   );
 }
 
+function FinishDialog({
+  onConfirm,
+  onCancel,
+  finishing,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+  finishing: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-xl">
+        <div className="mb-4 flex items-start gap-3">
+          <Flag aria-hidden className="mt-0.5 size-5 shrink-0 text-[color:var(--color-accent)]" />
+          <div>
+            <h2 className="font-heading font-semibold text-foreground">Terminer la partie ?</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              La partie sera clôturée définitivement et archivée (tu pourras consulter ses résultats). La
+              progression réelle est enregistrée à ce moment : une partie n&apos;est comptée dans tes stats
+              que si tu as atteint ton objectif.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3">
+          <button
+            className="rounded border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+            onClick={onCancel}
+            type="button"
+          >
+            Annuler
+          </button>
+          <button
+            className="inline-flex items-center gap-2 rounded bg-[color:var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-accent-hover)] disabled:opacity-50"
+            disabled={finishing}
+            onClick={onConfirm}
+            type="button"
+          >
+            {finishing && <Loader2 aria-hidden className="size-4 animate-spin" />}
+            Terminer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Archive / delete confirmation dialogs ────────────────────────────────────
 
 function ArchiveDialog({
@@ -342,6 +389,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const [actionError, setActionError] = useState<string | null>(null);
   const [actioning, setActioning] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
+  const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [unarchiving, setUnarchiving] = useState(false);
@@ -443,6 +491,25 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
       if (!res.ok) {
         const payload = (await res.json()) as { error?: { message?: string } };
         setActionError(payload.error?.message ?? "Impossible d'arrêter la partie.");
+        return;
+      }
+      await fetchRun();
+    } catch {
+      setActionError("Erreur réseau.");
+    } finally {
+      setActioning(false);
+    }
+  }
+
+  async function handleFinish() {
+    setActioning(true);
+    setActionError(null);
+    try {
+      const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/finish`, { method: "POST" });
+      setShowFinishDialog(false);
+      if (!res.ok) {
+        const payload = (await res.json()) as { error?: { message?: string } };
+        setActionError(payload.error?.message ?? "Impossible de terminer la partie.");
         return;
       }
       await fetchRun();
@@ -642,6 +709,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
   return (
     <>
+      {showFinishDialog && (
+        <FinishDialog
+          finishing={actioning}
+          onCancel={() => setShowFinishDialog(false)}
+          onConfirm={() => void handleFinish()}
+        />
+      )}
+
       {showStopDialog && (
         <StopDialog
           onCancel={() => setShowStopDialog(false)}
@@ -872,14 +947,24 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     password={run.connectionPassword}
                     port={run.connectionPort}
                   />
-                  <button
-                    className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 px-4 py-3 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/20"
-                    onClick={() => setShowStopDialog(true)}
-                    type="button"
-                  >
-                    <Square aria-hidden className="size-4" />
-                    Arrêter la partie
-                  </button>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent)]/10 px-4 py-3 text-sm font-semibold text-[color:var(--color-accent-text)] transition-colors hover:bg-[color:var(--color-accent)]/20"
+                      onClick={() => setShowFinishDialog(true)}
+                      type="button"
+                    >
+                      <Flag aria-hidden className="size-4" />
+                      Terminer la partie
+                    </button>
+                    <button
+                      className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 px-4 py-3 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/20"
+                      onClick={() => setShowStopDialog(true)}
+                      type="button"
+                    >
+                      <Square aria-hidden className="size-4" />
+                      Arrêter la partie
+                    </button>
+                  </div>
                 </>
               )}
 

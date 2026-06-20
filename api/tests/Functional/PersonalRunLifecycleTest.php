@@ -8,6 +8,8 @@ use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
+use App\Sessions\Application\Message\ArchiveRunJob;
+use App\Sessions\Domain\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class PersonalRunLifecycleTest extends FunctionalTestCase
@@ -189,6 +191,70 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertSame('run_not_active', $this->errorCode());
     }
 
+    // ─── Finish (owner) ───────────────────────────────────────────────────────
+
+    public function testFinishActiveRunFinishesSessionAndCompletesRun(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $session = $this->createRunningSession('sess-finish-1', 'evt-finish-1');
+        $run = $this->createActiveRunWithSession($user->getId(), $session->getId());
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/finish');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(Run::STATUS_COMPLETED, $this->responseData()['status']);
+
+        $this->entityManager->refresh($run);
+        self::assertSame(Run::STATUS_COMPLETED, $run->getStatus());
+        $this->entityManager->refresh($session);
+        self::assertSame(Session::STATUS_FINISHED, $session->getStatus());
+
+        // The archive job (which snapshots the bridge's real goal/check state) is dispatched.
+        /** @var InMemoryTransport $transport */
+        $transport = self::getContainer()->get('messenger.transport.run_server');
+        $archiveJobs = array_filter(
+            array_map(static fn ($e) => $e->getMessage(), $transport->getSent()),
+            static fn ($m) => $m instanceof ArchiveRunJob,
+        );
+        self::assertCount(1, $archiveJobs);
+    }
+
+    public function testFinishNonOwnerReturns403(): void
+    {
+        $owner = $this->createUser('owner@example.org');
+        $intruder = $this->createUser('intruder@example.org');
+        $session = $this->createRunningSession('sess-finish-2', 'evt-finish-2');
+        $run = $this->createActiveRunWithSession($owner->getId(), $session->getId());
+        $this->loginAs($intruder);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/finish');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testFinishNonActiveRunReturns409(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_IDLE);
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/finish');
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('run_not_active', $this->errorCode());
+    }
+
+    public function testFinishUnauthenticatedReturns401(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $run = $this->createRunInStatus($user->getId(), Run::STATUS_ACTIVE);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/finish');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
     // ─── Callback /stopped ────────────────────────────────────────────────────
 
     public function testCallbackStoppedTransitionsToIdle(): void
@@ -313,6 +379,35 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         return $run;
+    }
+
+    private function createActiveRunWithSession(string $ownerId, string $sessionId): Run
+    {
+        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
+        $run = Run::create($ownerId, 'Test Run', $now);
+        $run->setSessionId($sessionId);
+        (new \ReflectionProperty(Run::class, 'status'))->setValue($run, Run::STATUS_ACTIVE);
+
+        $this->entityManager->persist($run);
+        $this->entityManager->flush();
+
+        return $run;
+    }
+
+    private function createRunningSession(string $id, string $eventId): Session
+    {
+        $now = new \DateTimeImmutable();
+        $session = Session::create($id, $eventId, $now);
+        $session->transition(Session::STATUS_VALIDATING, $now);
+        $session->transition(Session::STATUS_READY, $now);
+        $session->transition(Session::STATUS_GENERATING, $now);
+        $session->transition(Session::STATUS_GENERATED, $now);
+        $session->transition(Session::STATUS_LAUNCHING, $now);
+        $session->transition(Session::STATUS_RUNNING, $now, 'bridge.local', 38281, 'secret', 5000);
+        $this->entityManager->persist($session);
+        $this->entityManager->flush();
+
+        return $session;
     }
 
     /** @param array<string, mixed> $payload */

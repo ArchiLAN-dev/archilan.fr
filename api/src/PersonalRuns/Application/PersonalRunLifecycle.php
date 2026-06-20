@@ -9,6 +9,9 @@ use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Sessions\Application\ForceEndSessionCommand;
+use App\Sessions\Domain\SessionNotFoundException;
+use App\Sessions\Domain\SessionNotRunningException;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class PersonalRunLifecycle
@@ -17,6 +20,7 @@ final readonly class PersonalRunLifecycle
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
         private MessageBusInterface $messageBus,
+        private ForceEndSessionCommand $forceEndSession,
     ) {
     }
 
@@ -124,6 +128,47 @@ final readonly class PersonalRunLifecycle
         }
 
         $run->markStopped(new \DateTimeImmutable());
+        $this->runs->flush();
+
+        return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
+    }
+
+    /**
+     * Owner-driven finish (story 17.15): complete an active run, then finalize its session (transition to
+     * finished, stop the runner, dispatch the archive job that snapshots the bridge's real goal/check
+     * state). Reuses the force-end mechanism rather than duplicating it.
+     *
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
+     */
+    public function finish(string $runId, string $callerId): array
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
+            return $this->result(found: false);
+        }
+
+        if (!$run->isOwnedBy($callerId)) {
+            return $this->result(found: true, authorized: false);
+        }
+
+        if (Run::STATUS_ACTIVE !== $run->getStatus()) {
+            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+        }
+
+        $sessionId = $run->getSessionId();
+        if (null === $sessionId) {
+            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+        }
+
+        // Finalize the session first so a session that is no longer running blocks the finish (and we
+        // don't leave a completed run pointing at a still-running session).
+        try {
+            $this->forceEndSession->execute($sessionId, $callerId);
+        } catch (SessionNotFoundException|SessionNotRunningException) {
+            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+        }
+
+        $run->complete(new \DateTimeImmutable());
         $this->runs->flush();
 
         return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
