@@ -16,11 +16,11 @@ The "Items non reçus" panel's hint button calls `handleHintItem(itemName)`, whi
 const command = hintFree ? `!hint ${itemName}` : `!hint${itemName}`;
 ```
 
-`!hint`/`/hint` are **self-hints** — AP resolves them against the *connected* client's slot (the bridge), so hinting an item that belongs to another slot fails or hints the wrong world (observed: `Bridge: !hint Armory Key`). The comment calling `!hint` an "admin command" is wrong.
+`!hint`/`/hint` are **self-hints** - AP resolves them against the *connected* client's slot (the bridge), so hinting an item that belongs to another slot fails or hints the wrong world (observed: `Bridge: !hint Armory Key`). The comment calling `!hint` an "admin command" is wrong.
 
 The validated command (live test) is `!admin /hint <player> <item>`. The page already knows the viewed slot's player (`state.data.player`), who is the owner of the items in the "Items non reçus" list.
 
-**Free vs paid:** the bridge acts as admin and cannot spend a player's hint points — `!admin /hint` creates a free/priority hint. A truly *paid* hint (charged to the player) requires the bridge to connect **as the paying slot** and send `/hint` on its behalf — tracked separately as story 9.30 (bridge). This story fixes only the admin/free path.
+**Free vs paid:** the bridge acts as admin and cannot spend a player's hint points - `!admin /hint` creates a free/priority hint. A truly *paid* hint (charged to the player) requires the bridge to connect **as the paying slot** and send `/hint` on its behalf - tracked separately as story 9.30 (bridge). This story fixes only the admin/free path.
 
 ## Acceptance Criteria
 

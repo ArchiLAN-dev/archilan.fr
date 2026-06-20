@@ -40,18 +40,25 @@ class Session
         self::STATUS_FINISHED => [self::STATUS_LAUNCHING],
     ];
 
-    /** Sessions actives susceptibles d'être orphelines si le runner s'arrête. */
+    /**
+     * Statuts (transitoires ou actifs) susceptibles de rester bloqués si le runner/orchestrateur
+     * s'arrête ou si un webhook se perd. Le watchdog (CleanupStaleSessionsHandler) les réconcilie.
+     */
     public const STALE_STATUSES = [
+        self::STATUS_VALIDATING,
         self::STATUS_GENERATING,
         self::STATUS_LAUNCHING,
         self::STATUS_RUNNING,
+        self::STATUS_RESTARTING,
     ];
 
-    /** Seuils (en secondes) d'inactivité au-delà desquels une session est considérée orpheline. */
+    /** Seuils (en secondes) d'inactivité au-delà desquels une session est considérée bloquée. */
     public const STALE_THRESHOLDS = [
-        self::STATUS_GENERATING => 1200, // 20 min
+        self::STATUS_VALIDATING => 180,  // 3 min - la validation est rapide
+        self::STATUS_GENERATING => 1200, // 20 min - une génération peut être longue
         self::STATUS_LAUNCHING => 600,  // 10 min
         self::STATUS_RUNNING => 300,  // 5 min (heartbeat bridge toutes les 30s)
+        self::STATUS_RESTARTING => 300,  // 5 min - une relance depuis idle est rapide
     ];
 
     public function __construct(
@@ -154,7 +161,7 @@ class Session
 
     /**
      * Create a session already in RUNNING for a launch that bypasses the generate flow and starts
-     * from a pre-built world (weekly entries reuse the run's generated multidata — story 17.13).
+     * from a pre-built world (weekly entries reuse the run's generated multidata - story 17.13).
      * The orchestrateur session id equals the caller's id, so the idle/stopped/crashed webhooks and
      * relaunch-from-save then apply exactly as for a personal run. `$eventId` carries the owning
      * weekly-run id (the column is overloaded the same way a personal run stores its run id).

@@ -19,7 +19,7 @@ game") never triggered, and there was nothing meaningful to sort by. This wires 
 sorting.
 
 **Usage definition:** a game is "used" when it is referenced by a **session slot**
-(`session_slot.game_id` — actual sessions / personal runs) or a **weekly template**
+(`session_slot.game_id` - actual sessions / personal runs) or a **weekly template**
 (`weekly_templates.game_id`). Usage = the sum of both counts. (Event game-selection lives in an
 `event.game_selection_config` JSON blob = "available for selection", not "used"; excluded.)
 
@@ -38,12 +38,12 @@ sorting.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — `GameUsageCounterInterface` + `DbalGameUsageCounter` + services binding (AC 1).
-- [ ] Task 2 — `AdminGameLibrary` uses the counter in `usageCount()` (AC 2).
-- [ ] Task 3 — list query: real usage + sort/dir (AC 3); thread sort/dir through `AdminGameLibrary::list`.
-- [ ] Task 4 — controller parses sort/dir (AC 4).
-- [ ] Task 5 — frontend sort control + api param (AC 5).
-- [ ] Task 6 — tests + gates (AC 6).
+- [ ] Task 1 - `GameUsageCounterInterface` + `DbalGameUsageCounter` + services binding (AC 1).
+- [ ] Task 2 - `AdminGameLibrary` uses the counter in `usageCount()` (AC 2).
+- [ ] Task 3 - list query: real usage + sort/dir (AC 3); thread sort/dir through `AdminGameLibrary::list`.
+- [ ] Task 4 - controller parses sort/dir (AC 4).
+- [ ] Task 5 - frontend sort control + api param (AC 5).
+- [ ] Task 6 - tests + gates (AC 6).
 
 ## Dev Notes
 
@@ -55,4 +55,4 @@ sorting.
 
 ## Change Log
 
-- 2026-06-10 — Story created.
+- 2026-06-10 - Story created.

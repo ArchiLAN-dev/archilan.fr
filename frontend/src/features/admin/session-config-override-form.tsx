@@ -95,7 +95,7 @@ export function SessionConfigOverrideForm({
 }: {
   adapter: OverrideAdapter;
   scopeLabel: string;
-  // Field keys the current scope may not override (e.g. autoShutdown for private-run owners — it is
+  // Field keys the current scope may not override (e.g. autoShutdown for private-run owners - it is
   // locked to the admin "private" type profile). Hidden entirely; the server is the authoritative gate.
   lockedKeys?: readonly string[];
 }) {
@@ -342,7 +342,7 @@ function flattenProfile(c: SessionConfig): Record<string, OverrideValue> {
 
 // Human-readable rendering of a field's inherited (profile) value.
 function displayValue(field: FieldDef, value: OverrideValue | undefined): string {
-  if (value === undefined) return "—";
+  if (value === undefined) return "-";
   switch (field.kind) {
     case "select":
       return field.labels[String(value)] ?? String(value);

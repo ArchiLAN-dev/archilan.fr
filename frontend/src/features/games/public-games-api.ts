@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type PublicGame = {
   id: string;
@@ -20,6 +20,36 @@ export type GamePage = {
   page: number;
   perPage: number;
   totalPages: number;
+};
+
+export type GameOption = { key: string; min: number; max: number; default: number | null };
+export type GameLink = { label: string; url: string | null };
+export type GameStepType = "acquire" | "apworld" | "client" | "yaml" | "connect" | "note";
+export type GameStep = {
+  type: GameStepType;
+  title: string;
+  description: string;
+  links: GameLink[];
+  imageKey?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+};
+export type GameApworld = {
+  deployedVersion: string | null;
+  latestVersion: string | null;
+  sourceUrl: string | null;
+  releaseUrl: string | null;
+  updateStatus: string;
+};
+
+export type PublicGameDetail = PublicGame & {
+  coverImageCredit: string;
+  bundledWithAp: boolean;
+  adultContent: boolean;
+  apworld: GameApworld;
+  options: GameOption[];
+  installSteps: GameStep[];
+  catalog: { notes: string | null; links: GameLink[] };
 };
 
 export async function getAllPublicGames(): Promise<PublicGame[]> {
@@ -85,8 +115,72 @@ function isGamePagePayload(
   );
 }
 
+export async function getPublicGame(slug: string): Promise<PublicGameDetail | null> {
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/games/${encodeURIComponent(slug)}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    if (!isPublicGameDetail(payload.data)) return null;
+
+    return payload.data;
+  } catch {
+    return null;
+  }
+}
+
 function isGameAvailability(v: unknown): v is PublicGame["availability"] {
   return v === "available" || v === "experimental";
+}
+
+function isGameOption(v: unknown): v is GameOption {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "key") || !hasNumberProp(v, "min") || !hasNumberProp(v, "max")) return false;
+  return "default" in v && (v.default === null || typeof v.default === "number");
+}
+
+function isGameLink(v: unknown): v is GameLink {
+  if (typeof v !== "object" || v === null) return false;
+  return hasStringProp(v, "label") && hasNullableStringProp(v, "url");
+}
+
+function isGameStepType(v: unknown): v is GameStepType {
+  return v === "acquire" || v === "apworld" || v === "client" || v === "yaml" || v === "connect" || v === "note";
+}
+
+function isOptionalNullableString(v: object, key: string): boolean {
+  return !(key in v) || hasNullableStringProp(v, key);
+}
+
+export function isGameStep(v: unknown): v is GameStep {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("type" in v) || !isGameStepType(v.type)) return false;
+  if (!hasStringProp(v, "title") || !hasStringProp(v, "description")) return false;
+  if (!isOptionalNullableString(v, "imageKey") || !isOptionalNullableString(v, "imageUrl") || !isOptionalNullableString(v, "videoUrl"))
+    return false;
+  return "links" in v && Array.isArray(v.links) && v.links.every(isGameLink);
+}
+
+function isGameApworld(v: unknown): v is GameApworld {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasNullableStringProp(v, "deployedVersion") || !hasNullableStringProp(v, "latestVersion")) return false;
+  if (!hasNullableStringProp(v, "sourceUrl") || !hasNullableStringProp(v, "releaseUrl")) return false;
+  return hasStringProp(v, "updateStatus");
+}
+
+function isPublicGameDetail(v: unknown): v is PublicGameDetail {
+  if (!isPublicGame(v)) return false;
+  if (!hasStringProp(v, "coverImageCredit")) return false;
+  if (!hasBooleanProp(v, "bundledWithAp") || !hasBooleanProp(v, "adultContent")) return false;
+  if (!("apworld" in v) || !isGameApworld(v.apworld)) return false;
+  if (!("options" in v) || !Array.isArray(v.options) || !v.options.every(isGameOption)) return false;
+  if (!("installSteps" in v) || !Array.isArray(v.installSteps) || !v.installSteps.every(isGameStep)) return false;
+  if (!("catalog" in v) || typeof v.catalog !== "object" || v.catalog === null) return false;
+  if (!hasNullableStringProp(v.catalog, "notes")) return false;
+  return "links" in v.catalog && Array.isArray(v.catalog.links) && v.catalog.links.every(isGameLink);
 }
 
 function isPublicGame(v: unknown): v is PublicGame {

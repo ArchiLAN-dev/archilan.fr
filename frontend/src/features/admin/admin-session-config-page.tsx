@@ -121,7 +121,7 @@ function SessionConfigForm({ type }: { type: SessionConfigType }) {
   const [saved, setSaved] = useState(false);
 
   // Initialise/refresh the editable draft from the loaded config (incl. after a save
-  // invalidates the query). React-sanctioned "adjust state while rendering" pattern —
+  // invalidates the query). React-sanctioned "adjust state while rendering" pattern -
   // runs only when the query returns a new config object, not on every keystroke.
   if (data && data !== syncedFrom) {
     setSyncedFrom(data);

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, MapPin, RefreshCw, Trophy, Users } from "lucide-react";
+import { AdminEditLink } from "@/components/admin-edit-link";
 import { externalLinks } from "@/lib/external-links";
 import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/events/event-types";
 import { getPublicEvent } from "@/features/events/public-events-api";
@@ -162,8 +163,9 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
           <p className="text-lg leading-8 text-muted-foreground">{event.description}</p>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {primaryCta ? <DetailCta cta={primaryCta} /> : null}
+            <AdminEditLink href={`/admin/evenements/${event.id}/modifier`} label="Modifier l'événement" />
             {event.status === "completed" && event.vodUrl ? (
               <a
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded border border-border bg-surface px-5 font-semibold text-foreground transition-colors hover:border-accent"

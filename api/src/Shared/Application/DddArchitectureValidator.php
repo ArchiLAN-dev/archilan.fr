@@ -27,6 +27,7 @@ final readonly class DddArchitectureValidator
         'Membership',
         'WeeklyRuns',
         'SessionConfig',
+        'Community',
     ];
 
     /** @var list<string> */

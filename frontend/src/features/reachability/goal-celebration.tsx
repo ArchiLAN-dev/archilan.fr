@@ -169,6 +169,7 @@ export function GoalCelebration({
     checksPercent,
     itemsPercent,
     onDismiss,
+    bare = false,
 }: {
     slotName: string;
     playerAlias?: string;
@@ -176,6 +177,9 @@ export function GoalCelebration({
     checksPercent: number;
     itemsPercent: number;
     onDismiss: () => void;
+    // When true (OBS overlay), drop the opaque dark backdrop and the white flash so only the card +
+    // particles render over a transparent page. Modal usages (in-app) leave this false.
+    bare?: boolean;
 }) {
     const [pieces] = useState<Piece[]>(() => generatePieces(100));
     const [sparks] = useState<Spark[]>(() => generateSparks(24));
@@ -215,20 +219,23 @@ export function GoalCelebration({
                     opacity: mounted ? undefined : 0,
                 }}
             >
-                {/* Deep dark background */}
-                <div
-                    className="absolute inset-0"
-                    style={{
-                        background: "radial-gradient(ellipse 90% 80% at 50% 40%, #130926 0%, #07050f 55%, #020008 100%)",
-                        animation: "gc-bg-pulse 3s ease-in-out infinite",
-                    }}
-                />
+                {/* Deep dark background - omitted in bare/overlay mode so the page stays transparent */}
+                {!bare && (
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            background: "radial-gradient(ellipse 90% 80% at 50% 40%, #130926 0%, #07050f 55%, #020008 100%)",
+                            animation: "gc-bg-pulse 3s ease-in-out infinite",
+                        }}
+                    />
+                )}
 
-                {/* Gravitational wave - transparent WebGL canvas */}
-                <GravWave />
+                {/* Gravitational wave - transparent WebGL canvas. A full-screen background field, so it
+                    is dropped in bare/overlay mode (keep only the card + foreground particles). */}
+                {!bare && <GravWave />}
 
-                {/* Screen flash on open */}
-                {mounted && (
+                {/* Screen flash on open - omitted in bare/overlay mode (it briefly paints the page) */}
+                {mounted && !bare && (
                     <div
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 bg-white"

@@ -2,18 +2,18 @@
 
 Status: superseded
 
-> **Superseded (2026-06-10) by stories 17.6 / 17.7 / 17.8.** The wake-on-connect model — bridge
+> **Superseded (2026-06-10) by stories 17.6 / 17.7 / 17.8.** The wake-on-connect model - bridge
 > killing the AP sub-process and surviving inside a warm container to relaunch on the next connection
-> — was dropped: the bridge depends on its AP server (it shouldn't outlive it), and keeping a
+> - was dropped: the bridge depends on its AP server (it shouldn't outlive it), and keeping a
 > container warm per idle run wastes resources. **Idle is already Archipelago's own feature**
 > (`auto_shutdown`, wired via the `autoShutdown` session config in epic 27), so the Symfony
 > `InactivityWatchdog` + bridge `/pause` were a redundant parallel mechanism and are removed too.
 > The new model: **AP auto-shuts-down itself**; the orchestrateur detects the clean exit, persists the
 > save, and stops the bridge; **manual resume** relaunches a fresh container from the MinIO save,
 > driven by Symfony → orchestrateur (no auto-restart-on-connect). See:
-> - 17.6 — orchestrateur: stop on idle + relaunch-from-save
-> - 17.7 — bridge: remove wake listener, `/pause` = save+upload then quit
-> - 17.8 — api + frontend: drop the bridge wake trigger, repoint resume, fix the UI copy
+> - 17.6 - orchestrateur: stop on idle + relaunch-from-save
+> - 17.7 - bridge: remove wake listener, `/pause` = save+upload then quit
+> - 17.8 - api + frontend: drop the bridge wake trigger, repoint resume, fix the UI copy
 >
 > The description below is retained for historical context only and reflects the **old** (in-bridge,
 > PID-file) architecture.

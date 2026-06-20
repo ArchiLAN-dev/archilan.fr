@@ -11,26 +11,26 @@ So that the hint is actually created on the server (for any slot, not only the o
 ## Context
 
 The bridge connects to the AP server as a **single** slot (slot 1, `TextOnly`). In Archipelago:
-- a **non-admin** self-hint (`!hint <name>` / `!hint_location <location>`) only resolves against the **currently-connected slot** — it cannot hint another player's world;
+- a **non-admin** self-hint (`!hint <name>` / `!hint_location <location>`) only resolves against the **currently-connected slot** - it cannot hint another player's world;
 - to hint **any** player you must use the **admin** command `!admin /hint <player> <item>` (validated live by the user).
 
-The bridge's `request_hint` was sending a self/location form (observed in the AP log: `Bridge: !hint 1F Washroom Key` — no `!admin`, no player), so requests for any slot other than the bridge's own resolved wrong or failed.
+The bridge's `request_hint` was sending a self/location form (observed in the AP log: `Bridge: !hint 1F Washroom Key` - no `!admin`, no player), so requests for any slot other than the bridge's own resolved wrong or failed.
 
 The bridge already knows, from the spoiler loaded at startup, the item placed at any location: `get_placement(slot, locationId) -> (item_id, receiver_slot)`. So for the chosen location it can name the item and its owner and issue the validated admin command.
 
 > **Correction (post-test):** keying off the spoiler placement (`!admin /hint <owner> <item>`)
-> hinted the **wrong item** — the spoiler location→item mapping is unreliable. The bridge now
+> hinted the **wrong item** - the spoiler location→item mapping is unreliable. The bridge now
 > sends `!admin /hint_location <player> <location>` so the **AP server** resolves the location to
 > its item (authoritative). The created hint reaches the UI via the data-storage path (story 9.27),
 > so no optimistic local add is needed.
 
 ## Acceptance Criteria
 
-1. **Given** a hint is requested for `(slot, locationId)` **When** the bridge issues the command **Then** it sends `!admin /hint_location <player_name> <location_name>`, where `player_name = resolve_player(slot)` and `location_name` is resolved from the DataPackage — preceded by `!admin login` (existing `send_admin_command`).
+1. **Given** a hint is requested for `(slot, locationId)` **When** the bridge issues the command **Then** it sends `!admin /hint_location <player_name> <location_name>`, where `player_name = resolve_player(slot)` and `location_name` is resolved from the DataPackage - preceded by `!admin login` (existing `send_admin_command`).
 
 2. **Given** the location id is unknown for the slot **When** the hint is requested **Then** the bridge returns HTTP 422 and does **not** send a malformed command.
 
-3. **Given** the admin command is sent **When** the AP server creates the hint **Then** the new hint reaches the UI via the live data-storage path (story 9.27) — no fragile spoiler-based optimistic add.
+3. **Given** the admin command is sent **When** the AP server creates the hint **Then** the new hint reaches the UI via the live data-storage path (story 9.27) - no fragile spoiler-based optimistic add.
 
 4. **Given** the request targets a slot other than the bridge's connected slot **When** the command runs in admin mode **Then** the hint is created for that slot's world (no "only current slot" limitation).
 

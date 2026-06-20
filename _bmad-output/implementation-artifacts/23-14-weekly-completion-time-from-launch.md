@@ -20,7 +20,7 @@ $completionTimeSeconds = max(0, $goalReachedAt - $run->getStartedAt());
 ```
 
 `run.startedAt` is set once when the **run is generated** (`GenerateWeeklyRunForTemplate` /
-`GenerateWeeklyRunsMessageHandler`, status ACTIVE) — a **global** timestamp shared by all participants.
+`GenerateWeeklyRunsMessageHandler`, status ACTIVE) - a **global** timestamp shared by all participants.
 So a player who opts in and launches days after generation has all that idle delay folded into their
 time. (Reported by Jean.)
 
@@ -50,7 +50,7 @@ The intended semantics is a **personal stopwatch from launch**. The right anchor
 - `run` is still loaded (needed for the fallback + ownership of the entry's run); no extra query.
 - `launchedAt` == `Session.startedAt` (both set at the same launch instant, 17.13); using the entry
   field keeps `RecordWeeklyGoal` free of a Session lookup.
-- Frontend unchanged — `formatTime(completionTimeSeconds)` already renders the stored value.
+- Frontend unchanged - `formatTime(completionTimeSeconds)` already renders the stored value.
 
 ### Project Structure Notes
 

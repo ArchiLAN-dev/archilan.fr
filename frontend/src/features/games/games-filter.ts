@@ -13,7 +13,7 @@ export type CatalogFilters = {
 
 export const STEAM_CATEGORY = "Steam";
 
-/** Minimal shape needed for categories/ownership — satisfied by PublicGame and the run's AvailableGame. */
+/** Minimal shape needed for categories/ownership - satisfied by PublicGame and the run's AvailableGame. */
 export type Categorizable = { platforms: string[]; steamAppId: number | null };
 
 export function isOwned(game: Categorizable, ownedAppIds: Set<number>): boolean {

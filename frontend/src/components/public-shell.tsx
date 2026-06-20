@@ -11,6 +11,7 @@ import { LiveTwitchBadge } from "@/features/streaming/live-twitch-badge";
 import { TwitchPlayerProvider } from "@/features/streaming/twitch-player-context";
 import { TwitchPersistentPlayer } from "@/features/streaming/twitch-mini-player";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
+import { NotificationCenter } from "@/features/community/notification-center";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -86,6 +87,7 @@ function AuthNavDesktop() {
     const isAdmin = user.roles.includes("ROLE_ADMIN");
     return (
       <div className="flex items-center gap-2">
+        <NotificationCenter />
         {isAdmin && (
           <Link
             className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
@@ -244,8 +246,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <NavLink href="/evenements" label="Événements" />
             <NavLink href="/runs-hebdo" label="Runs hebdo" />
             <NavLink href="/jeux" label="Jeux" />
-            <NavLink href="/actualites" label="Actualités" />
-            <NavLink href={externalLinks.archilanDiscord} label="Discord" />
+            <NavLink href="/communaute" label="Communauté" />
             <LiveTwitchBadge />
           </div>
 
@@ -283,8 +284,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/runs-hebdo" label="Runs hebdo" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink href="/actualites" label="Actualités" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink href={externalLinks.archilanDiscord} label="Discord" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>
             <div className="mt-auto grid gap-3 border-t border-border pt-6">
@@ -300,16 +300,35 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
 
       <footer className="border-t border-border bg-background/92 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:gap-6 md:px-12 lg:px-20">
-          <div className="flex items-center gap-2.5">
-            <Image
-              alt=""
-              aria-hidden="true"
-              className="size-6 shrink-0 opacity-70"
-              height={24}
-              src="/images/logo.webp"
-              width={24}
-            />
-            <p>© ArchiLAN. Association gaming et Archipelago.</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="flex items-center gap-2.5">
+              <Image
+                alt=""
+                aria-hidden="true"
+                className="size-6 shrink-0 opacity-70"
+                height={24}
+                src="/images/logo.webp"
+                width={24}
+              />
+              <span>© ArchiLAN. Association gaming et Archipelago.</span>
+            </span>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <Link className="inline-flex items-center hover:text-foreground" href="/aide/archipelago">
+              Installer Archipelago
+            </Link>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <Link className="inline-flex items-center hover:text-foreground" href="/actualites">
+              Actualités
+            </Link>
+            <span aria-hidden="true" className="select-none text-muted-foreground/40">·</span>
+            <a
+              className="inline-flex items-center hover:text-foreground"
+              href={externalLinks.archilanDiscord}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Discord
+            </a>
           </div>
           <nav aria-label="Liens légaux" className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {legalLinks.map((link, i) => (

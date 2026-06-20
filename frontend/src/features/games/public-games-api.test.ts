@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { getAllPublicGames, getPublicGames } from "./public-games-api";
+import { getAllPublicGames, getPublicGame, getPublicGames } from "./public-games-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -67,5 +67,69 @@ describe("getAllPublicGames", () => {
   it("returns empty array when an item fails the type guard", async () => {
     server.use(http.get(`${BASE}/games`, () => HttpResponse.json({ data: [{ wrong: true }] })));
     expect(await getAllPublicGames()).toHaveLength(0);
+  });
+});
+
+const validDetail = {
+  ...validGame,
+  coverImageCredit: "ArchiLAN",
+  bundledWithAp: false,
+  adultContent: false,
+  apworld: {
+    deployedVersion: "1.0.0",
+    latestVersion: "1.0.0",
+    sourceUrl: "https://github.com/owner/repo",
+    releaseUrl: null,
+    updateStatus: "up_to_date",
+  },
+  options: [{ key: "goal", min: 0, max: 3, default: 1 }],
+  installSteps: [
+    { type: "apworld", title: "Installer l'apworld", description: "desc", links: [{ label: "Releases", url: "https://example.org" }] },
+  ],
+  catalog: { notes: "Tested", links: [{ label: "Releases", url: "https://example.org" }] },
+};
+
+describe("getPublicGame", () => {
+  it("returns the detail on success", async () => {
+    server.use(http.get(`${BASE}/games/alttp`, () => HttpResponse.json({ data: validDetail })));
+    const result = await getPublicGame("alttp");
+    expect(result?.slug).toBe("alttp");
+    expect(result?.options).toHaveLength(1);
+    expect(result?.catalog.notes).toBe("Tested");
+  });
+
+  it("returns null on 404", async () => {
+    server.use(http.get(`${BASE}/games/missing`, () => new HttpResponse(null, { status: 404 })));
+    expect(await getPublicGame("missing")).toBeNull();
+  });
+
+  it("returns null on network error", async () => {
+    server.use(http.get(`${BASE}/games/alttp`, () => HttpResponse.error()));
+    expect(await getPublicGame("alttp")).toBeNull();
+  });
+
+  it("returns null when payload fails the type guard", async () => {
+    server.use(
+      http.get(`${BASE}/games/alttp`, () => HttpResponse.json({ data: { ...validDetail, apworld: null } })),
+    );
+    expect(await getPublicGame("alttp")).toBeNull();
+  });
+
+  it("returns null when an install step is malformed", async () => {
+    server.use(
+      http.get(`${BASE}/games/alttp`, () =>
+        HttpResponse.json({ data: { ...validDetail, installSteps: [{ type: "bogus", title: "x", description: "", links: [] }] } }),
+      ),
+    );
+    expect(await getPublicGame("alttp")).toBeNull();
+  });
+
+  it("returns null when a catalog link is malformed", async () => {
+    server.use(
+      http.get(`${BASE}/games/alttp`, () =>
+        HttpResponse.json({ data: { ...validDetail, catalog: { notes: null, links: [{ label: 42 }] } } }),
+      ),
+    );
+    expect(await getPublicGame("alttp")).toBeNull();
   });
 });

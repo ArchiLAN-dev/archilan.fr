@@ -5,11 +5,22 @@
 ```bash
 vendor/bin/phpstan analyse src tests   # level max - 0 errors
 vendor/bin/php-cs-fixer check src      # @Symfony ruleset - 0 violations
-php bin/phpunit                        # all suites green
+php bin/phpunit                        # all suites green - 0 notices/deprecations/warnings
 php bin/console app:architecture:ddd   # exit 0 - no layer violations
 ```
 
 Run all four before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations.
+
+**Zero PHPUnit notices is a validation prerequisite.** `phpunit.xml.dist` sets `failOnNotice`,
+`failOnDeprecation` and `failOnWarning` to `true`, so any notice/deprecation/warning makes
+`php bin/phpunit` exit non-zero - the gate is red even if every test "passes". The display
+(`OK, but there were issues!`) is **not** a pass. Capture the exact message with
+`php bin/phpunit --log-events-text php://stdout` and fix the root cause, e.g.:
+
+- *"No expectations were configured for the mock object … consider a test stub"* → the mock has no
+  `->expects(...)`; replace `createMock(X::class)` with `createStub(X::class)` (a stub for pure
+  return-value fakes, a mock only when you assert calls). Never silence it with
+  `#[AllowMockObjectsWithoutExpectations]`.
 
 ---
 
@@ -104,6 +115,8 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T8:** Include all entity classes needed by the feature being tested in the schema array - missing classes cause silent FK failures.  
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
+
+**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). For parallel agents, isolate it per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh` (see root `CLAUDE.md` → "Sessions parallèles").
 
 ### What NOT to test
 

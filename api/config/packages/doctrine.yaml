@@ -80,6 +80,18 @@ doctrine:
                 dir: '%kernel.project_dir%/src/SessionConfig/Domain'
                 prefix: 'App\SessionConfig\Domain'
                 alias: SessionConfig
+            Streaming:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Streaming/Domain'
+                prefix: 'App\Streaming\Domain'
+                alias: Streaming
+            Community:
+                type: attribute
+                is_bundle: false
+                dir: '%kernel.project_dir%/src/Community/Domain'
+                prefix: 'App\Community\Domain'
+                alias: Community
 
 when@test:
     doctrine:

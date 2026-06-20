@@ -1,5 +1,20 @@
+import { BadgeCheck, ShieldCheck } from "lucide-react";
+import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
-import type { PlayerHistory, PlayerProfile, RunHistoryEntry } from "./player-profile-api";
+import type {
+  PlayerHistory,
+  PlayerProfile,
+  ProfileCustomization as ProfileCustomizationData,
+  ProfilePresence,
+  RunHistoryEntry,
+} from "./player-profile-api";
+import { ProfileAvatar } from "./profile-avatar";
+import { ProfileRelationshipActions } from "@/features/community/profile-relationship-actions";
+import { ProfileActivity } from "@/features/community/community-activity";
+import { ProfileAchievements } from "@/features/community/profile-achievements";
+import { ProfileComments } from "@/features/community/profile-comments";
+import { ProfileBanner } from "@/features/community/profile-banner";
+import { resolveLinkType } from "@/features/community/social-links";
 
 export function PlayerProfilePage({
   profile,
@@ -14,34 +29,94 @@ export function PlayerProfilePage({
 
   return (
     <article className="mx-auto w-full max-w-4xl grid gap-12">
-      <header className="grid gap-6 border-b border-border pb-8">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
-            Profil joueur
-          </p>
-          <h1 className="mt-2 font-heading text-3xl font-bold text-foreground md:text-4xl">
-            {displayName}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Membre depuis{" "}
-            <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
-          </p>
-        </div>
+      <header className="overflow-hidden rounded-2xl border border-border bg-surface">
+        <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Runs" value={String(profile.stats.runsParticipated)} />
-          <StatCard label="Objectifs" value={String(profile.stats.goalCompletions)} />
-          <StatCard label="Checks" value={String(profile.stats.totalChecksDone)} />
-          <StatCard
-            label="Taux de complétion"
-            value={
-              profile.stats.runsParticipated > 0
-                ? `${Math.round(profile.stats.goalCompletionRate * 100)}%`
-                : "-"
-            }
-          />
+        {/* z-10 keeps the overlapping content above the positioned banner. */}
+        <div className="relative z-10 grid gap-5 px-5 pb-6 sm:px-8">
+          {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
+              badges sit just below the name and beside the avatar — pulled up so they aren't below the photo. */}
+          <div>
+            <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
+              <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
+              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground [text-shadow:0_2px_6px_rgba(0,0,0,0.7)] md:text-4xl">
+                {displayName}
+              </h1>
+            </div>
+            <div className="-mt-6 flex flex-wrap items-center gap-2 pl-28 sm:-mt-8 sm:pl-32">
+              <span className="inline-flex items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent-text">
+                Niv. {profile.level.level}
+              </span>
+              {profile.badges.admin ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-400">
+                  <ShieldCheck aria-hidden className="size-3.5" /> Admin
+                </span>
+              ) : null}
+              {profile.badges.member ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                  <BadgeCheck aria-hidden className="size-3.5" /> Adhérent
+                </span>
+              ) : null}
+              {profile.presence.playing ? <PresenceBadge presence={profile.presence} /> : null}
+              {profile.customization?.pronouns ? (
+                <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                  {profile.customization.pronouns}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Details sit on the surface below — readable, off the bright banner. */}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="grid gap-2">
+              {profile.customization?.tagline ? (
+                <p className="text-sm italic text-foreground/80">{profile.customization.tagline}</p>
+              ) : null}
+              <p className="text-sm text-muted-foreground">
+                Membre depuis{" "}
+                <time dateTime={profile.joinedAt}>{formatDate(profile.joinedAt)}</time>
+              </p>
+              <div className="w-full max-w-sm">
+                <LevelBar level={profile.level} />
+              </div>
+              {profile.customization && profile.customization.socialLinks.length > 0 ? (
+                <SocialLinkIcons links={profile.customization.socialLinks} />
+              ) : null}
+            </div>
+            <ProfileRelationshipActions name={displayName} slug={profile.slug} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Runs" value={String(profile.stats.runsParticipated)} />
+            <StatCard label="Objectifs" value={String(profile.stats.goalCompletions)} />
+            <StatCard label="Checks" value={String(profile.stats.totalChecksDone)} />
+            <StatCard
+              label="Taux de complétion"
+              value={
+                profile.stats.runsParticipated > 0
+                  ? `${Math.round(profile.stats.goalCompletionRate * 100)}%`
+                  : "-"
+              }
+            />
+          </div>
         </div>
       </header>
+
+      {profile.customization && profile.customization.showcaseLayout.length > 0 ? (
+        <ProfileShowcase
+          entries={entries}
+          favorites={profile.customization.favoriteGames}
+          layout={profile.customization.showcaseLayout}
+        />
+      ) : null}
+
+      {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
+
+      {profile.achievements.length > 0 ? <ProfileAchievements achievements={profile.achievements} /> : null}
+
+      <ProfileActivity slug={profile.slug} />
+
+      <ProfileComments slug={profile.slug} />
 
       <section aria-labelledby="history-heading" className="grid gap-4">
         <h2 className="font-heading text-xl font-semibold text-foreground" id="history-heading">
@@ -73,10 +148,212 @@ export function PlayerProfilePage({
   );
 }
 
+function ProfileShowcase({
+  layout,
+  favorites,
+  entries,
+}: {
+  layout: string[];
+  favorites: ProfileCustomizationData["favoriteGames"];
+  entries: RunHistoryEntry[];
+}) {
+  const bestRuns = [...entries]
+    .filter((e) => !e.isInvalidated)
+    .sort((a, b) => b.checksDone - a.checksDone)
+    .slice(0, 3);
+  const mostPlayed = topGames(entries);
+
+  const widgets = layout
+    .map((key) => renderShowcaseWidget(key, favorites, bestRuns, mostPlayed))
+    .filter((w): w is ReactElement => w !== null);
+
+  if (widgets.length === 0) return null;
+
+  return (
+    <section className="grid gap-6 rounded-2xl border border-border bg-surface/40 p-5">
+      <h2 className="font-heading text-lg font-semibold text-foreground">Vitrine</h2>
+      {widgets}
+    </section>
+  );
+}
+
+function renderShowcaseWidget(
+  key: string,
+  favorites: ProfileCustomizationData["favoriteGames"],
+  bestRuns: RunHistoryEntry[],
+  mostPlayed: { game: string; count: number }[],
+): ReactElement | null {
+  if (key === "favorite_games" && favorites.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Jeux favoris">
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6" role="list">
+          {favorites.map((game) => (
+            <li key={game.id}>
+              <Link className="group grid gap-1.5 text-center" href={`/jeux/${game.slug}`}>
+                <span className="block aspect-[3/4] overflow-hidden rounded border border-border bg-surface">
+                  {game.coverImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- external IGDB cover
+                    <img alt={game.name} className="h-full w-full object-cover object-top" src={game.coverImageUrl} />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+                      {game.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </span>
+                <span className="line-clamp-2 text-xs text-muted-foreground group-hover:text-foreground">{game.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  if (key === "best_runs" && bestRuns.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Meilleures runs">
+        <ul className="grid gap-2" role="list">
+          {bestRuns.map((entry) => (
+            <li
+              className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2 text-sm"
+              key={`${entry.sessionId}-${entry.game}`}
+            >
+              <span className="min-w-0 truncate text-foreground">{entry.game}</span>
+              <span className="shrink-0 text-muted-foreground">
+                <span className="font-semibold text-foreground">{entry.checksDone}</span> checks
+              </span>
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  if (key === "most_played" && mostPlayed.length > 0) {
+    return (
+      <ShowcaseBlock key={key} title="Les plus joués">
+        <ul className="grid gap-2" role="list">
+          {mostPlayed.map((row) => (
+            <li
+              className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2 text-sm"
+              key={row.game}
+            >
+              <span className="min-w-0 truncate text-foreground">{row.game}</span>
+              <span className="shrink-0 text-muted-foreground">
+                <span className="font-semibold text-foreground">{row.count}</span> partie{row.count > 1 ? "s" : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </ShowcaseBlock>
+    );
+  }
+
+  return null;
+}
+
+function ShowcaseBlock({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="grid gap-3">
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function topGames(entries: RunHistoryEntry[]): { game: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.game) counts.set(entry.game, (counts.get(entry.game) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([game, count]) => ({ game, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+}
+
+function LevelBar({ level }: { level: PlayerProfile["level"] }) {
+  const pct = level.xpForNextLevel > 0 ? Math.round((level.xpIntoLevel / level.xpForNextLevel) * 100) : 0;
+  return (
+    <div className="mt-1 grid max-w-xs gap-1">
+      <div className="flex justify-between text-[11px] text-muted-foreground">
+        <span>Niveau {level.level}</span>
+        <span className="tabular-nums">
+          {level.xpIntoLevel} / {level.xpForNextLevel} XP
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+        <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function ProfileCustomization({ customization }: { customization: ProfileCustomizationData }) {
+  const { bio } = customization;
+  // Favorite games render as a Vitrine block (ProfileShowcase); social links live in the header card.
+  // This section now holds only the "À propos" text.
+  if (!bio) return null;
+
+  return (
+    <section className="grid gap-2">
+      <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
+      <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
+    </section>
+  );
+}
+
+function SocialLinkIcons({ links }: { links: ProfileCustomizationData["socialLinks"] }) {
+  return (
+    <ul className="flex flex-wrap items-center gap-1.5 pt-0.5" role="list">
+      {links.map((link) => {
+        const type = resolveLinkType(link.label);
+        const Icon = type.icon;
+        const name = type.key === "other" ? link.label || "Lien" : type.label;
+        return (
+          <li key={link.url}>
+            <a
+              aria-label={name}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-accent hover:text-accent-text"
+              href={link.url}
+              rel="nofollow noopener noreferrer"
+              target="_blank"
+              title={name}
+            >
+              <Icon aria-hidden className="size-4" />
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function PresenceBadge({ presence }: { presence: ProfilePresence }) {
+  const label = presence.game ? `En jeu · ${presence.game}` : "En jeu";
+  const dot = <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-emerald-400" />;
+  const className =
+    "inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300";
+
+  if (presence.sessionId) {
+    return (
+      <Link className={`${className} hover:bg-emerald-500/20`} href={`/runs/${presence.sessionId}`}>
+        {dot} {label}
+      </Link>
+    );
+  }
+
+  return (
+    <span className={className}>
+      {dot} {label}
+    </span>
+  );
+}
+
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-4 text-center">
-      <p className="text-2xl font-bold text-foreground">{value}</p>
+    <div className="card-glow rounded-lg border border-border bg-background p-4 text-center">
+      <p className="font-heading text-2xl font-bold text-foreground">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{label}</p>
     </div>
   );

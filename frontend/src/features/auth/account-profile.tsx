@@ -143,7 +143,7 @@ export function SteamSection({ steamProfile }: SteamSectionProps) {
       setMessage({ text: "Compte Steam enregistré.", isError: false });
     } else if (result.invalid) {
       setMessage({
-        text: "Profil Steam non reconnu — colle l'URL de ton profil, ton pseudo Steam, ou ton SteamID64.",
+        text: "Profil Steam non reconnu - colle l'URL de ton profil, ton pseudo Steam, ou ton SteamID64.",
         isError: true,
       });
     } else {

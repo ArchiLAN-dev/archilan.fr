@@ -57,6 +57,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private ?string $discordSyncError = null,
         #[ORM\Column(name: 'steam_profile', type: 'string', length: 190, nullable: true)]
         private ?string $steamProfile = null,
+        // ── Moderation state (story 30.29). Suspension auto-expires; a ban is permanent until lifted. ──
+        #[ORM\Column(name: 'suspended_until', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $suspendedUntil = null,
+        #[ORM\Column(name: 'banned_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $bannedAt = null,
+        #[ORM\Column(name: 'moderation_reason', type: 'string', length: 500, nullable: true)]
+        private ?string $moderationReason = null,
     ) {
     }
 
@@ -252,6 +259,74 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isDeleted(): bool
     {
         return null !== $this->deletedAt;
+    }
+
+    public const MOD_ACTIVE = 'active';
+    public const MOD_SUSPENDED = 'suspended';
+    public const MOD_BANNED = 'banned';
+
+    /** Temporarily block access until $until (story 30.29). Clears any ban; a later date overrides. */
+    public function suspendUntil(\DateTimeImmutable $until, string $reason, \DateTimeImmutable $now): void
+    {
+        $this->suspendedUntil = $until;
+        $this->bannedAt = null;
+        $this->moderationReason = '' === trim($reason) ? null : mb_substr(trim($reason), 0, 500);
+        $this->updatedAt = $now;
+    }
+
+    /** Permanently block access (story 30.29). Clears any suspension. */
+    public function ban(string $reason, \DateTimeImmutable $now): void
+    {
+        $this->bannedAt = $now;
+        $this->suspendedUntil = null;
+        $this->moderationReason = '' === trim($reason) ? null : mb_substr(trim($reason), 0, 500);
+        $this->updatedAt = $now;
+    }
+
+    /** Clear any suspension/ban, restoring access (story 30.29). */
+    public function lift(\DateTimeImmutable $now): void
+    {
+        $this->suspendedUntil = null;
+        $this->bannedAt = null;
+        $this->moderationReason = null;
+        $this->updatedAt = $now;
+    }
+
+    /** True while the account is banned, or suspended with an end date still in the future. */
+    public function isAccessBlocked(\DateTimeImmutable $now): bool
+    {
+        if (null !== $this->bannedAt) {
+            return true;
+        }
+
+        return null !== $this->suspendedUntil && $this->suspendedUntil > $now;
+    }
+
+    public function moderationStatus(\DateTimeImmutable $now): string
+    {
+        if (null !== $this->bannedAt) {
+            return self::MOD_BANNED;
+        }
+        if (null !== $this->suspendedUntil && $this->suspendedUntil > $now) {
+            return self::MOD_SUSPENDED;
+        }
+
+        return self::MOD_ACTIVE;
+    }
+
+    public function getSuspendedUntil(): ?\DateTimeImmutable
+    {
+        return $this->suspendedUntil;
+    }
+
+    public function getBannedAt(): ?\DateTimeImmutable
+    {
+        return $this->bannedAt;
+    }
+
+    public function getModerationReason(): ?string
+    {
+        return $this->moderationReason;
     }
 
     public function getUserIdentifier(): string

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
 use App\Events\Domain\Event;
 use App\Identity\Domain\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
@@ -99,6 +100,42 @@ final class AdminRunArchivalTest extends FunctionalTestCase
         self::assertInstanceOf(Session::class, $refreshedSession);
         self::assertSame('/var/archives/run-arc-2.apsave', $refreshedSession->getArchivedSavePath());
         self::assertSame('/var/archives/run-arc-2.archipelago', $refreshedSession->getArchivedSpoilerPath());
+    }
+
+    public function testArchiveCallbackTriggersAchievementRecomputeForParticipant(): void
+    {
+        $user = $this->createUser('player-ach@example.org', ['ROLE_USER'], 'player-ach@example.org');
+        $reg = $this->createRegistration('evt-arc-ach', $user->getId());
+        $session = $this->createFinishedSession('run-arc-ach', 'evt-arc-ach');
+
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), 'game-ach', 'Alice', 1);
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest(
+            'POST',
+            sprintf('/api/v1/internal/sessions/%s/runner-callback', $session->getId()),
+            [
+                'status' => 'archived',
+                'archived_save_path' => null,
+                'archived_spoiler_path' => null,
+                'slots' => [
+                    ['slot_name' => 'Alice', 'checks_done' => 42, 'items_received' => 30, 'goal_reached_at' => '2026-05-06T12:00:00+00:00'],
+                ],
+            ],
+            ['HTTP_X-Internal-Secret' => 'test-runner-secret'],
+        );
+        self::assertResponseStatusCodeSame(200);
+
+        // The participant's achievements are (re)computed off the request path, resolved to the user id.
+        /** @var InMemoryTransport $transport */
+        $transport = self::getContainer()->get('messenger.transport.async');
+        $recomputeMessages = array_values(array_filter(
+            array_map(static fn ($e) => $e->getMessage(), $transport->getSent()),
+            static fn ($m) => $m instanceof RecomputeAchievementsForUserMessage,
+        ));
+        self::assertCount(1, $recomputeMessages);
+        self::assertSame($user->getId(), $recomputeMessages[0]->userId);
     }
 
     public function testPublicResultsRequiresNoAuth(): void

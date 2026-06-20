@@ -5,12 +5,125 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameCatalogSync;
 
 final class AdminGameLibraryTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+    }
+
+    public function testUpdatePreservesCatalogSyncFieldsAbsentFromThePayload(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->loginAs($admin);
+
+        $game = $this->createGame('Ocarina of Time', 'ocarina-of-time');
+        $sync = new GameCatalogSync(
+            $game,
+            catalogSheetName: 'Ocarina of Time',
+            apworldSourceUrl: 'https://github.com/owner/oot',
+            apworldDeployedVersion: '1.2.0',
+            igdbId: 1234,
+        );
+        $sync->recordSteamAppId(99);
+        $this->entityManager->persist($sync);
+        $this->entityManager->flush();
+
+        // Mirror exactly what the edit form sends: no igdb_id, no apworld_deployed_version.
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            'name' => 'Ocarina of Time AP',
+            'slug' => 'ocarina-of-time',
+            'description' => 'Updated description.',
+            'coverImageAlt' => 'Logo',
+            'coverImageCredit' => 'Nintendo',
+            'availability' => Game::AVAILABILITY_AVAILABLE,
+            'catalog_sheet_name' => 'Ocarina of Time',
+            'apworld_source_url' => 'https://github.com/owner/oot',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame('Ocarina of Time AP', $data['name']);
+        // Fields not sent by the form must survive the save.
+        self::assertSame(1234, $data['igdbId']);
+        self::assertSame('1.2.0', $data['apworldDeployedVersion']);
+        self::assertSame(99, $data['steamAppId']);
+    }
+
+    public function testUpdateRecomputesPlatformsWhenIgdbIdChanges(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->loginAs($admin);
+
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+
+        // Link the game to IGDB id 1234 (the test stub resolves it to the "PC" platform family).
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            'name' => 'Hollow Knight',
+            'slug' => 'hollow-knight',
+            'description' => 'A challenging metroidvania.',
+            'coverImageAlt' => 'Logo',
+            'coverImageCredit' => '© IGDB',
+            'availability' => Game::AVAILABILITY_AVAILABLE,
+            'igdb_id' => 1234,
+        ]);
+        self::assertResponseIsSuccessful();
+
+        // Platforms are resolved immediately, no bulk backfill needed.
+        $this->client->jsonRequest('GET', '/api/v1/games?all=1');
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+
+        $bySlug = [];
+        foreach ($data as $item) {
+            self::assertIsArray($item);
+            $slug = $item['slug'] ?? null;
+            self::assertIsString($slug);
+            $bySlug[$slug] = $item;
+        }
+
+        self::assertArrayHasKey('hollow-knight', $bySlug);
+        self::assertSame(['PC'], $bySlug['hollow-knight']['platforms']);
+    }
+
+    public function testResyncPlatformsEndpointResolvesFromIgdb(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->loginAs($admin);
+
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $sync = new GameCatalogSync($game, igdbId: 1234);
+        $this->entityManager->persist($sync);
+        $this->entityManager->flush();
+
+        // Admin detail exposes platforms (none resolved yet).
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/games/%s', $game->getId()));
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame([], $data['platforms']);
+
+        // Manual sync resolves the families from the IGDB stub (id 1234 -> PC).
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/games/%s/resync-platforms', $game->getId()));
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame(['PC'], $data['platforms']);
+    }
+
+    public function testResyncPlatformsFailsWithoutIgdbId(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->loginAs($admin);
+
+        $game = $this->createGame('No IGDB Link', 'no-igdb-link');
+
+        $this->client->jsonRequest('POST', sprintf('/api/v1/admin/games/%s/resync-platforms', $game->getId()));
+        self::assertResponseStatusCodeSame(422);
     }
 
     public function testAnonymousAndUserCannotManageGameLibrary(): void

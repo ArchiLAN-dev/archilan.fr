@@ -65,6 +65,13 @@ class Game
          */
         #[ORM\Column(name: 'option_types', type: 'json', nullable: true)]
         private ?array $optionTypes = null,
+        /**
+         * Ordered per-game install tutorial steps (story 31.1).
+         *
+         * @var list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null
+         */
+        #[ORM\Column(name: 'install_steps', type: 'json', nullable: true)]
+        private ?array $installSteps = null,
     ) {
     }
 
@@ -241,6 +248,22 @@ class Game
     public function setOptionTypes(?array $optionTypes): void
     {
         $this->optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
+    }
+
+    /**
+     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     */
+    public function getInstallSteps(): array
+    {
+        return $this->installSteps ?? [];
+    }
+
+    /**
+     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null $steps
+     */
+    public function setInstallSteps(?array $steps): void
+    {
+        $this->installSteps = null === $steps || [] === $steps ? null : $steps;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

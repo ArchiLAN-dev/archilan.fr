@@ -19,7 +19,7 @@ Both files are loaded automatically by the agent runtime. Do not skip them.
 # API
 vendor/bin/phpstan analyse src tests    → 0 errors
 vendor/bin/php-cs-fixer check src       → 0 violations
-php bin/phpunit                         → all tests green
+php bin/phpunit                         → all tests green, 0 notices/deprecations/warnings
 php bin/console app:architecture:ddd    → exit 0
 
 # Frontend
@@ -98,6 +98,23 @@ release/{vX.Y.Z}                           # ex: release/v2.1.0
 1. `git checkout -b hotfix/slug main`
 2. Corriger → quality gates verts
 3. PR vers `main` ET cherry-pick / PR vers `develop`
+
+### Sessions parallèles - un worktree par agent
+
+Plusieurs agents/sessions peuvent travailler en parallèle sur ce poste. Par défaut le dépôt n'a qu'un seul working tree : **ne jamais bosser à plusieurs dans le même dossier** - les `git checkout` et `git stash` se télescopent, et le WIP non commité d'un agent « suit » le checkout d'un autre.
+
+**Règle : chaque session parallèle opère dans son propre `git worktree`.**
+
+```bash
+./scripts/setup-worktree.sh <name> [branch]
+# ex: ./scripts/setup-worktree.sh avatar feature/epic-30-story-27-avatar-upload
+```
+
+Le script crée `../archilan-<name>` (working tree + branche isolés) et une base de test Postgres dédiée (`archilan_test_<name>`) via le hook `TEST_TOKEN` de Doctrine. Postgres, Docker, MinIO et les serveurs dev restent **partagés**.
+
+- Avant tout `git checkout` dans un tree partagé : **commit ou stash *nommé* d'abord**.
+- Fin de session : `git worktree remove ../archilan-<name>`.
+- Options du script (`--base`, `--no-frontend`, `--help`) : voir son en-tête.
 
 ---
 

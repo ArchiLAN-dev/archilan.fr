@@ -16,7 +16,7 @@ So that I see hints live without having to reload the page.
 
 3. **Given** a hint is created in-game for **any** slot (including a slot the bridge is not connected as) **When** the AP server updates the hint storage **Then** the slot detail page reflects it within ~1 second, without a page reload.
 
-4. **Given** a slot already has hints at connect time **When** the initial `Retrieved` arrives **Then** those hints are emitted once (no duplicate spam on subsequent identical `SetReply`s — only changed slots are pushed).
+4. **Given** a slot already has hints at connect time **When** the initial `Retrieved` arrives **Then** those hints are emitted once (no duplicate spam on subsequent identical `SetReply`s - only changed slots are pushed).
 
 5. **Given** a malformed/empty storage payload **When** the bridge parses it **Then** it is ignored (no crash); the existing PrintJSON-based `_track_hint` path keeps working unchanged.
 
@@ -48,7 +48,7 @@ So that I see hints live without having to reload the page.
 
 The bridge only ever pushes hints to Mercure from `_track_hint` (`ap_client.py:809`), which fires on a `PrintJSON` of type `Hint`. The AP server sends that `PrintJSON` **only to the clients of the slots involved** in the hint. The bridge connects as a **single** slot with `tags: ["TextOnly"]` (`ap_client.py:364`), so it never receives `Hint` PrintJSON for hints between other slots.
 
-New hints for other slots *do* land in memory eventually — the apsave reconcile loop (`loops.py:131`) calls `apply_saved_states`, which replaces `ps._hints` (`state.py:201`) — but:
+New hints for other slots *do* land in memory eventually - the apsave reconcile loop (`loops.py:131`) calls `apply_saved_states`, which replaces `ps._hints` (`state.py:201`) - but:
 - the reconcile change-detection only looks at `checks_done`/`items_received` (`loops.py:151,174`), not hints, and
 - `notify_state_changed()` pushes only the `state_changed` (slots summary) payload, **never** `_broadcast_hints`/`hints-push`.
 
@@ -72,7 +72,7 @@ The server exposes a read-only key per slot: `_read_hints_{team}_{slot}`. Its va
 
 ### State changes - `state.py`
 
-Add `set_hints(slot_index, hints) -> bool`: replace `ps._hints` wholesale, return whether it differs from the previous list (so the loop only pushes on real changes — AC #4).
+Add `set_hints(slot_index, hints) -> bool`: replace `ps._hints` wholesale, return whether it differs from the previous list (so the loop only pushes on real changes - AC #4).
 
 ### No API / frontend change
 

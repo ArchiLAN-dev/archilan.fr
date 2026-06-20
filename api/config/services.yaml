@@ -21,6 +21,7 @@ parameters:
     # published port is on localhost; in prod the API is containerised and must reach the host's
     # published port via the docker gateway → set BRIDGE_HTTP_HOST=host.docker.internal.
     default_bridge_http_host: 'localhost'
+    default_moderation_escalation_threshold: 10
     default_cleanup_token_consumed_grace_days: 7
     default_cleanup_helloasso_sync_log_retention_days: 90
     default_cleanup_event_access_log_retention_days: 365
@@ -43,6 +44,7 @@ services:
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
             string $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
+            int $escalationThreshold: '%env(default:default_moderation_escalation_threshold:int:MODERATION_ESCALATION_THRESHOLD)%'
             string $siteUrl: '%env(FRONTEND_ORIGIN)%'
             string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
             string $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
@@ -74,6 +76,7 @@ services:
             - '../src/Membership/Domain/'
             - '../src/WeeklyRuns/Domain/'
             - '../src/SessionConfig/Domain/'
+            - '../src/Community/Domain/'
 
     App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigProfileRepository'
     App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigOverrideRepository'
@@ -283,6 +286,38 @@ services:
 
     App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
     App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
+    App\PersonalRuns\Domain\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineYamlTemplateRepository'
+
+    App\Community\Domain\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\DoctrineCommunityProfileRepository'
+    App\Community\Application\CommunityProfileQueryInterface: '@App\Community\Infrastructure\DbalCommunityProfileQuery'
+    App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
+    App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
+    App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
+    App\Identity\Application\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
+    App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
+    App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
+    App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
+    App\Community\Application\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\DbalAccountReportScoreQuery'
+    App\Community\Application\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityAdminIdsQuery'
+    App\Sessions\Application\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\MessengerAchievementRecomputeTrigger'
+    App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
+    App\Community\Domain\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementDefinitionRepository'
+    App\Community\Domain\FriendshipRepositoryInterface: '@App\Community\Infrastructure\DoctrineFriendshipRepository'
+    App\Community\Domain\BlockRepositoryInterface: '@App\Community\Infrastructure\DoctrineBlockRepository'
+    App\Community\Domain\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\DoctrineActivityEntryRepository'
+    App\Community\Domain\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\DoctrineProfileCommentRepository'
+    App\Community\Domain\ContentReportRepositoryInterface: '@App\Community\Infrastructure\DoctrineContentReportRepository'
+    App\Community\Domain\ModerationActionRepositoryInterface: '@App\Community\Infrastructure\DoctrineModerationActionRepository'
+    App\Community\Application\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\IdentityMemberModerationGateway'
+    App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\DoctrineKudosRepository'
+    App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\DoctrineNotificationRepository'
+    App\Community\Application\Notifier: '@App\Community\Application\NotificationService'
+    App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
+
+    App\Community\Infrastructure\DiscordAvatarResolver:
+        arguments:
+            $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
+    App\PersonalRuns\Application\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\DbalRecentlyPlayedGamesQuery'
 
     App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
     App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
@@ -303,8 +338,14 @@ services:
     App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
     App\GameSelection\Infrastructure\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\SteamWebApiClient'
     App\GameSelection\Application\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
+    App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
+    App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoClientInfoRepository'
+    App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoGuideRepository'
+    App\GameSelection\Domain\GameTutorialContributionRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameTutorialContributionRepository'
+    App\GameSelection\Application\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalMyGameTutorialContributionsQuery'
+    App\GameSelection\Application\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameContributionsQuery'
     App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
     App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
     App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
@@ -349,6 +390,21 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+when@dev:
+    services:
+        # The dev Mercure hub is served over HTTPS (for HTTP/2) with a local mkcert cert that PHP/curl
+        # doesn't trust. Decorate the default http_client so requests to the local hub skip TLS
+        # verification; every other outbound HTTP client (IGDB, Steam, …) is untouched.
+        app.dev.insecure_local_mercure_http_client:
+            class: Symfony\Component\HttpClient\ScopingHttpClient
+            decorates: http_client
+            arguments:
+                $client: '@.inner'
+                $defaultOptionsByRegexp:
+                    '^https://localhost:3001':
+                        verify_peer: false
+                        verify_host: false
 
 when@test:
     services:
@@ -398,3 +454,6 @@ when@test:
 
         App\Membership\Application\DolibarrClientInterface:
             class: App\Membership\Infrastructure\NullDolibarrClient
+
+        App\Community\Application\AvatarResolverInterface:
+            class: App\Community\Infrastructure\StubAvatarResolver

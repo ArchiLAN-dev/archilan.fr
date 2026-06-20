@@ -1,4 +1,4 @@
-# Story 9.24: Reachability — speed up the compute and fix the snapshot-consistency race
+# Story 9.24: Reachability - speed up the compute and fix the snapshot-consistency race
 
 **Status:** ready-for-dev
 **Epic:** 9 - Archipelago Session Management
@@ -14,7 +14,7 @@ so that the progress view is both fast and correct.
 
 ## Context
 
-Follow-up to story 9.23 (which fixed *propagation* — pushing `players` from the sweep and
+Follow-up to story 9.23 (which fixed *propagation* - pushing `players` from the sweep and
 adding hints-push). Two issues remain, found while reading `bridge/core/reachable.py` +
 `loops.py` and live-diagnosing:
 
@@ -50,10 +50,10 @@ real staleness edge when grabbing items in quick succession.
    state. So any check/item that arrives during a compute triggers a recompute on the next
    sweep, and `reachable_now` never gets stuck one step behind. Covered by a test.
 2. **Perf (A):** the reachability compute reuses a **pre-loaded multiworld** instead of
-   loading it per call in an ephemeral container — bringing a single compute from ~seconds
+   loading it per call in an ephemeral container - bringing a single compute from ~seconds
    to sub-second. Approach options (pick one in the spike):
    a. a **long-lived reachable daemon container** (start once per session, query over a
-      socket/stdin) — the Docker analogue of the existing `_start_daemon` path; or
+      socket/stdin) - the Docker analogue of the existing `_start_daemon` path; or
    b. `docker exec` into the **running AP server container** with a persistent helper that
       keeps the world loaded; or
    c. compute reachability inside the AP server process (it already has the world loaded).
@@ -64,19 +64,19 @@ real staleness edge when grabbing items in quick succession.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Race fix (small, ship first)** (AC: 1). In `bridge/core/loops.py`, mark
+- [ ] **Task 1 - Race fix (small, ship first)** (AC: 1). In `bridge/core/loops.py`, mark
   `last_computed[slot]` with the key the compute used: read it from
   `_reachable_cache[slot]` (the `(cache_key, result)` the compute just stored) instead of
   the current `ps` counters. Add a test proving a slot whose state changed during the
-  compute is re-swept. *(Implemented alongside this story — see Dev Agent Record.)*
-- [ ] **Task 2 — Spike: reachability worker for Docker mode** (AC: 2). Decide between a
+  compute is re-swept. *(Implemented alongside this story - see Dev Agent Record.)*
+- [ ] **Task 2 - Spike: reachability worker for Docker mode** (AC: 2). Decide between a
   long-lived reachable daemon container, `docker exec` + persistent helper, or in-AP-server
   computation. Prototype load-once + per-query latency; document the choice. The existing
   non-Docker `_start_daemon` (stdin/stdout JSON protocol) is the reference design.
-- [ ] **Task 3 — Implement the worker** (AC: 2,3). Add a `run_reachable`-equivalent on the
+- [ ] **Task 3 - Implement the worker** (AC: 2,3). Add a `run_reachable`-equivalent on the
   Docker runtime that talks to the persistent worker (start on first need / on launch, reuse
   across sweeps, tear down with the session). Keep the ephemeral-container path as a fallback.
-- [ ] **Task 4 — Tests + gates + live verify** (AC: 3,4). Unit-test the runtime selection /
+- [ ] **Task 4 - Tests + gates + live verify** (AC: 3,4). Unit-test the runtime selection /
   fallback; `ruff`/`pytest`/`mypy`; verify warm-compute latency on a live run.
 
 ## Dev Notes
@@ -97,7 +97,7 @@ real staleness edge when grabbing items in quick succession.
 
 ### Non-goals
 
-- Incremental/partial reachability (only re-evaluating locations near new items) — much
+- Incremental/partial reachability (only re-evaluating locations near new items) - much
   larger AP-logic effort, out of scope.
 - Frontend changes (it already renders whatever `reachable_now` / reachable map it receives).
 
@@ -120,7 +120,7 @@ claude-opus-4-8 (Claude Code).
   from `_reachable_cache[slot][0]` (the snapshot the compute used) rather than the current
   counters; falls back to current counters only if the cache entry is missing. Test added
   proving a slot mutated during the compute is re-swept on the next iteration. Gates green.
-- Tasks 2-4 (perf worker) remain — bigger, separate change touching the runtime adapter and
+- Tasks 2-4 (perf worker) remain - bigger, separate change touching the runtime adapter and
   the archipelago image.
 
 ### Change Log

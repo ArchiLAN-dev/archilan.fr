@@ -174,6 +174,61 @@ final class AdminEventGalleryTest extends FunctionalTestCase
         self::assertSame('https://cdn.example.test/events/photo-2.webp', $gallery[1]['url'] ?? null);
     }
 
+    public function testEditPreservesUploadSourceWhenSubmittingStalePresignedUrls(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $this->loginAs($admin);
+        $eventId = $this->createEventViaApi();
+
+        for ($i = 0; $i < 2; ++$i) {
+            $tmpFile = $this->createTempImage('image/jpeg');
+            $uploadedFile = new UploadedFile($tmpFile, 'photo.jpg', 'image/jpeg', null, true);
+            $this->client->request('POST', sprintf('/api/v1/admin/events/%s/gallery', $eventId), [], ['file' => $uploadedFile]);
+            self::assertResponseIsSuccessful();
+            unlink($tmpFile);
+        }
+
+        $event = $this->entityManager->find(Event::class, $eventId);
+        self::assertInstanceOf(Event::class, $event);
+        $this->entityManager->refresh($event);
+        $originalKeys = array_map(static fn (array $item): string => $item['key'] ?? '', $event->getPhotoGallery());
+        self::assertCount(2, $originalKeys);
+
+        // Simulate the admin form re-submitting already-expired presigned URLs for the
+        // same objects: a different signature/date than what the server would mint now.
+        $staleUrls = array_map(
+            static fn (string $key): string => sprintf('http://minio.test/media/%s?X-Amz-Expires=10&X-Amz-Date=20200101T000000Z&X-Amz-Signature=expired', $key),
+            $originalKeys,
+        );
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/events/%s', $eventId), [
+            'title' => 'Test Event',
+            'description' => 'Description de test.',
+            'startsAt' => '2027-06-01T10:00:00+00:00',
+            'endsAt' => '2027-06-01T22:00:00+00:00',
+            'venue' => 'Clermont-Ferrand',
+            'capacity' => 20,
+            'registrationOpensAt' => '2027-05-01T10:00:00+00:00',
+            'registrationClosesAt' => '2027-05-31T18:00:00+00:00',
+            'isPublic' => true,
+            'coverImageMode' => 'url',
+            'coverImageUrl' => null,
+            'photoGallery' => $staleUrls,
+        ]);
+
+        self::assertResponseIsSuccessful();
+
+        $this->entityManager->clear();
+        $stored = $this->entityManager->find(Event::class, $eventId);
+        self::assertInstanceOf(Event::class, $stored);
+        $gallery = $stored->getPhotoGallery();
+        self::assertCount(2, $gallery);
+        foreach ($gallery as $index => $item) {
+            self::assertSame('upload', $item['source'], 'Uploaded photos must stay re-signable, never frozen as URL.');
+            self::assertSame($originalKeys[$index], $item['key'] ?? null);
+        }
+    }
+
     public function testDeleteGalleryItemAtInvalidIndexReturns404(): void
     {
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);

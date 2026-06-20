@@ -19,15 +19,19 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
     }
 
     /**
-     * @return array{runs_participated: int, goal_completions: int, total_checks_done: int, total_items_received: int}
+     * @return array{runs_participated: int, games_played: int, goal_completions: int, total_checks_done: int, total_items_received: int}
      */
     public function computeForUser(string $userId): array
     {
+        // Goals and games are counted per slot (= per game): COUNT(goal_reached_at) counts goal-reached
+        // slots; COUNT(slot.id) counts every game the player took part in. (Story 18.8 - previously goals
+        // were counted per distinct session, undercounting multi-game runs.)
         $eventQb = $this->connection->createQueryBuilder();
         $eventRow = $eventQb
             ->select(
                 'COUNT(DISTINCT s.id) AS runs_participated',
-                'COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END) AS goal_completions',
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN 1 ELSE 0 END), 0) AS games_played',
+                'COUNT(slot.goal_reached_at) AS goal_completions',
                 'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done',
                 'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.items_received ELSE 0 END), 0) AS total_items_received',
             )
@@ -45,7 +49,8 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
         $prRow = $prQb
             ->select(
                 'COUNT(DISTINCT s.id) AS runs_participated',
-                'COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END) AS goal_completions',
+                'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN 1 ELSE 0 END), 0) AS games_played',
+                'COUNT(slot.goal_reached_at) AS goal_completions',
                 'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.checks_done ELSE 0 END), 0) AS total_checks_done',
                 'COALESCE(SUM(CASE WHEN NOT (slot.was_released AND slot.goal_reached_at IS NULL) THEN slot.items_received ELSE 0 END), 0) AS total_items_received',
             )
@@ -54,6 +59,10 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
             ->join('s', self::RUN_TABLE, 'pr', $prQb->expr()->eq('pr.session_id', 's.id'))
             ->where($prQb->expr()->eq('slot.registration_id', ':userId'))
             ->andWhere($prQb->expr()->eq('s.status', ':status'))
+            // A personal run counts only when the player reached a goal in it (story 17.15). Gate at the
+            // SESSION level - not the slot - so the other games of a counted run still feed games_played
+            // and checks/items (story 18.8).
+            ->andWhere('s.id IN (SELECT g.session_id FROM '.self::SLOT_TABLE.' g WHERE g.registration_id = :userId AND g.goal_reached_at IS NOT NULL)')
             ->setParameter('userId', $userId)
             ->setParameter('status', 'finished')
             ->executeQuery()
@@ -61,6 +70,7 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
 
         return [
             'runs_participated' => $this->intVal($eventRow, 'runs_participated') + $this->intVal($prRow, 'runs_participated'),
+            'games_played' => $this->intVal($eventRow, 'games_played') + $this->intVal($prRow, 'games_played'),
             'goal_completions' => $this->intVal($eventRow, 'goal_completions') + $this->intVal($prRow, 'goal_completions'),
             'total_checks_done' => $this->intVal($eventRow, 'total_checks_done') + $this->intVal($prRow, 'total_checks_done'),
             'total_items_received' => $this->intVal($eventRow, 'total_items_received') + $this->intVal($prRow, 'total_items_received'),

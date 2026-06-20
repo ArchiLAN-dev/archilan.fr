@@ -1,4 +1,4 @@
-# Story 17.11: Session lifecycle — propagate generation/launch crashes (don't hang on "generating"/"starting")
+# Story 17.11: Session lifecycle - propagate generation/launch crashes (don't hang on "generating"/"starting")
 
 **Status:** review
 **Epic:** 17 - Session restart / idle lifecycle
@@ -8,7 +8,7 @@
 
 As a private-run owner (and as an operator),
 I want a session that **crashes during generation or launch** to end in a clear failed
-state — with the run no longer stuck on "starting" —
+state - with the run no longer stuck on "starting" -
 so that the UI shows the failure and I can retry, instead of the run hanging forever.
 
 ## Context
@@ -23,7 +23,7 @@ independent of the BOM fix (PR #122):
   (`GENERATING => [generated, failed]`, `LAUNCHING => [running, failed]`). So from
   `generating`, `Session::transition('crashed', …)` throws `LogicException`.
 - `SessionLifecycleManager::transition` **catches the LogicException** and returns
-  `['found' => true, 'errors' => [...]]` — and the webhook **ignores `errors`** and returns
+  `['found' => true, 'errors' => [...]]` - and the webhook **ignores `errors`** and returns
   `200`. Net result: **the session stays `generating`** and the personal run stays
   `starting` **forever** ("génération faite mais le serveur se lance pas").
 - There is also **no run-side handling**: `PersonalRunAdvancerInterface` has
@@ -51,45 +51,45 @@ error, OOM, …) still hangs. This story makes crashes terminal and visible.
 ## Acceptance Criteria
 
 1. When the orchestrateur reports `session.crashed` for a session in `generating` or
-   `launching`, the session reaches a **terminal failed state** (`failed`) — never left in
+   `launching`, the session reaches a **terminal failed state** (`failed`) - never left in
    `generating`/`launching`. A crash while `running` still yields `crashed`.
 2. The webhook **does not silently succeed** on a no-op/invalid transition: an unreached
    terminal state is logged at error level (and, where possible, forced to `failed`).
 3. The associated **personal run leaves `starting`** on a session crash (e.g. reset to
    `draft`), so the run page no longer hangs; a non-owner sees a coherent state too.
-4. The crash reason is **surfaced in the UI** (run page) rather than a silent hang —
+4. The crash reason is **surfaced in the UI** (run page) rather than a silent hang -
    reusing the validation-error banner or an equivalent "generation failed" message.
 5. No regression on the happy path (generated → launching → running) nor on the existing
    `session.stopped` / `session.idle` / `session.ready` handlers.
-6. Quality gates green — API: phpstan / php-cs-fixer / phpunit / `app:architecture:ddd`;
+6. Quality gates green - API: phpstan / php-cs-fixer / phpunit / `app:architecture:ddd`;
    frontend: typecheck / lint / build. Verified live: trigger a generation crash → session
    `failed`, run off `starting`, error shown.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Crash → valid terminal state** (AC: 1,2). In `OrchestratorWebhookController`
+- [ ] **Task 1 - Crash → valid terminal state** (AC: 1,2). In `OrchestratorWebhookController`
   `session.crashed` (and/or `SessionLifecycleManager`), choose the target from the current
   status: `generating`/`launching` → `failed`; `running` → `crashed`. Either add a dedicated
   method (e.g. `SessionLifecycleManager::recordCrash(sessionId)`) that resolves the target, or
-  extend `ALLOWED_TRANSITIONS` so `generating`/`launching` → `crashed` is legal — decide and
+  extend `ALLOWED_TRANSITIONS` so `generating`/`launching` → `crashed` is legal - decide and
   document. Ensure the webhook acts on (logs) a failed/no-op transition rather than returning
   `200` blindly.
-- [ ] **Task 2 — Run failure propagation** (AC: 3). Add a crash/fail path to
+- [ ] **Task 2 - Run failure propagation** (AC: 3). Add a crash/fail path to
   `PersonalRunAdvancerInterface` (e.g. `markPersonalRunFailed(sessionId)`) implemented in
   `SessionOrchestrator`, resetting the `Run` (`resetAfterValidationFailure` → `draft`) when
   its session crashes/fails. Call it from the `session.crashed` webhook (and the
   generation-failed path). Mirror the existing `markPersonalRunStopped` wiring.
-- [ ] **Task 3 — Surface the reason** (AC: 4). Ensure the crash reason reaches the run read
+- [ ] **Task 3 - Surface the reason** (AC: 4). Ensure the crash reason reaches the run read
   model (reuse session `validationErrors`/`lastLogs`), and the run page shows it
   (`ValidationErrorBanner` or a new banner). No silent hang.
-- [ ] **Task 4 — Event semantics check** (AC: 1). Confirm what the orchestrateur emits on a
+- [ ] **Task 4 - Event semantics check** (AC: 1). Confirm what the orchestrateur emits on a
   generation crash (`session.crashed` today) and whether a distinct `session.generation_failed`
   would be cleaner; if kept as `session.crashed`, the API decides the target by status. Document.
-- [ ] **Task 5 — Tests** (AC: 1-3). Unit: `Session::transition` from `generating`/`launching`
+- [ ] **Task 5 - Tests** (AC: 1-3). Unit: `Session::transition` from `generating`/`launching`
   on crash → `failed` (and the chosen mechanism); `SessionLifecycleManager` crash mapping;
   `SessionOrchestrator::markPersonalRunFailed` resets the run. Functional: posting
   `session.crashed` for a `generating` session leaves it `failed` and the run off `starting`.
-- [ ] **Task 6 — Gates + live verify** (AC: 6). All gates; reproduce a generation crash and
+- [ ] **Task 6 - Gates + live verify** (AC: 6). All gates; reproduce a generation crash and
   confirm session `failed` + run `draft` + error shown.
 
 ## Dev Notes
@@ -138,18 +138,18 @@ claude-opus-4-8 (Claude Code).
 ### Completion Notes List
 
 - `SessionLifecycleManager::recordCrash($sessionId, $reason)`: maps a crash to a valid terminal
-  state by current status — `generating`/`launching` → **`failed`** (sets a friendly
+  state by current status - `generating`/`launching` → **`failed`** (sets a friendly
   `validationErrors` message + stores the raw reason in `lastLogs`, resets the personal run via
   `resetAfterValidationFailure` → `draft`); `running` → delegates to the existing `crashed`→idle
   recovery; any other state is **logged at error** (no silent 200).
 - `OrchestratorWebhookController` `session.crashed` now calls `recordCrash` (with `body.error` as the
   reason) instead of the illegal `transition('crashed')` that was being swallowed.
 - `PersonalRunDrafts::payload` surfaces the session's `validationErrors` on a reset run when the
-  session is `draft` **or `failed`** — so the existing `ValidationErrorBanner` on the run page shows
+  session is `draft` **or `failed`** - so the existing `ValidationErrorBanner` on the run page shows
   the "génération échouée" reason. **Backend-only** (the frontend banner already renders when
   `run.validationErrors` is present).
 - Non-owner sees a coherent state (run back to `draft`), no hang.
-- Tests: functional `OrchestratorWebhookTest` — crash from `generating` → session `failed` + run
+- Tests: functional `OrchestratorWebhookTest` - crash from `generating` → session `failed` + run
   `draft` + `validationErrors` set; and crash from `generating` without a run still reaches `failed`.
   The existing running-crash test still passes. Gates green: phpstan / php-cs-fixer / phpunit (1009) /
   `app:architecture:ddd`.

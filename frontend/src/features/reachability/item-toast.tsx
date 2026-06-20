@@ -142,26 +142,26 @@ const TOAST_THEMES = {
 export function ItemToast({
   itemName,
   flags,
+  subtitle,
+  variant = "toast",
+  fillScale = 1,
   onDone,
 }: {
   itemName: string;
   flags: number;
+  subtitle?: string;
+  // "toast" (default): compact card sliding in at top-center (in-app progression pages).
+  // "fill": centered and scaled to fill the viewport (OBS overlay) - see `fillScale`.
+  variant?: "toast" | "fill";
+  // Multiplier applied in "fill" mode so the card fills the OBS source; ignored for "toast".
+  fillScale?: number;
   onDone: () => void;
 }) {
   const theme = TOAST_THEMES[getToastVariant(flags)];
   const { IconComp, LabelIconComp } = theme;
 
-  return (
-    <div
-      aria-atomic="true"
-      aria-live="polite"
-      className="pointer-events-none fixed left-1/2 top-6 z-50"
-      onAnimationEnd={(e) => {
-        if (e.animationName === "item-toast-slide") onDone();
-      }}
-      style={{ animation: "item-toast-slide 3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
-    >
-      <div className="relative">
+  const inner = (
+    <div className="relative">
         <div
           className={`relative overflow-hidden rounded border ${theme.cardBorder} ${theme.cardBg} px-5 py-3.5`}
           style={{ boxShadow: theme.glow, minWidth: "260px", maxWidth: "380px" }}
@@ -204,6 +204,11 @@ export function ItemToast({
               >
                 {itemName}
               </p>
+              {subtitle ? (
+                <p className="mt-0.5 truncate text-[11px] font-medium leading-snug text-muted-foreground" title={subtitle}>
+                  {subtitle}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -225,6 +230,35 @@ export function ItemToast({
           ))}
         </div>
       </div>
+  );
+
+  if (variant === "fill") {
+    return (
+      <div
+        aria-atomic="true"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
+        onAnimationEnd={(e) => {
+          if (e.animationName === "item-toast-pop") onDone();
+        }}
+        style={{ animation: "item-toast-pop 3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
+      >
+        <div style={{ transform: `scale(${fillScale})`, transformOrigin: "center" }}>{inner}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      aria-atomic="true"
+      aria-live="polite"
+      className="pointer-events-none fixed left-1/2 top-6 z-50"
+      onAnimationEnd={(e) => {
+        if (e.animationName === "item-toast-slide") onDone();
+      }}
+      style={{ animation: "item-toast-slide 3s cubic-bezier(0.16, 1, 0.3, 1) both" }}
+    >
+      {inner}
     </div>
   );
 }

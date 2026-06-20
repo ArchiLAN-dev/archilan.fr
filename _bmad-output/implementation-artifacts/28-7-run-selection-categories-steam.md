@@ -24,7 +24,7 @@ Brings Epic 28's catalog UX (28.5/28.6 categories + 28.2/28.4 coupling) to the r
 ## Tasks / Subtasks
 
 - [ ] **Backend: enrich the payload** (AC: 1)
-  - [ ] `PersonalRunGameSelection::getMySlots` `availableGames` map: add `'platforms' => PlatformCategory::families($g->getPlatforms() ?? [])` and `'steamAppId' => $g->getSteamAppId()` (both already on `Game` from 28.6/28.1). Import `App\GameSelection\Domain\PlatformCategory` (cross-context Domain import — allowed; the class already imports `App\GameSelection\Domain\Game`).
+  - [ ] `PersonalRunGameSelection::getMySlots` `availableGames` map: add `'platforms' => PlatformCategory::families($g->getPlatforms() ?? [])` and `'steamAppId' => $g->getSteamAppId()` (both already on `Game` from 28.6/28.1). Import `App\GameSelection\Domain\PlatformCategory` (cross-context Domain import - allowed; the class already imports `App\GameSelection\Domain\Game`).
   - [ ] Eager-load `catalogSync` to avoid N+1: change `DoctrineGameRepository::findByAvailabilitiesSortedByName` to an ORM `createQueryBuilder('g')->leftJoin('g.catalogSync','cs')->addSelect('cs')->where('g.availability IN (:a)')->setParameter('a', $availabilities)->orderBy('g.name','ASC')`. (ORM is the sanctioned tool in repositories; benefits all callers.)
   - [ ] Functional test: payload includes `platforms`/`steamAppId` for a run's available games (seed a game with `GameCatalogSync` platforms + steamAppId).
 - [ ] **Frontend: generalise filter helpers** (AC: 2, 3)
@@ -50,7 +50,7 @@ Brings Epic 28's catalog UX (28.5/28.6 categories + 28.2/28.4 coupling) to the r
 ### Architecture guardrails
 - Cross-context Application→Domain import (PersonalRuns→GameSelection `PlatformCategory`/`Game`) is permitted by the DDD validator (precedent: `SaveSteamAccount` imports `GameSelection\Domain\SteamProfileReference`). [api/src/Shared/Application/DddArchitectureValidator.php]
 - ORM `createQueryBuilder` in a repository is allowed (entities). Keep DBAL only for DTO read queries. PHPStan max: the fetch-join returns `list<Game>`; keep the `@return` annotation.
-- Frontend: extracting `SteamCoupling`/`useSteamCoupling` must not change `/jeux` behaviour — the hook holds the identical logic currently inlined in `GamesCatalog`. No `as` at boundary; the run payload parse must validate `platforms`/`steamAppId` (extend the existing `as`-cast parse — note current run page casts `res.json() as {...}`; widen the type and keep behaviour, or add light guards).
+- Frontend: extracting `SteamCoupling`/`useSteamCoupling` must not change `/jeux` behaviour - the hook holds the identical logic currently inlined in `GamesCatalog`. No `as` at boundary; the run payload parse must validate `platforms`/`steamAppId` (extend the existing `as`-cast parse - note current run page casts `res.json() as {...}`; widen the type and keep behaviour, or add light guards).
 
 ### Scope boundaries
 - No sort control on the run page (keep its current ordering); categories + owned + search only.
@@ -76,7 +76,7 @@ claude-opus-4-8
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed — comprehensive developer guide created.
+- Ultimate context engine analysis completed - comprehensive developer guide created.
 - Implemented on branch `feature/epic-28-story-7-run-selection-categories-steam` (stacked on 28.6).
 - Backend: enriched `availableGames` with `platforms` (families via `PlatformCategory`) + `steamAppId`; eager-loaded `catalogSync` in `findByAvailabilitiesSortedByName` (ORM fetch-join, PHPStan-clean) to avoid N+1.
 - Frontend: extracted shared `SteamCoupling` component + `useSteamCoupling` hook (refactored `GamesCatalog` to consume them, no behaviour change); generalised `categoriesOf`/`allCategories`/`isOwned` to a structural `Categorizable` type. Run page now has the coupling panel, category chips, "Mes jeux" toggle, and an owned label per row, layered onto its existing add/remove/save + pagination.

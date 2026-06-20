@@ -5,6 +5,7 @@ import { Gamepad2, Search } from "lucide-react";
 import { GameCard } from "./game-card";
 import { SteamCoupling } from "./steam-coupling";
 import { useSteamCoupling } from "./use-steam-coupling";
+import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "./filter-token-bar";
 import {
   allCategories,
   filterAndSortGames,
@@ -13,6 +14,11 @@ import {
   type SortOrder,
 } from "./games-filter";
 import type { PublicGame } from "./public-games-api";
+
+const availabilityLabels: Record<Exclude<AvailabilityFilter, "all">, string> = {
+  available: "Disponible",
+  experimental: "Expérimental",
+};
 
 export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   const { matchedAppIds, coupled, couplingProps } = useSteamCoupling();
@@ -43,31 +49,97 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
     [initialGames, debouncedQuery, availability, ownedOnly, sort, categories, matchedAppIds],
   );
 
-  function toggleCategory(category: string) {
-    setCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
-    );
+  // ── Token filters (availability + owned + categories), cumulable via a single picker ──
+  const addFilter = (value: string) => {
+    if ("avail:available" === value) setAvailability("available");
+    else if ("avail:experimental" === value) setAvailability("experimental");
+    else if ("__owned" === value) setOwnedOnly(true);
+    else if (value.startsWith("cat:")) {
+      const category = value.slice(4);
+      setCategories((prev) => (prev.includes(category) ? prev : [...prev, category]));
+    }
+  };
+
+  const filterGroups: FilterGroup[] = [
+    {
+      label: "Disponibilité",
+      options: (["available", "experimental"] as const)
+        .filter((a) => availability !== a)
+        .map((a) => ({ value: `avail:${a}`, label: availabilityLabels[a] })),
+    },
+    {
+      label: "Filtres",
+      options: coupled && !ownedOnly ? [{ value: "__owned", label: "Mes jeux" }] : [],
+    },
+    {
+      label: "Plateformes",
+      options: categoryOptions
+        .filter((c) => !categories.includes(c))
+        .map((c) => ({ value: `cat:${c}`, label: c })),
+    },
+  ];
+
+  const activeTokens: ActiveFilterToken[] = [];
+  if (availability !== "all") {
+    activeTokens.push({ key: "avail", label: availabilityLabels[availability], remove: () => setAvailability("all") });
   }
+  if (ownedOnly) {
+    activeTokens.push({ key: "owned", label: "Mes jeux", icon: "gamepad", remove: () => setOwnedOnly(false) });
+  }
+  for (const category of categories) {
+    activeTokens.push({
+      key: `cat:${category}`,
+      label: category,
+      remove: () => setCategories((prev) => prev.filter((c) => c !== category)),
+    });
+  }
+
+  const hasActiveFilters = query.trim() !== "" || availability !== "all" || ownedOnly || categories.length > 0;
+  const clearFilters = () => {
+    setQuery("");
+    setAvailability("all");
+    setOwnedOnly(false);
+    setCategories([]);
+  };
 
   return (
     <div className="grid gap-8">
       <SteamCoupling {...couplingProps} />
 
-      <CatalogControls
-        availability={availability}
-        coupled={coupled}
-        ownedOnly={ownedOnly}
-        query={query}
-        sort={sort}
-        onAvailability={setAvailability}
-        onOwnedOnly={setOwnedOnly}
-        onQuery={setQuery}
-        onSort={setSort}
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative max-w-md flex-1">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            aria-label="Rechercher un jeu"
+            className="min-h-11 w-full rounded border border-border bg-background py-2 pl-10 pr-4 text-sm outline-none transition-colors focus:border-accent"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Hollow Knight, Stardew Valley…"
+            type="search"
+            value={query}
+          />
+        </div>
 
-      {categoryOptions.length > 0 ? (
-        <CategoryChips options={categoryOptions} selected={categories} onToggle={toggleCategory} />
-      ) : null}
+        <select
+          aria-label="Trier"
+          className="min-h-11 rounded border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+          onChange={(e) => setSort(e.target.value as SortOrder)}
+          value={sort}
+        >
+          <option value="name-asc">Nom A→Z</option>
+          <option value="name-desc">Nom Z→A</option>
+        </select>
+      </div>
+
+      <FilterTokenBar
+        activeTokens={activeTokens}
+        groups={filterGroups}
+        hasActiveFilters={hasActiveFilters}
+        onAdd={addFilter}
+        onClear={clearFilters}
+      />
 
       <p className="text-sm text-muted-foreground" role="status">
         {visibleGames.length} jeu{visibleGames.length !== 1 ? "x" : ""}
@@ -89,120 +161,6 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function CatalogControls({
-  query,
-  availability,
-  ownedOnly,
-  sort,
-  coupled,
-  onQuery,
-  onAvailability,
-  onOwnedOnly,
-  onSort,
-}: {
-  query: string;
-  availability: AvailabilityFilter;
-  ownedOnly: boolean;
-  sort: SortOrder;
-  coupled: boolean;
-  onQuery: (v: string) => void;
-  onAvailability: (v: AvailabilityFilter) => void;
-  onOwnedOnly: (v: boolean) => void;
-  onSort: (v: SortOrder) => void;
-}) {
-  const selectClass =
-    "min-h-11 rounded border border-border bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent";
-
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      <div className="relative max-w-md flex-1">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <input
-          aria-label="Rechercher un jeu"
-          className="min-h-11 w-full rounded border border-border bg-background py-2 pl-10 pr-4 text-sm outline-none transition-colors focus:border-accent"
-          onChange={(e) => onQuery(e.target.value)}
-          placeholder="Hollow Knight, Stardew Valley…"
-          type="search"
-          value={query}
-        />
-      </div>
-
-      <select
-        aria-label="Filtrer par disponibilité"
-        className={selectClass}
-        onChange={(e) => onAvailability(e.target.value as AvailabilityFilter)}
-        value={availability}
-      >
-        <option value="all">Toutes dispos</option>
-        <option value="available">Disponible</option>
-        <option value="experimental">Expérimental</option>
-      </select>
-
-      <select
-        aria-label="Trier"
-        className={selectClass}
-        onChange={(e) => onSort(e.target.value as SortOrder)}
-        value={sort}
-      >
-        <option value="name-asc">Nom A→Z</option>
-        <option value="name-desc">Nom Z→A</option>
-      </select>
-
-      <label
-        className={`inline-flex min-h-11 items-center gap-2 rounded border border-border px-3 text-sm font-medium ${coupled ? "text-foreground" : "cursor-not-allowed text-muted-foreground/50"}`}
-        title={coupled ? undefined : "Couple ta bibliothèque Steam d'abord"}
-      >
-        <input
-          checked={ownedOnly}
-          className="size-4 accent-accent"
-          disabled={!coupled}
-          onChange={(e) => onOwnedOnly(e.target.checked)}
-          type="checkbox"
-        />
-        Mes jeux
-      </label>
-    </div>
-  );
-}
-
-function CategoryChips({
-  options,
-  selected,
-  onToggle,
-}: {
-  options: string[];
-  selected: string[];
-  onToggle: (category: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer par catégorie">
-      {options.map((category) => {
-        const active = selected.includes(category);
-        return (
-          <button
-            key={category}
-            aria-pressed={active}
-            className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
-              active
-                ? "border-accent bg-accent/15 text-accent-text"
-                : "border-border bg-surface text-muted-foreground hover:border-accent hover:text-foreground"
-            }`}
-            onClick={() => onToggle(category)}
-            type="button"
-          >
-            {category}
-          </button>
-        );
-      })}
     </div>
   );
 }

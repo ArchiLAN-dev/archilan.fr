@@ -159,6 +159,7 @@
     - [Story 16.4: Server Launch and Connection Details](./epic-16-personal-runs-private-user-created-archipelago-games.md#story-164-server-launch-and-connection-details)
     - [Story 16.5: Frontend - Run Creation and Dashboard](./epic-16-personal-runs-private-user-created-archipelago-games.md#story-165-frontend-run-creation-and-dashboard)
     - [Story 16.6: Frontend - Join via Invite Link and Participant View](./epic-16-personal-runs-private-user-created-archipelago-games.md#story-166-frontend-join-via-invite-link-and-participant-view)
+    - [Story 16.11: Named YAML Templates for Personal Run Slots](./epic-16-personal-runs-private-user-created-archipelago-games.md#story-1611-named-yaml-templates-for-personal-run-slots)
   - [Epic 17: Session Lifecycle - Inactivity Timeout & Wake-on-Connect](./epic-17-session-lifecycle-inactivity-timeout-wake-on-connect.md)
     - [Story 17.1: Activity Tracking on Sessions](./epic-17-session-lifecycle-inactivity-timeout-wake-on-connect.md#story-171-activity-tracking-on-sessions)
     - [Story 17.2: Inactivity Watchdog - AP Process Stop & Wake-on-Connect Activation](./epic-17-session-lifecycle-inactivity-timeout-wake-on-connect.md#story-172-inactivity-watchdog-ap-process-stop-wake-on-connect-activation)
@@ -225,7 +226,9 @@
     - [Story 23.5: Admin - Template CRUD & Weekly Run Monitoring](./epic-23-weekly-runs-runs-hebdomadaires-archipelago.md#story-235-admin-template-crud-weekly-run-monitoring)
     - [Story 23.6: Member-Facing Weekly Run Page & Live Leaderboard](./epic-23-weekly-runs-runs-hebdomadaires-archipelago.md#story-236-member-facing-weekly-run-page-live-leaderboard)
   - [Epic 27: Configurable Session Server & Generation Options](./epic-27-configurable-session-server-options.md)
-  - [Epic 28: Steam Library Coupling](./epic-28-steam-library-coupling.md) — stories 28.1-28.7 (28.5 = Jeux page redesign, 28.6 = platform categories, 28.7 = run selection categories + Steam)
+  - [Epic 28: Steam Library Coupling](./epic-28-steam-library-coupling.md) - stories 28.1-28.8 (28.5 = Jeux page redesign, 28.6 = platform categories, 28.7 = run selection categories + Steam, 28.8 = "Récemment joués" bubbled into the run game-selection catalog)
+  - [Epic 29: OBS Stream Overlays](./epic-29-obs-stream-overlays.md)
+  - [Epic 30: Community - Steam-style Enriched Player Profiles](./epic-30-community-enriched-profiles.md) - stories 30.1-30.15 (new `Community` context: enriched profile + avatar resolution, customization, achievements/level/showcases, friends+block, activity feed, comments/kudos, notifications, moderation, presence, directory)
 
 > **Note on numbering.** Epics 0-23 were sharded from the original monolithic `epics.md`
 > (now archived under `../archive/epics.md`). Epic 24 is unused (numbering gap). Epics 25 and 26

@@ -11,3 +11,9 @@ export function hasNumberProp<K extends string>(v: object, key: K): v is Record<
 export function hasBooleanProp<K extends string>(v: object, key: K): v is Record<K, boolean> {
   return key in v && typeof Reflect.get(v, key) === "boolean";
 }
+
+export function hasNullableStringProp<K extends string>(v: object, key: K): v is Record<K, string | null> {
+  if (!(key in v)) return false;
+  const value = Reflect.get(v, key);
+  return value === null || typeof value === "string";
+}

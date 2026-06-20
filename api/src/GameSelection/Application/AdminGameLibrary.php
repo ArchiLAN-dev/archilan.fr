@@ -8,6 +8,7 @@ use App\CatalogSync\Application\ApworldVersionChecker;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\PlatformCategory;
 use App\Identity\Application\ValidationErrors;
 use App\Sessions\Application\RunnerGatewayInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
@@ -24,7 +25,60 @@ final readonly class AdminGameLibrary
         private string $minioApworldsBucket,
         private ApworldVersionChecker $apworldVersionChecker,
         private GameUsageCounterInterface $gameUsageCounter,
+        private GamePlatformResolver $platformResolver,
+        private InstallStepsNormalizer $stepsNormalizer,
+        private GameTutorialSeeder $tutorialSeeder,
+        private InstallStepsReader $stepsReader,
     ) {
+    }
+
+    /**
+     * Replace a game's install tutorial with the given ordered steps (story 31.1).
+     *
+     * @param array<mixed> $rawSteps
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function saveTutorial(string $gameId, array $rawSteps): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $result = $this->stepsNormalizer->normalize($rawSteps);
+        if ([] !== $result['errors']) {
+            return ['found' => true, 'errors' => ['steps' => $result['errors']]];
+        }
+
+        $game->setInstallSteps($result['steps']);
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.tutorial_saved', ['gameId' => $gameId, 'stepCount' => count($result['steps'])]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
+     * Seed a draft install tutorial from existing data (bundled / apworld / sheet links). Only
+     * overwrites an existing tutorial when $force is true.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function seedTutorial(string $gameId, bool $force): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        if ($force || [] === $game->getInstallSteps()) {
+            $game->setInstallSteps($this->tutorialSeeder->buildFor($game));
+            $this->gameRepository->save($game);
+            $this->logger->info('game.tutorial_seeded', ['gameId' => $gameId]);
+        }
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
 
     /**
@@ -87,6 +141,10 @@ final readonly class AdminGameLibrary
             $game->setCatalogSync($sync);
         }
 
+        if (null !== $game->getIgdbId()) {
+            $this->platformResolver->resolve($game);
+        }
+
         $this->gameRepository->save($game);
 
         $this->logger->info('game.created', ['gameId' => $game->getId(), 'name' => $game->getName()]);
@@ -129,6 +187,8 @@ final readonly class AdminGameLibrary
             $game->setAvailabilityLocked($parsed['availabilityLocked']);
         }
 
+        $previousIgdbId = $game->getIgdbId();
+
         $catalogParsed = $this->parseCatalogSync($input);
         $sync = $game->getCatalogSync();
         if (null === $sync) {
@@ -138,7 +198,25 @@ final readonly class AdminGameLibrary
                 $game->setCatalogSync($sync);
             }
         } else {
-            $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
+            // PATCH semantics: only overwrite a catalog-sync field when its key is present in the
+            // request. The edit form does not round-trip apworld_deployed_version / igdb_id, so a
+            // full overwrite would silently wipe them (and the apworld update status / IGDB-derived
+            // steam & platforms that depend on them). Absent keys keep their stored value; a key
+            // present but empty still clears intentionally.
+            $sync->update(
+                array_key_exists('catalog_sheet_name', $input) ? $catalogParsed['catalogSheetName'] : $sync->getCatalogSheetName(),
+                array_key_exists('apworld_source_url', $input) ? $catalogParsed['apworldSourceUrl'] : $sync->getApworldSourceUrl(),
+                array_key_exists('apworld_deployed_version', $input) ? $catalogParsed['apworldDeployedVersion'] : $sync->getApworldDeployedVersion(),
+                array_key_exists('igdb_id', $input) ? $catalogParsed['igdbId'] : $sync->getIgdbId(),
+            );
+        }
+
+        // Re-resolve IGDB platforms when the link changed to a new (non-null) igdbId, so the
+        // catalog/detail platforms stay correct without waiting for the bulk backfill. Clearing
+        // the link is left untouched (conservative - no surprise platform wipe on save).
+        $newIgdbId = $game->getIgdbId();
+        if (null !== $newIgdbId && $newIgdbId !== $previousIgdbId) {
+            $this->platformResolver->resolve($game);
         }
 
         $this->gameRepository->save($game);
@@ -468,8 +546,38 @@ final readonly class AdminGameLibrary
             'availabilityLocked' => $game->isAvailabilityLocked(),
             'igdbId' => $sync?->getIgdbId(),
             'steamAppId' => $sync?->getSteamAppId(),
+            'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
+            'installSteps' => $this->stepsReader->present($game->getInstallSteps()),
             'updateStatus' => $game->computeApworldUpdateStatus(),
         ]);
+    }
+
+    /**
+     * Force a re-resolution of the game's IGDB platforms (curated families), independent of any
+     * field change. Used by the "Synchroniser depuis IGDB" control on the admin editor.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function resyncPlatforms(string $gameId): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        if (null === $game->getIgdbId()) {
+            return ['found' => true, 'errors' => ['platforms' => ['Aucun identifiant IGDB associé à ce jeu.']]];
+        }
+
+        if (!$this->platformResolver->resolve($game)) {
+            return ['found' => true, 'errors' => ['platforms' => ['Impossible de contacter IGDB pour le moment.']]];
+        }
+
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.platforms_resynced', ['gameId' => $gameId]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
 
     /**

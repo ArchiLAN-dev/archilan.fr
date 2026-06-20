@@ -1,11 +1,12 @@
 "use client";
 
-import {ArrowLeft, Info, ShieldAlert} from "lucide-react";
+import {ArrowLeft, Info, RefreshCw, ShieldAlert} from "lucide-react";
 import Link from "next/link";
 import type {FormEvent} from "react";
 import {useEffect, useRef, useState} from "react";
 
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
+import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 
@@ -36,6 +37,8 @@ type AdminGame = {
     apworldReleaseUrl: string | null;
     availabilityLocked: boolean;
     igdbId: number | null;
+    platforms: string[];
+    installSteps: InstallStep[];
     updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
 };
 
@@ -50,8 +53,18 @@ type GithubAsset = { name: string; downloadUrl: string; size: number };
 
 // ─── Root component ────────────────────────────────────────────────────────────
 
+const EDITOR_TABS = [
+    {id: "general", label: "Général"},
+    {id: "catalogue", label: "Catalogue"},
+    {id: "apworld", label: "APWorld"},
+    {id: "tutoriel", label: "Tutoriel"},
+] as const;
+
+type EditorTab = (typeof EDITOR_TABS)[number]["id"];
+
 export function AdminGameEditor({gameId}: { gameId: string }) {
     const [loadState, setLoadState] = useState<LoadState>({kind: "loading"});
+    const [activeTab, setActiveTab] = useState<EditorTab>("general");
 
     function refreshGame(updated: AdminGame) {
         setLoadState({kind: "ready", game: updated});
@@ -136,12 +149,43 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 <p className="font-mono text-sm text-muted-foreground">{game.slug}</p>
             </header>
 
-            <div className="grid gap-6">
+            <div
+                aria-label="Sections de configuration du jeu"
+                className="mb-6 flex flex-wrap gap-2 border-b border-border"
+                role="tablist"
+            >
+                {EDITOR_TABS.map((tab) => (
+                    <button
+                        aria-controls={`panel-${tab.id}`}
+                        aria-selected={activeTab === tab.id}
+                        className={`-mb-px min-h-10 border-b-2 px-4 text-sm font-semibold transition-colors ${
+                            activeTab === tab.id
+                                ? "border-accent text-foreground"
+                                : "border-transparent text-muted-foreground hover:text-foreground"
+                        }`}
+                        id={`tab-${tab.id}`}
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        role="tab"
+                        type="button"
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* All panels stay mounted (hidden when inactive) so unsaved edits survive tab switches. */}
+            <div aria-labelledby="tab-general" hidden={activeTab !== "general"} id="panel-general" role="tabpanel">
                 <BasicInfoSection game={game} onUpdate={refreshGame}/>
-
+            </div>
+            <div aria-labelledby="tab-catalogue" hidden={activeTab !== "catalogue"} id="panel-catalogue" role="tabpanel">
                 <CatalogSyncSection game={game} onUpdate={refreshGame}/>
-
+            </div>
+            <div aria-labelledby="tab-apworld" hidden={activeTab !== "apworld"} id="panel-apworld" role="tabpanel">
                 <ApworldSection game={game} onUpdate={refreshGame}/>
+            </div>
+            <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
+                <InstallTutorialSection game={game} onUpdate={refreshGame}/>
             </div>
         </div>
     );
@@ -162,12 +206,15 @@ type BasicInfoFields = {
     coverImageAlt: string;
     coverImageCredit: string;
     availability: GameAvailability;
+    igdbId: number | null;
 };
 
 function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
     const [errors, setErrors] = useState<BasicInfoErrors>({});
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [resyncing, setResyncing] = useState(false);
+    const [platformsMessage, setPlatformsMessage] = useState<string | null>(null);
     const [fields, setFields] = useState<BasicInfoFields>({
         name: game.name,
         slug: game.slug,
@@ -176,6 +223,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
         coverImageAlt: game.coverImageAlt,
         coverImageCredit: game.coverImageCredit,
         availability: game.availability,
+        igdbId: game.igdbId,
     });
 
     function setField<K extends keyof BasicInfoFields>(key: K, value: BasicInfoFields[K]) {
@@ -189,6 +237,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             description: result.summary ? result.summary.slice(0, 500) : f.description,
             coverImageUrl: result.coverUrl ?? f.coverImageUrl,
             coverImageCredit: "© IGDB",
+            igdbId: result.igdbId,
         }));
     }
 
@@ -206,6 +255,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             coverImageAlt: fields.coverImageAlt,
             coverImageCredit: fields.coverImageCredit,
             availability: fields.availability,
+            igdb_id: fields.igdbId,
         };
 
         try {
@@ -233,6 +283,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     coverImageAlt: updated.coverImageAlt,
                     coverImageCredit: updated.coverImageCredit,
                     availability: updated.availability,
+                    igdbId: updated.igdbId,
                 });
                 setSuccess(true);
             }
@@ -240,6 +291,30 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             setErrors({name: "Impossible de contacter le serveur."});
         } finally {
             setSubmitting(false);
+        }
+    }
+
+    async function resyncPlatforms() {
+        setPlatformsMessage(null);
+        setResyncing(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/resync-platforms`, {
+                method: "POST",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setPlatformsMessage(
+                    extractDetails(payload)["platforms"]?.[0] ?? "Échec de la synchronisation des plateformes.",
+                );
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+            }
+        } catch {
+            setPlatformsMessage("Impossible de contacter le serveur.");
+        } finally {
+            setResyncing(false);
         }
     }
 
@@ -251,6 +326,43 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     <FieldTooltip text="Optionnel - les champs restent modifiables après import."/>
                 </p>
                 <IgdbGameSearch onSelect={handleIgdbSelect}/>
+            </div>
+
+            <div className="mb-5">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                        Plateformes
+                        <FieldTooltip text="Familles de plateformes résolues depuis IGDB (lecture seule)."/>
+                    </p>
+                    <button
+                        className="inline-flex min-h-9 items-center gap-2 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={game.igdbId === null || resyncing}
+                        onClick={resyncPlatforms}
+                        type="button"
+                    >
+                        <RefreshCw aria-hidden="true" className={`size-4 ${resyncing ? "animate-spin" : ""}`}/>
+                        Synchroniser depuis IGDB
+                    </button>
+                </div>
+                {game.platforms.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                        {game.platforms.map((platform) => (
+                            <span
+                                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-muted-foreground"
+                                key={platform}
+                            >
+                                {platform}
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-xs text-muted-foreground">
+                        {game.igdbId === null
+                            ? "Associe un jeu IGDB ci-dessus puis enregistre pour récupérer les plateformes."
+                            : "Aucune plateforme enregistrée — clique sur Synchroniser depuis IGDB."}
+                    </p>
+                )}
+                {platformsMessage ? <p className="mt-2 text-xs text-danger">{platformsMessage}</p> : null}
             </div>
 
             <form className="grid gap-4" onSubmit={submit}>
@@ -679,6 +791,97 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
 }
 
 // ─── Shared UI primitives ─────────────────────────────────────────────────────
+
+// ─── Section: Tutoriel d'installation (story 31.1) ─────────────────────────────
+
+function InstallTutorialSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [steps, setSteps] = useState<InstallStep[]>(game.installSteps);
+    const [submitting, setSubmitting] = useState(false);
+    const [seeding, setSeeding] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function save() {
+        setError(null);
+        setSuccess(false);
+        setSubmitting(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/tutorial`, {
+                body: JSON.stringify({steps: serializeStepsForSave(steps)}),
+                headers: {"Content-Type": "application/json"},
+                method: "PATCH",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError(extractDetails(payload)["steps"]?.[0] ?? "Le tutoriel contient des erreurs.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setSteps(payload.data.installSteps);
+                setSuccess(true);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function seed() {
+        setError(null);
+        setSuccess(false);
+        setSeeding(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/tutorial/seed`, {method: "POST"});
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError("La génération du brouillon a échoué.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setSteps(payload.data.installSteps);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSeeding(false);
+        }
+    }
+
+    return (
+        <Section
+            description="Étapes d'installation affichées aux joueurs sur la fiche publique du jeu."
+            title="Tutoriel d'installation"
+        >
+            <div className="grid gap-4">
+                <InstallStepsEditor onChange={setSteps} steps={steps}/>
+
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                        disabled={submitting}
+                        onClick={save}
+                        type="button"
+                    >
+                        {submitting ? "Enregistrement…" : "Enregistrer le tutoriel"}
+                    </button>
+                    <button
+                        className="inline-flex min-h-10 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-50"
+                        disabled={seeding}
+                        onClick={seed}
+                        type="button"
+                    >
+                        {seeding ? "Génération…" : "Générer un brouillon"}
+                    </button>
+                    {success ? <span className="text-sm text-success">Tutoriel enregistré.</span> : null}
+                    {error ? <span className="text-sm text-danger">{error}</span> : null}
+                </div>
+            </div>
+        </Section>
+    );
+}
 
 function Section({
                      children,

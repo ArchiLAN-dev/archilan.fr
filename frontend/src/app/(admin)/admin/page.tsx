@@ -78,7 +78,9 @@ export default function AdminDashboardPage() {
   const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  const displayName = user ? user.email.split("@")[0] : "";
+  // The community pseudo (auth payload's displayName already resolves the community override); the email
+  // local-part is only a last-resort fallback.
+  const displayName = (user?.displayName ?? "").trim() || (user ? user.email.split("@")[0] : "");
 
   useEffect(() => {
     Promise.all([

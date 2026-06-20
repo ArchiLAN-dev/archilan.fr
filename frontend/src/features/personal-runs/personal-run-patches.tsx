@@ -49,6 +49,10 @@ export function PersonalRunPatchPanel({ runId, enabled }: { runId: string; enabl
     queryFn: () => fetchPatches(runId),
     enabled,
     staleTime: 30_000,
+    // The patch is generated shortly AFTER the session appears (sessionId set), so a one-shot fetch on
+    // enable often returns nothing and the panel would only show on reload. Poll until the patch shows
+    // up, then stop (patches never change once generated).
+    refetchInterval: (query) => ((query.state.data ?? []).length > 0 ? false : 5_000),
   });
 
   if (files.length === 0) return null;

@@ -1,4 +1,4 @@
-# Story 13.9: Frontend — keep the session & tracker alive on passive pages
+# Story 13.9: Frontend - keep the session & tracker alive on passive pages
 
 **Status:** review
 **Epic:** 13 - Auth, refresh tokens & cleanup

@@ -22,6 +22,32 @@ final class Run
     /** Statuses that block deletion or modification */
     public const ACTIVE_STATUSES = [self::STATUS_STARTING, self::STATUS_ACTIVE, self::STATUS_STOPPING];
 
+    /**
+     * Statuses indicating the run has been launched at least once - i.e. the games in it were
+     * actually played. Used to surface "recently played" games (story 28.8). Excludes `draft`
+     * (never launched) and `cancelled`/`starting` (no gameplay yet).
+     */
+    public const LAUNCHED_STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_STOPPING,
+        self::STATUS_IDLE,
+        self::STATUS_RESTARTING,
+        self::STATUS_COMPLETED,
+    ];
+
+    /**
+     * Statuts transitoires où une run peut rester bloquée si la session liée se coince ou si un webhook
+     * de cycle de vie se perd. Réconciliés par le backstop planifié (story 17.14).
+     */
+    public const STUCK_STATUSES = [self::STATUS_STARTING, self::STATUS_STOPPING, self::STATUS_RESTARTING];
+
+    /** Seuils (secondes) sur updatedAt au-delà desquels la run transitoire est considérée bloquée. */
+    public const STUCK_THRESHOLDS = [
+        self::STATUS_STARTING => 1800,    // 30 min - couvre une génération complète
+        self::STATUS_STOPPING => 300,     // 5 min - l'arrêt est rapide
+        self::STATUS_RESTARTING => 300,   // 5 min - la relance est rapide
+    ];
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -114,6 +140,23 @@ final class Run
         $this->updatedAt = $now;
     }
 
+    /**
+     * Owner-driven terminal finish (story 17.15): an active run is wrapped up so its session can be
+     * archived and its goal-reached state counted in stats. Only an active run can be completed.
+     */
+    public function complete(\DateTimeImmutable $now): void
+    {
+        if (self::STATUS_ACTIVE !== $this->status) {
+            throw new \DomainException('Only an active run can be completed.');
+        }
+
+        $this->connectionHost = null;
+        $this->connectionPort = null;
+        $this->connectionPassword = null;
+        $this->status = self::STATUS_COMPLETED;
+        $this->updatedAt = $now;
+    }
+
     public function setSessionId(string $sessionId): void
     {
         $this->sessionId = $sessionId;
@@ -156,6 +199,17 @@ final class Run
         $this->status = self::STATUS_DRAFT;
         $this->connectionPassword = null;
         $this->updatedAt = $now;
+    }
+
+    /** True si la run est dans un statut transitoire depuis plus longtemps que son seuil. */
+    public function isStuck(\DateTimeImmutable $now): bool
+    {
+        $threshold = self::STUCK_THRESHOLDS[$this->status] ?? null;
+        if (null === $threshold) {
+            return false;
+        }
+
+        return ($now->getTimestamp() - $this->updatedAt->getTimestamp()) > $threshold;
     }
 
     public function getId(): string
