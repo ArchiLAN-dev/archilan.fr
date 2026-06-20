@@ -21,18 +21,22 @@ final readonly class AccountModerationService
         private ModerationActionRepositoryInterface $actions,
         private ContentReportRepositoryInterface $reports,
         private CommunityUserDirectoryQueryInterface $directory,
+        private CommunityAdminIdsQueryInterface $admins,
         private Notifier $notifier,
     ) {
     }
 
     /**
-     * @return string 'ok' | 'not_found' | 'invalid'
+     * @return string 'ok' | 'not_found' | 'invalid' | 'forbidden'
      */
     public function warn(string $adminId, string $targetUserId, string $reason, ?string $relatedReportId = null): string
     {
         $reason = trim($reason);
         if ('' === $reason) {
             return 'invalid';
+        }
+        if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
+            return $denied;
         }
         // Warn doesn't change access, so confirm the account exists before logging/notifying.
         if (!isset($this->directory->cards([$targetUserId])[$targetUserId])) {
@@ -46,13 +50,16 @@ final readonly class AccountModerationService
     }
 
     /**
-     * @return string 'ok' | 'not_found' | 'invalid'
+     * @return string 'ok' | 'not_found' | 'invalid' | 'forbidden'
      */
     public function suspend(string $adminId, string $targetUserId, \DateTimeImmutable $until, string $reason, ?string $relatedReportId = null): string
     {
         $reason = trim($reason);
         if ('' === $reason || $until <= new \DateTimeImmutable()) {
             return 'invalid';
+        }
+        if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
+            return $denied;
         }
         if (!$this->gateway->suspendUntil($targetUserId, $until, $reason)) {
             return 'not_found';
@@ -65,13 +72,16 @@ final readonly class AccountModerationService
     }
 
     /**
-     * @return string 'ok' | 'not_found' | 'invalid'
+     * @return string 'ok' | 'not_found' | 'invalid' | 'forbidden'
      */
     public function ban(string $adminId, string $targetUserId, string $reason, ?string $relatedReportId = null): string
     {
         $reason = trim($reason);
         if ('' === $reason) {
             return 'invalid';
+        }
+        if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
+            return $denied;
         }
         if (!$this->gateway->ban($targetUserId, $reason)) {
             return 'not_found';
@@ -84,10 +94,13 @@ final readonly class AccountModerationService
     }
 
     /**
-     * @return string 'ok' | 'not_found'
+     * @return string 'ok' | 'not_found' | 'forbidden'
      */
     public function lift(string $adminId, string $targetUserId, string $reason): string
     {
+        if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
+            return $denied;
+        }
         if (!$this->gateway->lift($targetUserId)) {
             return 'not_found';
         }
@@ -96,6 +109,22 @@ final readonly class AccountModerationService
         $this->log($adminId, $targetUserId, ModerationAction::ACTION_LIFT, '' === $trimmed ? 'Levée de la sanction' : $trimmed, null);
 
         return 'ok';
+    }
+
+    /**
+     * Refuse moderating yourself or another admin (admins are not subject to these tools - mirrors the guard
+     * on User::promoteToMember/demoteToUser).
+     */
+    private function guard(string $adminId, string $targetUserId): ?string
+    {
+        if ($adminId === $targetUserId) {
+            return 'forbidden';
+        }
+        if (in_array($targetUserId, $this->admins->adminUserIds(), true)) {
+            return 'forbidden';
+        }
+
+        return null;
     }
 
     /**

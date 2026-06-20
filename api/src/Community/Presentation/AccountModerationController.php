@@ -94,6 +94,7 @@ final readonly class AccountModerationController
         return match ($result) {
             'ok' => new JsonResponse(null, 204),
             'invalid' => $this->apiAccessGuard->errorResponse('invalid_action', 'Action invalide (motif requis, date future).', 422),
+            'forbidden' => $this->apiAccessGuard->errorResponse('forbidden', 'Ce compte ne peut pas être modéré (admin ou vous-même).', 403),
             default => $this->apiAccessGuard->errorResponse('not_found', 'Compte introuvable.', 404),
         };
     }

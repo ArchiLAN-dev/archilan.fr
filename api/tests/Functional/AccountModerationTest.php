@@ -147,6 +147,61 @@ final class AccountModerationTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    public function testCannotModerateAnotherAdminOrSelf(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin', slug: 'admin');
+        $admin2 = $this->createUser('admin2@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin2', slug: 'admin2');
+
+        $this->loginAs($admin);
+
+        // Another admin is protected.
+        $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$admin2->getId().'/ban', ['reason' => 'x']);
+        self::assertResponseStatusCodeSame(403);
+
+        // And you can't moderate yourself.
+        $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$admin->getId().'/suspend', [
+            'reason' => 'x',
+            'until' => (new \DateTimeImmutable('+1 day'))->format(\DateTimeInterface::ATOM),
+        ]);
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testBannedUserDropsOutOfDirectorySearch(): void
+    {
+        $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin', slug: 'admin');
+        $target = $this->createUser('zelda@example.org', displayName: 'Zelda', slug: 'zelda');
+
+        // Visible before the ban.
+        $this->client->jsonRequest('GET', '/api/v1/community/directory?search=zelda');
+        self::assertContains('zelda', $this->directorySlugs());
+
+        $this->loginAs($admin);
+        $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$target->getId().'/ban', ['reason' => 'spam']);
+        self::assertResponseStatusCodeSame(204);
+
+        // Gone from the directory after the ban.
+        $this->client->getCookieJar()->clear();
+        $this->client->jsonRequest('GET', '/api/v1/community/directory?search=zelda');
+        self::assertNotContains('zelda', $this->directorySlugs());
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function directorySlugs(): array
+    {
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $slugs = [];
+        foreach ($data as $row) {
+            if (is_array($row) && is_string($row['slug'] ?? null)) {
+                $slugs[] = $row['slug'];
+            }
+        }
+
+        return $slugs;
+    }
+
     public function testRequiresAdmin(): void
     {
         $bob = $this->createUser('bob@example.org', slug: 'bob');
