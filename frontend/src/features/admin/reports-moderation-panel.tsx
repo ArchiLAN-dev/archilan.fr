@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EyeOff, Eye, Loader2, Search, ShieldCheck } from "lucide-react";
 
+import { AccountModerationControls } from "./account-moderation-controls";
+
 import {
   CATEGORY_LABELS,
   DEFAULT_REPORT_FILTERS,
@@ -165,7 +167,13 @@ export function ReportsModerationPanel() {
         </label>
       </div>
 
-      {data && data.flagged.length > 0 ? <FlaggedAccounts accounts={data.flagged} threshold={data.threshold} /> : null}
+      {data && data.flagged.length > 0 ? (
+        <FlaggedAccounts
+          accounts={data.flagged}
+          onActed={() => void queryClient.invalidateQueries({ queryKey: QUERY_PREFIX })}
+          threshold={data.threshold}
+        />
+      ) : null}
 
       {isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -357,25 +365,28 @@ function SeverityChip({ severity, uncategorized }: { severity: number; uncategor
   return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>Gravité {severity}</span>;
 }
 
-function FlaggedAccounts({ accounts, threshold }: { accounts: FlaggedAccount[]; threshold: number }) {
+function FlaggedAccounts({ accounts, threshold, onActed }: { accounts: FlaggedAccount[]; threshold: number; onActed: () => void }) {
   return (
-    <section className="grid gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" aria-label="Comptes à examiner">
+    <section className="grid gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" aria-label="Comptes à examiner">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
         <ShieldCheck aria-hidden className="size-4" /> À examiner — comptes au-delà du seuil ({threshold})
       </h3>
-      <ul className="grid gap-1.5" role="list">
+      <ul className="grid gap-3" role="list">
         {accounts.map((account) => (
-          <li className="flex items-center justify-between gap-3 text-sm" key={account.userId}>
-            {account.slug ? (
-              <Link className="font-medium text-foreground hover:text-accent-text" href={`/joueurs/${account.slug}`}>
-                {account.displayName ?? account.slug}
-              </Link>
-            ) : (
-              <span className="text-muted-foreground">Compte supprimé</span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              score <strong className="text-amber-400">{account.score}</strong> · {account.reportCount} signalement{account.reportCount > 1 ? "s" : ""}
-            </span>
+          <li className="grid gap-2 rounded-md border border-border bg-surface/60 p-3" key={account.userId}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              {account.slug ? (
+                <Link className="font-medium text-foreground hover:text-accent-text" href={`/joueurs/${account.slug}`}>
+                  {account.displayName ?? account.slug}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">Compte supprimé</span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                score <strong className="text-amber-400">{account.score}</strong> · {account.reportCount} signalement{account.reportCount > 1 ? "s" : ""}
+              </span>
+            </div>
+            <AccountModerationControls name={account.displayName ?? account.slug ?? "ce compte"} onActed={onActed} userId={account.userId} />
           </li>
         ))}
       </ul>

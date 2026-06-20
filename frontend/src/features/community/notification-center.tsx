@@ -193,6 +193,10 @@ function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "displayName") && item.data.displayName !== ""
         ? `Compte à examiner : ${item.data.displayName}`
         : "Un compte a atteint le seuil de modération";
+    case "moderation_warning":
+      return hasStringProp(item.data, "reason") && item.data.reason !== ""
+        ? `Avertissement de la modération : ${item.data.reason}`
+        : "La modération t'a envoyé un avertissement";
     default:
       return "Nouvelle notification";
   }

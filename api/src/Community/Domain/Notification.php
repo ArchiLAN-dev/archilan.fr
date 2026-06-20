@@ -22,6 +22,8 @@ final class Notification
     public const TYPE_ACHIEVEMENT_UNLOCKED = 'achievement_unlocked';
     /** Admin-only: an account crossed the moderation escalation threshold (story 30.28). */
     public const TYPE_ACCOUNT_FLAGGED = 'account_flagged';
+    /** Member-facing: a moderator warned the member to fix sensitive info (story 30.29). */
+    public const TYPE_MODERATION_WARNING = 'moderation_warning';
 
     /**
      * @param array<string, mixed> $payload
