@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Community\Application\Message\RecomputeAllAchievementsMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
@@ -50,6 +51,10 @@ final class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::cron('30 3 * * *', new CleanupEventPrivateAccessLogMessage()),
+            )
+            ->add(
+                // Backstop: catch any achievement unlock the real-time post-archive path missed (story 30.26).
+                RecurringMessage::cron('45 3 * * *', new RecomputeAllAchievementsMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

@@ -41,6 +41,8 @@ framework:
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
             'App\PersonalRuns\Application\Message\LaunchPersonalRunJob': run_server
             'App\PersonalRuns\Application\Message\StopPersonalRunJob': run_server
+            'App\Community\Application\Message\RecomputeAchievementsForUserMessage': async
+            'App\Community\Application\Message\RecomputeAllAchievementsMessage': async
             'App\Identity\Application\Message\SyncDiscordRoleMessage': async
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
             'App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage': async
