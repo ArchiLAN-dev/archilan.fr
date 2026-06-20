@@ -38,6 +38,7 @@ final readonly class CommunityProfileView
         private KudosRepositoryInterface $kudos,
         private CommunityPresenceQueryInterface $presence,
         private ActiveMembershipQueryInterface $memberships,
+        private AvatarUrlResolver $avatarUrls,
     ) {
     }
 
@@ -116,7 +117,7 @@ final readonly class CommunityProfileView
             // The owner's display-name override wins over the account name; falls back when unset.
             'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
             'joinedAt' => $model['joinedAt'],
-            'avatarUrl' => $profile?->getAvatarUrl(),
+            'avatarUrl' => $this->avatarUrls->resolve($profile?->getCustomAvatarKey(), $profile?->getAvatarUrl()),
             'audience' => $audience,
             'badges' => $badges,
             'stats' => $model['stats'],
@@ -176,7 +177,7 @@ final readonly class CommunityProfileView
     /**
      * Raw, always-full customization for the owner's edit form (self only).
      *
-     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
+     * @return array{displayName: string|null, bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, avatarUrl: string|null, hasCustomAvatar: bool, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, audience: string, showcaseLayout: list<string>}
      */
     public function editableForUser(string $userId): array
     {
@@ -189,6 +190,8 @@ final readonly class CommunityProfileView
             'pronouns' => $profile?->getPronouns(),
             'bannerPreset' => $profile?->getBannerPreset() ?? BannerPreset::DEFAULT,
             'avatarFrame' => $profile?->getAvatarFrame(),
+            'avatarUrl' => $this->avatarUrls->resolve($profile?->getCustomAvatarKey(), $profile?->getAvatarUrl()),
+            'hasCustomAvatar' => null !== $profile?->getCustomAvatarKey(),
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
             'audience' => $profile?->getAudience() ?? Audience::MEMBERS,

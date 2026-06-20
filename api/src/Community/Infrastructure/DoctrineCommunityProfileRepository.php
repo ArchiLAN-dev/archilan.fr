@@ -28,6 +28,8 @@ final readonly class DoctrineCommunityProfileRepository implements CommunityProf
                 $qb->expr()->isNull('p.avatarResolvedAt'),
                 $qb->expr()->lt('p.avatarResolvedAt', ':staleBefore'),
             ))
+            // A member with an uploaded custom avatar never needs an external refresh (story 30.27).
+            ->andWhere($qb->expr()->isNull('p.customAvatarKey'))
             ->setParameter('staleBefore', $staleBefore)
             ->orderBy('p.avatarResolvedAt', 'ASC')
             ->setMaxResults($limit)
