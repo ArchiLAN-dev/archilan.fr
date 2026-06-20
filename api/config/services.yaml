@@ -291,6 +291,7 @@ services:
     App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
     App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
     App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
+    App\Identity\Application\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
     App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
     App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
     App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
