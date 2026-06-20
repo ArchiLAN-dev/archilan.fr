@@ -1,6 +1,6 @@
 # Story 30.28: Enriched profile reporting + gravity-weighted moderation queue
 
-Status: drafted
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -116,3 +116,74 @@ severity (PO decision: gravity-weighted, not a flat count).
 - Follow-up: [Source: _bmad-output/implementation-artifacts/30-29-account-moderation-actions.md]
 - Standards: [Source: api/CLAUDE.md], [Source: api/CLAUDE.md#cqrs-naming],
   [Source: api/CLAUDE.md#membership-access-control]
+
+## Dev Agent Record
+
+### Agent Model Used
+
+claude-opus-4-8
+
+### Completion Notes List
+
+- **Structured reports.** `ContentReport` gains `category` (ReportCategory), `problem` (ReportProblem) and a
+  free-text `report_comment`; `ReportSeverity` (domain) maps each problem to a weight (nudity/violence 10,
+  hate 8, harassment 5, spam 2, other 0) and defines the "Autre/Autre/sans commentaire" uncategorized
+  bucket. Migration adds the columns + backfills existing rows (comment-target → `comment`, else `other`).
+  The existing comment-report path now tags its reports `comment`.
+- **Profile report endpoint (the missing piece).** `POST /api/v1/community/profiles/{slug}/report`
+  (`requireUser`) → `ReportProfileService`: self-report refused (403), invalid enums 422, idempotent per
+  `(reporter, profile)` on the unique constraint, derives a legacy `reason` for search.
+- **Weighted escalation without a debounce table.** On a newly-created profile report,
+  `EvaluateAccountEscalation` recomputes the account's unresolved weighted score and notifies admins **only
+  on the below→above crossing** (`before = current − thisWeight`). Weight-0 (Autre/Autre) reports never move
+  the score, so they never escalate/notify. Admins are resolved by decoding the `roles` JSON in PHP
+  (portable across PG/SQLite). New `Notification::TYPE_ACCOUNT_FLAGGED`, rendered in the FE notification
+  centre (links to `/admin/moderation`).
+- **Queue extensions.** `ModerationService` adds per-report `category`/`problem`/`note`/`severity`/
+  `uncategorized` and a weighted **"à examiner"** flagged-accounts list (meta.flagged + meta.threshold).
+  `ReportQueryFilters` adds a `problem` filter, an `uncategorized` toggle and a `severity` sort (SQL CASE
+  built from `ReportSeverity::WEIGHTS`, kept in sync with the domain). Threshold is a bound param
+  (`MODERATION_ESCALATION_THRESHOLD`, default 10).
+- **Scoping decision (documented).** Account escalation aggregates **profile-target** reports per reported
+  user; comment reports stay content-level (hide/restore) with their severity shown but do **not** roll into
+  account escalation — matches the "modérer les profils" intent and keeps the aggregation query simple.
+- **Frontend.** Public profile gets a "Signaler" button + `ProfileReportDialog` (Type + Contenu
+  problématique + optional comment). `/admin/moderation` gains the "à examiner" section, severity chips,
+  category/problem labels + the reporter's note, a problem filter, an "uncategorized only" toggle and a
+  severity-first default sort.
+- **Gates:** phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, `lint:container` ✅, phpunit
+  (new `CommunityProfileReportTest` 6 tests + 176 community/moderation suites green — full local run needs
+  the shared test-DB reset due to the known schema-contention flake, CI authoritative) ✅; FE typecheck ✅,
+  lint ✅, build ✅, jest (`community-report-api`, `admin-moderation-api`) ✅.
+
+### File List
+
+- api/src/Community/Domain/ReportCategory.php (new)
+- api/src/Community/Domain/ReportProblem.php (new)
+- api/src/Community/Domain/ReportSeverity.php (new)
+- api/src/Community/Domain/ContentReport.php (category/problem/comment + severity/uncategorized helpers)
+- api/src/Community/Domain/Notification.php (TYPE_ACCOUNT_FLAGGED)
+- api/migrations/Version20260619130000.php (new — columns + backfill)
+- api/src/Community/Application/AccountReportScoreQueryInterface.php (new)
+- api/src/Community/Application/CommunityAdminIdsQueryInterface.php (new)
+- api/src/Community/Application/EvaluateAccountEscalation.php (new)
+- api/src/Community/Application/ReportProfileService.php (new)
+- api/src/Community/Application/ModerationService.php (per-report fields + flaggedAccounts + threshold)
+- api/src/Community/Application/ReportQueryFilters.php (problem/uncategorized/severity)
+- api/src/Community/Application/ProfileCommentService.php (tag comment reports)
+- api/src/Community/Infrastructure/DbalAccountReportScoreQuery.php (new)
+- api/src/Community/Infrastructure/DbalCommunityAdminIdsQuery.php (new)
+- api/src/Community/Infrastructure/DbalAdminReportsQuery.php (problem/uncategorized filters + severity sort)
+- api/src/Community/Presentation/CommunityProfileController.php (report endpoint)
+- api/src/Community/Presentation/AdminModerationController.php (problem/uncategorized params + flagged meta)
+- api/config/services.yaml (threshold param + query interface aliases)
+- api/tests/Functional/CommunityProfileReportTest.php (new)
+- frontend/src/features/community/community-report-api.ts (new)
+- frontend/src/features/community/profile-report-dialog.tsx (new)
+- frontend/src/features/community/profile-relationship-actions.tsx (Signaler button)
+- frontend/src/features/players/player-profile-page.tsx (pass name)
+- frontend/src/features/community/notification-center.tsx (account_flagged rendering)
+- frontend/src/features/admin/admin-moderation-api.ts (fields, filters, flagged)
+- frontend/src/features/admin/reports-moderation-panel.tsx (flagged section, severity, filters)
+- frontend/src/features/community/community-report-api.test.ts (new)
+- frontend/src/features/admin/admin-moderation-api.test.ts (updated fixtures + flagged)

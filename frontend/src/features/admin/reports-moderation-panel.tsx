@@ -6,14 +6,18 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EyeOff, Eye, Loader2, Search, ShieldCheck } from "lucide-react";
 
 import {
+  CATEGORY_LABELS,
   DEFAULT_REPORT_FILTERS,
+  type FlaggedAccount,
   fetchModerationQueue,
   hideModerationComment,
+  PROBLEM_LABELS,
   resolveModerationReport,
   restoreModerationComment,
   type ModerationReport,
   type ReportCommentState,
   type ReportFilters,
+  type ReportProblem,
   type ReportSort,
   type ReportStatus,
   type ReportTargetType,
@@ -42,8 +46,19 @@ const TARGET_OPTIONS: { value: ReportTargetType; label: string }[] = [
 ];
 
 const SORT_OPTIONS: { value: ReportSort; label: string }[] = [
+  { value: "severity", label: "Gravité" },
   { value: "recent", label: "Plus récents" },
   { value: "oldest", label: "Plus anciens" },
+];
+
+const PROBLEM_OPTIONS: { value: ReportProblem; label: string }[] = [
+  { value: "any", label: "Tous contenus" },
+  { value: "nudity", label: "Nudité" },
+  { value: "violence", label: "Violence" },
+  { value: "hate", label: "Haine" },
+  { value: "harassment", label: "Harcèlement" },
+  { value: "spam", label: "Spam" },
+  { value: "other", label: "Autre" },
 ];
 
 export function ReportsModerationPanel() {
@@ -51,7 +66,9 @@ export function ReportsModerationPanel() {
   const [status, setStatus] = useState<ReportStatus>("pending");
   const [commentState, setCommentState] = useState<ReportCommentState>("any");
   const [targetType, setTargetType] = useState<ReportTargetType>("any");
-  const [sort, setSort] = useState<ReportSort>("recent");
+  const [problem, setProblem] = useState<ReportProblem>("any");
+  const [uncategorized, setUncategorized] = useState(false);
+  const [sort, setSort] = useState<ReportSort>("severity");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -61,7 +78,7 @@ export function ReportsModerationPanel() {
     return () => clearTimeout(handle);
   }, [searchInput]);
 
-  const filters: ReportFilters = { status, commentState, targetType, sort, search };
+  const filters: ReportFilters = { status, commentState, targetType, problem, uncategorized, sort, search };
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: [...QUERY_PREFIX, "reports", filters],
     queryFn: () => fetchModerationQueue(filters),
@@ -79,6 +96,8 @@ export function ReportsModerationPanel() {
     status === DEFAULT_REPORT_FILTERS.status &&
     commentState === DEFAULT_REPORT_FILTERS.commentState &&
     targetType === DEFAULT_REPORT_FILTERS.targetType &&
+    problem === DEFAULT_REPORT_FILTERS.problem &&
+    !uncategorized &&
     search === "";
 
   return (
@@ -120,8 +139,16 @@ export function ReportsModerationPanel() {
           />
         </label>
         <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+          Contenu
+          <FilterSelect onChange={(value) => setProblem(value as ReportProblem)} options={PROBLEM_OPTIONS} value={problem} />
+        </label>
+        <label className="grid gap-1 text-xs font-medium text-muted-foreground">
           Tri
           <FilterSelect onChange={(value) => setSort(value as ReportSort)} options={SORT_OPTIONS} value={sort} />
+        </label>
+        <label className="flex min-h-9 cursor-pointer items-center gap-2 self-end rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground">
+          <input checked={uncategorized} className="accent-accent" onChange={(e) => setUncategorized(e.target.checked)} type="checkbox" />
+          Non catégorisés
         </label>
         <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
           Recherche
@@ -137,6 +164,8 @@ export function ReportsModerationPanel() {
           </span>
         </label>
       </div>
+
+      {data && data.flagged.length > 0 ? <FlaggedAccounts accounts={data.flagged} threshold={data.threshold} /> : null}
 
       {isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -209,16 +238,21 @@ function ReportCard({
   return (
     <article className="grid gap-3 rounded-lg border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-2 text-sm">
+        <span className="inline-flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-400">
             {report.targetType === "comment" ? "Commentaire" : "Profil"}
           </span>
-          <span className="text-muted-foreground">{report.reason}</span>
+          <SeverityChip severity={report.severity} uncategorized={report.uncategorized} />
+          <span className="text-muted-foreground">
+            {CATEGORY_LABELS[report.category] ?? report.category} · {PROBLEM_LABELS[report.problem] ?? report.problem}
+          </span>
         </span>
         <time className="text-xs text-muted-foreground" dateTime={report.createdAt}>
           {formatDate(report.createdAt)}
         </time>
       </div>
+
+      {report.note ? <p className="rounded-md border border-border bg-background/50 px-3 py-2 text-sm text-foreground">« {report.note} »</p> : null}
 
       <p className="text-xs text-muted-foreground">
         Signalé par{" "}
@@ -312,6 +346,40 @@ function ActionButton({
     >
       {children}
     </button>
+  );
+}
+
+function SeverityChip({ severity, uncategorized }: { severity: number; uncategorized: boolean }) {
+  if (uncategorized) {
+    return <span className="rounded-full bg-muted/40 px-2 py-0.5 text-xs font-medium text-muted-foreground">Non catégorisé</span>;
+  }
+  const tone = severity >= 8 ? "bg-red-500/20 text-red-400" : severity >= 5 ? "bg-amber-500/20 text-amber-400" : "bg-sky-500/15 text-sky-400";
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>Gravité {severity}</span>;
+}
+
+function FlaggedAccounts({ accounts, threshold }: { accounts: FlaggedAccount[]; threshold: number }) {
+  return (
+    <section className="grid gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" aria-label="Comptes à examiner">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
+        <ShieldCheck aria-hidden className="size-4" /> À examiner — comptes au-delà du seuil ({threshold})
+      </h3>
+      <ul className="grid gap-1.5" role="list">
+        {accounts.map((account) => (
+          <li className="flex items-center justify-between gap-3 text-sm" key={account.userId}>
+            {account.slug ? (
+              <Link className="font-medium text-foreground hover:text-accent-text" href={`/joueurs/${account.slug}`}>
+                {account.displayName ?? account.slug}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">Compte supprimé</span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              score <strong className="text-amber-400">{account.score}</strong> · {account.reportCount} signalement{account.reportCount > 1 ? "s" : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
