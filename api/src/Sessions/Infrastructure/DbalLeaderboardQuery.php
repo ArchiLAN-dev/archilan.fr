@@ -92,9 +92,11 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $userIds,
         );
         $userRows = $userQb
-            ->select('id', "COALESCE(slug, '') AS slug", 'display_name')
-            ->from($this->userTable)
-            ->where($userQb->expr()->in('id', $placeholders))
+            // Display the community pseudo (override) falling back to the account name.
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name')
+            ->from($this->userTable, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
+            ->where($userQb->expr()->in('u.id', $placeholders))
             ->executeQuery()
             ->fetchAllAssociative();
 
@@ -214,9 +216,11 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $userIds,
         );
         $userRows = $userQb
-            ->select('id', "COALESCE(slug, '') AS slug", 'display_name')
-            ->from($this->userTable)
-            ->where($userQb->expr()->in('id', $placeholders))
+            // Display the community pseudo (override) falling back to the account name.
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name')
+            ->from($this->userTable, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
+            ->where($userQb->expr()->in('u.id', $placeholders))
             ->executeQuery()
             ->fetchAllAssociative();
 

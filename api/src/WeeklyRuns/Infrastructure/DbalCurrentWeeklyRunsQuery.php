@@ -57,11 +57,12 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                     'we.connection_host',
                     'we.connection_port',
                     'we.connection_password',
-                    'u.display_name AS display_name',
+                    'COALESCE(cp.display_name, u.display_name) AS display_name',
                     's.status AS session_status',
                 )
                 ->from('weekly_entries', 'we')
                 ->leftJoin('we', $userTable, 'u', 'u.id = we.user_id')
+                ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
                 ->leftJoin('we', 'session', 's', 's.id = we.external_session_id')
                 ->where('we.weekly_run_id = :runId')
                 ->setParameter('runId', $runId)
