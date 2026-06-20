@@ -64,6 +64,25 @@ final readonly class DoctrineContentReportRepository implements ContentReportRep
         return is_numeric($count) ? (int) $count : 0;
     }
 
+    public function pendingForProfileTarget(string $targetUserId): array
+    {
+        $qb = $this->entityManager->getRepository(ContentReport::class)->createQueryBuilder('r');
+        $result = $qb
+            ->where($qb->expr()->eq('r.targetType', ':type'))
+            ->andWhere($qb->expr()->eq('r.targetId', ':target'))
+            ->andWhere($qb->expr()->isNull('r.resolvedAt'))
+            ->setParameter('type', ContentReport::TARGET_PROFILE)
+            ->setParameter('target', $targetUserId)
+            ->getQuery()
+            ->getResult();
+
+        if (!is_array($result)) {
+            return [];
+        }
+
+        return array_values(array_filter($result, static fn (mixed $r): bool => $r instanceof ContentReport));
+    }
+
     public function save(ContentReport $report): void
     {
         $this->entityManager->persist($report);

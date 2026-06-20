@@ -21,6 +21,7 @@ parameters:
     # published port is on localhost; in prod the API is containerised and must reach the host's
     # published port via the docker gateway → set BRIDGE_HTTP_HOST=host.docker.internal.
     default_bridge_http_host: 'localhost'
+    default_moderation_escalation_threshold: 10
     default_cleanup_token_consumed_grace_days: 7
     default_cleanup_helloasso_sync_log_retention_days: 90
     default_cleanup_event_access_log_retention_days: 365
@@ -43,6 +44,7 @@ services:
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
             string $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
+            int $escalationThreshold: '%env(default:default_moderation_escalation_threshold:int:MODERATION_ESCALATION_THRESHOLD)%'
             string $siteUrl: '%env(FRONTEND_ORIGIN)%'
             string $discordInviteUrl: '%env(default:default_empty_string:DISCORD_INVITE_URL)%'
             string $bridgeInternalToken: '%env(default:default_empty_string:BRIDGE_INTERNAL_TOKEN)%'
@@ -294,6 +296,8 @@ services:
     App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
     App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
     App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
+    App\Community\Application\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\DbalAccountReportScoreQuery'
+    App\Community\Application\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityAdminIdsQuery'
     App\Sessions\Application\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\MessengerAchievementRecomputeTrigger'
     App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
     App\Community\Domain\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementDefinitionRepository'
@@ -302,6 +306,8 @@ services:
     App\Community\Domain\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\DoctrineActivityEntryRepository'
     App\Community\Domain\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\DoctrineProfileCommentRepository'
     App\Community\Domain\ContentReportRepositoryInterface: '@App\Community\Infrastructure\DoctrineContentReportRepository'
+    App\Community\Domain\ModerationActionRepositoryInterface: '@App\Community\Infrastructure\DoctrineModerationActionRepository'
+    App\Community\Application\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\IdentityMemberModerationGateway'
     App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\DoctrineKudosRepository'
     App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\DoctrineNotificationRepository'
     App\Community\Application\Notifier: '@App\Community\Application\NotificationService'

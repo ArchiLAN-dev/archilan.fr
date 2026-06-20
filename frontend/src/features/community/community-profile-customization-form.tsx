@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, Loader2, Plus, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
+import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
 import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
 import { AvatarFrame } from "./avatar-frame";
@@ -13,9 +14,11 @@ import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from ".
 import {
   AUDIENCES,
   fetchMyCommunityProfile,
+  removeCommunityAvatar,
   SHOWCASE_WIDGETS,
   SHOWCASE_WIDGET_LABELS,
   updateMyCommunityProfile,
+  uploadCommunityAvatar,
   type EditableFavoriteGame,
   type EditableSocialLink,
   type MyCommunityProfile,
@@ -88,6 +91,11 @@ export function CommunityProfileCustomizationForm() {
   const [pronouns, setPronouns] = useState("");
   const [bannerPreset, setBannerPreset] = useState<string>("default");
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
+  // Avatar upload is applied immediately (not through the save bar), so it lives outside `values`.
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
+  const [avatar, setAvatar] = useState<SaveState>({ kind: "idle" });
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [audience, setAudience] = useState<string>("members");
   const [socialLinks, setSocialLinks] = useState<EditableSocialLink[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
@@ -114,6 +122,8 @@ export function CommunityProfileCustomizationForm() {
     setPronouns(profile.pronouns ?? "");
     setBannerPreset(profile.bannerPreset);
     setAvatarFrame(frame);
+    setAvatarUrl(profile.avatarUrl);
+    setHasCustomAvatar(profile.hasCustomAvatar);
     setAudience(profile.audience);
     setSocialLinks(profile.socialLinks);
     setFavorites(profile.favoriteGames);
@@ -180,6 +190,31 @@ export function CommunityProfileCustomizationForm() {
       setSave({ kind: "error", message: "Certains champs sont invalides (liens, longueurs…)." });
     } else {
       setSave({ kind: "error", message: "Impossible de sauvegarder le profil." });
+    }
+  }
+
+  async function handleAvatarPick(file: File) {
+    setAvatar({ kind: "saving" });
+    const result = await uploadCommunityAvatar(file);
+    if (result) {
+      setAvatarUrl(result.avatarUrl);
+      setHasCustomAvatar(true);
+      setAvatar({ kind: "saved" });
+    } else {
+      setAvatar({ kind: "error", message: "Image refusée (format JPEG/PNG/WebP, 5 Mo max) ou envoi impossible." });
+    }
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  }
+
+  async function handleAvatarRemove() {
+    setAvatar({ kind: "saving" });
+    const result = await removeCommunityAvatar();
+    if (result) {
+      setAvatarUrl(result.avatarUrl);
+      setHasCustomAvatar(false);
+      setAvatar({ kind: "idle" });
+    } else {
+      setAvatar({ kind: "error", message: "Impossible de retirer la photo." });
     }
   }
 
@@ -287,6 +322,50 @@ export function CommunityProfileCustomizationForm() {
               </button>
             );
           })}
+        </div>
+      </Section>
+
+      <Section title="Photo de profil" description="Importe ta propre image (JPEG, PNG ou WebP, 5 Mo max). Sans image, un avatar par défaut est généré.">
+        <div className="flex flex-wrap items-center gap-4">
+          <ProfileAvatar avatarUrl={avatarUrl} frame={avatarFrame} name={displayName.trim() || accountName || slug || "?"} />
+          <div className="grid gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-surface-hover disabled:opacity-50"
+                disabled={avatar.kind === "saving"}
+                onClick={() => avatarInputRef.current?.click()}
+                type="button"
+              >
+                {avatar.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <ImagePlus aria-hidden className="size-4" />}
+                {hasCustomAvatar ? "Changer la photo" : "Importer une photo"}
+              </button>
+              {hasCustomAvatar ? (
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:text-destructive disabled:opacity-50"
+                  disabled={avatar.kind === "saving"}
+                  onClick={() => void handleAvatarRemove()}
+                  type="button"
+                >
+                  <Trash2 aria-hidden className="size-4" /> Retirer
+                </button>
+              ) : null}
+            </div>
+            {avatar.kind === "error" ? (
+              <span className="flex items-center gap-1.5 text-xs text-destructive">
+                <AlertCircle aria-hidden className="size-3.5" /> {avatar.message}
+              </span>
+            ) : null}
+            <input
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleAvatarPick(file);
+              }}
+              ref={avatarInputRef}
+              type="file"
+            />
+          </div>
         </div>
       </Section>
 

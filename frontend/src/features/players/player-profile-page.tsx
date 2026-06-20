@@ -83,7 +83,7 @@ export function PlayerProfilePage({
                 <SocialLinkIcons links={profile.customization.socialLinks} />
               ) : null}
             </div>
-            <ProfileRelationshipActions slug={profile.slug} />
+            <ProfileRelationshipActions name={displayName} slug={profile.slug} />
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

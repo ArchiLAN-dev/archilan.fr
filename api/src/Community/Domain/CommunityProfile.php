@@ -59,6 +59,12 @@ final class CommunityProfile
         /** Optional decorative avatar frame key (see AvatarFrame); null = no frame. */
         #[ORM\Column(name: 'avatar_frame', type: 'string', length: 32, nullable: true)]
         private ?string $avatarFrame = null,
+        /**
+         * MinIO object key of a member-uploaded avatar (story 30.27). When set it takes precedence over the
+         * resolved external `avatarUrl`; presigned at read. Null = fall back to the external source/default.
+         */
+        #[ORM\Column(name: 'custom_avatar_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customAvatarKey = null,
     ) {
     }
 
@@ -90,6 +96,22 @@ final class CommunityProfile
     public function getAvatarUrl(): ?string
     {
         return $this->avatarUrl;
+    }
+
+    /**
+     * Set (or clear, with null) the member-uploaded avatar key. Uploading overrides the external source;
+     * clearing falls back to the resolved external avatar, then the default (story 30.27).
+     */
+    public function setCustomAvatar(?string $key, \DateTimeImmutable $now): void
+    {
+        $this->customAvatarKey = $key;
+        $this->updatedAt = $now;
+    }
+
+    /** The member-uploaded avatar object key, or null when none is set. */
+    public function getCustomAvatarKey(): ?string
+    {
+        return $this->customAvatarKey;
     }
 
     public function getAvatarResolvedAt(): ?\DateTimeImmutable

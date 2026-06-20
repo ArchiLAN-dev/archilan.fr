@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Presentation;
 
 use App\Community\Application\CommunityProfileView;
+use App\Community\Application\ReportProfileService;
 use App\Community\Application\UpdateCommunityProfile;
 use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -21,6 +22,7 @@ final readonly class CommunityProfileController
         private ApiAccessGuard $apiAccessGuard,
         private CommunityProfileView $profileView,
         private UpdateCommunityProfile $updateProfile,
+        private ReportProfileService $reportProfile,
     ) {
     }
 
@@ -71,6 +73,27 @@ final readonly class CommunityProfileController
         }
 
         return new JsonResponse(['data' => $profile]);
+    }
+
+    #[Route('/api/v1/community/profiles/{slug}/report', name: 'api_community_profile_report', methods: ['POST'])]
+    public function report(Request $request, string $slug): JsonResponse
+    {
+        $user = $this->apiAccessGuard->requireUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = $this->jsonPayload($request);
+        $category = is_string($payload['category'] ?? null) ? $payload['category'] : '';
+        $problem = is_string($payload['problem'] ?? null) ? $payload['problem'] : '';
+        $comment = is_string($payload['comment'] ?? null) ? $payload['comment'] : null;
+
+        return match ($this->reportProfile->report($user->getId(), $slug, $category, $problem, $comment)) {
+            'ok' => new JsonResponse(null, 204),
+            'forbidden' => $this->apiAccessGuard->errorResponse('forbidden', 'Vous ne pouvez pas signaler votre propre profil.', 403),
+            'invalid' => $this->apiAccessGuard->errorResponse('invalid_report', 'Signalement invalide.', 422),
+            default => $this->apiAccessGuard->errorResponse('player_not_found', 'Joueur introuvable.', 404),
+        };
     }
 
     /**
