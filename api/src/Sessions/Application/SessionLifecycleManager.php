@@ -40,6 +40,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
         private WeeklyEntryRepositoryInterface $weeklyEntries,
+        private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -578,6 +579,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $session->setArchivedSavePath($archivedSavePath);
         $session->setArchivedSpoilerPath($archivedSpoilerPath);
 
+        $registrationIds = [];
         foreach ($slots as $slotData) {
             $slotName = is_string($slotData['slot_name'] ?? null) ? $slotData['slot_name'] : null;
             if (null === $slotName || '' === $slotName) {
@@ -589,6 +591,8 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             if (!$slot instanceof SessionSlot) {
                 continue;
             }
+
+            $registrationIds[$slot->getRegistrationId()] = true;
 
             $slot->setChecksDone(is_int($slotData['checks_done'] ?? null) ? $slotData['checks_done'] : 0);
             $slot->setItemsReceived(is_int($slotData['items_received'] ?? null) ? $slotData['items_received'] : 0);
@@ -609,7 +613,30 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         $this->logger->info('session.archive.stored', ['sessionId' => $sessionId, 'slot_count' => count($slots)]);
 
+        // Post-commit (AC-A4): now that the final goal/check stats are persisted, (re)evaluate the
+        // participants' achievements with a notification (story 30.26). Async, off this request path.
+        $this->achievementRecomputeTrigger->recomputeForUsers($this->resolveParticipantUserIds(array_keys($registrationIds)));
+
         return ['found' => true];
+    }
+
+    /**
+     * Map slot registration ids to player user ids: an event slot points at a registration row
+     * (registration.user_id is the player); a personal-run slot stores the user id directly.
+     *
+     * @param list<string> $registrationIds
+     *
+     * @return list<string>
+     */
+    private function resolveParticipantUserIds(array $registrationIds): array
+    {
+        $userIds = [];
+        foreach ($registrationIds as $registrationId) {
+            $registration = $this->registrations->findById($registrationId);
+            $userIds[$registration instanceof Registration ? $registration->getUserId() : $registrationId] = true;
+        }
+
+        return array_keys($userIds);
     }
 
     /**
