@@ -22,16 +22,20 @@ final readonly class DbalUserDirectoryQuery implements UserDirectoryQueryInterfa
     public function search(?string $query, ?string $role): array
     {
         $qb = $this->connection->createQueryBuilder();
-        $qb->select('u.id', 'u.email', 'u.display_name', 'u.roles', 'u.created_at', 'u.updated_at', 'u.deleted_at')
+        // Display the community pseudo (override) falling back to the account name; email stays the key.
+        $qb->select('u.id', 'u.email', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'u.roles', 'u.created_at', 'u.updated_at', 'u.deleted_at')
             ->from($this->table, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->orderBy('u.created_at', 'DESC')
             ->setMaxResults(500);
 
         $normalizedQuery = null === $query ? '' : mb_strtolower(trim($query));
         if ('' !== $normalizedQuery) {
+            // Match email, the account name, or the community pseudo, so admins still find by any of them.
             $qb->andWhere($qb->expr()->or(
                 'LOWER(u.email) LIKE :query',
                 'LOWER(u.display_name) LIKE :query',
+                'LOWER(COALESCE(cp.display_name, u.display_name)) LIKE :query',
             ))->setParameter('query', '%'.$normalizedQuery.'%');
         }
 

@@ -40,7 +40,7 @@ final readonly class DbalDiscordUsersQuery implements DiscordUsersQueryInterface
             ->select(
                 'u.id',
                 'u.email',
-                'u.display_name',
+                'COALESCE(cp.display_name, u.display_name) AS display_name',
                 'u.roles',
                 'u.discord_id',
                 'u.discord_username',
@@ -48,6 +48,7 @@ final readonly class DbalDiscordUsersQuery implements DiscordUsersQueryInterface
                 'u.discord_sync_error',
             )
             ->from($this->table, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where('u.discord_id IS NOT NULL')
             ->orderBy('u.email', 'ASC')
             ->setMaxResults($limit)
