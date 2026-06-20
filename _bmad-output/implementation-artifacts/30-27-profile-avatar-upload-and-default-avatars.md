@@ -20,7 +20,7 @@ exists). A member with **no linked Discord and no Steam** resolves to `null` →
 to fix it. There is **no custom image upload** for avatars and **no default avatar set**, so the profile
 header looks empty for a large share of members. Discord decision (Maxime/MasterKafey, 2026‑06‑19): "tout
 le monde n'a pas de PP Steam, il faudrait des icônes de base personnalisées comme Blizzard", plus enable
-custom upload (Steam PP already wired on the front per MasterKafey — confirm the back).
+custom upload. (Note: the avatar source already in place is **Discord**, not Steam — Steam is out of scope.)
 
 ## Acceptance Criteria
 
@@ -144,11 +144,12 @@ claude-opus-4-8
 - **Editor.** `/compte` customization form gains a "Photo de profil" section: live `ProfileAvatar` preview +
   upload/change/remove, applied immediately (independent of the save bar, like the tutorial upload).
   `editableForUser`/`MyCommunityProfile` now expose `avatarUrl` + `hasCustomAvatar`.
-- **Steam (AC-5) — deferred, not implemented.** Building a Steam avatar URL needs the Steam Web API
-  (API key + vanity→steamid64 resolution); `User.steamProfile` is only a raw handle. MasterKafey reports a
-  Steam PP already handled on the frontend, so the back-end resolver was left as Discord-only to avoid a
-  half-working integration and a clash with that FE work. The `AvatarResolverInterface` port still lets a
-  `SteamAvatarResolver` slot in later. **Needs a product/tech decision before implementing** (see hand-off).
+- **External source = Discord (already wired); Steam (AC-5) out of scope.** Clarified with the PO: the
+  pre-existing "PP already done" is the **Discord** avatar (`DiscordAvatarResolver`, back-end, already in
+  the codebase) — not Steam. This story keeps that Discord source working as the external fallback
+  (precedence: custom upload → Discord cache → default). Steam was never implemented and is **not** part of
+  30.27; building a Steam avatar URL would need the Steam Web API (key + vanity→steamid64 resolution) and
+  can be a separate future story — the `AvatarResolverInterface` port lets a `SteamAvatarResolver` slot in.
 - **Gates:** phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, `lint:container` ✅, phpunit
   (CommunityAvatarTest + 220 community/profile suites green; full-suite local run hit the known shared
   test-DB schema-contention flake, unrelated suites pass in isolation, CI authoritative) ✅; FE typecheck ✅,
