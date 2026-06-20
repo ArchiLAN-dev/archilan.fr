@@ -101,8 +101,10 @@ custom upload. (Note: the avatar source already in place is **Discord**, not Ste
   shows a Steam PP before deciding implement-vs-confirm. [Source: api/src/Identity/Domain/User.php]
 - **Gating**: `ApiAccessGuard::requireUser` (any authenticated user acting on their own profile). Never
   `ROLE_MEMBER` (AC-M1).
-- **Scope**: images only (no GIF avatars to avoid animated-avatar moderation surface — confirm with PO).
-  No public bucket; presign-at-read consistent with covers/tutorials.
+- **Scope**: static images only (JPEG/PNG/WebP). **Animated GIF avatars are deliberately excluded for now
+  and planned as a future *premium* perk** (Discord-Nitro-style), gated by active membership
+  (`IS_MEMBER` / `ApiAccessGuard::requireAuthenticatedMember`, never `ROLE_MEMBER` — AC-M) when built.
+  No public bucket; presign-at-read consistent with covers/tutorials. [PO decision 2026-06-20]
 
 ### References
 - Epic: [Source: _bmad-output/planning-artifacts/epics/epic-30-community-enriched-profiles.md]
@@ -134,8 +136,9 @@ claude-opus-4-8
   `community/avatars/{ulid}.{ext}` (lazy-creating the profile row so a member can upload before first
   view), sets/clears the key, returns the resolved URL. `CommunityAvatarController` mirrors the tutorial
   upload validation (JPEG/PNG/WebP, ≤ 5 Mo; `missing_file`/`image_too_large`/`image_invalid_type` 422,
-  `storage_unavailable` 503). GIF intentionally excluded (no animated avatars). No delete on the storage
-  port — replaced/cleared objects are orphaned, consistent with covers/tutorials.
+  `storage_unavailable` 503). GIF intentionally excluded — animated avatars are reserved for a future
+  membership-gated premium perk (PO decision). No delete on the storage port — replaced/cleared objects are
+  orphaned, consistent with covers/tutorials.
 - **Default avatars — frontend-owned (deviation from AC-4).** Rather than emit a `defaultAvatarKey` on every
   card DTO (which would couple ~6 consumer shapes + their FE types), the `ProfileAvatar` component renders a
   deterministic, curated "Blizzard-style" gradient default keyed by a stable hash of the member's name
