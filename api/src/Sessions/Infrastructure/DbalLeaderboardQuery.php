@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
+use App\Community\Application\AvatarUrlResolver;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;
@@ -21,8 +22,11 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
     private string $runTable;
     private string $userTable;
 
-    public function __construct(private Connection $connection, EntityManagerInterface $em)
-    {
+    public function __construct(
+        private Connection $connection,
+        EntityManagerInterface $em,
+        private AvatarUrlResolver $avatarUrls,
+    ) {
         $this->sessionTable = $em->getClassMetadata(Session::class)->getTableName();
         $this->slotTable = $em->getClassMetadata(SessionSlot::class)->getTableName();
         $this->registrationTable = $em->getClassMetadata(Registration::class)->getTableName();
@@ -92,8 +96,9 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $userIds,
         );
         $userRows = $userQb
-            // Display the community pseudo (override) falling back to the account name.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name')
+            // Display the community pseudo (override) falling back to the account name;
+            // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
@@ -108,7 +113,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
         }
 
-        /** @var list<array{slug: string, displayName: string, sortName: string, value: int}> $entries */
+        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, sortName: string, value: int}> $entries */
         $entries = [];
         foreach ($totals as $userId => $value) {
             $userRow = $userMap[$userId] ?? null;
@@ -118,7 +123,13 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $slug = is_string($userRow['slug'] ?? null) ? $userRow['slug'] : '';
             $displayName = is_string($userRow['display_name'] ?? null) ? $userRow['display_name'] : '';
             $sortName = mb_strtolower('' !== $displayName ? $displayName : $slug);
-            $entries[] = ['slug' => $slug, 'displayName' => $displayName, 'sortName' => $sortName, 'value' => $value];
+            $entries[] = [
+                'slug' => $slug,
+                'displayName' => $displayName,
+                'avatarUrl' => $this->resolveAvatarUrl($userRow),
+                'sortName' => $sortName,
+                'value' => $value,
+            ];
         }
 
         usort($entries, static function (array $a, array $b): int {
@@ -133,10 +144,29 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
 
         $finalEntries = [];
         foreach ($pageEntries as $entry) {
-            $finalEntries[] = ['slug' => $entry['slug'], 'displayName' => $entry['displayName'], 'value' => $entry['value']];
+            $finalEntries[] = [
+                'slug' => $entry['slug'],
+                'displayName' => $entry['displayName'],
+                'avatarUrl' => $entry['avatarUrl'],
+                'value' => $entry['value'],
+            ];
         }
 
         return [$finalEntries, $total];
+    }
+
+    /**
+     * Resolve the avatar URL for a hydrated user row, applying the directory precedence
+     * (custom uploaded avatar presigned > cached external URL > null).
+     *
+     * @param array<string, mixed> $userRow
+     */
+    private function resolveAvatarUrl(array $userRow): ?string
+    {
+        return $this->avatarUrls->resolve(
+            is_string($userRow['custom_avatar_key'] ?? null) ? $userRow['custom_avatar_key'] : null,
+            is_string($userRow['avatar_url'] ?? null) ? $userRow['avatar_url'] : null,
+        );
     }
 
     public function computeSpeedPage(?string $eventId, int $limit, int $offset): array
@@ -216,8 +246,9 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $userIds,
         );
         $userRows = $userQb
-            // Display the community pseudo (override) falling back to the account name.
-            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name')
+            // Display the community pseudo (override) falling back to the account name;
+            // avatar_url + custom_avatar_key feed the presigned-avatar resolution below.
+            ->select('u.id AS id', "COALESCE(u.slug, '') AS slug", 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($userQb->expr()->in('u.id', $placeholders))
@@ -232,7 +263,7 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             }
         }
 
-        /** @var list<array{slug: string, displayName: string, sortName: string, value: int}> $entries */
+        /** @var list<array{slug: string, displayName: string, avatarUrl: string|null, sortName: string, value: int}> $entries */
         $entries = [];
         foreach ($scores as $userId => $value) {
             $userRow = $userMap[$userId] ?? null;
@@ -242,7 +273,13 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             $slug = is_string($userRow['slug'] ?? null) ? $userRow['slug'] : '';
             $displayName = is_string($userRow['display_name'] ?? null) ? $userRow['display_name'] : '';
             $sortName = mb_strtolower('' !== $displayName ? $displayName : $slug);
-            $entries[] = ['slug' => $slug, 'displayName' => $displayName, 'sortName' => $sortName, 'value' => $value];
+            $entries[] = [
+                'slug' => $slug,
+                'displayName' => $displayName,
+                'avatarUrl' => $this->resolveAvatarUrl($userRow),
+                'sortName' => $sortName,
+                'value' => $value,
+            ];
         }
 
         usort($entries, static function (array $a, array $b): int {
@@ -258,7 +295,12 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
 
         $finalEntries = [];
         foreach ($pageEntries as $entry) {
-            $finalEntries[] = ['slug' => $entry['slug'], 'displayName' => $entry['displayName'], 'value' => $entry['value']];
+            $finalEntries[] = [
+                'slug' => $entry['slug'],
+                'displayName' => $entry['displayName'],
+                'avatarUrl' => $entry['avatarUrl'],
+                'value' => $entry['value'],
+            ];
         }
 
         return [$finalEntries, $total];

@@ -52,6 +52,7 @@ final readonly class LeaderboardController
                 'rank' => $offset + $i + 1,
                 'slug' => $entry['slug'],
                 'displayName' => $entry['displayName'],
+                'avatarUrl' => $entry['avatarUrl'],
                 'value' => $entry['value'],
                 'unit' => $unit,
             ];
