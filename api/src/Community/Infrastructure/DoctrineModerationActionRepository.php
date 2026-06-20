@@ -38,4 +38,19 @@ final readonly class DoctrineModerationActionRepository implements ModerationAct
 
         return array_values(array_filter($result, static fn (mixed $a): bool => $a instanceof ModerationAction));
     }
+
+    public function beginTransaction(): void
+    {
+        $this->entityManager->getConnection()->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->entityManager->getConnection()->commit();
+    }
+
+    public function rollBack(): void
+    {
+        $this->entityManager->getConnection()->rollBack();
+    }
 }

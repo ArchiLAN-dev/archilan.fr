@@ -61,14 +61,10 @@ final readonly class AccountModerationService
         if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
             return $denied;
         }
-        if (!$this->gateway->suspendUntil($targetUserId, $until, $reason)) {
-            return 'not_found';
-        }
 
-        $this->log($adminId, $targetUserId, ModerationAction::ACTION_SUSPEND, $reason, $relatedReportId);
-        $this->autoResolve($targetUserId, $adminId);
-
-        return 'ok';
+        return $this->transactionally(fn (): string => $this->gateway->suspendUntil($targetUserId, $until, $reason)
+            ? $this->commitAction($adminId, $targetUserId, ModerationAction::ACTION_SUSPEND, $reason, $relatedReportId, autoResolve: true)
+            : 'not_found');
     }
 
     /**
@@ -83,14 +79,10 @@ final readonly class AccountModerationService
         if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
             return $denied;
         }
-        if (!$this->gateway->ban($targetUserId, $reason)) {
-            return 'not_found';
-        }
 
-        $this->log($adminId, $targetUserId, ModerationAction::ACTION_BAN, $reason, $relatedReportId);
-        $this->autoResolve($targetUserId, $adminId);
-
-        return 'ok';
+        return $this->transactionally(fn (): string => $this->gateway->ban($targetUserId, $reason)
+            ? $this->commitAction($adminId, $targetUserId, ModerationAction::ACTION_BAN, $reason, $relatedReportId, autoResolve: true)
+            : 'not_found');
     }
 
     /**
@@ -101,14 +93,13 @@ final readonly class AccountModerationService
         if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
             return $denied;
         }
-        if (!$this->gateway->lift($targetUserId)) {
-            return 'not_found';
-        }
 
         $trimmed = trim($reason);
-        $this->log($adminId, $targetUserId, ModerationAction::ACTION_LIFT, '' === $trimmed ? 'Levée de la sanction' : $trimmed, null);
+        $logReason = '' === $trimmed ? 'Levée de la sanction' : $trimmed;
 
-        return 'ok';
+        return $this->transactionally(fn (): string => $this->gateway->lift($targetUserId)
+            ? $this->commitAction($adminId, $targetUserId, ModerationAction::ACTION_LIFT, $logReason, null, autoResolve: false)
+            : 'not_found');
     }
 
     /**
@@ -147,6 +138,39 @@ final readonly class AccountModerationService
         }
 
         return $items;
+    }
+
+    /**
+     * Run the write closure inside one connection-level transaction so the Identity state change, the audit
+     * row and the report auto-resolution commit together or not at all (story 30.29). All repos share the EM,
+     * so the transaction opened here also wraps the gateway's `User` flush.
+     *
+     * @param \Closure(): string $work
+     */
+    private function transactionally(\Closure $work): string
+    {
+        $this->actions->beginTransaction();
+        try {
+            $result = $work();
+            $this->actions->commit();
+
+            return $result;
+        } catch (\Throwable $e) {
+            $this->actions->rollBack();
+
+            throw $e;
+        }
+    }
+
+    /** Append the audit row and (for suspend/ban) auto-resolve the open reports, within the open transaction. */
+    private function commitAction(string $adminId, string $targetUserId, string $action, string $reason, ?string $relatedReportId, bool $autoResolve): string
+    {
+        $this->log($adminId, $targetUserId, $action, $reason, $relatedReportId);
+        if ($autoResolve) {
+            $this->autoResolve($targetUserId, $adminId);
+        }
+
+        return 'ok';
     }
 
     private function log(string $adminId, string $targetUserId, string $action, string $reason, ?string $relatedReportId): void
