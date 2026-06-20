@@ -140,6 +140,23 @@ final class Run
         $this->updatedAt = $now;
     }
 
+    /**
+     * Owner-driven terminal finish (story 17.15): an active run is wrapped up so its session can be
+     * archived and its goal-reached state counted in stats. Only an active run can be completed.
+     */
+    public function complete(\DateTimeImmutable $now): void
+    {
+        if (self::STATUS_ACTIVE !== $this->status) {
+            throw new \DomainException('Only an active run can be completed.');
+        }
+
+        $this->connectionHost = null;
+        $this->connectionPort = null;
+        $this->connectionPassword = null;
+        $this->status = self::STATUS_COMPLETED;
+        $this->updatedAt = $now;
+    }
+
     public function setSessionId(string $sessionId): void
     {
         $this->sessionId = $sessionId;
