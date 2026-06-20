@@ -10,21 +10,50 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { QueryProvider } from "@/lib/query-provider";
 
-const navItems = [
-  { href: "/admin", icon: LayoutDashboard, label: "Dashboard", shortLabel: "Home", exact: true },
-  { href: "/admin/evenements", icon: Calendar, label: "Événements", shortLabel: "Events", exact: false },
-  { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus", exact: false },
-  { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux", exact: false },
-  { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users", exact: false },
-  { href: "/admin/adhesions", icon: CreditCard, label: "Adhésions", shortLabel: "Adhés.", exact: false },
-  { href: "/admin/discord", icon: Bot, label: "Bot Discord", shortLabel: "Discord", exact: false },
-  { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
-  { href: "/admin/aide-archipelago", icon: BookOpen, label: "Aide Archipelago", shortLabel: "Aide", exact: false },
-  { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdo", shortLabel: "Runs", exact: false },
-  { href: "/admin/sessions/config", icon: SlidersHorizontal, label: "Config sessions", shortLabel: "Config", exact: false },
-  { href: "/admin/moderation", icon: ShieldAlert, label: "Modération", shortLabel: "Modé.", exact: false },
-  { href: "/admin/achievements", icon: Trophy, label: "Succès", shortLabel: "Succès", exact: false },
+const navGroups = [
+  {
+    label: null,
+    items: [
+      { href: "/admin", icon: LayoutDashboard, label: "Dashboard", shortLabel: "Home", exact: true },
+    ],
+  },
+  {
+    label: "Contenu",
+    items: [
+      { href: "/admin/evenements", icon: Calendar, label: "Événements", shortLabel: "Events", exact: false },
+      { href: "/admin/actualites", icon: Newspaper, label: "Actualités", shortLabel: "Actus", exact: false },
+      { href: "/admin/jeux", icon: Gamepad2, label: "Jeux", shortLabel: "Jeux", exact: false },
+    ],
+  },
+  {
+    label: "Communauté",
+    items: [
+      { href: "/admin/utilisateurs", icon: Users, label: "Utilisateurs", shortLabel: "Users", exact: false },
+      { href: "/admin/adhesions", icon: CreditCard, label: "Adhésions", shortLabel: "Adhés.", exact: false },
+      { href: "/admin/moderation", icon: ShieldAlert, label: "Modération", shortLabel: "Modé.", exact: false },
+      { href: "/admin/achievements", icon: Trophy, label: "Succès", shortLabel: "Succès", exact: false },
+    ],
+  },
+  {
+    label: "Archipelago",
+    items: [
+      { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
+      { href: "/admin/aide-archipelago", icon: BookOpen, label: "Aide Archipelago", shortLabel: "Aide", exact: false },
+      { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdo", shortLabel: "Runs", exact: false },
+      { href: "/admin/sessions/config", icon: SlidersHorizontal, label: "Config sessions", shortLabel: "Config", exact: false },
+    ],
+  },
+  {
+    label: "Intégrations",
+    items: [
+      { href: "/admin/discord", icon: Bot, label: "Bot Discord", shortLabel: "Discord", exact: false },
+    ],
+  },
 ] as const;
+
+function isItemActive(pathname: string, href: string, exact: boolean): boolean {
+  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 function AdminShellSkeleton() {
   return (
@@ -117,26 +146,35 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav aria-label="Sections" className="flex flex-1 flex-col gap-1 p-3">
-          {navItems.map(({ href, icon: Icon, label, exact }) => {
-            const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                aria-current={active ? "page" : undefined}
-                className={[
-                  "flex items-center gap-3 rounded px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "border-l-2 border-accent bg-surface-2 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-                ].join(" ")}
-                href={href}
-                key={href}
-              >
-                <Icon aria-hidden="true" className="size-4 shrink-0" />
-                {label}
-              </Link>
-            );
-          })}
+        <nav aria-label="Sections" className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
+          {navGroups.map((group) => (
+            <div className="flex flex-col gap-1" key={group.label ?? "top"}>
+              {group.label ? (
+                <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  {group.label}
+                </p>
+              ) : null}
+              {group.items.map(({ href, icon: Icon, label, exact }) => {
+                const active = isItemActive(pathname, href, exact);
+                return (
+                  <Link
+                    aria-current={active ? "page" : undefined}
+                    className={[
+                      "flex items-center gap-3 rounded px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "border-l-2 border-accent bg-surface-2 text-foreground"
+                        : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                    ].join(" ")}
+                    href={href}
+                    key={href}
+                  >
+                    <Icon aria-hidden="true" className="size-4 shrink-0" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="flex flex-col gap-1 border-t border-border p-3">
@@ -174,25 +212,30 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
           />
         </div>
 
-        <nav className="flex flex-1 flex-col items-center gap-1 py-3">
-          {navItems.map(({ href, icon: Icon, label, exact }) => {
-            const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                className={[
-                  "flex size-10 items-center justify-center rounded transition-colors",
-                  active
-                    ? "bg-surface-2 text-foreground"
-                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
-                ].join(" ")}
-                href={href}
-                key={href}
-                title={label}
-              >
-                <Icon aria-hidden="true" className="size-5" />
-              </Link>
-            );
-          })}
+        <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto py-3">
+          {navGroups.map((group, groupIndex) => (
+            <div className="flex flex-col items-center gap-1" key={group.label ?? "top"}>
+              {groupIndex > 0 ? <div className="my-1 h-px w-6 bg-border" /> : null}
+              {group.items.map(({ href, icon: Icon, label, exact }) => {
+                const active = isItemActive(pathname, href, exact);
+                return (
+                  <Link
+                    className={[
+                      "flex size-10 items-center justify-center rounded transition-colors",
+                      active
+                        ? "bg-surface-2 text-foreground"
+                        : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                    ].join(" ")}
+                    href={href}
+                    key={href}
+                    title={label}
+                  >
+                    <Icon aria-hidden="true" className="size-5" />
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="flex flex-col items-center gap-1 border-t border-border py-3">
@@ -252,26 +295,35 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
         ].join(" ")}
       >
         <nav aria-label="Navigation administration mobile" className="flex h-full flex-col overflow-y-auto p-4">
-          <div className="flex flex-col gap-1">
-            {navItems.map(({ href, icon: Icon, label, exact }) => {
-              const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-              return (
-                <Link
-                  aria-current={active ? "page" : undefined}
-                  className={[
-                    "flex items-center gap-3 border-l-2 px-4 py-3 text-sm font-medium transition-colors",
-                    active
-                      ? "border-accent bg-surface text-foreground"
-                      : "border-transparent text-muted-foreground hover:bg-surface hover:text-foreground",
-                  ].join(" ")}
-                  href={href}
-                  key={href}
-                >
-                  <Icon aria-hidden="true" className="size-5 shrink-0" />
-                  {label}
-                </Link>
-              );
-            })}
+          <div className="flex flex-col gap-4">
+            {navGroups.map((group) => (
+              <div className="flex flex-col gap-1" key={group.label ?? "top"}>
+                {group.label ? (
+                  <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    {group.label}
+                  </p>
+                ) : null}
+                {group.items.map(({ href, icon: Icon, label, exact }) => {
+                  const active = isItemActive(pathname, href, exact);
+                  return (
+                    <Link
+                      aria-current={active ? "page" : undefined}
+                      className={[
+                        "flex items-center gap-3 border-l-2 px-4 py-3 text-sm font-medium transition-colors",
+                        active
+                          ? "border-accent bg-surface text-foreground"
+                          : "border-transparent text-muted-foreground hover:bg-surface hover:text-foreground",
+                      ].join(" ")}
+                      href={href}
+                      key={href}
+                    >
+                      <Icon aria-hidden="true" className="size-5 shrink-0" />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </div>
           <div className="mt-auto flex flex-col gap-1 border-t border-border pt-4">
             <Link
