@@ -26,6 +26,13 @@ interface ContentReportRepositoryInterface
 
     public function countPending(): int;
 
+    /**
+     * Unresolved profile-target reports against one account - used to auto-resolve on suspend/ban (story 30.29).
+     *
+     * @return list<ContentReport>
+     */
+    public function pendingForProfileTarget(string $targetUserId): array;
+
     public function save(ContentReport $report): void;
 
     public function flush(): void;

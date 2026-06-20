@@ -8,6 +8,7 @@ use App\Community\Application\AvatarUrlResolver;
 use App\Community\Application\CommunityUserDirectoryQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Types\Types;
 
 final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDirectoryQueryInterface
 {
@@ -48,7 +49,11 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))
             ->andWhere($qb->expr()->isNull('u.deleted_at'))
+            // Hide banned / currently-suspended members from every public card surface (story 30.29):
+            // directory, friend lists, feed, notifications.
+            ->andWhere('u.banned_at IS NULL AND (u.suspended_until IS NULL OR u.suspended_until <= :now)')
             ->setParameter('ids', $userIds, ArrayParameterType::STRING)
+            ->setParameter('now', new \DateTimeImmutable(), Types::DATETIMETZ_IMMUTABLE)
             ->executeQuery()
             ->fetchAllAssociative();
 

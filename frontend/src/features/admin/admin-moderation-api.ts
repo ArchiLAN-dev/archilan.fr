@@ -178,9 +178,12 @@ export async function fetchModerationQueue(
   }
 }
 
-async function post(path: string): Promise<boolean> {
+async function post(path: string, body?: unknown): Promise<boolean> {
   try {
-    const res = await apiFetch(`${env.apiBaseUrl}${path}`, { method: "POST" });
+    const res = await apiFetch(`${env.apiBaseUrl}${path}`, {
+      method: "POST",
+      ...(body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    });
     return res.ok;
   } catch {
     return false;
@@ -197,4 +200,57 @@ export function restoreModerationComment(commentId: string): Promise<boolean> {
 
 export function resolveModerationReport(reportId: string): Promise<boolean> {
   return post(`/admin/community/reports/${encodeURIComponent(reportId)}/resolve`);
+}
+
+// ── Account moderation actions (story 30.29) ──
+
+export type ModerationActionKind = "warn" | "suspend" | "ban" | "lift";
+
+export type AccountActionEntry = {
+  id: string;
+  action: string;
+  reason: string;
+  createdAt: string;
+  actorId: string;
+  relatedReportId: string | null;
+};
+
+const accountBase = (userId: string) => `/admin/community/accounts/${encodeURIComponent(userId)}`;
+
+export function warnAccount(userId: string, reason: string): Promise<boolean> {
+  return post(`${accountBase(userId)}/warn`, { reason });
+}
+
+export function suspendAccount(userId: string, until: string, reason: string): Promise<boolean> {
+  return post(`${accountBase(userId)}/suspend`, { until, reason });
+}
+
+export function banAccount(userId: string, reason: string): Promise<boolean> {
+  return post(`${accountBase(userId)}/ban`, { reason });
+}
+
+export function liftAccount(userId: string, reason: string): Promise<boolean> {
+  return post(`${accountBase(userId)}/lift`, { reason });
+}
+
+export async function fetchAccountActions(userId: string): Promise<AccountActionEntry[]> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}${accountBase(userId)}/actions`);
+    if (!res.ok) return [];
+    const json: unknown = await res.json();
+    if (typeof json !== "object" || json === null || !("data" in json) || !Array.isArray(json.data)) return [];
+    return json.data.filter(
+      (v): v is AccountActionEntry =>
+        typeof v === "object" &&
+        v !== null &&
+        hasStringProp(v, "id") &&
+        hasStringProp(v, "action") &&
+        hasStringProp(v, "reason") &&
+        hasStringProp(v, "createdAt") &&
+        hasStringProp(v, "actorId") &&
+        hasNullableStringProp(v, "relatedReportId"),
+    );
+  } catch {
+    return [];
+  }
 }
