@@ -32,7 +32,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
                 'm.id',
                 'm.user_id AS "userId"',
                 'u.email',
-                'u.display_name AS "displayName"',
+                'COALESCE(cp.display_name, u.display_name) AS "displayName"',
                 self::STATUS_EXPR.' AS "status"',
                 'm.started_at AS "startedAt"',
                 'm.expires_at AS "expiresAt"',
@@ -42,6 +42,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
             )
             ->from('memberships', 'm')
             ->innerJoin('m', $userTable, 'u', $qb->expr()->eq('u.id', 'm.user_id'))
+            ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->orderBy('m.started_at', 'DESC')
             ->setFirstResult(($page - 1) * $limit)
             ->setMaxResults($limit)
@@ -56,7 +57,8 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
         $countQb
             ->select('COUNT(m.id)')
             ->from('memberships', 'm')
-            ->innerJoin('m', $userTable, 'u', $countQb->expr()->eq('u.id', 'm.user_id'));
+            ->innerJoin('m', $userTable, 'u', $countQb->expr()->eq('u.id', 'm.user_id'))
+            ->leftJoin('u', 'community_profile', 'cp', $countQb->expr()->eq('cp.user_id', 'u.id'));
 
         $this->applyStatusFilter($countQb, $status, $now);
         $this->applyCommonFilters($countQb, $search, $userId, $dateFrom, $dateTo);
@@ -83,7 +85,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
                 'm.id',
                 'm.user_id AS "userId"',
                 'u.email',
-                'u.display_name AS "displayName"',
+                'COALESCE(cp.display_name, u.display_name) AS "displayName"',
                 self::STATUS_EXPR.' AS "status"',
                 'm.started_at AS "startedAt"',
                 'm.expires_at AS "expiresAt"',
@@ -93,6 +95,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
             )
             ->from('memberships', 'm')
             ->innerJoin('m', $userTable, 'u', $qb->expr()->eq('u.id', 'm.user_id'))
+            ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->eq('m.id', ':id'))
             ->setMaxResults(1)
             ->setParameter('id', $membershipId)
@@ -116,7 +119,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
                 'm.id',
                 'm.user_id AS "userId"',
                 'u.email',
-                'u.display_name AS "displayName"',
+                'COALESCE(cp.display_name, u.display_name) AS "displayName"',
                 self::STATUS_EXPR.' AS "status"',
                 'm.started_at AS "startedAt"',
                 'm.expires_at AS "expiresAt"',
@@ -126,6 +129,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
             )
             ->from('memberships', 'm')
             ->innerJoin('m', $userTable, 'u', $qb->expr()->eq('u.id', 'm.user_id'))
+            ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->eq('m.user_id', ':userId'))
             ->orderBy('m.started_at', 'DESC')
             ->setMaxResults(1)
@@ -169,6 +173,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
             $qb->andWhere($qb->expr()->or(
                 $qb->expr()->like('LOWER(u.email)', ':search'),
                 $qb->expr()->like('LOWER(u.display_name)', ':search'),
+                $qb->expr()->like('LOWER(COALESCE(cp.display_name, u.display_name))', ':search'),
             ))->setParameter('search', '%'.mb_strtolower($search).'%');
         }
 

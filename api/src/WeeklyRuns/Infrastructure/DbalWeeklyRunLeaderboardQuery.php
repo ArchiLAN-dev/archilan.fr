@@ -26,10 +26,11 @@ final readonly class DbalWeeklyRunLeaderboardQuery implements WeeklyRunLeaderboa
                 'we.completion_time_seconds',
                 'we.checks_total',
                 'we.items_total',
-                'u.display_name AS display_name',
+                'COALESCE(cp.display_name, u.display_name) AS display_name',
             )
             ->from('weekly_entries', 'we')
             ->leftJoin('we', $userTable, 'u', 'u.id = we.user_id')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where('we.weekly_run_id = :runId')
             ->setParameter('runId', $weeklyRunId)
             ->executeQuery()

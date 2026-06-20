@@ -44,7 +44,9 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
 
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
-            ->select('u.id', 'u.slug', 'u.display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
+            // Pseudo = community display-name override (else account name); custom_avatar_key feeds the
+            // presigned-avatar resolution below.
+            ->select('u.id', 'u.slug', 'COALESCE(cp.display_name, u.display_name) AS display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))

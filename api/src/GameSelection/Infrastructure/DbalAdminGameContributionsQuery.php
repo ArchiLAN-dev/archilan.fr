@@ -36,11 +36,12 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
                 'g.name AS game_name',
                 'g.slug AS game_slug',
                 'g.install_steps AS game_install_steps',
-                'u.display_name AS author_name',
+                'COALESCE(cp.display_name, u.display_name) AS author_name',
             )
             ->from('game_tutorial_contribution', 'c')
             ->leftJoin('c', 'game', 'g', $qb->expr()->eq('g.id', 'c.game_id'))
-            ->leftJoin('c', $this->userTable, 'u', $qb->expr()->eq('u.id', 'c.author_id'));
+            ->leftJoin('c', $this->userTable, 'u', $qb->expr()->eq('u.id', 'c.author_id'))
+            ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'));
 
         if (ContributionQueryFilters::STATUS_ALL !== $filters->status) {
             $qb->andWhere($qb->expr()->eq('c.status', ':status'))
@@ -55,7 +56,7 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
 
         if ('' !== $filters->search) {
             $escaped = addcslashes($filters->search, '%_\\');
-            $qb->andWhere('(g.name ILIKE :q OR c.proposed_game_name ILIKE :q OR u.display_name ILIKE :q OR c.message ILIKE :q)')
+            $qb->andWhere('(g.name ILIKE :q OR c.proposed_game_name ILIKE :q OR COALESCE(cp.display_name, u.display_name) ILIKE :q OR c.message ILIKE :q)')
                 ->setParameter('q', '%'.$escaped.'%');
         }
 

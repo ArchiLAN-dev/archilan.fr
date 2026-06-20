@@ -7,6 +7,7 @@ namespace App\Identity\Presentation;
 use App\Identity\Application\AuthenticateUser;
 use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\CurrentUserProvider;
+use App\Identity\Application\MemberDisplayNameQueryInterface;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\RotateRefreshToken;
 use App\Identity\Domain\RefreshTokenRepositoryInterface;
@@ -29,6 +30,7 @@ final readonly class AuthController
         private RefreshTokenFactory $refreshTokenFactory,
         private RefreshTokenRepositoryInterface $refreshTokenRepository,
         private RotateRefreshToken $rotateRefreshToken,
+        private MemberDisplayNameQueryInterface $memberDisplayNames,
     ) {
     }
 
@@ -173,7 +175,9 @@ final readonly class AuthController
         return [
             'id' => $user->getId(),
             'email' => $user->getEmail(),
-            'displayName' => $user->getDisplayName(),
+            // The pseudo shown across the app is the community display-name override, falling back to the
+            // account display name when no override is set.
+            'displayName' => $this->memberDisplayNames->displayNameFor($user->getId()) ?? $user->getDisplayName(),
             'steamProfile' => $user->getSteamProfile(),
             'roles' => $user->getRoles(),
             'emailVerifiedAt' => $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),

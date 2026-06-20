@@ -95,15 +95,19 @@ final readonly class DbalCommunityDirectoryQuery implements CommunityDirectoryQu
     {
         $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
 
+        // Match + sort on the community pseudo (override) falling back to the account name.
+        $name = 'COALESCE(cp.display_name, u.display_name)';
+
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
             ->select('u.id AS uid')
             ->from($this->userTable, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($qb->expr()->isNull('u.deleted_at'))
             ->andWhere('u.slug IS NOT NULL')
-            ->andWhere($qb->expr()->or($qb->expr()->comparison('u.slug', 'ILIKE', ':like'), $qb->expr()->comparison('u.display_name', 'ILIKE', ':like')))
+            ->andWhere($qb->expr()->or($qb->expr()->comparison('u.slug', 'ILIKE', ':like'), $qb->expr()->comparison($name, 'ILIKE', ':like')))
             ->setParameter('like', $like)
-            ->orderBy('u.display_name', 'ASC')
+            ->orderBy($name, 'ASC')
             ->addOrderBy('u.slug', 'ASC')
             ->setMaxResults($limit)
             ->setFirstResult($offset)
@@ -121,9 +125,10 @@ final readonly class DbalCommunityDirectoryQuery implements CommunityDirectoryQu
         $total = $countQb
             ->select('COUNT(u.id)')
             ->from($this->userTable, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', 'cp.user_id = u.id')
             ->where($countQb->expr()->isNull('u.deleted_at'))
             ->andWhere('u.slug IS NOT NULL')
-            ->andWhere($countQb->expr()->or($countQb->expr()->comparison('u.slug', 'ILIKE', ':like'), $countQb->expr()->comparison('u.display_name', 'ILIKE', ':like')))
+            ->andWhere($countQb->expr()->or($countQb->expr()->comparison('u.slug', 'ILIKE', ':like'), $countQb->expr()->comparison($name, 'ILIKE', ':like')))
             ->setParameter('like', $like)
             ->executeQuery()
             ->fetchOne();
