@@ -189,12 +189,19 @@ function messageFor(item: NotificationItem): string {
         : `${actorName(item)} a aimé une de tes runs`;
     case "achievement_unlocked":
       return "Nouveau succès débloqué \u{1F3C6}";
+    case "account_flagged":
+      return hasStringProp(item.data, "displayName") && item.data.displayName !== ""
+        ? `Compte à examiner : ${item.data.displayName}`
+        : "Un compte a atteint le seuil de modération";
     default:
       return "Nouvelle notification";
   }
 }
 
 function hrefFor(item: NotificationItem): string {
+  if (item.type === "account_flagged") {
+    return "/admin/moderation";
+  }
   if (item.actor !== null && item.type !== "achievement_unlocked") {
     return `/joueurs/${item.actor.slug}`;
   }

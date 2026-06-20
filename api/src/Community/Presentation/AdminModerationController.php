@@ -37,11 +37,20 @@ final readonly class AdminModerationController
             $this->queryString($request, 'sort'),
             $this->queryString($request, 'q'),
             $request->query->getInt('limit', 50),
+            $this->queryString($request, 'problem'),
+            $request->query->getBoolean('uncategorized'),
         );
 
         $result = $this->moderation->list($filters);
 
-        return new JsonResponse(['data' => $result['reports'], 'meta' => ['count' => $result['count']]]);
+        return new JsonResponse([
+            'data' => $result['reports'],
+            'meta' => [
+                'count' => $result['count'],
+                'threshold' => $result['threshold'],
+                'flagged' => $result['flagged'],
+            ],
+        ]);
     }
 
     private function queryString(Request $request, string $key): ?string

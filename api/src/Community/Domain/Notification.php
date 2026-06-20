@@ -20,6 +20,8 @@ final class Notification
     public const TYPE_COMMENT_RECEIVED = 'comment_received';
     public const TYPE_KUDOS_RECEIVED = 'kudos_received';
     public const TYPE_ACHIEVEMENT_UNLOCKED = 'achievement_unlocked';
+    /** Admin-only: an account crossed the moderation escalation threshold (story 30.28). */
+    public const TYPE_ACCOUNT_FLAGGED = 'account_flagged';
 
     /**
      * @param array<string, mixed> $payload
