@@ -116,6 +116,8 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
 
+**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). For parallel agents, isolate it per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh` (see root `CLAUDE.md` → "Sessions parallèles").
+
 ### What NOT to test
 
 - Doctrine ORM mapping (trust the migration).
