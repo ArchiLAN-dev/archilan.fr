@@ -89,16 +89,16 @@
         },
         {
             "name": "archilan/orchestrateur-client",
-            "version": "1.2.0",
+            "version": "1.2.1",
             "source": {
                 "type": "git",
                 "url": "git@github.com:ArchiLAN-dev/archilan-orchestrateur-client.git",
-                "reference": "49b2d9d9a1ed3bec8a0cdb98dfe529989aecb2b1"
+                "reference": "756bc04f48363971ef417bcb9f9fea692bad9e57"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/49b2d9d9a1ed3bec8a0cdb98dfe529989aecb2b1",
-                "reference": "49b2d9d9a1ed3bec8a0cdb98dfe529989aecb2b1",
+                "url": "https://api.github.com/repos/ArchiLAN-dev/archilan-orchestrateur-client/zipball/756bc04f48363971ef417bcb9f9fea692bad9e57",
+                "reference": "756bc04f48363971ef417bcb9f9fea692bad9e57",
                 "shasum": ""
             },
             "require": {
