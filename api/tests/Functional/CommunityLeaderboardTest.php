@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Community\Domain\CommunityProfile;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\WeeklyRuns\Domain\WeeklyEntry;
 
 final class CommunityLeaderboardTest extends FunctionalTestCase
 {
@@ -64,6 +65,46 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(1, $data['totalFinishedSessions']); // only s1 is finished
         self::assertSame(80, $data['totalChecksDone']); // slot1(50) + slot2(30); slot3 excluded (invalidated)
         self::assertSame(1, $data['totalGoalsReached']); // only slot1 has a goal
+    }
+
+    public function testCommunityStatsIncludeCompletedWeeklyRuns(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $user = $this->createUser('w@w.com', ['ROLE_USER'], 'W', 'w');
+
+        // Completed weekly entry → counts as 1 finished run + 1 goal, contributes 42 checks.
+        $completed = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            1,
+            $now,
+            $now,
+        );
+        $completed->recordGoal($now->modify('+10 minutes'), 600, 42, 18);
+        $this->entityManager->persist($completed);
+
+        // Incomplete weekly entry (no goal) → contributes nothing.
+        $incomplete = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            2,
+            $now,
+            $now,
+        );
+        $this->entityManager->persist($incomplete);
+
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/community/stats');
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame(1, $data['totalFinishedSessions']); // only the completed weekly entry
+        self::assertSame(42, $data['totalChecksDone']); // incomplete entry excluded
+        self::assertSame(1, $data['totalGoalsReached']);
     }
 
     // ─── Leaderboard - Goals axis ─────────────────────────────────────────────
