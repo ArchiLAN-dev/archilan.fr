@@ -5,6 +5,63 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.5.0] - 2026-06-20
+
+Itération majeure : profils communautaires enrichis (epic 30) et tutoriels
+d'installation Archipelago (epic 31), pages jeux publiques, statistiques par jeu,
+et durcissement de la sécurité des dépendances.
+
+### Ajouté
+
+- **Profils communautaires enrichis (epic 30)** : page profil publique
+  `/joueurs/[slug]` (avatar + bannière animée, badges de reconnaissance,
+  niveau/XP, liens sociaux typés, vitrine, succès, présence « en jeu »,
+  commentaires, kudos), annuaire `/communaute` (classement / récents / amis),
+  espace `/compte` (édition du profil, navigation groupée). Système d'amis +
+  blocage, feed d'activité, notifications in-app (Mercure), succès configurables
+  (catalogue en base + moteur de règles + administration) et recalcul
+  automatique des succès à la fin d'une run.
+- **Avatars** : upload d'une photo de profil + avatars par défaut déterministes,
+  frames décoratives et bannières animées.
+- **Signalement de profil enrichi** (type + contenu problématique + commentaire)
+  et file de modération pondérée par la gravité.
+- **Actions de modération de compte** : avertir / suspendre / bannir / lever,
+  avec journal d'audit et application au niveau de l'authentification.
+- **Tutoriels d'installation Archipelago (epic 31)** : étapes d'installation par
+  jeu, rendu public sur `/jeux/[slug]`, guide générique `/aide/archipelago`,
+  incitation à l'installation, checklist interactive + médias, contributions
+  communautaires modérées, indications de version (apworld + client) et upload
+  d'images sur les étapes.
+- **Pages jeux publiques** `/jeux/[slug]` (epic 28) et jeux récemment joués.
+- Statistiques d'objectifs par jeu (epic 18) et action « Terminer » d'une run par
+  son propriétaire (epic 17).
+
+### Modifié
+
+- Le pseudo affiché **partout** est désormais le pseudo communautaire (override
+  `community_profile.display_name`, sinon le nom de compte) : annuaire,
+  classements, en-tête, commentaires, écrans d'administration et accueil
+  `/admin`.
+- Refonte de l'éditeur de personnalisation du profil et navigation `/compte` à
+  deux niveaux ; regroupement de la navigation d'administration en sections.
+- Retrait du bouton « j'aime » sur les succès.
+
+### Sécurité
+
+- Mise à jour des dépendances vulnérables (symfony 7.4.12/7.4.13, guzzle 7.12.1,
+  guzzle/psr7, jmespath…) — `composer audit` ne remonte plus aucune alerte.
+
+### Corrigé
+
+- Statistiques : comptage des objectifs par jeu et non par session (story 18.8).
+- Divers correctifs d'interface (barre de navigation publique, mise en page de la
+  modération, en-tête de profil).
+
+### CI / Outillage
+
+- Exécution des quality gates sur les pull requests ; outillage de worktree pour
+  les sessions de développement parallèles.
+
 ## [0.4.1] - 2026-06-15
 
 Correctif de production sur la connectivité API → bridge des sessions.
