@@ -105,7 +105,9 @@ final class PlayerProfileTest extends FunctionalTestCase
         self::assertIsArray($stats);
         self::assertSame(2, $stats['runsParticipated']); // 2 sessions regardless of invalidation
         self::assertSame(1, $stats['goalCompletions']); // only session1
-        self::assertEqualsWithDelta(0.5, $stats['goalCompletionRate'], 0.001); // 1/2
+        // The invalidated slot (released, no goal) is excluded from games_played too, so the rate is over
+        // the player's real games only: 1 goal / 1 game = 100% (story 18.8).
+        self::assertEqualsWithDelta(1.0, $stats['goalCompletionRate'], 0.001);
         self::assertSame(20, $stats['totalChecksDone']); // only session1 slot (session2 is invalidated)
         self::assertSame(10, $stats['totalItemsReceived']);
     }
@@ -136,7 +138,7 @@ final class PlayerProfileTest extends FunctionalTestCase
         self::assertSame(0, $bodyMeta['total']);
     }
 
-    public function testMultipleSlotGoalsInSameSessionCountAsOneGoalCompletion(): void
+    public function testMultipleSlotGoalsInSameSessionCountPerGame(): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
 
@@ -169,9 +171,41 @@ final class PlayerProfileTest extends FunctionalTestCase
         self::assertIsArray($dianaData);
         $stats = $dianaData['stats'];
         self::assertIsArray($stats);
-        self::assertSame(1, $stats['runsParticipated']);
-        self::assertSame(1, $stats['goalCompletions']); // 2 goals but 1 session → rate stays ≤ 1.0
-        self::assertEqualsWithDelta(1.0, $stats['goalCompletionRate'], 0.001);
+        self::assertSame(1, $stats['runsParticipated']); // still 1 distinct session
+        self::assertSame(2, $stats['goalCompletions']); // 2 game goals reached, counted per game (story 18.8)
+        self::assertEqualsWithDelta(1.0, $stats['goalCompletionRate'], 0.001); // 2 goals / 2 games played
+    }
+
+    public function testMixedGoalAndNonGoalSlotsGiveHalfRate(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $user = $this->createUser('erik@example.org', ['ROLE_USER'], 'Erik', 'erik');
+        $event = $this->createEvent('LAN Mixed', $now, $now->modify('+1 day'), 20);
+        $game = $this->createGame('Mixed', 'mixed');
+        $reg = $this->createRegistration($event->getId(), $user->getId());
+
+        $session = $this->makeFinishedSession($event->getId(), $now);
+        $startedAt = $session->getStartedAt();
+        self::assertNotNull($startedAt);
+
+        // One game beaten, one game played but not beaten (not released).
+        $beaten = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Erik', 0);
+        $beaten->setGoalReachedAt($startedAt->modify('+60 seconds'));
+        $this->entityManager->persist($beaten);
+
+        $unbeaten = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Erik2', 1);
+        $this->entityManager->persist($unbeaten);
+
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/players/erik');
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $stats = $data['stats'];
+        self::assertIsArray($stats);
+        self::assertSame(1, $stats['goalCompletions']); // 1 game beaten
+        self::assertEqualsWithDelta(0.5, $stats['goalCompletionRate'], 0.001); // 1 goal / 2 games played
     }
 
     public function testNonExistentSlugReturns404OnBothEndpoints(): void

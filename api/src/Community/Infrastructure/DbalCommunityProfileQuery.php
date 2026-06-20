@@ -49,6 +49,7 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
 
         $stats = $this->playerStats->computeForUser($userId);
         $runsParticipated = $stats['runs_participated'];
+        $gamesPlayed = $stats['games_played'];
         $goalCompletions = $stats['goal_completions'];
 
         return [
@@ -60,8 +61,9 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
             'stats' => [
                 'runsParticipated' => $runsParticipated,
                 'goalCompletions' => $goalCompletions,
-                'goalCompletionRate' => $runsParticipated > 0
-                    ? round($goalCompletions / $runsParticipated, 6)
+                // Share of the player's games whose goal they reached (story 18.8), bounded to 100%.
+                'goalCompletionRate' => $gamesPlayed > 0
+                    ? round(min(1.0, $goalCompletions / $gamesPlayed), 6)
                     : 0.0,
                 'totalChecksDone' => $stats['total_checks_done'],
                 'totalItemsReceived' => $stats['total_items_received'],
