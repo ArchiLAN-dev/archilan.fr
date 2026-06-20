@@ -37,7 +37,9 @@ final readonly class AuthenticateUser
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user instanceof User || $user->isDeleted()) {
+        // A blocked account is treated as unauthenticated on every session/token-backed request, so a
+        // suspend/ban takes effect immediately without waiting for the session cookie to expire (story 30.29).
+        if (!$user instanceof User || $user->isDeleted() || $user->isAccessBlocked(new \DateTimeImmutable())) {
             return null;
         }
 

@@ -24,7 +24,7 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
     {
         $qb = $this->connection->createQueryBuilder();
         $row = $qb
-            ->select('u.id', 'u.slug', 'u.display_name', 'u.created_at', 'u.roles')
+            ->select('u.id', 'u.slug', 'u.display_name', 'u.created_at', 'u.roles', 'u.banned_at', 'u.suspended_until')
             ->from($this->userTable, 'u')
             ->where($qb->expr()->eq('u.slug', ':slug'))
             ->andWhere($qb->expr()->isNull('u.deleted_at'))
@@ -33,6 +33,11 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
             ->fetchAssociative();
 
         if (false === $row) {
+            return null;
+        }
+
+        // A banned/suspended member's public profile is hidden (story 30.29) - treated as not found.
+        if ($this->isBlocked($row['banned_at'] ?? null, $row['suspended_until'] ?? null)) {
             return null;
         }
 
@@ -75,6 +80,16 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
      * ROLE_ADMIN is a stable role (unlike the stale-prone ROLE_MEMBER), so reading it from the user row is
      * fine for a display-only badge. The column stores a JSON array of role strings.
      */
+    /** Mirror of User::isAccessBlocked at the read layer: banned, or suspended with a future end date. */
+    private function isBlocked(mixed $bannedAt, mixed $suspendedUntil): bool
+    {
+        if (is_string($bannedAt) && '' !== $bannedAt) {
+            return true;
+        }
+
+        return is_string($suspendedUntil) && '' !== $suspendedUntil && new \DateTimeImmutable($suspendedUntil) > new \DateTimeImmutable();
+    }
+
     private function isAdmin(mixed $rawRoles): bool
     {
         if (!is_string($rawRoles)) {

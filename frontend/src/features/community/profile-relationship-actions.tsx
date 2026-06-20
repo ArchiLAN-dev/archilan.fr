@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, UserMinus, UserPlus, UserX, X } from "lucide-react";
+import { Check, Flag, UserMinus, UserPlus, UserX, X } from "lucide-react";
 
 import {
   acceptFriendship,
@@ -13,14 +13,16 @@ import {
   unblockUser,
   type Relationship,
 } from "./community-friends-api";
+import { ProfileReportDialog } from "./profile-report-dialog";
 
 const PRIMARY = "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full bg-accent px-3.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50";
 const SECONDARY = "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-sm font-medium text-foreground transition-colors hover:border-accent disabled:opacity-50";
 
-export function ProfileRelationshipActions({ slug }: { slug: string }) {
+export function ProfileRelationshipActions({ slug, name }: { slug: string; name?: string }) {
   const [rel, setRel] = useState<Relationship | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +95,12 @@ export function ProfileRelationshipActions({ slug }: { slug: string }) {
           Débloquer
         </button>
       )}
+
+      <button className={SECONDARY} onClick={() => setReportOpen(true)} type="button">
+        <Flag aria-hidden className="size-4" /> Signaler
+      </button>
+
+      {reportOpen ? <ProfileReportDialog name={name ?? slug} onClose={() => setReportOpen(false)} slug={slug} /> : null}
     </div>
   );
 }

@@ -10,6 +10,7 @@ use App\Community\Domain\ContentReportRepositoryInterface;
 use App\Community\Domain\Notification;
 use App\Community\Domain\ProfileComment;
 use App\Community\Domain\ProfileCommentRepositoryInterface;
+use App\Community\Domain\ReportCategory;
 use App\Membership\Application\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
@@ -140,6 +141,7 @@ final readonly class ProfileCommentService
                     $commentId,
                     '' === $trimmed ? 'inappropriate' : mb_substr($trimmed, 0, 500),
                     new \DateTimeImmutable(),
+                    ReportCategory::COMMENT,
                 ));
             } catch (UniqueConstraintViolationException) {
                 // Concurrent duplicate report - idempotent.

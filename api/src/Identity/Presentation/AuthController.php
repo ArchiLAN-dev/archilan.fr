@@ -56,8 +56,12 @@ final readonly class AuthController
             return $this->authError();
         }
 
-        $rememberMe = true === ($payload['rememberMe'] ?? true);
         $now = new \DateTimeImmutable();
+        if ($user->isAccessBlocked($now)) {
+            return $this->blockedError($user, $now);
+        }
+
+        $rememberMe = true === ($payload['rememberMe'] ?? true);
         ['rawToken' => $rawToken, 'entity' => $refreshToken] = $this->refreshTokenFactory->issue(
             $user->getId(),
             $now,
@@ -215,6 +219,32 @@ final readonly class AuthController
                 'details' => [],
             ],
         ], 401);
+    }
+
+    /**
+     * Distinct 403 for a blocked account (story 30.29): banned vs suspended-until-date, with the recorded
+     * reason. Returned only after the password checked out, so it never leaks whether an account exists.
+     */
+    private function blockedError(User $user, \DateTimeImmutable $now): JsonResponse
+    {
+        $banned = User::MOD_BANNED === $user->moderationStatus($now);
+        $reason = $user->getModerationReason();
+        $until = $user->getSuspendedUntil();
+
+        $message = $banned
+            ? 'Votre compte a été banni.'
+            : sprintf('Votre compte est suspendu jusqu\'au %s.', null !== $until ? $until->format('d/m/Y') : 'une date ultérieure');
+        if (null !== $reason && '' !== $reason) {
+            $message .= ' Motif : '.$reason;
+        }
+
+        return new JsonResponse([
+            'error' => [
+                'code' => $banned ? 'account_banned' : 'account_suspended',
+                'message' => $message,
+                'details' => [],
+            ],
+        ], 403);
     }
 
     private function refreshError(string $code): JsonResponse

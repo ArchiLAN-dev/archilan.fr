@@ -33,6 +33,15 @@ final class ContentReport
         private string $reason,
         #[ORM\Column(name: 'created_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $createdAt,
+        /** Story 30.28: structured "Type de signalement" (see ReportCategory). */
+        #[ORM\Column(type: 'string', length: 32, options: ['default' => ReportCategory::OTHER])]
+        private string $category = ReportCategory::OTHER,
+        /** Story 30.28: "Contenu problématique" driving severity (see ReportProblem / ReportSeverity). */
+        #[ORM\Column(type: 'string', length: 32, options: ['default' => ReportProblem::OTHER])]
+        private string $problem = ReportProblem::OTHER,
+        /** Story 30.28: optional free-text the reporter added. */
+        #[ORM\Column(name: 'report_comment', type: 'string', length: 500, nullable: true)]
+        private ?string $comment = null,
         #[ORM\Column(name: 'resolved_at', type: 'datetimetz_immutable', nullable: true)]
         private ?\DateTimeImmutable $resolvedAt = null,
         #[ORM\Column(name: 'resolved_by', type: 'string', length: 32, nullable: true)]
@@ -40,9 +49,17 @@ final class ContentReport
     ) {
     }
 
-    public static function create(string $reporterId, string $targetType, string $targetId, string $reason, \DateTimeImmutable $now): self
-    {
-        return new self(bin2hex(random_bytes(16)), $reporterId, $targetType, $targetId, $reason, $now);
+    public static function create(
+        string $reporterId,
+        string $targetType,
+        string $targetId,
+        string $reason,
+        \DateTimeImmutable $now,
+        string $category = ReportCategory::OTHER,
+        string $problem = ReportProblem::OTHER,
+        ?string $comment = null,
+    ): self {
+        return new self(bin2hex(random_bytes(16)), $reporterId, $targetType, $targetId, $reason, $now, $category, $problem, $comment);
     }
 
     public function resolve(string $resolvedBy, \DateTimeImmutable $now): void
@@ -79,6 +96,33 @@ final class ContentReport
     public function getReason(): string
     {
         return $this->reason;
+    }
+
+    public function getCategory(): string
+    {
+        return $this->category;
+    }
+
+    public function getProblem(): string
+    {
+        return $this->problem;
+    }
+
+    public function getComment(): ?string
+    {
+        return $this->comment;
+    }
+
+    /** Severity weight of this report's problem (story 30.28). */
+    public function severity(): int
+    {
+        return ReportSeverity::weight($this->problem);
+    }
+
+    /** Whether this is a low-signal "Autre/Autre/sans commentaire" report (story 30.28). */
+    public function isUncategorized(): bool
+    {
+        return ReportSeverity::isUncategorized($this->category, $this->problem, $this->comment);
     }
 
     public function getCreatedAt(): \DateTimeImmutable
