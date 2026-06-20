@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 
 export type EditableSocialLink = { label: string; url: string };
 
@@ -22,6 +22,10 @@ export type MyCommunityProfile = {
   pronouns: string | null;
   bannerPreset: string;
   avatarFrame: string | null;
+  // Resolved avatar URL (custom upload presigned, else external cache); null = render the default.
+  avatarUrl: string | null;
+  // Whether the member has uploaded a custom avatar (vs. an external/default one).
+  hasCustomAvatar: boolean;
   socialLinks: EditableSocialLink[];
   favoriteGames: EditableFavoriteGame[];
   audience: string;
@@ -56,6 +60,7 @@ function isMyCommunityProfile(v: unknown): v is MyCommunityProfile {
     return false;
   }
   if (!hasStringProp(v, "bannerPreset") || !hasStringProp(v, "audience")) return false;
+  if (!hasNullableStringProp(v, "avatarUrl") || !hasBooleanProp(v, "hasCustomAvatar")) return false;
   if ("avatarFrame" in v && v.avatarFrame !== null && typeof v.avatarFrame !== "string") return false;
   if (!("socialLinks" in v) || !Array.isArray(v.socialLinks)) return false;
   if (!v.socialLinks.every((l) => hasStringProp(l, "label") && hasStringProp(l, "url"))) return false;
@@ -99,6 +104,50 @@ export async function updateMyCommunityProfile(input: UpdateCommunityProfileInpu
       return { ok: false };
     }
     return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Upload a custom profile avatar (story 30.27). Returns the new resolved (presigned) avatar URL, or null
+ * on any failure (bad type/size, auth, network). The change takes effect immediately, independent of the
+ * profile save bar.
+ */
+export async function uploadCommunityAvatar(file: File): Promise<{ avatarUrl: string } | null> {
+  try {
+    const body = new FormData();
+    body.append("file", file);
+
+    const res = await apiFetch(`${env.apiBaseUrl}/community/profile/avatar`, { method: "POST", body });
+    if (!res.ok) return null;
+
+    const json: unknown = await res.json();
+    if (typeof json !== "object" || json === null || !("data" in json)) return null;
+    const data = json.data;
+    if (typeof data !== "object" || data === null || !hasStringProp(data, "avatarUrl")) return null;
+
+    return { avatarUrl: data.avatarUrl };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Remove the custom avatar, falling back to the external source/default. Returns the resolved fallback URL
+ * (null when none), or null on failure - callers treat both as "now using the default/external".
+ */
+export async function removeCommunityAvatar(): Promise<{ avatarUrl: string | null } | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/community/profile/avatar`, { method: "DELETE" });
+    if (!res.ok) return null;
+
+    const json: unknown = await res.json();
+    if (typeof json !== "object" || json === null || !("data" in json)) return null;
+    const data = json.data;
+    if (typeof data !== "object" || data === null || !hasNullableStringProp(data, "avatarUrl")) return null;
+
+    return { avatarUrl: data.avatarUrl };
   } catch {
     return null;
   }

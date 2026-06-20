@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
+use App\Community\Application\AvatarUrlResolver;
 use App\Community\Application\CommunityUserDirectoryQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
@@ -13,8 +14,10 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
 {
     private string $userTable;
 
-    public function __construct(private Connection $connection)
-    {
+    public function __construct(
+        private Connection $connection,
+        private AvatarUrlResolver $avatarUrls,
+    ) {
         $this->userTable = $connection->quoteSingleIdentifier('user');
     }
 
@@ -41,7 +44,7 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
 
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
-            ->select('u.id', 'u.slug', 'u.display_name', 'cp.avatar_url')
+            ->select('u.id', 'u.slug', 'u.display_name', 'cp.avatar_url', 'cp.custom_avatar_key')
             ->from($this->userTable, 'u')
             ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
             ->where($qb->expr()->in('u.id', ':ids'))
@@ -65,7 +68,11 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
                 'userId' => $id,
                 'slug' => $slug,
                 'displayName' => is_string($row['display_name'] ?? null) ? $row['display_name'] : null,
-                'avatarUrl' => is_string($row['avatar_url'] ?? null) ? $row['avatar_url'] : null,
+                // Custom uploaded avatar (presigned) wins over the cached external URL (story 30.27).
+                'avatarUrl' => $this->avatarUrls->resolve(
+                    is_string($row['custom_avatar_key'] ?? null) ? $row['custom_avatar_key'] : null,
+                    is_string($row['avatar_url'] ?? null) ? $row['avatar_url'] : null,
+                ),
             ];
         }
 
