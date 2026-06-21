@@ -5,6 +5,32 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.5.1] - 2026-06-21
+
+Hotfix : lot de correctifs remontés après la v0.5.0.
+
+### Corrigé
+
+- **`/compte` accessible sans authentification** : la page est désormais protégée
+  (redirection vers `/connexion` tant qu'aucun utilisateur n'est connecté).
+- **Runs hebdomadaires absentes des statistiques** : les weekly runs complétées
+  comptent maintenant dans les stats globales (communauté) et dans les stats du
+  profil joueur.
+- **Avatars** : le classement (`/classements`) et l'en-tête de `/compte` affichent
+  la photo de profil au lieu de l'initiale du pseudo.
+- **Dashboard admin** : la carte « Actualités » n'est plus marquée « Bientôt »
+  (la fonctionnalité est en place).
+- **Éditeur YAML** : les options pondérées à valeurs multiples s'affichent
+  correctement au rechargement — une valeur par défaut supprimée ne réapparaît
+  plus à 0 % et les valeurs personnalisées créées sont conservées.
+- **Écran de victoire** : la fanfare est de nouveau jouée lorsque l'objectif est
+  atteint via l'événement Archipelago (et pas seulement au déclenchement manuel).
+- **Statistiques de fin de run** : en partie privée, le nombre d'items, de checks
+  et la date d'atteinte de l'objectif sont enregistrés sur le slot au moment de
+  l'objectif (et non plus uniquement à l'archivage).
+- **Téléchargement des patchs** : un patch dont le nom est suffixé par l'apworld
+  (ex. `…_SHA_SHAR_0.6.7.apshar`) est de nouveau téléchargeable.
+
 ## [0.5.0] - 2026-06-20
 
 Itération majeure : profils communautaires enrichis (epic 30) et tutoriels
