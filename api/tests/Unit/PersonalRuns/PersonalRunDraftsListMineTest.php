@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\Community\Application\CommunityUserDirectoryQueryInterface;
 use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Application\PersonalRunDrafts;
 use App\PersonalRuns\Domain\Run;
@@ -21,6 +22,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
             $this->createStub(RunParticipantRepositoryInterface::class),
             $this->createStub(UserRepositoryInterface::class),
             $this->createStub(SessionRepositoryInterface::class),
+            $this->createStub(CommunityUserDirectoryQueryInterface::class),
             'https://archilan.test',
         );
     }

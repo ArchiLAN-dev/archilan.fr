@@ -89,6 +89,29 @@ function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: numb
 
 // ─── Participant list ─────────────────────────────────────────────────────────
 
+function ParticipantAvatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (avatarUrl !== null && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- external/presigned avatar URL, not a local asset
+      <img
+        alt=""
+        aria-hidden="true"
+        className="size-8 shrink-0 rounded-full bg-surface object-cover"
+        onError={() => setFailed(true)}
+        src={avatarUrl}
+      />
+    );
+  }
+
+  return (
+    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold uppercase text-accent-text">
+      {name.slice(0, 2)}
+    </div>
+  );
+}
+
 function ParticipantList({ participants }: { participants: PersonalRunParticipant[] }) {
   if (participants.length === 0) {
     return (
@@ -100,11 +123,18 @@ function ParticipantList({ participants }: { participants: PersonalRunParticipan
     <ul className="grid gap-2">
       {participants.map((p) => (
         <li className="flex items-center gap-3" key={p.userId}>
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold uppercase text-accent-text">
-            {(p.displayName ?? p.userId).slice(0, 2)}
-          </div>
+          <ParticipantAvatar avatarUrl={p.avatarUrl} name={p.displayName ?? p.userId} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{p.displayName ?? p.userId}</p>
+            {p.slug !== null ? (
+              <Link
+                className="block truncate text-sm font-medium text-foreground transition-colors hover:text-accent-text hover:underline"
+                href={`/joueurs/${p.slug}`}
+              >
+                {p.displayName ?? p.userId}
+              </Link>
+            ) : (
+              <p className="truncate text-sm font-medium text-foreground">{p.displayName ?? p.userId}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Depuis le{" "}
               {new Date(p.joinedAt).toLocaleDateString("fr-FR", {

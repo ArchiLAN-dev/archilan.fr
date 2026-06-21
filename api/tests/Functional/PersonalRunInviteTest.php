@@ -257,6 +257,29 @@ final class PersonalRunInviteTest extends FunctionalTestCase
         self::assertSame($bob->getId(), $participants[0]['userId']);
     }
 
+    public function testGetRunPayloadExposesParticipantSlug(): void
+    {
+        $alice = $this->createUser('alice@example.org');
+        $bob = $this->createUser('bob@example.org', slug: 'bob-slug');
+        $run = $this->createRun($alice->getId(), 'Alice Run');
+
+        $this->loginAs($bob);
+        $this->client->jsonRequest('GET', '/api/v1/runs/join/'.$run->getInviteToken());
+
+        $this->loginAs($alice);
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId());
+        self::assertResponseIsSuccessful();
+
+        $participants = $this->participantsFromData($this->responseData());
+        self::assertCount(1, $participants);
+        self::assertSame($bob->getId(), $participants[0]['userId']);
+        // The slug lets the frontend link a participant to their public player profile; the avatar URL
+        // (null here - no community profile) and community display name come from the community card.
+        self::assertSame('bob-slug', $participants[0]['slug']);
+        self::assertArrayHasKey('avatarUrl', $participants[0]);
+        self::assertNull($participants[0]['avatarUrl']);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

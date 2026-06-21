@@ -14,7 +14,9 @@ export type PersonalRunGame = {
 
 export type PersonalRunParticipant = {
   userId: string;
+  slug: string | null;
   displayName: string | null;
+  avatarUrl: string | null;
   joinedAt: string;
   slotCount: number;
 };
