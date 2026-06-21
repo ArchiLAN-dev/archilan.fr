@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
-use App\Community\Domain\CommunityXp;
 use App\Community\Domain\FriendshipRepositoryInterface;
-use App\Community\Domain\Level;
 
 /**
  * The /communaute directory (story 30.15): browse/search members, rank by canonical XP, list recently
- * active and the viewer's friends. Composes the lightweight directory query with the shared user cards,
- * XP/level (CommunityXp - single source) and presence; never the full per-profile read.
+ * active and the viewer's friends. Level/XP come from the shared CommunityLevelQuery - the single source
+ * used by the public profile - so a member's level is identical on every surface.
  */
 final readonly class CommunityDirectory
 {
@@ -27,6 +25,7 @@ final readonly class CommunityDirectory
         private CommunityUserDirectoryQueryInterface $cards,
         private CommunityPresenceQueryInterface $presence,
         private FriendshipRepositoryInterface $friendships,
+        private CommunityLevelQuery $levels,
     ) {
     }
 
@@ -46,9 +45,8 @@ final readonly class CommunityDirectory
 
         if ('' !== $term) {
             $result = $this->directory->search($term, $perPage, $offset);
-            $rows = $this->enrich($result['ids']);
 
-            return $this->page($rows, $result['total'], $page, $perPage);
+            return $this->page($this->enrich($result['ids']), $result['total'], $page, $perPage);
         }
 
         return match ($mode) {
@@ -63,21 +61,27 @@ final readonly class CommunityDirectory
      */
     private function top(int $page, int $perPage, int $offset): array
     {
-        $components = $this->directory->xpComponents(null);
+        // Level/XP for every user with any activity or achievement, then keep only listable members (those
+        // with a public card) so the ranking and totals match the displayed rows.
+        $levels = $this->levels->levelForMany(null);
+        if ([] === $levels) {
+            return $this->page([], 0, $page, $perPage);
+        }
+
+        $cards = $this->cards->cards(array_keys($levels));
 
         $ranked = [];
-        foreach ($components as $userId => $c) {
-            $ranked[$userId] = $this->xpOf($c);
+        foreach ($levels as $userId => $level) {
+            if (isset($cards[$userId])) {
+                $ranked[$userId] = $level['xp'];
+            }
         }
         // Highest XP first; stable tiebreak by id so paging is deterministic.
-        uksort($ranked, static function (string $a, string $b) use ($ranked): int {
-            return $ranked[$b] <=> $ranked[$a] ?: strcmp($a, $b);
-        });
+        uksort($ranked, static fn (string $a, string $b): int => $ranked[$b] <=> $ranked[$a] ?: strcmp($a, $b));
 
         $pageIds = array_slice(array_keys($ranked), $offset, $perPage);
 
-        // Reuse the components already computed for ranking instead of re-querying the page.
-        return $this->page($this->enrich($pageIds, $components), count($ranked), $page, $perPage);
+        return $this->page($this->enrich($pageIds, $cards, $levels), count($ranked), $page, $perPage);
     }
 
     /**
@@ -106,35 +110,36 @@ final readonly class CommunityDirectory
         $friendIds = array_values(array_unique($friendIds));
 
         // Rank friends by XP too, for a consistent ordering.
-        $components = $this->directory->xpComponents($friendIds);
-        usort($friendIds, function (string $a, string $b) use ($components): int {
-            $xa = isset($components[$a]) ? $this->xpOf($components[$a]) : 0;
-            $xb = isset($components[$b]) ? $this->xpOf($components[$b]) : 0;
+        $levels = $this->levels->levelForMany($friendIds);
+        usort($friendIds, static function (string $a, string $b) use ($levels): int {
+            $xa = $levels[$a]['xp'] ?? 0;
+            $xb = $levels[$b]['xp'] ?? 0;
 
             return $xb <=> $xa ?: strcmp($a, $b);
         });
 
         $pageIds = array_slice($friendIds, $offset, $perPage);
 
-        return $this->page($this->enrich($pageIds, $components), count($friendIds), $page, $perPage);
+        return $this->page($this->enrich($pageIds, null, $levels), count($friendIds), $page, $perPage);
     }
 
     /**
      * Enrich an ordered list of user ids into directory rows (drops ids without a public card).
      *
-     * @param list<string>                                                                                                            $userIds
-     * @param array<string, array{goalCompletions: int, totalChecksDone: int, runsParticipated: int, achievementsUnlocked: int}>|null $components
+     * @param list<string>                                                                                                                                                                        $userIds
+     * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null}>|null                                                                           $cards
+     * @param array<string, array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, runsParticipated: int, goalCompletions: int, totalChecksDone: int, achievementsUnlocked: int}>|null $levels
      *
      * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>
      */
-    private function enrich(array $userIds, ?array $components = null): array
+    private function enrich(array $userIds, ?array $cards = null, ?array $levels = null): array
     {
         if ([] === $userIds) {
             return [];
         }
 
-        $cards = $this->cards->cards($userIds);
-        $components ??= $this->directory->xpComponents($userIds);
+        $cards ??= $this->cards->cards($userIds);
+        $levels ??= $this->levels->levelForMany($userIds);
         $playing = $this->presence->playing($userIds);
 
         $rows = [];
@@ -143,26 +148,18 @@ final readonly class CommunityDirectory
             if (null === $card) {
                 continue;
             }
-            $xp = isset($components[$userId]) ? $this->xpOf($components[$userId]) : 0;
+            $level = $levels[$userId] ?? null;
             $rows[] = [
                 'slug' => $card['slug'],
                 'displayName' => $card['displayName'],
                 'avatarUrl' => $card['avatarUrl'],
-                'level' => Level::fromXp($xp)->level,
-                'xp' => $xp,
+                'level' => null !== $level ? $level['level'] : 0,
+                'xp' => null !== $level ? $level['xp'] : 0,
                 'playing' => isset($playing[$userId]),
             ];
         }
 
         return $rows;
-    }
-
-    /**
-     * @param array{goalCompletions: int, totalChecksDone: int, runsParticipated: int, achievementsUnlocked: int} $c
-     */
-    private function xpOf(array $c): int
-    {
-        return CommunityXp::compute($c['goalCompletions'], $c['totalChecksDone'], $c['runsParticipated'], $c['achievementsUnlocked']);
     }
 
     /**

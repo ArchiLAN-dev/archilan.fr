@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\Friendship;
+use App\WeeklyRuns\Domain\WeeklyEntry;
 
 final class CommunityDirectoryTest extends FunctionalTestCase
 {
@@ -37,6 +38,38 @@ final class CommunityDirectoryTest extends FunctionalTestCase
         self::assertFalse($first['playing']);
         self::assertSame('bob', $second['slug']);
         self::assertSame(100, $second['xp']);
+    }
+
+    public function testTopCountsWeeklyRunXp(): void
+    {
+        // A completed weekly run feeds XP exactly like the public profile: 1 goal (500) + 1 run (50) +
+        // 10 checks (10) = 560. Regression guard: the directory previously ignored weekly runs entirely.
+        $alice = $this->createUser('alice@example.org', slug: 'alice');
+
+        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
+        $entry = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $alice->getId(),
+            1,
+            $now,
+            $now,
+            goalReachedAt: $now,
+            completionTimeSeconds: 1200,
+            checksTotal: 10,
+            itemsTotal: 5,
+        );
+        $this->entityManager->persist($entry);
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('GET', '/api/v1/community/directory?mode=top');
+        self::assertResponseIsSuccessful();
+        $rows = $this->data();
+        self::assertSame(1, $this->meta()['total']);
+        $first = $rows[0];
+        self::assertIsArray($first);
+        self::assertSame('alice', $first['slug']);
+        self::assertSame(560, $first['xp']);
     }
 
     public function testSearchBySlugOrName(): void

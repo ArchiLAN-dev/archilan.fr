@@ -17,6 +17,16 @@ interface AchievementGrantRepositoryInterface
     public function findByUser(string $userId): array;
 
     /**
+     * Batch count of granted achievements per user. Pass null for all users; users with zero grants are
+     * absent from the map.
+     *
+     * @param list<string>|null $userIds
+     *
+     * @return array<string, int>
+     */
+    public function countByUsers(?array $userIds): array;
+
+    /**
      * The id of the user who owns the grant, or null if no grant has that id.
      */
     public function ownerOf(string $grantId): ?string;
