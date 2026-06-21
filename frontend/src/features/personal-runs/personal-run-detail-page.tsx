@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Check,
+  Eye,
   Flag,
   Gamepad2,
   Loader2,
@@ -112,7 +113,7 @@ function ParticipantAvatar({ avatarUrl, name }: { avatarUrl: string | null; name
   );
 }
 
-function ParticipantList({ participants }: { participants: PersonalRunParticipant[] }) {
+function ParticipantList({ runId, participants }: { runId: string; participants: PersonalRunParticipant[] }) {
   if (participants.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">Aucun participant pour l&apos;instant.</p>
@@ -121,38 +122,47 @@ function ParticipantList({ participants }: { participants: PersonalRunParticipan
 
   return (
     <ul className="grid gap-2">
-      {participants.map((p) => (
-        <li className="flex items-center gap-3" key={p.userId}>
-          <ParticipantAvatar avatarUrl={p.avatarUrl} name={p.displayName ?? p.userId} />
-          <div className="min-w-0 flex-1">
-            {p.slug !== null ? (
+      {participants.map((p) => {
+        const name = p.displayName ?? p.userId;
+
+        return (
+          <li className="flex items-center gap-3" key={p.userId}>
+            <ParticipantAvatar avatarUrl={p.avatarUrl} name={name} />
+            <div className="min-w-0 flex-1">
+              {p.slug !== null ? (
+                <Link
+                  className="block truncate text-sm font-medium text-foreground transition-colors hover:text-accent-text hover:underline"
+                  href={`/joueurs/${p.slug}`}
+                >
+                  {name}
+                </Link>
+              ) : (
+                <p className="truncate text-sm font-medium text-foreground">{name}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Depuis le{" "}
+                {new Date(p.joinedAt).toLocaleDateString("fr-FR", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+            {p.slotCount > 0 ? (
               <Link
-                className="block truncate text-sm font-medium text-foreground transition-colors hover:text-accent-text hover:underline"
-                href={`/joueurs/${p.slug}`}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-accent-text"
+                href={`/runs/${runId}/participants/${p.userId}`}
+                title={`Voir les jeux et la configuration de ${name}`}
               >
-                {p.displayName ?? p.userId}
+                <Eye aria-hidden className="size-3" />
+                {p.slotCount} jeu{p.slotCount > 1 ? "x" : ""}
               </Link>
             ) : (
-              <p className="truncate text-sm font-medium text-foreground">{p.displayName ?? p.userId}</p>
+              <span className="shrink-0 text-xs text-muted-foreground/60">Sans jeux</span>
             )}
-            <p className="text-xs text-muted-foreground">
-              Depuis le{" "}
-              {new Date(p.joinedAt).toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-          {p.slotCount > 0 ? (
-            <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-              {p.slotCount} jeu{p.slotCount > 1 ? "x" : ""}
-            </span>
-          ) : (
-            <span className="shrink-0 text-xs text-muted-foreground/60">Sans jeux</span>
-          )}
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -1165,7 +1175,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 </span>
               )}
             </h2>
-            <ParticipantList participants={run.participants} />
+            <ParticipantList participants={run.participants} runId={run.id} />
           </section>
         )}
       </div>
