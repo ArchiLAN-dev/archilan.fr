@@ -7,6 +7,7 @@ namespace App\Sessions\Infrastructure;
 use App\Sessions\Application\CommunityStatsQueryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\WeeklyRuns\Domain\WeeklyEntry;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -14,11 +15,13 @@ final readonly class DbalCommunityStatsQuery implements CommunityStatsQueryInter
 {
     private string $sessionTable;
     private string $slotTable;
+    private string $weeklyEntryTable;
 
     public function __construct(private Connection $connection, EntityManagerInterface $em)
     {
         $this->sessionTable = $em->getClassMetadata(Session::class)->getTableName();
         $this->slotTable = $em->getClassMetadata(SessionSlot::class)->getTableName();
+        $this->weeklyEntryTable = $em->getClassMetadata(WeeklyEntry::class)->getTableName();
     }
 
     public function execute(): array
@@ -46,10 +49,25 @@ final readonly class DbalCommunityStatsQuery implements CommunityStatsQueryInter
             ->executeQuery()
             ->fetchAssociative();
 
+        // Weekly runs live in their own table and never touch session_slot. A completed weekly entry
+        // (goal_reached_at set) counts as one finished run and one goal, contributing its checks_total.
+        $weeklyQb = $this->connection->createQueryBuilder();
+        $weeklyRow = $weeklyQb
+            ->select(
+                'COUNT(*) AS finished_count',
+                'COALESCE(SUM(we.checks_total), 0) AS total_checks_done',
+            )
+            ->from($this->weeklyEntryTable, 'we')
+            ->where($weeklyQb->expr()->isNotNull('we.goal_reached_at'))
+            ->executeQuery()
+            ->fetchAssociative();
+
+        $weeklyFinished = $this->intVal($weeklyRow, 'finished_count');
+
         return [
-            'totalFinishedSessions' => $totalFinishedSessions,
-            'totalChecksDone' => $this->intVal($slotsRow, 'total_checks_done'),
-            'totalGoalsReached' => $this->intVal($slotsRow, 'total_goals_reached'),
+            'totalFinishedSessions' => $totalFinishedSessions + $weeklyFinished,
+            'totalChecksDone' => $this->intVal($slotsRow, 'total_checks_done') + $this->intVal($weeklyRow, 'total_checks_done'),
+            'totalGoalsReached' => $this->intVal($slotsRow, 'total_goals_reached') + $weeklyFinished,
         ];
     }
 

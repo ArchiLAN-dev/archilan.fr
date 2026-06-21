@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type LeaderboardAxis = "goals" | "checks" | "speed";
 
@@ -7,6 +7,7 @@ export type LeaderboardEntry = {
   rank: number;
   slug: string;
   displayName: string;
+  avatarUrl: string | null;
   value: number;
   unit: string;
 };
@@ -28,6 +29,7 @@ function isLeaderboardEntry(v: unknown): v is LeaderboardEntry {
     hasNumberProp(v, "rank") &&
     hasStringProp(v, "slug") &&
     hasStringProp(v, "displayName") &&
+    hasNullableStringProp(v, "avatarUrl") &&
     hasNumberProp(v, "value") &&
     hasStringProp(v, "unit")
   );

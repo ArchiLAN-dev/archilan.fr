@@ -8,6 +8,7 @@ import { AccountRegistrations } from "./account-registrations";
 import { DangerSection, DiscordSection, PrivacySection, SteamSection } from "./account-profile";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import { PersonalRunsListPage } from "@/features/personal-runs/personal-runs-list-page";
+import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { CommunityProfileCustomizationForm } from "@/features/community/community-profile-customization-form";
 import { CommunityFriendsPanel } from "@/features/community/community-friends-panel";
 import { CommunityFeedPanel } from "@/features/community/community-activity";
@@ -68,6 +69,7 @@ type AccountTabsProps = {
 export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>("profil");
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const activeGroup = groupOf(activeTab);
 
@@ -76,11 +78,16 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
 
     async function load() {
       try {
-        const res = await apiFetch(`${env.apiBaseUrl}/account/profile`);
+        // Account data (email/roles) comes from Identity; the resolved avatar from the community profile.
+        const [res, community] = await Promise.all([
+          apiFetch(`${env.apiBaseUrl}/account/profile`),
+          fetchMyCommunityProfile(),
+        ]);
         const payload = (await res.json()) as
           | { data: Profile }
           | { error: { code: string; message: string } };
         if (!cancelled && "data" in payload) setProfile(payload.data);
+        if (!cancelled && community) setAvatarUrl(community.avatarUrl);
       } finally {
         if (!cancelled) setLoadingProfile(false);
       }
@@ -101,12 +108,16 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
 
       {/* ── User header ─────────────────────────────────────────────────── */}
       <div className="card-glow flex items-center gap-4 rounded-xl border border-border p-5">
-        <div
-          aria-hidden="true"
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/20 font-heading text-lg font-bold text-accent-text"
-        >
-          {loadingProfile ? "…" : getInitials(profile)}
-        </div>
+        {loadingProfile ? (
+          <div
+            aria-hidden="true"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/20 font-heading text-lg font-bold text-accent-text"
+          >
+            …
+          </div>
+        ) : (
+          <HeaderAvatar avatarUrl={avatarUrl} initials={getInitials(profile)} />
+        )}
         <div className="min-w-0 flex-1">
           {loadingProfile ? (
             <div className="grid gap-2">
@@ -217,6 +228,34 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function HeaderAvatar({ avatarUrl, initials }: { avatarUrl: string | null; initials: string }) {
+  const [failed, setFailed] = useState(false);
+
+  // Fall back to the initials on a load error (a snapshotted external avatar URL can later 404),
+  // never a broken image (mirrors ProfileAvatar).
+  if (avatarUrl !== null && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- external/presigned avatar URL, not a local asset
+      <img
+        alt=""
+        aria-hidden="true"
+        className="h-14 w-14 shrink-0 rounded-full bg-surface object-cover"
+        onError={() => setFailed(true)}
+        src={avatarUrl}
+      />
+    );
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/20 font-heading text-lg font-bold text-accent-text"
+    >
+      {initials}
+    </div>
+  );
+}
 
 function getInitials(profile: Profile | null): string {
   if (!profile) return "?";
