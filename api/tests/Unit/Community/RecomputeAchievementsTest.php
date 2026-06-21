@@ -209,6 +209,19 @@ final class RecomputeAchievementsTest extends TestCase
                 ));
             }
 
+            public function countByUsers(?array $userIds): array
+            {
+                $counts = [];
+                foreach ($this->stored as $grant) {
+                    if (null !== $userIds && !in_array($grant->getUserId(), $userIds, true)) {
+                        continue;
+                    }
+                    $counts[$grant->getUserId()] = ($counts[$grant->getUserId()] ?? 0) + 1;
+                }
+
+                return $counts;
+            }
+
             public function save(AchievementGrant $grant): void
             {
                 $this->stored[] = $grant;
