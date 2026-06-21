@@ -89,11 +89,14 @@ final readonly class PersonalRunPatchController
     /**
      * Whether an output filename is a patch belonging to one of the given slot names.
      *
-     * AP patch files are named "AP_{seed}_P{slotNumber}_{slotName}.{ext}" (the slot
-     * name is a suffix, and may itself contain underscores). The slot name is matched
-     * exactly - extracted after the "_P{n}_" delimiter - so one player can't grab a
-     * file whose slot name merely ends with theirs. The shared multidata
-     * (.archipelago) and any *_spoiler* file are never patches.
+     * AP patch files are named "AP_{seed}_P{slotNumber}_{slotName}.{ext}". Some apworlds append a
+     * game/version suffix *after* the slot name (e.g. "masterkafey_SHA" → file
+     * "AP_..._P2_masterkafey_SHA_SHAR_0.6.7.apshar"), so we match the slot name as a prefix at an
+     * underscore boundary, not only by exact equality - otherwise those patches are wrongly filtered
+     * out. This stays safe because every generated slot name has exactly one underscore
+     * ({sanitizedPlayer}_{gameAbbr}, see SlotNameGenerator): no real slot name can be a prefix of
+     * another at a "_" boundary, so a player can never grab another player's patch this way. The
+     * shared multidata (.archipelago) and any *_spoiler* file are never patches.
      *
      * @param list<string> $slotNames
      */
@@ -107,8 +110,14 @@ final readonly class PersonalRunPatchController
         }
 
         $stem = pathinfo($filename, \PATHINFO_FILENAME);
-        $slot = 1 === preg_match('/_P\d+_(.+)$/', $stem, $matches) ? $matches[1] : $stem;
+        $captured = 1 === preg_match('/_P\d+_(.+)$/', $stem, $matches) ? $matches[1] : $stem;
 
-        return in_array($slot, $slotNames, true);
+        foreach ($slotNames as $slotName) {
+            if ($captured === $slotName || str_starts_with($captured, $slotName.'_')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

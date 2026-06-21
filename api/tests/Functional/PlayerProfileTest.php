@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\WeeklyRuns\Domain\WeeklyEntry;
 
 final class PlayerProfileTest extends FunctionalTestCase
 {
@@ -206,6 +207,50 @@ final class PlayerProfileTest extends FunctionalTestCase
         self::assertIsArray($stats);
         self::assertSame(1, $stats['goalCompletions']); // 1 game beaten
         self::assertEqualsWithDelta(0.5, $stats['goalCompletionRate'], 0.001); // 1 goal / 2 games played
+    }
+
+    public function testProfileIncludesCompletedWeeklyRuns(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $user = $this->createUser('wendy@example.org', ['ROLE_USER'], 'Wendy', 'wendy');
+
+        // Completed weekly entry → 1 run / 1 game / 1 goal, 42 checks, 18 items.
+        $completed = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            1,
+            $now,
+            $now,
+        );
+        $completed->recordGoal($now->modify('+10 minutes'), 600, 42, 18);
+        $this->entityManager->persist($completed);
+
+        // Incomplete weekly entry (no goal) → ignored.
+        $incomplete = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            2,
+            $now,
+            $now,
+        );
+        $this->entityManager->persist($incomplete);
+
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/players/wendy');
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $stats = $data['stats'];
+        self::assertIsArray($stats);
+        self::assertSame(1, $stats['runsParticipated']);
+        self::assertSame(1, $stats['goalCompletions']);
+        self::assertEqualsWithDelta(1.0, $stats['goalCompletionRate'], 0.001);
+        self::assertSame(42, $stats['totalChecksDone']);
+        self::assertSame(18, $stats['totalItemsReceived']);
     }
 
     public function testNonExistentSlugReturns404OnBothEndpoints(): void

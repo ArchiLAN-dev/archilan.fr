@@ -30,7 +30,7 @@ const sections = [
     icon: Newspaper,
     label: "Actualités",
     description: "Rédiger et publier les articles et récaps.",
-    soon: true,
+    soon: false,
   },
   {
     href: "/admin/jeux",

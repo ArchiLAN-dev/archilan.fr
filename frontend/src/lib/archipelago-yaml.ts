@@ -534,14 +534,19 @@ export function mergePlayerValues(base: ParsedYaml, player: ParsedYaml): ParsedY
     }
 
     if (baseOpt.type === "range" && playerOpt.type === "range") {
-      const playerWeights = new Map(playerOpt.entries.map((e) => [e.key, e.weight]));
-      const baseKeys = new Set(baseOpt.entries.map((e) => e.key));
-      const mergedEntries = baseOpt.entries.map((e) => ({
-        ...e,
-        weight: playerWeights.has(e.key) ? (playerWeights.get(e.key) ?? 0) : 0,
-      }));
-      const customEntries = playerOpt.entries.filter((e) => e.isCustom && !baseKeys.has(e.key));
-      return { ...baseOpt, entries: [...mergedEntries, ...customEntries] };
+      // The saved override is authoritative for which values exist: defaults the admin removed are
+      // absent from it and must NOT be re-injected (else they reappear at 0%), and custom values the
+      // admin added must be preserved. We can't rely on the `isCustom` flag here - it doesn't survive
+      // the serialize→save→re-parse round-trip - so we drive from the saved entries and re-attach the
+      // default metadata (description) by key. A saved value with no matching default is a custom one.
+      const baseByKey = new Map(baseOpt.entries.map((e) => [e.key, e]));
+      const mergedEntries = playerOpt.entries.map((e) => {
+        const baseEntry = baseByKey.get(e.key);
+
+        return baseEntry ? { ...baseEntry, weight: e.weight } : { ...e, isCustom: true };
+      });
+
+      return { ...baseOpt, entries: mergedEntries };
     }
 
     if (baseOpt.type === "plando_items" && playerOpt.type === "plando_items") {

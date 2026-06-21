@@ -13,6 +13,7 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
     private const SLOT_TABLE = 'session_slot';
     private const REGISTRATION_TABLE = 'registration';
     private const RUN_TABLE = 'run';
+    private const WEEKLY_ENTRY_TABLE = 'weekly_entries';
 
     public function __construct(private Connection $connection)
     {
@@ -68,12 +69,30 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
             ->executeQuery()
             ->fetchAssociative();
 
+        // Weekly runs live in their own table (never session_slot). A completed weekly entry counts as
+        // one finished run = one game = one goal, with its checks/items totals (story 18.9).
+        $weeklyQb = $this->connection->createQueryBuilder();
+        $weeklyRow = $weeklyQb
+            ->select(
+                'COUNT(*) AS completed_count',
+                'COALESCE(SUM(we.checks_total), 0) AS total_checks_done',
+                'COALESCE(SUM(we.items_total), 0) AS total_items_received',
+            )
+            ->from(self::WEEKLY_ENTRY_TABLE, 'we')
+            ->where($weeklyQb->expr()->eq('we.user_id', ':userId'))
+            ->andWhere($weeklyQb->expr()->isNotNull('we.goal_reached_at'))
+            ->setParameter('userId', $userId)
+            ->executeQuery()
+            ->fetchAssociative();
+
+        $weeklyCompleted = $this->intVal($weeklyRow, 'completed_count');
+
         return [
-            'runs_participated' => $this->intVal($eventRow, 'runs_participated') + $this->intVal($prRow, 'runs_participated'),
-            'games_played' => $this->intVal($eventRow, 'games_played') + $this->intVal($prRow, 'games_played'),
-            'goal_completions' => $this->intVal($eventRow, 'goal_completions') + $this->intVal($prRow, 'goal_completions'),
-            'total_checks_done' => $this->intVal($eventRow, 'total_checks_done') + $this->intVal($prRow, 'total_checks_done'),
-            'total_items_received' => $this->intVal($eventRow, 'total_items_received') + $this->intVal($prRow, 'total_items_received'),
+            'runs_participated' => $this->intVal($eventRow, 'runs_participated') + $this->intVal($prRow, 'runs_participated') + $weeklyCompleted,
+            'games_played' => $this->intVal($eventRow, 'games_played') + $this->intVal($prRow, 'games_played') + $weeklyCompleted,
+            'goal_completions' => $this->intVal($eventRow, 'goal_completions') + $this->intVal($prRow, 'goal_completions') + $weeklyCompleted,
+            'total_checks_done' => $this->intVal($eventRow, 'total_checks_done') + $this->intVal($prRow, 'total_checks_done') + $this->intVal($weeklyRow, 'total_checks_done'),
+            'total_items_received' => $this->intVal($eventRow, 'total_items_received') + $this->intVal($prRow, 'total_items_received') + $this->intVal($weeklyRow, 'total_items_received'),
         ];
     }
 
