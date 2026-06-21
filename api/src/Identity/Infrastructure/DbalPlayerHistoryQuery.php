@@ -15,6 +15,9 @@ final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterfa
     private const RUN_TABLE = 'run';
     private const EVENT_TABLE = 'event';
     private const GAME_TABLE = 'game';
+    private const WEEKLY_ENTRY_TABLE = 'weekly_entries';
+    private const WEEKLY_RUN_TABLE = 'weekly_runs';
+    private const WEEKLY_TEMPLATE_TABLE = 'weekly_templates';
 
     public function __construct(private Connection $connection)
     {
@@ -72,6 +75,33 @@ final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterfa
             ->executeQuery()
             ->fetchAllAssociative();
 
-        return array_merge($eventRows, $prRows);
+        // Weekly runs live in their own tables and never touch session_slot. A completed weekly entry
+        // (goal_reached_at set) is a finished run for this player, contributing its game + checks/items
+        // to the history (and thus the profile showcase). is_weekly lets the UI skip the
+        // /runs/{id}/resultats link, which doesn't exist for weekly sessions.
+        $weeklyQb = $this->connection->createQueryBuilder();
+        $weeklyRows = $weeklyQb
+            ->select(
+                'COALESCE(we.external_session_id, we.id) AS session_id',
+                "COALESCE(wt.name, 'Run hebdo') AS event_name",
+                'we.goal_reached_at AS finished_at',
+                'g.name AS game',
+                'COALESCE(we.checks_total, 0) AS checks_done',
+                'COALESCE(we.items_total, 0) AS items_received',
+                'we.goal_reached_at AS goal_reached_at',
+                '0 AS was_released',
+                '1 AS is_weekly',
+            )
+            ->from(self::WEEKLY_ENTRY_TABLE, 'we')
+            ->join('we', self::WEEKLY_RUN_TABLE, 'wr', $weeklyQb->expr()->eq('wr.id', 'we.weekly_run_id'))
+            ->join('wr', self::WEEKLY_TEMPLATE_TABLE, 'wt', $weeklyQb->expr()->eq('wt.id', 'wr.template_id'))
+            ->join('wt', self::GAME_TABLE, 'g', $weeklyQb->expr()->eq('g.id', 'wt.game_id'))
+            ->where($weeklyQb->expr()->eq('we.user_id', ':userId'))
+            ->andWhere($weeklyQb->expr()->isNotNull('we.goal_reached_at'))
+            ->setParameter('userId', $userId)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        return array_merge($eventRows, $prRows, $weeklyRows);
     }
 }

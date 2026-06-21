@@ -362,13 +362,13 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
   const muted = entry.isInvalidated;
 
-  return (
-    <Link
-      className={`grid gap-3 rounded-lg border p-4 transition-colors hover:border-accent sm:grid-cols-[1fr_auto] ${
-        muted ? "border-border/60 bg-surface/60" : "border-border bg-surface"
-      }`}
-      href={`/runs/${entry.sessionId}/resultats`}
-    >
+  // Weekly runs have no public /runs/{id}/resultats page, so the row isn't a link.
+  const baseClassName = `grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] ${
+    muted ? "border-border/60 bg-surface/60" : "border-border bg-surface"
+  }`;
+
+  const inner = (
+    <>
       <div className="grid gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -408,6 +408,16 @@ function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
           </dd>
         </div>
       </dl>
+    </>
+  );
+
+  if (entry.isWeekly) {
+    return <div className={baseClassName}>{inner}</div>;
+  }
+
+  return (
+    <Link className={`${baseClassName} transition-colors hover:border-accent`} href={`/runs/${entry.sessionId}/resultats`}>
+      {inner}
     </Link>
   );
 }

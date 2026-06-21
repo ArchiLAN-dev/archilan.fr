@@ -97,6 +97,7 @@ export type RunHistoryEntry = {
   goalReachedAt: string | null;
   wasReleased: boolean;
   isInvalidated: boolean;
+  isWeekly: boolean;
 };
 
 export type PlayerHistory = {
@@ -183,7 +184,8 @@ function isRunHistoryEntry(v: unknown): v is RunHistoryEntry {
   if (!hasNumberProp(v, "itemsReceived")) return false;
   if (!("goalReachedAt" in v) || (v.goalReachedAt !== null && typeof v.goalReachedAt !== "string")) return false;
   if (!hasBooleanProp(v, "wasReleased")) return false;
-  return hasBooleanProp(v, "isInvalidated");
+  if (!hasBooleanProp(v, "isInvalidated")) return false;
+  return hasBooleanProp(v, "isWeekly");
 }
 
 function isPlayerHistoryPayload(payload: unknown): payload is PlayerHistory {
