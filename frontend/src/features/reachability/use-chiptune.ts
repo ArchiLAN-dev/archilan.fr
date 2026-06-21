@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
+import { getSharedAudioContext, primeAudioOnFirstGesture } from "./audio-context";
 import { FANFARES, FANFARES_MAP } from "./fanfares";
 import { readFanfarePref } from "./use-fanfare-preference";
 
 const MASTER_GAIN = 0.30;
 const ATTACK = 0.006;
 const RELEASE = 0.10;
+
+// Start listening for the user's first gesture as soon as this module loads (i.e. when a page that can
+// show the celebration mounts), so the shared AudioContext is unlocked well before a goal-reached
+// realtime event - which is not itself a user gesture - tries to play the fanfare.
+primeAudioOnFirstGesture();
 
 export function useChiptune(): void {
     useEffect(() => {
@@ -15,14 +21,14 @@ export function useChiptune(): void {
         const fanfare = pref === "random"
             ? FANFARES[Math.floor(Math.random() * FANFARES.length)]
             : FANFARES_MAP[pref];
-        let ctx: AudioContext | null = null;
+
+        // Reuse the shared, gesture-unlocked context. A realtime goal event isn't a gesture, so a
+        // freshly-created context would stay suspended and stay silent; the shared one is already
+        // running once the user has interacted with the page at all.
+        const ctx = getSharedAudioContext();
+        if (null === ctx) return;
 
         try {
-            ctx = new AudioContext();
-            // Resume if suspended - browser autoplay policy blocks AudioContext
-            // created outside a user gesture. By goal time the page has been
-            // interacted with, so resume() succeeds and the clock starts from 0.
-            void ctx.resume();
             const now = ctx.currentTime;
             const master = ctx.createGain();
             master.gain.setValueAtTime(MASTER_GAIN, now);
@@ -71,7 +77,6 @@ export function useChiptune(): void {
         } catch {
             // AudioContext blocked or unavailable
         }
-
-        return () => { ctx?.close().catch(() => undefined); };
+        // The context is shared and reused across celebrations - never close it here.
     }, []); // intentional: play once on mount
 }
