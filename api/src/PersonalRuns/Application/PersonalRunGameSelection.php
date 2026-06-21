@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application;
 
+use App\Community\Application\CommunityLevelQuery;
+use App\Community\Application\CommunityUserDirectoryQueryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\PlatformCategory;
 use App\Identity\Application\ValidationErrors;
+use App\Identity\Domain\User;
+use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
@@ -21,6 +25,9 @@ final readonly class PersonalRunGameSelection
         private RunParticipantRepositoryInterface $participants,
         private GameRepositoryInterface $games,
         private RecentlyPlayedGamesQueryInterface $recentlyPlayedGames,
+        private UserRepositoryInterface $users,
+        private CommunityUserDirectoryQueryInterface $directory,
+        private CommunityLevelQuery $levels,
         private LoggerInterface $logger,
     ) {
     }
@@ -81,6 +88,107 @@ final readonly class PersonalRunGameSelection
         $recentlyPlayed = $this->recentlyPlayedGames->recentlyPlayed($userId, $runId, 3);
 
         return $this->result(found: true, slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
+    }
+
+    /**
+     * Read-only projection of another participant's identity + slots + applied YAML. Authorized for the
+     * run owner or any participant of the run (collaborative visibility); never editable.
+     *
+     * @return array{found: bool, authorized: bool, participant: array<string, mixed>|null, slots: list<array<string, mixed>>|null}
+     */
+    public function getParticipantSlots(string $runId, string $viewerId, string $participantId): array
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
+            return $this->participantResult(found: false);
+        }
+
+        $isOwner = $run->isOwnedBy($viewerId);
+        $isViewerParticipant = $this->participants->findByRunAndUser($run->getId(), $viewerId) instanceof RunParticipant;
+        if (!$isOwner && !$isViewerParticipant) {
+            return $this->participantResult(found: true, authorized: false);
+        }
+
+        $participant = $this->participants->findByRunAndUser($run->getId(), $participantId);
+        if (!$participant instanceof RunParticipant) {
+            return $this->participantResult(found: false);
+        }
+
+        $identity = $this->resolveParticipant($participantId);
+
+        $existingSlots = $participant->getGameSlots();
+
+        $gameIds = array_values(array_unique(array_map(
+            static fn (array $slot): string => $slot['gameId'],
+            $existingSlots,
+        )));
+
+        /** @var array<string, Game> $gamesById */
+        $gamesById = [];
+        if ([] !== $gameIds) {
+            foreach ($this->games->findByIds($gameIds) as $game) {
+                $gamesById[$game->getId()] = $game;
+            }
+        }
+
+        $slots = [];
+        foreach ($existingSlots as $slot) {
+            $game = $gamesById[$slot['gameId']] ?? null;
+            $playerYaml = $slot['playerYaml'] ?? null;
+            $slots[] = [
+                'slotId' => $slot['slotId'],
+                'gameId' => $slot['gameId'],
+                'slotOrder' => $slot['slotOrder'],
+                'gameName' => null !== $game ? $game->getName() : $slot['gameId'],
+                'gameSlug' => $game?->getSlug(),
+                'description' => $game?->getDescription(),
+                'coverImageUrl' => $game?->getCoverImageUrl(),
+                'coverImageAlt' => null !== $game ? $game->getCoverImageAlt() : $slot['gameId'],
+                'availability' => $game?->getAvailability(),
+                'platforms' => null !== $game ? PlatformCategory::families($game->getPlatforms() ?? []) : [],
+                'isApworldReady' => null !== $game && $game->isApworldReady(),
+                'playerYaml' => (null !== $playerYaml && '' !== $playerYaml) ? $playerYaml : null,
+            ];
+        }
+
+        return $this->participantResult(found: true, participant: $identity, slots: $slots);
+    }
+
+    /**
+     * Resolve a participant's public identity (community pseudo + avatar + slug) plus their community
+     * level/XP and headline stats, so the participant detail page can present them like the public
+     * profile. Identity falls back to the account display name when no visible community card; XP is
+     * computed from the canonical components, exactly as the public profile does.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveParticipant(string $userId): array
+    {
+        $card = $this->directory->cards([$userId])[$userId] ?? null;
+        $user = $this->users->findByIds([$userId])[0] ?? null;
+
+        $level = $this->levels->levelFor($userId);
+
+        return [
+            'userId' => $userId,
+            'slug' => null !== $card ? $card['slug'] : null,
+            'displayName' => (null !== $card ? $card['displayName'] : null)
+                ?? ($user instanceof User ? $user->getDisplayName() : null),
+            'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
+            'isAdmin' => $user instanceof User && in_array('ROLE_ADMIN', $user->getRoles(), true),
+            'level' => [
+                'level' => $level['level'],
+                'xp' => $level['xp'],
+                'xpIntoLevel' => $level['xpIntoLevel'],
+                'xpForNextLevel' => $level['xpForNextLevel'],
+            ],
+            'stats' => [
+                'runsParticipated' => $level['runsParticipated'],
+                'goalCompletions' => $level['goalCompletions'],
+                'totalChecksDone' => $level['totalChecksDone'],
+                'achievementsUnlocked' => $level['achievementsUnlocked'],
+            ],
+        ];
     }
 
     /**
@@ -285,6 +393,22 @@ final readonly class PersonalRunGameSelection
             'slots' => $slots,
             'availableGames' => $availableGames,
             'recentlyPlayedGames' => $recentlyPlayedGames,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>|null       $participant
+     * @param list<array<string, mixed>>|null $slots
+     *
+     * @return array{found: bool, authorized: bool, participant: array<string, mixed>|null, slots: list<array<string, mixed>>|null}
+     */
+    private function participantResult(bool $found = false, bool $authorized = true, ?array $participant = null, ?array $slots = null): array
+    {
+        return [
+            'found' => $found,
+            'authorized' => $authorized,
+            'participant' => $participant,
+            'slots' => $slots,
         ];
     }
 

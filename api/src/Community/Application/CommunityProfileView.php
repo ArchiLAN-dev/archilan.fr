@@ -10,10 +10,8 @@ use App\Community\Domain\Audience;
 use App\Community\Domain\BannerPreset;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
-use App\Community\Domain\CommunityXp;
 use App\Community\Domain\Kudos;
 use App\Community\Domain\KudosRepositoryInterface;
-use App\Community\Domain\Level;
 use App\Community\Domain\ShowcaseWidget;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
@@ -39,6 +37,7 @@ final readonly class CommunityProfileView
         private CommunityPresenceQueryInterface $presence,
         private ActiveMembershipQueryInterface $memberships,
         private AvatarUrlResolver $avatarUrls,
+        private CommunityLevelQuery $levels,
     ) {
     }
 
@@ -75,14 +74,9 @@ final readonly class CommunityProfileView
         // Kudos are peer-only: a viewer can't kudos their own achievements, so the target is suppressed
         // when the owner views their own profile (story 30.11).
         $achievements = $this->achievementsFor($model['userId'], $viewerId !== $model['userId']);
-        $unlockedCount = count(array_filter($achievements, static fn (array $a): bool => true === $a['unlocked']));
-        $xp = CommunityXp::compute(
-            $model['stats']['goalCompletions'],
-            $model['stats']['totalChecksDone'],
-            $model['stats']['runsParticipated'],
-            $unlockedCount,
-        );
-        $level = Level::fromXp($xp);
+
+        // Level/XP from the shared query so every surface (profile, run participant detail…) agrees.
+        $level = $this->levels->levelFor($model['userId']);
 
         $live = $this->presence->playing([$model['userId']])[$model['userId']] ?? null;
         $presence = [
@@ -122,10 +116,10 @@ final readonly class CommunityProfileView
             'badges' => $badges,
             'stats' => $model['stats'],
             'level' => [
-                'level' => $level->level,
-                'xp' => $xp,
-                'xpIntoLevel' => $level->xpIntoLevel,
-                'xpForNextLevel' => $level->xpForNextLevel,
+                'level' => $level['level'],
+                'xp' => $level['xp'],
+                'xpIntoLevel' => $level['xpIntoLevel'],
+                'xpForNextLevel' => $level['xpForNextLevel'],
             ],
             'achievements' => $achievements,
             'presence' => $presence,

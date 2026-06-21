@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, ChevronDown, Download, Loader2, Settings2 } from "lucide-react";
-import { load as loadYaml } from "js-yaml";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
@@ -22,6 +21,7 @@ import {
 import type { CurrentWeeklyRun, WeeklyRunLeaderboardEntry } from "./weekly-runs-api";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { env } from "@/lib/env";
+import { YamlOptionsView, parseGameOptions } from "@/components/yaml/yaml-options-view";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -65,82 +65,8 @@ function CopyButton({ value }: { value: string }) {
 
 // ── YAML options viewer ───────────────────────────────────────────────────────
 
-type ApOptionValue =
-  | boolean
-  | number
-  | string
-  | number[]
-  | Record<string, number>;
-
-function isWeightedDict(v: unknown): v is Record<string, number> {
-  if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
-  return Object.values(v).every((w) => typeof w === "number");
-}
-
-function isRange(v: unknown): v is [number, number] {
-  return (
-    Array.isArray(v) &&
-    v.length === 2 &&
-    typeof v[0] === "number" &&
-    typeof v[1] === "number"
-  );
-}
-
-function formatOptionName(key: string): string {
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function OptionValue({ value }: { value: ApOptionValue }) {
-  if (isWeightedDict(value)) {
-    const entries = Object.entries(value);
-    const total = entries.reduce((s, [, w]) => s + w, 0);
-    if (total === 0) return <span className="text-muted-foreground">-</span>;
-
-    return (
-      <ul className="mt-1 flex flex-col gap-1.5">
-        {entries
-          .sort(([, a], [, b]) => b - a)
-          .map(([label, weight]) => {
-            const pct = Math.round((weight / total) * 100);
-            return (
-              <li className="flex items-center gap-2" key={label}>
-                <div className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-surface-2">
-                  <div
-                    className="h-full rounded-full bg-accent-text"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <span className="w-9 shrink-0 text-right text-xs text-muted-foreground">
-                  {pct}%
-                </span>
-                <span className="text-xs text-foreground">{label}</span>
-              </li>
-            );
-          })}
-      </ul>
-    );
-  }
-
-  if (isRange(value)) {
-    return (
-      <span className="text-foreground">
-        entre <span className="font-mono">{value[0]}</span> et{" "}
-        <span className="font-mono">{value[1]}</span>
-      </span>
-    );
-  }
-
-  if (typeof value === "boolean") {
-    return (
-      <span className={value ? "text-emerald-400" : "text-muted-foreground"}>
-        {value ? "Oui" : "Non"}
-      </span>
-    );
-  }
-
-  return <span className="font-mono text-foreground">{String(value)}</span>;
-}
-
+// Collapsible wrapper around the shared YamlOptionsView (also used on the personal-run participant
+// detail page). Hidden entirely when the YAML has no parseable game options.
 function YamlOptionsViewer({
   yamlConfig,
   gameName,
@@ -150,22 +76,8 @@ function YamlOptionsViewer({
 }) {
   const [open, setOpen] = useState(false);
 
-  let gameOptions: Record<string, ApOptionValue> | null = null;
-  try {
-    const doc = loadYaml(yamlConfig);
-    if (typeof doc === "object" && doc !== null) {
-      const raw = (doc as Record<string, unknown>)[gameName];
-      if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
-        gameOptions = raw as Record<string, ApOptionValue>;
-      }
-    }
-  } catch {
-    // unparseable YAML - hide the viewer silently
-  }
-
-  if (!gameOptions || Object.keys(gameOptions).length === 0) return null;
-
-  const entries = Object.entries(gameOptions);
+  const gameOptions = parseGameOptions(yamlConfig, gameName);
+  if (gameOptions === null || Object.keys(gameOptions).length === 0) return null;
 
   return (
     <div className="border-t border-border">
@@ -186,18 +98,7 @@ function YamlOptionsViewer({
 
       {open && (
         <div className="border-t border-border px-5 py-4">
-          <dl className="grid gap-4 sm:grid-cols-2">
-            {entries.map(([key, value]) => (
-              <div key={key}>
-                <dt className="text-xs font-semibold text-muted-foreground">
-                  {formatOptionName(key)}
-                </dt>
-                <dd className="mt-0.5 text-sm">
-                  <OptionValue value={value} />
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <YamlOptionsView gameName={gameName} yamlConfig={yamlConfig} />
         </div>
       )}
     </div>
