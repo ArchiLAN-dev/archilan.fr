@@ -56,6 +56,7 @@ final readonly class PlayerHistoryQuery
                 'goalReachedAt' => $goalReachedAt,
                 'wasReleased' => $wasReleased,
                 'isInvalidated' => $isInvalidated,
+                'isWeekly' => (bool) ($row['is_weekly'] ?? false),
             ];
         }, $pageRows);
 

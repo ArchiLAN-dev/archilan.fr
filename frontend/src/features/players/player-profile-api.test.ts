@@ -66,6 +66,7 @@ describe("getPlayerHistory", () => {
     goalReachedAt: null,
     wasReleased: false,
     isInvalidated: false,
+    isWeekly: false,
   };
 
   it("returns history on success", async () => {
