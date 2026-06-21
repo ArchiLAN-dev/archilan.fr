@@ -7,7 +7,7 @@ const BASE = TEST_API_BASE_URL;
 
 describe("fetchLeaderboard", () => {
   const validResponse = {
-    data: [{ rank: 1, slug: "jean", displayName: "Jean", value: 10, unit: "objectifs" }],
+    data: [{ rank: 1, slug: "jean", displayName: "Jean", avatarUrl: null, value: 10, unit: "objectifs" }],
     meta: { axis: "goals", page: 1, total: 1 },
   };
 

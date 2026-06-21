@@ -125,7 +125,7 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
                   {entry.rank}
                 </span>
 
-                <PlayerAvatar displayName={entry.displayName} slug={entry.slug} />
+                <PlayerAvatar avatarUrl={entry.avatarUrl} displayName={entry.displayName} slug={entry.slug} />
 
                 <Link
                   className="min-w-0 flex-1 truncate font-semibold text-foreground hover:text-accent transition-colors"
@@ -166,8 +166,33 @@ export function LeaderboardClient({ initialData, initialDataFetchedAt, events }:
   );
 }
 
-function PlayerAvatar({ displayName, slug }: { displayName: string; slug: string }) {
+function PlayerAvatar({
+  avatarUrl,
+  displayName,
+  slug,
+}: {
+  avatarUrl: string | null;
+  displayName: string;
+  slug: string;
+}) {
+  const [failed, setFailed] = useState(false);
   const initial = (displayName || slug).charAt(0).toUpperCase();
+
+  // A snapshotted Discord/Steam URL can later 404 - fall back to the initial on load error, never a
+  // broken image (mirrors ProfileAvatar).
+  if (avatarUrl !== null && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- external Discord/Steam CDN URL, not a local asset
+      <img
+        alt=""
+        aria-hidden="true"
+        className="size-9 shrink-0 rounded-full bg-surface object-cover"
+        onError={() => setFailed(true)}
+        src={avatarUrl}
+      />
+    );
+  }
+
   return (
     <div
       aria-hidden="true"

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Community\Domain\CommunityProfile;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
+use App\WeeklyRuns\Domain\WeeklyEntry;
 
 final class CommunityLeaderboardTest extends FunctionalTestCase
 {
@@ -63,6 +65,46 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(1, $data['totalFinishedSessions']); // only s1 is finished
         self::assertSame(80, $data['totalChecksDone']); // slot1(50) + slot2(30); slot3 excluded (invalidated)
         self::assertSame(1, $data['totalGoalsReached']); // only slot1 has a goal
+    }
+
+    public function testCommunityStatsIncludeCompletedWeeklyRuns(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $user = $this->createUser('w@w.com', ['ROLE_USER'], 'W', 'w');
+
+        // Completed weekly entry → counts as 1 finished run + 1 goal, contributes 42 checks.
+        $completed = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            1,
+            $now,
+            $now,
+        );
+        $completed->recordGoal($now->modify('+10 minutes'), 600, 42, 18);
+        $this->entityManager->persist($completed);
+
+        // Incomplete weekly entry (no goal) → contributes nothing.
+        $incomplete = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            bin2hex(random_bytes(16)),
+            $user->getId(),
+            2,
+            $now,
+            $now,
+        );
+        $this->entityManager->persist($incomplete);
+
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/community/stats');
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame(1, $data['totalFinishedSessions']); // only the completed weekly entry
+        self::assertSame(42, $data['totalChecksDone']); // incomplete entry excluded
+        self::assertSame(1, $data['totalGoalsReached']);
     }
 
     // ─── Leaderboard - Goals axis ─────────────────────────────────────────────
@@ -259,6 +301,66 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertSame(2, $entry1['rank']);
         self::assertSame('alice', $entry1['slug']);
         self::assertSame(60, $entry1['value']);
+    }
+
+    // ─── Avatar URL ──────────────────────────────────────────────────────────
+
+    public function testLeaderboardIncludesResolvedAvatarUrl(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $event = $this->createEvent('LAN', $now, $now->modify('+1 day'));
+        $game = $this->createGame('G', 'g');
+
+        // Alice has a community profile with a cached external avatar; Bob has none.
+        $alice = $this->createUser('alice@ex.com', ['ROLE_USER'], 'Alice', 'alice');
+        $bob = $this->createUser('bob@ex.com', ['ROLE_USER'], 'Bob', 'bob');
+
+        $aliceAvatar = 'https://cdn.example.test/avatars/alice.png';
+        $this->entityManager->persist(new CommunityProfile(
+            bin2hex(random_bytes(16)),
+            $alice->getId(),
+            $now,
+            $now,
+            avatarUrl: $aliceAvatar,
+        ));
+
+        $regA = $this->createRegistration($event->getId(), $alice->getId());
+        $regB = $this->createRegistration($event->getId(), $bob->getId());
+
+        $session = $this->makeFinishedSession($event->getId(), $now);
+        $startedAt = $session->getStartedAt();
+        self::assertNotNull($startedAt);
+
+        // Alice: 2 goals (ranks first), Bob: 1 goal.
+        for ($i = 0; $i < 2; ++$i) {
+            $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'A'.$i, $i);
+            $slot->setGoalReachedAt($startedAt->modify('+'.($i + 1).' minutes'));
+            $this->entityManager->persist($slot);
+        }
+        $slotB = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'B', 5);
+        $slotB->setGoalReachedAt($startedAt->modify('+1 minutes'));
+        $this->entityManager->persist($slotB);
+
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/leaderboard?axis=goals');
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertCount(2, $data);
+
+        $aliceEntry = $data[0];
+        self::assertIsArray($aliceEntry);
+        self::assertSame('alice', $aliceEntry['slug']);
+        self::assertArrayHasKey('avatarUrl', $aliceEntry);
+        self::assertSame($aliceAvatar, $aliceEntry['avatarUrl']);
+
+        $bobEntry = $data[1];
+        self::assertIsArray($bobEntry);
+        self::assertSame('bob', $bobEntry['slug']);
+        self::assertArrayHasKey('avatarUrl', $bobEntry);
+        self::assertNull($bobEntry['avatarUrl']);
     }
 
     // ─── eventId filter ──────────────────────────────────────────────────────

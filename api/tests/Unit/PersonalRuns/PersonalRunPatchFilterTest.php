@@ -22,6 +22,26 @@ final class PersonalRunPatchFilterTest extends TestCase
         self::assertTrue(PersonalRunPatchController::belongsToOwnSlot('masterkafei_LM.aplm', ['masterkafei_LM']));
     }
 
+    public function testMatchesWhenApworldAppendsAGameVersionSuffix(): void
+    {
+        // An apworld may append "_{GAME}_{version}" after the slot name (bug #10): the DB slot name is
+        // "masterkafey_SHA" but the file is named "...masterkafey_SHA_SHAR_0.6.7.apshar".
+        self::assertTrue(PersonalRunPatchController::belongsToOwnSlot(
+            'AP_68065318726431789262_P2_masterkafey_SHA_SHAR_0.6.7.apshar',
+            ['masterkafey_SHA'],
+        ));
+    }
+
+    public function testPrefixMatchRequiresAnUnderscoreBoundary(): void
+    {
+        // "masterkafey_SH" must NOT match a file for slot "masterkafey_SHA": the next char after the
+        // slot name is "A", not "_", so it is a different slot - no cross-slot leak.
+        self::assertFalse(PersonalRunPatchController::belongsToOwnSlot(
+            'AP_68065318726431789262_P2_masterkafey_SHA_SHAR_0.6.7.apshar',
+            ['masterkafey_SH'],
+        ));
+    }
+
     public function testDoesNotMatchOnSlotNameSuffix(): void
     {
         // "LM" is a suffix of "masterkafei_LM" - must NOT grant access (anti-spoiler).
