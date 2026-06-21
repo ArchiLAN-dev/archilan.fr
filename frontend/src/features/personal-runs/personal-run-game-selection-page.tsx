@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, FileText, Search, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, FileText, Search, X } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -533,7 +533,16 @@ export function PersonalRunGameSelectionPage({
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold leading-tight text-foreground">{game.name}</p>
+                      <Link
+                        className="inline-flex items-center gap-1 text-sm font-semibold leading-tight text-foreground transition-colors hover:text-accent-text"
+                        href={`/jeux/${game.slug}`}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        title={`Voir la page de ${game.name}`}
+                      >
+                        {game.name}
+                        <ExternalLink aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+                      </Link>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {availabilityConfig[game.availability] && (
                           <span

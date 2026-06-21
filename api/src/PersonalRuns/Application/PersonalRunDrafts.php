@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application;
 
+use App\Community\Application\CommunityUserDirectoryQueryInterface;
 use App\Identity\Application\ValidationErrors;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
@@ -21,6 +22,7 @@ final readonly class PersonalRunDrafts
         private RunParticipantRepositoryInterface $participants,
         private UserRepositoryInterface $users,
         private SessionRepositoryInterface $sessions,
+        private CommunityUserDirectoryQueryInterface $directory,
         private string $siteUrl,
     ) {
     }
@@ -282,7 +284,7 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array{userId: string, displayName: string|null, joinedAt: string, slotCount: int}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int}>
      */
     private function getParticipants(string $runId): array
     {
@@ -301,12 +303,21 @@ final readonly class PersonalRunDrafts
             $usersById[$user->getId()] = $user;
         }
 
-        return array_map(function (RunParticipant $p) use ($usersById): array {
+        // Community cards provide the public pseudo (display-name override), resolved avatar and slug -
+        // so a participant shows their community identity and links to their profile. A user without a
+        // visible community card (none/banned/suspended) falls back to the account name, no avatar/link.
+        $cards = $this->directory->cards($userIds);
+
+        return array_map(function (RunParticipant $p) use ($usersById, $cards): array {
             $user = $usersById[$p->getUserId()] ?? null;
+            $card = $cards[$p->getUserId()] ?? null;
 
             return [
                 'userId' => $p->getUserId(),
-                'displayName' => $user?->getDisplayName() ?? $user?->getEmail(),
+                'slug' => null !== $card ? $card['slug'] : null,
+                'displayName' => (null !== $card ? $card['displayName'] : null)
+                    ?? $user?->getDisplayName() ?? $user?->getEmail(),
+                'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
                 'joinedAt' => $p->getJoinedAt()->format(\DateTimeInterface::ATOM),
                 'slotCount' => count($p->getGameSlots()),
             ];
