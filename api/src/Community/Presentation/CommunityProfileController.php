@@ -75,6 +75,20 @@ final readonly class CommunityProfileController
         return new JsonResponse(['data' => $profile]);
     }
 
+    #[Route('/api/v1/community/profiles/{slug}/achievements', name: 'api_community_profile_achievements', methods: ['GET'])]
+    public function achievements(Request $request, string $slug): JsonResponse
+    {
+        $viewer = $this->apiAccessGuard->optionalUser($request);
+        $viewerId = $viewer instanceof User ? $viewer->getId() : null;
+
+        $catalogue = $this->profileView->achievementsCatalogFor($slug, $viewerId);
+        if (null === $catalogue) {
+            return $this->apiAccessGuard->errorResponse('player_not_found', 'Joueur introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $catalogue]);
+    }
+
     #[Route('/api/v1/community/profiles/{slug}/report', name: 'api_community_profile_report', methods: ['POST'])]
     public function report(Request $request, string $slug): JsonResponse
     {

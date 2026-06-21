@@ -26,6 +26,9 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
  */
 final readonly class CommunityProfileView
 {
+    /** Recent unlocked achievements surfaced on the profile card; the rest live on the catalogue page. */
+    private const PROFILE_RECENT_LIMIT = 6;
+
     public function __construct(
         private CommunityProfileQueryInterface $query,
         private CommunityProfileRepositoryInterface $profiles,
@@ -38,6 +41,7 @@ final readonly class CommunityProfileView
         private ActiveMembershipQueryInterface $memberships,
         private AvatarUrlResolver $avatarUrls,
         private CommunityLevelQuery $levels,
+        private AchievementRarityQueryInterface $rarity,
     ) {
     }
 
@@ -52,6 +56,7 @@ final readonly class CommunityProfileView
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
      *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>,
+     *     achievementStats: array{unlocked: int, total: int},
      *     presence: array{playing: bool, sessionId: string|null, game: string|null},
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
      * }|null
@@ -72,8 +77,10 @@ final readonly class CommunityProfileView
         $audience = $profile?->getAudience() ?? Audience::MEMBERS;
 
         // Kudos are peer-only: a viewer can't kudos their own achievements, so the target is suppressed
-        // when the owner views their own profile (story 30.11).
+        // when the owner views their own profile (story 30.11). The profile card shows only the most
+        // recent unlocks + counts; the full catalogue lives on its own page (story 30.31).
         $achievements = $this->achievementsFor($model['userId'], $viewerId !== $model['userId']);
+        $unlocked = array_values(array_filter($achievements, static fn (array $a): bool => true === $a['unlocked']));
 
         // Level/XP from the shared query so every surface (profile, run participant detail…) agrees.
         $level = $this->levels->levelFor($model['userId']);
@@ -121,10 +128,69 @@ final readonly class CommunityProfileView
                 'xpIntoLevel' => $level['xpIntoLevel'],
                 'xpForNextLevel' => $level['xpForNextLevel'],
             ],
-            'achievements' => $achievements,
+            'achievements' => $this->recentUnlocked($unlocked),
+            'achievementStats' => ['unlocked' => count($unlocked), 'total' => count($achievements)],
             'presence' => $presence,
             'customization' => $customization,
         ];
+    }
+
+    /**
+     * Full achievements catalogue with this player's unlocked/locked state + rarity, for the dedicated
+     * « Tous les succès » page. Same kudos gating as the profile card. Null when the slug has no live user.
+     *
+     * @return array{
+     *     slug: string,
+     *     displayName: string|null,
+     *     avatarUrl: string|null,
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, rarity: array{count: int, percent: int|null}}>
+     * }|null
+     */
+    public function achievementsCatalogFor(string $slug, ?string $viewerId): ?array
+    {
+        $model = $this->query->forSlug($slug);
+        if (null === $model) {
+            return null;
+        }
+
+        $profile = $this->profiles->findByUserId($model['userId']);
+        $achievements = $this->achievementsFor($model['userId'], $viewerId !== $model['userId']);
+
+        $snapshot = $this->rarity->snapshot();
+        $memberCount = $snapshot['memberCount'];
+
+        $withRarity = array_map(static function (array $a) use ($snapshot, $memberCount): array {
+            $count = $snapshot['grantsByKey'][$a['key']] ?? 0;
+
+            return [
+                ...$a,
+                'rarity' => [
+                    'count' => $count,
+                    'percent' => $memberCount > 0 ? (int) round($count / $memberCount * 100) : null,
+                ],
+            ];
+        }, $achievements);
+
+        return [
+            'slug' => $model['slug'],
+            'displayName' => $profile?->getDisplayName() ?? $model['displayName'],
+            'avatarUrl' => $this->avatarUrls->resolve($profile?->getCustomAvatarKey(), $profile?->getAvatarUrl()),
+            'achievements' => $withRarity,
+        ];
+    }
+
+    /**
+     * The most recently unlocked achievements (by unlock date desc), capped for the profile card.
+     *
+     * @param list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}> $unlocked
+     *
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>
+     */
+    private function recentUnlocked(array $unlocked): array
+    {
+        usort($unlocked, static fn (array $a, array $b): int => ($b['unlockedAt'] ?? '') <=> ($a['unlockedAt'] ?? ''));
+
+        return array_slice($unlocked, 0, self::PROFILE_RECENT_LIMIT);
     }
 
     /**

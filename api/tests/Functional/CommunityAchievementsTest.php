@@ -9,7 +9,7 @@ use App\Community\Domain\DefaultAchievementDefinitions;
 
 final class CommunityAchievementsTest extends FunctionalTestCase
 {
-    public function testProfileSurfacesUnlockedAndLockedAchievements(): void
+    public function testProfileSurfacesRecentUnlockedAndCounts(): void
     {
         $this->seedDefaultAchievementDefinitions();
         $user = $this->createUser('alice@example.org', slug: 'alice');
@@ -22,23 +22,25 @@ final class CommunityAchievementsTest extends FunctionalTestCase
 
         $data = $this->decodedJsonResponse()['data'] ?? null;
         self::assertIsArray($data);
+
+        // The profile card shows only the unlocked achievements (most recent first); the full catalogue
+        // (incl. locked) now lives on /achievements (story 30.31, covered by CommunityProfileAchievementsTest).
         $achievements = $data['achievements'] ?? null;
         self::assertIsArray($achievements);
-        self::assertCount(count(DefaultAchievementDefinitions::all()), $achievements);
-
-        $byKey = [];
+        self::assertCount(2, $achievements);
+        $first = $achievements[0] ?? null;
+        self::assertIsArray($first);
+        self::assertSame('first_goal', $first['key']); // most recent (2026-06-02)
+        self::assertIsString($first['unlockedAt']);
         foreach ($achievements as $achievement) {
             self::assertIsArray($achievement);
-            $key = $achievement['key'] ?? null;
-            self::assertIsString($key);
-            $byKey[$key] = $achievement;
+            self::assertTrue($achievement['unlocked']);
         }
 
-        self::assertTrue($byKey['first_run']['unlocked']);
-        self::assertIsString($byKey['first_run']['unlockedAt']);
-        self::assertTrue($byKey['first_goal']['unlocked']);
-        self::assertFalse($byKey['veteran']['unlocked']);
-        self::assertNull($byKey['veteran']['unlockedAt']);
+        $stats = $data['achievementStats'] ?? null;
+        self::assertIsArray($stats);
+        self::assertSame(2, $stats['unlocked']);
+        self::assertSame(count(DefaultAchievementDefinitions::all()), $stats['total']);
 
         // Level/XP: 2 achievements * 100 XP, no run stats -> 200 XP -> level 1 (next at 200).
         $level = $data['level'] ?? null;
