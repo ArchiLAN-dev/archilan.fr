@@ -8,6 +8,7 @@ import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
 import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
 import { AvatarFrame } from "./avatar-frame";
+import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
@@ -229,12 +230,7 @@ export function CommunityProfileCustomizationForm() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" />
-        Chargement du profil…
-      </div>
-    );
+    return <CommunityLoadingSkeleton rows={5} />;
   }
 
   return (
