@@ -112,7 +112,13 @@ export function PlayerProfilePage({
 
       {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
 
-      {profile.achievements.length > 0 ? <ProfileAchievements achievements={profile.achievements} /> : null}
+      {profile.achievementStats.total > 0 ? (
+        <ProfileAchievements
+          achievements={profile.achievements}
+          slug={profile.slug}
+          stats={profile.achievementStats}
+        />
+      ) : null}
 
       <ProfileActivity slug={profile.slug} />
 
