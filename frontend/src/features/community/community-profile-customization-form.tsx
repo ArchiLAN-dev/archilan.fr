@@ -147,11 +147,24 @@ export function CommunityProfileCustomizationForm() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [profile, games] = await Promise.all([fetchMyCommunityProfile(), getAllPublicGames()]);
+      const profile = await fetchMyCommunityProfile();
       if (cancelled) return;
-      setCatalog(games);
       if (profile) hydrate(profile);
       setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The full game catalogue is only used by the favourites picker, so load it on its own. Otherwise a
+  // slow `/games?all=1` (the whole catalogue) would keep the entire profile tab stuck on
+  // "Chargement du profil…" while the Jeux/Compte tabs render instantly.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const games = await getAllPublicGames();
+      if (!cancelled) setCatalog(games);
     })();
     return () => {
       cancelled = true;
