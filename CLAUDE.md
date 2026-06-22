@@ -149,3 +149,8 @@ Domain ← Application ← Infrastructure
 - Queries (reads): noun + context - `PlayerProfileQuery`, `LeaderboardQuery`, `PublicEventCatalog`
 - Events: past tense - `UserRegistered`, `SessionFinished`
 - DTOs: suffix `DTO` or named record - `LeaderboardEntryDTO`
+
+### Typography - never use em-dashes
+
+- Never use em-dashes (`—`) or en-dashes (`–`) anywhere: code, comments, markdown docs, commit messages, PR bodies, chat. Use a plain hyphen `-` (spaced ` - ` between clauses) or rephrase.
+- Local editor tooling normalizes em-dashes to hyphens, producing noisy repo-wide churn diffs. Emitting hyphens only keeps diffs clean.
