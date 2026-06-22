@@ -68,4 +68,19 @@ final readonly class DoctrineAchievementGrantRepository implements AchievementGr
         $this->entityManager->persist($grant);
         $this->entityManager->flush();
     }
+
+    public function deleteByUserAndKey(string $userId, string $achievementKey): void
+    {
+        $grants = $this->entityManager->getRepository(AchievementGrant::class)
+            ->findBy(['userId' => $userId, 'achievementKey' => $achievementKey]);
+
+        if ([] === $grants) {
+            return;
+        }
+
+        foreach ($grants as $grant) {
+            $this->entityManager->remove($grant);
+        }
+        $this->entityManager->flush();
+    }
 }

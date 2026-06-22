@@ -237,6 +237,14 @@ final class RecomputeAchievementsTest extends TestCase
 
                 return null;
             }
+
+            public function deleteByUserAndKey(string $userId, string $achievementKey): void
+            {
+                $this->stored = array_values(array_filter(
+                    $this->stored,
+                    static fn (AchievementGrant $g): bool => $g->getUserId() !== $userId || $g->getAchievementKey() !== $achievementKey,
+                ));
+            }
         };
     }
 }

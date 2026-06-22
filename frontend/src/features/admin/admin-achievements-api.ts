@@ -120,6 +120,32 @@ export async function reorderAchievements(ids: string[]): Promise<boolean> {
   return noContent(`${env.apiBaseUrl}/admin/community/achievements/reorder`, { ids });
 }
 
+/** Manually award an achievement to a player (by community slug). Idempotent (story 30.34). */
+export async function grantAchievement(id: string, slug: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/admin/community/achievements/${encodeURIComponent(id)}/grants`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug }) },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Revoke a manually-granted achievement from a player (by community slug). Idempotent. */
+export async function revokeAchievement(id: string, slug: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/admin/community/achievements/${encodeURIComponent(id)}/grants/${encodeURIComponent(slug)}`,
+      { method: "DELETE" },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadAchievementImage(
   file: File,
 ): Promise<{ key: string; imageUrl: string } | null> {
