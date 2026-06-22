@@ -5,6 +5,47 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.6.0] - 2026-06-22
+
+Itération communautaire : succès enrichis (epic 30), pages détaillées des parties
+privées (epic 17) et unification du calcul de niveau/XP.
+
+### Ajouté
+
+- **Succès communautaires enrichis (epic 30)** :
+  - succès récents mis en avant sur le profil joueur, plus une page catalogue
+    dédiée affichant le taux de rareté de chaque succès (« X % des joueurs l'ont ») ;
+  - règles de succès basées sur l'atteinte d'un objectif en événement, configurables
+    de façon générique ou par événement précis ;
+  - image personnalisée optionnelle à la place du trophée par défaut ;
+  - attribution et révocation manuelles d'un succès à un joueur par un admin.
+- **Page détail d'un participant** (partie privée) : page dédiée en lecture seule
+  avec l'identité communautaire (pseudo + avatar), le niveau/XP et les statistiques,
+  les jeux du participant, et la configuration YAML appliquée présentée en deux
+  vues (visuelle et textuelle).
+- **Navigation enrichie des parties privées** : liens vers les profils et les pages
+  jeux, cartes participants plus détaillées.
+- **Mode streamer** : les informations de connexion d'une partie sont masquées par
+  défaut sur les pages de partie.
+
+### Corrigé
+
+- **Niveau/XP incohérent** : le niveau et l'XP sont désormais calculés de façon
+  unique sur toutes les surfaces (profil, page participant, `/communaute`), en
+  incluant aussi bien les parties hebdomadaires que les événements.
+- **Parties hebdomadaires** : les weekly runs complétées sont comptées dans
+  l'historique et la vitrine du profil joueur.
+- **Arrêt auto des parties privées** : `autoShutdown` est verrouillé au profil de
+  type et ne peut plus être neutralisé par un override de partie périmé - une partie
+  privée inactive s'arrête de nouveau correctement.
+- **Onglets communauté** : affichage d'un squelette animé pendant le chargement.
+
+### Technique
+
+- Recalcul de sécurité (backstop) des succès toutes les heures.
+- Convention projet : plus aucun em-dash dans le code, la documentation ou les
+  messages de commit (normalisation en tirets simples).
+
 ## [0.5.1] - 2026-06-21
 
 Hotfix : lot de correctifs remontés après la v0.5.0.
