@@ -63,6 +63,23 @@ final class SessionConfigTest extends TestCase
         self::assertSame(10, $base->server->hintCost);
     }
 
+    public function testWithOverrideNeverChangesAutoShutdown(): void
+    {
+        // autoShutdown is locked to the type profile (story 27.9): a stored override carrying
+        // autoShutdown=0 must NOT disable a private run's idle shutdown. Regression for the hotfix
+        // where such a stale override left private runs running indefinitely.
+        $base = SessionConfig::defaultsFor(SessionType::Private);
+        self::assertSame(1800, $base->server->autoShutdown);
+
+        $merged = $base->withOverride(new SessionConfigOverride(
+            hintCost: 5,
+            autoShutdown: 0,
+        ));
+
+        self::assertSame(5, $merged->server->hintCost);
+        self::assertSame(1800, $merged->server->autoShutdown);
+    }
+
     public function testWithEmptyOverrideIsEquivalentToProfile(): void
     {
         $base = SessionConfig::defaultsFor(SessionType::Event);
