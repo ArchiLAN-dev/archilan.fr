@@ -19,6 +19,13 @@ import {
   type RuleNode,
   type RuleOperator,
 } from "./admin-achievements-api";
+import {
+  EVENTS_FACT,
+  eventIdOfFact,
+  eventScopedFact,
+  factLabel,
+  isEventScopedFact,
+} from "./admin-achievement-event-scope";
 
 const QUERY_KEY = ["admin-achievements"] as const;
 const STALE_TIME = 15_000;
@@ -38,6 +45,7 @@ const OPERATOR_LABELS: Record<RuleOperator, string> = {
   "<": "<",
   between: "entre",
 };
+
 
 type EditorState =
   | { mode: "closed" }
@@ -136,7 +144,7 @@ export function AdminAchievementsDashboard() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">{summariseRule(definition.rule)}</p>
+                  <p className="text-xs text-muted-foreground">{summariseRule(definition.rule, data.options)}</p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5">
@@ -444,13 +452,17 @@ function ConditionEditor({
   options: AchievementFormOptions;
   onChange: (next: RuleCondition) => void;
 }) {
+  const eventScoped = isEventScopedFact(condition.fact);
+  const eventId = eventIdOfFact(condition.fact);
+  const eventMissing = eventId !== null && !options.events.some((e) => e.id === eventId);
+
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-surface px-2 py-2">
       <select
         aria-label="Métrique"
         className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
         onChange={(e) => onChange({ ...condition, fact: e.target.value })}
-        value={condition.fact}
+        value={eventScoped ? EVENTS_FACT : condition.fact}
       >
         {options.facts.map((f) => (
           <option key={f.key} value={f.key}>
@@ -458,6 +470,25 @@ function ConditionEditor({
           </option>
         ))}
       </select>
+
+      {eventScoped ? (
+        <select
+          aria-label="Événement"
+          className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
+          onChange={(e) => onChange({ ...condition, fact: eventScopedFact(e.target.value) })}
+          value={eventId ?? ""}
+        >
+          <option value="">Tous les événements</option>
+          {options.events.map((ev) => (
+            <option key={ev.id} value={ev.id}>
+              {ev.title}
+            </option>
+          ))}
+          {eventMissing && eventId !== null ? (
+            <option value={eventId}>(événement supprimé)</option>
+          ) : null}
+        </select>
+      ) : null}
 
       <select
         aria-label="Opérateur"
@@ -535,17 +566,18 @@ function ruleIsComplete(node: RuleNode): boolean {
   return node.rules.every(ruleIsComplete);
 }
 
-function summariseRule(node: RuleNode, depth = 0): string {
+function summariseRule(node: RuleNode, options: AchievementFormOptions, depth = 0): string {
   if (!isRuleGroup(node)) {
     const op = OPERATOR_LABELS[node.operator] ?? node.operator;
+    const label = factLabel(node.fact, options);
     if (node.operator === "between") {
-      return `${node.fact} ${op} ${node.value}–${node.value2 ?? node.value}`;
+      return `${label} ${op} ${node.value}–${node.value2 ?? node.value}`;
     }
-    return `${node.fact} ${op} ${node.value}`;
+    return `${label} ${op} ${node.value}`;
   }
   if (node.rules.length === 0) return "(vide)";
   const joiner = node.op === "all" ? " ET " : node.op === "any" ? " OU " : " NI ";
-  const inner = node.rules.map((r) => summariseRule(r, depth + 1)).join(joiner);
+  const inner = node.rules.map((r) => summariseRule(r, options, depth + 1)).join(joiner);
   const body = node.op === "none" ? `NON(${inner})` : inner;
   return depth === 0 ? body : `(${body})`;
 }

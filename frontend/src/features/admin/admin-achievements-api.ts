@@ -37,11 +37,13 @@ export type AchievementDefinition = {
 };
 
 export type AchievementFactOption = { key: string; label: string };
+export type AchievementEventOption = { id: string; title: string };
 
 export type AchievementFormOptions = {
   facts: AchievementFactOption[];
   operators: RuleOperator[];
   groupOps: RuleGroupOp[];
+  events: AchievementEventOption[];
 };
 
 export type AchievementDashboard = {
@@ -176,8 +178,15 @@ function parseOptions(v: unknown): AchievementFormOptions | null {
   );
   const operators = v.operators.filter((o): o is RuleOperator => typeof o === "string");
   const groupOps = v.groupOps.filter((o): o is RuleGroupOp => typeof o === "string");
+  const events =
+    "events" in v && Array.isArray(v.events)
+      ? v.events.filter(
+          (e): e is AchievementEventOption =>
+            typeof e === "object" && e !== null && "id" in e && typeof e.id === "string" && "title" in e && typeof e.title === "string",
+        )
+      : [];
 
-  return { facts, operators, groupOps };
+  return { facts, operators, groupOps, events };
 }
 
 function isRuleNode(v: unknown): v is RuleNode {
