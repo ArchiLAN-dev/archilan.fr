@@ -35,12 +35,12 @@ editor, honouring reduced-motion.
 - [x] **api/ tests:** `CommunityProfileCustomizationTest` covers set / clear / invalid.
 - [x] **frontend:** `avatar-frame.tsx` + `avatar-frame.module.css` + `avatar-frames.ts` (catalog); wired into
       `profile-avatar.tsx`, the editor, and the profile/API typing.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- The frame wraps the existing `ProfileAvatar` (30.2) — it composes around the avatar/initials fallback
+- The frame wraps the existing `ProfileAvatar` (30.2) - it composes around the avatar/initials fallback
   rather than replacing it.
 - `avatar_frame` is one more field on the customization aggregate, mutated only via `customize()` (AC-D5).
 
@@ -54,7 +54,7 @@ editor, honouring reduced-motion.
   particle/ember system, an SVG `feTurbulence` fire, and a Lottie pipeline (`lottie-react`) were each tried
   and removed. The final catalog is the clean CSS/SVG set above; `lottie-react` was dropped from
   `package.json`, and `fire-svg.tsx` / `lottie-frame.tsx` / `use-reduced-motion.ts` / the
-  `public/avatar-frames/` placeholder were removed in the trim (`f15e1fa`, `50e415b`) — so the net File List
+  `public/avatar-frames/` placeholder were removed in the trim (`f15e1fa`, `50e415b`) - so the net File List
   below reflects only what shipped.
 - No gating: any member can pick any frame (frames are cosmetic, not earned).
 

@@ -40,7 +40,7 @@ unlocked/locked surfacing on the profile. Deps: 30.1.
 - [x] **api/ tests:** unit (`RecomputeAchievementsTest`: catalog uniqueness, unlock + monotonic/idempotent,
       higher metrics unlock more) + functional (`CommunityAchievementsTest`: profile surfaces unlocked/locked).
 - [x] **frontend:** `Achievement` type + guard on the public read; Succès section on the profile page.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

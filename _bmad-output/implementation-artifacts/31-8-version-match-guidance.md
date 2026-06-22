@@ -118,7 +118,7 @@ claude-opus-4-8
 - Implemented on branch `feature/epic-31-story-8-version-match` (from develop).
 - Pinned dedicated single-row entity `ArchipelagoClientInfo` (GameSelection/Domain, id `default`) + repo interface + Doctrine impl + migration. Application `ArchipelagoClientQuery` (read) + `UpdateArchipelagoClient` (validates http(s) url). Public `GET /api/v1/archipelago-client`; admin `PUT /api/v1/admin/archipelago-client` (admin-gated via `ApiAccessGuard::requireAdmin`).
 - Per-game apworld version + download already in the `apworld` block (28.9); no backend change needed there.
-- Frontend: `archipelago-client-api.ts` (`getArchipelagoClient` + guard, `saveArchipelagoClient`); `VersionMatchCallout` on `/jeux/[slug]` (required apworld version + download — release else source — or "version non figée"; client version + download; "doit correspondre à la session" warning); page fetches the client server-side and passes it to `GameDetail`.
+- Frontend: `archipelago-client-api.ts` (`getArchipelagoClient` + guard, `saveArchipelagoClient`); `VersionMatchCallout` on `/jeux/[slug]` (required apworld version + download - release else source - or "version non figée"; client version + download; "doit correspondre à la session" warning); page fetches the client server-side and passes it to `GameDetail`.
 - Admin editing surfaced on `/admin/catalogue` via `ArchipelagoClientSettings` (no new nav entry).
 - Generic-guide rendering (AC3) deferred with story 31.3 (the guide does not exist yet); the client version is surfaced via the callout instead.
 - Gates green: php-cs-fixer 0, phpstan 0 (src+tests), DDD exit 0, phpunit 1272 (+5); FE typecheck/lint/build, jest 47.

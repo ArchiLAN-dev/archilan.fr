@@ -1,4 +1,4 @@
-# Story 30.31: Achievements — Recent on Profile + Full Catalogue Page
+# Story 30.31: Achievements - Recent on Profile + Full Catalogue Page
 
 ## Story
 
@@ -16,7 +16,7 @@ whole grid (unlocked first, then locked). There is **no** public catalogue page 
 `AdminAchievementController`). As the catalogue grows (see story 30.32 adding event achievements), the
 profile grid becomes unwieldy and the full list is shipped on every profile load.
 
-This story is **frontend + read-model only** — no rule-engine change. (Scope split from the original
+This story is **frontend + read-model only** - no rule-engine change. (Scope split from the original
 combined story; event-participation rules are story 30.32.)
 
 ## Status
@@ -37,8 +37,8 @@ unlocked/locked state (unlocked first, sorted by date; then locked), reusing the
 link to the profile. Empty state (no unlocked yet) and the monotonic-visibility rule (a deactivated
 definition is shown only if this player earned it) are handled by reusing `achievementsFor`.
 
-**AC3:** Each achievement on the catalogue page shows its **rarity** — « X % des joueurs l'ont » (or an
-absolute « N joueurs ») — computed from the global grant count over the listable-member base (reuse
+**AC3:** Each achievement on the catalogue page shows its **rarity** - « X % des joueurs l'ont » (or an
+absolute « N joueurs ») - computed from the global grant count over the listable-member base (reuse
 `AchievementGrantRepositoryInterface::countByUsers` style aggregation; one batch query, not per-card).
 
 **AC4 (payload split):** `CommunityProfileView::forSlug` stops shipping the full list: it returns only the
@@ -51,24 +51,24 @@ typecheck/lint/build/jest).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: API — `AchievementRarityQueryInterface` + `DbalAchievementRarityQuery`: one snapshot of
+- [x] Task 1: API - `AchievementRarityQueryInterface` + `DbalAchievementRarityQuery`: one snapshot of
   distinct holders per key (over listable members) + the member-base size, in one query pair.
-- [x] Task 2: API — `CommunityProfileView`: `forSlug` now returns the **recent unlocked slice** (limit 6,
+- [x] Task 2: API - `CommunityProfileView`: `forSlug` now returns the **recent unlocked slice** (limit 6,
   by unlock date) + `achievementStats {unlocked,total}`; new `achievementsCatalogFor(slug, viewerId)`
   returns the full list-with-state + rarity. Route `GET /community/profiles/{slug}/achievements` on
   `CommunityProfileController`.
-- [x] Task 3: API tests — `CommunityProfileAchievementsTest`: `forSlug` returns ≤6 recent unlocked
+- [x] Task 3: API tests - `CommunityProfileAchievementsTest`: `forSlug` returns ≤6 recent unlocked
   (ordered) + counts; catalogue returns the full list with rarity (count + percent) and 404 on unknown
   slug. Existing CommunityProfile suite (30) unaffected.
-- [x] Task 4: Frontend — `ProfileAchievements` → recent-only via shared `AchievementCard` + `X/Y` +
+- [x] Task 4: Frontend - `ProfileAchievements` → recent-only via shared `AchievementCard` + `X/Y` +
   « +N succès à débloquer » + « Voir tous les succès » link. `player-profile-api.ts` gains
   `achievementStats` + parse.
-- [x] Task 5: Frontend — route `/joueurs/[playerSlug]/succes` + `AchievementsCataloguePage` (identity
+- [x] Task 5: Frontend - route `/joueurs/[playerSlug]/succes` + `AchievementsCataloguePage` (identity
   header, full grid, rarity badge, back link); `getPlayerAchievements` api client (null on bad payload /
   network error).
-- [x] Task 6: Frontend tests (jest) — `achievementStats` parse + default, catalogue fetch success / null
+- [x] Task 6: Frontend tests (jest) - `achievementStats` parse + default, catalogue fetch success / null
   percent / bad payload / network error.
-- [x] Task 7: Quality gates — phpstan, php-cs-fixer, phpunit (CommunityProfile 30 + new 3), DDD;
+- [x] Task 7: Quality gates - phpstan, php-cs-fixer, phpunit (CommunityProfile 30 + new 3), DDD;
   frontend typecheck/lint/build/jest (143).
 
 ## Dev Notes
@@ -92,5 +92,5 @@ The profile only needs the recent slice + counts; the full list lives behind its
 
 ### Out of scope
 
-- Sorting/filtering controls on the catalogue page (by date/rarity/category) — future.
+- Sorting/filtering controls on the catalogue page (by date/rarity/category) - future.
 - Progress bars toward locked achievements (the engine exposes no partial progress today).

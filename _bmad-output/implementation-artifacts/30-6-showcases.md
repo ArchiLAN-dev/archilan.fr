@@ -31,7 +31,7 @@ so that I can highlight what I'm proud of. Deps: 30.3, 30.4.
 - [x] **frontend:** showcase manager (enable/reorder/remove) in the customization form; `ProfileShowcase`
       on the profile page renders widgets from existing data (favorites, achievements, best runs by checks,
       most-played by count); types/guards extended.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

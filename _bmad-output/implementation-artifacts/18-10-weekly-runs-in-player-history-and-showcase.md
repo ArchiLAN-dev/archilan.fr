@@ -5,7 +5,7 @@
 **As a** member who completes weekly runs,
 **I want** my completed weekly runs to appear in my run history and feed the profile showcase widgets
 ("Meilleures runs", "Les plus joués"),
-**So that** my public profile reflects all the Archipelago I played — consistently with the header stats.
+**So that** my public profile reflects all the Archipelago I played - consistently with the header stats.
 
 ## Context
 
@@ -40,12 +40,12 @@ typecheck/lint/build/jest).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: `DbalPlayerHistoryQuery` — add a `weekly_entries` path (completed only) joined to
+- [x] Task 1: `DbalPlayerHistoryQuery` - add a `weekly_entries` path (completed only) joined to
   `weekly_runs`/`weekly_templates`/`game`, returning the same row columns plus `is_weekly`.
-- [x] Task 2: `PlayerHistoryQuery` — map `isWeekly` into the history DTO.
-- [x] Task 3: Frontend — `RunHistoryEntry.isWeekly` + type guard; `RunHistoryRow` renders weekly rows
+- [x] Task 2: `PlayerHistoryQuery` - map `isWeekly` into the history DTO.
+- [x] Task 3: Frontend - `RunHistoryEntry.isWeekly` + type guard; `RunHistoryRow` renders weekly rows
   as a non-link; showcase (`bestRuns`/`mostPlayed`) is unchanged and now picks up weekly rows.
-- [x] Task 4: Tests — `PlayerProfileTest::testHistoryIncludesCompletedWeeklyRuns`; updated the
+- [x] Task 4: Tests - `PlayerProfileTest::testHistoryIncludesCompletedWeeklyRuns`; updated the
   `player-profile-api` jest fixture for the new field.
 - [x] Task 5: Quality gates.
 
@@ -59,17 +59,17 @@ results page, so weekly rows are rendered as plain (non-link) cards. `session_id
 
 ### Consistency with 18.9
 
-History weekly rows are gated on `goal_reached_at IS NOT NULL` — the same "completed only" rule used by
+History weekly rows are gated on `goal_reached_at IS NOT NULL` - the same "completed only" rule used by
 the stats queries in 18.9, so the showcase and the header agree.
 
 ## File List
 
-- `api/src/Identity/Infrastructure/DbalPlayerHistoryQuery.php` — modified
-- `api/src/Identity/Application/PlayerHistoryQuery.php` — modified
-- `frontend/src/features/players/player-profile-api.ts` — modified
-- `frontend/src/features/players/player-profile-page.tsx` — modified
-- `api/tests/Functional/PlayerProfileTest.php` — modified
-- `frontend/src/features/players/player-profile-api.test.ts` — modified
+- `api/src/Identity/Infrastructure/DbalPlayerHistoryQuery.php` - modified
+- `api/src/Identity/Application/PlayerHistoryQuery.php` - modified
+- `frontend/src/features/players/player-profile-api.ts` - modified
+- `frontend/src/features/players/player-profile-page.tsx` - modified
+- `api/tests/Functional/PlayerProfileTest.php` - modified
+- `frontend/src/features/players/player-profile-api.test.ts` - modified
 
 ## Change Log
 

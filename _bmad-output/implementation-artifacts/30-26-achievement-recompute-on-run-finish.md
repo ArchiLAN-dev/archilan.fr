@@ -8,11 +8,11 @@ Status: done
 
 As a player who just finished a run and reached my goal,
 I want my achievements to unlock automatically with a notification,
-so that I actually see "Première partie" / "Premier objectif" the moment I earn them — instead of nothing.
+so that I actually see "Première partie" / "Premier objectif" the moment I earn them - instead of nothing.
 
 ### Why this exists (root cause)
 
-Achievements are only ever evaluated by the manual `community:achievements:recompute` command — which is
+Achievements are only ever evaluated by the manual `community:achievements:recompute` command - which is
 **not in the scheduler** and grants **silently** (`notify: false`, to avoid spamming during bulk backfill).
 There is **no automatic recompute** when a run finishes or stats change. Observed: a player reached their
 goal, but `first_run` / `first_goal` were granted only after someone ran the command by hand, and with no
@@ -37,7 +37,7 @@ achievements without ever being told.
    **Community/Infrastructure** adapter that dispatches the Community recompute message. (Consumer defines
    the interface; provider implements it.)
 5. **Scheduler backstop.** A daily scheduled job recomputes all users (`notify: false`) so any unlock
-   missed by the real-time path (e.g. a lost archive callback) is still caught — without notification
+   missed by the real-time path (e.g. a lost archive callback) is still caught - without notification
    spam. Reuses the existing all-users recompute logic.
 6. **No double notification.** Because grants are monotonic and the handler is idempotent, a user who
    already has an achievement gets neither a new grant nor a new notification on subsequent recomputes.
@@ -60,7 +60,7 @@ achievements without ever being told.
       to `src/Schedule.php`.
 - [ ] **Wiring**: `services.yaml` binds `AchievementRecomputeTriggerInterface` →
       `MessengerAchievementRecomputeTrigger`; `messenger.yaml` routes both new messages to `async`.
-- [ ] **Tests**: functional — archiving a session with a goal-reached slot dispatches a recompute message
+- [ ] **Tests**: functional - archiving a session with a goal-reached slot dispatches a recompute message
       and (when handled) grants + notifies `first_run`/`first_goal`; re-archive does not double-notify; the
       backstop handler grants silently. Unit where useful (trigger dispatches per user).
 
@@ -71,7 +71,7 @@ achievements without ever being told.
 - **Engine**: `RecomputeAchievements::recomputeForUser($userId, $notify)` already does exactly the right
   thing (build MetricBag → evaluate active DB definitions → persist new grants → notify). Just call it with
   `notify: true` per participant. [Source: api/src/Community/Application/RecomputeAchievements.php]
-- **Participant resolution**: mirror the leaderboard union — event = `registration.user_id`, PR =
+- **Participant resolution**: mirror the leaderboard union - event = `registration.user_id`, PR =
   `slot.registration_id`. `SessionLifecycleManager` already injects `RegistrationRepositoryInterface` and
   has the matched `SessionSlot`s in hand. [Source: api/src/Sessions/Infrastructure/DbalLeaderboardQuery.php]
 - **Cross-context precedent**: `SessionLifecycleManager` already orchestrates across Events/Identity/
@@ -107,7 +107,7 @@ claude-opus-4-8
   03:45 in `src/Schedule.php`, so a missed real-time recompute is still caught silently.
 - DI: new required `AchievementRecomputeTriggerInterface` arg on `SessionLifecycleManager` placed before the
   bound `$runnerPublicHost` (avoids "optional before required"); container lints clean.
-- No frontend change — unlock notifications already render in the existing notification centre.
+- No frontend change - unlock notifications already render in the existing notification centre.
 - Gates: phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, `lint:container` ✅, phpunit
   (AdminRunArchival incl. new recompute-dispatch test + achievement/lifecycle suites, 92 green) ✅.
 

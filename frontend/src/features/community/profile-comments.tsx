@@ -56,7 +56,7 @@ export function ProfileComments({ slug }: { slug: string }) {
       setBody("");
       await reload();
     } else if (result === "rate_limited") {
-      setError("Trop de commentaires d'affilée — réessaie dans une minute.");
+      setError("Trop de commentaires d'affilée - réessaie dans une minute.");
     } else if (result === "forbidden") {
       setError("Tu dois être adhérent pour commenter ce profil.");
     } else {

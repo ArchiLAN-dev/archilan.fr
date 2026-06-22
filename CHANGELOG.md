@@ -21,7 +21,7 @@ Hotfix : lot de correctifs remontés après la v0.5.0.
 - **Dashboard admin** : la carte « Actualités » n'est plus marquée « Bientôt »
   (la fonctionnalité est en place).
 - **Éditeur YAML** : les options pondérées à valeurs multiples s'affichent
-  correctement au rechargement — une valeur par défaut supprimée ne réapparaît
+  correctement au rechargement - une valeur par défaut supprimée ne réapparaît
   plus à 0 % et les valeurs personnalisées créées sont conservées.
 - **Écran de victoire** : la fanfare est de nouveau jouée lorsque l'objectif est
   atteint via l'événement Archipelago (et pas seulement au déclenchement manuel).
@@ -75,7 +75,7 @@ et durcissement de la sécurité des dépendances.
 ### Sécurité
 
 - Mise à jour des dépendances vulnérables (symfony 7.4.12/7.4.13, guzzle 7.12.1,
-  guzzle/psr7, jmespath…) — `composer audit` ne remonte plus aucune alerte.
+  guzzle/psr7, jmespath…) - `composer audit` ne remonte plus aucune alerte.
 
 ### Corrigé
 

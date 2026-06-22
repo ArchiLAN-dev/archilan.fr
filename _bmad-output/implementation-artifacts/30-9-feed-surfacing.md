@@ -37,7 +37,7 @@ paginated.
 - [x] **frontend:** `community-feed-api.ts` (typed items + guards); `community-activity.tsx`
       (`ProfileActivity` + `CommunityFeedPanel` + shared row); profile "Activité récente" section + the
       `/compte` "Activité" tab.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

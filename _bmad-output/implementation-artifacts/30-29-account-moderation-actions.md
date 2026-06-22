@@ -8,31 +8,31 @@ Status: done
 
 As an admin moderator reviewing a flagged account,
 I want to warn, temporarily suspend, or permanently ban the member (with a recorded reason),
-so that I can actually act on a problematic account — not just hide individual pieces of content.
+so that I can actually act on a problematic account - not just hide individual pieces of content.
 
 Builds directly on the weighted moderation queue (story 30.28).
 
 ### Why this exists (root cause)
 
-Moderation today can only **soft-hide a comment** and **resolve a report** — there is **no way to act on
+Moderation today can only **soft-hide a comment** and **resolve a report** - there is **no way to act on
 the account itself**. `Identity\User` has only `deletedAt` (account deletion / GDPR), with **no suspension
 or ban state**, and nothing in the auth path blocks a bad actor from logging back in. Discord decision
 (MasterKafey/Maxime, 2026‑06‑19): once an account crosses the review threshold, "on check perso et on
-kick/ban ou on entre en communication avec le joueur en demandant de modifier l'info sensible" — i.e. three
+kick/ban ou on entre en communication avec le joueur en demandant de modifier l'info sensible" - i.e. three
 graduated actions (contact/warn, suspend, ban) with a trace of who did what and why.
 
 ## Acceptance Criteria
 
 1. **Three graduated actions from the queue.** From `/admin/moderation` (admin-only), a moderator can, on a
-   flagged account: **(a) Warn** — send the member a message asking to fix the sensitive info; **(b)
-   Suspend** — block access until a chosen date; **(c) Ban** — block access permanently. Each action
+   flagged account: **(a) Warn** - send the member a message asking to fix the sensitive info; **(b)
+   Suspend** - block access until a chosen date; **(c) Ban** - block access permanently. Each action
    requires a `reason` and optionally references the triggering report(s).
 2. **Identity moderation state (cross-context).** `Identity\User` gains a moderation state
    (`suspendedUntil` datetime|null and `bannedAt` datetime|null, with a recorded reason), changed only
-   through named domain methods (`suspendUntil()`, `ban()`, `lift()` — no public setters, AC-D5). Migration
+   through named domain methods (`suspendUntil()`, `ban()`, `lift()` - no public setters, AC-D5). Migration
    adds the columns (+ `down()`). The Community moderation service calls **into Identity** through a
    consumer-defined interface (`MemberModerationGatewayInterface` defined in Community/Application,
-   implemented by an Identity adapter) — Community never touches Identity internals directly.
+   implemented by an Identity adapter) - Community never touches Identity internals directly.
 3. **Enforcement at auth.** A suspended (until future) or banned user is **rejected on login** and their
    existing session/JWT is rejected (auth guard checks the moderation state), with a clear error
    distinguishing suspended-until-date vs banned. A banned/suspended member's **public profile is hidden**
@@ -72,7 +72,7 @@ graduated actions (contact/warn, suspend, ban) with a trace of who did what and 
 
 ## Dev Notes
 
-- **No existing ban/suspend** anywhere in Identity — only `deletedAt` (soft delete). Introduce the
+- **No existing ban/suspend** anywhere in Identity - only `deletedAt` (soft delete). Introduce the
   moderation state; do **not** overload `deletedAt`. [Source: api/src/Identity/Domain/User.php]
 - **Auth chokepoint**: `AuthenticateUser::authenticate` (login) and `::findUserById` (token/session via
   `CurrentUserProvider`) both already gate on `isDeleted()`; add the block check there. `findUserById`
@@ -80,13 +80,13 @@ graduated actions (contact/warn, suspend, ban) with a trace of who did what and 
   [Source: api/src/Identity/Application/AuthenticateUser.php, api/src/Identity/Application/CurrentUserProvider.php,
   api/src/Shared/Infrastructure/Http/ApiAccessGuard.php]
 - **Cross-context precedent**: story 30.26 wired Sessions→Community via a consumer-defined interface +
-  provider adapter. Mirror it: Community defines `MemberModerationGatewayInterface`, Identity implements —
+  provider adapter. Mirror it: Community defines `MemberModerationGatewayInterface`, Identity implements -
   keeps Community free of Identity internals. [Source: api/src/Sessions/Application/AchievementRecomputeTriggerInterface.php]
 - **Notifications**: warn uses the existing `Notifier` (story 30.12), post-commit (AC-A4). A banned/suspended
   member can't log in, so suspend/ban are surfaced at login, not in-app. [Source: api/src/Community/Application/Notifier.php]
 - **Access control**: admin-only actions → `ROLE_ADMIN` gating is correct (admin tooling). The member's
-  blocked state is the live enforced signal — never `ROLE_*`. [Source: api/CLAUDE.md#membership-access-control]
-- **Audit**: `ModerationAction` is append-only — the trace Maxime asked for. One row per action incl. `lift`.
+  blocked state is the live enforced signal - never `ROLE_*`. [Source: api/CLAUDE.md#membership-access-control]
+- **Audit**: `ModerationAction` is append-only - the trace Maxime asked for. One row per action incl. `lift`.
 - **Depends on**: story 30.28 (the weighted queue surfaces which accounts to act on); the action endpoints
   don't need the weighting, but the FE entry point lives in the same queue.
 
@@ -107,7 +107,7 @@ claude-opus-4-8
 
 - **Identity moderation state.** `User` gains `suspendedUntil` / `bannedAt` / `moderationReason`, mutated
   only via `suspendUntil()` / `ban()` / `lift()` (each clears the other state); `isAccessBlocked(now)` +
-  `moderationStatus(now)` are pure (suspension auto-expires once the date passes — no cron). Migration adds
+  `moderationStatus(now)` are pure (suspension auto-expires once the date passes - no cron). Migration adds
   the columns.
 - **Auth enforcement at the chokepoint.** `AuthenticateUser::findUserById` now rejects blocked users → a
   suspend/ban logs them out of **every** session/token-backed request immediately via `ApiAccessGuard`. The
@@ -116,11 +116,11 @@ claude-opus-4-8
   (`DbalCommunityProfileQuery::forSlug`) hides blocked members (404).
 - **Cross-context boundary (consumer-defined).** `MemberModerationGatewayInterface` lives in
   Community/Application; the `IdentityMemberModerationGateway` adapter (Identity/Infrastructure) implements it
-  and mutates the `User` — Community never touches Identity internals. Mirrors 30.26, inverted; the DDD gate
+  and mutates the `User` - Community never touches Identity internals. Mirrors 30.26, inverted; the DDD gate
   is green.
 - **Actions + audit + auto-resolve.** `AccountModerationService` (`warn`/`suspend`/`ban`/`lift`): suspend/ban
   go through the gateway, then append an append-only `ModerationAction` row and **auto-resolve** the
-  account's open profile reports (so it leaves the "à examiner" list — AC-6); warn only notifies the member
+  account's open profile reports (so it leaves the "à examiner" list - AC-6); warn only notifies the member
   (`TYPE_MODERATION_WARNING`, the only action that reaches a non-blocked member in-app) and logs, no
   auto-resolve. Admin endpoints under `/admin/community/accounts/{userId}/{warn|suspend|ban|lift|actions}`.
 - **Frontend.** The "à examiner" rows gain warn/suspend/ban/lift controls (reason, + date for suspend) and a
@@ -129,7 +129,7 @@ claude-opus-4-8
 - **Stacking note.** Branched from the 30.28 branch (not yet merged) because the FE actions attach to 30.28's
   flagged list; PR targets the 30.28 branch and should merge after it.
 - **Gates:** phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, `lint:container` ✅, phpunit
-  (new `AccountModerationTest` 7 + `UserModerationTest` 5 + 258 auth/community/moderation suites — local run
+  (new `AccountModerationTest` 7 + `UserModerationTest` 5 + 258 auth/community/moderation suites - local run
   needs the shared test-DB reset, known flake, CI authoritative) ✅; FE typecheck ✅, lint ✅, build ✅, jest
   (`account-moderation-api`) ✅.
 
@@ -138,19 +138,19 @@ claude-opus-4-8
 - api/src/Identity/Domain/User.php (moderation state + methods)
 - api/src/Identity/Application/AuthenticateUser.php (block check on token/session resolution)
 - api/src/Identity/Presentation/AuthController.php (distinct blocked login 403)
-- api/src/Identity/Infrastructure/IdentityMemberModerationGateway.php (new — gateway adapter)
-- api/migrations/Version20260619140000.php (new — user moderation columns)
+- api/src/Identity/Infrastructure/IdentityMemberModerationGateway.php (new - gateway adapter)
+- api/migrations/Version20260619140000.php (new - user moderation columns)
 - api/src/Community/Application/MemberModerationGatewayInterface.php (new)
 - api/src/Community/Application/AccountModerationService.php (new)
-- api/src/Community/Domain/ModerationAction.php (new — audit entity)
+- api/src/Community/Domain/ModerationAction.php (new - audit entity)
 - api/src/Community/Domain/ModerationActionRepositoryInterface.php (new)
 - api/src/Community/Infrastructure/DoctrineModerationActionRepository.php (new)
-- api/migrations/Version20260619140100.php (new — audit table)
+- api/migrations/Version20260619140100.php (new - audit table)
 - api/src/Community/Domain/Notification.php (TYPE_MODERATION_WARNING)
 - api/src/Community/Domain/ContentReportRepositoryInterface.php (pendingForProfileTarget)
 - api/src/Community/Infrastructure/DoctrineContentReportRepository.php (pendingForProfileTarget)
 - api/src/Community/Infrastructure/DbalCommunityProfileQuery.php (hide blocked profile)
-- api/src/Community/Presentation/AccountModerationController.php (new — admin endpoints)
+- api/src/Community/Presentation/AccountModerationController.php (new - admin endpoints)
 - api/config/services.yaml (gateway + audit repo aliases)
 - api/tests/Functional/AccountModerationTest.php (new)
 - api/tests/Unit/Identity/UserModerationTest.php (new)

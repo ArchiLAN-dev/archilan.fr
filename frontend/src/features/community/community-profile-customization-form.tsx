@@ -434,7 +434,7 @@ export function CommunityProfileCustomizationForm() {
             })}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">Aucun bloc — ajoutes-en pour mettre ton profil en avant.</p>
+          <p className="text-xs text-muted-foreground">Aucun bloc - ajoutes-en pour mettre ton profil en avant.</p>
         )}
         {SHOWCASE_WIDGETS.some((w) => !showcase.includes(w)) ? (
           <select
@@ -698,7 +698,7 @@ function FavoritesEditor({
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-muted-foreground">Aucun jeu choisi — ajoute tes jeux favoris ci-dessous.</p>
+        <p className="text-xs text-muted-foreground">Aucun jeu choisi - ajoute tes jeux favoris ci-dessous.</p>
       )}
       {favorites.length < MAX_FAVORITES ? (
         <FavoriteGamePicker

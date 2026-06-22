@@ -133,7 +133,7 @@ export function AccountModerationControls({
                 <li className="flex items-baseline justify-between gap-2" key={entry.id}>
                   <span>
                     <strong className="text-foreground">{ACTION_LABELS[entry.action] ?? entry.action}</strong>
-                    {entry.reason ? <span className="text-muted-foreground"> — {entry.reason}</span> : null}
+                    {entry.reason ? <span className="text-muted-foreground"> - {entry.reason}</span> : null}
                   </span>
                   <time className="shrink-0 text-muted-foreground" dateTime={entry.createdAt}>
                     {new Date(entry.createdAt).toLocaleDateString("fr-FR")}

@@ -15,7 +15,7 @@ self-kudos guard, and counts + viewer-state surfaced on the profile achievements
 
 1. `Kudos` aggregate: one reaction per `(actor_id, target_type, target_id)` (unique), `target_type ∈
    {run, achievement}` (run = an activity-feed run entry; achievement = an achievement grant). Toggling is
-   idempotent — a second toggle removes it.
+   idempotent - a second toggle removes it.
 2. A member **cannot** kudos their own run/achievement (server-enforced); the early-click toggle is guarded
    so a click before the viewer's given-state has loaded can't desync the count (review fix).
 3. Endpoints (member-gated): toggle (`{targetType, targetId}` → `{given, count}`), and a batch state query
@@ -39,7 +39,7 @@ self-kudos guard, and counts + viewer-state surfaced on the profile achievements
       viewers, invalid target).
 - [x] **frontend:** `community-kudos-api.ts` + `kudos-button.tsx`; integrated into `profile-achievements.tsx`
       and the run feed (`community-activity.tsx` / `community-feed-api.ts`); profile + feed wiring.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
@@ -56,7 +56,7 @@ self-kudos guard, and counts + viewer-state surfaced on the profile achievements
   off a kudos that was already given (review #).
 
 ### Scope boundaries / deviations
-- No notification on receiving kudos yet — that lands with the notification center (30.12).
+- No notification on receiving kudos yet - that lands with the notification center (30.12).
 - Only two target types (run, achievement); comments/profiles are not kudos-able.
 
 ### Project Structure Notes

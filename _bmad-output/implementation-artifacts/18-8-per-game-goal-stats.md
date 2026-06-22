@@ -8,12 +8,12 @@ Status: done
 
 As a player who reached the goal in several games of one multiworld run,
 I want each game goal to count,
-so that my profile shows "2 objectifs" when I beat 2 games — not "1" because they were in the same session.
+so that my profile shows "2 objectifs" when I beat 2 games - not "1" because they were in the same session.
 
 ### Why this exists (root cause)
 
 `DbalPlayerStatsQuery::computeForUser` counts `goal_completions` as
-`COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END)` — i.e. **distinct sessions**
+`COUNT(DISTINCT CASE WHEN slot.goal_reached_at IS NOT NULL THEN s.id END)` - i.e. **distinct sessions**
 with at least one goal-reached slot. A player with two goal-reached slots in one session counts as **1**.
 But the achievement wording ("Atteindre 10 objectifs") and the leaderboard treat a goal as **per game/slot**.
 Observed: a player beat 2 games in one personal run; profile showed 1 objectif (DB: goals_per_session=1,
@@ -34,7 +34,7 @@ once goals go per-game (2/1 = 200%).
    regardless of goal).
 4. **Consistency.** `runs_participated` stays per-session; checks/items keep the existing
    `was_released && no-goal` exclusion. The achievement metric `goals` (FACT_GOALS) now reflects per-game
-   goals (monotonic — no un-grant).
+   goals (monotonic - no un-grant).
 5. **Both profile surfaces.** The rate is recomputed in `PlayerProfileQuery` and `DbalCommunityProfileQuery`
    using `games_played`. `/players/{slug}` and `/joueurs/{slug}` both show the corrected values.
 6. **Gates green:** backend (php-cs-fixer, phpstan max, phpunit 0 notices, `app:architecture:ddd`); no FE
@@ -44,20 +44,20 @@ once goals go per-game (2/1 = 200%).
 
 - [ ] **api/ DbalPlayerStatsQuery**: change `goal_completions` to count goal-reached slots in both branches;
       add `games_played` (count of the player's slots). Personal-run branch: replace the slot-level
-      `goal_reached_at IS NOT NULL` filter (17.15) with a session-level gate — `s.id IN (SELECT
+      `goal_reached_at IS NOT NULL` filter (17.15) with a session-level gate - `s.id IN (SELECT
       slot2.session_id FROM session_slot slot2 WHERE slot2.registration_id = :userId AND
       slot2.goal_reached_at IS NOT NULL)`. Extend the return-type shape with `games_played`.
 - [ ] **PlayerStatsQueryInterface**: add `games_played: int` to the `@return` shape.
 - [ ] **PlayerProfileQuery + DbalCommunityProfileQuery**: `goalCompletionRate = gamesPlayed > 0 ?
       min(1, goalCompletions / gamesPlayed) : 0`.
-- [ ] **Tests**: functional — a session with one user holding two goal-reached slots yields
+- [ ] **Tests**: functional - a session with one user holding two goal-reached slots yields
       `goalCompletions = 2`, `gamesPlayed = 2`, rate `1.0`; a run with one goal + one non-goal slot yields
       goals 1 / games 2 / rate 0.5; a run with no goal does not count (PR gating). Update existing
       PlayerProfile/CommunityProfile/RecomputeAchievements assertions for the new semantics.
 
 ## Dev Notes
 
-- **Source**: [Source: api/src/Identity/Infrastructure/DbalPlayerStatsQuery.php] — two branches (event via
+- **Source**: [Source: api/src/Identity/Infrastructure/DbalPlayerStatsQuery.php] - two branches (event via
   `registration.user_id`; personal run via `slot.registration_id`), merged additively.
 - **17.15 interaction**: develop already has the slot-level `goal_reached_at IS NOT NULL` gate on the PR
   branch (#182). This story replaces it with session-level gating so `games_played` is correct. [Source: _bmad-output/implementation-artifacts/17-15-owner-finish-personal-run.md]
@@ -85,7 +85,7 @@ claude-opus-4-8
   …)`) so the other games of a counted run still feed games_played/checks/items.
 - Verified against prod-local data for the reporting user: runs=1, games_played=2, goals=2, rate=100%.
 - Tests: renamed the old `…CountAsOneGoalCompletion` test to per-game (now asserts 2); updated the
-  invalidated-slot rate test (now 100% — the invalidated game is excluded from games_played, matching the
+  invalidated-slot rate test (now 100% - the invalidated game is excluded from games_played, matching the
   test's intent); added a mixed goal/non-goal case (rate 0.5). No FE change.
 - Gates: phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, PlayerProfileTest 7/70 +
   CommunityProfile/RecomputeAchievements/AchievementSeedParity 12/93 ✅. (Full-suite run hit the known

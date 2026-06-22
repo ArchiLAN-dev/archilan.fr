@@ -19,21 +19,21 @@ Extends the report model (story 30.10) and the admin moderation queue (story 30.
 ### Why this exists (root cause)
 
 A `ContentReport` today carries only a free `reason` string, and there is **no user-facing endpoint to
-report a profile** — only comments can be reported (`ProfileCommentService::report`), even though the data
+report a profile** - only comments can be reported (`ProfileCommentService::report`), even though the data
 model already defines `TARGET_PROFILE` and the admin queue already renders profile targets. The queue lists
-reports flat, newest-first, with **no severity, no per-account aggregation, no threshold** — so a single
+reports flat, newest-first, with **no severity, no per-account aggregation, no threshold** - so a single
 malicious reporter or a flood of "I just don't like this" reports looks the same as a genuine
 nudity/violence case. Discord decision (MasterKafey/Maxime, 2026‑06‑19): a report needs **Type** (photo,
 bio, autre…) + **Contenu problématique** (nudité, violence…) + optional comment; surface the most
 problematic first; the "Autre / Autre / sans commentaire" combination goes to a separate low-priority
-bucket that is **not** notified; and an account is only escalated after **multiple** reports — weighted by
+bucket that is **not** notified; and an account is only escalated after **multiple** reports - weighted by
 severity (PO decision: gravity-weighted, not a flat count).
 
 ## Acceptance Criteria
 
 1. **Report a profile (self-excluded, idempotent).** `POST /api/v1/community/profiles/{slug}/report`,
    gated by `ApiAccessGuard::requireUser`, rejects reporting your own profile (`forbidden`), and is
-   idempotent per `(reporter, TARGET_PROFILE, profileUserId)` — re-reporting is a no-op `ok` (mirrors the
+   idempotent per `(reporter, TARGET_PROFILE, profileUserId)` - re-reporting is a no-op `ok` (mirrors the
    comment-report idempotency + unique constraint).
 2. **Structured report payload.** A report carries `category` (whitelisted: `avatar`, `display_name`,
    `bio`, `social_link`, `comment`, `other`), `problem` (whitelisted: `nudity`, `violence`, `hate`,
@@ -51,7 +51,7 @@ severity (PO decision: gravity-weighted, not a flat count).
    viewed account-first, ordered by `weightedScore` desc.
 5. **Threshold escalation + admin notification.** A configurable threshold (bound param, e.g.
    `community.moderation.escalation_threshold`) flags an account as **"à examiner"** once its
-   `weightedScore` crosses it. Crossing the threshold notifies admins **once** (per account, debounced —
+   `weightedScore` crosses it. Crossing the threshold notifies admins **once** (per account, debounced -
    not per report) via the existing `Notifier`; the uncategorized bucket never triggers this.
 6. **Queue UX preserved + extended.** The existing report list (resolve / hide / restore) keeps working;
    the admin `/admin/moderation` page gains the account-first, severity-sorted view + the "à examiner"
@@ -77,7 +77,7 @@ severity (PO decision: gravity-weighted, not a flat count).
       `category`/`problem`/`comment`/severity fields, and support the account-first ordering + uncategorized
       filter. Add `ReportQueryFilters` options (problem, category, uncategorized-only, account-first).
 - [ ] **api/ escalation + notify**: compute the threshold crossing post-commit; emit one admin notification
-      per account via `Notifier` (debounced — only on the transition below→above). Bind
+      per account via `Notifier` (debounced - only on the transition below→above). Bind
       `community.moderation.escalation_threshold` in `services.yaml`.
 - [ ] **frontend**: report dialog on the public profile (`/joueurs/[slug]`) with Type + Contenu
       problématique selects + optional comment; `/admin/moderation` account-first view (weighted score
@@ -90,10 +90,10 @@ severity (PO decision: gravity-weighted, not a flat count).
 ## Dev Notes
 
 - **Existing model is half-there**: `ContentReport` already supports `TARGET_PROFILE` and the admin queue
-  + filters already branch on it — only the *user-facing profile report endpoint* and the *structured
+  + filters already branch on it - only the *user-facing profile report endpoint* and the *structured
   fields* are missing. Don't rebuild the queue; extend it. [Source: api/src/Community/Domain/ContentReport.php,
   api/src/Community/Application/ModerationService.php, api/src/Community/Application/ReportQueryFilters.php]
-- **Idempotency precedent**: copy `ProfileCommentService::report` — check `reports->exists(...)`, catch
+- **Idempotency precedent**: copy `ProfileCommentService::report` - check `reports->exists(...)`, catch
   `UniqueConstraintViolationException` for the concurrent dup. Unique key is
   `(reporter_id, target_type, target_id)`. [Source: api/src/Community/Application/ProfileCommentService.php]
 - **Reported account resolution**: for `TARGET_PROFILE` the account = `target_id`; for `TARGET_COMMENT` the
@@ -101,7 +101,7 @@ severity (PO decision: gravity-weighted, not a flat count).
   so a member spammed via comments also escalates. [Source: api/src/Community/Application/ModerationService.php]
 - **Notifications post-commit**: reuse the `Notifier` port (story 30.12), emitted **after** the DB commit
   (AC-A4); debounce on the below→above transition so admins aren't spammed per report. Define an admin
-  recipient set (ROLE_ADMIN is acceptable here — display/notification routing, not access control, so AC-M
+  recipient set (ROLE_ADMIN is acceptable here - display/notification routing, not access control, so AC-M
   doesn't apply). [Source: api/src/Community/Application/Notifier.php]
 - **Severity map** lives in Domain (pure, no config read); the *threshold* is an injected param (Application
   boundary) so ops can tune it without a deploy-time domain change.
@@ -146,13 +146,13 @@ claude-opus-4-8
   (`MODERATION_ESCALATION_THRESHOLD`, default 10).
 - **Scoping decision (documented).** Account escalation aggregates **profile-target** reports per reported
   user; comment reports stay content-level (hide/restore) with their severity shown but do **not** roll into
-  account escalation — matches the "modérer les profils" intent and keeps the aggregation query simple.
+  account escalation - matches the "modérer les profils" intent and keeps the aggregation query simple.
 - **Frontend.** Public profile gets a "Signaler" button + `ProfileReportDialog` (Type + Contenu
   problématique + optional comment). `/admin/moderation` gains the "à examiner" section, severity chips,
   category/problem labels + the reporter's note, a problem filter, an "uncategorized only" toggle and a
   severity-first default sort.
 - **Gates:** phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, `lint:container` ✅, phpunit
-  (new `CommunityProfileReportTest` 6 tests + 176 community/moderation suites green — full local run needs
+  (new `CommunityProfileReportTest` 6 tests + 176 community/moderation suites green - full local run needs
   the shared test-DB reset due to the known schema-contention flake, CI authoritative) ✅; FE typecheck ✅,
   lint ✅, build ✅, jest (`community-report-api`, `admin-moderation-api`) ✅.
 
@@ -163,7 +163,7 @@ claude-opus-4-8
 - api/src/Community/Domain/ReportSeverity.php (new)
 - api/src/Community/Domain/ContentReport.php (category/problem/comment + severity/uncategorized helpers)
 - api/src/Community/Domain/Notification.php (TYPE_ACCOUNT_FLAGGED)
-- api/migrations/Version20260619130000.php (new — columns + backfill)
+- api/migrations/Version20260619130000.php (new - columns + backfill)
 - api/src/Community/Application/AccountReportScoreQueryInterface.php (new)
 - api/src/Community/Application/CommunityAdminIdsQueryInterface.php (new)
 - api/src/Community/Application/EvaluateAccountEscalation.php (new)
