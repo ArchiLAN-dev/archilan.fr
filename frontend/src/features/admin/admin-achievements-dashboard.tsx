@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
 
 import {
   createAchievement,
@@ -11,6 +11,7 @@ import {
   reorderAchievements,
   setAchievementActive,
   updateAchievement,
+  uploadAchievementImage,
   type AchievementDefinition,
   type AchievementFormOptions,
   type RuleCondition,
@@ -233,6 +234,10 @@ function AchievementForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [rule, setRule] = useState<RuleGroup>(initial?.rule ?? newGroup(options));
+  const [imageKey, setImageKey] = useState<string | null>(initial?.customImageKey ?? null);
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.customImageUrl ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -241,12 +246,25 @@ function AchievementForm({
   const keyDuplicate = !isEdit && existingKeys.includes(key);
   const canSubmit = keyValid && !keyDuplicate && name.trim() !== "" && ruleIsComplete(rule) && !saving;
 
+  async function handlePickImage(file: File): Promise<void> {
+    setUploadingImage(true);
+    setImageError(null);
+    const result = await uploadAchievementImage(file);
+    setUploadingImage(false);
+    if (result === null) {
+      setImageError("L'upload a échoué (JPEG, PNG ou WebP, 5 Mo max).");
+      return;
+    }
+    setImageKey(result.key);
+    setImageUrl(result.imageUrl);
+  }
+
   async function submit(): Promise<void> {
     setSaving(true);
     setError(null);
     const result = isEdit
-      ? await updateAchievement(initial.id, { name: name.trim(), description: description.trim(), rule })
-      : await createAchievement({ key, name: name.trim(), description: description.trim(), rule });
+      ? await updateAchievement(initial.id, { name: name.trim(), description: description.trim(), rule, customImageKey: imageKey })
+      : await createAchievement({ key, name: name.trim(), description: description.trim(), rule, customImageKey: imageKey });
     setSaving(false);
     if (!result.ok) {
       setError(result.error);
@@ -298,6 +316,50 @@ function AchievementForm({
             placeholder="Ce que le joueur doit accomplir."
             value={description}
           />
+        </Field>
+
+        <Field label="Image (optionnel, remplace le trophée)">
+          <div className="flex flex-wrap items-center gap-3">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- remote presigned image, not a local asset
+              <img alt="" className="size-12 rounded-lg border border-border object-cover" src={imageUrl} />
+            ) : (
+              <span className="flex size-12 items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
+                <ImageIcon aria-hidden className="size-5" />
+              </span>
+            )}
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground">
+              {uploadingImage ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : (
+                <Upload aria-hidden className="size-4" />
+              )}
+              {imageUrl ? "Remplacer" : "Choisir une image"}
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handlePickImage(file);
+                  e.target.value = "";
+                }}
+                type="file"
+              />
+            </label>
+            {imageUrl ? (
+              <button
+                className="text-sm text-muted-foreground transition-colors hover:text-red-400"
+                onClick={() => {
+                  setImageKey(null);
+                  setImageUrl(null);
+                }}
+                type="button"
+              >
+                Retirer
+              </button>
+            ) : null}
+          </div>
+          {imageError ? <span className="text-xs text-red-400">{imageError}</span> : null}
         </Field>
 
         <div className="grid gap-2">

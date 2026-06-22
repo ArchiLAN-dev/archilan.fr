@@ -38,6 +38,8 @@ export type Achievement = {
   unlockedAt: string | null;
   grantId: string | null;
   kudosCount: number;
+  /** Optional custom image (presigned) shown in place of the default trophy (story 30.33). */
+  customImageUrl: string | null;
 };
 
 /** Unlocked / total achievement counts shown on the profile card alongside the recent unlocks. */
@@ -175,7 +177,9 @@ function isAchievement(v: unknown): v is Achievement {
     hasBooleanProp(v, "unlocked") &&
     hasNullableStringProp(v, "unlockedAt") &&
     hasNullableStringProp(v, "grantId") &&
-    hasNumberProp(v, "kudosCount")
+    hasNumberProp(v, "kudosCount") &&
+    // Lenient: tolerate a payload without the field (transient on deploy); default to no image.
+    (!("customImageUrl" in v) || v.customImageUrl === null || typeof v.customImageUrl === "string")
   );
 }
 
