@@ -17,12 +17,12 @@ export function eventScopedFact(eventId: string): string {
   return eventId === "" ? EVENTS_FACT : EVENT_GOAL_PREFIX + eventId;
 }
 
-/** Human label for a fact in a rule summary — resolves a scoped event fact to its event title. */
+/** Human label for a fact in a rule summary - resolves a scoped event fact to its event title. */
 export function factLabel(fact: string, options: AchievementFormOptions): string {
   const eventId = eventIdOfFact(fact);
   if (eventId !== null) {
     const event = options.events.find((e) => e.id === eventId);
-    return `Objectif — ${event ? event.title : "événement supprimé"}`;
+    return `Objectif - ${event ? event.title : "événement supprimé"}`;
   }
   return options.facts.find((f) => f.key === fact)?.label ?? fact;
 }
