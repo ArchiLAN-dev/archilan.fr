@@ -35,7 +35,7 @@ export function PlayerProfilePage({
         {/* z-10 keeps the overlapping content above the positioned banner. */}
         <div className="relative z-10 grid gap-5 px-5 pb-6 sm:px-8">
           {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
-              badges sit just below the name and beside the avatar — pulled up so they aren't below the photo. */}
+              badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
               <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
@@ -66,7 +66,7 @@ export function PlayerProfilePage({
             </div>
           </div>
 
-          {/* Details sit on the surface below — readable, off the bright banner. */}
+          {/* Details sit on the surface below - readable, off the bright banner. */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="grid gap-2">
               {profile.customization?.tagline ? (

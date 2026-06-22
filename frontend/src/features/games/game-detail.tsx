@@ -217,11 +217,11 @@ function VersionMatchCallout({
         {hasApworldInfo ? (
           <VersionRow label="Apworld">
             {bundled ? (
-              <span className="text-muted-foreground">Inclus dans Archipelago — pas d&apos;apworld à installer.</span>
+              <span className="text-muted-foreground">Inclus dans Archipelago - pas d&apos;apworld à installer.</span>
             ) : apworld.deployedVersion !== null ? (
               <VersionValue url={apworldDownload} version={apworld.deployedVersion} />
             ) : (
-              <span className="text-muted-foreground">Version non figée — prends la dernière compatible.</span>
+              <span className="text-muted-foreground">Version non figée - prends la dernière compatible.</span>
             )}
           </VersionRow>
         ) : null}
@@ -229,7 +229,7 @@ function VersionMatchCallout({
           {client !== null ? (
             <VersionValue url={client.downloadUrl} version={client.version} />
           ) : (
-            <span className="text-muted-foreground">Non précisé — utilise la dernière version stable.</span>
+            <span className="text-muted-foreground">Non précisé - utilise la dernière version stable.</span>
           )}
         </VersionRow>
       </dl>

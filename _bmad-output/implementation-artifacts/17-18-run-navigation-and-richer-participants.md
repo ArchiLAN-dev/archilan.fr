@@ -1,4 +1,4 @@
-# Story 17.18: Run Navigation — Participant Profiles, Richer Participant Cards, Game Pages
+# Story 17.18: Run Navigation - Participant Profiles, Richer Participant Cards, Game Pages
 
 ## Story
 
@@ -37,14 +37,14 @@ typecheck/lint/build/jest).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: API — `PersonalRunDrafts::getParticipants` injects `CommunityUserDirectoryQueryInterface`
+- [x] Task 1: API - `PersonalRunDrafts::getParticipants` injects `CommunityUserDirectoryQueryInterface`
   and merges each participant's `slug` / community `displayName` / `avatarUrl` from `cards()`, falling
   back to the account name/email when no visible card.
-- [x] Task 2: API tests — `PersonalRunInviteTest` asserts the participant payload exposes `slug` +
+- [x] Task 2: API tests - `PersonalRunInviteTest` asserts the participant payload exposes `slug` +
   `avatarUrl`; `PersonalRunDraftsListMineTest` updated for the new constructor dependency.
-- [x] Task 3: Frontend — `PersonalRunParticipant` gains `slug` + `avatarUrl`; the participant list
+- [x] Task 3: Frontend - `PersonalRunParticipant` gains `slug` + `avatarUrl`; the participant list
   renders a photo (initials fallback) and links the name to `/joueurs/{slug}`.
-- [x] Task 4: Frontend — run game-selection list links each game name to `/jeux/{slug}` (new tab,
+- [x] Task 4: Frontend - run game-selection list links each game name to `/jeux/{slug}` (new tab,
   external-link icon), without interfering with the add-game button.
 - [x] Task 5: Quality gates.
 
@@ -66,12 +66,12 @@ affordance. Added games are persisted server-side regardless, so navigating away
 
 ## File List
 
-- `api/src/PersonalRuns/Application/PersonalRunDrafts.php` — modified
-- `api/tests/Functional/PersonalRunInviteTest.php` — modified
-- `api/tests/Unit/PersonalRuns/PersonalRunDraftsListMineTest.php` — modified
-- `frontend/src/features/personal-runs/types.ts` — modified
-- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` — modified
-- `frontend/src/features/personal-runs/personal-run-game-selection-page.tsx` — modified
+- `api/src/PersonalRuns/Application/PersonalRunDrafts.php` - modified
+- `api/tests/Functional/PersonalRunInviteTest.php` - modified
+- `api/tests/Unit/PersonalRuns/PersonalRunDraftsListMineTest.php` - modified
+- `frontend/src/features/personal-runs/types.ts` - modified
+- `frontend/src/features/personal-runs/personal-run-detail-page.tsx` - modified
+- `frontend/src/features/personal-runs/personal-run-game-selection-page.tsx` - modified
 
 ## Change Log
 

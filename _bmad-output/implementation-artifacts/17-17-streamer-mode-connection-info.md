@@ -1,4 +1,4 @@
-# Story 17.17: Streamer Mode — Hide Private-Run Connection Info by Default
+# Story 17.17: Streamer Mode - Hide Private-Run Connection Info by Default
 
 ## Story
 
@@ -12,7 +12,7 @@ reveal them,
 Reported as feature #1 in `FEATURE-BACKLOG.md`. In a private run, the connection info is rendered by
 `ConnectionDetails` (`frontend/src/features/personal-runs/connection-details.tsx`), shown on the
 personal-run detail page for both the owner and participants while the run is `active`. The host/port/
-password were always visible — a hazard for streamers.
+password were always visible - a hazard for streamers.
 
 ## Status
 
@@ -30,7 +30,7 @@ buttons); a "Masquer" control hides them again.
 accidentally exposed after a reload or navigation.
 
 **AC4:** Applies to both the owner and participant views of a private run (both render the same
-`ConnectionDetails` component — no per-call change needed).
+`ConnectionDetails` component - no per-call change needed).
 
 **AC5:** Scope is the private-run connection panel only. Event-session and weekly-run connection panels
 are out of scope (separate components; noted as follow-ups).
@@ -39,7 +39,7 @@ are out of scope (separate components; noted as follow-ups).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: `connection-details.tsx` — add a `revealed` state (default `false`); render the fields
+- [x] Task 1: `connection-details.tsx` - add a `revealed` state (default `false`); render the fields
   only when revealed, otherwise show an explanatory note + the reveal button.
 - [x] Task 2: Add a "Masquer" toggle (EyeOff) in the header when revealed; reveal button uses an Eye
   icon, design-token styling (border-border / hover:border-accent).
@@ -62,7 +62,7 @@ streamer toggle to them is a follow-up.
 
 ## File List
 
-- `frontend/src/features/personal-runs/connection-details.tsx` — modified
+- `frontend/src/features/personal-runs/connection-details.tsx` - modified
 
 ## Change Log
 

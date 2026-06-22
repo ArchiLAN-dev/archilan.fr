@@ -1,4 +1,4 @@
-# Story 30.15: /communaute directory — browse, rank, recent, friends
+# Story 30.15: /communaute directory - browse, rank, recent, friends
 
 Status: done (retroactively documented)
 
@@ -35,18 +35,18 @@ A `CommunityDirectory` read model + query (browse with sort modes: rank / recent
 - [x] **api/ tests:** functional `CommunityDirectoryTest` (rank order, recent order, friends mode requires
       auth + returns only accepted, audience filtering).
 - [x] **frontend:** `community-directory-api.ts` + `community-directory.tsx` + `/communaute` page; nav entry.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Ranking reuses the level/xp model from 30.5 and friendships from 30.7 — the directory is a read/join over
+- Ranking reuses the level/xp model from 30.5 and friendships from 30.7 - the directory is a read/join over
   existing data, no new ranking computation stored.
 - Audience visibility reuses the same profile-audience rule already applied by the profile read (30.1).
 
 ### Architecture guardrails
 - Query-only: `CommunityDirectoryQueryInterface` in Application, `DbalCommunityDirectoryQuery` in
-  Infrastructure using DBAL QueryBuilder (AC-A2) — no raw SQL, returns DTO/array, never an entity.
+  Infrastructure using DBAL QueryBuilder (AC-A2) - no raw SQL, returns DTO/array, never an entity.
 - The `friends` mode is viewer-scoped server-side (uses the authenticated user id), not a client filter.
 - Controller is deserialize → call one query → serialize (AC-P3/P4): a single directory query per request.
 

@@ -11,7 +11,7 @@ so that my profile shows the name I choose and favourites aren't configured/rend
 (profile customization), 30.6 (showcases / Vitrine).
 
 An optional `display_name` override (falls back to the username) plus the removal of the duplicate
-favourites surface — favourites live only in the Vitrine showcase.
+favourites surface - favourites live only in the Vitrine showcase.
 
 ## Acceptance Criteria
 
@@ -19,7 +19,7 @@ favourites surface — favourites live only in the Vitrine showcase.
    effective profile name is `displayName ?? username`.
 2. The customization form lets a member set/clear the display name; the public profile and reads use the
    effective name everywhere the username appeared.
-3. Favourite games are managed **only** through the Vitrine (showcase) — the separate favourites editor is
+3. Favourite games are managed **only** through the Vitrine (showcase) - the separate favourites editor is
    gone, and the public profile no longer renders favourite games twice.
 4. Migration `Version20260618180000` adds `display_name` and is reversible (`down()` drops it).
 5. Gates green: phpstan / php-cs-fixer / phpunit (0 notices) / `app:architecture:ddd`; typecheck / lint /
@@ -27,7 +27,7 @@ favourites surface — favourites live only in the Vitrine showcase.
 
 ## Tasks / Subtasks
 
-- [x] **api/ Domain:** `CommunityProfile` — `display_name` column + `customize()` signature + getter.
+- [x] **api/ Domain:** `CommunityProfile` - `display_name` column + `customize()` signature + getter.
 - [x] **api/ Application:** `UpdateCommunityProfile` persists the display name; `CommunityProfileView`
       resolves the effective name (`displayName ?? model.username`).
 - [x] **api/ Presentation:** `CommunityProfileController` accepts the new field.
@@ -35,12 +35,12 @@ favourites surface — favourites live only in the Vitrine showcase.
 - [x] **api/ tests:** `CommunityProfileCustomizationTest` covers set / fallback.
 - [x] **frontend:** `community-profile-api.ts` + `community-profile-customization-form.tsx` (display-name
       field); `player-profile-page.tsx` uses the effective name + stops the double favourites render.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Favourites are not a second feature — they are the Vitrine's existing favourites widget (30.6). This story
+- Favourites are not a second feature - they are the Vitrine's existing favourites widget (30.6). This story
   *removes* the redundant favourites editor/render rather than adding anything.
 
 ### Architecture guardrails
@@ -49,7 +49,7 @@ favourites surface — favourites live only in the Vitrine showcase.
 - Effective-name resolution lives in the Application read, so every consumer sees one name.
 
 ### Scope boundaries / deviations
-- The display name is cosmetic — the slug/username is unchanged (URLs and identity are stable).
+- The display name is cosmetic - the slug/username is unchanged (URLs and identity are stable).
 - No uniqueness constraint on display names (it's a label, not an identifier).
 
 ### Project Structure Notes

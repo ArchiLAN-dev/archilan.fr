@@ -369,7 +369,7 @@ function FlaggedAccounts({ accounts, threshold, onActed }: { accounts: FlaggedAc
   return (
     <section className="grid gap-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" aria-label="Comptes à examiner">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
-        <ShieldCheck aria-hidden className="size-4" /> À examiner — comptes au-delà du seuil ({threshold})
+        <ShieldCheck aria-hidden className="size-4" /> À examiner - comptes au-delà du seuil ({threshold})
       </h3>
       <ul className="grid gap-3" role="list">
         {accounts.map((account) => (

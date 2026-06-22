@@ -26,7 +26,7 @@ export function formatOptionName(key: string): string {
 
 /**
  * Resolves the game option block from a parsed YAML doc. Tries the explicit game name, then the doc's
- * own `game:` field, then the first non-metadata object key — so it works whether the caller knows the
+ * own `game:` field, then the first non-metadata object key - so it works whether the caller knows the
  * Archipelago game name or not.
  */
 export function parseGameOptions(

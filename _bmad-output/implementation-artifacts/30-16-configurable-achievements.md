@@ -5,8 +5,8 @@ Status: done
 ## Story
 
 As an **admin**,
-I want to create and edit achievements from the back-office — name, description, an **arbitrarily
-composable set of unlock rules**, and an active flag — instead of editing code,
+I want to create and edit achievements from the back-office - name, description, an **arbitrarily
+composable set of unlock rules**, and an active flag - instead of editing code,
 so that the catalog can evolve (and get as rich as we want) without a deploy. Deps: 30.4 (achievement
 engine), 30.13 (admin patterns).
 
@@ -15,10 +15,10 @@ single `metric >= threshold` check with a **recursive boolean rule tree** evalua
 deterministic, monotonic recompute. The set of evaluable **facts (metrics)** is a pluggable registry so we
 can keep adding new combinable facts cheaply.
 
-## Design — the rule engine (the heart of this story)
+## Design - the rule engine (the heart of this story)
 
 **Rule tree (recursive, JSON-stored).** A definition owns one root rule. A rule node is either:
-- a **group**: `{ op: "all" | "any" | "none", rules: RuleNode[] }` — AND / OR / NOR, nestable to any depth;
+- a **group**: `{ op: "all" | "any" | "none", rules: RuleNode[] }` - AND / OR / NOR, nestable to any depth;
 - a **condition (leaf)**: `{ fact: string, operator: ">=" | ">" | "=" | "!=" | "<=" | "<" | "between", value: int, value2?: int }`.
 
 Evaluation: a sealed `AchievementRule` interface (`Group`, `Condition`) with `matches(MetricBag): bool`,
@@ -52,7 +52,7 @@ engine/form change.
    Ship the 5 seed facts; add the cheap extra facts whose data is a direct read (decide per-fact at impl).
 4. `RecomputeAchievements` reads **active** definitions from a repository and evaluates the rule tree.
    Stays **monotonic** (only adds grants; a loosened/new rule retroactively grants on the next pass; never
-   revokes — even a `none`/`<` rule that flips false later keeps the past grant, Steam-like, documented).
+   revokes - even a `none`/`<` rule that flips false later keeps the past grant, Steam-like, documented).
    Deactivating a definition stops future grants, keeps existing ones.
 5. Admin endpoints (admin-only): list, create, update, toggle-active, reorder. Validation: unique non-empty
    immutable `key`; rule tree well-formed (every group `op ∈ {all,any,none}` with ≥1 child; every condition
@@ -80,11 +80,11 @@ engine/form change.
       trees.
 - [x] **api/ Infrastructure:** Doctrine repo (rule JSON ↔ tree); providers registered via DI tag.
 - [x] **api/ Presentation:** `AdminAchievementController`.
-- [x] **api/ tests:** unit — rule eval (each operator; nested all/any/none; depth; JSON round-trip),
-      `MetricBagBuilder` composition, `AdminAchievementService`; functional — `AdminAchievementTest`
+- [x] **api/ tests:** unit - rule eval (each operator; nested all/any/none; depth; JSON round-trip),
+      `MetricBagBuilder` composition, `AdminAchievementService`; functional - `AdminAchievementTest`
       (CRUD + 422s + admin-only), **seed-parity** test (DB seed reproduces the old grants exactly).
 - [x] **frontend:** `admin-achievements-api.ts` + `/admin/achievements` (recursive rule builder) + nav.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ### Implementation notes (2026-06-18)
 - **Reverses the epic's "catalog is code-defined" decision (§C/§E.1)** at Jean's request: the catalogue now
@@ -94,7 +94,7 @@ engine/form change.
 - Shipped the 5 seed facts only (`StatsMetricProvider`); the planned-cheap extra facts are left as
   follow-up providers (zero engine/form change to add later).
 - Public profile shows active definitions **plus** any the viewed user already earned (deactivating keeps
-  past grants visible — monotonic). Gates: phpstan/cs-fixer/phpunit (1231)/ddd green; typecheck/lint/build green.
+  past grants visible - monotonic). Gates: phpstan/cs-fixer/phpunit (1231)/ddd green; typecheck/lint/build green.
 
 ## Dev Notes
 
@@ -103,12 +103,12 @@ engine/form change.
   `AchievementMetrics`/`DbalPlayerStatsQuery` + distinct-games), so existing behaviour is preserved and the
   registry has a reference implementation.
 - Admin CRUD + dashboard mirror the 30.13 patterns; rule JSON stored like showcaseLayout / notification
-  payload (JSON column), hydrated to VOs in Infrastructure — never raw arrays in Domain eval.
+  payload (JSON column), hydrated to VOs in Infrastructure - never raw arrays in Domain eval.
 
 ### Architecture guardrails
 - Engine is **pure** (Domain): `matches(MetricBag)` only; no DB/clock/registry inside. Facts are injected
   via the bag, built in Application from providers (each provider may read its own context's query). New
-  fact = new provider, zero engine/form churn — this is the "maximally combinable" lever.
+  fact = new provider, zero engine/form churn - this is the "maximally combinable" lever.
 - **Monotonic recompute** (epic §E.1) is preserved at the engine boundary: definitions/rules are data,
   grants are facts; recompute only *adds*. Operators like `<`, `!=`, `none` are allowed for composition but
   past grants are never revoked when a rule later evaluates false (document in the admin UI).
@@ -116,12 +116,12 @@ engine/form change.
   the builder + evaluation bounded.
 
 ### Scope boundaries / deviations
-- **Reverses the epic's "catalog is code-defined" decision (§C/§E.1)** at Jean's request — note in the
+- **Reverses the epic's "catalog is code-defined" decision (§C/§E.1)** at Jean's request - note in the
   epic changelog at implementation.
-- New **fact kinds** still require a (small) code provider — the form composes over registered facts, it
+- New **fact kinds** still require a (small) code provider - the form composes over registered facts, it
   can't invent new data sources. Per-game / per-event parameterized facts (e.g. "completed game X") are a
-  natural extension (a provider returning per-key facts) — list as a follow-up unless requested now.
-- No per-achievement XP weight yet (flat `XP_PER_ACHIEVEMENT`); icons optional — defer unless asked.
+  natural extension (a provider returning per-key facts) - list as a follow-up unless requested now.
+- No per-achievement XP weight yet (flat `XP_PER_ACHIEVEMENT`); icons optional - defer unless asked.
 
 ### Project Structure Notes
 - New api Domain: `AchievementRule`, `AchievementRuleGroup`, `AchievementRuleCondition`,

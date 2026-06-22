@@ -31,12 +31,12 @@ catalog, honouring reduced-motion, with the header content kept legible above it
 - [x] **frontend:** keep header content above the banner + fix text contrast; drop the eyebrow
       (`23e578b`, `adb3718`).
 - [x] **frontend:** `community-profile-api.ts` typing for the expanded presets.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Presets are the same `banner_preset` field from 30.3 with more allowed values — no schema change. The
+- Presets are the same `banner_preset` field from 30.3 with more allowed values - no schema change. The
   shared `banner-presets.ts` (30.19) is the single preset source for editor + profile.
 
 ### Architecture guardrails
@@ -44,7 +44,7 @@ catalog, honouring reduced-motion, with the header content kept legible above it
 - The banner is a pure CSS-animated component; reduced-motion is honoured so it degrades to a static banner.
 
 ### Scope boundaries / deviations
-- Preset catalog only — no fully custom/uploaded banners.
+- Preset catalog only - no fully custom/uploaded banners.
 - Avatar frames are a separate concern (30.23); the header layout that lets the avatar straddle the banner is
   finalised in 30.24.
 

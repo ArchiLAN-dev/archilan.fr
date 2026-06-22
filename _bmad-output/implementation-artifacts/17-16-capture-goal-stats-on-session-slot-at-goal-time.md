@@ -33,14 +33,14 @@ done
 `goal_reached_at` onto the `session_slot` matched **by name** (`findBySessionAndSlotName`), never by
 the AP slot index (no reliable mapping to `slot_order`).
 
-**AC3:** Weekly runs are unchanged — the weekly path (`RecordWeeklyGoal` → `weekly_entries`) still
+**AC3:** Weekly runs are unchanged - the weekly path (`RecordWeeklyGoal` → `weekly_entries`) still
 runs first and short-circuits.
 
 **AC4:** Idempotent: a second callback for a slot that already has `goal_reached_at` is a no-op (no
 overwrite). Unknown slot name, or a payload without `slotName` (legacy bridge), is a safe no-op
 returning 200.
 
-**AC5:** The controller makes a single Application call (AC-P4) — dispatch logic lives in the
+**AC5:** The controller makes a single Application call (AC-P4) - dispatch logic lives in the
 `RecordSlotGoal` Application facade, not the controller.
 
 **AC6:** All quality gates pass: `phpstan`, `php-cs-fixer`, `phpunit` (0 notices), `app:architecture:ddd`;
@@ -48,13 +48,13 @@ plus the bridge test suite (pytest).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Bridge — add `slotName: ps.slot_name` to the `/slot-goal` payload in `_notify_goal`.
-- [x] Task 2: API — new `Sessions/Application/RecordSlotGoal` facade: try `RecordWeeklyGoal`; if not a
+- [x] Task 1: Bridge - add `slotName: ps.slot_name` to the `/slot-goal` payload in `_notify_goal`.
+- [x] Task 2: API - new `Sessions/Application/RecordSlotGoal` facade: try `RecordWeeklyGoal`; if not a
   weekly entry and a `slotName` is given, look up the `session_slot` by name and set
   checks/items/goal_reached_at (idempotent on `goal_reached_at`).
-- [x] Task 3: API — `SlotGoalCallbackController` injects `RecordSlotGoal` (one Application call), reads
+- [x] Task 3: API - `SlotGoalCallbackController` injects `RecordSlotGoal` (one Application call), reads
   the optional `slotName`, and delegates.
-- [x] Task 4: Functional tests — `SlotGoalSessionSlotTest` (happy path, idempotency, unknown slot,
+- [x] Task 4: Functional tests - `SlotGoalSessionSlotTest` (happy path, idempotency, unknown slot,
   legacy no-slotName). Existing `WeeklyGoalCallbackTest` still green (weekly path unchanged).
 - [x] Task 5: All backend gates + bridge pytest.
 
@@ -80,10 +80,10 @@ Two repos, two releases. The api change is backward-compatible with the current 
 
 ## File List
 
-- `bridge/core/ap_client.py` — modified (slotName in payload)
-- `api/src/Sessions/Application/RecordSlotGoal.php` — new
-- `api/src/Sessions/Presentation/SlotGoalCallbackController.php` — modified
-- `api/tests/Functional/SlotGoalSessionSlotTest.php` — new
+- `bridge/core/ap_client.py` - modified (slotName in payload)
+- `api/src/Sessions/Application/RecordSlotGoal.php` - new
+- `api/src/Sessions/Presentation/SlotGoalCallbackController.php` - modified
+- `api/tests/Functional/SlotGoalSessionSlotTest.php` - new
 
 ## Change Log
 

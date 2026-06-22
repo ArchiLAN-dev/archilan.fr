@@ -14,14 +14,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!catalogue) {
     return {
-      title: "Succès — joueur introuvable",
+      title: "Succès - joueur introuvable",
       robots: { index: false, follow: false },
     };
   }
 
   const name = catalogue.displayName ?? catalogue.slug;
   return {
-    title: `Succès de ${name} — ArchiLAN`,
+    title: `Succès de ${name}`,
     description: `Tous les succès du site et ceux débloqués par ${name}.`,
   };
 }

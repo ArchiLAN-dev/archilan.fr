@@ -8,19 +8,19 @@ Status: done
 
 As a member personalizing my profile,
 I want to upload my own profile picture (or get a nice default one if I have none),
-so that my profile has a face even when I haven't linked Discord/Steam — instead of a blank avatar.
+so that my profile has a face even when I haven't linked Discord/Steam - instead of a blank avatar.
 
 Extends the avatar resolution pipeline (story 30.2) and the `/compte` profile editor (stories 30.3/30.19).
 
 ### Why this exists (root cause)
 
 Today the avatar is **only** a cached URL resolved from external sources: `DiscordAvatarResolver` (Discord
-only — Steam is still a `// future` TODO in the code even though `Identity\User::steamProfile` already
+only - Steam is still a `// future` TODO in the code even though `Identity\User::steamProfile` already
 exists). A member with **no linked Discord and no Steam** resolves to `null` → a blank avatar, with no way
 to fix it. There is **no custom image upload** for avatars and **no default avatar set**, so the profile
 header looks empty for a large share of members. Discord decision (Maxime/MasterKafey, 2026‑06‑19): "tout
 le monde n'a pas de PP Steam, il faudrait des icônes de base personnalisées comme Blizzard", plus enable
-custom upload. (Note: the avatar source already in place is **Discord**, not Steam — Steam is out of scope.)
+custom upload. (Note: the avatar source already in place is **Discord**, not Steam - Steam is out of scope.)
 
 ## Acceptance Criteria
 
@@ -36,17 +36,17 @@ custom upload. (Note: the avatar source already in place is **Discord**, not Ste
 3. **Resolution precedence (single source of truth).** The resolved avatar is, in order: **(a)** presigned
    `customAvatarKey` if set, else **(b)** the cached external URL (`avatar_url` from the resolver), else
    **(c)** a deterministic default avatar key. The custom key is **presigned at read** (never cached as an
-   expiring URL — same pattern as story 31.10), and `RefreshCommunityAvatars` MUST NOT overwrite or clear a
+   expiring URL - same pattern as story 31.10), and `RefreshCommunityAvatars` MUST NOT overwrite or clear a
    custom avatar (a member with a custom avatar is skipped by the refresh job).
 4. **Default avatar set (Blizzard-style).** A curated `DefaultAvatar` value object exposes N base avatars
    (mirroring the `AvatarFrame` / `BannerPreset` curated-set pattern). Each member is assigned a **stable**
    default by hashing their user id (same member → same default across requests). The profile read model
    exposes the default key so the frontend renders the right base image when (a) and (b) are both absent.
 5. **Steam source wired.** The external resolver becomes a **composite** (precedence Steam → Discord, or
-   Discord → Steam — pick one and document it) that also builds a Steam avatar URL from
+   Discord → Steam - pick one and document it) that also builds a Steam avatar URL from
    `Identity\User::steamProfile` when present. If front-end Steam wiring already covers this, this AC reduces
    to confirming the back-end path resolves Steam and adding the missing resolver; otherwise implement
-   `SteamAvatarResolver` (Infrastructure, best-effort, never throws — AC of story 30.2).
+   `SteamAvatarResolver` (Infrastructure, best-effort, never throws - AC of story 30.2).
 6. **Editor.** The `/compte` profile editor gains an avatar control: upload a file (preview + "Retirer"),
    which calls the upload/remove endpoints; the header preview updates immediately. No change to slug/pseudo
    handling.
@@ -56,7 +56,7 @@ custom upload. (Note: the avatar source already in place is **Discord**, not Ste
 ## Tasks / Subtasks
 
 - [ ] **api/ domain**: `CommunityProfile` gains `customAvatarKey` (string|null) with
-      `setCustomAvatar(?string $key)` / business method (no public setter — AC-D5); migration
+      `setCustomAvatar(?string $key)` / business method (no public setter - AC-D5); migration
       `ALTER TABLE community_profile ADD custom_avatar_key` (+ `down()` drop). Add `DefaultAvatar` value
       object (`final readonly`, `ALL` keys + `forUserId(string): string` deterministic pick).
 - [ ] **api/ upload**: `UploadCommunityAvatarCommand` (Application; injects `MinioStorageInterface`,
@@ -82,7 +82,7 @@ custom upload. (Note: the avatar source already in place is **Discord**, not Ste
 ## Dev Notes
 
 - **Reuse (image upload)**: `UploadTutorialImageCommand` + `TutorialImageController` (story 31.10) are the
-  exact template — same MinIO media bucket, same presign-at-read, same validation + error codes, same
+  exact template - same MinIO media bucket, same presign-at-read, same validation + error codes, same
   `NullMinioStorage` test double. [Source: api/src/GameSelection/Application/UploadTutorialImageCommand.php,
   api/src/GameSelection/Presentation/TutorialImageController.php,
   _bmad-output/implementation-artifacts/31-10-tutorial-step-image-upload.md]
@@ -96,14 +96,14 @@ custom upload. (Note: the avatar source already in place is **Discord**, not Ste
   api/src/Community/Infrastructure/DiscordAvatarResolver.php]
 - **Curated-set precedent**: model `DefaultAvatar` like `AvatarFrame` / `BannerPreset` (fixed `ALL` list,
   validation, no free input). [Source: api/src/Community/Domain/AvatarFrame.php]
-- **Steam**: `Identity\User::steamProfile` (string, nullable) already persisted — the resolver just needs
+- **Steam**: `Identity\User::steamProfile` (string, nullable) already persisted - the resolver just needs
   to read it (cross-context read via the existing query the resolver uses). Confirm whether the FE already
   shows a Steam PP before deciding implement-vs-confirm. [Source: api/src/Identity/Domain/User.php]
 - **Gating**: `ApiAccessGuard::requireUser` (any authenticated user acting on their own profile). Never
   `ROLE_MEMBER` (AC-M1).
 - **Scope**: static images only (JPEG/PNG/WebP). **Animated GIF avatars are deliberately excluded for now
   and planned as a future *premium* perk** (Discord-Nitro-style), gated by active membership
-  (`IS_MEMBER` / `ApiAccessGuard::requireAuthenticatedMember`, never `ROLE_MEMBER` — AC-M) when built.
+  (`IS_MEMBER` / `ApiAccessGuard::requireAuthenticatedMember`, never `ROLE_MEMBER` - AC-M) when built.
   No public bucket; presign-at-read consistent with covers/tutorials. [PO decision 2026-06-20]
 
 ### References
@@ -124,22 +124,22 @@ claude-opus-4-8
 - **Custom avatar as a separate column.** Added `community_profile.custom_avatar_key` (MinIO object key)
   distinct from the existing `avatar_url` external cache. Resolution precedence = presigned custom key →
   cached external URL → null (frontend renders the default). Because the two are separate columns, the
-  refresh job — which only writes `avatar_url` — can never clobber a custom avatar (AC-3 holds structurally,
+  refresh job - which only writes `avatar_url` - can never clobber a custom avatar (AC-3 holds structurally,
   no special-casing needed); the refresh query additionally skips custom-avatar rows to avoid wasted
   external calls.
 - **One resolution chokepoint.** New `AvatarUrlResolver` (Application) presigns the custom key (best-effort:
   falls back to the external URL if storage is unreachable). Injected into `CommunityProfileView` (profile
-  header + editor read) and into `DbalCommunityUserDirectoryQuery::cards()` — the single card builder behind
-  the directory, moderation, comments, feed, notifications and friends lists — so an uploaded avatar shows
+  header + editor read) and into `DbalCommunityUserDirectoryQuery::cards()` - the single card builder behind
+  the directory, moderation, comments, feed, notifications and friends lists - so an uploaded avatar shows
   **everywhere** with one change instead of touching each consumer DTO.
 - **Upload/remove.** `CommunityAvatarService` stores bytes in the media bucket under
   `community/avatars/{ulid}.{ext}` (lazy-creating the profile row so a member can upload before first
   view), sets/clears the key, returns the resolved URL. `CommunityAvatarController` mirrors the tutorial
   upload validation (JPEG/PNG/WebP, ≤ 5 Mo; `missing_file`/`image_too_large`/`image_invalid_type` 422,
-  `storage_unavailable` 503). GIF intentionally excluded — animated avatars are reserved for a future
-  membership-gated premium perk (PO decision). No delete on the storage port — replaced/cleared objects are
+  `storage_unavailable` 503). GIF intentionally excluded - animated avatars are reserved for a future
+  membership-gated premium perk (PO decision). No delete on the storage port - replaced/cleared objects are
   orphaned, consistent with covers/tutorials.
-- **Default avatars — frontend-owned (deviation from AC-4).** Rather than emit a `defaultAvatarKey` on every
+- **Default avatars - frontend-owned (deviation from AC-4).** Rather than emit a `defaultAvatarKey` on every
   card DTO (which would couple ~6 consumer shapes + their FE types), the `ProfileAvatar` component renders a
   deterministic, curated "Blizzard-style" gradient default keyed by a stable hash of the member's name
   whenever no avatar URL is present. Single algorithm, consistent everywhere, zero DTO ripple. The backend
@@ -149,10 +149,10 @@ claude-opus-4-8
   `editableForUser`/`MyCommunityProfile` now expose `avatarUrl` + `hasCustomAvatar`.
 - **External source = Discord (already wired); Steam (AC-5) out of scope.** Clarified with the PO: the
   pre-existing "PP already done" is the **Discord** avatar (`DiscordAvatarResolver`, back-end, already in
-  the codebase) — not Steam. This story keeps that Discord source working as the external fallback
+  the codebase) - not Steam. This story keeps that Discord source working as the external fallback
   (precedence: custom upload → Discord cache → default). Steam was never implemented and is **not** part of
   30.27; building a Steam avatar URL would need the Steam Web API (key + vanity→steamid64 resolution) and
-  can be a separate future story — the `AvatarResolverInterface` port lets a `SteamAvatarResolver` slot in.
+  can be a separate future story - the `AvatarResolverInterface` port lets a `SteamAvatarResolver` slot in.
 - **Gates:** phpstan max ✅, php-cs-fixer ✅, `app:architecture:ddd` ✅, `lint:container` ✅, phpunit
   (CommunityAvatarTest + 220 community/profile suites green; full-suite local run hit the known shared
   test-DB schema-contention flake, unrelated suites pass in isolation, CI authoritative) ✅; FE typecheck ✅,
@@ -161,10 +161,10 @@ claude-opus-4-8
 ### File List
 
 - api/src/Community/Domain/CommunityProfile.php (custom_avatar_key field + setCustomAvatar/getter)
-- api/migrations/Version20260619120001.php (new — add custom_avatar_key)
-- api/src/Community/Application/AvatarUrlResolver.php (new — presign custom else external)
-- api/src/Community/Application/CommunityAvatarService.php (new — upload/remove + lazy profile)
-- api/src/Community/Presentation/CommunityAvatarController.php (new — POST/DELETE /community/profile/avatar)
+- api/migrations/Version20260619120001.php (new - add custom_avatar_key)
+- api/src/Community/Application/AvatarUrlResolver.php (new - presign custom else external)
+- api/src/Community/Application/CommunityAvatarService.php (new - upload/remove + lazy profile)
+- api/src/Community/Presentation/CommunityAvatarController.php (new - POST/DELETE /community/profile/avatar)
 - api/src/Community/Application/CommunityProfileView.php (resolve avatarUrl; editor avatarUrl + hasCustomAvatar)
 - api/src/Community/Infrastructure/DbalCommunityUserDirectoryQuery.php (cards resolve custom avatar)
 - api/src/Community/Infrastructure/DoctrineCommunityProfileRepository.php (skip custom-avatar rows on refresh)

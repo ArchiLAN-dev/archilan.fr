@@ -17,8 +17,8 @@ metadata extracted for reuse by the editor and the public profile.
    instead of a flat field list.
 2. A sticky save bar stays visible while scrolling the editor; saving applies the whole form as one update.
 3. Banner-preset metadata is extracted into a shared module (`banner-presets.ts`) consumed by both the editor
-   (preview/choices) and the public profile (rendering) — one source of truth.
-4. No behavioural change to what is persisted — purely presentation/UX over the existing update path.
+   (preview/choices) and the public profile (rendering) - one source of truth.
+4. No behavioural change to what is persisted - purely presentation/UX over the existing update path.
 5. Gates green: typecheck / lint / build / jest (frontend-only change).
 
 ## Tasks / Subtasks
@@ -27,7 +27,7 @@ metadata extracted for reuse by the editor and the public profile.
       bar.
 - [x] **frontend:** extract `banner-presets.ts` (preset keys + labels/metadata) shared by editor + profile.
 - [x] **frontend:** align `player-profile-page.tsx` to the shared preset metadata.
-- [x] **Gates** — typecheck / lint / build / jest green.
+- [x] **Gates** - typecheck / lint / build / jest green.
 
 ## Dev Notes
 

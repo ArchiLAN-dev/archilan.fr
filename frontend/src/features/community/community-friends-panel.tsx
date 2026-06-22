@@ -92,7 +92,7 @@ export function CommunityFriendsPanel() {
           Mes amis <span className="text-sm font-normal text-muted-foreground">({data.friends.length})</span>
         </h2>
         {data.friends.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Pas encore d&apos;amis — visite des profils pour envoyer des demandes.</p>
+          <p className="text-sm text-muted-foreground">Pas encore d&apos;amis - visite des profils pour envoyer des demandes.</p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2" role="list">
             {data.friends.map((card) => (

@@ -31,7 +31,7 @@ level curve, surfaced as a level badge + XP progress bar. Deps: 30.4.
 - [x] **api/ tests:** `LevelTest` (curve boundaries, negative clamp, XP formula weights).
 - [x] **api/ functional:** level/XP assertions in `CommunityAchievementsTest` (2 grants → 200 XP → level 1).
 - [x] **frontend:** `ProfileLevel` type + guard; level badge + XP bar (`LevelBar`) in the profile header.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

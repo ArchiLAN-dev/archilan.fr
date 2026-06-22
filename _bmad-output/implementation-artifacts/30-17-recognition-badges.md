@@ -17,7 +17,7 @@ stale `ROLE_MEMBER`) and **Admin** (the `ROLE_ADMIN` role, display-only).
 1. The profile read exposes a `badges` block `{member: bool, admin: bool}`.
 2. `member` is computed from a **live** membership query (`expires_at >= now`), never from `ROLE_MEMBER` on
    the user/JWT (CLAUDE.md AC-M1: `ROLE_MEMBER` is stale-prone and must not gate or signal membership).
-3. `admin` reflects `ROLE_ADMIN` — used here only for display, which is the one permitted use of a role
+3. `admin` reflects `ROLE_ADMIN` - used here only for display, which is the one permitted use of a role
    (AC-M3).
 4. The profile header renders an "Adhérent" badge and/or an "Admin" badge when the respective flag is true;
    neither shows otherwise. Badges are readable against the banner.
@@ -32,12 +32,12 @@ stale `ROLE_MEMBER`) and **Admin** (the `ROLE_ADMIN` role, display-only).
       badges.
 - [x] **api/ tests:** `CommunityProfileTest` covers member-on/off (live) + admin-on/off.
 - [x] **frontend:** `player-profile-api.ts` parses `badges`; `player-profile-page.tsx` renders the chips.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Membership status reuses the existing live `ActiveMembership` query (Payments) — no new membership state,
+- Membership status reuses the existing live `ActiveMembership` query (Payments) - no new membership state,
   and no reliance on the persistent `ROLE_MEMBER`.
 
 ### Architecture guardrails
@@ -47,7 +47,7 @@ stale `ROLE_MEMBER`) and **Admin** (the `ROLE_ADMIN` role, display-only).
 
 ### Scope boundaries / deviations
 - Two badges only (adhérent, admin); no per-event/role taxonomy.
-- Badges are public — they don't depend on the viewer.
+- Badges are public - they don't depend on the viewer.
 
 ### Project Structure Notes
 - Modified api: `Community/Application/{CommunityProfileView,CommunityProfileQueryInterface}`,

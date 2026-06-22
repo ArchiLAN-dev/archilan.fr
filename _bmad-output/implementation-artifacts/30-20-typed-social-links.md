@@ -8,7 +8,7 @@ As a member,
 I want my social links to be recognised by type and shown with the right icon, displayed in my profile
 header,
 so that visitors immediately see "Twitch / YouTube / Steam…" instead of a bare URL. Deps: 30.3 (social links
-in customization), 30.4 (achievements — the redundant teaser it replaces).
+in customization), 30.4 (achievements - the redundant teaser it replaces).
 
 A predefined set of link types (with brand icons) plus a free "other" type, link-type resolution from a URL,
 the links surfaced as icons in the header, and removal of the now-redundant achievements teaser.
@@ -18,27 +18,27 @@ the links surfaced as icons in the header, and removal of the now-redundant achi
 1. A predefined `LINK_TYPES` set (twitch, youtube, x, bluesky, instagram, tiktok, discord, steam, github,
    website) each with a brand icon + label, plus an `other` fallback type.
 2. A link is mapped to a type case-insensitively (`resolveLinkType`); an unknown host renders the generic
-   "other" icon. Stored links keep their existing `{label, url}` shape — typing is a render concern.
+   "other" icon. Stored links keep their existing `{label, url}` shape - typing is a render concern.
 3. Social links render as icons in the **profile header card** (not a separate block lower down).
-4. The achievements **teaser** on the profile is retired — the full achievements panel (30.4) already covers
+4. The achievements **teaser** on the profile is retired - the full achievements panel (30.4) already covers
    it, so the duplicate is removed (`ShowcaseWidget` updated accordingly).
 5. Gates green: phpstan / php-cs-fixer / `app:architecture:ddd` (for the `ShowcaseWidget` change); typecheck /
    lint / build / jest.
 
 ## Tasks / Subtasks
 
-- [x] **frontend:** `social-links.ts` — `LINK_TYPES`, `OTHER_LINK_TYPE`, `resolveLinkType` (case-insensitive),
+- [x] **frontend:** `social-links.ts` - `LINK_TYPES`, `OTHER_LINK_TYPE`, `resolveLinkType` (case-insensitive),
       `isKnownLinkType`; brand icons via `react-icons/fa6`.
 - [x] **frontend:** render typed social-link icons in the header (`player-profile-page.tsx`); editor hints in
       `community-profile-customization-form.tsx`; `community-profile-api.ts` typing.
 - [x] **frontend:** move the social links into the header card (`20f1bc4`).
-- [x] **api/ Domain:** `ShowcaseWidget` — drop the redundant achievements-teaser widget.
-- [x] **Gates** — all green.
+- [x] **api/ Domain:** `ShowcaseWidget` - drop the redundant achievements-teaser widget.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Link typing is presentation-only over the existing `{label,url}` links from 30.3 — no schema change, no
+- Link typing is presentation-only over the existing `{label,url}` links from 30.3 - no schema change, no
   migration. Brand icons come from `react-icons/fa6` (lucide dropped its brand set).
 - Retiring the teaser reuses the full achievements panel (30.4) as the single achievements surface.
 
@@ -48,7 +48,7 @@ the links surfaced as icons in the header, and removal of the now-redundant achi
   (it pairs with the `validShowcase()` filter added in the 30.16 review).
 
 ### Scope boundaries / deviations
-- Fixed type list + "other" — no admin-managed link taxonomy.
+- Fixed type list + "other" - no admin-managed link taxonomy.
 - Icons only in the header; the editor still edits plain `{label,url}` rows.
 
 ### Project Structure Notes

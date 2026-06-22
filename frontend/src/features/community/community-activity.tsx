@@ -67,7 +67,7 @@ export function CommunityFeedPanel() {
   if (items.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Rien pour l&apos;instant — ajoute des amis et termine des runs pour voir l&apos;activité ici.
+        Rien pour l&apos;instant - ajoute des amis et termine des runs pour voir l&apos;activité ici.
       </p>
     );
   }

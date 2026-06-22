@@ -40,7 +40,7 @@ a friends list, and the `friend`/block tiers wired into `AudiencePolicy` enforce
       friend-audience unlock; block retracts + hides + overrides; self 422; auth 401).
 - [x] **frontend:** `community-friends-api.ts`; `ProfileRelationshipActions` (profile header, client);
       `CommunityFriendsPanel` + "Amis" `/compte` tab; `hasNullableStringProp` reused.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

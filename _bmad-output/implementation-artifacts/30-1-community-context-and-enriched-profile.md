@@ -19,8 +19,8 @@ redesigned `/joueurs/{slug}` header + stat showcase. Read-mostly; no social writ
    `DddArchitectureValidator::CONTEXTS`, `services.yaml` Domain exclusion, and a Doctrine mapping.
 2. `CommunityProfile` aggregate (1-1 with a `User` by `userId`, unique index) + repository; a member's
    row is created **lazily on first profile view**, **idempotently** (race-safe on the unique `userId`).
-3. `GET /api/v1/community/profiles/{slug}` returns the enriched read model — identity (`slug`,
-   `displayName`, `joinedAt`) + `avatarUrl` (null until 30.2) + aggregate `stats` — reusing Epic-18's
+3. `GET /api/v1/community/profiles/{slug}` returns the enriched read model - identity (`slug`,
+   `displayName`, `joinedAt`) + `avatarUrl` (null until 30.2) + aggregate `stats` - reusing Epic-18's
    `PlayerStatsQueryInterface`. 404 for unknown or deleted (`deleted_at`) users.
 4. `/joueurs/{slug}` is redesigned (Steam-style header: avatar/initials + banner + identity, stat
    showcase) and reads the new endpoint; run history (Epic 18) is preserved.
@@ -40,19 +40,19 @@ redesigned `/joueurs/{slug}` header + stat showcase. Read-mostly; no social writ
       `PlayerStatsQueryInterface` for stats).
 - [x] **api/ Application:** `CommunityProfileQueryInterface` (read model) + `CommunityProfileView`
       facade (composes the query + idempotent `ensureProfile`, catching `UniqueConstraintViolationException`).
-- [x] **api/ Presentation:** `CommunityProfileController` — `GET /api/v1/community/profiles/{slug}`,
+- [x] **api/ Presentation:** `CommunityProfileController` - `GET /api/v1/community/profiles/{slug}`,
       one Application call, 200/404.
 - [x] **api/ tests:** `CommunityProfileTest` (identity+stats, unknown 404, deleted 404, lazy+idempotent
       row creation).
 - [x] **frontend:** repoint `getPlayerProfile` to the community endpoint, add `avatarUrl` to the type +
       guard; redesign `player-profile-page.tsx` (banner + avatar/initials header + stat showcase);
       update `player-profile-api.test.ts` mocks.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Stats reuse Epic-18 `PlayerStatsQueryInterface` (`DbalPlayerStatsQuery`) — no second stats path.
+- Stats reuse Epic-18 `PlayerStatsQueryInterface` (`DbalPlayerStatsQuery`) - no second stats path.
   [Source: api/src/Identity/Application/PlayerStatsQueryInterface.php]
 - The read mirrors `PlayerProfileQuery`'s shape (slug/displayName/joinedAt/stats) so the frontend
   migration is a near drop-in; run history stays on the Epic-18 `/players/{slug}/history` endpoint.
@@ -72,7 +72,7 @@ redesigned `/joueurs/{slug}` header + stat showcase. Read-mostly; no social writ
 - `avatarUrl` is always `null` here; **real Discord/Steam resolution + identicon onError = 30.2**. The
   page renders initials now; the `<img>` branch is forward-compat (no client `onError` yet).
 - Customization (bio/audience/banner presets), achievements/level, social graph, feed, interactions,
-  notifications, directory — all later stories. No `AudiencePolicy` yet (profile is public, Epic-18 parity).
+  notifications, directory - all later stories. No `AudiencePolicy` yet (profile is public, Epic-18 parity).
 
 ### Project Structure Notes
 - New context `api/src/Community/{Domain,Application,Infrastructure,Presentation}`.
@@ -106,7 +106,7 @@ claude-opus-4-8
 - `vendor/bin/php-cs-fixer fix src tests --dry-run`: 0 violations.
 - `vendor/bin/phpstan analyse src tests`: 0 errors.
 - `php bin/console app:architecture:ddd`: exit 0.
-- `php bin/phpunit`: 1124 tests, 8087 assertions, OK (0 notices) — incl. `CommunityProfileTest` (4).
+- `php bin/phpunit`: 1124 tests, 8087 assertions, OK (0 notices) - incl. `CommunityProfileTest` (4).
 - `pnpm typecheck` / `pnpm lint` / `pnpm build` / `pnpm test` (jest 86): all clean.
 
 ### File List
