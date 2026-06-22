@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\AchievementImageUrlResolver;
 use App\Community\Application\AdminAchievementService;
 use App\Community\Application\EventCatalogueQueryInterface;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\InvalidAchievementRuleException;
+use App\Shared\Infrastructure\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 
 final class AdminAchievementServiceTest extends TestCase
 {
     public function testCreatePersistsAndPositionsAfterMax(): void
     {
-        $service = new AdminAchievementService($repo = $this->repo(), $this->events());
+        $service = new AdminAchievementService($repo = $this->repo(), $this->events(), $this->imageUrls());
 
         $created = $service->create([
             'key' => 'night_owl',
@@ -32,7 +34,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsDuplicateKey(): void
     {
-        $service = new AdminAchievementService($this->repo([$this->definition('first_run')]), $this->events());
+        $service = new AdminAchievementService($this->repo([$this->definition('first_run')]), $this->events(), $this->imageUrls());
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'first_run', 'name' => 'X', 'rule' => $this->simpleRule()]);
@@ -40,7 +42,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsInvalidKey(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events());
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls());
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'Bad Key!', 'name' => 'X', 'rule' => $this->simpleRule()]);
@@ -48,7 +50,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsMissingName(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events());
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls());
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'ok_key', 'name' => '  ', 'rule' => $this->simpleRule()]);
@@ -56,7 +58,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsMalformedRule(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events());
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls());
 
         $this->expectException(InvalidAchievementRuleException::class);
         $service->create(['key' => 'ok_key', 'name' => 'X', 'rule' => ['op' => 'all', 'rules' => []]]);
@@ -64,7 +66,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateAcceptsScopedEventFactForRealEvent(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events(['evt-1']));
+        $service = new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls());
 
         $created = $service->create([
             'key' => 'archilan3',
@@ -77,7 +79,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsScopedEventFactForUnknownEvent(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events([]));
+        $service = new AdminAchievementService($this->repo(), $this->events([]), $this->imageUrls());
 
         $this->expectException(InvalidAchievementRuleException::class);
         $service->create(['key' => 'ghost_event', 'name' => 'X', 'rule' => $this->scopedRule('nope')]);
@@ -85,7 +87,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testUpdateUnknownIdReturnsNull(): void
     {
-        $service = new AdminAchievementService($this->repo(), $this->events());
+        $service = new AdminAchievementService($this->repo(), $this->events(), $this->imageUrls());
 
         self::assertNull($service->update('missing', ['name' => 'X', 'rule' => $this->simpleRule()]));
     }
@@ -93,7 +95,7 @@ final class AdminAchievementServiceTest extends TestCase
     public function testUpdateKeepsKeyImmutable(): void
     {
         $definition = $this->definition('first_run');
-        $service = new AdminAchievementService($this->repo([$definition]), $this->events());
+        $service = new AdminAchievementService($this->repo([$definition]), $this->events(), $this->imageUrls());
 
         $result = $service->update($definition->getId(), [
             'key' => 'attempted_rename',
@@ -110,7 +112,7 @@ final class AdminAchievementServiceTest extends TestCase
     {
         $a = $this->definition('a');
         $b = $this->definition('b');
-        $service = new AdminAchievementService($this->repo([$a, $b]), $this->events());
+        $service = new AdminAchievementService($this->repo([$a, $b]), $this->events(), $this->imageUrls());
 
         self::assertTrue($service->setActive($a->getId(), false));
         self::assertFalse($a->isActive());
@@ -123,7 +125,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testFormOptionsExposesFactsOperatorsGroupsAndEvents(): void
     {
-        $options = (new AdminAchievementService($this->repo(), $this->events(['evt-1'])))->formOptions();
+        $options = (new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls()))->formOptions();
 
         self::assertNotEmpty($options['facts']);
         self::assertContains('eventsWithGoal', array_map(static fn (array $f): string => $f['key'], $options['facts']));
@@ -175,6 +177,12 @@ final class AdminAchievementServiceTest extends TestCase
                 return \in_array($eventId, $this->knownIds, true);
             }
         };
+    }
+
+    private function imageUrls(): AchievementImageUrlResolver
+    {
+        // The unit tests use no custom image, so the resolver short-circuits and never touches storage.
+        return new AchievementImageUrlResolver($this->createStub(MinioStorageInterface::class), 'media', 3600);
     }
 
     /**

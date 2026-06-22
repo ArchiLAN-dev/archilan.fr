@@ -34,6 +34,8 @@ export type AchievementDefinition = {
   rule: RuleGroup;
   active: boolean;
   position: number;
+  customImageKey: string | null;
+  customImageUrl: string | null;
 };
 
 export type AchievementFactOption = { key: string; label: string };
@@ -56,12 +58,14 @@ export type CreateAchievementPayload = {
   name: string;
   description: string;
   rule: RuleGroup;
+  customImageKey?: string | null;
 };
 
 export type UpdateAchievementPayload = {
   name: string;
   description: string;
   rule: RuleGroup;
+  customImageKey?: string | null;
 };
 
 export type MutationResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -114,6 +118,29 @@ export async function setAchievementActive(id: string, active: boolean): Promise
 
 export async function reorderAchievements(ids: string[]): Promise<boolean> {
   return noContent(`${env.apiBaseUrl}/admin/community/achievements/reorder`, { ids });
+}
+
+export async function uploadAchievementImage(
+  file: File,
+): Promise<{ key: string; imageUrl: string } | null> {
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/achievements/image`, {
+      method: "POST",
+      body,
+    });
+    if (!res.ok) return null;
+    const json: unknown = await res.json();
+    const data: unknown =
+      typeof json === "object" && json !== null && "data" in json ? json.data : null;
+    if (typeof data !== "object" || data === null) return null;
+    if (!("key" in data) || typeof data.key !== "string") return null;
+    if (!("imageUrl" in data) || typeof data.imageUrl !== "string") return null;
+    return { key: data.key, imageUrl: data.imageUrl };
+  } catch {
+    return null;
+  }
 }
 
 // ── Internals ─────────────────────────────────────────────────────────────────

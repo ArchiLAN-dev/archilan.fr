@@ -27,14 +27,24 @@ export function AchievementCard({
         achievement.unlocked ? "border-accent/40 bg-accent/5" : "border-border bg-surface/60 opacity-70"
       }`}
     >
-      <span
-        aria-hidden
-        className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
-          achievement.unlocked ? "bg-accent/15 text-accent-text" : "bg-surface text-muted-foreground"
-        }`}
-      >
-        {achievement.unlocked ? <Trophy className="size-4" /> : <Lock className="size-4" />}
-      </span>
+      {achievement.customImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- remote presigned image, not a local asset
+        <img
+          alt=""
+          aria-hidden="true"
+          className="size-9 shrink-0 rounded-full object-cover"
+          src={achievement.customImageUrl}
+        />
+      ) : (
+        <span
+          aria-hidden
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+            achievement.unlocked ? "bg-accent/15 text-accent-text" : "bg-surface text-muted-foreground"
+          }`}
+        >
+          {achievement.unlocked ? <Trophy className="size-4" /> : <Lock className="size-4" />}
+        </span>
+      )}
       <div className="min-w-0">
         <p className={`text-sm font-semibold ${achievement.unlocked ? "text-foreground" : "text-muted-foreground"}`}>
           {achievement.name}

@@ -42,6 +42,7 @@ final readonly class CommunityProfileView
         private AvatarUrlResolver $avatarUrls,
         private CommunityLevelQuery $levels,
         private AchievementRarityQueryInterface $rarity,
+        private AchievementImageUrlResolver $achievementImages,
     ) {
     }
 
@@ -55,7 +56,7 @@ final readonly class CommunityProfileView
      *     badges: array{member: bool, admin: bool},
      *     stats: array{runsParticipated: int, goalCompletions: int, goalCompletionRate: float, totalChecksDone: int, totalItemsReceived: int},
      *     level: array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int},
-     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>,
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}>,
      *     achievementStats: array{unlocked: int, total: int},
      *     presence: array{playing: bool, sessionId: string|null, game: string|null},
      *     customization: array{bio: string|null, tagline: string|null, pronouns: string|null, bannerPreset: string, avatarFrame: string|null, socialLinks: list<array{label: string, url: string}>, favoriteGames: list<array{id: string, name: string, slug: string, coverImageUrl: string|null}>, showcaseLayout: list<string>}|null
@@ -143,7 +144,7 @@ final readonly class CommunityProfileView
      *     slug: string,
      *     displayName: string|null,
      *     avatarUrl: string|null,
-     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, rarity: array{count: int, percent: int|null}}>
+     *     achievements: list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null, rarity: array{count: int, percent: int|null}}>
      * }|null
      */
     public function achievementsCatalogFor(string $slug, ?string $viewerId): ?array
@@ -182,9 +183,9 @@ final readonly class CommunityProfileView
     /**
      * The most recently unlocked achievements (by unlock date desc), capped for the profile card.
      *
-     * @param list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}> $unlocked
+     * @param list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}> $unlocked
      *
-     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}>
      */
     private function recentUnlocked(array $unlocked): array
     {
@@ -196,7 +197,7 @@ final readonly class CommunityProfileView
     /**
      * @param bool $kudosable whether the viewer may kudos these achievements (false for the owner's own view)
      *
-     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int}>
+     * @return list<array{key: string, name: string, description: string, unlocked: bool, unlockedAt: string|null, grantId: string|null, kudosCount: int, customImageUrl: string|null}>
      */
     private function achievementsFor(string $userId, bool $kudosable): array
     {
@@ -228,6 +229,7 @@ final readonly class CommunityProfileView
                 'unlockedAt' => $grant?->getUnlockedAt()->format(\DateTimeInterface::ATOM),
                 'grantId' => $grantId,
                 'kudosCount' => null !== $grantId ? ($kudosCounts[$grantId] ?? 0) : 0,
+                'customImageUrl' => $this->achievementImages->resolve($definition->getCustomImageKey()),
             ];
         }
 

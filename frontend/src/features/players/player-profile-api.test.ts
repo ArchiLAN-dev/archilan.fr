@@ -87,16 +87,16 @@ describe("getPlayerProfile", () => {
 describe("getPlayerAchievements", () => {
   const ach = (over: Record<string, unknown> = {}) => ({
     key: "first_run", name: "First Run", description: "d", unlocked: true, unlockedAt: "2024-01-02", grantId: null, kudosCount: 0,
-    rarity: { count: 2, percent: 50 }, ...over,
+    customImageUrl: "http://minio.test/badge.png", rarity: { count: 2, percent: 50 }, ...over,
   });
 
-  it("returns the catalogue with rarity on success", async () => {
+  it("returns the catalogue with rarity and custom image on success", async () => {
     server.use(
       http.get(`${BASE}/community/profiles/cat/achievements`, () =>
         HttpResponse.json({
           data: {
             slug: "cat", displayName: "Cat", avatarUrl: null,
-            achievements: [ach(), ach({ key: "omnivore", unlocked: false, unlockedAt: null, rarity: { count: 0, percent: 0 } })],
+            achievements: [ach(), ach({ key: "omnivore", unlocked: false, unlockedAt: null, customImageUrl: null, rarity: { count: 0, percent: 0 } })],
           },
         }),
       ),
@@ -105,6 +105,8 @@ describe("getPlayerAchievements", () => {
     expect(result).not.toBeNull();
     expect(result?.achievements).toHaveLength(2);
     expect(result?.achievements[0].rarity.percent).toBe(50);
+    expect(result?.achievements[0].customImageUrl).toBe("http://minio.test/badge.png");
+    expect(result?.achievements[1].customImageUrl).toBeNull();
   });
 
   it("accepts a null rarity percent", async () => {
