@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Community\Domain\AchievementGrant;
+use App\Community\Domain\DefaultAchievementDefinitions;
 
 final class CommunityProfileAchievementsTest extends FunctionalTestCase
 {
@@ -40,7 +41,7 @@ final class CommunityProfileAchievementsTest extends FunctionalTestCase
         $stats = $data['achievementStats'] ?? null;
         self::assertIsArray($stats);
         self::assertSame(8, $stats['unlocked']);
-        self::assertSame(9, $stats['total']);
+        self::assertSame(count(DefaultAchievementDefinitions::all()), $stats['total']);
     }
 
     public function testCatalogueReturnsFullListWithStateAndRarity(): void
@@ -63,7 +64,7 @@ final class CommunityProfileAchievementsTest extends FunctionalTestCase
         self::assertSame('alice', $data['slug']);
         $achievements = $data['achievements'] ?? null;
         self::assertIsArray($achievements);
-        self::assertCount(9, $achievements); // the whole catalogue
+        self::assertCount(count(DefaultAchievementDefinitions::all()), $achievements); // the whole catalogue
 
         $byKey = [];
         foreach ($achievements as $a) {

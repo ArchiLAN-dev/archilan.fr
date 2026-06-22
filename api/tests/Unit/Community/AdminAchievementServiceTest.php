@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Community;
 
 use App\Community\Application\AdminAchievementService;
+use App\Community\Application\EventCatalogueQueryInterface;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\InvalidAchievementRuleException;
@@ -14,7 +15,7 @@ final class AdminAchievementServiceTest extends TestCase
 {
     public function testCreatePersistsAndPositionsAfterMax(): void
     {
-        $service = new AdminAchievementService($repo = $this->repo());
+        $service = new AdminAchievementService($repo = $this->repo(), $this->events());
 
         $created = $service->create([
             'key' => 'night_owl',
@@ -31,7 +32,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsDuplicateKey(): void
     {
-        $service = new AdminAchievementService($this->repo([$this->definition('first_run')]));
+        $service = new AdminAchievementService($this->repo([$this->definition('first_run')]), $this->events());
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'first_run', 'name' => 'X', 'rule' => $this->simpleRule()]);
@@ -39,7 +40,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsInvalidKey(): void
     {
-        $service = new AdminAchievementService($this->repo());
+        $service = new AdminAchievementService($this->repo(), $this->events());
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'Bad Key!', 'name' => 'X', 'rule' => $this->simpleRule()]);
@@ -47,7 +48,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsMissingName(): void
     {
-        $service = new AdminAchievementService($this->repo());
+        $service = new AdminAchievementService($this->repo(), $this->events());
 
         $this->expectException(\InvalidArgumentException::class);
         $service->create(['key' => 'ok_key', 'name' => '  ', 'rule' => $this->simpleRule()]);
@@ -55,15 +56,36 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testCreateRejectsMalformedRule(): void
     {
-        $service = new AdminAchievementService($this->repo());
+        $service = new AdminAchievementService($this->repo(), $this->events());
 
         $this->expectException(InvalidAchievementRuleException::class);
         $service->create(['key' => 'ok_key', 'name' => 'X', 'rule' => ['op' => 'all', 'rules' => []]]);
     }
 
+    public function testCreateAcceptsScopedEventFactForRealEvent(): void
+    {
+        $service = new AdminAchievementService($this->repo(), $this->events(['evt-1']));
+
+        $created = $service->create([
+            'key' => 'archilan3',
+            'name' => 'ArchiLAN #3',
+            'rule' => $this->scopedRule('evt-1'),
+        ]);
+
+        self::assertSame('archilan3', $created['key']);
+    }
+
+    public function testCreateRejectsScopedEventFactForUnknownEvent(): void
+    {
+        $service = new AdminAchievementService($this->repo(), $this->events([]));
+
+        $this->expectException(InvalidAchievementRuleException::class);
+        $service->create(['key' => 'ghost_event', 'name' => 'X', 'rule' => $this->scopedRule('nope')]);
+    }
+
     public function testUpdateUnknownIdReturnsNull(): void
     {
-        $service = new AdminAchievementService($this->repo());
+        $service = new AdminAchievementService($this->repo(), $this->events());
 
         self::assertNull($service->update('missing', ['name' => 'X', 'rule' => $this->simpleRule()]));
     }
@@ -71,7 +93,7 @@ final class AdminAchievementServiceTest extends TestCase
     public function testUpdateKeepsKeyImmutable(): void
     {
         $definition = $this->definition('first_run');
-        $service = new AdminAchievementService($this->repo([$definition]));
+        $service = new AdminAchievementService($this->repo([$definition]), $this->events());
 
         $result = $service->update($definition->getId(), [
             'key' => 'attempted_rename',
@@ -88,7 +110,7 @@ final class AdminAchievementServiceTest extends TestCase
     {
         $a = $this->definition('a');
         $b = $this->definition('b');
-        $service = new AdminAchievementService($this->repo([$a, $b]));
+        $service = new AdminAchievementService($this->repo([$a, $b]), $this->events());
 
         self::assertTrue($service->setActive($a->getId(), false));
         self::assertFalse($a->isActive());
@@ -99,14 +121,16 @@ final class AdminAchievementServiceTest extends TestCase
         self::assertSame(1, $a->getPosition());
     }
 
-    public function testFormOptionsExposesFactsOperatorsGroups(): void
+    public function testFormOptionsExposesFactsOperatorsGroupsAndEvents(): void
     {
-        $options = (new AdminAchievementService($this->repo()))->formOptions();
+        $options = (new AdminAchievementService($this->repo(), $this->events(['evt-1'])))->formOptions();
 
         self::assertNotEmpty($options['facts']);
+        self::assertContains('eventsWithGoal', array_map(static fn (array $f): string => $f['key'], $options['facts']));
         self::assertContains('>=', $options['operators']);
         self::assertContains('between', $options['operators']);
         self::assertSame(['all', 'any', 'none'], $options['groupOps']);
+        self::assertSame([['id' => 'evt-1', 'title' => 'Event evt-1']], $options['events']);
     }
 
     /**
@@ -117,9 +141,40 @@ final class AdminAchievementServiceTest extends TestCase
         return ['op' => 'all', 'rules' => [['fact' => 'runs', 'operator' => '>=', 'value' => 1]]];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function scopedRule(string $eventId): array
+    {
+        return ['op' => 'all', 'rules' => [['fact' => 'event_goal:'.$eventId, 'operator' => '>=', 'value' => 1]]];
+    }
+
     private function definition(string $key): AchievementDefinition
     {
         return AchievementDefinition::create($key, ucfirst($key), '', $this->simpleRule(), 0, new \DateTimeImmutable());
+    }
+
+    /**
+     * @param list<string> $knownIds
+     */
+    private function events(array $knownIds = []): EventCatalogueQueryInterface
+    {
+        return new class($knownIds) implements EventCatalogueQueryInterface {
+            /** @param list<string> $knownIds */
+            public function __construct(private array $knownIds)
+            {
+            }
+
+            public function selectableEvents(): array
+            {
+                return array_map(static fn (string $id): array => ['id' => $id, 'title' => 'Event '.$id], $this->knownIds);
+            }
+
+            public function exists(string $eventId): bool
+            {
+                return \in_array($eventId, $this->knownIds, true);
+            }
+        };
     }
 
     /**
