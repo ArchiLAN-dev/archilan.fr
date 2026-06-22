@@ -204,7 +204,11 @@ final readonly class SessionConfig
                 hintCost: $o->hintCost ?? $this->server->hintCost,
                 locationCheckPoints: $o->locationCheckPoints ?? $this->server->locationCheckPoints,
                 countdownMode: $o->countdownMode ?? $this->server->countdownMode,
-                autoShutdown: $o->autoShutdown ?? $this->server->autoShutdown,
+                // autoShutdown is locked to the type profile (story 27.9): it is never overridable
+                // per scope. Always take the profile value, ignoring any stored override - otherwise a
+                // stale override row carrying autoShutdown=0 (saved before the owner lock, or via the
+                // admin override panel) silently disables idle shutdown and the run never stops.
+                autoShutdown: $this->server->autoShutdown,
                 compatibility: $o->compatibility ?? $this->server->compatibility,
                 joinPassword: $o->joinPassword ?? $this->server->joinPassword,
             ),

@@ -22,6 +22,11 @@ final readonly class SetSessionConfigOverride
      */
     public function execute(string $scopeKey, array $override): void
     {
+        // autoShutdown is locked to the type profile and is never overridable per scope
+        // (story 27.9). Strip it on every write path - admin and owner alike - so a stale or
+        // misconfigured override can never disable a private run's idle shutdown.
+        unset($override['autoShutdown']);
+
         $value = SessionConfigOverride::fromArray($override);
 
         if ($value->isEmpty()) {
