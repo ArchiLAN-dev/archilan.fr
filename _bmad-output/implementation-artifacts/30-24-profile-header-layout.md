@@ -15,7 +15,7 @@ recognition badges tucked directly under the name beside the avatar.
 ## Acceptance Criteria
 
 1. The avatar and display name straddle the banner/details boundary (the avatar half over the banner),
-   left-aligned — not a fully centered card.
+   left-aligned - not a fully centered card.
 2. The recognition badges (30.17) sit directly under the name, beside the avatar, and stay readable.
 3. The details block (tagline, "Membre depuis", level bar, social-link icons) and relationship actions sit
    below, unchanged in content.
@@ -24,14 +24,14 @@ recognition badges tucked directly under the name beside the avatar.
 
 ## Tasks / Subtasks
 
-- [x] **frontend:** rework the header in `player-profile-page.tsx` — avatar + name straddle the banner,
+- [x] **frontend:** rework the header in `player-profile-page.tsx` - avatar + name straddle the banner,
       badges under the name beside the avatar, details below.
-- [x] **Gates** — typecheck / lint / build / jest green.
+- [x] **Gates** - typecheck / lint / build / jest green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Layout-only over the existing header pieces (avatar, name, badges, details from 30.17/30.22/30.23) — no new
+- Layout-only over the existing header pieces (avatar, name, badges, details from 30.17/30.22/30.23) - no new
   data, no API change.
 
 ### Architecture guardrails

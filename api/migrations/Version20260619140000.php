@@ -9,7 +9,7 @@ use Doctrine\Migrations\AbstractMigration;
 
 /**
  * Identity: account moderation state (story 30.29). A suspension (auto-expiring) or a permanent ban blocks
- * access; moderation_reason records why. No backfill — every existing account stays active.
+ * access; moderation_reason records why. No backfill - every existing account stays active.
  */
 final class Version20260619140000 extends AbstractMigration
 {

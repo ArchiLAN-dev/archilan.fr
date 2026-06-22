@@ -8,6 +8,7 @@ import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
 import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
 import { AvatarFrame } from "./avatar-frame";
+import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import { BANNER_PRESETS } from "./banner-presets";
 import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
@@ -229,12 +230,7 @@ export function CommunityProfileCustomizationForm() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" />
-        Chargement du profil…
-      </div>
-    );
+    return <CommunityLoadingSkeleton rows={5} />;
   }
 
   return (
@@ -438,7 +434,7 @@ export function CommunityProfileCustomizationForm() {
             })}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">Aucun bloc — ajoutes-en pour mettre ton profil en avant.</p>
+          <p className="text-xs text-muted-foreground">Aucun bloc - ajoutes-en pour mettre ton profil en avant.</p>
         )}
         {SHOWCASE_WIDGETS.some((w) => !showcase.includes(w)) ? (
           <select
@@ -702,7 +698,7 @@ function FavoritesEditor({
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-muted-foreground">Aucun jeu choisi — ajoute tes jeux favoris ci-dessous.</p>
+        <p className="text-xs text-muted-foreground">Aucun jeu choisi - ajoute tes jeux favoris ci-dessous.</p>
       )}
       {favorites.length < MAX_FAVORITES ? (
         <FavoriteGamePicker

@@ -35,7 +35,7 @@ export function PlayerProfilePage({
         {/* z-10 keeps the overlapping content above the positioned banner. */}
         <div className="relative z-10 grid gap-5 px-5 pb-6 sm:px-8">
           {/* Identity: avatar + name straddle the banner (name centered on the avatar, not shifted). The
-              badges sit just below the name and beside the avatar — pulled up so they aren't below the photo. */}
+              badges sit just below the name and beside the avatar - pulled up so they aren't below the photo. */}
           <div>
             <div className="-mt-12 flex items-center gap-4 sm:-mt-14">
               <ProfileAvatar avatarUrl={profile.avatarUrl} frame={profile.customization?.avatarFrame ?? null} name={displayName} />
@@ -66,7 +66,7 @@ export function PlayerProfilePage({
             </div>
           </div>
 
-          {/* Details sit on the surface below — readable, off the bright banner. */}
+          {/* Details sit on the surface below - readable, off the bright banner. */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="grid gap-2">
               {profile.customization?.tagline ? (
@@ -112,7 +112,13 @@ export function PlayerProfilePage({
 
       {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
 
-      {profile.achievements.length > 0 ? <ProfileAchievements achievements={profile.achievements} /> : null}
+      {profile.achievementStats.total > 0 ? (
+        <ProfileAchievements
+          achievements={profile.achievements}
+          slug={profile.slug}
+          stats={profile.achievementStats}
+        />
+      ) : null}
 
       <ProfileActivity slug={profile.slug} />
 
@@ -362,13 +368,13 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
   const muted = entry.isInvalidated;
 
-  return (
-    <Link
-      className={`grid gap-3 rounded-lg border p-4 transition-colors hover:border-accent sm:grid-cols-[1fr_auto] ${
-        muted ? "border-border/60 bg-surface/60" : "border-border bg-surface"
-      }`}
-      href={`/runs/${entry.sessionId}/resultats`}
-    >
+  // Weekly runs have no public /runs/{id}/resultats page, so the row isn't a link.
+  const baseClassName = `grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] ${
+    muted ? "border-border/60 bg-surface/60" : "border-border bg-surface"
+  }`;
+
+  const inner = (
+    <>
       <div className="grid gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span
@@ -408,6 +414,16 @@ function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
           </dd>
         </div>
       </dl>
+    </>
+  );
+
+  if (entry.isWeekly) {
+    return <div className={baseClassName}>{inner}</div>;
+  }
+
+  return (
+    <Link className={`${baseClassName} transition-colors hover:border-accent`} href={`/runs/${entry.sessionId}/resultats`}>
+      {inner}
     </Link>
   );
 }

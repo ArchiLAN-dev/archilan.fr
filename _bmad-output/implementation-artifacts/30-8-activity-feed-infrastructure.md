@@ -34,7 +34,7 @@ source of truth), and a live in-context signal on friendship-accept.
 - [x] **api/ Presentation:** `community:activity:backfill` command.
 - [x] **api/ tests:** unit `ActivityFeedTest` (record idempotency, backfill materialise + idempotent) +
       functional `CommunityActivityTest` (friendship accept records an entry).
-- [x] **Gates** — all green (no frontend; surfacing is 30.9).
+- [x] **Gates** - all green (no frontend; surfacing is 30.9).
 
 ## Dev Notes
 

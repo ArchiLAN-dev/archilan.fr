@@ -1,7 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
-/** "Type de signalement" — which part of the profile (story 30.28). Mirrors the backend ReportCategory. */
+/** "Type de signalement" - which part of the profile (story 30.28). Mirrors the backend ReportCategory. */
 export const REPORT_CATEGORIES = [
   { value: "avatar", label: "Photo de profil" },
   { value: "display_name", label: "Pseudo" },
@@ -10,7 +10,7 @@ export const REPORT_CATEGORIES = [
   { value: "other", label: "Autre" },
 ] as const;
 
-/** "Contenu problématique" — drives severity (story 30.28). Mirrors the backend ReportProblem. */
+/** "Contenu problématique" - drives severity (story 30.28). Mirrors the backend ReportProblem. */
 export const REPORT_PROBLEMS = [
   { value: "nudity", label: "Nudité / contenu sexuel" },
   { value: "violence", label: "Violence" },

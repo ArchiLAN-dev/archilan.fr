@@ -37,10 +37,10 @@ to name them". Sharing / import-export / cross-user templates are out of scope.
 - [x] **Backend: Infrastructure** (AC: 4, 8)
   - [x] `DoctrineYamlTemplateRepository` implementing the interface (ORM for entity ops; `findByUserAndGame` filtered by `user_id` + `game_id`).
 - [~] **Backend: Application** (AC: 1, 2, 3, 5, 6, 7, 8)
-  - [~] **Deviation:** implemented as ONE cohesive service `PersonalRunYamlTemplates` (`list`/`save`/`update`/`delete`) returning result arrays, mirroring the local `PersonalRunGameSelection`/`PersonalRunGameConfig` style, instead of four separate `Verb*` command classes. `update` handles both rename and YAML change (single PUT). Ownership-check (`isOwnedBy`), name uniqueness (`template_name_taken`), `apworldReady` + YAML syntax validation (`Symfony\Component\Yaml`, allowed in Application — the DDD validator itself uses it).
+  - [~] **Deviation:** implemented as ONE cohesive service `PersonalRunYamlTemplates` (`list`/`save`/`update`/`delete`) returning result arrays, mirroring the local `PersonalRunGameSelection`/`PersonalRunGameConfig` style, instead of four separate `Verb*` command classes. `update` handles both rename and YAML change (single PUT). Ownership-check (`isOwnedBy`), name uniqueness (`template_name_taken`), `apworldReady` + YAML syntax validation (`Symfony\Component\Yaml`, allowed in Application - the DDD validator itself uses it).
   - [~] List read served by the same service via `YamlTemplateRepositoryInterface::findByUserAndGame` (returns `id,name,gameId,yaml,updatedAt`); no separate DBAL query interface (the repository read is sufficient and keeps DBAL/ORM out of Presentation).
 - [x] **Backend: Presentation** (AC: 1, 2, 4, 6, 7, 8)
-  - [~] New `YamlTemplateController` in `App\PersonalRuns\Presentation`. **Deviation:** gated on **authenticated user** (`ApiAccessGuard::requireUser` via `RequiresAuthTrait`), NOT member — personal runs themselves are `ROLE_USER`, so templates must be too. Routes `GET/POST /api/v1/yaml-templates`, `PUT/DELETE /api/v1/yaml-templates/{id}`. 404 foreign/unknown id, 422 validation + `template_name_taken`. One Application call per action.
+  - [~] New `YamlTemplateController` in `App\PersonalRuns\Presentation`. **Deviation:** gated on **authenticated user** (`ApiAccessGuard::requireUser` via `RequiresAuthTrait`), NOT member - personal runs themselves are `ROLE_USER`, so templates must be too. Routes `GET/POST /api/v1/yaml-templates`, `PUT/DELETE /api/v1/yaml-templates/{id}`. 404 foreign/unknown id, 422 validation + `template_name_taken`. One Application call per action.
 - [x] **Backend: Erasure** (AC: 9)
   - [x] In `Identity\Application\DeleteAccount::delete()`, purge the user's templates via `YamlTemplateRepositoryInterface::deleteByUserId($user->getId())` (inject the interface). Templates hold no anonymizable display data → hard delete is correct.
 - [~] **Backend: tests** (AC: 1-9)
@@ -99,14 +99,14 @@ claude-opus-4-8
 - Implemented on branch `feature/epic-16-story-11-yaml-templates` (from `develop`).
 - Backend: `YamlTemplate` aggregate + `YamlTemplateRepositoryInterface` (PersonalRuns/Domain), `DoctrineYamlTemplateRepository`, cohesive `PersonalRunYamlTemplates` app service (list/save/update/delete), `YamlTemplateController` (4 routes), migration `Version20260617200000` (`yaml_template`, unique `(user_id, game_id, name)`), service binding, and erasure cascade in `DeleteAccount`.
 - Key deviations from the drafted tasks (all annotated above): one cohesive service instead of 4 command classes; single PUT for rename+yaml; **authenticated-user gating, not member** (personal runs are `ROLE_USER`); list via repository read (no separate DBAL query); YAML syntax validated with `Symfony\Component\Yaml` in the Application service; frontend list via `apiFetch`+`useState` (not TanStack), slot save moved onto the page to use the editor's template/`onChange` mode.
-- Frontend: `yaml-templates-api.ts` (typed results + guard) and a `TemplatesPanel` on the slot YAML page — apply (remounts the editor with the template YAML), overwrite, inline rename, delete, and "save current config as template", all on top of the existing shared `YamlOptionEditor` (additive, event-registration caller untouched).
+- Frontend: `yaml-templates-api.ts` (typed results + guard) and a `TemplatesPanel` on the slot YAML page - apply (remounts the editor with the template YAML), overwrite, inline rename, delete, and "save current config as template", all on top of the existing shared `YamlOptionEditor` (additive, event-registration caller untouched).
 
 ### Validation Results
 
 - `vendor/bin/php-cs-fixer fix src tests --dry-run`: 0 violations.
 - `vendor/bin/phpstan analyse src tests`: 0 errors (766 files).
 - `php bin/console app:architecture:ddd`: exit 0.
-- `php bin/phpunit`: 1120 tests, 8063 assertions, OK (0 notices/deprecations/warnings) — includes `YamlTemplateTest` (functional, 9) + `Unit\PersonalRuns\YamlTemplateTest` (3).
+- `php bin/phpunit`: 1120 tests, 8063 assertions, OK (0 notices/deprecations/warnings) - includes `YamlTemplateTest` (functional, 9) + `Unit\PersonalRuns\YamlTemplateTest` (3).
 - `pnpm typecheck` / `pnpm lint` / `pnpm build` / `pnpm test` (jest 86): all clean.
 
 ### File List
@@ -122,7 +122,7 @@ claude-opus-4-8
 - `api/tests/Unit/PersonalRuns/YamlTemplateTest.php`
 
 **Modified (api)**
-- `api/src/Identity/Application/DeleteAccount.php` (erasure cascade — inject `YamlTemplateRepositoryInterface`, `deleteByUserId`)
+- `api/src/Identity/Application/DeleteAccount.php` (erasure cascade - inject `YamlTemplateRepositoryInterface`, `deleteByUserId`)
 - `api/config/services.yaml` (repository binding)
 
 **Added (frontend)**

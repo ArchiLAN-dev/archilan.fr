@@ -35,7 +35,7 @@ simple per-author rate limit.
 - [x] **api/ tests:** unit `ProfileCommentTest`; functional `CommunityCommentTest` (owner post/list/delete,
       non-member 403, friends-audience list 403, report idempotent, rate limit 429).
 - [x] **frontend:** `community-comments-api.ts` + `ProfileComments` (client) on the profile.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

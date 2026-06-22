@@ -34,23 +34,23 @@ profile header and on feed entries, with a batch lookup so the feed stays a sing
 - [x] **api/ tests:** functional `CommunityPresenceTest` (playing vs offline; batch resolves a mix).
 - [x] **frontend:** presence indicator on the profile header (`player-profile-page.tsx` /
       `player-profile-api.ts`) and feed (`community-activity.tsx` / `community-feed-api.ts`).
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Presence is **derived** from existing session state via a read query — no new "presence" table, no
+- Presence is **derived** from existing session state via a read query - no new "presence" table, no
   heartbeat writes. A running session for a user = playing.
 - The feed reuses one batched presence lookup keyed by the page's author ids, mirroring how kudos counts are
   folded into the feed query (30.11).
 
 ### Architecture guardrails
 - Read-only: `CommunityPresenceQueryInterface` is a query interface in Application, implemented with DBAL
-  QueryBuilder in Infrastructure (AC-A2) — no raw SQL, no entity returned.
+  QueryBuilder in Infrastructure (AC-A2) - no raw SQL, no entity returned.
 - No clock/randomness in Application; "currently running" is determined by the session read query itself.
 
 ### Scope boundaries / deviations
-- Presence reflects live sessions only (not a generic "online/last seen"); no websocket presence channel —
+- Presence reflects live sessions only (not a generic "online/last seen"); no websocket presence channel -
   it's resolved on each profile/feed read.
 - Respects profile audience: presence is shown wherever the profile/feed is already visible to the viewer.
 

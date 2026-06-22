@@ -14,9 +14,50 @@ export type PersonalRunGame = {
 
 export type PersonalRunParticipant = {
   userId: string;
+  slug: string | null;
   displayName: string | null;
+  avatarUrl: string | null;
   joinedAt: string;
   slotCount: number;
+};
+
+export type ParticipantLevel = {
+  level: number;
+  xp: number;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+};
+
+export type ParticipantStats = {
+  runsParticipated: number;
+  goalCompletions: number;
+  totalChecksDone: number;
+  achievementsUnlocked: number;
+};
+
+export type ParticipantIdentity = {
+  userId: string;
+  slug: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isAdmin: boolean;
+  level: ParticipantLevel;
+  stats: ParticipantStats;
+};
+
+export type ParticipantGameSlot = {
+  slotId: string;
+  gameId: string;
+  slotOrder: number;
+  gameName: string;
+  gameSlug: string | null;
+  description: string | null;
+  coverImageUrl: string | null;
+  coverImageAlt: string;
+  availability: string | null;
+  platforms: string[];
+  isApworldReady: boolean;
+  playerYaml: string | null;
 };
 
 export type ValidationSlotError = {

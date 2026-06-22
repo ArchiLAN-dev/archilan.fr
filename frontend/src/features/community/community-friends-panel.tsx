@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
+import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import {
   acceptFriendship,
   declineFriendship,
@@ -42,11 +43,7 @@ export function CommunityFriendsPanel() {
   }
 
   if (loading) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
-      </p>
-    );
+    return <CommunityLoadingSkeleton rows={3} />;
   }
 
   if (data === null) {
@@ -95,7 +92,7 @@ export function CommunityFriendsPanel() {
           Mes amis <span className="text-sm font-normal text-muted-foreground">({data.friends.length})</span>
         </h2>
         {data.friends.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Pas encore d&apos;amis — visite des profils pour envoyer des demandes.</p>
+          <p className="text-sm text-muted-foreground">Pas encore d&apos;amis - visite des profils pour envoyer des demandes.</p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2" role="list">
             {data.friends.map((card) => (

@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 
+import { fetchDirectory, type DirectoryRow } from "@/features/community/community-directory-api";
 import {
   createAchievement,
   fetchAchievementDashboard,
+  grantAchievement,
   isRuleGroup,
   reorderAchievements,
+  revokeAchievement,
   setAchievementActive,
   updateAchievement,
+  uploadAchievementImage,
   type AchievementDefinition,
   type AchievementFormOptions,
   type RuleCondition,
@@ -19,6 +23,13 @@ import {
   type RuleNode,
   type RuleOperator,
 } from "./admin-achievements-api";
+import {
+  EVENTS_FACT,
+  eventIdOfFact,
+  eventScopedFact,
+  factLabel,
+  isEventScopedFact,
+} from "./admin-achievement-event-scope";
 
 const QUERY_KEY = ["admin-achievements"] as const;
 const STALE_TIME = 15_000;
@@ -39,6 +50,7 @@ const OPERATOR_LABELS: Record<RuleOperator, string> = {
   between: "entre",
 };
 
+
 type EditorState =
   | { mode: "closed" }
   | { mode: "create" }
@@ -53,6 +65,7 @@ export function AdminAchievementsDashboard() {
   });
   const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [grantingId, setGrantingId] = useState<string | null>(null);
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -136,7 +149,7 @@ export function AdminAchievementsDashboard() {
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">{summariseRule(definition.rule)}</p>
+                  <p className="text-xs text-muted-foreground">{summariseRule(definition.rule, data.options)}</p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5">
@@ -163,6 +176,13 @@ export function AdminAchievementsDashboard() {
                     {definition.active ? "Désactiver" : "Activer"}
                   </button>
                   <button
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+                    onClick={() => setGrantingId(grantingId === definition.id ? null : definition.id)}
+                    type="button"
+                  >
+                    <UserPlus aria-hidden className="size-4" /> Attribuer
+                  </button>
+                  <button
                     className="inline-flex min-h-9 items-center rounded-lg border border-accent px-3 text-sm font-semibold text-accent-text transition-colors hover:bg-accent hover:text-white"
                     onClick={() => setEditor({ mode: "edit", definition })}
                     type="button"
@@ -171,6 +191,13 @@ export function AdminAchievementsDashboard() {
                   </button>
                 </div>
               </article>
+              {grantingId === definition.id ? (
+                <GrantPanel
+                  definitionId={definition.id}
+                  definitionName={definition.name}
+                  onClose={() => setGrantingId(null)}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -204,6 +231,141 @@ function IconButton({
   );
 }
 
+// ── Manual grant panel (story 30.34) ────────────────────────────────────────────
+
+function GrantPanel({
+  definitionId,
+  definitionName,
+  onClose,
+}: {
+  definitionId: string;
+  definitionName: string;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [rows, setRows] = useState<DirectoryRow[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [busySlug, setBusySlug] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function runSearch(): Promise<void> {
+    setSearching(true);
+    setMessage(null);
+    const result = await fetchDirectory({ mode: "top", search, page: 1 });
+    setRows(result?.rows ?? []);
+    setSearched(true);
+    setSearching(false);
+  }
+
+  async function act(action: "grant" | "revoke", row: DirectoryRow): Promise<void> {
+    const name = row.displayName ?? row.slug;
+    setBusySlug(row.slug);
+    const ok =
+      action === "grant"
+        ? await grantAchievement(definitionId, row.slug)
+        : await revokeAchievement(definitionId, row.slug);
+    setBusySlug(null);
+    setMessage(
+      ok
+        ? action === "grant"
+          ? `« ${definitionName} » attribué à ${name}.`
+          : `« ${definitionName} » retiré de ${name}.`
+        : "L’opération a échoué.",
+    );
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button aria-label="Fermer" className="absolute inset-0 cursor-default bg-black/60" onClick={onClose} type="button" />
+      <div className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+          <h3 className="min-w-0 truncate font-heading text-base font-semibold text-foreground">
+            Attribuer « {definitionName} » à un joueur
+          </h3>
+          <button
+            aria-label="Fermer"
+            className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden className="size-4" />
+          </button>
+        </div>
+
+        <div className="grid gap-3 overflow-y-auto p-4">
+          <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void runSearch();
+        }}
+      >
+        <input
+          className="min-h-9 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-accent"
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher un joueur (pseudo)…"
+          value={search}
+        />
+        <button
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+          type="submit"
+        >
+          {searching ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Search aria-hidden className="size-4" />}
+          Rechercher
+        </button>
+      </form>
+
+      {rows.length > 0 ? (
+        <ul className="grid gap-1.5">
+          {rows.map((row) => (
+            <li
+              className="flex items-center justify-between gap-2 rounded border border-border bg-surface px-3 py-2"
+              key={row.slug}
+            >
+              <span className="min-w-0 truncate text-sm text-foreground">
+                {row.displayName ?? row.slug} <span className="text-xs text-muted-foreground">@{row.slug}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <button
+                  className="rounded border border-accent px-2 py-1 text-xs font-semibold text-accent-text transition-colors hover:bg-accent hover:text-white disabled:opacity-50"
+                  disabled={busySlug === row.slug}
+                  onClick={() => void act("grant", row)}
+                  type="button"
+                >
+                  Attribuer
+                </button>
+                <button
+                  className="rounded border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-red-400 hover:text-red-400 disabled:opacity-50"
+                  disabled={busySlug === row.slug}
+                  onClick={() => void act("revoke", row)}
+                  type="button"
+                >
+                  Retirer
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : searched && !searching ? (
+        <p className="text-xs text-muted-foreground">Aucun joueur trouvé.</p>
+      ) : null}
+
+          {message ? <p className="text-xs text-accent-text">{message}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Form ───────────────────────────────────────────────────────────────────────
 
 const KEY_PATTERN = /^[a-z0-9_]{1,64}$/;
@@ -225,6 +387,10 @@ function AchievementForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [rule, setRule] = useState<RuleGroup>(initial?.rule ?? newGroup(options));
+  const [imageKey, setImageKey] = useState<string | null>(initial?.customImageKey ?? null);
+  const [imageUrl, setImageUrl] = useState<string | null>(initial?.customImageUrl ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -233,12 +399,25 @@ function AchievementForm({
   const keyDuplicate = !isEdit && existingKeys.includes(key);
   const canSubmit = keyValid && !keyDuplicate && name.trim() !== "" && ruleIsComplete(rule) && !saving;
 
+  async function handlePickImage(file: File): Promise<void> {
+    setUploadingImage(true);
+    setImageError(null);
+    const result = await uploadAchievementImage(file);
+    setUploadingImage(false);
+    if (result === null) {
+      setImageError("L'upload a échoué (JPEG, PNG ou WebP, 5 Mo max).");
+      return;
+    }
+    setImageKey(result.key);
+    setImageUrl(result.imageUrl);
+  }
+
   async function submit(): Promise<void> {
     setSaving(true);
     setError(null);
     const result = isEdit
-      ? await updateAchievement(initial.id, { name: name.trim(), description: description.trim(), rule })
-      : await createAchievement({ key, name: name.trim(), description: description.trim(), rule });
+      ? await updateAchievement(initial.id, { name: name.trim(), description: description.trim(), rule, customImageKey: imageKey })
+      : await createAchievement({ key, name: name.trim(), description: description.trim(), rule, customImageKey: imageKey });
     setSaving(false);
     if (!result.ok) {
       setError(result.error);
@@ -290,6 +469,50 @@ function AchievementForm({
             placeholder="Ce que le joueur doit accomplir."
             value={description}
           />
+        </Field>
+
+        <Field label="Image (optionnel, remplace le trophée)">
+          <div className="flex flex-wrap items-center gap-3">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- remote presigned image, not a local asset
+              <img alt="" className="size-12 rounded-lg border border-border object-cover" src={imageUrl} />
+            ) : (
+              <span className="flex size-12 items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
+                <ImageIcon aria-hidden className="size-5" />
+              </span>
+            )}
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground">
+              {uploadingImage ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : (
+                <Upload aria-hidden className="size-4" />
+              )}
+              {imageUrl ? "Remplacer" : "Choisir une image"}
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handlePickImage(file);
+                  e.target.value = "";
+                }}
+                type="file"
+              />
+            </label>
+            {imageUrl ? (
+              <button
+                className="text-sm text-muted-foreground transition-colors hover:text-red-400"
+                onClick={() => {
+                  setImageKey(null);
+                  setImageUrl(null);
+                }}
+                type="button"
+              >
+                Retirer
+              </button>
+            ) : null}
+          </div>
+          {imageError ? <span className="text-xs text-red-400">{imageError}</span> : null}
         </Field>
 
         <div className="grid gap-2">
@@ -444,13 +667,17 @@ function ConditionEditor({
   options: AchievementFormOptions;
   onChange: (next: RuleCondition) => void;
 }) {
+  const eventScoped = isEventScopedFact(condition.fact);
+  const eventId = eventIdOfFact(condition.fact);
+  const eventMissing = eventId !== null && !options.events.some((e) => e.id === eventId);
+
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-surface px-2 py-2">
       <select
         aria-label="Métrique"
         className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
         onChange={(e) => onChange({ ...condition, fact: e.target.value })}
-        value={condition.fact}
+        value={eventScoped ? EVENTS_FACT : condition.fact}
       >
         {options.facts.map((f) => (
           <option key={f.key} value={f.key}>
@@ -458,6 +685,25 @@ function ConditionEditor({
           </option>
         ))}
       </select>
+
+      {eventScoped ? (
+        <select
+          aria-label="Événement"
+          className="min-h-9 rounded-lg border border-border bg-surface-2 px-2 text-sm text-foreground outline-none focus:border-accent"
+          onChange={(e) => onChange({ ...condition, fact: eventScopedFact(e.target.value) })}
+          value={eventId ?? ""}
+        >
+          <option value="">Tous les événements</option>
+          {options.events.map((ev) => (
+            <option key={ev.id} value={ev.id}>
+              {ev.title}
+            </option>
+          ))}
+          {eventMissing && eventId !== null ? (
+            <option value={eventId}>(événement supprimé)</option>
+          ) : null}
+        </select>
+      ) : null}
 
       <select
         aria-label="Opérateur"
@@ -535,17 +781,18 @@ function ruleIsComplete(node: RuleNode): boolean {
   return node.rules.every(ruleIsComplete);
 }
 
-function summariseRule(node: RuleNode, depth = 0): string {
+function summariseRule(node: RuleNode, options: AchievementFormOptions, depth = 0): string {
   if (!isRuleGroup(node)) {
     const op = OPERATOR_LABELS[node.operator] ?? node.operator;
+    const label = factLabel(node.fact, options);
     if (node.operator === "between") {
-      return `${node.fact} ${op} ${node.value}–${node.value2 ?? node.value}`;
+      return `${label} ${op} ${node.value}–${node.value2 ?? node.value}`;
     }
-    return `${node.fact} ${op} ${node.value}`;
+    return `${label} ${op} ${node.value}`;
   }
   if (node.rules.length === 0) return "(vide)";
   const joiner = node.op === "all" ? " ET " : node.op === "any" ? " OU " : " NI ";
-  const inner = node.rules.map((r) => summariseRule(r, depth + 1)).join(joiner);
+  const inner = node.rules.map((r) => summariseRule(r, options, depth + 1)).join(joiner);
   const body = node.op === "none" ? `NON(${inner})` : inner;
   return depth === 0 ? body : `(${body})`;
 }

@@ -16,7 +16,7 @@ A `ModerationService` over the existing content-report + profile-comment models,
 
 1. `ModerationService` (admin-gated): list the open report queue (reporter, target, reason, created_at),
    resolve a report, hide a profile comment, restore a hidden comment. Hiding is soft (a `hidden_at` /
-   moderation flag on `ProfileComment`), not a hard delete — restorable.
+   moderation flag on `ProfileComment`), not a hard delete - restorable.
 2. A hidden comment disappears from the public profile read but remains visible to moderators in the queue.
 3. `AdminModerationController` exposes the queue + actions; all actions require `ROLE_ADMIN`.
 4. Admin UI: a moderation dashboard reachable from the admin nav; a member-facing `/confidentialite`
@@ -36,23 +36,23 @@ A `ModerationService` over the existing content-report + profile-comment models,
 - [x] **api/ tests:** functional `AdminModerationTest` (queue, resolve, hide hides from public read, restore).
 - [x] **frontend:** `admin-moderation-api.ts` + `admin-moderation-dashboard.tsx` + `/admin/moderation` page;
       admin nav entry; public `/confidentialite` page.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Built entirely on the 30.10 content-report + profile-comment models — no new report entity, the panel is a
+- Built entirely on the 30.10 content-report + profile-comment models - no new report entity, the panel is a
   read/act layer over what already exists.
 - Hiding reuses a soft-delete flag on `ProfileComment` rather than a separate "moderation log" table.
 
 ### Architecture guardrails
-- Admin-only actions are gated with `ROLE_ADMIN` (display/admin context — allowed; this is not membership
+- Admin-only actions are gated with `ROLE_ADMIN` (display/admin context - allowed; this is not membership
   access, so the `ROLE_MEMBER` ban in CLAUDE.md does not apply here).
 - Hiding is soft + restorable so a moderation mistake is reversible and the audit trail (the report) stays.
 - The public profile read filters hidden comments at the repository level, not in the controller.
 
 ### Scope boundaries / deviations
-- Comments only — moderation of runs/achievements/kudos is out of scope.
+- Comments only - moderation of runs/achievements/kudos is out of scope.
 - No automated moderation / word filters; the privacy page is informational (no new data-export endpoint).
 
 ### Project Structure Notes

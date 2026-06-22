@@ -46,7 +46,7 @@ wired into the profile read. Deps: 30.1.
       `community-profile-customization-form.tsx` (client) wired as a new `/compte` "Profil" tab; public
       profile page renders customization (banner preset, tagline/pronouns, bio, favorites, links);
       `hasNullableStringProp` added to shared type-guards.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 

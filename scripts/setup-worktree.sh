@@ -9,7 +9,7 @@
 # Usage:
 #   ./scripts/setup-worktree.sh <name> [branch] [--base <branch>] [--no-frontend]
 #
-#   <name>          short token, e.g. "avatar" — used for the worktree dir
+#   <name>          short token, e.g. "avatar" - used for the worktree dir
 #                   (../archilan-<name>) and the test DB suffix (archilan_test_<name>).
 #   [branch]        branch to check out. Defaults to "feature/<name>".
 #                   - existing local branch        -> checked out as-is

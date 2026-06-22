@@ -38,6 +38,22 @@ export type Achievement = {
   unlockedAt: string | null;
   grantId: string | null;
   kudosCount: number;
+  /** Optional custom image (presigned) shown in place of the default trophy (story 30.33). */
+  customImageUrl: string | null;
+};
+
+/** Unlocked / total achievement counts shown on the profile card alongside the recent unlocks. */
+export type AchievementStats = { unlocked: number; total: number };
+
+export type AchievementRarity = { count: number; percent: number | null };
+
+export type CatalogueAchievement = Achievement & { rarity: AchievementRarity };
+
+export type PlayerAchievementsCatalogue = {
+  slug: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  achievements: CatalogueAchievement[];
 };
 
 export type ProfileLevel = {
@@ -61,12 +77,21 @@ export type PlayerProfile = {
   badges: ProfileBadges;
   level: ProfileLevel;
   achievements: Achievement[];
+  achievementStats: AchievementStats;
   presence: ProfilePresence;
   customization: ProfileCustomization | null;
   stats: PlayerStats;
 };
 
 const DEFAULT_LEVEL: ProfileLevel = { level: 0, xp: 0, xpIntoLevel: 0, xpForNextLevel: 100 };
+const NO_ACHIEVEMENT_STATS: AchievementStats = { unlocked: 0, total: 0 };
+
+function parseAchievementStats(v: unknown): AchievementStats {
+  if (typeof v !== "object" || v === null || !hasNumberProp(v, "unlocked") || !hasNumberProp(v, "total")) {
+    return NO_ACHIEVEMENT_STATS;
+  }
+  return { unlocked: v.unlocked, total: v.total };
+}
 const OFFLINE: ProfilePresence = { playing: false, sessionId: null, game: null };
 const NO_BADGES: ProfileBadges = { member: false, admin: false };
 
@@ -97,6 +122,7 @@ export type RunHistoryEntry = {
   goalReachedAt: string | null;
   wasReleased: boolean;
   isInvalidated: boolean;
+  isWeekly: boolean;
 };
 
 export type PlayerHistory = {
@@ -151,7 +177,9 @@ function isAchievement(v: unknown): v is Achievement {
     hasBooleanProp(v, "unlocked") &&
     hasNullableStringProp(v, "unlockedAt") &&
     hasNullableStringProp(v, "grantId") &&
-    hasNumberProp(v, "kudosCount")
+    hasNumberProp(v, "kudosCount") &&
+    // Lenient: tolerate a payload without the field (transient on deploy); default to no image.
+    (!("customImageUrl" in v) || v.customImageUrl === null || typeof v.customImageUrl === "string")
   );
 }
 
@@ -183,7 +211,8 @@ function isRunHistoryEntry(v: unknown): v is RunHistoryEntry {
   if (!hasNumberProp(v, "itemsReceived")) return false;
   if (!("goalReachedAt" in v) || (v.goalReachedAt !== null && typeof v.goalReachedAt !== "string")) return false;
   if (!hasBooleanProp(v, "wasReleased")) return false;
-  return hasBooleanProp(v, "isInvalidated");
+  if (!hasBooleanProp(v, "isInvalidated")) return false;
+  return hasBooleanProp(v, "isWeekly");
 }
 
 function isPlayerHistoryPayload(payload: unknown): payload is PlayerHistory {
@@ -217,9 +246,56 @@ export const getPlayerProfile = cache(async (slug: string): Promise<PlayerProfil
       badges: parseBadges("badges" in data ? data.badges : null),
       level: isProfileLevel(data.level) ? data.level : DEFAULT_LEVEL,
       achievements: Array.isArray(data.achievements) ? data.achievements : [],
+      achievementStats: parseAchievementStats("achievementStats" in data ? data.achievementStats : null),
       presence: parsePresence("presence" in data ? data.presence : null),
       customization: data.customization ?? null,
       stats: data.stats,
+    };
+  } catch {
+    return null;
+  }
+});
+
+function isCatalogueAchievement(v: unknown): v is CatalogueAchievement {
+  if (!isAchievement(v)) return false;
+  if (!("rarity" in v) || typeof v.rarity !== "object" || v.rarity === null) return false;
+  const r = v.rarity;
+  if (!hasNumberProp(r, "count")) return false;
+  return "percent" in r && (r.percent === null || typeof r.percent === "number");
+}
+
+function isCataloguePayload(payload: unknown): payload is { data: PlayerAchievementsCatalogue } {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return false;
+  const data = payload.data;
+  if (typeof data !== "object" || data === null) return false;
+  if (!hasStringProp(data, "slug")) return false;
+  if (!("displayName" in data) || (data.displayName !== null && typeof data.displayName !== "string")) return false;
+  if ("avatarUrl" in data && data.avatarUrl !== null && typeof data.avatarUrl !== "string") return false;
+  return "achievements" in data && Array.isArray(data.achievements) && data.achievements.every(isCatalogueAchievement);
+}
+
+export const getPlayerAchievements = cache(async (slug: string): Promise<PlayerAchievementsCatalogue | null> => {
+  try {
+    const response = await fetch(
+      `${env.apiBaseUrl}/community/profiles/${encodeURIComponent(slug)}/achievements`,
+      { cache: "no-store" },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload: unknown = await response.json();
+    if (!isCataloguePayload(payload)) {
+      return null;
+    }
+
+    const data = payload.data;
+    return {
+      slug: data.slug,
+      displayName: data.displayName,
+      avatarUrl: data.avatarUrl ?? null,
+      achievements: data.achievements,
     };
   } catch {
     return null;

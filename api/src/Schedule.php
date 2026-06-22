@@ -53,8 +53,9 @@ final class Schedule implements ScheduleProviderInterface
                 RecurringMessage::cron('30 3 * * *', new CleanupEventPrivateAccessLogMessage()),
             )
             ->add(
-                // Backstop: catch any achievement unlock the real-time post-archive path missed (story 30.26).
-                RecurringMessage::cron('45 3 * * *', new RecomputeAllAchievementsMessage()),
+                // Backstop: catch any achievement unlock the real-time post-archive path missed
+                // (story 30.26). Runs hourly (at :45) so a missed unlock is reconciled within the hour.
+                RecurringMessage::cron('45 * * * *', new RecomputeAllAchievementsMessage()),
             )
             ->add(
                 RecurringMessage::every('2 minutes', new CleanupStaleSessionsTask()),

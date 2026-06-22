@@ -39,15 +39,18 @@ final class AchievementDefinition
         private \DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'updated_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $updatedAt,
+        // Optional MinIO key for a custom image shown in place of the default trophy (story 30.33).
+        #[ORM\Column(name: 'custom_image_key', type: 'string', length: 512, nullable: true)]
+        private ?string $customImageKey = null,
     ) {
     }
 
     /**
      * @param array<string, mixed> $rule
      */
-    public static function create(string $key, string $name, string $description, array $rule, int $position, \DateTimeImmutable $now): self
+    public static function create(string $key, string $name, string $description, array $rule, int $position, \DateTimeImmutable $now, ?string $customImageKey = null): self
     {
-        return new self(bin2hex(random_bytes(16)), $key, $name, $description, $rule, true, $position, $now, $now);
+        return new self(bin2hex(random_bytes(16)), $key, $name, $description, $rule, true, $position, $now, $now, $customImageKey);
     }
 
     /**
@@ -58,6 +61,13 @@ final class AchievementDefinition
         $this->name = $name;
         $this->description = $description;
         $this->rule = $rule;
+        $this->updatedAt = $now;
+    }
+
+    /** Set or clear (null) the custom image key. */
+    public function setCustomImage(?string $key, \DateTimeImmutable $now): void
+    {
+        $this->customImageKey = $key;
         $this->updatedAt = $now;
     }
 
@@ -119,6 +129,11 @@ final class AchievementDefinition
     public function getPosition(): int
     {
         return $this->position;
+    }
+
+    public function getCustomImageKey(): ?string
+    {
+        return $this->customImageKey;
     }
 
     public function getCreatedAt(): \DateTimeImmutable

@@ -50,12 +50,12 @@ Extends the shared install-steps editor (stories 31.1/31.5) and every step-rende
       the duplicated `decodeSteps`/`decodeInstallSteps` in `DbalGameCatalogQuery`, the guide query, and
       `DbalAdminGameContributionsQuery`. Emit both `imageKey` (raw) and resolved `imageUrl`. Public DTOs may
       keep `imageKey` (ignored by the public view).
-- [ ] **frontend editor**: `InstallStepsEditor` — add an upload button + preview per step; `InstallStep`
+- [ ] **frontend editor**: `InstallStepsEditor` - add an upload button + preview per step; `InstallStep`
       gains `imageKey?: string|null`; a `serializeStepsForSave(steps)` helper drops the preview URL when
       `imageKey` is set. New `uploadTutorialImage(file)` api helper (FormData → `{key, url}`). Wire it in the
       admin game editor save, guide settings save, and the contribution form submit.
 - [ ] **frontend view/types**: `GameStep` + `isGameStep` gain optional `imageKey`; `InstallStepsView`
-      keeps rendering `imageUrl` (resolved) — no visual change beyond now-working uploads.
+      keeps rendering `imageUrl` (resolved) - no visual change beyond now-working uploads.
 - [ ] **Tests**: backend functional (upload happy path + bad mime/size + auth; presigned URL appears for an
       `imageKey` step in a read DTO via `NullMinioStorage`); frontend jest (`uploadTutorialImage` posts
       FormData and returns `{key,url}`; `serializeStepsForSave` nulls the preview URL when `imageKey` set).
@@ -65,17 +65,17 @@ Extends the shared install-steps editor (stories 31.1/31.5) and every step-rende
 - **Reuse**: `AdminPostCoverImageController` + `UploadPostCoverImageCommand` are the template for validation
   + MinIO upload; `ManageEventGalleryCommand` for the key-per-asset pattern; reads presign via
   `MinioStorageInterface::presignedUrl(bucket, key, ttl)`. [Source: api/src/Content/Presentation/AdminPostCoverImageController.php, api/src/Events/Application/ManageEventGalleryCommand.php]
-- **DI**: `string $minioMediaBucket` and `int $minioPresignTtl` are globally bound in services.yaml — inject
+- **DI**: `string $minioMediaBucket` and `int $minioPresignTtl` are globally bound in services.yaml - inject
   them directly. `MinioStorageInterface` may be injected into Application (precedent:
   `UploadPostCoverImageCommand`). [Source: api/config/services.yaml]
 - **Gating**: the contribution submit endpoint uses `ApiAccessGuard::requireUser`; match it so members can
-  upload for contributions (which stay moderated before publish — story 31.7). Never `ROLE_MEMBER` (AC-M1).
+  upload for contributions (which stay moderated before publish - story 31.7). Never `ROLE_MEMBER` (AC-M1).
 - **Step decode sites today (to converge on the codec)**: `InstallStepsNormalizer` (write),
   `DbalGameCatalogQuery` (public detail + admin read), the guide query, `DbalAdminGameContributionsQuery`
   (diff). [Source: grep of imageUrl across GameSelection]
 - **Tests**: `NullMinioStorage` (when@test) stores bytes and returns a stub presigned URL containing the
-  object key — assert the key path appears in the resolved `imageUrl`. [Source: api/src/Shared/Infrastructure/NullMinioStorage.php]
-- **Scope**: images only (videos stay URL/YouTube). No public bucket / permanent URL — reuse the private
+  object key - assert the key path appears in the resolved `imageUrl`. [Source: api/src/Shared/Infrastructure/NullMinioStorage.php]
+- **Scope**: images only (videos stay URL/YouTube). No public bucket / permanent URL - reuse the private
   media bucket + presign-at-read, consistent with covers.
 
 ### References
@@ -93,7 +93,7 @@ claude-opus-4-8
 - Centralized the previously-duplicated step decoding into one Application `InstallStepsReader` that drops
   unknown-type steps and resolves images (presigning an uploaded `imageKey`, else passing through the
   external `imageUrl`). It now feeds the game-catalog query, the guide query, the admin contributions diff
-  (which previously dropped images entirely) and the admin editor read — so images are consistent
+  (which previously dropped images entirely) and the admin editor read - so images are consistent
   everywhere. Infrastructure DBAL queries inject this Application service (Infra → App, allowed).
 - `imageKey` is validated by the normalizer (must be a `tutorials/`-prefixed, length-capped string) so a
   crafted body can't make the read side presign an arbitrary object.
@@ -108,9 +108,9 @@ claude-opus-4-8
 
 ### File List
 
-- api/src/GameSelection/Application/InstallStepsReader.php (new — decode + presign)
+- api/src/GameSelection/Application/InstallStepsReader.php (new - decode + presign)
 - api/src/GameSelection/Application/UploadTutorialImageCommand.php (new)
-- api/src/GameSelection/Presentation/TutorialImageController.php (new — POST /api/v1/tutorial-images)
+- api/src/GameSelection/Presentation/TutorialImageController.php (new - POST /api/v1/tutorial-images)
 - api/src/GameSelection/Application/InstallStepsNormalizer.php (accept/validate imageKey)
 - api/src/GameSelection/Application/ArchipelagoGuideQuery.php (use reader)
 - api/src/GameSelection/Application/AdminGameLibrary.php (use reader for editor read)
@@ -120,7 +120,7 @@ claude-opus-4-8
 - api/src/GameSelection/Infrastructure/DbalAdminGameContributionsQuery.php (use reader; now carries images)
 - api/tests/Functional/TutorialImageUploadTest.php (new)
 - api/tests/Functional/PublicGameDetailTest.php (imageKey presign test)
-- frontend/src/features/games/tutorial-image-api.ts (new — uploadTutorialImage)
+- frontend/src/features/games/tutorial-image-api.ts (new - uploadTutorialImage)
 - frontend/src/features/games/install-steps-editor.tsx (imageKey, upload field, serializeStepsForSave)
 - frontend/src/features/games/public-games-api.ts (GameStep.imageKey + guard)
 - frontend/src/features/admin/admin-game-editor.tsx (serialize on save)

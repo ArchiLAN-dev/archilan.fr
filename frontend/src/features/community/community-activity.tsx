@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Gamepad2, Loader2, Users } from "lucide-react";
+import { Gamepad2, Users } from "lucide-react";
+import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 
 import { fetchFriendsFeed, fetchProfileActivity, type ActivityItem } from "./community-feed-api";
 import { KudosButton } from "./kudos-button";
@@ -56,11 +57,7 @@ export function CommunityFeedPanel() {
   }, []);
 
   if (loading) {
-    return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
-      </p>
-    );
+    return <CommunityLoadingSkeleton rows={4} />;
   }
 
   if (items === null) {
@@ -70,7 +67,7 @@ export function CommunityFeedPanel() {
   if (items.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Rien pour l&apos;instant — ajoute des amis et termine des runs pour voir l&apos;activité ici.
+        Rien pour l&apos;instant - ajoute des amis et termine des runs pour voir l&apos;activité ici.
       </p>
     );
   }

@@ -25,12 +25,12 @@ with icons.
 
 - [x] **frontend:** group the tabs into a two-level nav (`account-tabs.tsx`).
 - [x] **frontend:** render the group level as a segmented control with icons (`account-tabs.tsx`).
-- [x] **Gates** — typecheck / lint / build / jest green.
+- [x] **Gates** - typecheck / lint / build / jest green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
-- Pure reorganisation of the existing tab definitions — no new pages, no routing change; each leaf still
+- Pure reorganisation of the existing tab definitions - no new pages, no routing change; each leaf still
   points at its current tab.
 
 ### Architecture guardrails
@@ -38,7 +38,7 @@ with icons.
 
 ### Scope boundaries / deviations
 - Iterated from a first "chips" attempt to the segmented control on user feedback ("les chips c'est pas
-  terrible") — only the segmented control is in the final state.
+  terrible") - only the segmented control is in the final state.
 - The "compte" leaf was relabelled "Connexions & sécurité" for clarity.
 
 ### Project Structure Notes

@@ -43,7 +43,7 @@ fallback that also covers load errors. Deps: 30.1.
 - [x] **api/ tests:** unit (`isAvatarStale`/`cacheAvatar`/null-result), functional (refresh via stub →
       view returns cached URL).
 - [x] **frontend:** extract a **client** `ProfileAvatar` with `onError` → initials fallback; page uses it.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
@@ -66,7 +66,7 @@ fallback that also covers load errors. Deps: 30.1.
 - **No owner `avatarSource` choice yet** (that's profile customization, story 30.3) → auto precedence only.
 - **Refresh is command/scheduled + on-edit-reusable**, not dispatched on view; a brand-new member's avatar
   appears after the next `community:avatars:refresh` pass (accepted MVP trade-off; an on-view async warm
-  can be added later). No Symfony Scheduler entry added here — wire the command into the scheduler when ops
+  can be added later). No Symfony Scheduler entry added here - wire the command into the scheduler when ops
   is ready.
 
 ### Project Structure Notes

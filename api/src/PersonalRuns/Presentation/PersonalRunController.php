@@ -273,6 +273,30 @@ final readonly class PersonalRunController
         ]]);
     }
 
+    #[Route('/api/v1/runs/{runId}/participants/{participantId}/game-selection', name: 'api_runs_participant_game_selection_get', methods: ['GET'])]
+    public function getParticipantGameSelection(Request $request, string $runId, string $participantId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $result = $this->gameSelection->getParticipantSlots($runId, $user->getId(), $participantId);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Participant introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        return new JsonResponse(['data' => [
+            'participant' => $result['participant'],
+            'slots' => $result['slots'],
+        ]]);
+    }
+
     #[Route('/api/v1/runs/{runId}/participants/me/games', name: 'api_runs_game_selection_save', methods: ['PUT'])]
     public function saveMyGames(Request $request, string $runId): JsonResponse
     {

@@ -8,7 +8,7 @@ Status: done
 
 As an admin moderating tutorial contributions,
 I want to filter the contributions queue by status and target type, sort it, and search it,
-so that I can triage them efficiently — the mirror of story 30.25 for the reports queue.
+so that I can triage them efficiently - the mirror of story 30.25 for the reports queue.
 
 Reworks the "Contributions tutoriels" tab of `/admin/moderation` (GameSelection context, story 31.7).
 
@@ -19,7 +19,7 @@ Reworks the "Contributions tutoriels" tab of `/admin/moderation` (GameSelection 
    (default pending) and the frontend never sends it; add an `all` bucket and surface the others.
 2. **Target-type filter.** Filter by target: **jeu listé** (`game_id` set) / **jeu non listé** (proposed
    name, `game_id` null).
-3. **Sort.** Sort by `created_at` — plus récent (default) / plus ancien.
+3. **Sort.** Sort by `created_at` - plus récent (default) / plus ancien.
 4. **Search.** A text query matches (case-insensitive) the **game name**, the **proposed game name**, the
    **contributor's display name**, and the contribution **message**. Empty query = no text filter.
 5. **Badge + counts.** The "Contributions tutoriels" tab gains a **pending** count badge (symmetry with
@@ -39,7 +39,7 @@ Reworks the "Contributions tutoriels" tab of `/admin/moderation` (GameSelection 
       (game_id IS [NOT] NULL), sort (created_at asc/desc), `q` (ILIKE on g.name / c.proposed_game_name /
       u.display_name / c.message). DTO assembly stays in this query.
       `AdminGameContributionController::list` reads params, returns `{ data, meta: { count: pendingCount } }`.
-- [x] **frontend**: `contributions-moderation-panel.tsx` reworked — status chips + target/sort selects +
+- [x] **frontend**: `contributions-moderation-panel.tsx` reworked - status chips + target/sort selects +
       debounced search in the TanStack queryKey (mirror `reports-moderation-panel.tsx`).
       `admin-game-contributions-api.ts`: `ContributionFilters` + `buildContributionsQuery` +
       `fetchContributionQueue(filters)` returning `{ items, count }` (now try/catch-guarded).
@@ -80,7 +80,7 @@ claude-opus-4-8
 ### Completion Notes List
 
 - Simpler than 30.25: the existing DBAL query already assembles the full DTO, so filtering/search/sort were
-  added in place (one query) — no IDs-then-reload round trip.
+  added in place (one query) - no IDs-then-reload round trip.
 - Search ILIKE spans game name, proposed game name, author display name and the contribution message.
 - The contributions tab now mirrors the reports tab: a pending count badge (dedicated default-filter
   query) + a filtered list query; actions invalidate the `["admin-game-contributions"]` prefix.

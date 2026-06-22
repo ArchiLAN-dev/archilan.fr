@@ -9,7 +9,7 @@
 ## Context
 
 Weekly runs (WeeklyRuns context) record a member's completion in the `weekly_entries` table
-(`goal_reached_at`, `checks_total`, `items_total`, `user_id`) when the goal callback fires — they
+(`goal_reached_at`, `checks_total`, `items_total`, `user_id`) when the goal callback fires - they
 **never write to `session_slot`**. Both stats read models aggregate only `session_slot`, so weekly
 runs are invisible to:
 
@@ -29,7 +29,7 @@ Out of scope (noted as follow-ups):
 
 - The main `/classements` leaderboard ranking (weekly runs already have their own dedicated weekly
   leaderboard).
-- `StatsMetricProvider::distinctGames()` (reads `PlayerHistoryQueryInterface`, not the stats query) —
+- `StatsMetricProvider::distinctGames()` (reads `PlayerHistoryQueryInterface`, not the stats query) -
   weekly games won't add to the distinct-games achievement fact until player history includes them.
 
 ## Status
@@ -47,7 +47,7 @@ to `totalChecksDone` and `items_total` to `totalItemsReceived`.
 
 **AC3:** Non-completed weekly entries (`goal_reached_at IS NULL`) contribute nothing.
 
-**AC4:** Existing event/personal-run stats are unchanged (no double counting — weekly lives in its own
+**AC4:** Existing event/personal-run stats are unchanged (no double counting - weekly lives in its own
 table and is summed alongside, not joined).
 
 **AC5:** All quality gates pass: `phpstan` (max, 0 errors), `php-cs-fixer` (0 violations), `phpunit`
@@ -55,12 +55,12 @@ table and is summed alongside, not joined).
 
 ## Tasks / Subtasks
 
-- [x] Task 1: `DbalCommunityStatsQuery` — add a `weekly_entries` aggregation (`goal_reached_at IS NOT
+- [x] Task 1: `DbalCommunityStatsQuery` - add a `weekly_entries` aggregation (`goal_reached_at IS NOT
   NULL`): `COUNT(*)` into finished-sessions and goals, `SUM(checks_total)` into checks. Resolve the
-  table name from `WeeklyEntry` metadata (cross-context import, allowed — see Dev Notes).
-- [x] Task 2: `DbalPlayerStatsQuery` — add a third query path over `weekly_entries WHERE user_id =
+  table name from `WeeklyEntry` metadata (cross-context import, allowed - see Dev Notes).
+- [x] Task 2: `DbalPlayerStatsQuery` - add a third query path over `weekly_entries WHERE user_id =
   :userId AND goal_reached_at IS NOT NULL`, summed into the returned totals.
-- [x] Task 3: Functional tests — extend `CommunityLeaderboardTest` (global stats) and
+- [x] Task 3: Functional tests - extend `CommunityLeaderboardTest` (global stats) and
   `PlayerProfileTest` (player stats) with a completed + a non-completed weekly entry, asserting the
   deltas and that incomplete entries are ignored.
 - [x] Task 4: Run all backend quality gates (AC5).
@@ -85,15 +85,15 @@ was reached).
 ### Achievements side effect
 
 `DbalPlayerStatsQuery` feeds `StatsMetricProvider` (achievement facts: runs/goals/checks/items).
-Including weekly completions there is intentional — weekly achievements should count toward those
+Including weekly completions there is intentional - weekly achievements should count toward those
 facts. `distinctGames` is unaffected (separate history query) and left as a follow-up.
 
 ## File List
 
-- `api/src/Sessions/Infrastructure/DbalCommunityStatsQuery.php` — modified
-- `api/src/Identity/Infrastructure/DbalPlayerStatsQuery.php` — modified
-- `api/tests/Functional/CommunityLeaderboardTest.php` — modified
-- `api/tests/Functional/PlayerProfileTest.php` — modified
+- `api/src/Sessions/Infrastructure/DbalCommunityStatsQuery.php` - modified
+- `api/src/Identity/Infrastructure/DbalPlayerStatsQuery.php` - modified
+- `api/tests/Functional/CommunityLeaderboardTest.php` - modified
+- `api/tests/Functional/PlayerProfileTest.php` - modified
 
 ## Change Log
 

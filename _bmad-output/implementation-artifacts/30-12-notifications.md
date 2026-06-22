@@ -22,7 +22,7 @@ comment, achievement unlock) **after** the DB commit, a bell with an unread coun
    The recompute backfill must **not** spam historical unlocks (`notify: false`).
 3. Endpoints (auth): list recipient notifications (recent + unread count), mark read / mark all read.
 4. The public shell shows a bell with the live unread count and a dropdown center; updates push in near
-   real time over the Realtime (Mercure/SSE) channel — without triggering a reconnect storm (review fix:
+   real time over the Realtime (Mercure/SSE) channel - without triggering a reconnect storm (review fix:
    isolate emission + stabilise the SSE subscription).
 5. Gates green: phpstan / php-cs-fixer / phpunit (0 notices) / `app:architecture:ddd`; typecheck / lint /
    build / jest.
@@ -40,13 +40,13 @@ comment, achievement unlock) **after** the DB commit, a bell with an unread coun
 - [x] **api/ tests:** functional `CommunityNotificationTest`; `RecomputeAchievementsTest` updated for the
       `notify` flag.
 - [x] **frontend:** `notifications-api.ts` + `notification-center.tsx` (bell + dropdown) in `public-shell`.
-- [x] **Gates** — all green.
+- [x] **Gates** - all green.
 
 ## Dev Notes
 
 ### Reuse, don't reinvent
 - A single `Notifier` port is injected into every existing write service rather than each service knowing
-  about notifications — adding a new notification type = one more `notify(...)` call, no new plumbing.
+  about notifications - adding a new notification type = one more `notify(...)` call, no new plumbing.
 - Reuses the existing Realtime (Mercure) infrastructure for the push instead of adding a websocket stack.
 
 ### Architecture guardrails
@@ -58,7 +58,7 @@ comment, achievement unlock) **after** the DB commit, a bell with an unread coun
   reconnecting in a storm.
 
 ### Scope boundaries / deviations
-- In-app only — no email/push digest (out of scope).
+- In-app only - no email/push digest (out of scope).
 - Per-type preferences/muting deferred.
 
 ### Project Structure Notes

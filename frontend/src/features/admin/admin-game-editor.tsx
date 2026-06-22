@@ -359,7 +359,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     <p className="text-xs text-muted-foreground">
                         {game.igdbId === null
                             ? "Associe un jeu IGDB ci-dessus puis enregistre pour récupérer les plateformes."
-                            : "Aucune plateforme enregistrée — clique sur Synchroniser depuis IGDB."}
+                            : "Aucune plateforme enregistrée - clique sur Synchroniser depuis IGDB."}
                     </p>
                 )}
                 {platformsMessage ? <p className="mt-2 text-xs text-danger">{platformsMessage}</p> : null}

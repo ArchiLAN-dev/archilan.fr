@@ -6,7 +6,7 @@ namespace App\Community\Domain;
 
 /**
  * Maps a report's problem to a severity weight (story 30.28). Weighted sums per account drive both the
- * "most problematic first" ordering and the escalation threshold — so nudity/violence/hate pull an account
+ * "most problematic first" ordering and the escalation threshold - so nudity/violence/hate pull an account
  * into review far faster than spam, and "other" barely counts. Pure domain logic, no config.
  */
 final class ReportSeverity

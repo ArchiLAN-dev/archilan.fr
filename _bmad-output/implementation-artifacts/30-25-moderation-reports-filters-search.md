@@ -21,7 +21,7 @@ Reworks the "Signalements" tab of `/admin/moderation` (Community context). The c
 2. **Comment-state filter.** Filter by the reported comment's state: **masqué** / **visible**
    (`comment.hidden`). Applies to comment-target reports; profile-target reports are unaffected.
 3. **Target-type filter.** Filter by `targetType` (commentaire / profil).
-4. **Sort.** Sort by `createdAt` — plus récent (default) / plus ancien.
+4. **Sort.** Sort by `createdAt` - plus récent (default) / plus ancien.
 5. **Search.** A text query matches (case-insensitive) the **comment body**, the report **reason**, and
    the **comment author's display name**. Empty query = no text filter.
 6. **Combinable + counts.** Filters/search/sort combine (AND). The tab badge shows the **pending** count
@@ -43,7 +43,7 @@ Reworks the "Signalements" tab of `/admin/moderation` (Community context). The c
       raw input. `AdminModerationController::reports` reads the params; badge `meta.count` stays the pending
       count. Repo gained `findByIds`.
 - [x] **frontend**: `ReportsModerationPanel` extracted from `admin-moderation-dashboard.tsx` (parallel to
-      `ContributionsModerationPanel`) — status chips + comment-state/target-type/sort selects + debounced
+      `ContributionsModerationPanel`) - status chips + comment-state/target-type/sort selects + debounced
       search, all in the TanStack queryKey. Dashboard keeps a small default-filter query for the badge
       count. `admin-moderation-api.ts`: `buildReportsQuery` + `fetchModerationQueue(filters)`.
 - [x] **Tests**: backend functional (status/commentState/targetType filters, search on body + author

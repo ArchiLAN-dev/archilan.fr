@@ -7,6 +7,8 @@ namespace App\Tests\Functional;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\WeeklyRun;
+use App\WeeklyRuns\Domain\WeeklyTemplate;
 
 final class PlayerProfileTest extends FunctionalTestCase
 {
@@ -251,6 +253,65 @@ final class PlayerProfileTest extends FunctionalTestCase
         self::assertEqualsWithDelta(1.0, $stats['goalCompletionRate'], 0.001);
         self::assertSame(42, $stats['totalChecksDone']);
         self::assertSame(18, $stats['totalItemsReceived']);
+    }
+
+    public function testHistoryIncludesCompletedWeeklyRuns(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $user = $this->createUser('willy@example.org', ['ROLE_USER'], 'Willy', 'willy');
+        $game = $this->createGame("Luigi's Mansion", 'luigis-mansion');
+
+        $template = new WeeklyTemplate(
+            bin2hex(random_bytes(16)),
+            $game->getId(),
+            "name: ArchiLAN\ngame: Archipelago\n",
+            'Run hebdo',
+            null,
+            true,
+            $now,
+            $now,
+        );
+        $this->entityManager->persist($template);
+
+        $run = new WeeklyRun(
+            bin2hex(random_bytes(16)),
+            $template->getId(),
+            2026,
+            18,
+            'seed-2026-18',
+            WeeklyRun::STATUS_ACTIVE,
+            $now,
+            $now,
+        );
+        $this->entityManager->persist($run);
+
+        $entry = new WeeklyEntry(
+            bin2hex(random_bytes(16)),
+            $run->getId(),
+            $user->getId(),
+            1,
+            $now,
+            $now,
+            'ext-session-willy',
+        );
+        $entry->recordGoal($now->modify('+30 minutes'), 1800, 846, 200);
+        $this->entityManager->persist($entry);
+
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/v1/players/willy/history');
+
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertCount(1, $data);
+
+        $row = $data[0];
+        self::assertIsArray($row);
+        self::assertSame("Luigi's Mansion", $row['game']);
+        self::assertSame(846, $row['checksDone']);
+        self::assertTrue($row['isWeekly']);
+        self::assertFalse($row['isInvalidated']);
     }
 
     public function testNonExistentSlugReturns404OnBothEndpoints(): void

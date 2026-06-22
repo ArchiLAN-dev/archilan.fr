@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Domain;
 
 /**
- * The initial achievement catalog (story 30.16) — the 9 entries that used to be code-defined, now used to
+ * The initial achievement catalog (story 30.16) - the 9 entries that used to be code-defined, now used to
  * seed the database (migration) and the functional-test fixtures. After seeding, the DB is the source of
  * truth and these are editable from the admin form.
  */
@@ -26,6 +26,7 @@ final class DefaultAchievementDefinitions
             self::def('collector', 'Collectionneur', 'Recevoir 1 000 items au total.', AchievementMetricCatalog::FACT_ITEMS, 1000),
             self::def('polyglot', 'Polyglotte', 'Jouer à 5 jeux différents.', AchievementMetricCatalog::FACT_DISTINCT_GAMES, 5),
             self::def('omnivore', 'Omnivore', 'Jouer à 15 jeux différents.', AchievementMetricCatalog::FACT_DISTINCT_GAMES, 15),
+            self::def('event_finisher', 'Compétiteur', 'Atteindre un objectif lors d\'un événement ArchiLAN.', AchievementMetricCatalog::FACT_EVENTS_WITH_GOAL, 1),
         ];
     }
 
