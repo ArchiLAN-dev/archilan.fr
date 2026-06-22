@@ -32,4 +32,10 @@ interface AchievementGrantRepositoryInterface
     public function ownerOf(string $grantId): ?string;
 
     public function save(AchievementGrant $grant): void;
+
+    /**
+     * Remove a user's grant for an achievement key, if present (no-op otherwise). Used by the admin manual
+     * revoke (story 30.34).
+     */
+    public function deleteByUserAndKey(string $userId, string $achievementKey): void;
 }

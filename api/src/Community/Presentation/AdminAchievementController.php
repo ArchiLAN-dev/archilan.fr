@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Presentation;
 
 use App\Community\Application\AchievementImageService;
+use App\Community\Application\AdminAchievementGrantService;
 use App\Community\Application\AdminAchievementService;
 use App\Community\Domain\InvalidAchievementRuleException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -34,6 +35,7 @@ final readonly class AdminAchievementController
         private ApiAccessGuard $apiAccessGuard,
         private AdminAchievementService $achievements,
         private AchievementImageService $images,
+        private AdminAchievementGrantService $grants,
     ) {
     }
 
@@ -125,6 +127,40 @@ final readonly class AdminAchievementController
         }
 
         return new JsonResponse(['data' => ['key' => $key, 'imageUrl' => $url]]);
+    }
+
+    #[Route('/api/v1/admin/community/achievements/{id}/grants', name: 'api_admin_community_achievements_grant', methods: ['POST'])]
+    public function grant(Request $request, string $id): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $slug = $this->jsonPayload($request)['slug'] ?? null;
+        if (!is_string($slug) || '' === $slug) {
+            return $this->apiAccessGuard->errorResponse('missing_user', 'Joueur requis.', 422);
+        }
+
+        return match ($this->grants->grant($id, $slug)) {
+            'ok' => new JsonResponse(null, 201),
+            'user_not_found' => $this->apiAccessGuard->errorResponse('player_not_found', 'Joueur introuvable.', 404),
+            default => $this->apiAccessGuard->errorResponse('not_found', 'Succès introuvable.', 404),
+        };
+    }
+
+    #[Route('/api/v1/admin/community/achievements/{id}/grants/{slug}', name: 'api_admin_community_achievements_revoke', methods: ['DELETE'])]
+    public function revokeGrant(Request $request, string $id, string $slug): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        return match ($this->grants->revoke($id, $slug)) {
+            'ok' => new JsonResponse(null, 204),
+            default => $this->apiAccessGuard->errorResponse('not_found', 'Succès introuvable.', 404),
+        };
     }
 
     #[Route('/api/v1/admin/community/achievements/{id}/active', name: 'api_admin_community_achievements_active', methods: ['POST'])]

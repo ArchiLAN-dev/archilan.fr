@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 
+import { fetchDirectory, type DirectoryRow } from "@/features/community/community-directory-api";
 import {
   createAchievement,
   fetchAchievementDashboard,
+  grantAchievement,
   isRuleGroup,
   reorderAchievements,
+  revokeAchievement,
   setAchievementActive,
   updateAchievement,
   uploadAchievementImage,
@@ -62,6 +65,7 @@ export function AdminAchievementsDashboard() {
   });
   const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [grantingId, setGrantingId] = useState<string | null>(null);
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -172,6 +176,13 @@ export function AdminAchievementsDashboard() {
                     {definition.active ? "Désactiver" : "Activer"}
                   </button>
                   <button
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+                    onClick={() => setGrantingId(grantingId === definition.id ? null : definition.id)}
+                    type="button"
+                  >
+                    <UserPlus aria-hidden className="size-4" /> Attribuer
+                  </button>
+                  <button
                     className="inline-flex min-h-9 items-center rounded-lg border border-accent px-3 text-sm font-semibold text-accent-text transition-colors hover:bg-accent hover:text-white"
                     onClick={() => setEditor({ mode: "edit", definition })}
                     type="button"
@@ -180,6 +191,13 @@ export function AdminAchievementsDashboard() {
                   </button>
                 </div>
               </article>
+              {grantingId === definition.id ? (
+                <GrantPanel
+                  definitionId={definition.id}
+                  definitionName={definition.name}
+                  onClose={() => setGrantingId(null)}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -210,6 +228,141 @@ function IconButton({
     >
       {children}
     </button>
+  );
+}
+
+// ── Manual grant panel (story 30.34) ────────────────────────────────────────────
+
+function GrantPanel({
+  definitionId,
+  definitionName,
+  onClose,
+}: {
+  definitionId: string;
+  definitionName: string;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [rows, setRows] = useState<DirectoryRow[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [busySlug, setBusySlug] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function runSearch(): Promise<void> {
+    setSearching(true);
+    setMessage(null);
+    const result = await fetchDirectory({ mode: "top", search, page: 1 });
+    setRows(result?.rows ?? []);
+    setSearched(true);
+    setSearching(false);
+  }
+
+  async function act(action: "grant" | "revoke", row: DirectoryRow): Promise<void> {
+    const name = row.displayName ?? row.slug;
+    setBusySlug(row.slug);
+    const ok =
+      action === "grant"
+        ? await grantAchievement(definitionId, row.slug)
+        : await revokeAchievement(definitionId, row.slug);
+    setBusySlug(null);
+    setMessage(
+      ok
+        ? action === "grant"
+          ? `« ${definitionName} » attribué à ${name}.`
+          : `« ${definitionName} » retiré de ${name}.`
+        : "L’opération a échoué.",
+    );
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button aria-label="Fermer" className="absolute inset-0 cursor-default bg-black/60" onClick={onClose} type="button" />
+      <div className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+          <h3 className="min-w-0 truncate font-heading text-base font-semibold text-foreground">
+            Attribuer « {definitionName} » à un joueur
+          </h3>
+          <button
+            aria-label="Fermer"
+            className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden className="size-4" />
+          </button>
+        </div>
+
+        <div className="grid gap-3 overflow-y-auto p-4">
+          <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void runSearch();
+        }}
+      >
+        <input
+          className="min-h-9 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-accent"
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher un joueur (pseudo)…"
+          value={search}
+        />
+        <button
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
+          type="submit"
+        >
+          {searching ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Search aria-hidden className="size-4" />}
+          Rechercher
+        </button>
+      </form>
+
+      {rows.length > 0 ? (
+        <ul className="grid gap-1.5">
+          {rows.map((row) => (
+            <li
+              className="flex items-center justify-between gap-2 rounded border border-border bg-surface px-3 py-2"
+              key={row.slug}
+            >
+              <span className="min-w-0 truncate text-sm text-foreground">
+                {row.displayName ?? row.slug} <span className="text-xs text-muted-foreground">@{row.slug}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <button
+                  className="rounded border border-accent px-2 py-1 text-xs font-semibold text-accent-text transition-colors hover:bg-accent hover:text-white disabled:opacity-50"
+                  disabled={busySlug === row.slug}
+                  onClick={() => void act("grant", row)}
+                  type="button"
+                >
+                  Attribuer
+                </button>
+                <button
+                  className="rounded border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-red-400 hover:text-red-400 disabled:opacity-50"
+                  disabled={busySlug === row.slug}
+                  onClick={() => void act("revoke", row)}
+                  type="button"
+                >
+                  Retirer
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : searched && !searching ? (
+        <p className="text-xs text-muted-foreground">Aucun joueur trouvé.</p>
+      ) : null}
+
+          {message ? <p className="text-xs text-accent-text">{message}</p> : null}
+        </div>
+      </div>
+    </div>
   );
 }
 
