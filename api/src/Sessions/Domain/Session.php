@@ -321,6 +321,30 @@ class Session
         // Keep existing startedAt (not reset on resume)
     }
 
+    /**
+     * Re-affirm a running session's live connection info from an authoritative orchestrateur
+     * session.ready. A relaunch acquires a fresh host port (see the orchestrateur port-reuse fix),
+     * so when a container is restarted while the API already considers the session running, the API
+     * must adopt the new endpoint - otherwise it keeps pointing players at the stale, now-freed port.
+     * Status stays RUNNING (the RUNNING->RUNNING transition is illegal); only the endpoint and
+     * liveness timestamps move.
+     */
+    public function updateRunningEndpoint(string $host, int $port, ?int $bridgePort, \DateTimeImmutable $now): void
+    {
+        if (self::STATUS_RUNNING !== $this->status) {
+            throw new \LogicException("updateRunningEndpoint requiert une session running, état '$this->status'.");
+        }
+        if ('' === trim($host) || $port <= 0) {
+            throw new \LogicException('Host et port valides requis pour mettre à jour le endpoint.');
+        }
+
+        $this->host = $host;
+        $this->port = $port;
+        $this->bridgePort = $bridgePort;
+        $this->lastHeartbeatAt = $now;
+        $this->lastActivityAt = $now;
+    }
+
     public function markIdle(?string $lastSaveKey, bool $pausedWithoutSave, \DateTimeImmutable $now): void
     {
         $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
