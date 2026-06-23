@@ -223,6 +223,73 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         self::assertSame(38281, $refreshed->getPort());
     }
 
+    public function testSessionReadyFromRunningAdoptsNewEndpoint(): void
+    {
+        // A container restarted (out-of-band, or relaunched on a fresh host port): session.ready
+        // arrives with a NEW port while the API already considers the session running. The API must
+        // adopt the new endpoint instead of keeping the stale one (RUNNING->RUNNING is illegal, so
+        // the webhook used to be dropped and players kept being sent to the old, now-freed port).
+        $session = $this->createSessionInStatus(Session::STATUS_RUNNING);
+        self::assertSame(38281, $session->getPort());
+
+        $this->sendWebhook([
+            'event' => 'session.ready',
+            'sessionId' => $session->getId(),
+            'port' => 40000,
+            'bridgePort' => 41000,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshed);
+        self::assertSame(Session::STATUS_RUNNING, $refreshed->getStatus());
+        self::assertSame(40000, $refreshed->getPort());
+        self::assertSame(41000, $refreshed->getBridgePort());
+    }
+
+    public function testSessionReadyFromIdleResumesRunningWithNewPort(): void
+    {
+        $session = $this->createSessionInStatus(Session::STATUS_RUNNING);
+        $session->markIdle(null, false, new \DateTimeImmutable());
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $this->sendWebhook([
+            'event' => 'session.ready',
+            'sessionId' => $session->getId(),
+            'port' => 40000,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshed);
+        self::assertSame(Session::STATUS_RUNNING, $refreshed->getStatus());
+        self::assertSame(40000, $refreshed->getPort());
+    }
+
+    public function testSessionReadyFromStoppedResumesRunningWithNewPort(): void
+    {
+        $session = $this->createSessionInStatus(Session::STATUS_RUNNING);
+        $session->transition(Session::STATUS_STOPPED, new \DateTimeImmutable());
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $this->sendWebhook([
+            'event' => 'session.ready',
+            'sessionId' => $session->getId(),
+            'port' => 40000,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshed);
+        self::assertSame(Session::STATUS_RUNNING, $refreshed->getStatus());
+        self::assertSame(40000, $refreshed->getPort());
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private function createSessionInStatus(string $status): Session

@@ -320,25 +320,60 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
-        if (Session::STATUS_CRASHED === $session->getStatus()) {
-            $now = new \DateTimeImmutable();
+        $now = new \DateTimeImmutable();
+        $host = $this->runnerPublicHost;
+        $password = $session->getPassword() ?? '';
+        $serverPassword = $session->getAdminPassword();
+
+        // session.ready is authoritative: the orchestrateur just reported the container running with a
+        // live port. A relaunch acquires a fresh host port, so when a container is restarted while the
+        // API still considers the session running, the API must adopt the new endpoint in place - the
+        // RUNNING->RUNNING transition is illegal, so without this the webhook would be dropped and the
+        // API would keep pointing players at the stale, now-freed port.
+        if (Session::STATUS_RUNNING === $session->getStatus()) {
+            if ($apPort <= 0) {
+                return ['found' => true, 'errors' => ['Port invalide pour la mise à jour du endpoint.']];
+            }
+
+            $session->updateRunningEndpoint($host, $apPort, $bridgePort, $now);
+
+            $personalRun = $this->runs->findBySessionId($sessionId);
+            if ($personalRun instanceof Run) {
+                $personalRun->markRunning($host, $apPort, $now, $session->getPassword());
+            }
+
+            $this->sessions->flush();
+            $this->publish($session);
+
+            $this->logger->info('session.endpoint_updated', ['sessionId' => $sessionId, 'port' => $apPort, 'bridgePort' => $bridgePort]);
+
+            return ['found' => true, 'session' => $session->payload()];
+        }
+
+        // Otherwise bridge the session into a state that allows the RUNNING transition, so a
+        // session.ready always converges however the API drifted out of sync (missed webhook, or the
+        // session went idle/stopped/crashed before the relaunch landed). LAUNCHING and RESTARTING
+        // already allow ->RUNNING directly.
+        $from = $session->getStatus();
+        $bridge = match ($from) {
+            Session::STATUS_IDLE => Session::STATUS_RESTARTING,
+            Session::STATUS_CRASHED, Session::STATUS_STOPPED, Session::STATUS_GENERATED => Session::STATUS_LAUNCHING,
+            default => null,
+        };
+        if (null !== $bridge) {
             try {
-                $session->transition(Session::STATUS_LAUNCHING, $now);
+                $session->transition($bridge, $now);
                 $this->sessions->flush();
             } catch (\LogicException $e) {
                 $this->logger->warning('session.transition.rejected', [
                     'sessionId' => $sessionId,
-                    'from' => 'crashed',
-                    'to' => Session::STATUS_LAUNCHING,
+                    'from' => $from,
+                    'to' => $bridge,
                 ]);
 
                 return ['found' => true, 'errors' => [$e->getMessage()]];
             }
         }
-
-        $host = $this->runnerPublicHost;
-        $password = $session->getPassword() ?? '';
-        $serverPassword = $session->getAdminPassword();
 
         return $this->transition($sessionId, Session::STATUS_RUNNING, $host, $apPort, $password, null, $bridgePort, null, null, $serverPassword);
     }
