@@ -68,4 +68,14 @@ final class FakeTwitchApiClient implements TwitchApiClientInterface
 
         return array_shift($this->viewerCounts);
     }
+
+    public function fetchLiveLogins(array $logins): array
+    {
+        return [];
+    }
+
+    public function fetchAvatars(array $logins): array
+    {
+        return [];
+    }
 }

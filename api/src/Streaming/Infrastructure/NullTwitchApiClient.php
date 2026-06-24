@@ -10,4 +10,14 @@ final class NullTwitchApiClient implements TwitchApiClientInterface
     {
         return null;
     }
+
+    public function fetchLiveLogins(array $logins): array
+    {
+        return [];
+    }
+
+    public function fetchAvatars(array $logins): array
+    {
+        return [];
+    }
 }

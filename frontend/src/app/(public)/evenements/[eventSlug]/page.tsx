@@ -10,6 +10,7 @@ import { getPublicEvent } from "@/features/events/public-events-api";
 import { EventCheckout } from "@/features/events/event-checkout";
 import { EventRegistrationCta } from "@/features/events/event-registration-cta";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
+import { ParticipantStreams } from "@/features/streaming/participant-streams";
 
 type EventDetailPageProps = {
   params: Promise<{ eventSlug: string }>;
@@ -222,6 +223,8 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             ) : null}
           </aside>
         </section>
+
+        {event.status !== "completed" && <ParticipantStreams id={event.id} kind="event" />}
 
         {event.checkoutEmbedUrl ? (
           <EventCheckout checkoutEmbedUrl={event.checkoutEmbedUrl} />
