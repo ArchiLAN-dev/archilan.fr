@@ -455,6 +455,21 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
     };
   }
 
+  // Literal dict option (e.g. Pokemon `game_options`): a mapping of named sub-settings to
+  // literal values, NOT a weighted distribution. Weighted options (toggle/choice/range)
+  // always carry numeric weights as values; a non-numeric value means this is a literal
+  // dict. Misclassifying it as a weighted `choice` runs every value through `clampWeight`,
+  // which coerces non-numbers to 0 - turning `default_player_name: player_name` into
+  // `default_player_name: 0` (an int), which crashes apworld generation downstream
+  // ("TypeError: 'int' object is not iterable").
+  if (keys.some((k) => typeof obj[k] !== "number")) {
+    return {
+      type: "freeform", kind: "dict", key, label,
+      entries: keys.map((k) => ({ id: uid(), k, v: String(obj[k] ?? "") })),
+      description,
+    };
+  }
+
   // Toggle: keys are a subset of { "true", "false" }
   if (keys.every((k) => k === "true" || k === "false")) {
     return {
