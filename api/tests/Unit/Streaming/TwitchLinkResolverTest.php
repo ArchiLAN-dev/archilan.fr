@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class TwitchLinkResolverTest extends TestCase
 {
-    public function testResolveLogin_matchesByLabel(): void
+    public function testResolveLoginMatchesByLabel(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'Twitch', 'url' => 'https://twitch.tv/cooluser'],
@@ -18,7 +18,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('cooluser', $login);
     }
 
-    public function testResolveLogin_matchesByHostWhenLabelIsOther(): void
+    public function testResolveLoginMatchesByHostWhenLabelIsOther(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'Mon stream', 'url' => 'https://www.twitch.tv/StreamerName'],
@@ -27,7 +27,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('streamername', $login);
     }
 
-    public function testResolveLogin_stripsTrailingSlash(): void
+    public function testResolveLoginStripsTrailingSlash(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'twitch', 'url' => 'https://twitch.tv/foo/'],
@@ -36,7 +36,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('foo', $login);
     }
 
-    public function testResolveLogin_normalisesUppercaseLogin(): void
+    public function testResolveLoginNormalisesUppercaseLogin(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'twitch', 'url' => 'https://twitch.tv/BigGamer_99'],
@@ -45,7 +45,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('biggamer_99', $login);
     }
 
-    public function testResolveLogin_stripsQueryString(): void
+    public function testResolveLoginStripsQueryString(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'twitch', 'url' => 'https://twitch.tv/foo?referrer=x'],
@@ -54,7 +54,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('foo', $login);
     }
 
-    public function testResolveLogin_acceptsBareDomainWithoutScheme(): void
+    public function testResolveLoginAcceptsBareDomainWithoutScheme(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'Autre', 'url' => 'twitch.tv/barehandle'],
@@ -63,7 +63,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('barehandle', $login);
     }
 
-    public function testResolveLogin_acceptsBareHandleWhenLabelIsTwitch(): void
+    public function testResolveLoginAcceptsBareHandleWhenLabelIsTwitch(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'Twitch', 'url' => 'myhandle'],
@@ -72,7 +72,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('myhandle', $login);
     }
 
-    public function testResolveLogin_ignoresNonTwitchLink(): void
+    public function testResolveLoginIgnoresNonTwitchLink(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'YouTube', 'url' => 'https://youtube.com/@someone'],
@@ -81,7 +81,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertNull($login);
     }
 
-    public function testResolveLogin_ignoresMalformedUrl(): void
+    public function testResolveLoginIgnoresMalformedUrl(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'twitch', 'url' => 'http://'],
@@ -90,7 +90,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertNull($login);
     }
 
-    public function testResolveLogin_ignoresLoginViolatingGrammar(): void
+    public function testResolveLoginIgnoresLoginViolatingGrammar(): void
     {
         // Two chars is below the 3-char minimum.
         $login = TwitchLinkResolver::resolveLogin([
@@ -100,7 +100,7 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertNull($login);
     }
 
-    public function testResolveLogin_returnsFirstValidAmongMany(): void
+    public function testResolveLoginReturnsFirstValidAmongMany(): void
     {
         $login = TwitchLinkResolver::resolveLogin([
             ['label' => 'YouTube', 'url' => 'https://youtube.com/@x'],
@@ -111,12 +111,12 @@ final class TwitchLinkResolverTest extends TestCase
         self::assertSame('first', $login);
     }
 
-    public function testResolveLogin_returnsNullForEmptyLinks(): void
+    public function testResolveLoginReturnsNullForEmptyLinks(): void
     {
         self::assertNull(TwitchLinkResolver::resolveLogin([]));
     }
 
-    public function testResolveLogin_parsesReservedPathSegmentAsLogin(): void
+    public function testResolveLoginParsesReservedPathSegmentAsLogin(): void
     {
         // Out of scope to filter Twitch reserved paths - documented behaviour.
         $login = TwitchLinkResolver::resolveLogin([
