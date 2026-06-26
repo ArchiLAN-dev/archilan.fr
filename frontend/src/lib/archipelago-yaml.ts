@@ -123,6 +123,12 @@ export type FreeformDictOption = {
   key: string;
   label: string;
   entries: FreeformDictEntry[];
+  /**
+   * When true, the keys come from a fixed schema (e.g. Pokemon `game_options`): the editor locks
+   * the key names and forbids adding/removing rows - only the values are editable. Free dicts the
+   * player composes (e.g. `start_inventory`) leave this unset.
+   */
+  fixedKeys?: boolean;
   description?: string;
   category?: string;
 };
@@ -455,6 +461,22 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
     };
   }
 
+  // Literal dict option (e.g. Pokemon `game_options`): a mapping of named sub-settings to
+  // literal values, NOT a weighted distribution. Weighted options (toggle/choice/range)
+  // always carry numeric weights as values; a non-numeric value means this is a literal
+  // dict. Misclassifying it as a weighted `choice` runs every value through `clampWeight`,
+  // which coerces non-numbers to 0 - turning `default_player_name: player_name` into
+  // `default_player_name: 0` (an int), which crashes apworld generation downstream
+  // ("TypeError: 'int' object is not iterable").
+  if (keys.some((k) => typeof obj[k] !== "number")) {
+    return {
+      type: "freeform", kind: "dict", key, label,
+      entries: keys.map((k) => ({ id: uid(), k, v: String(obj[k] ?? "") })),
+      fixedKeys: true,
+      description,
+    };
+  }
+
   // Toggle: keys are a subset of { "true", "false" }
   if (keys.every((k) => k === "true" || k === "false")) {
     return {
@@ -566,6 +588,18 @@ export function mergePlayerValues(base: ParsedYaml, player: ParsedYaml): ParsedY
         return { ...baseOpt, items: playerOpt.items };
       }
       if (baseOpt.kind === "dict" && playerOpt.kind === "dict") {
+        // Fixed-schema dict (e.g. game_options): the base default owns the keys; only the player's
+        // values for matching keys are applied. Renamed/added/removed player keys are ignored, which
+        // also self-heals YAMLs corrupted before the keys were locked.
+        if (baseOpt.fixedKeys) {
+          const playerValueByKey = new Map(playerOpt.entries.map((e) => [e.k, e.v]));
+          return {
+            ...baseOpt,
+            entries: baseOpt.entries.map((e) =>
+              playerValueByKey.has(e.k) ? { ...e, v: playerValueByKey.get(e.k) ?? e.v } : e,
+            ),
+          };
+        }
         return { ...baseOpt, entries: playerOpt.entries };
       }
     }
