@@ -43,7 +43,12 @@ generation log.)
    stays the string `player_name`; numeric sub-values (`text_frame: 1`) stay numbers.
 3. Genuine weighted options still classify correctly: `goal: { champion: 50 }` → choice;
    `hms: { 'false': 0, 'true': 50 }` → toggle; numeric/alias dicts → range.
-4. Gates green: frontend `typecheck` / `lint` / `build`; jest for the new parse + round-trip cases.
+4. **Fixed-schema key locking.** A literal dict carries `fixedKeys`, and the editor locks it: key
+   names are read-only and rows can't be added/removed - only values are editable. Player-composed
+   dicts (`start_inventory`...) stay fully editable. `mergePlayerValues` drives a `fixedKeys` dict's
+   keys from the base default and applies only the player's values for matching keys (renamed/added/
+   removed player keys are ignored - this also self-heals YAMLs saved before the keys were locked).
+5. Gates green: frontend `typecheck` / `lint` / `build`; jest for parse + round-trip + key-locking + merge.
 
 ## Tasks / Subtasks
 
@@ -51,7 +56,11 @@ generation log.)
   toggle/range/choice classification, route objects with any non-numeric value to a `freeform` dict.
 - [x] **Task 2** (AC 1,2,3). Jest: `game_options`-style dict → freeform dict; round-trip keeps
   `default_player_name` a string; `goal` still choice, `hms` still toggle.
-- [x] **Task 3** (AC 4). typecheck / lint / build green.
+- [x] **Task 3** (AC 4). Key locking: `fixedKeys` flag on `FreeformDictOption`; set by the literal-dict
+  branch; `DictField` locks key inputs + hides add/remove; `mergePlayerValues` overlays player values
+  onto base keys for `fixedKeys` dicts. Jest for the flag + merge.
+- [x] **Task 4** (AC 5). typecheck / lint / build green; verified live in the slot editor (keys locked,
+  values editable, `default_player_name` shows `player_name`).
 
 ## Dev Notes
 
@@ -70,7 +79,8 @@ generation log.)
 
 ### Project Structure Notes
 
-- `frontend/src/lib/archipelago-yaml.ts` (`buildOption` - literal dict detection)
+- `frontend/src/lib/archipelago-yaml.ts` (`buildOption` literal-dict detection + `fixedKeys`; `mergePlayerValues` fixed-key overlay)
+- `frontend/src/features/events/yaml-option-editor.tsx` (`DictField` key locking)
 - `frontend/src/lib/archipelago-yaml-dict-option.test.ts` (new)
 
 ### References
@@ -97,6 +107,7 @@ claude-opus-4-8 (Claude Code).
 ### File List
 
 - `frontend/src/lib/archipelago-yaml.ts`
+- `frontend/src/features/events/yaml-option-editor.tsx`
 - `frontend/src/lib/archipelago-yaml-dict-option.test.ts`
 
 ### Change Log
@@ -104,3 +115,4 @@ claude-opus-4-8 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-06-27 | Created + implemented. `game_options` (literal OptionDict) was misclassified as a weighted choice, coercing `default_player_name: player_name` → `0` (int) and crashing generation ("'int' object is not iterable"). Route non-numeric-valued object options to freeform dict. Frontend-only; tested; gates green. Status → review. |
+| 2026-06-27 | Added fixed-schema key locking (AC 4). Literal dicts carry `fixedKeys`; the editor locks key names + forbids add/remove (values stay editable); `mergePlayerValues` overlays player values onto base keys so renamed/added/removed keys can't corrupt the schema (self-heals old saves). +3 jest (20 total); gates green; verified live. (Requested by Jean.) |

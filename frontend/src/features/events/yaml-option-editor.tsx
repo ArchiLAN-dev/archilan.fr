@@ -981,32 +981,38 @@ function DictField({
     });
   }
 
+  // Fixed-schema dicts (e.g. game_options) lock their keys: values stay editable, but key names
+  // can't be changed and rows can't be added/removed.
+  const lockKeys = readOnly || option.fixedKeys === true;
+  const canEditStructure = !readOnly && option.fixedKeys !== true;
+  const valueWidthCls = option.fixedKeys === true ? "flex-1" : "w-24";
+
   return (
     <div className="grid gap-2">
       {option.entries.length > 0 && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="flex-1">Clé</span>
-          <span className="w-24">Valeur</span>
-          {!readOnly && <span className="size-7" />}
+          <span className={valueWidthCls}>Valeur</span>
+          {canEditStructure && <span className="size-7" />}
         </div>
       )}
       {option.entries.map((entry) => (
         <div key={entry.id} className="flex items-center gap-2">
           <input
             className={INPUT_CLS}
-            disabled={readOnly}
+            disabled={lockKeys}
             placeholder="élément"
             value={entry.k}
             onChange={(e) => update(entry.id, "k", e.target.value)}
           />
           <input
-            className="min-h-9 w-24 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+            className={`min-h-9 ${valueWidthCls} rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60`}
             disabled={readOnly}
-            placeholder="0"
+            placeholder={option.fixedKeys === true ? "valeur" : "0"}
             value={entry.v}
             onChange={(e) => update(entry.id, "v", e.target.value)}
           />
-          {!readOnly && (
+          {canEditStructure && (
             <button
               aria-label="Supprimer"
               className={REMOVE_BTN_CLS}
@@ -1020,7 +1026,7 @@ function DictField({
           )}
         </div>
       ))}
-      {!readOnly && (
+      {canEditStructure && (
         <button
           className={ADD_BTN_CLS}
           type="button"

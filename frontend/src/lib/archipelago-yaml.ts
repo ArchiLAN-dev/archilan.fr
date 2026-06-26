@@ -123,6 +123,12 @@ export type FreeformDictOption = {
   key: string;
   label: string;
   entries: FreeformDictEntry[];
+  /**
+   * When true, the keys come from a fixed schema (e.g. Pokemon `game_options`): the editor locks
+   * the key names and forbids adding/removing rows - only the values are editable. Free dicts the
+   * player composes (e.g. `start_inventory`) leave this unset.
+   */
+  fixedKeys?: boolean;
   description?: string;
   category?: string;
 };
@@ -466,6 +472,7 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
     return {
       type: "freeform", kind: "dict", key, label,
       entries: keys.map((k) => ({ id: uid(), k, v: String(obj[k] ?? "") })),
+      fixedKeys: true,
       description,
     };
   }
@@ -581,6 +588,18 @@ export function mergePlayerValues(base: ParsedYaml, player: ParsedYaml): ParsedY
         return { ...baseOpt, items: playerOpt.items };
       }
       if (baseOpt.kind === "dict" && playerOpt.kind === "dict") {
+        // Fixed-schema dict (e.g. game_options): the base default owns the keys; only the player's
+        // values for matching keys are applied. Renamed/added/removed player keys are ignored, which
+        // also self-heals YAMLs corrupted before the keys were locked.
+        if (baseOpt.fixedKeys) {
+          const playerValueByKey = new Map(playerOpt.entries.map((e) => [e.k, e.v]));
+          return {
+            ...baseOpt,
+            entries: baseOpt.entries.map((e) =>
+              playerValueByKey.has(e.k) ? { ...e, v: playerValueByKey.get(e.k) ?? e.v } : e,
+            ),
+          };
+        }
         return { ...baseOpt, entries: playerOpt.entries };
       }
     }
