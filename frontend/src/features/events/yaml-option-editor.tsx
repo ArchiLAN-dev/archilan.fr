@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Download, Info, Plus, X } from "lucide-react";
 
 import {
@@ -243,7 +244,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
               <label className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold text-foreground">
                 <span className="shrink-0">Nom en jeu</span>
                 {parsed.playerNameDescription ? (
-                  <InfoTooltip content={parsed.playerNameDescription} />
+                  <InfoTooltip content={parsed.playerNameDescription} title="Nom en jeu" />
                 ) : null}
                 <input
                   aria-invalid={nameError}
@@ -534,38 +535,90 @@ function MiniMarkdown({ content }: { content: string }) {
 
 // ─── Info tooltip ─────────────────────────────────────────────────────────────
 
-function InfoTooltip({ content }: { content: string }) {
+function InfoTooltip({ content, title }: { content: string; title?: string }) {
   const [open, setOpen] = useState(false);
-  const justFocused = useRef(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  // Long descriptions (e.g. game_options) overflow the hover tooltip: cap the preview and let a
+  // click open a scrollable modal with the full content.
+  const isLong = content.length > 200;
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setModalOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalOpen]);
+
   return (
     <span className="relative inline-flex shrink-0">
       <button
         aria-label="Description de l'option"
-        className="inline-flex cursor-help rounded focus-visible:outline-2 focus-visible:outline-accent"
+        className="inline-flex cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-accent"
         type="button"
         onBlur={() => setOpen(false)}
-        onFocus={() => { setOpen(true); justFocused.current = true; }}
+        onFocus={() => setOpen(true)}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
-        onClick={() => {
-          if (justFocused.current) { justFocused.current = false; return; }
-          setOpen((v) => !v);
-        }}
+        onClick={() => { setOpen(false); setModalOpen(true); }}
       >
         <Info aria-hidden="true" className="size-3.5 text-muted-foreground transition-colors hover:text-accent-text" />
       </button>
-      {open ? (
+      {open && !modalOpen ? (
         <span
           role="tooltip"
           className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-72 -translate-x-1/2 rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-xs leading-relaxed text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
         >
-          <MiniMarkdown content={content} />
+          <span className={`block ${isLong ? "max-h-44 overflow-hidden" : ""}`}>
+            <MiniMarkdown content={content} />
+          </span>
+          {isLong ? (
+            <span className="mt-1.5 block text-[10px] font-medium uppercase tracking-wide text-accent-text">
+              Cliquer pour tout afficher
+            </span>
+          ) : null}
           <span
             aria-hidden="true"
             className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[var(--color-border)]"
           />
         </span>
       ) : null}
+      {modalOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <button
+                aria-label="Fermer"
+                className="absolute inset-0 cursor-default bg-black/60"
+                onClick={() => setModalOpen(false)}
+                type="button"
+              />
+              <div
+                aria-modal="true"
+                role="dialog"
+                className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
+              >
+                <div className="flex items-center justify-between gap-3 border-b border-border p-4">
+                  <h3 className="min-w-0 truncate font-heading text-base font-semibold text-foreground">
+                    {title ?? "Description de l'option"}
+                  </h3>
+                  <button
+                    aria-label="Fermer"
+                    className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                    onClick={() => setModalOpen(false)}
+                    type="button"
+                  >
+                    <X aria-hidden className="size-4" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto whitespace-pre-wrap break-words p-4 text-sm leading-relaxed text-foreground">
+                  <MiniMarkdown content={content} />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </span>
   );
 }
@@ -591,7 +644,7 @@ function OptionField({
         <p className={`break-words text-base font-semibold ${invalid ? "text-danger" : "text-foreground"}`}>
           {option.label}
         </p>
-        {option.description ? <InfoTooltip content={option.description} /> : null}
+        {option.description ? <InfoTooltip content={option.description} title={option.label} /> : null}
       </div>
       {option.type === "freeform" && option.kind === "list" && (
         <ListField option={option} readOnly={readOnly} onChange={onChange} />
@@ -1785,6 +1838,7 @@ function WeightRow({
           {(description || label.length > 28) ? (
             <InfoTooltip
               content={label.length > 28 && description ? `**${label}**\n\n${description}` : description ?? label}
+              title={label}
             />
           ) : null}
         </div>
