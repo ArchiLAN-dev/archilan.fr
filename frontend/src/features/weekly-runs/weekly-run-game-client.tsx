@@ -22,6 +22,7 @@ import type { CurrentWeeklyRun, WeeklyRunLeaderboardEntry } from "./weekly-runs-
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { env } from "@/lib/env";
 import { YamlOptionsView, parseGameOptions } from "@/components/yaml/yaml-options-view";
+import { ParticipantStreams } from "@/features/streaming/participant-streams";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -388,6 +389,9 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
           myUserId={myUserId}
         />
       </div>
+
+      {/* Live participant streams (story 7.7) - public, only while the run is active and someone is live */}
+      {isActive && <ParticipantStreams id={run.weeklyRunId} kind="weekly" variant="section" />}
 
       {/* YAML config viewer - visible to all members */}
       {run.yamlConfig && (

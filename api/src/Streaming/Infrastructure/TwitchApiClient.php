@@ -51,6 +51,109 @@ final class TwitchApiClient implements TwitchApiClientInterface
         }
     }
 
+    public function fetchLiveLogins(array $logins): array
+    {
+        if ('' === $this->clientId || '' === $this->clientSecret || [] === $logins) {
+            return [];
+        }
+
+        try {
+            $token = $this->getAppToken();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $live = [];
+        // Helix /streams accepts up to 100 user_login params per call.
+        foreach (array_chunk(array_values(array_unique($logins)), 100) as $chunk) {
+            // Twitch needs repeated `user_login=` params; Symfony's array query encoding would emit
+            // `user_login[0]=`, so build the query string explicitly.
+            $query = implode('&', array_map(
+                static fn (string $login): string => 'user_login='.rawurlencode($login),
+                $chunk,
+            ));
+
+            try {
+                $response = $this->httpClient->request('GET', 'https://api.twitch.tv/helix/streams?'.$query, [
+                    'headers' => [
+                        'Client-Id' => $this->clientId,
+                        'Authorization' => 'Bearer '.$token,
+                    ],
+                ]);
+
+                $data = $response->toArray();
+
+                $streams = is_array($data['data'] ?? null) ? $data['data'] : [];
+
+                foreach ($streams as $stream) {
+                    if (!is_array($stream)) {
+                        continue;
+                    }
+                    $login = $stream['user_login'] ?? null;
+                    if (is_string($login) && '' !== $login) {
+                        $viewerCount = $stream['viewer_count'] ?? null;
+                        $live[mb_strtolower($login)] = is_int($viewerCount) ? $viewerCount : 0;
+                    }
+                }
+            } catch (\Throwable) {
+                // Tolerate a failed chunk - keep whatever the other chunks returned.
+                continue;
+            }
+        }
+
+        return $live;
+    }
+
+    public function fetchAvatars(array $logins): array
+    {
+        if ('' === $this->clientId || '' === $this->clientSecret || [] === $logins) {
+            return [];
+        }
+
+        try {
+            $token = $this->getAppToken();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $avatars = [];
+        // Helix /users accepts up to 100 login params per call.
+        foreach (array_chunk(array_values(array_unique($logins)), 100) as $chunk) {
+            $query = implode('&', array_map(
+                static fn (string $login): string => 'login='.rawurlencode($login),
+                $chunk,
+            ));
+
+            try {
+                $response = $this->httpClient->request('GET', 'https://api.twitch.tv/helix/users?'.$query, [
+                    'headers' => [
+                        'Client-Id' => $this->clientId,
+                        'Authorization' => 'Bearer '.$token,
+                    ],
+                ]);
+
+                $data = $response->toArray();
+                $users = is_array($data['data'] ?? null) ? $data['data'] : [];
+
+                foreach ($users as $user) {
+                    if (!is_array($user)) {
+                        continue;
+                    }
+                    $login = $user['login'] ?? null;
+                    $avatar = $user['profile_image_url'] ?? null;
+                    if (is_string($login) && '' !== $login && is_string($avatar) && '' !== $avatar) {
+                        $avatars[mb_strtolower($login)] = $avatar;
+                    }
+                }
+            } catch (\Throwable) {
+                // Tolerate a failed chunk - keep whatever the other chunks returned.
+                continue;
+            }
+        }
+
+        return $avatars;
+    }
+
     private function getAppToken(): string
     {
         return $this->cache->get('streaming.twitch_app_token', function (ItemInterface $item): string {
