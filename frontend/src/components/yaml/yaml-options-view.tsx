@@ -6,7 +6,12 @@ import { load as loadYaml } from "js-yaml";
 // labelled grid, with weighted dicts shown as distribution bars. Used by the weekly-run game page and
 // the personal-run participant detail page so both surfaces present configs identically.
 
-export type ApOptionValue = boolean | number | string | number[] | Record<string, number>;
+export type ApOptionValue =
+  | boolean
+  | number
+  | string
+  | ApOptionValue[]
+  | { [key: string]: ApOptionValue };
 
 // Top-level YAML keys that are metadata, never part of the game's option block.
 const METADATA_KEYS = new Set(["name", "description", "game", "requires"]);
@@ -22,6 +27,18 @@ function isRange(v: unknown): v is [number, number] {
 
 export function formatOptionName(key: string): string {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Renders a scalar (or nested list/dict) option value as plain text - never "[object Object]". */
+export function formatScalar(value: ApOptionValue): string {
+  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  if (Array.isArray(value)) return value.map(formatScalar).join(", ");
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value)
+      .map(([k, v]) => `${formatOptionName(k)}: ${formatScalar(v)}`)
+      .join(", ");
+  }
+  return String(value);
 }
 
 /**
@@ -90,6 +107,29 @@ export function OptionValue({ value }: { value: ApOptionValue }) {
         entre <span className="font-mono">{value[0]}</span> et{" "}
         <span className="font-mono">{value[1]}</span>
       </span>
+    );
+  }
+
+  // Plain list (non-range array): comma-separated, or "-" when empty.
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-muted-foreground">-</span>;
+    return <span className="font-mono text-foreground">{value.map(formatScalar).join(", ")}</span>;
+  }
+
+  // Literal dict (e.g. game_options): a non-weighted mapping of named sub-settings. Render each
+  // pair instead of String(value), which previously produced "[object Object]".
+  if (typeof value === "object" && value !== null) {
+    const entries = Object.entries(value);
+    if (entries.length === 0) return <span className="text-muted-foreground">-</span>;
+    return (
+      <ul className="mt-1 flex flex-col gap-1">
+        {entries.map(([k, v]) => (
+          <li className="flex flex-wrap items-baseline gap-x-2 text-xs" key={k}>
+            <span className="text-muted-foreground">{formatOptionName(k)}</span>
+            <span className="font-mono text-foreground">{formatScalar(v)}</span>
+          </li>
+        ))}
+      </ul>
     );
   }
 
