@@ -53,13 +53,15 @@ admin game list) without per-page client sorts.
 - Run selection (`PersonalRunGameSelection`) uses the **repository** `findByAvailabilitiesSortedByName`,
   not `DbalGameCatalogQuery` - that was the actual source of the reported page's order; the catalog query
   feeds the public catalog (already re-sorted client-side) and event registration.
-- Other name-ordered admin queries (`DbalAdminGameListQuery`, etc.) were left as-is; they were not part
-  of the report and some carry user-driven sort direction. Can get the same treatment if needed.
+- `DbalAdminGameListQuery` (admin `/admin/jeux` library list) also made case-insensitive - both the
+  `name` and the `usage`+name orderings - preserving its user-driven sort direction. (Reported
+  separately by Jean.) `DoctrineGameRepository::findAllSortedByName` (admin-only) left as-is for now.
 
 ### Project Structure Notes
 
 - `api/src/GameSelection/Infrastructure/DoctrineGameRepository.php`
 - `api/src/GameSelection/Infrastructure/DbalGameCatalogQuery.php`
+- `api/src/GameSelection/Infrastructure/DbalAdminGameListQuery.php`
 - `api/src/WeeklyRuns/Infrastructure/DbalAdminWeeklyRunGameListQuery.php`
 - `api/tests/Functional/PersonalRunGameSelectionPayloadTest.php`
 

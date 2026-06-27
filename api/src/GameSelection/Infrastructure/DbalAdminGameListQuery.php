@@ -47,11 +47,13 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
+        // LOWER() so the name order is case-insensitive: the byte-ordered (C) DB collation otherwise
+        // sorts uppercase before lowercase (e.g. "ANIMAL WELL" before "ActRaiser").
         $direction = 'desc' === strtolower($dir) ? 'DESC' : 'ASC';
         if ('usage' === $sort) {
-            $dataQb->orderBy('usage_count', $direction)->addOrderBy('g.name', 'ASC');
+            $dataQb->orderBy('usage_count', $direction)->addOrderBy('LOWER(g.name)', 'ASC');
         } else {
-            $dataQb->orderBy('g.name', $direction);
+            $dataQb->orderBy('LOWER(g.name)', $direction);
         }
         $this->applyFilters($dataQb, $search, $availability, $yamlReady, $apworldReady);
 
