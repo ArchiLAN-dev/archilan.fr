@@ -45,10 +45,9 @@ type PageState =
 // ─── My games card ────────────────────────────────────────────────────────────
 
 function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: number }) {
-  const canConfigure =
-    run.status === "draft" ||
-    run.status === "idle" ||
-    !["starting", "active", "stopping", "restarting", "completed", "cancelled"].includes(run.status);
+  // Editing games/YAML is only meaningful before the first generation: once the run leaves draft the
+  // multiworld is fixed (resume replays the existing session), so the edit entry is hidden.
+  const canConfigure = run.status === "draft";
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
