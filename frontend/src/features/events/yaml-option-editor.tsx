@@ -10,11 +10,13 @@ import {
   createRangeEntry,
   findOutOfBoundsRangeOptions,
   findZeroWeightOptions,
+  isValidSlotName,
   labelFromAlias,
   labelFromKey,
   mergePlayerValues,
   parseDefaultYaml,
   serializeToYaml,
+  SLOT_NAME_MAX_LENGTH,
   type ChoiceOption,
   type FreeformDictEntry,
   type FreeformDictOption,
@@ -42,6 +44,16 @@ type PanelSave =
   | { kind: "saving" }
   | { kind: "saved" }
   | { kind: "error"; message: string };
+
+const SLOT_NAME_RULE = `Lettres, chiffres, _ et {number}/{player} uniquement (${SLOT_NAME_MAX_LENGTH} caractères max).`;
+
+/** Validation message for the "Nom en jeu" field, or null when valid. */
+function slotNameError(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) return "Le nom en jeu ne peut pas être vide.";
+  if (!isValidSlotName(trimmed)) return `Nom invalide : ${SLOT_NAME_RULE}`;
+  return null;
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -92,7 +104,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   const [rawYaml, setRawYaml] = useState(playerYaml ?? defaultYaml ?? "");
   const [mode, setMode] = useState<Mode>("simple");
   const [panelSave, setPanelSave] = useState<PanelSave>({ kind: "idle" });
-  const [nameError, setNameError] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [zeroWeightLabels, setZeroWeightLabels] = useState<string[]>([]);
   const [boundsErrors, setBoundsErrors] = useState<OutOfBoundsRange[]>([]);
   // Keys of options flagged invalid on the last save attempt (highlighted in red).
@@ -165,6 +177,15 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
     const validationTarget = parsed ?? parseDefaultYaml(rawYaml, optionTypes);
     const validationOptions = validationTarget?.options ?? [];
 
+    // Slot name charset/length (blocks the onChange/template path too, not just the Save button).
+    if (validationTarget) {
+      const nameErr = slotNameError(validationTarget.playerName);
+      if (nameErr) {
+        setNameError(nameErr);
+        return false;
+      }
+    }
+
     // A weighted option (toggle/choice/range) whose weights all sum to 0 can never be
     // rolled and fails generation - block the save and point at the offending options.
     const zeroWeight = findZeroWeightOptions(validationOptions);
@@ -198,8 +219,9 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
   async function handleSave() {
     if (parsed) {
       const trimmedName = parsed.playerName.trim();
-      if (!trimmedName) {
-        setNameError(true);
+      const nameErr = slotNameError(trimmedName);
+      if (nameErr) {
+        setNameError(nameErr);
         return;
       }
       if (trimmedName !== parsed.playerName) {
@@ -247,20 +269,20 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
                   <InfoTooltip content={parsed.playerNameDescription} title="Nom en jeu" />
                 ) : null}
                 <input
-                  aria-invalid={nameError}
+                  aria-invalid={nameError !== null}
                   className={`min-h-9 min-w-0 flex-1 rounded border bg-background px-3 text-sm font-normal text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60 ${nameError ? "border-danger" : "border-border"}`}
                   disabled={!effectivelyOpen}
-                  maxLength={50}
+                  maxLength={SLOT_NAME_MAX_LENGTH}
                   value={parsed.playerName}
                   onBlur={(e) => {
                     const trimmed = e.target.value.trim();
                     setParsed((p) => (p ? { ...p, playerName: trimmed } : p));
-                    if (!trimmed) setNameError(true);
+                    setNameError(slotNameError(trimmed));
                     if (parsed) onChange?.(serializeToYaml({ ...parsed, playerName: trimmed }));
                   }}
                   onChange={(e) => {
                     setParsed((p) => (p ? { ...p, playerName: e.target.value } : p));
-                    if (e.target.value.trim()) setNameError(false);
+                    setNameError(slotNameError(e.target.value));
                     if (parsed) onChange?.(serializeToYaml({ ...parsed, playerName: e.target.value }));
                     markDirty();
                   }}
@@ -297,9 +319,9 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
               </div>
             </div>
             {nameError ? (
-              <p className="text-xs text-danger" role="alert">Le nom en jeu ne peut pas être vide.</p>
+              <p className="text-xs text-danger" role="alert">{nameError}</p>
             ) : (
-              <p className="text-xs text-muted-foreground">Ce nom sera validé par Archipelago au moment de la génération.</p>
+              <p className="text-xs text-muted-foreground">{SLOT_NAME_RULE}</p>
             )}
           </div>
 

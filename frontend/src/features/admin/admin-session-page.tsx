@@ -151,7 +151,8 @@ function limitChars(value: string, max: number): string {
 }
 
 function sanitizePlayerName(name: string): string {
-  const clean = name.replace(/[^a-zA-Z0-9]/g, "");
+  // Keep letters/digits/underscore (mirrors the backend SlotNameGenerator); drop the rest.
+  const clean = name.replace(/[^A-Za-z0-9_]/g, "");
   return clean || "Player";
 }
 
