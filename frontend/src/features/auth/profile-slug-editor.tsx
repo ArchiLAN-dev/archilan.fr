@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, Link2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/apiFetch";
@@ -90,12 +91,30 @@ export function ProfileSlugEditor() {
     }
   }
 
+  const header = (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-sm text-muted-foreground">Personnalise ton profil public.</p>
+      {slug ? (
+        <Link className="text-sm font-medium text-accent-text hover:text-accent-text-hover" href={`/joueurs/${slug}`}>
+          Voir mon profil →
+        </Link>
+      ) : null}
+    </div>
+  );
+
   if (loading) {
-    return <div aria-hidden className="h-28 animate-pulse rounded-xl border border-border bg-surface" />;
+    return (
+      <>
+        {header}
+        <div aria-hidden className="h-28 animate-pulse rounded-xl border border-border bg-surface" />
+      </>
+    );
   }
 
   return (
-    <section className="grid gap-3 rounded-xl border border-border bg-surface p-5">
+    <>
+      {header}
+      <section className="grid gap-3 rounded-xl border border-border bg-surface p-5">
       <div className="flex items-center gap-2">
         <Link2 aria-hidden className="size-4 text-accent-text" />
         <h2 className="font-heading text-sm font-semibold text-foreground">URL de profil</h2>
@@ -149,6 +168,7 @@ export function ProfileSlugEditor() {
           </span>
         )}
       </div>
-    </section>
+      </section>
+    </>
   );
 }

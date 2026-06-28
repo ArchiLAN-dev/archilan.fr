@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
@@ -235,15 +234,6 @@ export function CommunityProfileCustomizationForm() {
 
   return (
     <div className="grid gap-5 pb-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Personnalise ton profil public.</p>
-        {slug ? (
-          <Link className="text-sm font-medium text-accent-text hover:text-accent-text-hover" href={`/joueurs/${slug}`}>
-            Voir mon profil →
-          </Link>
-        ) : null}
-      </div>
-
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
