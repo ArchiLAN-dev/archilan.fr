@@ -244,58 +244,6 @@ export function CommunityProfileCustomizationForm() {
         ) : null}
       </div>
 
-      <Section title="Identité" description="Ce qui te présente en haut de ton profil.">
-        <Field
-          label="Pseudo affiché"
-          counter={<CharCount value={displayName} max={MAX_DISPLAY_NAME} />}
-          hint={
-            displayName.trim() === ""
-              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL de profil se règle dans la section « URL de profil ».`
-              : "Affiché à la place de ton nom de compte. Ton URL de profil se règle dans la section « URL de profil »."
-          }
-        >
-          <input
-            className={inputClass}
-            maxLength={MAX_DISPLAY_NAME}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={accountName !== "" ? accountName : "Ton pseudo affiché…"}
-            type="text"
-            value={displayName}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
-            <input
-              className={inputClass}
-              maxLength={MAX_TAGLINE}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder="Ta devise de joueur…"
-              type="text"
-              value={tagline}
-            />
-          </Field>
-          <Field label="Pronoms" counter={<CharCount value={pronouns} max={MAX_PRONOUNS} />}>
-            <input
-              className={inputClass}
-              maxLength={MAX_PRONOUNS}
-              onChange={(e) => setPronouns(e.target.value)}
-              placeholder="il/lui, elle, they…"
-              type="text"
-              value={pronouns}
-            />
-          </Field>
-        </div>
-        <Field label="À propos" counter={<CharCount value={bio} max={MAX_BIO} />}>
-          <textarea
-            className={`${inputClass} min-h-28`}
-            maxLength={MAX_BIO}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Parle de toi, de tes jeux préférés…"
-            value={bio}
-          />
-        </Field>
-      </Section>
-
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
@@ -383,16 +331,79 @@ export function CommunityProfileCustomizationForm() {
         </div>
       </Section>
 
-      <Section title="Confidentialité" description="Qui peut voir la partie personnalisée de ton profil.">
-        <Field label="Audience" hint={AUDIENCE_HINTS[audience]}>
-          <select className={inputClass} onChange={(e) => setAudience(e.target.value)} value={audience}>
-            {AUDIENCES.map((value) => (
-              <option key={value} value={value}>
-                {AUDIENCE_LABELS[value] ?? value}
-              </option>
-            ))}
-          </select>
+      <Section title="Identité" description="Ce qui te présente en haut de ton profil.">
+        <Field
+          label="Pseudo affiché"
+          counter={<CharCount value={displayName} max={MAX_DISPLAY_NAME} />}
+          hint={
+            displayName.trim() === ""
+              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL de profil se règle dans la section « URL de profil ».`
+              : "Affiché à la place de ton nom de compte. Ton URL de profil se règle dans la section « URL de profil »."
+          }
+        >
+          <input
+            className={inputClass}
+            maxLength={MAX_DISPLAY_NAME}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={accountName !== "" ? accountName : "Ton pseudo affiché…"}
+            type="text"
+            value={displayName}
+          />
         </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
+            <input
+              className={inputClass}
+              maxLength={MAX_TAGLINE}
+              onChange={(e) => setTagline(e.target.value)}
+              placeholder="Ta devise de joueur…"
+              type="text"
+              value={tagline}
+            />
+          </Field>
+          <Field label="Pronoms" counter={<CharCount value={pronouns} max={MAX_PRONOUNS} />}>
+            <input
+              className={inputClass}
+              maxLength={MAX_PRONOUNS}
+              onChange={(e) => setPronouns(e.target.value)}
+              placeholder="il/lui, elle, they…"
+              type="text"
+              value={pronouns}
+            />
+          </Field>
+        </div>
+        <Field label="À propos" counter={<CharCount value={bio} max={MAX_BIO} />}>
+          <textarea
+            className={`${inputClass} min-h-28`}
+            maxLength={MAX_BIO}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="Parle de toi, de tes jeux préférés…"
+            value={bio}
+          />
+        </Field>
+      </Section>
+
+      <Section title={`Liens (${socialLinks.length}/${MAX_SOCIAL_LINKS})`} description="Choisis une plateforme et colle ton lien.">
+        <div className="grid gap-2">
+          {socialLinks.map((link, index) => (
+            <SocialLinkRow
+              key={index}
+              link={link}
+              onChange={(patch) => updateLink(setSocialLinks, index, patch)}
+              onRemove={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}
+            />
+          ))}
+          {socialLinks.length < MAX_SOCIAL_LINKS ? (
+            <button
+              className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground hover:border-accent hover:text-foreground"
+              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "" }])}
+              type="button"
+            >
+              <Plus aria-hidden className="size-3.5" />
+              Ajouter un lien
+            </button>
+          ) : null}
+        </div>
       </Section>
 
       <Section
@@ -457,27 +468,16 @@ export function CommunityProfileCustomizationForm() {
         ) : null}
       </Section>
 
-      <Section title={`Liens (${socialLinks.length}/${MAX_SOCIAL_LINKS})`} description="Choisis une plateforme et colle ton lien.">
-        <div className="grid gap-2">
-          {socialLinks.map((link, index) => (
-            <SocialLinkRow
-              key={index}
-              link={link}
-              onChange={(patch) => updateLink(setSocialLinks, index, patch)}
-              onRemove={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}
-            />
-          ))}
-          {socialLinks.length < MAX_SOCIAL_LINKS ? (
-            <button
-              className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground hover:border-accent hover:text-foreground"
-              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "" }])}
-              type="button"
-            >
-              <Plus aria-hidden className="size-3.5" />
-              Ajouter un lien
-            </button>
-          ) : null}
-        </div>
+      <Section title="Confidentialité" description="Qui peut voir la partie personnalisée de ton profil.">
+        <Field label="Audience" hint={AUDIENCE_HINTS[audience]}>
+          <select className={inputClass} onChange={(e) => setAudience(e.target.value)} value={audience}>
+            {AUDIENCES.map((value) => (
+              <option key={value} value={value}>
+                {AUDIENCE_LABELS[value] ?? value}
+              </option>
+            ))}
+          </select>
+        </Field>
       </Section>
 
       {/* Sticky save bar */}
