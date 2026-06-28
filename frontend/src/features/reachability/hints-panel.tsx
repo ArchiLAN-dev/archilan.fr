@@ -4,6 +4,7 @@ import { Lightbulb, MapPin, Package, User } from "lucide-react";
 import { useState } from "react";
 
 import type { HintEntry, HintsData } from "./types";
+import { SETTABLE_HINT_STATUSES } from "./types";
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; badge: string }> = {
   found:       { dot: "bg-success",      label: "Trouvé",       badge: "border-success/30 bg-success/10 text-success" },
@@ -34,8 +35,16 @@ function itemFlagClass(flags: number): string {
   return FLAG_STYLES[0];
 }
 
-function HintRow({ hint }: { hint: HintEntry }) {
+function HintRow({
+  hint,
+  onSetStatus,
+}: {
+  hint: HintEntry;
+  onSetStatus?: (locationId: number, status: number) => void;
+}) {
   const status = STATUS_STYLES[hint.statusName] ?? STATUS_STYLES.unspecified;
+  // A found hint is terminal; otherwise the owner may set its priority.
+  const canEdit = onSetStatus !== undefined && !hint.found;
 
   return (
     <div className="card-glow grid gap-3 rounded border border-border bg-surface p-4 transition-colors hover:border-accent/40">
@@ -49,10 +58,26 @@ function HintRow({ hint }: { hint: HintEntry }) {
             ({itemFlagLabel(hint.itemFlags)})
           </span>
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-xs font-medium ${status.badge}`}>
-          <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot} ${hint.statusName === "found" ? "animate-pulse" : ""}`} />
-          {status.label}
-        </span>
+        {canEdit ? (
+          <label className="inline-flex items-center gap-1.5">
+            <span className="sr-only">Priorité de l&apos;indice</span>
+            <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot}`} />
+            <select
+              className="rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground outline-none focus:border-accent"
+              onChange={(e) => onSetStatus(hint.locationId, Number(e.target.value))}
+              value={hint.status}
+            >
+              {SETTABLE_HINT_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <span className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-xs font-medium ${status.badge}`}>
+            <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot} ${hint.statusName === "found" ? "animate-pulse" : ""}`} />
+            {status.label}
+          </span>
+        )}
       </div>
 
       <div className="grid gap-1.5 text-sm text-muted-foreground">
@@ -85,10 +110,13 @@ export function HintsPanel({
   data,
   hintFree,
   onToggleFree,
+  onSetStatus,
 }: {
   data: HintsData;
   hintFree?: boolean;
   onToggleFree?: () => void;
+  /** When provided, each pending hint shows a priority picker (AP hint status). */
+  onSetStatus?: (locationId: number, status: number) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "pending" | "found">("all");
 
@@ -191,7 +219,7 @@ export function HintsPanel({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {filtered.map((hint) => (
-            <HintRow hint={hint} key={`${hint.locationId}-${hint.itemId}`} />
+            <HintRow hint={hint} key={`${hint.locationId}-${hint.itemId}`} onSetStatus={onSetStatus} />
           ))}
         </div>
       )}

@@ -36,6 +36,7 @@ import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
+import { HINT_STATUS_NAMES } from "@/features/reachability/types";
 import type { PersonalRun } from "./types";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -542,6 +543,27 @@ export function PersonalRunSlotDetailPage({
     if (!res.ok) throw new Error(`hint location failed: ${res.status}`);
   }
 
+  // Set the AP hint priority/status (priority/avoid/no_priority/unspecified) for a pending hint.
+  // Optimistic update; the bridge push (SSE) reconciles the authoritative state.
+  async function handleSetHintStatus(locationId: number, status: number): Promise<void> {
+    if (!sessionId) return;
+    setHints((prev) =>
+      prev
+        ? {
+            ...prev,
+            hints: prev.hints.map((h) =>
+              h.locationId === locationId ? { ...h, status, statusName: HINT_STATUS_NAMES[status] ?? h.statusName } : h,
+            ),
+          }
+        : prev,
+    );
+    await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/hints/${locationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  }
+
   async function handleHintItem(itemName: string): Promise<void> {
     if (!sessionId || state.kind !== "data") return;
     // Gratuit (admin): `!admin /hint <player> <item>` hints the item for its owner without
@@ -888,6 +910,7 @@ export function PersonalRunSlotDetailPage({
                 <HintsPanel
                   data={hints}
                   hintFree={isAdminUser ? hintFree : undefined}
+                  onSetStatus={(loc, st) => { void handleSetHintStatus(loc, st); }}
                   onToggleFree={isAdminUser ? () => { setHintFree((f) => !f); } : undefined}
                 />
               ) : (

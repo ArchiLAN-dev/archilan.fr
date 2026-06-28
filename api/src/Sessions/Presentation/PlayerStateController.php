@@ -9,6 +9,7 @@ use App\Sessions\Application\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
+use Archilan\BridgeClient\Enum\HintStatus;
 use Archilan\BridgeClient\Slots\Response\Hint;
 use Archilan\BridgeClient\Slots\Response\ItemLocation;
 use Archilan\BridgeClientBundle\Bridge\BridgeClientPool;
@@ -311,6 +312,62 @@ final readonly class PlayerStateController
                 'slot' => $response->slot,
                 'locationId' => $response->locationId,
                 'free' => $response->free,
+            ]]);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+    }
+
+    #[Route('/api/v1/sessions/{sessionId}/slots/{slotIndex}/hints/{locationId}', methods: ['PATCH'], requirements: ['locationId' => '\d+'])]
+    public function updateHintStatus(Request $request, string $sessionId, int $slotIndex, int $locationId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        // The slot owner (or admin) sets the hint priority for their own slot.
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        if (Session::STATUS_RUNNING !== $session['status']) {
+            return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
+        }
+
+        $bridgePort = $session['bridgePort'];
+        if (null === $bridgePort) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+
+        $body = json_decode($request->getContent(), true);
+        if (!is_array($body)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'Corps de requête invalide.', 422);
+        }
+
+        $statusRaw = $body['status'] ?? null;
+        $status = is_int($statusRaw) ? HintStatus::tryFrom($statusRaw) : null;
+        // Players control priority/avoid/no_priority/unspecified; "found" (40) is bridge-managed.
+        $settable = [HintStatus::Unspecified, HintStatus::NoPriority, HintStatus::Avoid, HintStatus::Priority];
+        if (null === $status || !in_array($status, $settable, true)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'status invalide (0, 10, 20 ou 30 attendu).', 422);
+        }
+
+        try {
+            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $this->bridgeHttpHost, $bridgePort));
+            $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status);
+
+            return new JsonResponse(['data' => [
+                'ok' => true,
+                'slot' => $response->slot,
+                'locationId' => $response->locationId,
+                'status' => $status->value,
+                'statusName' => $status->label(),
             ]]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);

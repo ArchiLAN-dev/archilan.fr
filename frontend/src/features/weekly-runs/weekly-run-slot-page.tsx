@@ -27,6 +27,7 @@ import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
+import { HINT_STATUS_NAMES } from "@/features/reachability/types";
 import { fetchCurrentWeeklyRuns, relaunchWeeklyEntry } from "./weekly-runs-api";
 
 type SlotInfo = { index: string; name: string };
@@ -460,6 +461,26 @@ export function WeeklyRunSlotPage({
       },
     );
     if (!res.ok) throw new Error(`hint location failed: ${res.status}`);
+  }
+
+  // Set the AP hint priority/status for a pending hint (optimistic; SSE reconciles).
+  async function handleSetHintStatus(locationId: number, status: number): Promise<void> {
+    if (!entryBaseUrl || !slotIndex) return;
+    setHints((prev) =>
+      prev
+        ? {
+            ...prev,
+            hints: prev.hints.map((h) =>
+              h.locationId === locationId ? { ...h, status, statusName: HINT_STATUS_NAMES[status] ?? h.statusName } : h,
+            ),
+          }
+        : prev,
+    );
+    await apiFetch(`${entryBaseUrl}/slots/${slotIndex}/hints/${locationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
   }
 
   async function handleHintItem(itemName: string): Promise<void> {
@@ -903,7 +924,10 @@ export function WeeklyRunSlotPage({
             {/* Indices tab */}
             {activeTab === "indices" ? (
               hints ? (
-                <HintsPanel data={hints} />
+                <HintsPanel
+                  data={hints}
+                  onSetStatus={(loc, st) => { void handleSetHintStatus(loc, st); }}
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">Chargement des indices…</p>
               )

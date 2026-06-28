@@ -14,6 +14,7 @@ import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
+import { HINT_STATUS_NAMES } from "@/features/reachability/types";
 import { SlotSwitcher } from "./admin-slot-switcher";
 
 type PageState =
@@ -394,6 +395,25 @@ export function AdminSlotReachabilityPage({
     if (!res.ok) throw new Error(`hint location failed: ${res.status}`);
   }
 
+  // Set the AP hint priority/status for a pending hint (optimistic; SSE reconciles).
+  async function handleSetHintStatus(locationId: number, status: number): Promise<void> {
+    setHints((prev) =>
+      prev
+        ? {
+            ...prev,
+            hints: prev.hints.map((h) =>
+              h.locationId === locationId ? { ...h, status, statusName: HINT_STATUS_NAMES[status] ?? h.statusName } : h,
+            ),
+          }
+        : prev,
+    );
+    await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/hints/${locationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  }
+
   async function handleHintItem(itemName: string): Promise<void> {
     if (state.kind !== "data") return;
     // Gratuit (admin): `!admin /hint <player> <item>` hints the item for its owner without
@@ -673,6 +693,7 @@ export function AdminSlotReachabilityPage({
                 <HintsPanel
                   data={hints}
                   hintFree={hintFree}
+                  onSetStatus={(loc, st) => { void handleSetHintStatus(loc, st); }}
                   onToggleFree={() => { setHintFree((f) => !f); }}
                 />
               ) : (
