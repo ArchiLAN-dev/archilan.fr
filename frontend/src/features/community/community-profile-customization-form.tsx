@@ -250,8 +250,8 @@ export function CommunityProfileCustomizationForm() {
           counter={<CharCount value={displayName} max={MAX_DISPLAY_NAME} />}
           hint={
             displayName.trim() === ""
-              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL /joueurs/${slug ?? ""} ne change pas.`
-              : "Affiché à la place de ton nom de compte. Ton URL de profil ne change pas."
+              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL de profil se règle dans la section « URL de profil ».`
+              : "Affiché à la place de ton nom de compte. Ton URL de profil se règle dans la section « URL de profil »."
           }
         >
           <input

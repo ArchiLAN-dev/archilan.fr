@@ -6,6 +6,7 @@ namespace App\Identity\Infrastructure;
 
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineUserRepository implements UserRepositoryInterface
@@ -50,6 +51,23 @@ final readonly class DoctrineUserRepository implements UserRepositoryInterface
     public function existsBySlug(string $slug): bool
     {
         return null !== $this->entityManager->getRepository(User::class)->findOneBy(['slug' => $slug]);
+    }
+
+    public function isSlugReserved(string $slug, \DateTimeImmutable $cutoff, string $exceptUserId): bool
+    {
+        $qb = $this->entityManager->getConnection()->createQueryBuilder();
+        $count = $qb->select('COUNT(*)')
+            ->from('"user"', 'u')
+            ->where($qb->expr()->eq('u.previous_slug', ':slug'))
+            ->andWhere($qb->expr()->gt('u.slug_changed_at', ':cutoff'))
+            ->andWhere($qb->expr()->neq('u.id', ':exceptId'))
+            ->setParameter('slug', $slug)
+            ->setParameter('cutoff', $cutoff, Types::DATETIMETZ_IMMUTABLE)
+            ->setParameter('exceptId', $exceptUserId)
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($count) && (int) $count > 0;
     }
 
     public function findAllNotDeleted(): array

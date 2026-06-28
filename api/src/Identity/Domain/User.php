@@ -64,6 +64,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         private ?\DateTimeImmutable $bannedAt = null,
         #[ORM\Column(name: 'moderation_reason', type: 'string', length: 500, nullable: true)]
         private ?string $moderationReason = null,
+        // ── Self-service slug change (story 2.10). previousSlug + slugChangedAt drive the cooldown and
+        // the "released slug reserved 30 days for its former owner only" rule. ──
+        #[ORM\Column(name: 'previous_slug', type: 'string', length: 80, nullable: true)]
+        private ?string $previousSlug = null,
+        #[ORM\Column(name: 'slug_changed_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $slugChangedAt = null,
     ) {
     }
 
@@ -179,6 +185,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getSlug(): ?string
     {
         return $this->slug;
+    }
+
+    public function getPreviousSlug(): ?string
+    {
+        return $this->previousSlug;
+    }
+
+    public function getSlugChangedAt(): ?\DateTimeImmutable
+    {
+        return $this->slugChangedAt;
+    }
+
+    /**
+     * Change the public profile slug. Keeps the just-released slug in `previousSlug` (so only this user
+     * can reclaim it during the reservation window) and stamps `slugChangedAt` (cooldown anchor).
+     * Callers (ChangeUserSlug) enforce format, uniqueness, reservation and cooldown beforehand.
+     */
+    public function changeSlug(string $newSlug, \DateTimeImmutable $now): void
+    {
+        $this->previousSlug = $this->slug;
+        $this->slug = $newSlug;
+        $this->slugChangedAt = $now;
+        $this->updatedAt = $now;
     }
 
     public function getPassword(): ?string
