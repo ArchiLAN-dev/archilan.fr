@@ -22,7 +22,12 @@ function formatDate(iso: string): string {
     : d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export function ProfileSlugEditor() {
+type ProfileSlugEditorProps = {
+  onDirtyChange?: (dirty: boolean) => void;
+  registerSave?: (save: () => Promise<boolean>) => void;
+};
+
+export function ProfileSlugEditor({ onDirtyChange, registerSave }: ProfileSlugEditorProps = {}) {
   const [slug, setSlug] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [nextAllowedAt, setNextAllowedAt] = useState<string | null>(null);
@@ -55,8 +60,10 @@ export function ProfileSlugEditor() {
   const cooldownUntil = nextAllowedAt;
   const candidate = value.trim().toLowerCase();
   const dirty = candidate !== (slug ?? "");
+  // Only count as dirty (savable) when the URL is actually editable and non-empty.
+  const savableDirty = dirty && cooldownUntil === null && candidate !== "";
 
-  async function handleSave() {
+  async function handleSave(): Promise<boolean> {
     setError(null);
     setSaved(false);
     setSaving(true);
@@ -78,18 +85,29 @@ export function ProfileSlugEditor() {
         } else {
           setError(ERROR_MESSAGES[code] ?? ERROR_MESSAGES.slug_invalid);
         }
-        return;
+        return false;
       }
       const newSlug = json.data?.slug ?? candidate;
       setSlug(newSlug);
       setValue(newSlug);
       setSaved(true);
+      return true;
     } catch {
       setError("Impossible de contacter l'API.");
+      return false;
     } finally {
       setSaving(false);
     }
   }
+
+  // Surface dirty state + the save handler to the shared save bar (parent orchestrator).
+  useEffect(() => {
+    onDirtyChange?.(savableDirty);
+  }, [savableDirty, onDirtyChange]);
+
+  useEffect(() => {
+    registerSave?.(handleSave);
+  });
 
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -146,28 +164,22 @@ export function ProfileSlugEditor() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          className="inline-flex min-h-9 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={saving || cooldownUntil !== null || !dirty || candidate === ""}
-          onClick={() => { void handleSave(); }}
-          type="button"
-        >
-          {saving ? "Enregistrement…" : "Changer mon URL"}
-        </button>
-        {saved && (
-          <span className="inline-flex items-center gap-1.5 text-sm text-success">
-            <Check aria-hidden className="size-4" />
-            URL mise à jour
-          </span>
-        )}
-        {error !== null && (
-          <span className="inline-flex items-center gap-1.5 text-sm text-danger">
-            <AlertCircle aria-hidden className="size-4" />
-            {error}
-          </span>
-        )}
-      </div>
+      {(saved || error !== null) && (
+        <div className="flex flex-wrap items-center gap-3">
+          {saved && (
+            <span className="inline-flex items-center gap-1.5 text-sm text-success">
+              <Check aria-hidden className="size-4" />
+              URL mise à jour
+            </span>
+          )}
+          {error !== null && (
+            <span className="inline-flex items-center gap-1.5 text-sm text-danger">
+              <AlertCircle aria-hidden className="size-4" />
+              {error}
+            </span>
+          )}
+        </div>
+      )}
       </section>
     </>
   );

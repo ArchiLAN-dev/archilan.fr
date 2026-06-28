@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
 import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
@@ -81,7 +81,15 @@ function serialize(v: FormValues): string {
   });
 }
 
-export function CommunityProfileCustomizationForm() {
+type CommunityProfileCustomizationFormProps = {
+  onDirtyChange?: (dirty: boolean) => void;
+  registerSave?: (save: () => Promise<boolean>) => void;
+};
+
+export function CommunityProfileCustomizationForm({
+  onDirtyChange,
+  registerSave,
+}: CommunityProfileCustomizationFormProps = {}) {
   const [loading, setLoading] = useState(true);
   const [slug, setSlug] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("");
@@ -169,7 +177,7 @@ export function CommunityProfileCustomizationForm() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  async function handleSave() {
+  async function handleSave(): Promise<boolean> {
     setSave({ kind: "saving" });
     const result = await updateMyCommunityProfile({
       displayName: displayName.trim() === "" ? null : displayName.trim(),
@@ -186,12 +194,25 @@ export function CommunityProfileCustomizationForm() {
     if (result?.ok) {
       hydrate(result.profile);
       setSave({ kind: "saved" });
-    } else if (result) {
-      setSave({ kind: "error", message: "Certains champs sont invalides (liens, longueurs…)." });
-    } else {
-      setSave({ kind: "error", message: "Impossible de sauvegarder le profil." });
+      return true;
     }
+    setSave({
+      kind: "error",
+      message: result
+        ? "Certains champs sont invalides (liens, longueurs…)."
+        : "Impossible de sauvegarder le profil.",
+    });
+    return false;
   }
+
+  // Surface dirty state + the save handler to the shared save bar (parent orchestrator).
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    registerSave?.(handleSave);
+  });
 
   async function handleAvatarPick(file: File) {
     setAvatar({ kind: "saving" });
@@ -470,19 +491,11 @@ export function CommunityProfileCustomizationForm() {
         </Field>
       </Section>
 
-      {/* Sticky save bar */}
-      <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface/95 px-1 py-3 backdrop-blur">
-        <SaveStatus dirty={isDirty} save={save} />
-        <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={save.kind === "saving" || !isDirty}
-          onClick={() => void handleSave()}
-          type="button"
-        >
-          {save.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
-          {save.kind === "saving" ? "Sauvegarde…" : "Sauvegarder"}
-        </button>
-      </div>
+      {save.kind === "error" ? (
+        <p className="flex items-center gap-1.5 text-sm text-[color:var(--color-danger)]" role="alert">
+          <AlertCircle aria-hidden className="size-4" /> {save.message}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -532,38 +545,6 @@ function CharCount({ value, max }: { value: string; max: number }) {
       {n}/{max}
     </span>
   );
-}
-
-function SaveStatus({ dirty, save }: { dirty: boolean; save: SaveState }) {
-  if (save.kind === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" /> Sauvegarde…
-      </span>
-    );
-  }
-  if (save.kind === "error") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-[color:var(--color-danger)]">
-        <AlertCircle aria-hidden className="size-4" /> {save.message}
-      </span>
-    );
-  }
-  if (save.kind === "saved" && !dirty) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-success">
-        <CheckCircle aria-hidden className="size-4" /> Sauvegardé
-      </span>
-    );
-  }
-  if (dirty) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-amber-400">
-        <span aria-hidden className="size-2 rounded-full bg-amber-400" /> Modifications non enregistrées
-      </span>
-    );
-  }
-  return <span className="text-sm text-muted-foreground">Tout est à jour.</span>;
 }
 
 function FrameSwatch({
