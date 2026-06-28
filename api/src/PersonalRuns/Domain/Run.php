@@ -232,6 +232,17 @@ final class Run
         return $this->status;
     }
 
+    /**
+     * True once the run has left `draft`: the multiworld has been (or is being) generated and is now
+     * fixed - resume always replays the saved game - so participant game selection, slot YAML and the
+     * owner's game config can no longer be changed. A paused (`idle`) run is included: editing it would
+     * be a no-op since the existing session is what resumes.
+     */
+    public function isLockedForEditing(): bool
+    {
+        return self::STATUS_DRAFT !== $this->status;
+    }
+
     public function getInviteToken(): string
     {
         return $this->inviteToken;

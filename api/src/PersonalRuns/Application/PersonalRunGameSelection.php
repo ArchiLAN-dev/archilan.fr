@@ -33,7 +33,7 @@ final readonly class PersonalRunGameSelection
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, status: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
      */
     public function getMySlots(string $runId, string $userId): array
     {
@@ -87,7 +87,7 @@ final readonly class PersonalRunGameSelection
 
         $recentlyPlayed = $this->recentlyPlayedGames->recentlyPlayed($userId, $runId, 3);
 
-        return $this->result(found: true, slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
+        return $this->result(found: true, status: $run->getStatus(), slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
     }
 
     /**
@@ -208,8 +208,8 @@ final readonly class PersonalRunGameSelection
             return $this->resultWithErrors(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
-            return $this->resultWithErrors(found: true, blocked: true, blockReason: 'run_active');
+        if ($run->isLockedForEditing()) {
+            return $this->resultWithErrors(found: true, blocked: true, blockReason: 'run_generated');
         }
 
         $gameIds = [];
@@ -261,8 +261,8 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
-            return $this->yamlResult(found: true, blocked: true, blockReason: 'run_active');
+        if ($run->isLockedForEditing()) {
+            return $this->yamlResult(found: true, blocked: true, blockReason: 'run_generated');
         }
 
         $slot = $participant->getSlot($slotId);
@@ -374,13 +374,14 @@ final readonly class PersonalRunGameSelection
      * @param list<array<string, mixed>>|null                                     $availableGames
      * @param list<array{gameId: string, lastPlayedAt: string, runTitle: string}> $recentlyPlayedGames
      *
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, status: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
      */
     private function result(
         bool $found = false,
         bool $authorized = true,
         bool $blocked = false,
         ?string $blockReason = null,
+        ?string $status = null,
         ?array $slots = null,
         ?array $availableGames = null,
         array $recentlyPlayedGames = [],
@@ -390,6 +391,7 @@ final readonly class PersonalRunGameSelection
             'authorized' => $authorized,
             'blocked' => $blocked,
             'blockReason' => $blockReason,
+            'status' => $status,
             'slots' => $slots,
             'availableGames' => $availableGames,
             'recentlyPlayedGames' => $recentlyPlayedGames,

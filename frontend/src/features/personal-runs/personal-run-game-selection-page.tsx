@@ -42,6 +42,7 @@ type RecentlyPlayedGame = {
 };
 
 type SelectionData = {
+  status: string;
   slots: Slot[];
   availableGames: AvailableGame[];
   recentlyPlayedGames: RecentlyPlayedGame[];
@@ -158,9 +159,10 @@ export function PersonalRunGameSelectionPage({
       }
 
       const payload = (await res.json()) as {
-        data: { slots: Slot[]; availableGames: AvailableGame[]; recentlyPlayedGames?: RecentlyPlayedGame[] };
+        data: { status?: string; slots: Slot[]; availableGames: AvailableGame[]; recentlyPlayedGames?: RecentlyPlayedGame[] };
       };
       const data: SelectionData = {
+        status: payload.data.status ?? "draft",
         slots: payload.data.slots,
         availableGames: payload.data.availableGames,
         recentlyPlayedGames: payload.data.recentlyPlayedGames ?? [],
@@ -240,6 +242,9 @@ export function PersonalRunGameSelectionPage({
   }
 
   const { data } = pageState;
+  // Once the run leaves draft the multiworld is generated/fixed (paused/idle included): editing the
+  // selection is a no-op since resume replays the existing session, so the UI is locked.
+  const locked = data.status !== "draft";
   const gameMap = new Map(data.availableGames.map((g) => [g.id, g]));
 
   // Rebuild saved slot map keyed by gameId for YAML links (post-save)
@@ -385,6 +390,16 @@ export function PersonalRunGameSelectionPage({
         </p>
       </header>
 
+      {locked && (
+        <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+          <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+          <p>
+            La partie a déjà été générée : la sélection de jeux et les YAML ne sont plus modifiables.
+            La reprise rejoue toujours la partie existante.
+          </p>
+        </div>
+      )}
+
       {/* ── Selection summary ── */}
       <section className="card-glow grid gap-4 rounded-lg border border-border p-5">
         <div className="flex items-center justify-between gap-2">
@@ -433,7 +448,8 @@ export function PersonalRunGameSelectionPage({
                   )}
                   <button
                     aria-label={`Retirer ${label}`}
-                    className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-[color:var(--color-danger)]/10 hover:text-[color:var(--color-danger)]"
+                    className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-[color:var(--color-danger)]/10 hover:text-[color:var(--color-danger)] disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={locked}
                     onClick={() => {
                       setWorkingGameIds((prev) => prev.filter((_, i) => i !== idx));
                       setSaveState({ kind: "idle" });
@@ -451,7 +467,7 @@ export function PersonalRunGameSelectionPage({
         <div className="grid gap-2">
           <button
             className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
-            disabled={saveState.kind === "saving"}
+            disabled={saveState.kind === "saving" || locked}
             onClick={() => { void handleSave(); }}
             type="button"
           >
@@ -572,12 +588,13 @@ export function PersonalRunGameSelectionPage({
 
                     <button
                       className={[
-                        "shrink-0 inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded border px-3 text-xs font-semibold transition-all duration-300",
+                        "shrink-0 inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded border px-3 text-xs font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-40",
                         added
                           ? "border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]"
                           : "border-border text-foreground hover:border-accent hover:text-accent-text",
                         fading ? "opacity-0" : "opacity-100",
                       ].join(" ")}
+                      disabled={locked}
                       onClick={() => handleAddGame(game.id)}
                       type="button"
                     >
