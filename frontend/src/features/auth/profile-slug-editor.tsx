@@ -104,7 +104,7 @@ export function ProfileSlugEditor() {
       <label className="grid gap-1.5">
         <span className="text-xs text-muted-foreground">Ton adresse publique</span>
         <div className="flex items-center gap-0 overflow-hidden rounded-lg border border-border bg-background focus-within:border-accent">
-          <span className="shrink-0 select-none border-r border-border px-3 py-2 text-sm text-muted-foreground">/joueurs/</span>
+          <span className="shrink-0 select-none border-r border-border px-3 py-2 text-sm text-muted-foreground">{env.appUrl}/joueurs/</span>
           <input
             className="min-h-9 w-full min-w-0 bg-transparent px-3 text-sm text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-60"
             disabled={saving || cooldownUntil !== null}
