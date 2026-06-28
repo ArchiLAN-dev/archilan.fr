@@ -33,6 +33,12 @@ def test_sanitize_strips_non_alphanumeric() -> None:
     assert sanitize_player_name("Alice-1") == "Alice1"
 
 
+def test_sanitize_keeps_underscore() -> None:
+    # Underscore survives; apostrophes/accents are dropped.
+    assert sanitize_player_name("My_Name") == "My_Name"
+    assert sanitize_player_name("O'Brien") == "OBrien"
+
+
 def test_sanitize_fallback_when_empty() -> None:
     assert sanitize_player_name("---") == "Player"
 

@@ -16,7 +16,10 @@ use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Shared\Domain\SlotName;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 final readonly class PersonalRunGameSelection
 {
@@ -279,6 +282,11 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, errors: ['game' => ["Ce jeu n'a pas encore de fichier .apworld configuré."]]);
         }
 
+        $nameError = $this->slotNameError($playerYaml);
+        if (null !== $nameError) {
+            return $this->yamlResult(found: true, errors: ['name' => [$nameError]]);
+        }
+
         $participant->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
         $this->participants->flush();
@@ -286,6 +294,32 @@ final readonly class PersonalRunGameSelection
         $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
+    }
+
+    /**
+     * Validates the YAML `name:` (slot name) charset/length. Returns an error message, or null when
+     * the name is valid or absent/unparseable (a broken YAML fails later in the pipeline).
+     */
+    private function slotNameError(string $playerYaml): ?string
+    {
+        try {
+            $parsed = Yaml::parse($playerYaml);
+        } catch (ParseException) {
+            return null;
+        }
+
+        if (!is_array($parsed) || !is_string($parsed['name'] ?? null)) {
+            return null;
+        }
+
+        if (!SlotName::isValid($parsed['name'])) {
+            return sprintf(
+                'Nom de slot invalide : seuls les lettres, chiffres, _ et les placeholders {number}/{player} sont autorisés (%d caractères max).',
+                SlotName::MAX_LENGTH,
+            );
+        }
+
+        return null;
     }
 
     private function loadParticipant(Run $run, string $userId): ?RunParticipant

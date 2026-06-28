@@ -189,6 +189,22 @@ export type ParsedYaml = {
   topLevelOptionKeys: ReadonlySet<string>;
 };
 
+// ─── Slot name validation ──────────────────────────────────────────────────────
+
+/** Archipelago slot-name limit (mirrors the backend `SlotName::MAX_LENGTH`). */
+export const SLOT_NAME_MAX_LENGTH = 16;
+
+/**
+ * A slot/player name (the YAML `name:`) may only contain letters, digits, underscore and the AP
+ * placeholders {number}/{player} (and uppercase variants), substituted per slot. Everything else
+ * (apostrophes, spaces, accents, …) is rejected - it breaks generation and in-game display.
+ */
+const SLOT_NAME_PATTERN = /^(?:[A-Za-z0-9_]|\{(?:number|player|NUMBER|PLAYER)\})+$/;
+
+export function isValidSlotName(name: string): boolean {
+  return name.length > 0 && name.length <= SLOT_NAME_MAX_LENGTH && SLOT_NAME_PATTERN.test(name);
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function labelFromKey(key: string): string {

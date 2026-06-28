@@ -101,6 +101,32 @@ final class RegistrationSlotYamlTest extends FunctionalTestCase
         self::assertSame($yaml, $slot['playerYaml'] ?? null);
     }
 
+    public function testInvalidSlotNameReturns422(): void
+    {
+        $owner = $this->createUser('owner@example.org');
+        $game = $this->createApworldGame('Hollow Knight', 'hollow-knight');
+        $event = $this->makeEvent($game);
+        $reg = $this->createRegistrationWithSlot($event, $owner->getId(), $game);
+
+        $slotId = $reg->getGameSlots()[0]['slotId'];
+
+        $this->loginAs($owner);
+        $this->client->jsonRequest(
+            'PUT',
+            sprintf('/api/v1/registrations/%s/slots/%s/yaml', $reg->getId(), $slotId),
+            ['playerYaml' => "name: O'Brien\ngame: Hollow Knight\n"],
+        );
+        self::assertResponseStatusCodeSame(422);
+
+        $response = $this->decodedJsonResponse();
+        $errorData = $response['error'];
+        self::assertIsArray($errorData);
+        self::assertSame('validation_failed', $errorData['code']);
+        $errorDetails = $errorData['details'];
+        self::assertIsArray($errorDetails);
+        self::assertArrayHasKey('name', $errorDetails);
+    }
+
     public function testGetSelectionShowsPlayerYamlAndDefaultYaml(): void
     {
         $defaultYaml = "name: PlayerName\ngame: Hollow Knight\n";

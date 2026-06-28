@@ -127,7 +127,9 @@ final class PlayerStateTest extends FunctionalTestCase
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/1/hints/123', $session->getId()), ['status' => 40]);
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('validation_error', $this->decodedJsonResponse()['error']['code']);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame('validation_error', $error['code']);
     }
 
     public function testUpdateHintStatusForbidsNonRegistrant(): void

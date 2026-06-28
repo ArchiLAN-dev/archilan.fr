@@ -10,7 +10,10 @@ use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
 use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Shared\Domain\SlotName;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 final readonly class RegistrationGameSelection
 {
@@ -207,6 +210,11 @@ final readonly class RegistrationGameSelection
             return ['outcome' => 'error', 'errors' => ['game' => ["Ce jeu n'a pas encore de fichier .apworld configuré."]]];
         }
 
+        $nameError = $this->slotNameError($playerYaml);
+        if (null !== $nameError) {
+            return ['outcome' => 'error', 'errors' => ['name' => [$nameError]]];
+        }
+
         $registration->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', new \DateTimeImmutable());
 
         $this->registrationRepository->flush();
@@ -214,6 +222,32 @@ final readonly class RegistrationGameSelection
         $this->logger->info('registration.slot_yaml_saved', ['registrationId' => $registrationId, 'slotId' => $slotId]);
 
         return ['outcome' => 'ok'];
+    }
+
+    /**
+     * Validates the YAML `name:` (slot name) charset/length. Returns an error message, or null when
+     * the name is valid or absent/unparseable (a broken YAML fails later in the pipeline).
+     */
+    private function slotNameError(string $playerYaml): ?string
+    {
+        try {
+            $parsed = Yaml::parse($playerYaml);
+        } catch (ParseException) {
+            return null;
+        }
+
+        if (!is_array($parsed) || !is_string($parsed['name'] ?? null)) {
+            return null;
+        }
+
+        if (!SlotName::isValid($parsed['name'])) {
+            return sprintf(
+                'Nom de slot invalide : seuls les lettres, chiffres, _ et les placeholders {number}/{player} sont autorisés (%d caractères max).',
+                SlotName::MAX_LENGTH,
+            );
+        }
+
+        return null;
     }
 
     /**
