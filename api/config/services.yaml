@@ -328,6 +328,7 @@ services:
     App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
 
     App\Streaming\Infrastructure\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
+    App\Streaming\Application\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\DbalParticipantTwitchLinksQuery'
 
     App\Streaming\Infrastructure\TwitchApiClient:
         arguments:

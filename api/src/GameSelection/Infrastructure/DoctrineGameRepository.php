@@ -67,7 +67,9 @@ final readonly class DoctrineGameRepository implements GameRepositoryInterface
             ->leftJoin('g.catalogSync', 'cs')
             ->where('g.availability IN (:availabilities)')
             ->setParameter('availabilities', $availabilities)
-            ->orderBy('g.name', 'ASC')
+            // LOWER() so the order is case-insensitive: the DB collation is byte-ordered (C), which
+            // otherwise sorts uppercase before lowercase (e.g. "ANIMAL WELL" before "ActRaiser").
+            ->orderBy('LOWER(g.name)', 'ASC')
             ->getQuery()
             ->getResult();
 

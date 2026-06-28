@@ -124,13 +124,14 @@ final class SlotNameGeneratorTest extends TestCase
 
     // ─── Player name sanitization ─────────────────────────────────────────────
 
-    public function testSpecialCharsStrippedFromPlayerName(): void
+    public function testSpecialCharsStrippedButUnderscoreKept(): void
     {
+        // Accents/dashes/punctuation are dropped; underscore is preserved.
         $result = $this->generator->generate([
             ['playerName' => 'Ém-il_ie!', 'archipelagoGameName' => 'Celeste'],
         ]);
 
-        self::assertSame(['milie_C'], $result);
+        self::assertSame(['mil_ie_C'], $result);
     }
 
     public function testEmptyPlayerNameFallsBackToPlayer(): void

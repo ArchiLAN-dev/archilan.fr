@@ -118,6 +118,30 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertSame('runs/run-tok-3/players', $data['topic']);
     }
 
+    public function testUpdateHintStatusRejectsNonSettableStatus(): void
+    {
+        // "found" (40) is bridge-managed and must not be settable by the player.
+        $session = $this->createRunningSession('run-hint-2', 'evt-001');
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/1/hints/123', $session->getId()), ['status' => 40]);
+        self::assertResponseStatusCodeSame(422);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame('validation_error', $error['code']);
+    }
+
+    public function testUpdateHintStatusForbidsNonRegistrant(): void
+    {
+        $session = $this->createRunningSession('run-hint-3', 'evt-001');
+        $player = $this->createPlayer('eve@example.org', 'Eve');
+        $this->loginAs($player);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/1/hints/123', $session->getId()), ['status' => 30]);
+        self::assertResponseStatusCodeSame(403);
+    }
+
     // ─── helpers ────────────────────────────────────────────────────────────────
 
     private function createSession(string $id, string $eventId): Session

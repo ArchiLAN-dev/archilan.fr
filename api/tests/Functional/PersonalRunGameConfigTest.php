@@ -31,8 +31,10 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         self::assertSame([['gameId' => $game->getId()]], $run->getGameSelectionConfig());
     }
 
-    public function testConfigureGamesIdleRunReturns204(): void
+    public function testConfigureGamesIdleRunReturns422(): void
     {
+        // A paused (idle) run is already generated: changing its games is a no-op (resume replays the
+        // existing session), so it must be blocked just like an active run.
         $user = $this->createUser('alice@example.org');
         $game = $this->createGame('Celeste', 'celeste');
         $run = $this->createRunDirectly($user->getId(), 'Idle Run', Run::STATUS_IDLE);
@@ -42,10 +44,8 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
             'games' => [['gameId' => $game->getId()]],
         ]);
 
-        self::assertResponseStatusCodeSame(204);
-
-        $this->entityManager->refresh($run);
-        self::assertSame([['gameId' => $game->getId()]], $run->getGameSelectionConfig());
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('run_generated', $this->errorCode());
     }
 
     public function testConfigureGamesActiveRunReturns422(): void
@@ -60,7 +60,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('run_active', $this->errorCode());
+        self::assertSame('run_generated', $this->errorCode());
     }
 
     public function testConfigureGamesStartingRunReturns422(): void
@@ -75,7 +75,7 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         ]);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSame('run_active', $this->errorCode());
+        self::assertSame('run_generated', $this->errorCode());
     }
 
     public function testConfigureGamesUnknownGameIdReturns422(): void
@@ -182,6 +182,37 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         ]);
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testSaveMyGamesIdleRunReturns422(): void
+    {
+        // Inviting/editing after generation is pointless: a paused (idle) run resumes the existing
+        // multiworld, so the participant game selection must be locked.
+        $user = $this->createUser('alice@example.org');
+        $game = $this->createGame('Celeste', 'celeste');
+        $run = $this->createRunDirectly($user->getId(), 'Idle Run', Run::STATUS_IDLE);
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('PUT', '/api/v1/runs/'.$run->getId().'/participants/me/games', [
+            'gameIds' => [$game->getId()],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('run_generated', $this->errorCode());
+    }
+
+    public function testSaveSlotYamlIdleRunReturns422(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $run = $this->createRunDirectly($user->getId(), 'Idle Run', Run::STATUS_IDLE);
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('PUT', '/api/v1/runs/'.$run->getId().'/participants/me/slots/'.bin2hex(random_bytes(8)).'/yaml', [
+            'playerYaml' => "name: Player\ngame: Celeste\n",
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('run_generated', $this->errorCode());
     }
 
     private function createRunDirectly(string $ownerId, string $title, string $status): Run

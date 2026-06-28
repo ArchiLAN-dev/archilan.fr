@@ -5,6 +5,50 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.7.0] - 2026-06-28
+
+Itération profil et configuration de parties : identité de compte personnalisable,
+espace « Mon compte » repensé, priorité des indices, et plusieurs corrections sur
+l'éditeur YAML et le cycle de vie des parties.
+
+### Ajouté
+
+- **URL de profil personnalisable (story 2.10)** : choix de son identifiant public
+  (`/joueurs/{slug}`) depuis l'espace compte, avec un changement tous les 30 jours,
+  réservation de l'ancien identifiant pour son propriétaire et possibilité de revenir
+  à son URL précédente (reclaim) sans attendre.
+- **Espace « Mon compte » repensé (story 30.36)** : navigation par routes avec un
+  tableau de bord vue d'ensemble, remplaçant l'ancien système d'onglets.
+- **Priorité des indices (stories 9.34 / 9.35)** : les joueurs peuvent définir la
+  priorité de leurs checks directement depuis la page des indices, propagée à
+  Archipelago.
+- **Verrouillage de l'édition après génération (story 17.20)** : une fois la partie
+  générée, la sélection des jeux, l'édition des YAML et la configuration des jeux sont
+  verrouillées.
+- **Streams Twitch des participants (story 7.7)** : association d'un stream Twitch par
+  participant et par session.
+- **Modale de description d'option (story 4.18)** : la description complète d'une option
+  s'ouvre dans une fenêtre défilante depuis l'éditeur YAML.
+
+### Corrigé
+
+- **Options dict littérales / `game_options` (stories 4.17, 9.33)** : correction du crash
+  de génération causé par une mauvaise interprétation des dictionnaires d'options ;
+  parsing en dictionnaires libres et verrouillage des clés des options à schéma fixe,
+  appuyés sur une table de types d'options faisant autorité.
+- **Rendu des options dict en lecture seule (story 4.19)** : affichage lisible des
+  dictionnaires dans la vue YAML (plus de `[object Object]`).
+- **Ordre alphabétique des jeux (story 28.10)** : tri insensible à la casse des listes de
+  jeux, y compris dans la bibliothèque admin (`/admin/jeux`).
+- **Validation des noms de slot/joueur (story 9.36)** : caractères alphanumériques,
+  underscore et placeholders Archipelago autorisés, longueur maximale de 16.
+- **`session.ready` au redémarrage** : l'état remonté par l'orchestrateur fait désormais
+  autorité après un redémarrage de partie.
+
+### Modifié
+
+- Normalisation des em-dashes en tirets simples dans l'ensemble du dépôt.
+
 ## [0.6.0] - 2026-06-22
 
 Itération communautaire : succès enrichis (epic 30), pages détaillées des parties

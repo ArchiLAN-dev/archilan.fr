@@ -31,6 +31,7 @@ import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
+import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -44,10 +45,9 @@ type PageState =
 // ─── My games card ────────────────────────────────────────────────────────────
 
 function MyGamesCard({ run, mySlotCount }: { run: PersonalRun; mySlotCount: number }) {
-  const canConfigure =
-    run.status === "draft" ||
-    run.status === "idle" ||
-    !["starting", "active", "stopping", "restarting", "completed", "cancelled"].includes(run.status);
+  // Editing games/YAML is only meaningful before the first generation: once the run leaves draft the
+  // multiworld is fixed (resume replays the existing session), so the edit entry is hidden.
+  const canConfigure = run.status === "draft";
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
@@ -411,9 +411,9 @@ function DeleteDialog({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-type RunTab = "overview" | "progress" | "participants" | "streaming" | "settings";
+type RunTab = "overview" | "progress" | "participants" | "streams" | "overlay" | "settings";
 
-const RUN_TABS: readonly RunTab[] = ["overview", "progress", "participants", "streaming", "settings"];
+const RUN_TABS: readonly RunTab[] = ["overview", "progress", "participants", "streams", "overlay", "settings"];
 
 function isRunTab(value: string | null): value is RunTab {
   return value !== null && (RUN_TABS as readonly string[]).includes(value);
@@ -736,7 +736,8 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     { key: "overview", label: "Vue d'ensemble" },
     ...(sessionLive ? [{ key: "progress" as const, label: "Progression" }] : []),
     { key: "participants", label: "Participants" },
-    ...(sessionLive && (run.isOwner || isAdmin) ? [{ key: "streaming" as const, label: "Streaming" }] : []),
+    { key: "streams", label: "Streams" },
+    ...(sessionLive && (run.isOwner || isAdmin) ? [{ key: "overlay" as const, label: "Overlay Stream" }] : []),
     ...(run.isOwner ? [{ key: "settings" as const, label: "Réglages" }] : []),
   ];
   const activeTab: RunTab = tabs.some((t) => t.key === tab) ? tab : "overview";
@@ -1159,8 +1160,11 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           <PlayerProgressGrid personalRunId={run.id} runId={run.sessionId} />
         )}
 
+        {/* Participants' Twitch streams (story 7.7) - dedicated tab, shows an empty state when none stream */}
+        {activeTab === "streams" && <ParticipantStreams emptyState="message" id={run.id} kind="run" />}
+
         {/* OBS stream overlays - owner or admin only, when a session exists */}
-        {activeTab === "streaming" && run.sessionId && (run.isOwner || isAdmin) && (
+        {activeTab === "overlay" && run.sessionId && (run.isOwner || isAdmin) && (
           <OverlayLinksPanel sessionId={run.sessionId} />
         )}
 

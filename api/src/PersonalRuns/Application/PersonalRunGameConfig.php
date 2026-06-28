@@ -34,12 +34,10 @@ final readonly class PersonalRunGameConfig
             return $this->result(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_active');
-        }
-
-        if (!in_array($run->getStatus(), [Run::STATUS_DRAFT, Run::STATUS_IDLE], true)) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_not_configurable');
+        // Once the run leaves draft the multiworld is generated/fixed (idle/active/... all included):
+        // changing the game list would be a no-op since resume replays the existing session.
+        if ($run->isLockedForEditing()) {
+            return $this->result(found: true, blocked: true, blockReason: 'run_generated');
         }
 
         $parseResult = $this->parseGames($input);

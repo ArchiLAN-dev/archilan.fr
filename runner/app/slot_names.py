@@ -17,8 +17,12 @@ def abbreviate_game(name: str) -> str:
 
 
 def sanitize_player_name(name: str) -> str:
-    """Keep only alphanumeric characters; fall back to 'Player'."""
-    sanitized = re.sub(r"[^a-zA-Z0-9]", "", name)
+    """Keep letters, digits and underscore (drop apostrophes, accents, spaces, ...); fall back to 'Player'.
+
+    Underscore is allowed so a player's chosen ``My_Name`` survives instead of collapsing to ``MyName``
+    (mirrors the PHP SlotNameGenerator).
+    """
+    sanitized = re.sub(r"[^A-Za-z0-9_]", "", name)
     return sanitized if sanitized else "Player"
 
 

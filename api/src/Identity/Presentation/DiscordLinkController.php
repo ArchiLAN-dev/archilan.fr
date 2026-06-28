@@ -52,24 +52,24 @@ final readonly class DiscordLinkController
         $error = $request->query->getString('error');
 
         if ('' !== $error) {
-            return new RedirectResponse($this->siteUrl.'/compte?discord_link_error=access_denied');
+            return new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=access_denied');
         }
 
         $userId = $this->stateToken->verify($state, 'link');
         if (null === $userId || '' === $userId) {
-            return new RedirectResponse($this->siteUrl.'/compte?discord_link_error=access_denied');
+            return new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=access_denied');
         }
 
         if ('' === $code) {
-            return new RedirectResponse($this->siteUrl.'/compte?discord_link_error=access_denied');
+            return new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=access_denied');
         }
 
         $result = $this->linkDiscord->link($userId, $code);
 
         return match ($result['outcome']) {
-            'linked' => new RedirectResponse($this->siteUrl.'/compte?discord_linked=1'),
-            'discord_already_used' => new RedirectResponse($this->siteUrl.'/compte?discord_link_error=already_used'),
-            default => new RedirectResponse($this->siteUrl.'/compte?discord_link_error=generic'),
+            'linked' => new RedirectResponse($this->siteUrl.'/compte/securite?discord_linked=1'),
+            'discord_already_used' => new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=already_used'),
+            default => new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=generic'),
         };
     }
 

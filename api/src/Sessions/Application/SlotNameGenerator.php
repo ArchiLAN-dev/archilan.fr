@@ -72,7 +72,9 @@ final class SlotNameGenerator
 
     private function sanitize(string $name): string
     {
-        $clean = preg_replace('/[^a-zA-Z0-9]/', '', $name) ?? '';
+        // Keep letters, digits and underscore (drop apostrophes, accents, spaces, ...). Underscore is
+        // allowed so a player's chosen `My_Name` survives instead of collapsing to `MyName`.
+        $clean = preg_replace('/[^A-Za-z0-9_]/', '', $name) ?? '';
 
         return '' !== $clean ? $clean : 'Player';
     }

@@ -11,7 +11,7 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
 /**
- * Community: seed the `event_finisher` achievement (story 30.32) — "reach a goal in an ArchiLAN event".
+ * Community: seed the `event_finisher` achievement (story 30.32) - "reach a goal in an ArchiLAN event".
  * Idempotent (ON CONFLICT) so it is a no-op on fresh installs where the 30.16 seed already created it.
  */
 final class Version20260622120000 extends AbstractMigration

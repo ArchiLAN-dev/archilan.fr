@@ -65,3 +65,20 @@ export type HintsData = {
   hintPointsAvailable: number;
   hintCost: number;
 };
+
+/** Archipelago hint status values (int) → name, mirroring the bridge HintStatus enum. */
+export const HINT_STATUS_NAMES: Record<number, string> = {
+  0: "unspecified",
+  10: "no_priority",
+  20: "avoid",
+  30: "priority",
+  40: "found",
+};
+
+/** Statuses a player may set on the hints page ("found" is bridge-managed). */
+export const SETTABLE_HINT_STATUSES: { value: number; label: string }[] = [
+  { value: 30, label: "Prioritaire" },
+  { value: 10, label: "Faible prio." },
+  { value: 20, label: "Éviter" },
+  { value: 0, label: "Non classé" },
+];

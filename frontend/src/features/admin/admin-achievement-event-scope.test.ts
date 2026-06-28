@@ -34,8 +34,8 @@ describe("event scope helpers", () => {
   });
 
   it("resolves a scoped fact to the event title (or a deleted marker)", () => {
-    expect(factLabel("event_goal:evt-1", options)).toBe("Objectif — ArchiLAN #3");
-    expect(factLabel("event_goal:gone", options)).toBe("Objectif — événement supprimé");
+    expect(factLabel("event_goal:evt-1", options)).toBe("Objectif - ArchiLAN #3");
+    expect(factLabel("event_goal:gone", options)).toBe("Objectif - événement supprimé");
     expect(factLabel("runs", options)).toBe("Parties jouées");
   });
 });

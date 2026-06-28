@@ -5,6 +5,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, Check, CheckCircle, FolderDown, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
 import { YamlOptionEditor, type YamlEditorHandle } from "@/features/events/yaml-option-editor";
+import { YamlOptionsView } from "@/components/yaml/yaml-options-view";
 import { apiFetch } from "@/lib/apiFetch";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
@@ -37,6 +38,8 @@ type GameInfo = {
 type PageData = {
   slot: SlotInfo;
   game: GameInfo;
+  /** True once the run is generated (not draft): the config is fixed, shown read-only. */
+  locked: boolean;
 };
 
 type PageState =
@@ -113,6 +116,7 @@ export function PersonalRunSlotYamlPage({
 
       const payload = (await res.json()) as {
         data: {
+          status?: string;
           slots: Array<{
             slotId: string;
             slotOrder: number;
@@ -146,7 +150,7 @@ export function PersonalRunSlotYamlPage({
       setEditorYaml(slot.playerYaml);
       setCurrentYaml(seed);
       setSavedYaml(seed);
-      setPageState({ kind: "data", data: { slot, game } });
+      setPageState({ kind: "data", data: { slot, game, locked: (payload.data.status ?? "draft") !== "draft" } });
     }
 
     void run().catch(() => {
@@ -234,6 +238,36 @@ export function PersonalRunSlotYamlPage({
           <p className="text-sm text-muted-foreground">
             Ce jeu n&apos;a pas encore de fichier .apworld configuré. La configuration YAML n&apos;est pas encore disponible.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.locked) {
+    return (
+      <div className="mx-auto max-w-2xl grid gap-6">
+        <header className="grid gap-2">
+          <Link
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground w-fit"
+            href={`/runs/${runId}/jeux`}
+          >
+            <ArrowLeft aria-hidden className="size-3.5" />
+            Retour à la sélection
+          </Link>
+          <h1 className="font-heading text-2xl font-bold text-foreground">{data.slot.gameName}</h1>
+        </header>
+        <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+          <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
+          <p>
+            La partie a déjà été générée : cette configuration n&apos;est plus modifiable (la reprise
+            rejoue toujours la partie existante).
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-surface p-5">
+          <YamlOptionsView
+            gameName={data.slot.gameName}
+            yamlConfig={data.slot.playerYaml ?? data.game.defaultYaml ?? ""}
+          />
         </div>
       </div>
     );

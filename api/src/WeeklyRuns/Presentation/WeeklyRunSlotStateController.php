@@ -8,6 +8,7 @@ use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use App\WeeklyRuns\Application\WeeklyRunSlotQuery;
+use Archilan\BridgeClient\Enum\HintStatus;
 use Archilan\BridgeClientBundle\Bridge\BridgeClientPool;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -129,6 +130,52 @@ final readonly class WeeklyRunSlotStateController
                 'slot' => $response->slot,
                 'locationId' => $response->locationId,
                 'free' => $response->free,
+            ]]);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+    }
+
+    #[Route('/api/v1/weekly-runs/{runId}/entries/{entryId}/slots/{slotIndex}/hints/{locationId}', methods: ['PATCH'], requirements: ['locationId' => '\d+'])]
+    public function updateHintStatus(Request $request, string $runId, string $entryId, int $slotIndex, int $locationId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $info = $this->weeklyRunSlotQuery->findLaunchedEntryInfo($runId, $entryId, $user->getId(), $this->isAdmin($user));
+
+        if ('ok' !== $info['status']) {
+            return $this->errorFromStatus($info['status']);
+        }
+
+        $body = json_decode($request->getContent(), true);
+        if (!is_array($body)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'Corps de requête invalide.', 422);
+        }
+
+        $statusRaw = $body['status'] ?? null;
+        $status = is_int($statusRaw) ? HintStatus::tryFrom($statusRaw) : null;
+        // Players control priority/avoid/no_priority/unspecified; "found" (40) is bridge-managed.
+        $settable = [HintStatus::Unspecified, HintStatus::NoPriority, HintStatus::Avoid, HintStatus::Priority];
+        if (null === $status || !in_array($status, $settable, true)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'status invalide (0, 10, 20 ou 30 attendu).', 422);
+        }
+
+        try {
+            $bridge = $this->bridgeClientPool->get(
+                $info['externalSessionId'],
+                sprintf('http://%s:%d', $this->bridgeHost(), $info['bridgePort']),
+            );
+            $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status);
+
+            return new JsonResponse(['data' => [
+                'ok' => true,
+                'slot' => $response->slot,
+                'locationId' => $response->locationId,
+                'status' => $status->value,
+                'statusName' => $status->label(),
             ]]);
         } catch (\Throwable) {
             return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);

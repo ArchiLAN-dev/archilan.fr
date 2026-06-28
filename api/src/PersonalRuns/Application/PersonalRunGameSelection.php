@@ -16,7 +16,10 @@ use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\Shared\Domain\SlotName;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 final readonly class PersonalRunGameSelection
 {
@@ -33,7 +36,7 @@ final readonly class PersonalRunGameSelection
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, status: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
      */
     public function getMySlots(string $runId, string $userId): array
     {
@@ -87,7 +90,7 @@ final readonly class PersonalRunGameSelection
 
         $recentlyPlayed = $this->recentlyPlayedGames->recentlyPlayed($userId, $runId, 3);
 
-        return $this->result(found: true, slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
+        return $this->result(found: true, status: $run->getStatus(), slots: $slots, availableGames: $availableGames, recentlyPlayedGames: $recentlyPlayed);
     }
 
     /**
@@ -208,8 +211,8 @@ final readonly class PersonalRunGameSelection
             return $this->resultWithErrors(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
-            return $this->resultWithErrors(found: true, blocked: true, blockReason: 'run_active');
+        if ($run->isLockedForEditing()) {
+            return $this->resultWithErrors(found: true, blocked: true, blockReason: 'run_generated');
         }
 
         $gameIds = [];
@@ -261,8 +264,8 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, authorized: false);
         }
 
-        if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
-            return $this->yamlResult(found: true, blocked: true, blockReason: 'run_active');
+        if ($run->isLockedForEditing()) {
+            return $this->yamlResult(found: true, blocked: true, blockReason: 'run_generated');
         }
 
         $slot = $participant->getSlot($slotId);
@@ -279,6 +282,11 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, errors: ['game' => ["Ce jeu n'a pas encore de fichier .apworld configuré."]]);
         }
 
+        $nameError = $this->slotNameError($playerYaml);
+        if (null !== $nameError) {
+            return $this->yamlResult(found: true, errors: ['name' => [$nameError]]);
+        }
+
         $participant->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
         $this->participants->flush();
@@ -286,6 +294,32 @@ final readonly class PersonalRunGameSelection
         $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
+    }
+
+    /**
+     * Validates the YAML `name:` (slot name) charset/length. Returns an error message, or null when
+     * the name is valid or absent/unparseable (a broken YAML fails later in the pipeline).
+     */
+    private function slotNameError(string $playerYaml): ?string
+    {
+        try {
+            $parsed = Yaml::parse($playerYaml);
+        } catch (ParseException) {
+            return null;
+        }
+
+        if (!is_array($parsed) || !is_string($parsed['name'] ?? null)) {
+            return null;
+        }
+
+        if (!SlotName::isValid($parsed['name'])) {
+            return sprintf(
+                'Nom de slot invalide : seuls les lettres, chiffres, _ et les placeholders {number}/{player} sont autorisés (%d caractères max).',
+                SlotName::MAX_LENGTH,
+            );
+        }
+
+        return null;
     }
 
     private function loadParticipant(Run $run, string $userId): ?RunParticipant
@@ -374,13 +408,14 @@ final readonly class PersonalRunGameSelection
      * @param list<array<string, mixed>>|null                                     $availableGames
      * @param list<array{gameId: string, lastPlayedAt: string, runTitle: string}> $recentlyPlayedGames
      *
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, status: string|null, slots: list<array<string, mixed>>|null, availableGames: list<array<string, mixed>>|null, recentlyPlayedGames: list<array{gameId: string, lastPlayedAt: string, runTitle: string}>}
      */
     private function result(
         bool $found = false,
         bool $authorized = true,
         bool $blocked = false,
         ?string $blockReason = null,
+        ?string $status = null,
         ?array $slots = null,
         ?array $availableGames = null,
         array $recentlyPlayedGames = [],
@@ -390,6 +425,7 @@ final readonly class PersonalRunGameSelection
             'authorized' => $authorized,
             'blocked' => $blocked,
             'blockReason' => $blockReason,
+            'status' => $status,
             'slots' => $slots,
             'availableGames' => $availableGames,
             'recentlyPlayedGames' => $recentlyPlayedGames,
