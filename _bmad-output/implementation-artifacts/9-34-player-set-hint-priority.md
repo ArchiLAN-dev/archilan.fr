@@ -83,6 +83,15 @@ claude-opus-4-8 (Claude Code).
   hints surfaces with optimistic update.
 - `found` excluded from settable statuses. Validation + auth tested; gates green.
 
+> **Correction (post-merge): this story shipped incomplete.** The bridge sent `UpdateHint` over the main
+> TextOnly "Bridge" connection, which AP ignores (only a hint's receiving/finding player may change its
+> status), so the change updated only the bridge's local state - a reload showed it, but AP's data storage
+> and native clients (text launcher) never did. The AP-side write was completed in **story 9.35**
+> (connect-as-slot `UpdateHint`). Also "gates green" was inaccurate: phpstan ran on `src` only, not
+> `src tests` (the project gate), so a phpstan error in `PlayerStateTest` reached develop and was fixed in
+> **story 9.36**. Lesson: a story that wires an external feature needs an acceptance criterion verifying the
+> **external system** reflects the change, not just our UI/endpoint.
+
 ### File List
 
 - `api/src/Sessions/Presentation/PlayerStateController.php`
@@ -99,3 +108,4 @@ claude-opus-4-8 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-06-27 | Created + implemented. Wired AP hint priority/status (the bridge `updateHint` was unused): PATCH endpoints (session + weekly), priority picker in HintsPanel on pending hints, handlers on the 3 hints pages. `found` not settable. Validation/auth tests; gates green. Status → review. |
+| 2026-06-28 | Correction: shipped incomplete - the bridge sent UpdateHint over the Bridge slot (ignored by AP), so writes never reached AP's data storage; completed in story 9.35 (connect-as-slot). "Gates green" omitted `tests` (phpstan error reached develop, fixed in story 9.36). See post-merge note above. |
