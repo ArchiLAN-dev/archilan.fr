@@ -59,19 +59,42 @@ function groupOf(tab: Tab): Group {
   return GROUPS.find((g) => g.tabs.some((t) => t.id === tab)) ?? GROUPS[0];
 }
 
+const ALL_TAB_IDS: readonly Tab[] = GROUPS.flatMap((g) => g.tabs.map((t) => t.id));
+
+function isTab(value: string): value is Tab {
+  return ALL_TAB_IDS.some((id) => id === value);
+}
+
 // ── AccountTabs ───────────────────────────────────────────────────────────────
 
 type AccountTabsProps = {
   discordLinked?: string;
   discordLinkError?: string;
+  initialTab?: string;
 };
 
-export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("profil");
+export function AccountTabs({ discordLinked, discordLinkError, initialTab }: AccountTabsProps) {
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (initialTab && isTab(initialTab)) return initialTab;
+    // The Discord OAuth callback redirects back here - land on Connexions & sécurité.
+    if (discordLinked || discordLinkError) return "compte";
+    return "profil";
+  });
   const [profile, setProfile] = useState<Profile | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const activeGroup = groupOf(activeTab);
+
+  // Persist the active tab in the URL (?tab=) so a reload / deep link reopens it. replaceState keeps
+  // it client-side (no navigation/refetch) and out of the history stack.
+  function selectTab(tab: Tab) {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState(null, "", url);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -163,7 +186,7 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
                 ].join(" ")}
                 role="tab"
                 type="button"
-                onClick={() => setActiveTab(group.tabs[0].id)}
+                onClick={() => selectTab(group.tabs[0].id)}
               >
                 <Icon aria-hidden className="size-4 shrink-0" />
                 <span className="truncate">{group.label}</span>
@@ -172,10 +195,24 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
           })}
         </nav>
 
-        {/* Second level: sub-tabs of the active group */}
+        {/* Second level (mobile): a dropdown of the active group's sections */}
+        <label className="sm:hidden">
+          <span className="sr-only">{`Sections : ${activeGroup.label}`}</span>
+          <select
+            className="min-h-11 w-full rounded-lg border border-border bg-surface px-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            value={activeTab}
+            onChange={(e) => { if (isTab(e.target.value)) selectTab(e.target.value); }}
+          >
+            {activeGroup.tabs.map((tab) => (
+              <option key={tab.id} value={tab.id}>{tab.label}</option>
+            ))}
+          </select>
+        </label>
+
+        {/* Second level (desktop): underlined sub-tabs of the active group */}
         <nav
           aria-label={`Sections : ${activeGroup.label}`}
-          className="-mb-px flex overflow-x-auto border-b border-border"
+          className="-mb-px hidden overflow-x-auto border-b border-border sm:flex"
           role="tablist"
         >
           {activeGroup.tabs.map((tab) => (
@@ -194,7 +231,7 @@ export function AccountTabs({ discordLinked, discordLinkError }: AccountTabsProp
               ].join(" ")}
               role="tab"
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
             >
               {tab.label}
             </button>

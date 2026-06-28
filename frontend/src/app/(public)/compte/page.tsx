@@ -13,9 +13,10 @@ type AccountPageProps = {
 };
 
 export default async function AccountPage({ searchParams }: AccountPageProps) {
-  const { discord_linked, discord_link_error } = await searchParams;
+  const { discord_linked, discord_link_error, tab } = await searchParams;
   const discordLinked = typeof discord_linked === "string" ? discord_linked : undefined;
   const discordLinkError = typeof discord_link_error === "string" ? discord_link_error : undefined;
+  const initialTab = typeof tab === "string" ? tab : undefined;
 
   return (
     <RequireAuth>
@@ -29,7 +30,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
           </h1>
         </header>
 
-        <AccountTabs discordLinked={discordLinked} discordLinkError={discordLinkError} />
+        <AccountTabs discordLinked={discordLinked} discordLinkError={discordLinkError} initialTab={initialTab} />
       </div>
     </RequireAuth>
   );
