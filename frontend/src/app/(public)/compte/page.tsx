@@ -1,36 +1,38 @@
-import type { Metadata } from "next";
-import { AccountTabs } from "@/features/auth/account-tabs";
-import { RequireAuth } from "@/features/auth/require-auth";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Mon espace",
-  description:
-    "Consulte tes inscriptions, gère ton profil et accède à tes sessions Archipelago.",
+import { AccountOverview } from "@/features/auth/account-overview";
+
+// Old `?tab=` deep links (story 30.35) → native per-section routes.
+const TAB_ROUTES: Record<string, string> = {
+  profil: "/compte/profil",
+  amis: "/compte/amis",
+  activite: "/compte/activite",
+  inscriptions: "/compte/inscriptions",
+  parties: "/compte/parties",
+  adhesion: "/compte/adhesion",
+  confidentialite: "/compte/confidentialite",
+  compte: "/compte/securite",
+  securite: "/compte/securite",
 };
 
 type AccountPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default async function AccountPage({ searchParams }: AccountPageProps) {
-  const { discord_linked, discord_link_error } = await searchParams;
-  const discordLinked = typeof discord_linked === "string" ? discord_linked : undefined;
-  const discordLinkError = typeof discord_link_error === "string" ? discord_link_error : undefined;
+export default async function AccountOverviewPage({ searchParams }: AccountPageProps) {
+  const { tab, discord_linked, discord_link_error } = await searchParams;
 
-  return (
-    <RequireAuth>
-      <div className="mx-auto grid max-w-3xl gap-10">
-        <header>
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
-            Compte ArchiLAN
-          </p>
-          <h1 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
-            Mon espace
-          </h1>
-        </header>
+  if (typeof tab === "string" && TAB_ROUTES[tab]) {
+    redirect(TAB_ROUTES[tab]);
+  }
 
-        <AccountTabs discordLinked={discordLinked} discordLinkError={discordLinkError} />
-      </div>
-    </RequireAuth>
-  );
+  // Back-compat: the old Discord callback landed on /compte?discord_linked=… → forward to securite.
+  if (typeof discord_linked === "string" || typeof discord_link_error === "string") {
+    const q = new URLSearchParams();
+    if (typeof discord_linked === "string") q.set("discord_linked", discord_linked);
+    if (typeof discord_link_error === "string") q.set("discord_link_error", discord_link_error);
+    redirect(`/compte/securite?${q.toString()}`);
+  }
+
+  return <AccountOverview />;
 }

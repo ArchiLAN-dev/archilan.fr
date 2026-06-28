@@ -1,6 +1,6 @@
 # Story 30.36: Route-based account space ("Mon espace") with an overview dashboard
 
-**Status:** draft
+**Status:** review
 **Epic:** 30 - Community & account
 **Date:** 2026-06-28
 
@@ -65,16 +65,18 @@ Shared chrome (today in `AccountTabs`): the user header (avatar/name/email/role 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1,2). Create `compte/layout.tsx` (RequireAuth + header + nav + `{children}`); move the
-  header/avatar/role + email-verif banner out of `AccountTabs` into the layout (or a shared client header).
-- [ ] **Task 2** (AC 1,5). Create the 8 section route pages composing the existing section components.
-- [ ] **Task 3** (AC 3,3b). Sidebar nav component (grouped, active-from-pathname, danger accent) +
-  mobile dropdown; optional badges/counters.
-- [ ] **Task 4** (AC 4). Overview page at `/compte` (membership/registrations/friends/activity cards +
-  quick links), reusing existing queries.
-- [ ] **Task 5** (AC 6,7). Discord callback → `/compte/securite`; redirect legacy `/compte?tab=<x>` to the
-  route; delete `AccountTabs` + the `?tab=` code.
-- [ ] **Task 6** (AC 8). typecheck / lint / build green; manual pass over every section.
+- [x] **Task 1** (AC 1,2). `compte/layout.tsx` (RequireAuth + header) + `AccountShell` (client: profile
+  fetch once, header/avatar/role, email-verif banner, nav + `{children}`).
+- [x] **Task 2** (AC 1,5). The 8 section route pages composing the existing section components (securite via
+  a self-contained `AccountSecuritySection` that reads the Discord callback params).
+- [x] **Task 3** (AC 3,3b). `AccountNav`: grouped sidebar (active-from-pathname, danger accent, badges for
+  Inscriptions/Amis) + mobile `<select>` that navigates.
+- [x] **Task 4** (AC 4). `AccountOverview` at `/compte`: Adhésion (live status + expiry), Inscriptions
+  (count), Amis (count + pending), Activité - cards linking to each section.
+- [x] **Task 5** (AC 6,7). Discord callback → `/compte/securite`; `/compte?tab=<x>` and old
+  `?discord_linked` redirected from the overview page; `AccountTabs` + the `?tab=` code deleted.
+- [x] **Task 6** (AC 8). typecheck / lint / build green; verified live (overview, sections, sidebar active,
+  legacy redirect, titles).
 
 ## Dev Notes
 
@@ -105,10 +107,34 @@ Shared chrome (today in `AccountTabs`): the user header (avatar/name/email/role 
 
 ## Dev Agent Record
 
-_(empty - not yet implemented)_
+### Agent Model Used
+
+claude-opus-4-8 (Claude Code).
+
+### Completion Notes List
+
+- `/compte` is now route-based: a `layout.tsx` (RequireAuth + header) wraps `AccountShell` (profile
+  fetched once + sidebar `AccountNav` + `{children}`); 8 section pages compose the existing components.
+- `/compte` is an overview dashboard (Adhésion live status/expiry, Inscriptions/Amis counts, Activité).
+- Native per-section URLs (deep-link / reload / back-forward); legacy `/compte?tab=<x>` and the old
+  `?discord_linked` redirect to the new routes; Discord callback target updated to `/compte/securite`.
+- `AccountTabs` monolith + the 30.35 `?tab=`/`replaceState` deleted. Frontend gates green; one backend
+  line changed (Discord redirect) - phpstan/cs-fixer green, no test asserts the old target.
+- Note: header profile is fetched in the shell and again in `AccountSecuritySection` (needs
+  discord/steam) when on that route - a small, accepted duplication (avoids a client profile context).
+
+### File List
+
+- `frontend/src/app/(public)/compte/layout.tsx` (new), `compte/page.tsx` (overview + redirects)
+- `compte/{profil,amis,activite,inscriptions,parties,adhesion,confidentialite,securite}/page.tsx` (new)
+- `frontend/src/features/auth/account-shell.tsx`, `account-nav.tsx`, `account-overview.tsx`,
+  `account-security-section.tsx` (new)
+- `frontend/src/features/auth/account-tabs.tsx` (deleted)
+- `api/src/Identity/Presentation/DiscordLinkController.php` (redirect → `/compte/securite`)
 
 ### Change Log
 
 | Date       | Change |
 |------------|--------|
-| 2026-06-28 | Created (draft). Route-based "Mon espace": each section a real page under `/compte/...` with a shared sidebar layout + an overview dashboard at `/compte`; supersedes the 30.35 `?tab=` mechanism with native routing (SSR + code-split per section). Scoped, not implemented. |
+| 2026-06-28 | Created (draft). Route-based "Mon espace": each section a real page under `/compte/...` with a shared sidebar layout + an overview dashboard at `/compte`; supersedes the 30.35 `?tab=` mechanism with native routing. Scoped. |
+| 2026-06-28 | Implemented. Layout + AccountShell + AccountNav (sidebar + mobile select + badges), 8 section pages, AccountOverview, security section; legacy `?tab=`/discord redirects; deleted AccountTabs + `?tab=`. Gates green; verified live. Status → review. |
