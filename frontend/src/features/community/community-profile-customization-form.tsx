@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, ArrowDown, ArrowUp, Check, CheckCircle, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
 import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
@@ -82,7 +81,15 @@ function serialize(v: FormValues): string {
   });
 }
 
-export function CommunityProfileCustomizationForm() {
+type CommunityProfileCustomizationFormProps = {
+  onDirtyChange?: (dirty: boolean) => void;
+  registerSave?: (save: () => Promise<boolean>) => void;
+};
+
+export function CommunityProfileCustomizationForm({
+  onDirtyChange,
+  registerSave,
+}: CommunityProfileCustomizationFormProps = {}) {
   const [loading, setLoading] = useState(true);
   const [slug, setSlug] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("");
@@ -170,7 +177,7 @@ export function CommunityProfileCustomizationForm() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  async function handleSave() {
+  async function handleSave(): Promise<boolean> {
     setSave({ kind: "saving" });
     const result = await updateMyCommunityProfile({
       displayName: displayName.trim() === "" ? null : displayName.trim(),
@@ -187,12 +194,25 @@ export function CommunityProfileCustomizationForm() {
     if (result?.ok) {
       hydrate(result.profile);
       setSave({ kind: "saved" });
-    } else if (result) {
-      setSave({ kind: "error", message: "Certains champs sont invalides (liens, longueurs…)." });
-    } else {
-      setSave({ kind: "error", message: "Impossible de sauvegarder le profil." });
+      return true;
     }
+    setSave({
+      kind: "error",
+      message: result
+        ? "Certains champs sont invalides (liens, longueurs…)."
+        : "Impossible de sauvegarder le profil.",
+    });
+    return false;
   }
+
+  // Surface dirty state + the save handler to the shared save bar (parent orchestrator).
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    registerSave?.(handleSave);
+  });
 
   async function handleAvatarPick(file: File) {
     setAvatar({ kind: "saving" });
@@ -235,67 +255,6 @@ export function CommunityProfileCustomizationForm() {
 
   return (
     <div className="grid gap-5 pb-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">Personnalise ton profil public.</p>
-        {slug ? (
-          <Link className="text-sm font-medium text-accent-text hover:text-accent-text-hover" href={`/joueurs/${slug}`}>
-            Voir mon profil →
-          </Link>
-        ) : null}
-      </div>
-
-      <Section title="Identité" description="Ce qui te présente en haut de ton profil.">
-        <Field
-          label="Pseudo affiché"
-          counter={<CharCount value={displayName} max={MAX_DISPLAY_NAME} />}
-          hint={
-            displayName.trim() === ""
-              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL /joueurs/${slug ?? ""} ne change pas.`
-              : "Affiché à la place de ton nom de compte. Ton URL de profil ne change pas."
-          }
-        >
-          <input
-            className={inputClass}
-            maxLength={MAX_DISPLAY_NAME}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={accountName !== "" ? accountName : "Ton pseudo affiché…"}
-            type="text"
-            value={displayName}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
-            <input
-              className={inputClass}
-              maxLength={MAX_TAGLINE}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder="Ta devise de joueur…"
-              type="text"
-              value={tagline}
-            />
-          </Field>
-          <Field label="Pronoms" counter={<CharCount value={pronouns} max={MAX_PRONOUNS} />}>
-            <input
-              className={inputClass}
-              maxLength={MAX_PRONOUNS}
-              onChange={(e) => setPronouns(e.target.value)}
-              placeholder="il/lui, elle, they…"
-              type="text"
-              value={pronouns}
-            />
-          </Field>
-        </div>
-        <Field label="À propos" counter={<CharCount value={bio} max={MAX_BIO} />}>
-          <textarea
-            className={`${inputClass} min-h-28`}
-            maxLength={MAX_BIO}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder="Parle de toi, de tes jeux préférés…"
-            value={bio}
-          />
-        </Field>
-      </Section>
-
       <Section title="Apparence" description="La bannière animée en tête de ton profil.">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {BANNER_PRESETS.map((preset) => {
@@ -383,16 +342,79 @@ export function CommunityProfileCustomizationForm() {
         </div>
       </Section>
 
-      <Section title="Confidentialité" description="Qui peut voir la partie personnalisée de ton profil.">
-        <Field label="Audience" hint={AUDIENCE_HINTS[audience]}>
-          <select className={inputClass} onChange={(e) => setAudience(e.target.value)} value={audience}>
-            {AUDIENCES.map((value) => (
-              <option key={value} value={value}>
-                {AUDIENCE_LABELS[value] ?? value}
-              </option>
-            ))}
-          </select>
+      <Section title="Identité" description="Ce qui te présente en haut de ton profil.">
+        <Field
+          label="Pseudo affiché"
+          counter={<CharCount value={displayName} max={MAX_DISPLAY_NAME} />}
+          hint={
+            displayName.trim() === ""
+              ? `Laisse vide pour utiliser ton nom de compte${accountName !== "" ? ` (${accountName})` : ""}. Ton URL de profil se règle dans la section « URL de profil ».`
+              : "Affiché à la place de ton nom de compte. Ton URL de profil se règle dans la section « URL de profil »."
+          }
+        >
+          <input
+            className={inputClass}
+            maxLength={MAX_DISPLAY_NAME}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={accountName !== "" ? accountName : "Ton pseudo affiché…"}
+            type="text"
+            value={displayName}
+          />
         </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Accroche" counter={<CharCount value={tagline} max={MAX_TAGLINE} />}>
+            <input
+              className={inputClass}
+              maxLength={MAX_TAGLINE}
+              onChange={(e) => setTagline(e.target.value)}
+              placeholder="Ta devise de joueur…"
+              type="text"
+              value={tagline}
+            />
+          </Field>
+          <Field label="Pronoms" counter={<CharCount value={pronouns} max={MAX_PRONOUNS} />}>
+            <input
+              className={inputClass}
+              maxLength={MAX_PRONOUNS}
+              onChange={(e) => setPronouns(e.target.value)}
+              placeholder="il/lui, elle, they…"
+              type="text"
+              value={pronouns}
+            />
+          </Field>
+        </div>
+        <Field label="À propos" counter={<CharCount value={bio} max={MAX_BIO} />}>
+          <textarea
+            className={`${inputClass} min-h-28`}
+            maxLength={MAX_BIO}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder="Parle de toi, de tes jeux préférés…"
+            value={bio}
+          />
+        </Field>
+      </Section>
+
+      <Section title={`Liens (${socialLinks.length}/${MAX_SOCIAL_LINKS})`} description="Choisis une plateforme et colle ton lien.">
+        <div className="grid gap-2">
+          {socialLinks.map((link, index) => (
+            <SocialLinkRow
+              key={index}
+              link={link}
+              onChange={(patch) => updateLink(setSocialLinks, index, patch)}
+              onRemove={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}
+            />
+          ))}
+          {socialLinks.length < MAX_SOCIAL_LINKS ? (
+            <button
+              className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground hover:border-accent hover:text-foreground"
+              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "" }])}
+              type="button"
+            >
+              <Plus aria-hidden className="size-3.5" />
+              Ajouter un lien
+            </button>
+          ) : null}
+        </div>
       </Section>
 
       <Section
@@ -457,42 +479,23 @@ export function CommunityProfileCustomizationForm() {
         ) : null}
       </Section>
 
-      <Section title={`Liens (${socialLinks.length}/${MAX_SOCIAL_LINKS})`} description="Choisis une plateforme et colle ton lien.">
-        <div className="grid gap-2">
-          {socialLinks.map((link, index) => (
-            <SocialLinkRow
-              key={index}
-              link={link}
-              onChange={(patch) => updateLink(setSocialLinks, index, patch)}
-              onRemove={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}
-            />
-          ))}
-          {socialLinks.length < MAX_SOCIAL_LINKS ? (
-            <button
-              className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground hover:border-accent hover:text-foreground"
-              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "" }])}
-              type="button"
-            >
-              <Plus aria-hidden className="size-3.5" />
-              Ajouter un lien
-            </button>
-          ) : null}
-        </div>
+      <Section title="Confidentialité" description="Qui peut voir la partie personnalisée de ton profil.">
+        <Field label="Audience" hint={AUDIENCE_HINTS[audience]}>
+          <select className={inputClass} onChange={(e) => setAudience(e.target.value)} value={audience}>
+            {AUDIENCES.map((value) => (
+              <option key={value} value={value}>
+                {AUDIENCE_LABELS[value] ?? value}
+              </option>
+            ))}
+          </select>
+        </Field>
       </Section>
 
-      {/* Sticky save bar */}
-      <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface/95 px-1 py-3 backdrop-blur">
-        <SaveStatus dirty={isDirty} save={save} />
-        <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={save.kind === "saving" || !isDirty}
-          onClick={() => void handleSave()}
-          type="button"
-        >
-          {save.kind === "saving" ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
-          {save.kind === "saving" ? "Sauvegarde…" : "Sauvegarder"}
-        </button>
-      </div>
+      {save.kind === "error" ? (
+        <p className="flex items-center gap-1.5 text-sm text-[color:var(--color-danger)]" role="alert">
+          <AlertCircle aria-hidden className="size-4" /> {save.message}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -542,38 +545,6 @@ function CharCount({ value, max }: { value: string; max: number }) {
       {n}/{max}
     </span>
   );
-}
-
-function SaveStatus({ dirty, save }: { dirty: boolean; save: SaveState }) {
-  if (save.kind === "saving") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" /> Sauvegarde…
-      </span>
-    );
-  }
-  if (save.kind === "error") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-[color:var(--color-danger)]">
-        <AlertCircle aria-hidden className="size-4" /> {save.message}
-      </span>
-    );
-  }
-  if (save.kind === "saved" && !dirty) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-success">
-        <CheckCircle aria-hidden className="size-4" /> Sauvegardé
-      </span>
-    );
-  }
-  if (dirty) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-amber-400">
-        <span aria-hidden className="size-2 rounded-full bg-amber-400" /> Modifications non enregistrées
-      </span>
-    );
-  }
-  return <span className="text-sm text-muted-foreground">Tout est à jour.</span>;
 }
 
 function FrameSwatch({

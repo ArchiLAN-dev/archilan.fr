@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { CommunityProfileCustomizationForm } from "@/features/community/community-profile-customization-form";
+import { ProfileSettings } from "@/features/auth/profile-settings";
 
 export const metadata: Metadata = { title: "Profil" };
 
 export default function ProfilPage() {
-  return <CommunityProfileCustomizationForm />;
+  return <ProfileSettings />;
 }
