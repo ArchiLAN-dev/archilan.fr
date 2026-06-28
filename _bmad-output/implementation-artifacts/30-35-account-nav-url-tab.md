@@ -4,6 +4,11 @@
 **Epic:** 30 - Community & account
 **Date:** 2026-06-28
 
+> **Interim - superseded by [story 30.36].** This `?tab=` + `history.replaceState` mechanism is a
+> stop-gap. The route-based redesign (30.36) replaces it with native per-section URLs; when 30.36 lands,
+> the `?tab=` handling here is removed (a redirect keeps old links working). Merge this only as an interim
+> gain, or skip straight to 30.36.
+
 ## Story
 
 As a member on `/compte`,
@@ -75,3 +80,4 @@ claude-opus-4-8 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-06-28 | Created + implemented. Account sub-nav: tab persisted in `?tab=` (reload/deep-link), mobile `<select>` for sub-sections, kept the polished 2-level structure. Frontend-only; gates green; verified live. Status → review. |
+| 2026-06-28 | Flagged as interim - superseded by story 30.36 (route-based account space with native per-section URLs). Kept as a stop-gap; 30.36 removes the `?tab=` handling (with a redirect for old links). |
