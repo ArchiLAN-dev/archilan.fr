@@ -28,7 +28,8 @@ final readonly class DbalAdminWeeklyRunGameListQuery implements AdminWeeklyRunGa
             ->join('wt', 'game', 'g', 'g.id = wt.game_id')
             ->leftJoin('wt', 'weekly_runs', 'wr', 'wr.template_id = wt.id')
             ->groupBy('g.id', 'g.name', 'g.cover_image_url', 'g.cover_image_alt')
-            ->orderBy('g.name', 'ASC')
+            // Case-insensitive: the byte-ordered (C) DB collation otherwise sorts uppercase first.
+            ->orderBy('LOWER(g.name)', 'ASC')
             ->executeQuery()
             ->fetchAllAssociative();
 

@@ -223,7 +223,9 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'sync.platforms AS platforms',
             )
             ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
-            ->orderBy('game.name', 'ASC');
+            // LOWER() so the order is case-insensitive: the DB collation is byte-ordered (C), which
+            // otherwise sorts uppercase before lowercase (e.g. "ANIMAL WELL" before "ActRaiser").
+            ->orderBy('LOWER(game.name)', 'ASC');
     }
 
     /**
