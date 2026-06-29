@@ -29,8 +29,13 @@ final readonly class PersonalRunPatchQuery
     }
 
     /**
-     * @return array{outputKey: string, slotNames: list<string>}|null null when the run isn't
-     *                                                                generated or the user is not a player in it
+     * Resolve the output archive key plus the caller's own slot names (`slotNames`) and every slot in
+     * the session (`allSlotNames`). The latter is needed to attribute a patch file to the single
+     * longest-matching slot name: custom names can be `_`-boundary prefixes of one another, so a plain
+     * prefix test is not enough (see PersonalRunPatchController::belongsToOwnSlot). Returns null when the
+     * run isn't generated or the user is not a player in it.
+     *
+     * @return array{outputKey: string, slotNames: list<string>, allSlotNames: list<string>}|null
      */
     public function forParticipant(string $runId, string $userId): ?array
     {
@@ -45,8 +50,8 @@ final readonly class PersonalRunPatchQuery
         }
 
         // SessionSlot stores the participant's user id in its registration_id column for
-        // personal runs, and the resolved slot name (SlotNameGenerator) used by the AP
-        // server to name the patch files.
+        // personal runs, and the resolved slot name (SlotNameGenerator / the player's custom
+        // YAML name) used by the AP server to name the patch files.
         $slotNames = [];
         foreach ($this->slots->findByRegistrationAndSession($userId, $sessionId) as $slot) {
             $slotNames[] = $slot->getSlotName();
@@ -55,10 +60,15 @@ final readonly class PersonalRunPatchQuery
             return null;
         }
 
+        $allSlotNames = [];
+        foreach ($this->slots->findBySessionId($sessionId) as $slot) {
+            $allSlotNames[] = $slot->getSlotName();
+        }
+
         $session = $this->sessions->findById($sessionId);
         $outputKey = ($session instanceof Session ? $session->getGeneratedOutputKey() : null)
             ?? $sessionId.'/output/archive.zip';
 
-        return ['outputKey' => $outputKey, 'slotNames' => $slotNames];
+        return ['outputKey' => $outputKey, 'slotNames' => $slotNames, 'allSlotNames' => $allSlotNames];
     }
 }

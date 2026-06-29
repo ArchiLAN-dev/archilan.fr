@@ -51,6 +51,22 @@ final class PersonalRunPatchQueryTest extends TestCase
         self::assertSame(['masterkafei_LM', 'masterkafei_SMW'], $result['slotNames']);
     }
 
+    public function testReturnsAllSessionSlotNamesForAttribution(): void
+    {
+        $query = $this->query(
+            $this->launchedRun(),
+            $this->session('custom/output/archive.zip'),
+            [$this->slot('master')],
+            [$this->slot('master'), $this->slot('master_kafey')],
+        );
+
+        $result = $query->forParticipant(self::RUN_ID, self::USER_ID);
+
+        self::assertNotNull($result);
+        self::assertSame(['master'], $result['slotNames']);
+        self::assertSame(['master', 'master_kafey'], $result['allSlotNames']);
+    }
+
     public function testFallsBackToDeterministicKeyWhenSessionKeyAbsent(): void
     {
         $query = $this->query($this->launchedRun(), $this->session(null), [$this->slot('masterkafei_LM')]);
@@ -72,9 +88,10 @@ final class PersonalRunPatchQueryTest extends TestCase
     }
 
     /**
-     * @param list<SessionSlot> $slots
+     * @param list<SessionSlot>      $slots    the caller's own slots
+     * @param list<SessionSlot>|null $allSlots every slot in the session (defaults to $slots)
      */
-    private function query(?Run $run, ?Session $session, array $slots): PersonalRunPatchQuery
+    private function query(?Run $run, ?Session $session, array $slots, ?array $allSlots = null): PersonalRunPatchQuery
     {
         $runs = $this->createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
@@ -84,6 +101,7 @@ final class PersonalRunPatchQueryTest extends TestCase
 
         $slotRepo = $this->createStub(SessionSlotRepositoryInterface::class);
         $slotRepo->method('findByRegistrationAndSession')->willReturn($slots);
+        $slotRepo->method('findBySessionId')->willReturn($allSlots ?? $slots);
 
         return new PersonalRunPatchQuery($runs, $sessions, $slotRepo);
     }

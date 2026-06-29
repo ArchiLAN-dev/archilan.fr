@@ -45,7 +45,7 @@ final readonly class PersonalRunPatchController
 
         $files = array_values(array_filter(
             $this->reader->listEntries($context['outputKey']),
-            fn (string $filename): bool => self::belongsToOwnSlot($filename, $context['slotNames']),
+            fn (string $filename): bool => self::belongsToOwnSlot($filename, $context['slotNames'], $context['allSlotNames']),
         ));
         sort($files);
 
@@ -65,7 +65,7 @@ final readonly class PersonalRunPatchController
             return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
         }
 
-        if (!self::belongsToOwnSlot($filename, $context['slotNames'])) {
+        if (!self::belongsToOwnSlot($filename, $context['slotNames'], $context['allSlotNames'])) {
             return $this->apiAccessGuard->errorResponse('forbidden', "Ce fichier n'appartient pas à votre slot.", 403);
         }
 
@@ -87,21 +87,28 @@ final readonly class PersonalRunPatchController
     }
 
     /**
-     * Whether an output filename is a patch belonging to one of the given slot names.
+     * Whether an output filename is a patch belonging to one of the caller's slot names.
      *
      * AP patch files are named "AP_{seed}_P{slotNumber}_{slotName}.{ext}". Some apworlds append a
      * game/version suffix *after* the slot name (e.g. "masterkafey_SHA" → file
-     * "AP_..._P2_masterkafey_SHA_SHAR_0.6.7.apshar"), so we match the slot name as a prefix at an
+     * "AP_..._P2_masterkafey_SHA_SHAR_0.6.7.apshar"), so the slot name is matched as a prefix at an
      * underscore boundary, not only by exact equality - otherwise those patches are wrongly filtered
-     * out. This stays safe because every generated slot name has exactly one underscore
-     * ({sanitizedPlayer}_{gameAbbr}, see SlotNameGenerator): no real slot name can be a prefix of
-     * another at a "_" boundary, so a player can never grab another player's patch this way. The
-     * shared multidata (.archipelago) and any *_spoiler* file are never patches.
+     * out.
      *
-     * @param list<string> $slotNames
+     * Custom slot names (story 9.37) break the old "one underscore per name" invariant: a name like
+     * "master" can be a `_`-boundary prefix of another player's "master_kafey". So the file is
+     * attributed to the **single longest** matching name among ALL session slots (`$allSlotNames`),
+     * and access is granted only when that winner is one of the caller's (`$ownSlotNames`) - a player
+     * can never grab another player's patch even if their name is a prefix of it. The shared multidata
+     * (.archipelago) and any *_spoiler* file are never patches.
+     *
+     * @param list<string>      $ownSlotNames the caller's slots
+     * @param list<string>|null $allSlotNames every slot in the session; defaults to $ownSlotNames
      */
-    public static function belongsToOwnSlot(string $filename, array $slotNames): bool
+    public static function belongsToOwnSlot(string $filename, array $ownSlotNames, ?array $allSlotNames = null): bool
     {
+        $allSlotNames ??= $ownSlotNames;
+
         if ('archipelago' === strtolower(pathinfo($filename, \PATHINFO_EXTENSION))) {
             return false;
         }
@@ -112,12 +119,15 @@ final readonly class PersonalRunPatchController
         $stem = pathinfo($filename, \PATHINFO_FILENAME);
         $captured = 1 === preg_match('/_P\d+_(.+)$/', $stem, $matches) ? $matches[1] : $stem;
 
-        foreach ($slotNames as $slotName) {
+        $winner = null;
+        foreach ($allSlotNames as $slotName) {
             if ($captured === $slotName || str_starts_with($captured, $slotName.'_')) {
-                return true;
+                if (null === $winner || mb_strlen($slotName) > mb_strlen($winner)) {
+                    $winner = $slotName;
+                }
             }
         }
 
-        return false;
+        return null !== $winner && in_array($winner, $ownSlotNames, true);
     }
 }
