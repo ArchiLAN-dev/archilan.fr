@@ -143,6 +143,35 @@ final class ApworldVersionCheckerTest extends TestCase
             self::assertSame('1.0.0', $game->getApworldLatestVersion());
         }
     }
+
+    public function testListAssetsCarriesNormalizedReleaseTag(): void
+    {
+        $game = $this->makeGame('https://github.com/nicholasb/hollow-knight');
+        $mock = new MockHttpClient($this->releaseResponse('v2.3.4', '2026-01-01T00:00:00Z', [
+            ['name' => 'hollow-knight.apworld', 'browser_download_url' => 'https://example.com/hk.apworld', 'size' => 1024],
+            ['name' => 'source.tar.gz', 'browser_download_url' => 'https://example.com/src.tar.gz', 'size' => 2048],
+        ]));
+
+        $checker = new ApworldVersionChecker($mock, new NullLogger(), 'ghp_test_token');
+        $assets = $checker->listAssets($game);
+
+        self::assertNotNull($assets);
+        self::assertCount(1, $assets);
+        self::assertSame('hollow-knight.apworld', $assets[0]['name']);
+        self::assertSame('2.3.4', $assets[0]['tag']);
+    }
+
+    public function testListAssetsForDirectUrlHasNullTag(): void
+    {
+        $game = $this->makeGame('https://example.com/worlds/foo.apworld');
+
+        $checker = new ApworldVersionChecker(new MockHttpClient(), new NullLogger(), 'ghp_test_token');
+        $assets = $checker->listAssets($game);
+
+        self::assertNotNull($assets);
+        self::assertCount(1, $assets);
+        self::assertNull($assets[0]['tag']);
+    }
 }
 
 final class ApworldSpyLogger extends AbstractLogger

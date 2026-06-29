@@ -305,7 +305,7 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{found: bool, assets?: list<array{name: string, downloadUrl: string, size: int}>, errors: array<string, list<string>>}
+     * @return array{found: bool, assets?: list<array{name: string, downloadUrl: string, size: int, tag: ?string}>, errors: array<string, list<string>>}
      */
     public function listGithubAssets(string $gameId): array
     {
@@ -340,7 +340,7 @@ final readonly class AdminGameLibrary
     /**
      * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
      */
-    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null): array
+    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null, ?string $assetTag = null): array
     {
         $game = $this->gameRepository->findById($gameId);
         if (!$game instanceof Game) {
@@ -357,11 +357,13 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['github' => ['GITHUB_TOKEN non configuré - impossible de télécharger depuis GitHub.']]];
         }
 
-        // If a specific asset was pre-selected by the caller, skip the GitHub check
+        // If a specific asset was pre-selected by the caller, skip the GitHub check.
+        // The caller passes the release tag alongside the asset (see listAssets), so the
+        // deployed version is still recorded without a second GitHub round-trip.
         if (null !== $assetDownloadUrl && null !== $assetName) {
             $resolvedDownloadUrl = $assetDownloadUrl;
             $resolvedAssetName = $assetName;
-            $latestTag = null;
+            $latestTag = '' !== (string) $assetTag ? $assetTag : null;
         } else {
             try {
                 $info = $this->apworldVersionChecker->check($game);
@@ -402,6 +404,9 @@ final readonly class AdminGameLibrary
         if (null !== $latestTag) {
             $game->getCatalogSync()?->setApworldDeployedVersion($latestTag);
             $this->gameRepository->save($game);
+            // configureApworld built the returned payload before the deployed version was set;
+            // rebuild it so the response reflects the freshly recorded version.
+            $result['game'] = $this->detailPayload($game);
         }
 
         $this->logger->info('game.apworld_imported_from_github', [

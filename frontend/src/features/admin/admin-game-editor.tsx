@@ -49,7 +49,7 @@ type LoadState =
     | { kind: "not_found" }
     | { kind: "error" };
 
-type GithubAsset = { name: string; downloadUrl: string; size: number };
+type GithubAsset = { name: string; downloadUrl: string; size: number; tag: string | null };
 
 // ─── Root component ────────────────────────────────────────────────────────────
 
@@ -610,7 +610,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
             const assets = isGithubAssetsPayload(payload) ? payload.data : [];
             if (assets.length === 1) {
                 // Only one asset - import directly without showing picker
-                await doImport(assets[0].downloadUrl, assets[0].name);
+                await doImport(assets[0].downloadUrl, assets[0].name, assets[0].tag);
             } else {
                 setGithubAssets(assets);
             }
@@ -621,7 +621,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
         }
     }
 
-    async function doImport(downloadUrl: string, assetName: string) {
+    async function doImport(downloadUrl: string, assetName: string, tag: string | null) {
         setUploadError(null);
         setImportingGithub(true);
         setGithubAssets(null);
@@ -629,7 +629,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
             const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/apworld-from-github`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({assetDownloadUrl: downloadUrl, assetName}),
+                body: JSON.stringify({assetDownloadUrl: downloadUrl, assetName, assetTag: tag}),
             });
             const payload: unknown = await res.json();
             if (!res.ok) {
@@ -735,7 +735,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
                                             className="flex w-full items-center justify-between gap-3 rounded border border-border bg-surface px-3 py-2 text-left text-sm transition-colors hover:border-accent disabled:opacity-60"
                                             disabled={importingGithub}
                                             type="button"
-                                            onClick={() => doImport(asset.downloadUrl, asset.name)}
+                                            onClick={() => doImport(asset.downloadUrl, asset.name, asset.tag)}
                                         >
                                             <span className="font-mono text-foreground">{asset.name}</span>
                                             <span className="shrink-0 text-xs text-muted-foreground">
@@ -1002,7 +1002,8 @@ function isGithubAssetsPayload(v: unknown): v is { data: GithubAsset[] } {
         (item) => typeof item === "object" && item !== null &&
             "name" in item && typeof (item as { name: unknown }).name === "string" &&
             "downloadUrl" in item && typeof (item as { downloadUrl: unknown }).downloadUrl === "string" &&
-            "size" in item && typeof (item as { size: unknown }).size === "number",
+            "size" in item && typeof (item as { size: unknown }).size === "number" &&
+            "tag" in item && (typeof (item as { tag: unknown }).tag === "string" || (item as { tag: unknown }).tag === null),
     );
 }
 

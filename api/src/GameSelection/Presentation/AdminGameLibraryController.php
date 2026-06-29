@@ -301,8 +301,9 @@ final readonly class AdminGameLibraryController
         $body = $this->jsonPayload($request);
         $assetDownloadUrl = is_string($body['assetDownloadUrl'] ?? null) && '' !== $body['assetDownloadUrl'] ? $body['assetDownloadUrl'] : null;
         $assetName = is_string($body['assetName'] ?? null) && '' !== $body['assetName'] ? $body['assetName'] : null;
+        $assetTag = is_string($body['assetTag'] ?? null) && '' !== $body['assetTag'] ? $body['assetTag'] : null;
 
-        $result = $this->adminGameLibrary->importFromGithub($gameId, $assetDownloadUrl, $assetName);
+        $result = $this->adminGameLibrary->importFromGithub($gameId, $assetDownloadUrl, $assetName, $assetTag);
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
