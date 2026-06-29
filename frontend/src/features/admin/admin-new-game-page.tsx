@@ -65,7 +65,7 @@ export default function AdminNewGamePage() {
       ...f,
       name: result.name,
       slug: slugify(result.name),
-      description: result.summary ? result.summary.slice(0, 500) : "",
+      description: result.summary ?? "",
       coverImageUrl: result.coverUrl ?? "",
       coverImageCredit: "© IGDB",
     }));
