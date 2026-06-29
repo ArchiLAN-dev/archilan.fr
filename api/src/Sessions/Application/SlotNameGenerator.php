@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
+use App\Shared\Domain\SlotName;
+
 final class SlotNameGenerator
 {
     /**
      * Generates slot names from player + game abbreviation pairs.
      *
-     * Format: {sanitizedPlayerName}_{gameAbbr} (max 16 chars).
+     * A usable literal custom name (the player's YAML `name:`, passed as `preferredName`) wins;
+     * otherwise the name is derived as {sanitizedPlayerName}_{gameAbbr} (max 16 chars).
      * Collision resolution: when two slots share the same base, all colliding
-     * entries receive a numeric suffix (Alice_HK1, Alice_HK2, …).
+     * entries receive a numeric suffix (Alice_HK1, Alice_HK2, …) - applied to custom and
+     * derived names alike so a session never has two identical slot names.
      *
-     * @param list<array{playerName: string, archipelagoGameName: string}> $slots
+     * @param list<array{playerName: string, archipelagoGameName: string, preferredName?: string|null}> $slots
      *
      * @return list<string>
      */
@@ -22,6 +26,12 @@ final class SlotNameGenerator
         // Pass 1 - compute base name for every slot
         $bases = [];
         foreach ($slots as $slot) {
+            $preferred = $slot['preferredName'] ?? null;
+            if (null !== $preferred && $this->isUsableCustomName($preferred)) {
+                $bases[] = $preferred;
+                continue;
+            }
+
             $abbr = $this->abbreviate($slot['archipelagoGameName']);
             $player = $this->sanitize($slot['playerName']);
             $base = $player.'_'.$abbr;
@@ -49,6 +59,18 @@ final class SlotNameGenerator
         }
 
         return $result;
+    }
+
+    /**
+     * A player-chosen name is honored only when it is a valid literal slot name with no AP
+     * placeholder ({number}/{player}). Placeholder names - including the unconfigured default
+     * `Player{number}` - resolve AP-side to a different literal than the stored string, which would
+     * desync the patch-file lookup key (keyed on SessionSlot.slotName), so they fall back to the
+     * derived {pseudo}_{abbr}.
+     */
+    private function isUsableCustomName(string $name): bool
+    {
+        return !str_contains($name, '{') && SlotName::isValid($name);
     }
 
     private function abbreviate(string $gameName): string
