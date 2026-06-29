@@ -117,7 +117,10 @@ final readonly class ApworldVersionChecker
     /**
      * Return all .apworld assets from the latest matching release.
      *
-     * @return list<array{name: string, downloadUrl: string, size: int}>|null null = release/repo unreachable
+     * Each asset carries the release tag (normalized, no v/V prefix) so the caller can record it
+     * as the deployed version on import. A direct .apworld URL has no release, hence a null tag.
+     *
+     * @return list<array{name: string, downloadUrl: string, size: int, tag: ?string}>|null null = release/repo unreachable
      */
     public function listAssets(Game $game): ?array
     {
@@ -134,7 +137,7 @@ final readonly class ApworldVersionChecker
             $rawPath = parse_url($downloadUrl, \PHP_URL_PATH);
             $filename = is_string($rawPath) ? basename($rawPath) : 'apworld.apworld';
 
-            return [['name' => $filename, 'downloadUrl' => $downloadUrl, 'size' => 0]];
+            return [['name' => $filename, 'downloadUrl' => $downloadUrl, 'size' => 0, 'tag' => null]];
         }
 
         if (!str_starts_with($sourceUrl, 'https://github.com/')) {
@@ -157,6 +160,9 @@ final readonly class ApworldVersionChecker
             return null;
         }
 
+        $tagRaw = is_string($releaseData['tag_name'] ?? null) ? (string) $releaseData['tag_name'] : '';
+        $tag = '' !== $tagRaw ? ltrim($tagRaw, 'vV') : null;
+
         $assets = is_array($releaseData['assets'] ?? null) ? $releaseData['assets'] : [];
         $result = [];
 
@@ -170,7 +176,7 @@ final readonly class ApworldVersionChecker
             $size = is_int($asset['size'] ?? null) ? (int) $asset['size'] : 0;
 
             if (str_ends_with($name, '.apworld') && '' !== $downloadUrl) {
-                $result[] = ['name' => $name, 'downloadUrl' => $downloadUrl, 'size' => $size];
+                $result[] = ['name' => $name, 'downloadUrl' => $downloadUrl, 'size' => $size, 'tag' => $tag];
             }
         }
 
