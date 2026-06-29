@@ -151,7 +151,7 @@ export function AdminGuidedGameCreation({ preset }: { preset: CataloguePreset })
   function handleIgdbSelect(candidate: IgdbCandidate) {
     setFields((f) => ({
       ...f,
-      description: candidate.summary?.slice(0, 500) ?? f.description,
+      description: candidate.summary ?? f.description,
       coverImageUrl: candidate.coverUrl ?? f.coverImageUrl,
       coverImageAlt: `${candidate.name} - cover`,
       coverImageCredit: "",
