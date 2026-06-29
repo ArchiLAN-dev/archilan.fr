@@ -234,7 +234,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
         setFields((f) => ({
             ...f,
             name: result.name,
-            description: result.summary ? result.summary.slice(0, 500) : f.description,
+            description: result.summary ?? f.description,
             coverImageUrl: result.coverUrl ?? f.coverImageUrl,
             coverImageCredit: "© IGDB",
             igdbId: result.igdbId,
