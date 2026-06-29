@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -77,7 +77,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('api/composer.lock') }}
@@ -114,7 +114,7 @@ jobs:
           php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: api/coverage-html/
