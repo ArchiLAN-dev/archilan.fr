@@ -1,23 +1,19 @@
 name: Backend Quality
 
 on:
-  # Runs on PRs targeting the integration branch (develop) and prod (main), and on push to
-  # those branches. Path filters keep it scoped to backend changes to limit Actions minutes;
-  # use workflow_dispatch to run on demand.
+  # Runs on every PR/push to the integration branch (develop) and prod (main). The workflow always
+  # starts so the required "Backend" check is always reported; a path filter (job `changes`) gates the
+  # heavy `checks` job to backend changes only, keeping Actions minutes low. This makes the check
+  # compatible with branch protection: a PR that doesn't touch api/ is never left blocked on a check
+  # that would otherwise be skipped at the workflow level. Use workflow_dispatch to run on demand.
   pull_request:
     branches:
       - main
       - develop
-    paths:
-      - 'api/**'
-      - '.github/workflows/backend.yml'
   push:
     branches:
       - main
       - develop
-    paths:
-      - 'api/**'
-      - '.github/workflows/backend.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,8 +24,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend
+  changes:
+    name: Detect backend changes
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - '.github/workflows/backend.yml'
+
+  checks:
+    name: Backend checks
+    needs: changes
+    if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     # NB: a PHP 8.3 matrix leg was attempted but the lockfile requires 8.4
     # (doctrine/doctrine-bundle 3.2.2 needs php ^8.4), so 8.3 can't even install.
@@ -119,3 +135,20 @@ jobs:
           name: coverage-report
           path: api/coverage-html/
           retention-days: 30
+
+  backend:
+    # Required status check. Always runs (if: always) so it is always reported to branch protection,
+    # and is green when api/ is unchanged (heavy `checks` job skipped) or when the checks pass.
+    name: Backend
+    needs: [changes, checks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on backend checks
+        run: |
+          result="${{ needs.checks.result }}"
+          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+            echo "Backend checks did not pass (result=$result)"
+            exit 1
+          fi
+          echo "Backend gate OK (api changed: ${{ needs.changes.outputs.api }}; checks: $result)"
