@@ -21,7 +21,7 @@
 
 ## ✨ La vision
 
-Archipelago, c'est un randomizer **multi-mondes** : des dizaines de jeux (120+) reliés dans une même partie, où chaque joueur débloque les objets des autres. C'est génial, c'est technique... et il n'existait **aucune communauté francophone organisée** ni outil pour faire tourner des événements.
+Archipelago, c'est un randomizer **multi-mondes** : des centaines de jeux (près de 500) reliés dans une même partie, où chaque joueur débloque les objets des autres. C'est génial, c'est technique... et il n'existait **aucune communauté francophone organisée** ni outil pour faire tourner des événements.
 
 **archilan.fr** comble ce vide avec deux casquettes :
 
