@@ -149,4 +149,66 @@ final class SlotNameGeneratorTest extends TestCase
     {
         self::assertSame([], $this->generator->generate([]));
     }
+
+    // ─── Preferred (custom) name - story 9.37 ─────────────────────────────────
+
+    public function testLiteralPreferredNameIsHonored(): void
+    {
+        $result = $this->generator->generate([
+            ['playerName' => 'Alice', 'archipelagoGameName' => 'Hollow Knight', 'preferredName' => 'MasterKafey'],
+        ]);
+
+        self::assertSame(['MasterKafey'], $result);
+    }
+
+    public function testPlaceholderPreferredNameFallsBackToDerived(): void
+    {
+        // The unconfigured default `Player{number}` (and any AP-placeholder name) must not be honored.
+        $result = $this->generator->generate([
+            ['playerName' => 'Alice', 'archipelagoGameName' => 'Hollow Knight', 'preferredName' => 'Player{number}'],
+        ]);
+
+        self::assertSame(['Alice_HK'], $result);
+    }
+
+    public function testEmptyOrInvalidPreferredNameFallsBackToDerived(): void
+    {
+        $result = $this->generator->generate([
+            ['playerName' => 'Alice', 'archipelagoGameName' => 'Hollow Knight', 'preferredName' => ''],
+            ['playerName' => 'Bob', 'archipelagoGameName' => 'Minecraft', 'preferredName' => "O'Brien"],
+            ['playerName' => 'Carol', 'archipelagoGameName' => 'Celeste', 'preferredName' => null],
+        ]);
+
+        self::assertSame(['Alice_HK', 'Bob_M', 'Carol_C'], $result);
+    }
+
+    public function testIdenticalPreferredNamesGetCollisionSuffixes(): void
+    {
+        $result = $this->generator->generate([
+            ['playerName' => 'Alice', 'archipelagoGameName' => 'Hollow Knight', 'preferredName' => 'Link'],
+            ['playerName' => 'Bob', 'archipelagoGameName' => 'Minecraft', 'preferredName' => 'Link'],
+        ]);
+
+        self::assertSame(['Link1', 'Link2'], $result);
+    }
+
+    public function testPreferredNameCollidingWithDerivedGetsSuffixed(): void
+    {
+        $result = $this->generator->generate([
+            ['playerName' => 'Alice', 'archipelagoGameName' => 'Hollow Knight'],
+            ['playerName' => 'Bob', 'archipelagoGameName' => 'Minecraft', 'preferredName' => 'Alice_HK'],
+        ]);
+
+        self::assertSame(['Alice_HK1', 'Alice_HK2'], $result);
+    }
+
+    public function testOverLongPreferredNameIsRejectedAndFallsBack(): void
+    {
+        // 17 chars > SlotName::MAX_LENGTH (16): not a valid slot name, so it falls back to the derived name.
+        $result = $this->generator->generate([
+            ['playerName' => 'Alice', 'archipelagoGameName' => 'Hollow Knight', 'preferredName' => 'AbcdefghijklmnopQ'],
+        ]);
+
+        self::assertSame(['Alice_HK'], $result);
+    }
 }

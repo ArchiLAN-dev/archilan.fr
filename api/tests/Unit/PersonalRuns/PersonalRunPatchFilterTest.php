@@ -71,4 +71,36 @@ final class PersonalRunPatchFilterTest extends TestCase
             ['masterkafei_LM'],
         ));
     }
+
+    // ─── Custom slot names (story 9.37): names can be _-boundary prefixes of one another ─────────
+
+    public function testCustomNamePrefixDoesNotGrabAnotherPlayersPatch(): void
+    {
+        // "master" is a _-boundary prefix of "master_kafey": without longest-match attribution over
+        // ALL session slots, the owner of "master" would wrongly match "master_kafey"'s patch.
+        self::assertFalse(PersonalRunPatchController::belongsToOwnSlot(
+            'AP_323_P2_master_kafey_SHAR.apshar',
+            ['master'],
+            ['master', 'master_kafey'],
+        ));
+    }
+
+    public function testCustomNameStillMatchesOwnPatchWhenAPrefixOfAnother(): void
+    {
+        // The owner of the shorter "master" still gets their own patch (longest match is "master").
+        self::assertTrue(PersonalRunPatchController::belongsToOwnSlot(
+            'AP_323_P1_master_SHAR.apshar',
+            ['master'],
+            ['master', 'master_kafey'],
+        ));
+    }
+
+    public function testLongerCustomNameMatchesItsOwnPatch(): void
+    {
+        self::assertTrue(PersonalRunPatchController::belongsToOwnSlot(
+            'AP_323_P2_master_kafey_SHAR.apshar',
+            ['master_kafey'],
+            ['master', 'master_kafey'],
+        ));
+    }
 }

@@ -1,23 +1,19 @@
 name: Frontend Quality
 
 on:
-  # Runs on PRs targeting the integration branch (develop) and prod (main), and on push to
-  # those branches. Path filters keep it scoped to frontend changes to limit Actions minutes;
-  # use workflow_dispatch to run on demand.
+  # Runs on every PR/push to the integration branch (develop) and prod (main). The workflow always
+  # starts so the required "Frontend" check is always reported; a path filter (job `changes`) gates the
+  # heavy `checks` job to frontend changes only, keeping Actions minutes low. This makes the check
+  # compatible with branch protection: a PR that doesn't touch frontend/ is never left blocked on a
+  # check that would otherwise be skipped at the workflow level. Use workflow_dispatch to run on demand.
   pull_request:
     branches:
       - main
       - develop
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
   push:
     branches:
       - main
       - develop
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,8 +24,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  frontend:
-    name: Frontend
+  changes:
+    name: Detect frontend changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/frontend.yml'
+
+  checks:
+    name: Frontend checks
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,3 +104,20 @@ jobs:
           name: bundle-analysis
           path: frontend/.next/analyze/
           retention-days: 30
+
+  frontend:
+    # Required status check. Always runs (if: always) so it is always reported to branch protection,
+    # and is green when frontend/ is unchanged (heavy `checks` job skipped) or when the checks pass.
+    name: Frontend
+    needs: [changes, checks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on frontend checks
+        run: |
+          result="${{ needs.checks.result }}"
+          if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+            echo "Frontend checks did not pass (result=$result)"
+            exit 1
+          fi
+          echo "Frontend gate OK (frontend changed: ${{ needs.changes.outputs.frontend }}; checks: $result)"

@@ -38,4 +38,14 @@ export const env = {
     "NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN",
     process.env.NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN,
   ),
+  archipelagoDiscordUrl: requireUrl(
+    "NEXT_PUBLIC_ARCHIPELAGO_DISCORD_URL",
+    process.env.NEXT_PUBLIC_ARCHIPELAGO_DISCORD_URL,
+    "https://discord.com/invite/8Z65BR2",
+  ),
+  archilanDiscordUrl: requireUrl(
+    "NEXT_PUBLIC_ARCHILAN_DISCORD_URL",
+    process.env.NEXT_PUBLIC_ARCHILAN_DISCORD_URL,
+    "https://discord.gg/bVGmDcv2dE",
+  ),
 } as const;

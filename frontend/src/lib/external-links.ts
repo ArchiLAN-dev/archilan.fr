@@ -1,5 +1,7 @@
+import { env } from "@/lib/env";
+
 export const externalLinks = {
-  twitch: "https://www.twitch.tv/shisheyu",
-  archipelagoDiscord: "https://discord.com/invite/8Z65BR2",
-  archilanDiscord: "https://discord.gg/bVGmDcv2dE",
+  twitch: `https://www.twitch.tv/${env.twitchChannelLogin}`,
+  archipelagoDiscord: env.archipelagoDiscordUrl,
+  archilanDiscord: env.archilanDiscordUrl,
 } as const;

@@ -5,6 +5,28 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.7.1] - 2026-07-02
+
+Correctif : le nom de slot personnalisé du joueur est désormais respecté de bout en
+bout, avec un durcissement de l'accès aux fichiers de patch.
+
+### Corrigé
+
+- **Nom de slot personnalisé (story 9.37)** : le nom saisi dans « Nom en jeu » (le
+  YAML `name:`) est désormais utilisé par le serveur Archipelago au lieu d'être
+  remplacé par le nom dérivé `{pseudo}_{jeu}`. Repli sur le nom dérivé quand le nom est
+  vide ou invalide ; unicité entre slots et longueur maximale de 16 préservées.
+- **Attribution des fichiers de patch** : durcissement de l'attribution (plus long nom
+  correspondant parmi tous les slots de la session) afin qu'un nom personnalisé préfixe
+  d'un autre ne puisse pas donner accès au patch d'un autre joueur.
+
+### Modifié
+
+- **Liens Twitch et Discord externalisés en variables d'environnement**, pour ne plus
+  les coder en dur.
+- Refonte du README racine (présentation vitrine du projet) et fiabilisation de la CI
+  (checks obligatoires rendus compatibles avec le filtrage par chemin).
+
 ## [0.7.0] - 2026-06-28
 
 Itération profil et configuration de parties : identité de compte personnalisable,
