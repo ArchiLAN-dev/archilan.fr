@@ -95,7 +95,9 @@ Le projet est tenu par des **quality gates non négociables**, exécutées en CI
 | Couche | Gates |
 |--------|-------|
 | **API** | PHPStan (niveau max) · PHP-CS-Fixer (@Symfony) · PHPUnit (0 notice) · validateur d'architecture DDD |
-| **Frontend** | `tsc` strict · ESLint (0 warning) · build Next propre |
+| **Frontend** | `tsc` strict · ESLint (0 warning) · Jest · build Next propre |
+
+Une commande par couche rejoue l'ensemble exact de la CI : `composer gates` (API) · `pnpm gates` (frontend).
 
 Chaque fonctionnalité trace une **story** (méthode BMAD), respecte les frontières DDD (Domaine ← Application ← Infrastructure / Présentation) et n'introduit aucun effet de bord aux frontières. Frontières domaine pures, composants React purs, une unité de travail = une transaction.
 

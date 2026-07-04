@@ -98,9 +98,13 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 ## CS Fixer rules (@Symfony preset)
 
 - String comparisons: Yoda style - `null === $x`, `'' !== $slug`, `true === $flag`.
-- `declare(strict_types=1)` at the top of every file.
+- PHPUnit method names in camelCase (`php_unit_method_casing`) - see AC-T5.
 - No trailing whitespace, Unix line endings.
 - Single blank line between methods; no extra blank line before closing brace.
+
+Project convention, NOT enforced by the preset (the risky `declare_strict_types` fixer is not enabled):
+
+- `declare(strict_types=1)` at the top of every file. Add it to every new file; cs-fixer will not do it for you.
 
 ---
 
@@ -112,7 +116,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T2:** Construct domain entities directly (no factory mocks needed - they're plain PHP).  
 **AC-T3:** Application services are unit-tested by injecting interface mocks (`$this->createMock(RunnerGatewayInterface::class)`).  
 **AC-T4:** One test class per domain class. File: `tests/Unit/{Context}/{ClassName}Test.php`.  
-**AC-T5:** Test method names: `test{scenario}_{expectedOutcome}` - e.g. `testMarkAsReleased_setsFlag`, `testMarkAsReleased_isNoOpWhenGoalAlreadyReached`.
+**AC-T5:** Test method names: camelCase, `test{Scenario}{ExpectedOutcome}` - e.g. `testMarkAsReleasedSetsFlag`, `testMarkAsReleasedIsNoOpWhenGoalAlreadyReached`. Underscores are rejected by `php_unit_method_casing` (camel_case, part of the enforced @Symfony cs-fixer preset) - a snake_case name passes nothing locally or in CI.
 
 ### Functional tests
 
@@ -122,7 +126,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
 
-**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). Parallel agents **must** isolate per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh` (see root `CLAUDE.md` → "Sessions parallèles"). Sharing one DB is what causes the local `relation "..." does not exist` mass-failures: `FunctionalTestCase::setUp` drops and rebuilds the whole schema per test, so concurrent suites destroy each other. For a one-off isolated run in the main tree (no worktree), use `api/scripts/test-isolated.sh [name]` - it exports `TEST_TOKEN` for its process only and runs the full suite against `archilan_test_<name>`.
+**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). Parallel agents **must** isolate per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh`. Full flow and rationale (why a shared DB causes the `relation "..." does not exist` mass-failures): root `CLAUDE.md` → "Sessions parallèles", the single authoritative description. For a one-off isolated run in the main tree (no worktree), use `api/scripts/test-isolated.sh [name]` - it exports `TEST_TOKEN` for its process only and runs the full suite against `archilan_test_<name>`.
 
 ### What NOT to test
 
