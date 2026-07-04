@@ -7,6 +7,7 @@
 # Isolation is by database NAME via Symfony's TEST_TOKEN hook
 # (config/packages/doctrine.yaml: dbname_suffix '_test%env(default::TEST_TOKEN)%'),
 # same mechanism scripts/setup-worktree.sh uses per worktree.
+# Full workflow and rationale: root CLAUDE.md, section "Sessions paralleles".
 #
 # This script exports TEST_TOKEN for its own process only - it does NOT write
 # api/.env.test.local, so the tree's default behaviour is untouched afterwards.

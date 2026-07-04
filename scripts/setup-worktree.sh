@@ -5,6 +5,7 @@
 # stash) and its own Postgres test database via Symfony's TEST_TOKEN hook
 # (see api/config/packages/doctrine.yaml: dbname_suffix '_test%env(default::TEST_TOKEN)%').
 # Everything else (Postgres server, Docker, MinIO, dev servers) stays shared.
+# Full workflow and rationale: root CLAUDE.md, section "Sessions paralleles".
 #
 # Usage:
 #   ./scripts/setup-worktree.sh <name> [branch] [--base <branch>] [--no-frontend]
