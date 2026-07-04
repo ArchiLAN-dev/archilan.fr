@@ -3,13 +3,19 @@
 ## Quality gates (non-negotiable)
 
 ```bash
-vendor/bin/phpstan analyse src tests   # level max - 0 errors
-vendor/bin/php-cs-fixer check src      # @Symfony ruleset - 0 violations
-php bin/phpunit                        # all suites green - 0 notices/deprecations/warnings
-php bin/console app:architecture:ddd   # exit 0 - no layer violations
+composer gates   # runs the four gates below - identical to CI (same composer scripts)
 ```
 
-Run all four before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations.
+What it runs, in order:
+
+```bash
+vendor/bin/phpstan analyse src tests   # level max - 0 errors
+vendor/bin/php-cs-fixer check          # @Symfony ruleset, full dist config (src + tests) - 0 violations
+php bin/console app:architecture:ddd   # exit 0 - no layer violations
+php bin/phpunit                        # all suites green - 0 notices/deprecations/warnings
+```
+
+Run all four (`composer gates`) before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations. Note the cs-fixer gate covers **src and tests** - passing `src` as a path argument narrows it and lets test-file violations through that CI will reject.
 
 **Zero PHPUnit notices is a validation prerequisite.** `phpunit.xml.dist` sets `failOnNotice`,
 `failOnDeprecation` and `failOnWarning` to `true`, so any notice/deprecation/warning makes
@@ -116,7 +122,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
 
-**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). For parallel agents, isolate it per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh` (see root `CLAUDE.md` → "Sessions parallèles").
+**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). Parallel agents **must** isolate per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh` (see root `CLAUDE.md` → "Sessions parallèles"). Sharing one DB is what causes the local `relation "..." does not exist` mass-failures: `FunctionalTestCase::setUp` drops and rebuilds the whole schema per test, so concurrent suites destroy each other. For a one-off isolated run in the main tree (no worktree), use `api/scripts/test-isolated.sh [name]` - it exports `TEST_TOKEN` for its process only and runs the full suite against `archilan_test_<name>`.
 
 ### What NOT to test
 
