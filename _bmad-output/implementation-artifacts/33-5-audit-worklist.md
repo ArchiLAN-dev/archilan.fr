@@ -8,12 +8,12 @@ accepted with rationale. Nothing outside this list is touched. Produced from a f
 
 | # | Rule | Detection (text-based, consistent with existing style) | Current violations | Allowlist |
 |---|------|--------------------------------------------------------|--------------------|-----------|
-| R1 | Cross-context layer restriction: no file may import another context's `Infrastructure\` or `Presentation\` (target context `Shared` exempt - shared kernel: `ApiAccessGuard`, `RequiresAuthTrait`, `MinioStorageInterface` are documented patterns) | `use App\{Other}\Infrastructure\` / `use App\{Other}\Presentation\` where `{Other}` != own context and != `Shared` | 0 (scan: all ~270 cross-context imports target Domain/Application only) | none |
+| R1 | Cross-context layer restriction: no file may import another context's `Infrastructure\` or `Presentation\` (target context `Shared` exempt - shared kernel: `ApiAccessGuard`, `RequiresAuthTrait`, `MinioStorageInterface` are documented patterns) | any-position content match (validator style) on `App\{Other}\Infrastructure\` / `App\{Other}\Presentation\` where `{Other}` != own context and != `Shared` | 1 (found by the rule itself: docblock `{@see \...}` FQCN in `Streaming/Infrastructure/DbalParticipantTwitchLinksQuery.php` - fixed by rephrasing the docblock without the FQCN; all ~270 cross-context `use` imports target Domain/Application only) | none |
 | R2 | Domain upward imports, all contexts (AC-D2 completed): Domain may not import `Application\`, `Infrastructure\` or `Presentation\` of ANY context (today only same-context is checked) | `use App\{Any}\{Application\|Infrastructure\|Presentation}\` in `Domain/` files | 0 | none |
 | R3 | `*RepositoryInterface.php` must live in `Domain/` (AC-A2) | filename suffix + path segment check | 0 | none |
 | R4 | `*QueryInterface.php` must live in `Application/` (AC-A2) | filename suffix + path segment check | 0 | none |
 | R5 | Application must not import `Infrastructure\` of any context except `Shared` (AC-I2/AC-A5) | `use App\{Any}\Infrastructure\` in `Application/` files, `{Any}` != `Shared` | 8 files - resolved by M5 (interface relocations, 6 imports) + M6 (interface extraction, 2 imports); 2 remaining allowlisted | `Sessions/Application/Handler/ArchiveRunJobHandler.php`, `Sessions/Application/Handler/FetchLogsJobHandler.php` (import concrete `RunnerCallbackClient`; Sessions frozen until Epic 32 merges - TODO epic-32) |
-| R6 | No clock reads in Application (no-magic rule): `date(`, `time()`, zero-arg / `'now'` `new DateTime` / `new DateTimeImmutable` | call-pattern regexes in `Application/` files | 0 | none |
+| R6 | No clock/randomness calls in Application, per the documented letter (root `CLAUDE.md`: "No `date()`, `time()`, `rand()` in domain or application logic"): `date(`, `time()`, `rand(`, `mt_rand(` | call-pattern regexes in `Application/` files | 2 (found by the rule itself: `time()` in `Identity/Application/AuthSessionSigner.php` and `DiscordStateToken.php` - fixed by injecting `Psr\Clock\ClockInterface`, already installed via symfony/clock, autowired, no constructor call sites outside DI) | none. NOTE: zero-arg `new \DateTimeImmutable()` (also a clock read in spirit) has ~130 occurrences across nearly all contexts' Application layers - an established repo-wide pattern whose fix is a ClockInterface migration, its own story; recorded in section D, NOT enforced here (epic guardrail: no open-ended sweeps, grandfathering beats a 60-file allowlist) |
 | R7 | No `new` on Infrastructure FQCNs in Application (AC-A5; complements R5 for non-imported FQCN usage) | `new App\{Any}\Infrastructure\` / `new \App\{Any}\Infrastructure\` in `Application/` files | 0 | none |
 | R8 | `createNativeQuery` added to `FORBIDDEN_PRESENTATION_CALLS` (AC-P2 lists 7 calls, validator has 6) | existing `(?:->\|::)method\(` regex list | 0 | none |
 
@@ -54,7 +54,7 @@ AC-D1 full `Symfony\Component\*`/`Contracts\*` coverage (only 4 namespaces check
 AC-D3 domain purity (clock/randomness/IO); AC-D4 `final`/`final readonly`; AC-D5 no public
 setters; AC-A1 Application services `final`; AC-A3 command-returns-void/query-returns-DTO;
 AC-A6 no Request/Response in Application; AC-I3 doubles only in `when@test`; AC-P3/P4/P5
-controller shape rules; AC-M1 `ROLE_MEMBER` gating ban; CQRS naming conventions.
+controller shape rules; AC-M1 `ROLE_MEMBER` gating ban; CQRS naming conventions; **no zero-arg `new \DateTime`/`new \DateTimeImmutable` in Application** (~130 current occurrences - needs a dedicated ClockInterface migration story before the rule can turn on).
 
 ## E. Doc ride-along (doc-only, exempt)
 

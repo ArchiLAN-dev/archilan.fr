@@ -9,7 +9,6 @@ use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
 use App\Payments\Domain\HelloAssoSyncLog;
 use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
-use App\Payments\Infrastructure\HelloAssoHttpClient;
 use App\Shared\Application\Handler\LogsHandlerErrors;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
@@ -21,7 +20,7 @@ final readonly class SyncHelloAssoFormHandler
     use LogsHandlerErrors;
 
     public function __construct(
-        private HelloAssoHttpClient $httpClient,
+        private HelloAssoClientInterface $httpClient,
         private HelloAssoOrderRepositoryInterface $orderRepository,
         private HelloAssoSyncLogRepositoryInterface $syncLogRepository,
         private MessageBusInterface $bus,

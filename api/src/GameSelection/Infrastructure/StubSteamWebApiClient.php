@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
+use App\GameSelection\Application\SteamApiException;
+use App\GameSelection\Application\SteamWebApiClientInterface;
+
 final class StubSteamWebApiClient implements SteamWebApiClientInterface
 {
     /** @var array<string, string> vanity name => SteamID64 */

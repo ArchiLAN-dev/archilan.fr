@@ -12,7 +12,7 @@ use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
 use App\Registrations\Domain\Registration;
-use App\Streaming\Infrastructure\TwitchApiClientInterface;
+use App\Streaming\Application\TwitchApiClientInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 

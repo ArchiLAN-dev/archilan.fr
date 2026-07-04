@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace App\Payments\Application;
 
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
-use App\Payments\Infrastructure\HelloAssoHttpClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class HandleHelloAssoWebhook
 {
     public function __construct(
-        private HelloAssoHttpClient $httpClient,
+        private HelloAssoClientInterface $httpClient,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
     ) {

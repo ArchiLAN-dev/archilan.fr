@@ -165,6 +165,235 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertCount(0, array_values($cqrsViolations));
     }
 
+    public function testCrossContextInfrastructureImportIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/SyncBridge.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nuse App\\Payments\\Infrastructure\\HelloAssoHttpClient;\n\nfinal class SyncBridge {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Cross-context dependency on another context\'s Infrastructure layer ("App\\Payments\\Infrastructure\\"): src/Events/Application/SyncBridge.php',
+            $report->violations(),
+        );
+    }
+
+    public function testCrossContextPresentationImportIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Infrastructure/WeirdBridge.php',
+            "<?php\n\nnamespace App\\Events\\Infrastructure;\n\nuse App\\Payments\\Presentation\\MembershipCheckoutController;\n\nfinal class WeirdBridge {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Cross-context dependency on another context\'s Presentation layer ("App\\Payments\\Presentation\\"): src/Events/Infrastructure/WeirdBridge.php',
+            $report->violations(),
+        );
+    }
+
+    public function testCrossContextDomainAndApplicationImportsAreAllowed(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Registrations/Application/ReserveSeat.php',
+            "<?php\n\nnamespace App\\Registrations\\Application;\n\nuse App\\Events\\Domain\\Event;\nuse App\\Payments\\Application\\PaymentLookup;\n\nfinal class ReserveSeat {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'ReserveSeat.php'),
+        ));
+        self::assertSame([], $violationsForFile);
+    }
+
+    public function testSharedInfrastructureImportIsAllowedInApplication(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/CoverImageReader.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nuse App\\Shared\\Infrastructure\\MinioStorageInterface;\n\nfinal class CoverImageReader {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'CoverImageReader.php'),
+        ));
+        self::assertSame([], $violationsForFile);
+    }
+
+    public function testDomainImportOfAnotherContextApplicationIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/CrossLayerLeak.php',
+            "<?php\n\nnamespace App\\Events\\Domain;\n\nuse App\\Payments\\Application\\PaymentLookup;\n\nfinal class CrossLayerLeak {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain layer has forbidden dependency "App\\Payments\\Application\\": src/Events/Domain/CrossLayerLeak.php',
+            $report->violations(),
+        );
+    }
+
+    public function testRepositoryInterfaceOutsideDomainIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/EventRepositoryInterface.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\ninterface EventRepositoryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Repository interfaces must live in the Domain layer: src/Events/Application/EventRepositoryInterface.php',
+            $report->violations(),
+        );
+    }
+
+    public function testQueryInterfaceOutsideApplicationIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Infrastructure/DashboardQueryInterface.php',
+            "<?php\n\nnamespace App\\Events\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Query interfaces must live in the Application layer: src/Events/Infrastructure/DashboardQueryInterface.php',
+            $report->violations(),
+        );
+    }
+
+    public function testApplicationOwnInfrastructureImportIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/GalleryService.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nuse App\\Events\\Infrastructure\\GalleryHttpClient;\n\nfinal class GalleryService {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application layer must not depend on the Infrastructure layer ("App\\Events\\Infrastructure\\"): src/Events/Application/GalleryService.php',
+            $report->violations(),
+        );
+    }
+
+    public function testAllowlistedApplicationInfrastructureImportPasses(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Sessions/Application/Handler');
+        file_put_contents(
+            $projectDir.'/src/Sessions/Application/Handler/ArchiveRunJobHandler.php',
+            "<?php\n\nnamespace App\\Sessions\\Application\\Handler;\n\nuse App\\Sessions\\Infrastructure\\RunnerCallbackClient;\n\nfinal class ArchiveRunJobHandler {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'ArchiveRunJobHandler.php'),
+        ));
+        self::assertSame([], $violationsForFile);
+    }
+
+    public function testApplicationNewOnInfrastructureIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/InlineFactory.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class InlineFactory {\n    public function make(): object { return new \\App\\Events\\Infrastructure\\GalleryHttpClient(); }\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application layer must not instantiate Infrastructure classes ("new App\\Events\\Infrastructure\\..."): src/Events/Application/InlineFactory.php',
+            $report->violations(),
+        );
+    }
+
+    public function testApplicationClockCallIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/ClockUser.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class ClockUser {\n    public function stamp(): string { return date('Y-m-d'); }\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application layer must not call date() - inject a clock or pass the value as a parameter: src/Events/Application/ClockUser.php',
+            $report->violations(),
+        );
+    }
+
+    public function testApplicationClockLookalikesAreNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/NotAClock.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class NotAClock {\n"
+            ."    public function run(object \$repo, string \$raw, \\DateTimeImmutable \$now): void {\n"
+            ."        \$repo->update(\$raw);\n"
+            ."        \$parsed = new \\DateTimeImmutable(\$raw);\n"
+            ."        \$ts = strtotime(\$raw);\n"
+            ."        \$repo->time(\$parsed, \$ts, \$now);\n"
+            ."    }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'NotAClock.php'),
+        ));
+        self::assertSame([], $violationsForFile);
+    }
+
+    public function testCreateNativeQueryInPresentationIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __invoke(): void { \$this->em->createNativeQuery('SELECT 1', \$rsm); }\n}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Presentation layer must not execute queries directly (createNativeQuery): src/Events/Presentation/AdminEventController.php',
+            $report->violations(),
+        );
+    }
+
     private function createProjectFixture(): string
     {
         $projectDir = sys_get_temp_dir().'/archilan-ddd-validator-'.bin2hex(random_bytes(6));

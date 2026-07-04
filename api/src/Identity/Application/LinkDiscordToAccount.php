@@ -7,7 +7,6 @@ namespace App\Identity\Application;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
-use App\Identity\Infrastructure\DiscordOAuthClientInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;

@@ -56,7 +56,31 @@ final readonly class DddArchitectureValidator
         'executeQuery',
         'createQueryBuilder',
         'createQuery',
+        'createNativeQuery',
         'getRepository',
+    ];
+
+    /** @var list<string> */
+    private const FORBIDDEN_APPLICATION_CLOCK_CALLS = [
+        'date',
+        'time',
+        'rand',
+        'mt_rand',
+    ];
+
+    /**
+     * Named allowlist for intentional rule exceptions (story 33.5): the only sanctioned
+     * way to except a file from a rule - never suppress via inline annotations.
+     *
+     * Sessions is frozen until Epic 32 merges; its two runner-callback handlers inject
+     * the concrete RunnerCallbackClient (Sessions Infrastructure). TODO epic-32: extract
+     * an Application-layer port for the runner callback client and drop these entries.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS = [
+        'Sessions/Application/Handler/ArchiveRunJobHandler.php',
+        'Sessions/Application/Handler/FetchLogsJobHandler.php',
     ];
 
     public function validate(string $projectDir): DddArchitectureReport
@@ -73,7 +97,10 @@ final readonly class DddArchitectureValidator
             ...$this->validateContextDirectories($srcDir),
             ...$this->validateSourceFiles($srcDir),
             ...$this->validateDomainDependencies($srcDir),
+            ...$this->validateCrossContextLayerImports($srcDir),
+            ...$this->validateInterfacePlacement($srcDir),
             ...$this->validateApplicationCqrs($srcDir),
+            ...$this->validateApplicationPurity($srcDir),
             ...$this->validatePresentationCqrs($srcDir),
             ...$this->validateServicesConfig($projectDir),
             ...$this->validateDoctrineMappings($projectDir, $srcDir),
@@ -154,12 +181,164 @@ final readonly class DddArchitectureValidator
                     continue;
                 }
 
-                foreach ($this->forbiddenDomainDependencies($context) as $dependency) {
+                foreach ($this->forbiddenDomainDependencies() as $dependency) {
                     if (str_contains($contents, $dependency)) {
                         $violations[] = sprintf(
                             'Domain layer has forbidden dependency "%s": src/%s',
                             $dependency,
                             $this->relativePath($srcDir, $file),
+                        );
+                    }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * A context may depend on another context's Domain or Application layer, but never on
+     * its Infrastructure or Presentation layer. Shared is the shared kernel and is exempt
+     * as a target (ApiAccessGuard, MinioStorageInterface, RequiresAuthTrait are documented
+     * cross-cutting patterns).
+     *
+     * @return list<string>
+     */
+    private function validateCrossContextLayerImports(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $contextDir = "{$srcDir}/{$context}";
+            if (!is_dir($contextDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($contextDir) as $file) {
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                $relativePath = $this->relativePath($srcDir, $file);
+
+                foreach (self::CONTEXTS as $other) {
+                    if ($other === $context || 'Shared' === $other) {
+                        continue;
+                    }
+
+                    foreach (['Infrastructure', 'Presentation'] as $layer) {
+                        $needle = "App\\{$other}\\{$layer}\\";
+                        if (str_contains($contents, $needle)) {
+                            $violations[] = sprintf(
+                                'Cross-context dependency on another context\'s %s layer ("%s"): src/%s',
+                                $layer,
+                                $needle,
+                                $relativePath,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Repository interfaces belong to the Domain layer, query interfaces to the
+     * Application layer (api/CLAUDE.md AC-A2).
+     *
+     * @return list<string>
+     */
+    private function validateInterfacePlacement(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach ($this->phpFiles($srcDir) as $file) {
+            $relativePath = $this->relativePath($srcDir, $file);
+
+            if (in_array($relativePath, ['Kernel.php', 'Schedule.php'], true)) {
+                continue;
+            }
+
+            $parts = explode('/', $relativePath);
+            if (!in_array($parts[0], self::CONTEXTS, true)) {
+                continue;
+            }
+
+            $layer = $parts[1] ?? null;
+            $basename = basename($relativePath);
+
+            if (str_ends_with($basename, 'RepositoryInterface.php') && 'Domain' !== $layer) {
+                $violations[] = "Repository interfaces must live in the Domain layer: src/{$relativePath}";
+            }
+
+            if (str_ends_with($basename, 'QueryInterface.php') && 'Application' !== $layer) {
+                $violations[] = "Query interfaces must live in the Application layer: src/{$relativePath}";
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Application services depend on ports (interfaces in Application, Domain or Shared),
+     * never on Infrastructure classes (api/CLAUDE.md AC-A5, AC-I2), never instantiate
+     * Infrastructure, and never read the clock directly (inject a clock or pass the value
+     * as a parameter).
+     *
+     * @return list<string>
+     */
+    private function validateApplicationPurity(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $applicationDir = "{$srcDir}/{$context}/Application";
+            if (!is_dir($applicationDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($applicationDir) as $file) {
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                $relativePath = $this->relativePath($srcDir, $file);
+                $allowlisted = in_array($relativePath, self::ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS, true);
+
+                foreach (self::CONTEXTS as $other) {
+                    if ('Shared' === $other) {
+                        continue;
+                    }
+
+                    $needle = "App\\{$other}\\Infrastructure\\";
+
+                    if (!$allowlisted && str_contains($contents, $needle)) {
+                        $violations[] = sprintf(
+                            'Application layer must not depend on the Infrastructure layer ("%s"): src/%s',
+                            $needle,
+                            $relativePath,
+                        );
+                    }
+
+                    if (1 === preg_match('/new\s+\\\\?'.preg_quote($needle, '/').'/', $contents)) {
+                        $violations[] = sprintf(
+                            'Application layer must not instantiate Infrastructure classes ("new %s..."): src/%s',
+                            $needle,
+                            $relativePath,
+                        );
+                    }
+                }
+
+                foreach (self::FORBIDDEN_APPLICATION_CLOCK_CALLS as $function) {
+                    if (1 === preg_match('/(?<![a-zA-Z0-9_$>:])'.preg_quote($function, '/').'\\(/', $contents)) {
+                        $violations[] = sprintf(
+                            'Application layer must not call %s() - inject a clock or pass the value as a parameter: src/%s',
+                            $function,
+                            $relativePath,
                         );
                     }
                 }
@@ -317,9 +496,13 @@ final readonly class DddArchitectureValidator
     }
 
     /**
+     * The Domain layer may not import an upper layer of ANY context (api/CLAUDE.md AC-D2),
+     * nor the Symfony components below. Domain-to-Domain references across contexts are
+     * allowed (repository interface signatures legitimately reference other aggregates).
+     *
      * @return list<string>
      */
-    private function forbiddenDomainDependencies(string $context): array
+    private function forbiddenDomainDependencies(): array
     {
         $dependencies = [
             'Symfony\\Component\\Console\\',
@@ -328,8 +511,10 @@ final readonly class DddArchitectureValidator
             'Symfony\\Component\\Routing\\',
         ];
 
-        foreach (['Application', 'Infrastructure', 'Presentation'] as $layer) {
-            $dependencies[] = "App\\{$context}\\{$layer}\\";
+        foreach (self::CONTEXTS as $context) {
+            foreach (['Application', 'Infrastructure', 'Presentation'] as $layer) {
+                $dependencies[] = "App\\{$context}\\{$layer}\\";
+            }
         }
 
         return $dependencies;

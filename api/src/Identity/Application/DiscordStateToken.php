@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use Psr\Clock\ClockInterface;
+
 final readonly class DiscordStateToken
 {
     private const MAX_AGE_SECONDS = 600;
 
-    public function __construct(private string $appSecret)
-    {
+    public function __construct(
+        private string $appSecret,
+        private ClockInterface $clock,
+    ) {
     }
 
     public function generate(string $purpose, string $userId = ''): string
     {
-        $data = $purpose.':'.$userId.':'.time();
+        $data = $purpose.':'.$userId.':'.$this->clock->now()->getTimestamp();
         $hmac = hash_hmac('sha256', $data, $this->appSecret);
 
         return rtrim(strtr(base64_encode($data.':'.$hmac), '+/', '-_'), '=');
@@ -54,7 +58,7 @@ final readonly class DiscordStateToken
             return null;
         }
 
-        if ((int) $timestamp + self::MAX_AGE_SECONDS < time()) {
+        if ((int) $timestamp + self::MAX_AGE_SECONDS < $this->clock->now()->getTimestamp()) {
             return null;
         }
 

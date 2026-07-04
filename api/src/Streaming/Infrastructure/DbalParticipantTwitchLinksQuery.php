@@ -11,7 +11,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 /**
  * DBAL read joining a session's participants to their Identity user and Community profile.
  *
- * Crossing contexts on the read side mirrors {@see \App\Community\Infrastructure\DbalCommunityProfileQuery},
+ * Crossing contexts on the read side mirrors Community's DbalCommunityProfileQuery,
  * which already reads the Identity `"user"` table. Returns null when the parent session is absent so the
  * facade can answer 404. Banned/suspended/deleted users are filtered out; duplicate users (e.g. several
  * weekly attempts) are de-duplicated.

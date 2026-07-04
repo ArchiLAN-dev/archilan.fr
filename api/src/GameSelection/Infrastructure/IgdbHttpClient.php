@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
+use App\GameSelection\Application\IgdbHttpClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
