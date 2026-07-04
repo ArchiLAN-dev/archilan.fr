@@ -11,12 +11,20 @@ This version has breaking changes - APIs, conventions, and file structure may al
 ## Quality gates (non-negotiable)
 
 ```bash
+pnpm gates   # runs the four gates below - identical to CI (same package.json scripts)
+```
+
+What it runs, in order:
+
+```bash
 pnpm typecheck   # tsc --noEmit - 0 errors
 pnpm lint        # eslint - 0 errors, 0 warnings
+pnpm test        # jest - green
 pnpm build       # next build - clean
 ```
 
-Run all three before marking any task complete.
+Run all four (`pnpm gates`) before marking any task complete. `test` and `build` need
+`NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN` set (present in `.env.example`; CI injects `test-channel`).
 
 ---
 
