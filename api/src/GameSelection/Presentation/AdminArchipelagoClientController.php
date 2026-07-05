@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\ArchipelagoClientQuery;
-use App\GameSelection\Application\UpdateArchipelagoClient;
+use App\GameSelection\Application\Command\UpdateArchipelagoClient;
+use App\GameSelection\Application\Query\ArchipelagoClientQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\CatalogSync\Application\ApworldVersionChecker;
+use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Domain\GameRepositoryInterface;

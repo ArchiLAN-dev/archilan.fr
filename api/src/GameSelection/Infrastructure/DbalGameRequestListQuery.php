@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
-use App\GameSelection\Application\GameRequestListQueryInterface;
+use App\GameSelection\Application\Query\GameRequestListQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalGameRequestListQuery implements GameRequestListQueryInterface

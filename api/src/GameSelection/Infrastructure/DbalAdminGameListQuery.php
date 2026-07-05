@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
-use App\GameSelection\Application\AdminGameListQueryInterface;
+use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 

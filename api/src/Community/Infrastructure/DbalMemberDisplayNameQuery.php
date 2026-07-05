@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Identity\Application\MemberDisplayNameQueryInterface;
+use App\Identity\Application\Query\MemberDisplayNameQueryInterface;
 use Doctrine\DBAL\Connection;
 
 /**

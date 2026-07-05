@@ -93,10 +93,8 @@ final readonly class DddArchitectureValidator
      */
     private const UNMIGRATED_TAXONOMY_CONTEXTS = [
         'Shared',
-        'Identity',
         'Events',
         'Registrations',
-        'GameSelection',
         'Content',
         'Payments',
         'Realtime',

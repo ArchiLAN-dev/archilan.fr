@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 use App\PersonalRuns\Domain\YamlTemplate;
 
 final class YamlTemplateTest extends FunctionalTestCase

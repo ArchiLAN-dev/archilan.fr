@@ -7,7 +7,7 @@ namespace App\Community\Application;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\CommunityXp;
 use App\Community\Domain\Level;
-use App\Identity\Application\PlayerStatsQueryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 
 /**
  * Single source of truth for a user's community level/XP + headline stats. The canonical XP formula is

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application;
 
-use App\GameSelection\Application\GameCatalogQueryInterface;
+use App\GameSelection\Application\Query\GameCatalogQueryInterface;
 use Psr\Log\LoggerInterface;
 
 /**

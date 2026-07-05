@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application;
 
+use App\GameSelection\Application\Exception\SteamApiException;
+
 interface SteamWebApiClientInterface
 {
     /**

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\Message\EmailConfirmationMessage;
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Domain\User;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 

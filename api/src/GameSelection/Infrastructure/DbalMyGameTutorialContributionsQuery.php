@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
-use App\GameSelection\Application\MyGameTutorialContributionsQueryInterface;
+use App\GameSelection\Application\Query\MyGameTutorialContributionsQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalMyGameTutorialContributionsQuery implements MyGameTutorialContributionsQueryInterface

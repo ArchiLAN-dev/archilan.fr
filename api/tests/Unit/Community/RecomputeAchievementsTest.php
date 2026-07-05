@@ -13,8 +13,8 @@ use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\DefaultAchievementDefinitions;
-use App\Identity\Application\PlayerHistoryQueryInterface;
-use App\Identity\Application\PlayerStatsQueryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class RecomputeAchievementsTest extends TestCase

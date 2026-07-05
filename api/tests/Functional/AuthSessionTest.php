@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Application\AuthSessionSigner;
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Presentation\AuthController;
 
 final class AuthSessionTest extends FunctionalTestCase

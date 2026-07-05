@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\ArchipelagoGuideQuery;
-use App\GameSelection\Application\UpdateArchipelagoGuide;
+use App\GameSelection\Application\Command\UpdateArchipelagoGuide;
+use App\GameSelection\Application\Query\ArchipelagoGuideQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

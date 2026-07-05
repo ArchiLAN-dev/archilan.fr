@@ -7,7 +7,7 @@ namespace App\Tests\Functional;
 use App\Community\Domain\ContentReport;
 use App\Community\Domain\ModerationAction;
 use App\Community\Domain\Notification;
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Domain\User;
 
 final class AccountModerationTest extends FunctionalTestCase

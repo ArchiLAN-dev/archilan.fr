@@ -6,10 +6,10 @@ namespace App\Identity\Presentation;
 
 use App\Identity\Application\AuthenticateUser;
 use App\Identity\Application\AuthSessionSigner;
+use App\Identity\Application\Command\RotateRefreshToken;
 use App\Identity\Application\CurrentUserProvider;
-use App\Identity\Application\MemberDisplayNameQueryInterface;
+use App\Identity\Application\Query\MemberDisplayNameQueryInterface;
 use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Application\RotateRefreshToken;
 use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use App\Identity\Domain\User;
 use Symfony\Component\HttpFoundation\Cookie;

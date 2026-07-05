@@ -9,7 +9,7 @@ use App\Community\Application\CommunityUserIdsQueryInterface;
 use App\Community\Application\RecordActivity;
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
-use App\Identity\Application\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ActivityFeedTest extends TestCase

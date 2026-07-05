@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
+use App\Identity\Application\Command\LinkDiscordToAccount;
+use App\Identity\Application\Command\UnlinkDiscordFromAccount;
 use App\Identity\Application\DiscordOAuthClientInterface;
-use App\Identity\Application\LinkDiscordToAccount;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Application\UnlinkDiscordFromAccount;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
-use App\GameSelection\Application\AdminGameContributionsQueryInterface;
-use App\GameSelection\Application\ContributionQueryFilters;
 use App\GameSelection\Application\InstallStepsReader;
+use App\GameSelection\Application\Query\AdminGameContributionsQueryInterface;
+use App\GameSelection\Application\Query\ContributionQueryFilters;
 use App\GameSelection\Domain\GameTutorialContribution;
 use Doctrine\DBAL\Connection;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\ChangeUserSlug;
+use App\Identity\Application\Command\ChangeUserSlug;
 use PHPUnit\Framework\TestCase;
 
 final class ChangeUserSlugTest extends TestCase

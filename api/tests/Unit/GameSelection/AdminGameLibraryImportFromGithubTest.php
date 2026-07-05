@@ -6,7 +6,6 @@ namespace App\Tests\Unit\GameSelection;
 
 use App\CatalogSync\Application\ApworldVersionChecker;
 use App\GameSelection\Application\AdminGameLibrary;
-use App\GameSelection\Application\AdminGameListQueryInterface;
 use App\GameSelection\Application\GameCatalogLinksProviderInterface;
 use App\GameSelection\Application\GamePlatformResolver;
 use App\GameSelection\Application\GameTutorialSeeder;
@@ -14,6 +13,7 @@ use App\GameSelection\Application\GameUsageCounterInterface;
 use App\GameSelection\Application\IgdbHttpClientInterface;
 use App\GameSelection\Application\InstallStepsNormalizer;
 use App\GameSelection\Application\InstallStepsReader;
+use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Sessions\Application\RunnerGatewayInterface;

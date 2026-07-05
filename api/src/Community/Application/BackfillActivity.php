@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application;
 
 use App\Community\Domain\ActivityEntry;
-use App\Identity\Application\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 
 /**
  * Reconstructs the activity feed from existing data (the deterministic source of truth, epic §E.1).

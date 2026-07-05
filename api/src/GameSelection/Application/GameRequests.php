@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application;
 
+use App\GameSelection\Application\Query\GameRequestListQueryInterface;
 use App\GameSelection\Domain\GameRequest;
 use App\GameSelection\Domain\GameRequestRepositoryInterface;
 

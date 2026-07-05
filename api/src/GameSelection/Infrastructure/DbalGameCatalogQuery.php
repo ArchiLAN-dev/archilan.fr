@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
-use App\GameSelection\Application\GameCatalogQueryInterface;
 use App\GameSelection\Application\InstallStepsReader;
+use App\GameSelection\Application\Query\GameCatalogQueryInterface;
 use App\GameSelection\Domain\ApworldUpdateStatus;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\PlatformCategory;

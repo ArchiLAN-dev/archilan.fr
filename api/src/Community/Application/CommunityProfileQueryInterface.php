@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
+
 interface CommunityProfileQueryInterface
 {
     /**

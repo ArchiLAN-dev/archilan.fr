@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\MyGameTutorialContributionsQueryInterface;
-use App\GameSelection\Application\SubmitGameTutorialContribution;
+use App\GameSelection\Application\Command\SubmitGameTutorialContribution;
+use App\GameSelection\Application\Query\MyGameTutorialContributionsQueryInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

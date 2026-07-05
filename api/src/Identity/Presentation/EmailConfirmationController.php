@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\ConfirmEmail;
-use App\Identity\Application\ResendEmailConfirmation;
+use App\Identity\Application\Command\ConfirmEmail;
+use App\Identity\Application\Command\ResendEmailConfirmation;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

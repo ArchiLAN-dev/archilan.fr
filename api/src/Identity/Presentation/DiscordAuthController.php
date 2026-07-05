@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\AuthSessionSigner;
+use App\Identity\Application\Command\HandleDiscordAuthCallback;
 use App\Identity\Application\DiscordOAuthClientInterface;
 use App\Identity\Application\DiscordStateToken;
-use App\Identity\Application\HandleDiscordAuthCallback;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use Symfony\Component\HttpFoundation\Cookie;

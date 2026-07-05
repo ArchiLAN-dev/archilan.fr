@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 
 final class ProfileTest extends FunctionalTestCase
 {

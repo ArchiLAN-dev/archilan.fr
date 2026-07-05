@@ -238,12 +238,12 @@ services:
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
-    App\Identity\Application\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
+    App\Identity\Application\Query\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
+    App\Identity\Application\Query\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
     App\Identity\Application\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\DbalDiscordResyncAllUsers'
-    App\Identity\Application\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
-    App\Identity\Application\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
-    App\Identity\Application\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
+    App\Identity\Application\Query\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
+    App\Identity\Application\Query\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
+    App\Identity\Application\Query\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
 
     App\Identity\Infrastructure\DbalDiscordBotStatusQuery:
         arguments:
@@ -252,11 +252,11 @@ services:
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\HandleDiscordAuthCallback:
+    App\Identity\Application\Command\HandleDiscordAuthCallback:
         arguments:
             $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
 
-    App\Identity\Application\LinkDiscordToAccount:
+    App\Identity\Application\Command\LinkDiscordToAccount:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
@@ -293,7 +293,7 @@ services:
     App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
     App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
     App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
-    App\Identity\Application\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
+    App\Identity\Application\Query\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
     App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
     App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
     App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
@@ -338,20 +338,20 @@ services:
 
     App\GameSelection\Application\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
     App\GameSelection\Application\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\SteamWebApiClient'
-    App\GameSelection\Application\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
+    App\GameSelection\Application\Query\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
     App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
     App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoClientInfoRepository'
     App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoGuideRepository'
     App\GameSelection\Domain\GameTutorialContributionRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameTutorialContributionRepository'
-    App\GameSelection\Application\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalMyGameTutorialContributionsQuery'
-    App\GameSelection\Application\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameContributionsQuery'
+    App\GameSelection\Application\Query\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalMyGameTutorialContributionsQuery'
+    App\GameSelection\Application\Query\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameContributionsQuery'
     App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
     App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
-    App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
-    App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
-    App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
+    App\GameSelection\Application\Query\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
+    App\GameSelection\Application\Query\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
+    App\GameSelection\Application\Query\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
     App\GameSelection\Application\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\DbalGameUsageCounter'
 
     App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'

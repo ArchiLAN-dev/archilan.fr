@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\BackfillGameOptionTypes;
+use App\GameSelection\Application\Command\BackfillGameOptionTypes;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Sessions\Application\RunnerGatewayInterface;
