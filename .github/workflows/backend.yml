@@ -47,10 +47,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    # NB: a PHP 8.3 matrix leg was attempted but the lockfile requires 8.4
-    # (doctrine/doctrine-bundle 3.2.2 needs php ^8.4), so 8.3 can't even install.
-    # The project effectively requires 8.4; composer.json's "^8.3" is aspirational
-    # and should be bumped to "^8.4" to match the lock (separate follow-up).
+    # NB: single PHP leg on purpose - CI runs the version the prod image ships
+    # (php:8.5-cli-alpine since story 33.9 M3); composer.json requires ^8.4,
+    # which 8.5 satisfies.
     defaults:
       run:
         working-directory: api
@@ -77,7 +76,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: ctype, iconv, pdo_pgsql, pgsql, amqp
           coverage: pcov
           tools: composer:v2
