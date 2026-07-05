@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\ApworldQuery;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Infrastructure\MinioStorageInterface;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

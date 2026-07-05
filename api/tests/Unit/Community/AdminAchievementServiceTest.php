@@ -10,7 +10,7 @@ use App\Community\Application\Service\AdminAchievementService;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 
 final class AdminAchievementServiceTest extends TestCase

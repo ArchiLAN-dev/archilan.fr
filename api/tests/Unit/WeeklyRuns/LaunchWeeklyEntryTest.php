@@ -16,7 +16,7 @@ use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
 use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
-use App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway;
+use App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\MockClock;
 

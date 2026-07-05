@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Infrastructure\DiscordBotClient;
+use App\Identity\Infrastructure\Http\DiscordBotClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;

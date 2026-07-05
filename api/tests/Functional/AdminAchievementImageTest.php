@@ -7,7 +7,7 @@ namespace App\Tests\Functional;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementGrant;
 use App\Identity\Domain\User;
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminAchievementImageTest extends FunctionalTestCase

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Realtime\Infrastructure\SpyHub;
+use App\Realtime\Infrastructure\Double\SpyHub;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;

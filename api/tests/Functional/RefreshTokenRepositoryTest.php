@@ -8,7 +8,7 @@ use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
-use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
+use App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class RefreshTokenRepositoryTest extends FunctionalTestCase

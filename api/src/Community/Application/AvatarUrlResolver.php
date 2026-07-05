@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Resolves the avatar URL shown to clients, applying the story 30.27 precedence: a member-uploaded custom

@@ -7,7 +7,7 @@ namespace App\Community\Application\Service;
 use App\Community\Application\AvatarUrlResolver;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**

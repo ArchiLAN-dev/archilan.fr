@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Sessions;
 
 use App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 
 final class MinioZipSpoilerArtifactReaderTest extends TestCase

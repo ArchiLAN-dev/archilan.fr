@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Presentation\Controller\Admin;
 
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Infrastructure\MinioStorageInterface;
 use App\WeeklyRuns\Application\Query\AdminWeeklyRunOutputQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

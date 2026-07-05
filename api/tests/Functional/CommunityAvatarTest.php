@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class CommunityAvatarTest extends FunctionalTestCase

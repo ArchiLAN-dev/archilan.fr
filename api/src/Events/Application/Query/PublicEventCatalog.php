@@ -8,7 +8,7 @@ use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\Payments\Application\HelloAssoConfig;
 use App\Registrations\Application\Query\RegistrationCounter;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 final readonly class PublicEventCatalog
 {

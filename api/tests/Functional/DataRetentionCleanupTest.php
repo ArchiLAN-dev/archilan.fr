@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\EventPrivateAccessLog;
-use App\Events\Infrastructure\DoctrineEventPrivateAccessLogRepository;
+use App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\PasswordResetToken;
-use App\Identity\Infrastructure\DoctrineEmailConfirmationTokenRepository;
-use App\Identity\Infrastructure\DoctrinePasswordResetTokenRepository;
+use App\Identity\Infrastructure\Doctrine\DoctrineEmailConfirmationTokenRepository;
+use App\Identity\Infrastructure\Doctrine\DoctrinePasswordResetTokenRepository;
 use App\Payments\Domain\HelloAssoSyncLog;
-use App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository;
+use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository;
 
 /**
  * Story 13.7 - proves each scheduled cleanup deletes only stale rows and leaves

@@ -8,7 +8,7 @@ use App\Membership\Domain\Membership;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;
-use App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway;
+use App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway;
 
 final class WeeklyRunLaunchTest extends FunctionalTestCase
 {

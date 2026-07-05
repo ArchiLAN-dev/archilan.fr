@@ -9,7 +9,7 @@ use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
-use App\Realtime\Infrastructure\SpyHub;
+use App\Realtime\Infrastructure\Double\SpyHub;
 use App\Sessions\Domain\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 

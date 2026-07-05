@@ -17,7 +17,7 @@ use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\PlatformCategory;
 use App\Identity\Application\ValidationErrors;
 use App\Sessions\Application\RunnerGatewayInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminGameLibrary

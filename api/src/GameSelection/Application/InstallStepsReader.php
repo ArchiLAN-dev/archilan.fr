@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\GameSelection\Domain\InstallStepType;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Read-side presenter for install-tutorial steps (story 31.10). Centralizes what used to be duplicated

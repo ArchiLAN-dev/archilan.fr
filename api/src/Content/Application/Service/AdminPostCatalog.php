@@ -6,7 +6,7 @@ namespace App\Content\Application\Service;
 
 use App\Content\Domain\Post;
 use App\Content\Domain\PostRepositoryInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 final readonly class AdminPostCatalog

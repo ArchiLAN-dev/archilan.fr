@@ -6,7 +6,7 @@ namespace App\Content\Application\Query;
 
 use App\Content\Domain\Post;
 use App\Content\Domain\PostRepositoryInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 final readonly class PublicPostCatalog
 {

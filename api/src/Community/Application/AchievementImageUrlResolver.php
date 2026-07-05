@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Resolves the presigned URL of an achievement's optional custom image (story 30.33), from its MinIO key in

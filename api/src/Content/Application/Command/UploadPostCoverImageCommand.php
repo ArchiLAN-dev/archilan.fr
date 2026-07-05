@@ -7,7 +7,7 @@ namespace App\Content\Application\Command;
 use App\Content\Application\Service\AdminPostCatalog;
 use App\Content\Domain\Post;
 use App\Content\Domain\PostRepositoryInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 final readonly class UploadPostCoverImageCommand
 {

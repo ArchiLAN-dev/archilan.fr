@@ -9,7 +9,7 @@ use App\GameSelection\Application\IgdbHttpClientInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbSearchException;
+use App\GameSelection\Infrastructure\Exception\IgdbSearchException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

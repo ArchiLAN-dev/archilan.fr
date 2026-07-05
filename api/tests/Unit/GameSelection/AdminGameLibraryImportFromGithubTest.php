@@ -17,7 +17,7 @@ use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Sessions\Application\RunnerGatewayInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;

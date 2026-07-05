@@ -6,8 +6,8 @@ namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionOrchestrator;
 use App\Sessions\Application\SessionQuery;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Infrastructure\MinioStorageInterface;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;

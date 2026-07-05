@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Content\Domain\Post;
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminPostCoverImageTest extends FunctionalTestCase
