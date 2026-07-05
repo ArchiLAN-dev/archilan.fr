@@ -99,15 +99,23 @@ auth/config resolvers). This keeps only ports, cross-cutting helpers, config hol
 directly under `Application/`. There is no validator rule for `Service/` (a service has no
 name suffix a text check can key on) - it is a documented convention, not a gated one.
 
-**What stays FLAT (deliberately - story 33.10):** in `Domain/`, everything except exceptions
-(entities, value objects, enums, repository interfaces - the readable core). In `Application/`,
-the shared surface that is neither a command nor a query: non-query ports/gateway interfaces
-(`RunnerGatewayInterface`, `DiscordBotClientInterface`...), cross-cutting helpers
-(`ValidationErrors`, `SlugGenerator`...), config holders and mixed read/write facades.
-`Infrastructure/` and `Presentation/` gain no kind sub-folders (class prefixes `Doctrine*`/
-`Dbal*`/`Null*`/`Stub*` and the controller convention already encode kind). Contexts are
-migrated progressively; `DddArchitectureValidator::UNMIGRATED_TAXONOMY_CONTEXTS` lists the
-not-yet-migrated ones - shrink it, never grow it.
+**No flat files (story 33.11): every class sits in a kind sub-folder of its layer.**
+
+| Layer | Sub-folders |
+|---|---|
+| `Domain/` | `Entity/` (`#[ORM\Entity]`), `ValueObject/` (final readonly, no ORM), `Enum/`, `Repository/` (`*RepositoryInterface`), `Service/` (pure domain logic), `Exception/` |
+| `Application/` | `Command/ Query/ Service/ Message/ Handler/ Exception/ Email/` + `Port/` (infra-facing interfaces, gateways, `Notifier`) + `Support/` (helpers, factories, crypto, resolvers, normalizers, builders, providers, config holders, free DTOs) |
+| `Infrastructure/` | `Doctrine/` (`Doctrine*Repository`), `Dbal/` (`Dbal*Query`), `Http/` (clients, `ApiAccessGuard`), `Console/`, `Double/` (`Null*`/`Stub*`/`Spy*`, `when@test`) |
+| `Presentation/` | `Controller/` (all controllers; `Controller/Admin/` where an admin split exists), `Command/` (console) |
+
+Doctrine mapping targets `Domain/Entity/` (prefix `App\{Context}\Domain\Entity`). Name-detectable
+kinds (entities, `*RepositoryInterface`, `*Controller`, `Doctrine*`, `Dbal*`, `Null*`/`Stub*`/`Spy*`)
+are validator-gated; content-only distinctions (VO vs Support, Port vs Service) are documented
+convention. **Carve-out:** the 4 `Community\Domain` classes imported by merged migrations
+(`DefaultAchievementDefinitions`, `AchievementMetricCatalog`, `AchievementOperator`,
+`AchievementRuleGroup`) keep their current FQCN - merged migrations are immutable.
+Contexts migrate progressively; `DddArchitectureValidator::UNMIGRATED_TAXONOMY_CONTEXTS` lists the
+not-yet-migrated ones (`Sessions` until Epic 32) - shrink it, never grow it.
 
 ---
 
