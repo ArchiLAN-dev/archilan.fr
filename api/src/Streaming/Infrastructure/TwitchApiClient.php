@@ -52,7 +52,7 @@ final class TwitchApiClient implements TwitchApiClientInterface
         }
     }
 
-    public function fetchLiveLogins(array $logins): array
+    public function fetchLiveLogins(array $logins): ?array
     {
         if ('' === $this->clientId || '' === $this->clientSecret || [] === $logins) {
             return [];
@@ -61,10 +61,12 @@ final class TwitchApiClient implements TwitchApiClientInterface
         try {
             $token = $this->getAppToken();
         } catch (\Throwable) {
-            return [];
+            // Outage, not "nobody live": let callers cache this for a shorter time.
+            return null;
         }
 
         $live = [];
+        $successfulChunks = 0;
         // Helix /streams accepts up to 100 user_login params per call.
         foreach (array_chunk(array_values(array_unique($logins)), 100) as $chunk) {
             // Twitch needs repeated `user_login=` params; Symfony's array query encoding would emit
@@ -96,10 +98,17 @@ final class TwitchApiClient implements TwitchApiClientInterface
                         $live[mb_strtolower($login)] = is_int($viewerCount) ? $viewerCount : 0;
                     }
                 }
+                ++$successfulChunks;
             } catch (\Throwable) {
                 // Tolerate a failed chunk - keep whatever the other chunks returned.
                 continue;
             }
+        }
+
+        if (0 === $successfulChunks) {
+            // Every chunk failed ($logins is non-empty here, so at least one chunk ran):
+            // Twitch is unreachable, not empty.
+            return null;
         }
 
         return $live;

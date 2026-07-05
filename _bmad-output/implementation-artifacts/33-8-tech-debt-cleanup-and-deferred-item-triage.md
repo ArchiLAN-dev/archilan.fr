@@ -1,6 +1,6 @@
 # Story 33.8: Tech-Debt Cleanup & Deferred-Item Triage (api/ + frontend/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -25,12 +25,12 @@ so that the deferred ledger reflects reality and nothing surfaced by the epic's 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Commit this story (triage of record) before code changes (AC: 1)
-- [ ] Task 2: D1 fix (AC: 1, 3) - port contract `fetchLiveLogins(): array|null` (interface docblock + impl distinguishing token-failure/all-chunks-failed from empty), `NullTwitchApiClient` (keep `[]`), `liveMap` dual TTL (15s null / 60s data), update `FakeTwitchApiClient` (TwitchStatusCheckerTest) + anonymous fake (ParticipantStreamsTest), new `tests/Unit/Streaming/ParticipantStreamsViewTest` (outage → [] + 15s TTL; data → 60s TTL; nobody-live → [] + 60s)
-- [ ] Task 3: D3 fix (AC: 1, 3) - `useMinWidthSm` via `useSyncExternalStore` in `participant-streams.tsx`, embed unmounted below `sm`, CSS class kept
-- [ ] Task 4: Update `deferred-work.md` with the four outcomes (AC: 1)
-- [ ] Task 5: AC2 verification sweep - grep TODO/FIXME both sides, confirm the bounce ledger, record results (AC: 2)
-- [ ] Task 6: Gates + PR (AC: 3) - `composer gates` (isolated suite) + `pnpm gates`; PR to `develop`; merge on green CI (authorized)
+- [x] Task 1: Triage of record committed before code changes → `bafc5fc`.
+- [x] Task 2: D1 fix - `fetchLiveLogins(): ?array` (null = token failure or every chunk failed; missing credentials stays `[]`); `liveMap` caches an outage 15s vs 60s authoritative; `NullTwitchApiClient` unchanged (covariant); both test fakes unchanged (covariant narrower returns remain valid); new `ParticipantStreamsViewTest` (3 tests: outage → offline + 15s, live data → 60s, authoritative-empty → 60s). PHPStan flagged the redundant `$totalChunks > 0` guard - simplified (logins are non-empty past the early return).
+- [x] Task 3: D3 fix - `useEmbedViewport()` via `useSyncExternalStore` on `(min-width: 640px)` gates the shared-embed render; `hidden sm:block` kept as paint guard; SSR snapshot true.
+- [x] Task 4: `deferred-work.md` rewritten with the four outcomes; ledger states "Nothing remains deferred from story 7.7".
+- [x] Task 5: AC2 sweep - api/src: 1 TODO (`TODO epic-32` allowlist comment, intentional); frontend/src: 0 TODO/FIXME/HACK; dead code from the 33.5-33.7 audits confirmed already removed in those stories; bounce ledger confirmed (AC2 list).
+- [x] Task 6: Gates green (phpstan 0 with extensions, cs-fixer 0, arch OK, unit 558/558, full suite on `archilan_test_story338`, `pnpm gates` exit 0); PR opened; merge on green CI authorized.
 
 ## Dev Notes
 
@@ -44,14 +44,32 @@ so that the deferred ledger reflects reality and nothing surfaced by the epic's 
 
 ### Agent Model Used
 
+Claude Fable 5 (claude-fable-5)
+
 ### Debug Log References
+
+- PHPStan (with 33.6's extensions) caught a provably-redundant guard in the new outage detection - simplified before commit.
+- Gates: phpstan 0, cs-fixer 0, arch OK, unit 558/558 (3 new), full isolated suite green, `pnpm gates` exit 0.
 
 ### Completion Notes List
 
+- 4/4 deferred items closed: 2 fixed (D1 outage TTL, D3 embed unmount), 2 formally accepted (D2, D4) - `deferred-work.md` now records outcomes and states nothing remains from story 7.7.
+- D1 behaviour change is exactly the approved one: a transient Twitch outage now self-heals in <=15s instead of 60s; authoritative results keep the 60s TTL and Helix quota profile.
+- D3 behaviour change: shrinking below `sm` after selecting a channel now unmounts the iframe (no hidden network/audio activity); selection is preserved in state and the embed remounts when the viewport grows back.
+- AC2: audit residue verified closed; non-trivial residues formally bounced (ClockInterface migration, AC-D5 setters, TanStack Query migration, typed SSE layer, Sessions TODO epic-32 items).
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/33-8-tech-debt-cleanup-and-deferred-item-triage.md` (this story), `deferred-work.md` (outcomes)
+- `api/src/Streaming/Application/TwitchApiClientInterface.php` (contract `?array`)
+- `api/src/Streaming/Infrastructure/TwitchApiClient.php` (null on token failure / all chunks failed)
+- `api/src/Streaming/Application/ParticipantStreamsView.php` (15s outage TTL)
+- `api/tests/Unit/Streaming/ParticipantStreamsViewTest.php` (new)
+- `frontend/src/features/streaming/participant-streams.tsx` (useSyncExternalStore embed gate)
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-05 | Story created: 4-item triage table (2 fixes with designs grounded in the current code, 2 formal acceptances), AC2 bounce ledger consolidated from the 33.5-33.7 worklists. Status: ready-for-dev. |
+| 2026-07-05 | Story executed: D1 + D3 fixed with tests, D2 + D4 formally accepted, deferred-work.md ledger closed, AC2 sweep clean. All gates green. Status → ready-for-review. |

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Radio, Users } from "lucide-react";
@@ -29,6 +29,25 @@ type Props = {
 
 const viewerFormatter = new Intl.NumberFormat("fr-FR");
 
+const EMBED_MEDIA_QUERY = "(min-width: 640px)";
+
+function subscribeToEmbedViewport(onChange: () => void): () => void {
+  const mql = window.matchMedia(EMBED_MEDIA_QUERY);
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+}
+
+// Unmounts (not just hides) the shared embed below `sm`, so shrinking the viewport after selecting a
+// channel does not keep a loaded iframe in the DOM (deferred item from story 7.7, resolved in 33.8).
+// SSR snapshot says true; the `hidden sm:block` class still guards the first client paint.
+function useEmbedViewport(): boolean {
+  return useSyncExternalStore(
+    subscribeToEmbedViewport,
+    () => window.matchMedia(EMBED_MEDIA_QUERY).matches,
+    () => true,
+  );
+}
+
 // Above this many cards, the widget caps the list and links to the dedicated /streams page.
 const MAX_VISIBLE_STREAMS = 10;
 
@@ -46,6 +65,7 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
   });
 
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
+  const embedViewport = useEmbedViewport();
 
   const live = data.filter((stream) => stream.live);
   const offline = data.filter((stream) => !stream.live);
@@ -71,7 +91,7 @@ export function ParticipantStreams({ kind, id, emptyState = "hide", variant = "c
     }
   }
 
-  const sharedEmbed = effectiveActive !== null && (
+  const sharedEmbed = effectiveActive !== null && embedViewport && (
     <div className="hidden sm:block">
       <ParticipantStreamEmbed channel={effectiveActive} />
     </div>
