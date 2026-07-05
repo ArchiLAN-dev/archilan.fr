@@ -34,9 +34,9 @@ Run all four (`composer gates`) before marking any task complete. Fix failures i
 
 ### Bounded contexts
 
-Every PHP class lives under `src/{Context}/{Layer}/`. Known contexts:
+Every PHP class lives under `src/{Context}/{Layer}/`. Known contexts (authoritative list: `DddArchitectureValidator::CONTEXTS`):
 
-`Identity` · `Events` · `Registrations` · `GameSelection` · `Content` · `Payments` · `Realtime` · `Communications` · `Sessions` · `PersonalRuns` · `CatalogSync` · `Streaming` · `Shared`
+`Identity` · `Events` · `Registrations` · `GameSelection` · `Content` · `Payments` · `Realtime` · `Communications` · `Legal` · `Sessions` · `PersonalRuns` · `CatalogSync` · `Streaming` · `Membership` · `WeeklyRuns` · `SessionConfig` · `Community` · `Shared`
 
 Adding a new context requires: (1) create the four layer directories, (2) add to `DddArchitectureValidator::CONTEXTS`, (3) add Domain exclusion to `services.yaml`, (4) add Doctrine mapping if the domain contains entities.
 
