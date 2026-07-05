@@ -5,9 +5,6 @@ parameters:
         - tests
     excludePaths:
         - tests/bootstrap.php
-    # TODO (DDD stories): add phpstan-doctrine and phpstan-symfony extensions when
-    # the first entities and injected services are implemented to avoid false positives
-    # at level max. Install with:
-    #   composer require --dev phpstan/extension-installer
-    #   composer require --dev phpstan/phpstan-doctrine
-    #   composer require --dev phpstan/phpstan-symfony
+    # phpstan-doctrine and phpstan-symfony are auto-registered via phpstan/extension-installer
+    # (story 33.6). They run without containerXmlPath / objectManagerLoader on purpose: those
+    # bindings need a booted kernel or a warmed cache, which CI's fresh checkout does not have.
