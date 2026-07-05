@@ -8,11 +8,11 @@ use App\Streaming\Domain\StreamStatus;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
-final class TwitchStatusChecker
+final readonly class TwitchStatusChecker
 {
     public function __construct(
-        private readonly TwitchApiClientInterface $client,
-        private readonly CacheInterface $cache,
+        private TwitchApiClientInterface $client,
+        private CacheInterface $cache,
     ) {
     }
 

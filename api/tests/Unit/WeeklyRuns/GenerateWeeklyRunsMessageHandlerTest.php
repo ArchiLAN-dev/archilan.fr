@@ -172,8 +172,9 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
 
     private function makeGame(): Game
     {
-        $game = $this->createStub(Game::class);
-        $game->method('getApworldStorageKey')->willReturn('apworlds/archipelago.apworld');
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+        $game = Game::create('Archipelago', 'archipelago', 'Description.', null, 'Alt', 'Credit', Game::AVAILABILITY_AVAILABLE, $now);
+        $game->configureApworld('apworlds/archipelago.apworld', 'apworld-hash-123', 'Archipelago', '', $now);
 
         return $game;
     }

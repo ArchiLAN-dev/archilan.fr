@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-final class RotationResult
+final readonly class RotationResult
 {
     private function __construct(
-        public readonly string $outcome,
-        public readonly ?string $userId,
-        public readonly ?string $rawRefreshToken,
-        public readonly bool $rememberMe = true,
+        public string $outcome,
+        public ?string $userId,
+        public ?string $rawRefreshToken,
+        public bool $rememberMe = true,
     ) {
     }
 

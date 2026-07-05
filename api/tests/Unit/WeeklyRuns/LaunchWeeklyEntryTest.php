@@ -258,10 +258,11 @@ final class LaunchWeeklyEntryTest extends TestCase
             $templates = $stub;
         }
 
-        $gameStub = $this->createStub(Game::class);
-        $gameStub->method('getApworldHash')->willReturn('apworld-hash-123');
+        $gameNow = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+        $game = Game::create('Archipelago', 'archipelago', 'Description.', null, 'Alt', 'Credit', Game::AVAILABILITY_AVAILABLE, $gameNow);
+        $game->configureApworld('apworlds/archipelago.apworld', 'apworld-hash-123', 'Archipelago', '', $gameNow);
         $games = $this->createStub(GameRepositoryInterface::class);
-        $games->method('findById')->willReturn($gameStub);
+        $games->method('findById')->willReturn($game);
 
         $sessions ??= $this->createStub(SessionRepositoryInterface::class);
 

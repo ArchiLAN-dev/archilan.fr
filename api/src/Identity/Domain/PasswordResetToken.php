@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_identity_password_reset_tokens_hash', columns: ['token_hash'])]
 #[ORM\Index(name: 'idx_identity_password_reset_tokens_user', columns: ['user_id'])]
-class PasswordResetToken
+final class PasswordResetToken
 {
     public const TTL_MINUTES = 15;
 

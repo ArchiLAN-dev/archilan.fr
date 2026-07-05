@@ -7,7 +7,7 @@ namespace App\Identity\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-class DeletionAudit
+final class DeletionAudit
 {
     public function __construct(
         #[ORM\Id]

@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Index(name: 'idx_identity_admin_account_creation_audits_created_user_id', columns: ['created_user_id'])]
 #[ORM\Index(name: 'idx_identity_admin_account_creation_audits_creator_user_id', columns: ['creator_user_id'])]
-class AdminCreationAudit
+final class AdminCreationAudit
 {
     public function __construct(
         #[ORM\Id]

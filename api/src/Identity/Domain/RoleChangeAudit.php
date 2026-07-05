@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Index(name: 'idx_identity_role_change_audits_target_user_id', columns: ['target_user_id'])]
 #[ORM\Index(name: 'idx_identity_role_change_audits_admin_user_id', columns: ['admin_user_id'])]
-class RoleChangeAudit
+final class RoleChangeAudit
 {
     public function __construct(
         #[ORM\Id]

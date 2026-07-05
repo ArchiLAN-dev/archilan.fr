@@ -7,7 +7,7 @@ namespace App\GameSelection\Domain;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-class IgnoredCatalogEntry
+final class IgnoredCatalogEntry
 {
     public function __construct(
         #[ORM\Id]

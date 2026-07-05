@@ -8,7 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_games_slug', columns: ['slug'])]
-class Game
+final class Game
 {
     public const AVAILABILITY_AVAILABLE = 'available';
     public const AVAILABILITY_UNAVAILABLE = 'unavailable';

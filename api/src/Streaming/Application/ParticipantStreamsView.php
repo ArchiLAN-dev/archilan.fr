@@ -17,12 +17,12 @@ use Symfony\Contracts\Cache\ItemInterface;
  *
  * @phpstan-type ParticipantStream array{userId: string, slug: string, displayName: string|null, twitchLogin: string, avatarUrl: string|null, live: bool, viewerCount: int|null}
  */
-final class ParticipantStreamsView
+final readonly class ParticipantStreamsView
 {
     public function __construct(
-        private readonly ParticipantTwitchLinksQueryInterface $query,
-        private readonly TwitchApiClientInterface $client,
-        private readonly CacheInterface $cache,
+        private ParticipantTwitchLinksQueryInterface $query,
+        private TwitchApiClientInterface $client,
+        private CacheInterface $cache,
     ) {
     }
 

@@ -99,12 +99,9 @@ final class MembershipReminderMessageHandlerTest extends TestCase
 
     private function makeUser(): User
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('Test User');
-        $user->method('getDeletedAt')->willReturn(null);
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
 
-        return $user;
+        return new User('user-1', 'test@example.com', 'test@example.com', 'Test User', 'hash', ['ROLE_USER'], $now, $now, $now);
     }
 
     private function createHandler(

@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_identity_email_confirmation_tokens_hash', columns: ['token_hash'])]
 #[ORM\Index(name: 'idx_identity_email_confirmation_tokens_user', columns: ['user_id'])]
-class EmailConfirmationToken
+final class EmailConfirmationToken
 {
     public const TTL_HOURS = 24;
 
