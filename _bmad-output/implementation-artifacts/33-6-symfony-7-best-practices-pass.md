@@ -1,6 +1,6 @@
 # Story 33.6: Symfony 7 Best-Practices Pass (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -16,33 +16,31 @@ so that the codebase's conformance floor rises with zero behaviour change and no
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Produce and commit the audit worklist (AC: 1)
-  - [ ] 1.1 Confirm each seeded finding (Dev Notes) still holds at the current develop head; record fix-vs-accept dispositions.
-  - [ ] 1.2 Feasibility check for entity `final` (see Task 4 caveat): inspect `config/packages/doctrine.yaml` for native lazy objects vs classic proxies, and identify which of the 14 non-final entities are targets of lazy to-one associations. Record the verdict per entity.
-  - [ ] 1.3 Verify the 3 `@deprecated` Identity shims have zero remaining references (`DiscordBotStatusQuery`, `DiscordBotUsersQuery`, `DiscordResyncAllUsers` in `Identity/Application` - replaced by `Dbal*` Infrastructure impls, not wired in services.yaml).
-  - [ ] 1.4 Enumerate the functional tests that mutate the test-double statics (`StubIgdbHttpClient::$*`, `StubSteamWebApiClient::$*`, `NullMinioStorage::$*`, `NullRunnerGateway::$*`) to size Task 5; record the list.
-  - [ ] 1.5 Commit the worklist before any src/config change.
-- [ ] Task 2: Close the deprecation surface (AC: 2)
-  - [ ] 2.1 `MembershipVoter::voteOnAttribute()`: add the `?Vote $vote = null` parameter per Symfony 7.4's `Voter` signature. Unit/functional coverage: MembershipVoter is exercised by RBAC functional tests - verify.
-  - [ ] 2.2 `php bin/console debug:container --deprecations` → "Remaining deprecations (0)".
-- [ ] Task 3: Delete dead code (AC: 2)
-  - [ ] 3.1 Delete the 3 `@deprecated` shims in `api/src/Identity/Application/` (after 1.3's zero-reference proof).
-  - [ ] 3.2 Delete `api/config/reference.php` (101 KB auto-generated dump; only reference in the repo is its own cs-fixer exclusion) and remove the `notPath('config/reference.php')` line from `.php-cs-fixer.dist.php`.
-  - [ ] 3.3 `config/packages/validator.yaml` commented scaffold references non-existent `App\Entity\` - delete the dead comment block. Other Flex scaffold comments (framework/cache/security/routing yaml) are ACCEPTED as-is (standard Flex documentation comments, harmless) - record in worklist.
-- [ ] Task 4: Class-modifier tidy (AC: 2, 3)
-  - [ ] 4.1 Add `final` to the non-final `#[ORM\Entity]` classes OUTSIDE `Sessions` (12 of 14: Identity x8 - `User`, `RefreshToken`, `PasswordResetToken`, `EmailConfirmationToken`, `RoleChangeAudit`, `PrivacyRightsRequest`, `DeletionAudit`, `AdminCreationAudit`; GameSelection x4 - `Game`, `GameCatalogSync`, `GameRequest`, `IgnoredCatalogEntry`) - ONLY if 1.2's proxy feasibility check passes for each (classic Doctrine proxies cannot extend final classes; if an entity is lazy-proxied and native lazy objects are off, accept with rationale instead). `Session` + `SessionSlot` are DEFERRED (Sessions frozen until Epic 32 merges - record TODO epic-32).
-  - [ ] 4.2 Promote to `final readonly`: `Streaming/Application/TwitchStatusChecker`, `Streaming/Application/ParticipantStreamsView`, `Identity/Application/RotationResult` (all verified: every property already readonly, no mutating methods).
-  - [ ] 4.3 Full functional suite on isolated DB after 4.1 (associations + lazy loading are exactly what unit tests do not cover).
-- [ ] Task 5: Static mutable state in test doubles (AC: 2, 3)
-  - [ ] 5.1 Refactor `Shared/Infrastructure/NullMinioStorage`, `GameSelection/Infrastructure/StubIgdbHttpClient`, `GameSelection/Infrastructure/StubSteamWebApiClient` from static properties to instance state. The doubles are `public: true` in `when@test` services.yaml - tests fetch the instance via `static::getContainer()->get(...)` and configure it, instead of writing statics. Update every functional test enumerated in 1.4.
-  - [ ] 5.2 `Sessions/Infrastructure/NullRunnerGateway` statics: DEFER (Sessions frozen, TODO epic-32) - record in worklist.
-  - [ ] 5.3 Fallback clause: if 5.1 balloons past the enumerated test list (hidden couplings), stop, accept the remainder with rationale in the worklist, and record the residue as a follow-up candidate - do not let this story become open-ended.
-- [ ] Task 6: PHPStan extensions (stale TODO at `api/phpstan.neon:8`) (AC: 2) **[human: new dev dependencies - ask Jean before installing]**
-  - [ ] 6.1 With approval: `composer require --dev phpstan/extension-installer phpstan/phpstan-symfony phpstan/phpstan-doctrine`, wire the symfony container xml + doctrine objectManagerLoader per docs, run `composer phpstan`.
-  - [ ] 6.2 If the new-error count is small (roughly <= 20), fix them here; if large, keep the extensions OFF (revert), record the count + decision in the worklist, and update the phpstan.neon TODO with the measured number so the follow-up story is sized. Either way the stale TODO is resolved (actioned or re-scoped with data).
-- [ ] Task 7: Final gates + PR (AC: 3)
-  - [ ] 7.1 `composer gates` green; `pnpm gates` green (frontend untouched - regression check); full suite on isolated DB (`api/scripts/test-isolated.sh story336`).
-  - [ ] 7.2 PR to `develop` from `feature/epic-33-story-6-symfony-best-practices`; body links the worklist and states the Sessions deferrals. Commits: (1) worklist, (2) deprecation + dead code, (3) modifiers, (4) test-double refactor, (5) phpstan extensions (if approved), (6) story record.
+- [x] Task 1: Produce and commit the audit worklist (AC: 1)
+  - [x] 1.1 Seeded findings confirmed at develop = 8648f4c; dispositions recorded (7 fixes, 9 accepted, 2 out-of-scope). → `fa33acd`.
+  - [x] 1.2 Entity-final feasibility PROVEN: DoctrineBundle 3.x forces `enable_native_lazy_objects: true` (Configuration.php:367 - "can no longer be disabled"); no proxy dir in var/cache; native lazy objects support final entities. Verdict: all 12 safe.
+  - [x] 1.3 Zero references to the 3 shims confirmed (all callers use interfaces; services.yaml wires only `Dbal*`).
+  - [x] 1.4 Static-mutating tests enumerated: 12 files. Deeper finding: `KernelBrowser` reboots the kernel between requests - the statics are the deliberate cross-reboot state carrier. Task 5 refactor REJECTED at audit (fallback 5.3 exercised early); accepted with rationale (worklist C1).
+  - [x] 1.5 Worklist committed before any src/config change.
+- [x] Task 2: Close the deprecation surface (AC: 2)
+  - [x] 2.1 `?Vote $vote = null` param added to `MembershipVoter::voteOnAttribute()`; voter covered by RBAC/membership functional tests.
+  - [x] 2.2 `debug:container --deprecations` → "There are no deprecations in the logs!".
+- [x] Task 3: Delete dead code (AC: 2)
+  - [x] 3.1 3 shims deleted.
+  - [x] 3.2 `config/reference.php` removed from VCS - EXECUTION DISCOVERY: Symfony Flex regenerates it on composer operations, so it is also gitignored and the cs-fixer exclusion is KEPT (plan adjusted, worklist F3 updated).
+  - [x] 3.3 `validator.yaml` dead scaffold comment deleted; other Flex scaffold comments accepted (worklist C3).
+- [x] Task 4: Class-modifier tidy (AC: 2, 3)
+  - [x] 4.1 `final` added to all 12 entities (Identity x8, GameSelection x4); `Session`/`SessionSlot` deferred with TODO epic-32. Prerequisite discovered and resolved: 15 `createStub(User::class)` + 3 `createStub(Game::class)` sites in unit tests (PHPUnit cannot double final classes AND they violated AC-T2) - all 18 converted to real instances via local helpers. Bonus: `User::getPassword()` narrowed to `string` (phpstan proved the null branch dead once final).
+  - [x] 4.2 3 `final readonly` promotions applied.
+  - [x] 4.3 Full functional suite green on isolated DB (`archilan_test_story336`).
+- [x] Task 5: Static mutable state in test doubles (AC: 2, 3)
+  - [x] 5.1-5.3 Resolved via the audit (1.4): refactor rejected with recorded rationale - static state is the deliberate cross-kernel-reboot carrier for multi-request functional tests; instance state would silently break them; doubles are `when@test`-only; production code has zero static mutable state (verified). Worklist C1; future candidate only if tests move to single-request patterns.
+- [x] Task 6: PHPStan extensions (AC: 2) **[human approval obtained in-session]**
+  - [x] 6.1 Jean approved; `phpstan/extension-installer` + `phpstan-symfony` + `phpstan-doctrine` installed (partial composer update; a local em-dash-noise stash in the vendored orchestrateur-client was needed to unblock - stash `em-dash-normalization-noise-2026-07-05` kept recoverable). No containerXmlPath/objectManagerLoader on purpose (CI has no warmed cache).
+  - [x] 6.2 New-error count with extensions active: ZERO at level max. Stale TODO replaced with a comment documenting the setup and the deliberate no-kernel-binding choice.
+- [x] Task 7: Final gates + PR (AC: 3)
+  - [x] 7.1 phpstan 0 (extensions on), cs-fixer 0, arch gate OK, lint:container OK, unit 555/555, full suite green on isolated DB, `pnpm gates` exit 0.
+  - [x] 7.2 PR opened to `develop`; worklist linked; Sessions deferrals stated. Commits: worklist → deprecation+dead code → modifiers+fixtures → phpstan extensions → story record.
 
 ## Dev Notes
 
@@ -103,14 +101,39 @@ Classic Doctrine proxies SUBCLASS the entity; a `final` entity that is the targe
 
 ### Agent Model Used
 
+Claude Fable 5 (claude-fable-5)
+
 ### Debug Log References
+
+- Audit-time feasibility proofs: DoctrineBundle `Configuration.php:367` forces `enable_native_lazy_objects: true`; no proxy dir in var/cache → entity `final` safe. KernelBrowser reboot semantics + `NullMinioStorage` static store analysis → double refactor rejected (worklist C1).
+- `debug:container --deprecations`: 1 before (MembershipVoter) → 0 after.
+- phpstan with extensions active: 0 errors at level max, first run. One new error appeared from `final` alone (`User::getPassword()` unusedType) - fixed by narrowing the return type.
+- Composer partial update was blocked by uncommitted em-dash-normalization noise in the vendored `archilan/orchestrateur-client` (source install); stashed as `em-dash-normalization-noise-2026-07-05` (recoverable), update then clean.
+- Execution discovery: Symfony Flex regenerated `config/reference.php` during the composer update - deletion converted to deletion + gitignore + kept cs-fixer exclusion.
+- Gates: phpstan 0 / cs-fixer 0 / arch OK / lint:container OK / unit 555/555 / full suite on `archilan_test_story336`: OK (1453 tests, 10236 assertions, 06:52) / `pnpm gates` exit 0.
 
 ### Completion Notes List
 
+- All 7 worklist fixes landed; 9 acceptances recorded with rationale; 2 out-of-scope items re-recorded (ClockInterface migration, AC-D5 setters). Deprecation surface now ZERO (`debug:container --deprecations` clean).
+- 12 entities now `final` (45-entity total: 43 final, 2 deferred in frozen Sessions); 18 entity-stub test sites converted to real instances - which both unblocked `final` and fixed a latent AC-T2 violation.
+- PHPStan now runs with phpstan-symfony + phpstan-doctrine at level max, zero errors, zero suppression.
+- Zero behaviour change: no route, response shape, schema or message change; full suite + frontend gates green.
+- Sessions deferrals (TODO epic-32): `Session`/`SessionSlot` final, `NullRunnerGateway` statics.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/33-6-audit-worklist.md` (new - scope of record) + this story file
+- `api/src/Membership/Infrastructure/MembershipVoter.php` (Vote param)
+- Deleted: `api/src/Identity/Application/{DiscordBotStatusQuery,DiscordBotUsersQuery,DiscordResyncAllUsers}.php`, `api/config/reference.php` (also gitignored)
+- `api/.gitignore`, `api/.php-cs-fixer.dist.php`, `api/config/packages/validator.yaml`
+- `final` added: `api/src/Identity/Domain/{User,RefreshToken,PasswordResetToken,EmailConfirmationToken,RoleChangeAudit,PrivacyRightsRequest,DeletionAudit,AdminCreationAudit}.php`, `api/src/GameSelection/Domain/{Game,GameCatalogSync,GameRequest,IgnoredCatalogEntry}.php` (+ `User::getPassword(): string`)
+- `final readonly`: `api/src/Streaming/Application/{TwitchStatusChecker,ParticipantStreamsView}.php`, `api/src/Identity/Application/RotationResult.php`
+- Tests: `api/tests/Unit/Membership/{MembershipActivatedNotificationMessageHandlerTest,MembershipExpiredNotificationMessageHandlerTest,MembershipReminderMessageHandlerTest,ProcessHelloAssoMembershipPaymentTest,SyncMemberToDolibarrMessageHandlerTest}.php`, `api/tests/Unit/WeeklyRuns/{LaunchWeeklyEntryTest,GenerateWeeklyRunsMessageHandlerTest,GenerateWeeklyRunForTemplateTest}.php`
+- `api/composer.json`, `api/composer.lock`, `api/phpstan.neon` (extensions)
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-05 | Story created from three parallel code audits (DI/container patterns, class modifiers, tech-debt/deprecations) + console checks. Codebase already clean on 8 of 12 audited axes; finite 14-item checklist seeded with dispositions, one real risk flagged (entity final vs Doctrine proxy strategy), Sessions deferrals mirrored from 33.5, phpstan-extensions task gated on human approval for new dev deps. Status: ready-for-dev. |
+| 2026-07-05 | Story executed: worklist first (`fa33acd`), deprecation+dead code (`d2504f9`), modifiers+real fixtures (`93beca6`), phpstan extensions with Jean's approval (`cafbce1`). Double-statics refactor rejected at audit with recorded rationale (kernel-reboot semantics); reference.php deletion adjusted to deletion+gitignore (Flex regenerates it). All gates green; deprecations 0; phpstan extensions active with 0 errors. Status → ready-for-review. |
