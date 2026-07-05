@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 import { AdminGuidedGameCreation } from "@/features/admin/admin-guided-game-creation";
-import AdminNewGamePage from "@/features/admin/admin-new-game-page";
+import { AdminNewGamePage } from "@/features/admin/admin-new-game-page";
 
 function NewGameRouter() {
   const params = useSearchParams();

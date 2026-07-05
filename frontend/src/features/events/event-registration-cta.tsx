@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasStringProp } from "@/lib/type-guards";
 
 type CtaState =
   | { kind: "loading" }
@@ -43,14 +44,11 @@ export function EventRegistrationCta({
       }
 
       const payload: unknown = await regRes.json();
+      const data: unknown =
+        typeof payload === "object" && payload !== null ? Reflect.get(payload, "data") : null;
       const registrationId =
-        payload &&
-        typeof payload === "object" &&
-        "data" in payload &&
-        typeof (payload as { data: unknown }).data === "object" &&
-        (payload as { data: unknown }).data !== null &&
-        "registrationId" in ((payload as { data: unknown }).data as object)
-          ? ((payload as { data: { registrationId: string } }).data.registrationId)
+        typeof data === "object" && data !== null && hasStringProp(data, "registrationId")
+          ? data.registrationId
           : null;
 
       if (!registrationId) {

@@ -192,6 +192,12 @@ function generateSlotsFromRegistrations(registrations: BuilderRegistration[]): W
   });
 }
 
+function isEventTitlePayload(v: unknown): v is { data: { title: string } } {
+  if (!v || typeof v !== "object") return false;
+  const data = (v as { data?: unknown }).data;
+  return !!data && typeof data === "object" && typeof (data as { title?: unknown }).title === "string";
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function AdminSessionPage({ params }: { params: Promise<{ eventId: string }> }) {
@@ -225,8 +231,12 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
       const [sessions] = await Promise.all([
         loadSessions(),
         apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}`)
-          .then((r) => r.ok ? r.json() as Promise<{ data: { title: string } }> : null)
-          .then((j) => { if (j?.data?.title) setEventTitle(j.data.title); })
+          .then(async (r) => {
+            if (!r.ok) return null;
+            const payload: unknown = await r.json();
+            return payload;
+          })
+          .then((j) => { if (isEventTitlePayload(j) && j.data.title) setEventTitle(j.data.title); })
           .catch(() => { /* title stays null */ }),
       ]);
       if (sessions !== null) {
@@ -876,7 +886,7 @@ function SessionDetail({
     if (["running", "stopped", "finished", "failed", "crashed"].includes(session.status)) {
       clearPendingChainSoon();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runChainedAction/clearPendingChainSoon are recreated each render but only close over stable setters; the chain must fire on status/chain/pending transitions only
   }, [session.status, pendingChain, actionPending]);
 
   const handleSSEMessage = useCallback((data: Session) => {
@@ -1977,7 +1987,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
     return () => {
       if (stateIntervalRef.current) clearInterval(stateIntervalRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchState is recreated each render but only depends on sessionId; the 5s polling interval is torn down and re-created on sessionId change
   }, [sessionId]);
 
   useEffect(() => {
@@ -1999,7 +2009,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
         intervalRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchLogs is recreated each render but only depends on sessionId; the log polling interval is re-created when open or sessionId changes
   }, [open, sessionId]);
 
   return (

@@ -146,7 +146,7 @@ export function WeeklyRunSlotPage({
         }
       })
       .catch(() => undefined);
-  }, [entryBaseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [entryBaseUrl]); // eslint-disable-line react-hooks/exhaustive-deps -- `selectedSlot` is read only to seed the default selection once; listing it would refetch the slot list after every user selection
 
   const [state, setState] = useState<PageState>({ kind: "idle" });
   const [refreshing, setRefreshing] = useState(false);
@@ -161,7 +161,7 @@ export function WeeklyRunSlotPage({
 
   const goalShownRef = useRef(false);
   const stateRef = useRef(state);
-  // eslint-disable-next-line react-hooks/refs
+  // eslint-disable-next-line react-hooks/refs -- mirror the latest state into a ref so long-lived SSE callbacks read fresh values without re-subscribing; the render-time write is idempotent
   stateRef.current = state;
   const refreshingRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);

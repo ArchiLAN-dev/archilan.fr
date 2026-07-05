@@ -108,7 +108,7 @@ export function PersonalRunGameSelectionPage({
 
   useEffect(() => {
     if (!coupled && ownedOnly) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the owned-only filter when the Steam coupling drops (external state, cannot be derived during render)
       setOwnedOnly(false);
     }
   }, [coupled, ownedOnly]);
@@ -270,7 +270,7 @@ export function PersonalRunGameSelectionPage({
     const savedSlots = savedSlotsByGameId.get(gameId) ?? [];
     const slot = savedSlots[n - 1] ?? null;
     const hasYaml = slot !== null && slot.playerYaml !== null && slot.playerYaml !== "";
-    return { gameId, idx, label: total > 1 ? `${name} (monde ${n})` : name, slot, hasYaml };
+    return { gameId, n, idx, label: total > 1 ? `${name} (monde ${n})` : name, slot, hasYaml };
   });
 
   // Distinct selected games (name + slug) for the post-selection install nudge (story 31.4).
@@ -425,10 +425,10 @@ export function PersonalRunGameSelectionPage({
           </p>
         ) : (
           <ul className="grid gap-1.5" role="list">
-            {selectionItems.map(({ idx, label, slot, hasYaml }) => (
+            {selectionItems.map(({ gameId, n, idx, label, slot, hasYaml }) => (
               <li
                 className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2"
-                key={idx}
+                key={`${gameId}-${n}`}
               >
                 <span className="text-sm font-medium text-foreground">{label}</span>
                 <div className="flex items-center gap-1.5">

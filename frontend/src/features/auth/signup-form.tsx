@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasStringProp } from "@/lib/type-guards";
 import { DiscordButton } from "./discord-button";
 
 const CGU_VERSION_LABEL = "2 mai 2026";
@@ -29,6 +30,23 @@ type RegisterResponse =
         details: FieldErrors;
       };
     };
+
+function isFieldErrors(v: unknown): v is FieldErrors {
+  if (typeof v !== "object" || v === null) return false;
+  return Object.values(v).every(
+    (entries) => Array.isArray(entries) && entries.every((entry) => typeof entry === "string"),
+  );
+}
+
+function isRegisterResponse(v: unknown): v is RegisterResponse {
+  if (typeof v !== "object" || v === null) return false;
+  if ("error" in v) {
+    const error: unknown = Reflect.get(v, "error");
+    if (typeof error !== "object" || error === null) return false;
+    return hasStringProp(error, "message") && isFieldErrors(Reflect.get(error, "details"));
+  }
+  return "data" in v;
+}
 
 export function SignupForm() {
   const displayNameId = useId();
@@ -62,7 +80,11 @@ export function SignupForm() {
           acceptedCgu: formData.get("acceptedCgu") === "on",
         }),
       });
-      const payload = (await response.json()) as RegisterResponse;
+      const payload: unknown = await response.json();
+      if (!isRegisterResponse(payload)) {
+        setFormMessage("Impossible de créer le compte pour le moment. Réessaie dans quelques instants.");
+        return;
+      }
 
       if ("error" in payload) {
         setFieldErrors(payload.error.details);

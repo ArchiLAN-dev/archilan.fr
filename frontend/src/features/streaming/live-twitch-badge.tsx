@@ -30,7 +30,7 @@ export function LiveTwitchBadge({ onNavigate }: LiveTwitchBadgeProps) {
           <circle cx="7" cy="7" fill="#991b1b" r="5" />
         </svg>
       </span>
-      <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#ef4444" }}>
+      <span className="text-xs font-semibold uppercase tracking-widest text-red-500">
         Live
       </span>
     </a>

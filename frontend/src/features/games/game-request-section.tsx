@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, Loader2, Send, ThumbsUp } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/auth-context";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   cancelGameRequest,
   getCatalogGames,
@@ -38,7 +40,7 @@ function GameCombobox({
 
   // Sync input text when value is cleared externally
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- `query` is local input state mirroring the external `value` prop; clearing it when the parent resets `value` (after submit) requires a synchronous setState here
     if (!value) setQuery("");
   }, [value]);
 
@@ -179,12 +181,30 @@ function GameCombobox({
 
 export function GameRequestSection() {
   const { user, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [catalogGames, setCatalogGames] = useState<string[]>([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(true);
+  // Both fetchers resolve to [] on error (never throw), so retry stays off like the old effect.
+  const { data: catalogData, isPending: loadingCatalog } = useQuery({
+    queryKey: ["catalog-games"],
+    queryFn: getCatalogGames,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const catalogGames = catalogData ?? [];
 
-  const [requests, setRequests] = useState<GameRequestItem[]>([]);
-  const [loadingList, setLoadingList] = useState(true);
+  const { data: requestsData, isPending: loadingList } = useQuery({
+    queryKey: ["game-requests"],
+    queryFn: getGameRequests,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const requests = requestsData ?? [];
+
+  // Vote/submit handlers patch the cached list locally (same optimistic-after-success updates as
+  // before the TanStack conversion) instead of refetching.
+  function updateRequests(updater: (prev: GameRequestItem[]) => GameRequestItem[]): void {
+    queryClient.setQueryData<GameRequestItem[]>(["game-requests"], (prev) => updater(prev ?? []));
+  }
 
   const [selectedGame, setSelectedGame] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -193,15 +213,6 @@ export function GameRequestSection() {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [votingOn, setVotingOn] = useState<string | null>(null);
-
-  useEffect(() => {
-    getCatalogGames()
-      .then(setCatalogGames)
-      .finally(() => setLoadingCatalog(false));
-    getGameRequests()
-      .then(setRequests)
-      .finally(() => setLoadingList(false));
-  }, []);
 
   useEffect(
     () => () => { if (successTimer.current) clearTimeout(successTimer.current); },
@@ -221,7 +232,7 @@ export function GameRequestSection() {
 
     if (result.ok) {
       const normalized = selectedGame.toLowerCase().trim();
-      setRequests((prev) => {
+      updateRequests((prev) => {
         const updated = prev.find((r) => r.normalizedName === normalized)
           ? prev.map((r) =>
               r.normalizedName === normalized
@@ -257,7 +268,7 @@ export function GameRequestSection() {
     if (item.hasVoted) {
       const ok = await cancelGameRequest(item.normalizedName);
       if (ok) {
-        setRequests((prev) =>
+        updateRequests((prev) =>
           prev
             .map((r) =>
               r.normalizedName === item.normalizedName
@@ -271,7 +282,7 @@ export function GameRequestSection() {
     } else {
       const result = await submitGameRequest(item.displayName);
       if (result.ok) {
-        setRequests((prev) =>
+        updateRequests((prev) =>
           [...prev]
             .map((r) =>
               r.normalizedName === item.normalizedName

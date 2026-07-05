@@ -490,13 +490,22 @@ function SlotCard({ slot }: { slot: SlotInfo }) {
 
 // ─── PatchFilesSection ────────────────────────────────────────────────────────
 
+function extractPatchFiles(payload: unknown): string[] {
+  if (typeof payload !== "object" || payload === null) return [];
+  const data: unknown = Reflect.get(payload, "data");
+  if (typeof data !== "object" || data === null) return [];
+  const files: unknown = Reflect.get(data, "files");
+  if (!Array.isArray(files)) return [];
+  return files.filter((file): file is string => typeof file === "string");
+}
+
 function PatchFilesSection({ registrationId }: { registrationId: string }) {
   const [files, setFiles] = useState<string[] | null>(null);
 
   useEffect(() => {
     void apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/patches`)
-      .then((r) => r.ok ? r.json() as Promise<{ data: { files: string[] } }> : null)
-      .then((j) => { setFiles(j?.data?.files ?? []); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: unknown) => { setFiles(extractPatchFiles(j)); })
       .catch(() => { setFiles([]); });
   }, [registrationId]);
 

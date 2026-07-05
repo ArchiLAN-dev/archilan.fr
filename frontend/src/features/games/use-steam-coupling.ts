@@ -69,7 +69,7 @@ export function useSteamCoupling(): {
     if ("" === prefill) return;
 
     autoCoupled.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot pre-fill from persisted data (account profile or localStorage) once auth has settled; guarded by the autoCoupled ref
     setSteamInput(prefill);
     void couple(prefill);
   }, [authLoading, user, couple]);

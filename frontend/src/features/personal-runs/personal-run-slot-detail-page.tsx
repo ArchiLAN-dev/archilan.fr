@@ -28,6 +28,7 @@ import { type ElementType, use, useCallback, useEffect, useLayoutEffect, useRef,
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasStringProp } from "@/lib/type-guards";
 import { useAuth } from "@/features/auth/auth-context";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
 import { FanfarePicker } from "@/features/reachability/fanfare-picker";
@@ -209,7 +210,7 @@ export function PersonalRunSlotDetailPage({
   const [goalReached, setGoalReached] = useState(false);
   const goalShownRef = useRef(false);
   const stateRef = useRef(state);
-  // eslint-disable-next-line react-hooks/refs
+  // eslint-disable-next-line react-hooks/refs -- mirror the latest state into a ref so long-lived SSE callbacks read fresh values without re-subscribing; the render-time write is idempotent
   stateRef.current = state;
 
   const refreshingRef = useRef(false);
@@ -519,7 +520,7 @@ export function PersonalRunSlotDetailPage({
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [sessionId, slotIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionId, slotIndex]); // eslint-disable-line react-hooks/exhaustive-deps -- `user` is only read inside the SSE onmessage callback; listing it would tear down and re-open the EventSource on every auth refresh
 
   // ─── Disconnected indicator debounce ─────────────────────────────────────
 
@@ -603,8 +604,16 @@ export function PersonalRunSlotDetailPage({
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command }) },
       );
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string; message?: string };
-        throw new Error((body as Record<string, string>).error ?? (body as Record<string, string>).message ?? `Erreur ${res.status}`);
+        const body: unknown = await res.json().catch(() => ({}));
+        const detail =
+          typeof body === "object" && body !== null
+            ? hasStringProp(body, "error")
+              ? body.error
+              : hasStringProp(body, "message")
+                ? body.message
+                : null
+            : null;
+        throw new Error(detail ?? `Erreur ${res.status}`);
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Erreur inconnue");

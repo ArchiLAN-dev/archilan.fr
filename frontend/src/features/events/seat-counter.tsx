@@ -1,5 +1,3 @@
-"use client";
-
 import { AlertCircle, Loader2, Users, XCircle } from "lucide-react";
 
 export type SeatCounterProps = {

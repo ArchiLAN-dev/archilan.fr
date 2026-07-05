@@ -34,7 +34,7 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   // Drop the owned-only filter if a coupling is cleared/unsuccessful.
   useEffect(() => {
     if (!coupled && ownedOnly) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter in reaction to the external Steam coupling being cleared; guarded so it fires once per transition
       setOwnedOnly(false);
     }
   }, [coupled, ownedOnly]);

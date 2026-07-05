@@ -1,11 +1,11 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-import type { SlotEntry } from "@/features/reachability/types";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchSessionSlots } from "./admin-slots-api";
 
 export function SlotSwitcher({
   sessionId,
@@ -17,21 +17,16 @@ export function SlotSwitcher({
   currentSlot: string;
 }) {
   const router = useRouter();
-  const [slots, setSlots] = useState<SlotEntry[]>([]);
   const [filter, setFilter] = useState("");
 
-  useEffect(() => {
-    apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players`)
-      .then((r) => r.json())
-      .then((json: { data?: { slots?: Record<string, { slot_name: string }> } }) => {
-        const entries: SlotEntry[] = Object.entries(json.data?.slots ?? {})
-          .filter(([, s]) => s.slot_name !== "Bridge")
-          .map(([index, s]) => ({ index, name: s.slot_name }))
-          .sort((a, b) => Number(a.index) - Number(b.index));
-        setSlots(entries);
-      })
-      .catch(() => undefined);
-  }, [sessionId]);
+  // `null` (fetch failed) renders exactly like the old empty list: the switcher stays hidden.
+  const { data } = useQuery({
+    queryKey: ["admin-session-slots", sessionId],
+    queryFn: () => fetchSessionSlots(sessionId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false, // fetchSessionSlots never throws; the old effect never retried either
+  });
+  const slots = data ?? [];
 
   const filtered = filter.trim()
     ? slots.filter((s) => s.name.toLowerCase().includes(filter.trim().toLowerCase()))

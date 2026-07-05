@@ -373,7 +373,7 @@ function CreateDialog({
   onSuccess: (email: string) => Promise<void>;
 }) {
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
-  const [startedAt, setStartedAt] = useState(toDateInput(new Date().toISOString()));
+  const [startedAt, setStartedAt] = useState(() => toDateInput(new Date().toISOString()));
   const [expiresAt, setExpiresAt] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [error, setError] = useState<string | null>(null);
