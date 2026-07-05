@@ -161,7 +161,11 @@ final class EmailConfirmationTest extends FunctionalTestCase
         $register->register('newuser@example.org', 'correct horse battery staple', true, 'Jean');
 
         $sent = $this->asyncTransport()->getSent();
-        $message = $sent[array_key_last($sent)]->getMessage();
+        $lastKey = array_key_last($sent);
+        if (null === $lastKey) {
+            self::fail('No message was dispatched to the async transport.');
+        }
+        $message = $sent[$lastKey]->getMessage();
         self::assertInstanceOf(EmailConfirmationMessage::class, $message);
         $this->asyncTransport()->reset();
 

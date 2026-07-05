@@ -1,0 +1,11 @@
+vendor
+var
+workspace
+coverage-html
+coverage.xml
+.phpunit.cache
+.php-cs-fixer.cache
+.env.local
+.env.*.local
+Dockerfile
+.dockerignore
