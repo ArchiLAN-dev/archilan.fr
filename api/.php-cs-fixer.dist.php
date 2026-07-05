@@ -6,6 +6,7 @@ $finder = (new PhpCsFixer\Finder())
     ->exclude('vendor')
     ->notPath([
         'config/bundles.php',
+        // reference.php is gitignored but regenerated locally by Symfony Flex - keep it out of the lint scope
         'config/reference.php',
     ])
 ;
