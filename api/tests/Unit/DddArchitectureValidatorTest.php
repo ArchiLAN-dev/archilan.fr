@@ -377,6 +377,92 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForFile);
     }
 
+    public function testTaxonomyExceptionOutsideExceptionFolderIsReportedForMigratedContext(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Legal/Domain/ConsentMissingException.php',
+            "<?php\n\nnamespace App\\Legal\\Domain;\n\nfinal class ConsentMissingException extends \\RuntimeException {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Legal/Application/ExportFailedException.php',
+            "<?php\n\nnamespace App\\Legal\\Application;\n\nfinal class ExportFailedException extends \\RuntimeException {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Exceptions must live in Domain/Exception/ (taxonomy-migrated context): src/Legal/Domain/ConsentMissingException.php',
+            $report->violations(),
+        );
+        self::assertContains(
+            'Exceptions must live in Application/Exception/ (taxonomy-migrated context): src/Legal/Application/ExportFailedException.php',
+            $report->violations(),
+        );
+    }
+
+    public function testTaxonomyCompliantMigratedContextPasses(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Legal/Domain/Exception');
+        $this->createDirectory($projectDir.'/src/Legal/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Legal/Domain/Exception/ConsentMissingException.php',
+            "<?php\n\nnamespace App\\Legal\\Domain\\Exception;\n\nfinal class ConsentMissingException extends \\RuntimeException {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Legal/Application/Query/ConsentLogQueryInterface.php',
+            "<?php\n\nnamespace App\\Legal\\Application\\Query;\n\ninterface ConsentLogQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForContext = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'src/Legal/'),
+        ));
+        self::assertSame([], $violationsForContext);
+    }
+
+    public function testTaxonomyRulesAreNotAppliedToUnmigratedContext(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/CapacityExceededException.php',
+            "<?php\n\nnamespace App\\Events\\Domain;\n\nfinal class CapacityExceededException extends \\RuntimeException {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Events/Application/DashboardQueryInterface.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\ninterface DashboardQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $taxonomyViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'taxonomy-migrated'),
+        ));
+        self::assertSame([], $taxonomyViolations);
+    }
+
+    public function testMigratedContextQueryInterfaceOutsideQueryFolderIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Legal/Application/ConsentLogQueryInterface.php',
+            "<?php\n\nnamespace App\\Legal\\Application;\n\ninterface ConsentLogQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Query interfaces must live in Application/Query/ (taxonomy-migrated context): src/Legal/Application/ConsentLogQueryInterface.php',
+            $report->violations(),
+        );
+    }
+
     public function testCreateNativeQueryInPresentationIsReported(): void
     {
         $projectDir = $this->createProjectFixture();
