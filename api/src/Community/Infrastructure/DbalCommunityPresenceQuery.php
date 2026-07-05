@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\CommunityPresenceQueryInterface;
+use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 

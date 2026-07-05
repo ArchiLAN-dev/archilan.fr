@@ -92,21 +92,7 @@ final readonly class DddArchitectureValidator
      * @var list<string>
      */
     private const UNMIGRATED_TAXONOMY_CONTEXTS = [
-        'Shared',
-        'Events',
-        'Registrations',
-        'Content',
-        'Payments',
-        'Realtime',
-        'Communications',
         'Sessions',
-        'PersonalRuns',
-        'CatalogSync',
-        'Streaming',
-        'Membership',
-        'WeeklyRuns',
-        'SessionConfig',
-        'Community',
     ];
 
     public function validate(string $projectDir): DddArchitectureReport

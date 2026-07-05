@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Presentation;
 
-use App\CatalogSync\Application\CheckApworldUpdatesService;
+use App\CatalogSync\Application\Command\CheckApworldUpdatesService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

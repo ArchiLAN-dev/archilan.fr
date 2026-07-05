@@ -6,9 +6,9 @@ namespace App\PersonalRuns\Application;
 
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\SessionConfig\Application\ClearSessionConfigOverride;
-use App\SessionConfig\Application\SessionConfigOverrideQuery;
-use App\SessionConfig\Application\SetSessionConfigOverride;
+use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
+use App\SessionConfig\Application\Command\SetSessionConfigOverride;
+use App\SessionConfig\Application\Query\SessionConfigOverrideQuery;
 use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
 use App\SessionConfig\Domain\SessionType;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application;
 
-use App\Community\Application\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Identity\Application\ValidationErrors;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;

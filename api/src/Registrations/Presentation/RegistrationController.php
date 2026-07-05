@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Registrations\Presentation;
 
-use App\Registrations\Application\MyRegistrationQuery;
-use App\Registrations\Application\RegistrationCancellation;
+use App\Registrations\Application\Command\RegistrationCancellation;
+use App\Registrations\Application\Command\RegistrationSubmission;
+use App\Registrations\Application\Command\ReserveRegistration;
+use App\Registrations\Application\Query\MyRegistrationQuery;
 use App\Registrations\Application\RegistrationGameSelection;
-use App\Registrations\Application\RegistrationSubmission;
-use App\Registrations\Application\ReserveRegistration;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

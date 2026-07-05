@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Infrastructure;
 
-use App\CatalogSync\Application\ImportedCatalogNamesQueryInterface;
+use App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalImportedCatalogNamesQuery implements ImportedCatalogNamesQueryInterface

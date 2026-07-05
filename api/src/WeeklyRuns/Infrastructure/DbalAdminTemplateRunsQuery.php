@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
-use App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface;
+use App\WeeklyRuns\Application\Query\AdminTemplateRunsQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminTemplateRunsQuery implements AdminTemplateRunsQueryInterface

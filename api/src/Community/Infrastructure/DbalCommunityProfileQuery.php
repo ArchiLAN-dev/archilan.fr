@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\CommunityProfileQueryInterface;
+use App\Community\Application\Query\CommunityProfileQueryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use Doctrine\DBAL\Connection;
 

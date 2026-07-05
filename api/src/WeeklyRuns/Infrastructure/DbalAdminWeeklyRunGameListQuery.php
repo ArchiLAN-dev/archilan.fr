@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
-use App\WeeklyRuns\Application\AdminWeeklyRunGameListQueryInterface;
+use App\WeeklyRuns\Application\Query\AdminWeeklyRunGameListQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminWeeklyRunGameListQuery implements AdminWeeklyRunGameListQueryInterface

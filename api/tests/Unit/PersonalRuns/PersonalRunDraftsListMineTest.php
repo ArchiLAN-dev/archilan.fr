@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\Community\Application\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Application\PersonalRunDrafts;
 use App\PersonalRuns\Domain\Run;

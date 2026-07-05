@@ -6,7 +6,7 @@ namespace App\Sessions\Application;
 
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\WeeklyRuns\Application\RecordWeeklyGoal;
+use App\WeeklyRuns\Application\Command\RecordWeeklyGoal;
 use Psr\Log\LoggerInterface;
 
 /**

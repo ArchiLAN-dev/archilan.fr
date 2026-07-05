@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application;
 
-use App\Community\Application\CommunityLevelQuery;
-use App\Community\Application\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Query\CommunityLevelQuery;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\PlatformCategory;
 use App\Identity\Application\ValidationErrors;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
+use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipant;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;

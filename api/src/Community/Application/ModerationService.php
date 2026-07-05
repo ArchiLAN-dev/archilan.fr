@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Application\Query\AccountReportScoreQueryInterface;
+use App\Community\Application\Query\AdminReportsQueryInterface;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Query\ReportQueryFilters;
 use App\Community\Domain\ContentReport;
 use App\Community\Domain\ContentReportRepositoryInterface;
 use App\Community\Domain\ProfileComment;

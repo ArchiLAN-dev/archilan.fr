@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Content\Presentation;
 
-use App\Content\Application\PublicPostCatalog;
+use App\Content\Application\Query\PublicPostCatalog;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;

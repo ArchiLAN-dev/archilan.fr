@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Infrastructure;
 
-use App\PersonalRuns\Application\RecentlyPlayedGamesQueryInterface;
+use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
 use App\PersonalRuns\Domain\Run;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;

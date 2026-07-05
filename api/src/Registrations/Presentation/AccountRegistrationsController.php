@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Registrations\Presentation;
 
-use App\Registrations\Application\AccountRegistrationsQuery;
+use App\Registrations\Application\Query\AccountRegistrationsQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

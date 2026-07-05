@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
-use App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface;
+use App\WeeklyRuns\Application\Query\AdminCurrentWeeklyRunsQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Clock\ClockInterface;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Domain;
 
+use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use Doctrine\ORM\Mapping as ORM;
 
 /**

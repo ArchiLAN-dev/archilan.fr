@@ -8,6 +8,7 @@ use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\SessionConfig\Application\SessionConfigResolver;
 use App\SessionConfig\Domain\SessionType;
+use App\WeeklyRuns\Application\Command\MarkWeeklyRunGenerated;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
 use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;

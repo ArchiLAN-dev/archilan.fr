@@ -7,7 +7,7 @@ namespace App\WeeklyRuns\Presentation;
 use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
-use App\WeeklyRuns\Application\WeeklyRunSlotQuery;
+use App\WeeklyRuns\Application\Query\WeeklyRunSlotQuery;
 use Archilan\BridgeClient\Enum\HintStatus;
 use Archilan\BridgeClientBundle\Bridge\BridgeClientPool;
 use Symfony\Component\HttpFoundation\JsonResponse;

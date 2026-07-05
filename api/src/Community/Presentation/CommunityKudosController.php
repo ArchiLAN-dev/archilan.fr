@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\CannotKudosOwnContentException;
+use App\Community\Application\Exception\CannotKudosOwnContentException;
 use App\Community\Application\KudosService;
 use App\Community\Domain\Kudos;
 use App\Identity\Domain\User;

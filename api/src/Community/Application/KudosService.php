@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Application\Exception\CannotKudosOwnContentException;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
 use App\Community\Domain\Kudos;

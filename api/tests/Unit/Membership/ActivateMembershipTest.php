@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Membership\Application\ActivateMembership;
+use App\Membership\Application\Command\ActivateMembership;
 use App\Membership\Application\Message\MembershipActivatedNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Application\UserRoleGatewayInterface;

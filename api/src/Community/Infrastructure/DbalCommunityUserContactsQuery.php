@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\CommunityUserContactsQueryInterface;
+use App\Community\Application\Query\CommunityUserContactsQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalCommunityUserContactsQuery implements CommunityUserContactsQueryInterface

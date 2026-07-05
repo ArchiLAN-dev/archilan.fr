@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application;
 
+use App\CatalogSync\Application\Exception\GithubRateLimitException;
 use App\GameSelection\Domain\Game;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

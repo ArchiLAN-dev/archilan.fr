@@ -6,7 +6,7 @@ namespace App\Shared\Infrastructure\Http;
 
 use App\Identity\Application\CurrentUserProvider;
 use App\Identity\Domain\User;
-use App\Membership\Application\ActiveMembershipQueryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 

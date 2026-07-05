@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
-use App\WeeklyRuns\Application\CurrentWeeklyRunsQueryInterface;
+use App\WeeklyRuns\Application\Query\CurrentWeeklyRunsQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQueryInterface

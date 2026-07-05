@@ -7,7 +7,7 @@ namespace App\Events\Application;
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\Identity\Application\ValidationErrors;
-use App\Registrations\Application\RegistrationCounter;
+use App\Registrations\Application\Query\RegistrationCounter;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use Psr\Log\LoggerInterface;
 

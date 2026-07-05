@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\ContentReport;
 use App\Community\Domain\ContentReportRepositoryInterface;
@@ -11,7 +12,7 @@ use App\Community\Domain\Notification;
 use App\Community\Domain\ProfileComment;
 use App\Community\Domain\ProfileCommentRepositoryInterface;
 use App\Community\Domain\ReportCategory;
-use App\Membership\Application\ActiveMembershipQueryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**

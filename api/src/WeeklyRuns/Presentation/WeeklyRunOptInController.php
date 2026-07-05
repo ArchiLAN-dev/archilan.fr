@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Presentation;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\WeeklyRuns\Application\OptInToWeeklyRun;
-use App\WeeklyRuns\Application\WithdrawFromWeeklyRun;
+use App\WeeklyRuns\Application\Command\OptInToWeeklyRun;
+use App\WeeklyRuns\Application\Command\WithdrawFromWeeklyRun;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

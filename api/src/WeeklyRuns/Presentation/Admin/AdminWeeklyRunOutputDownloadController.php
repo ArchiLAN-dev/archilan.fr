@@ -6,7 +6,7 @@ namespace App\WeeklyRuns\Presentation\Admin;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Infrastructure\MinioStorageInterface;
-use App\WeeklyRuns\Application\AdminWeeklyRunOutputQuery;
+use App\WeeklyRuns\Application\Query\AdminWeeklyRunOutputQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

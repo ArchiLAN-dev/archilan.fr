@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Membership\Application\ExpireMembership;
+use App\Membership\Application\Command\ExpireMembership;
 use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Application\UserRoleGatewayInterface;

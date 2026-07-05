@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Presentation\Admin;
 
-use App\SessionConfig\Application\ClearSessionConfigOverride;
-use App\SessionConfig\Application\SessionConfigOverrideQuery;
-use App\SessionConfig\Application\SetSessionConfigOverride;
+use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
+use App\SessionConfig\Application\Command\SetSessionConfigOverride;
+use App\SessionConfig\Application\Query\SessionConfigOverrideQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

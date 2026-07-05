@@ -6,7 +6,7 @@ namespace App\Tests\Unit\CatalogSync;
 
 use App\CatalogSync\Application\ApworldVersionChecker;
 use App\CatalogSync\Application\ApworldVersionInfo;
-use App\CatalogSync\Application\GithubRateLimitException;
+use App\CatalogSync\Application\Exception\GithubRateLimitException;
 use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;

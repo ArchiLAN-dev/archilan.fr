@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Presentation;
 
-use App\CatalogSync\Application\CatalogSyncStatusQuery;
-use App\CatalogSync\Application\IgnoreCatalogEntryCommand;
-use App\CatalogSync\Application\UnignoreCatalogEntryCommand;
+use App\CatalogSync\Application\Command\IgnoreCatalogEntryCommand;
+use App\CatalogSync\Application\Command\UnignoreCatalogEntryCommand;
+use App\CatalogSync\Application\Query\CatalogSyncStatusQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\SessionConfig;
 
-use App\SessionConfig\Application\SetSessionConfigOverride;
+use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\SessionConfig\Domain\SessionConfigOverride;
 use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
 use PHPUnit\Framework\TestCase;

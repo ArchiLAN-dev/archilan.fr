@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Domain;
 
+use App\Community\Domain\Exception\InvalidAchievementRuleException;
+
 /**
  * Hydrates (and validates) an achievement rule tree from its stored/submitted array form (story 30.16).
  * The root is always a group; nesting is capped to keep evaluation and the admin builder bounded.

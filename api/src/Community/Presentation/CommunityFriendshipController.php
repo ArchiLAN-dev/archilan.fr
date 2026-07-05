@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\FriendshipService;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

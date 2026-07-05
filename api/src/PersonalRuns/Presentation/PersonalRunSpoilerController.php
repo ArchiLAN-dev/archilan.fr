@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Presentation;
 
-use App\PersonalRuns\Application\PersonalRunSpoilerDownload;
+use App\PersonalRuns\Application\Query\PersonalRunSpoilerDownload;
 use App\Sessions\Application\SpoilerArtifact;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;

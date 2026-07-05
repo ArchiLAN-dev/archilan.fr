@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events\Infrastructure;
 
-use App\Events\Application\DashboardStatsQueryInterface;
+use App\Events\Application\Query\DashboardStatsQueryInterface;
 use App\Events\Domain\Event;
 use App\Registrations\Domain\Registration;
 use Doctrine\DBAL\Connection;

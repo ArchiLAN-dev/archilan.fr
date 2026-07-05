@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\EventParticipationQueryInterface;
+use App\Community\Application\Query\EventParticipationQueryInterface;
 use Doctrine\DBAL\Connection;
 
 /**

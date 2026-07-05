@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Application\Command\RecordActivity;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\Block;
 use App\Community\Domain\BlockRepositoryInterface;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events\Presentation;
 
-use App\Events\Application\UploadEventCoverImageCommand;
+use App\Events\Application\Command\UploadEventCoverImageCommand;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;

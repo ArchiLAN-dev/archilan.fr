@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\AccountReportScoreQueryInterface;
+use App\Community\Application\Query\AccountReportScoreQueryInterface;
 use App\Community\Domain\ContentReport;
 use Doctrine\DBAL\Connection;
 

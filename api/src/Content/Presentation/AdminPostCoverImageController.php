@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Content\Presentation;
 
-use App\Content\Application\UploadPostCoverImageCommand;
+use App\Content\Application\Command\UploadPostCoverImageCommand;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;

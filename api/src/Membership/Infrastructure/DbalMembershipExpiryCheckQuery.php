@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure;
 
-use App\Membership\Application\MembershipExpiryCheckQueryInterface;
+use App\Membership\Application\Query\MembershipExpiryCheckQueryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 

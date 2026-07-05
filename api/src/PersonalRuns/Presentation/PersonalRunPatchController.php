@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Presentation;
 
-use App\PersonalRuns\Application\PersonalRunPatchQuery;
+use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
 use App\Sessions\Application\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\CommunityDirectoryQueryInterface;
+use App\Community\Application\Query\CommunityDirectoryQueryInterface;
+use App\Community\Application\Query\CommunityLevelQuery;
 use Doctrine\DBAL\Connection;
 
 /**

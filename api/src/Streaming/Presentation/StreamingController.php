@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Presentation;
 
-use App\Streaming\Application\TwitchStatusChecker;
+use App\Streaming\Application\Query\TwitchStatusChecker;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 

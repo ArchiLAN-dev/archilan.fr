@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunPatchQuery;
+use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Domain\Session;

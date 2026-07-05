@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Infrastructure;
 
 use App\Community\Application\AvatarUrlResolver;
-use App\Community\Application\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;

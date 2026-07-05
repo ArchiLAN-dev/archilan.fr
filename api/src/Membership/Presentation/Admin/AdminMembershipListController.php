@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Presentation\Admin;
 
-use App\Membership\Application\AdminMembershipListQuery;
+use App\Membership\Application\Query\AdminMembershipListQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

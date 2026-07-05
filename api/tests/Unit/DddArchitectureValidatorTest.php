@@ -270,16 +270,17 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testQueryInterfaceOutsideApplicationIsReported(): void
     {
         $projectDir = $this->createProjectFixture();
+        // Sessions is unmigrated (frozen until Epic 32), so it uses the pre-taxonomy message.
         file_put_contents(
-            $projectDir.'/src/Events/Infrastructure/DashboardQueryInterface.php',
-            "<?php\n\nnamespace App\\Events\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
+            $projectDir.'/src/Sessions/Infrastructure/DashboardQueryInterface.php',
+            "<?php\n\nnamespace App\\Sessions\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
         );
 
         $report = (new DddArchitectureValidator())->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
-            'Query interfaces must live in the Application layer: src/Events/Infrastructure/DashboardQueryInterface.php',
+            'Query interfaces must live in the Application layer: src/Sessions/Infrastructure/DashboardQueryInterface.php',
             $report->violations(),
         );
     }
@@ -428,13 +429,14 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testTaxonomyRulesAreNotAppliedToUnmigratedContext(): void
     {
         $projectDir = $this->createProjectFixture();
+        // Sessions is unmigrated (frozen until Epic 32): taxonomy rules must not fire for it.
         file_put_contents(
-            $projectDir.'/src/Events/Domain/CapacityExceededException.php',
-            "<?php\n\nnamespace App\\Events\\Domain;\n\nfinal class CapacityExceededException extends \\RuntimeException {}\n",
+            $projectDir.'/src/Sessions/Domain/CapacityExceededException.php',
+            "<?php\n\nnamespace App\\Sessions\\Domain;\n\nfinal class CapacityExceededException extends \\RuntimeException {}\n",
         );
         file_put_contents(
-            $projectDir.'/src/Events/Application/DashboardQueryInterface.php',
-            "<?php\n\nnamespace App\\Events\\Application;\n\ninterface DashboardQueryInterface {}\n",
+            $projectDir.'/src/Sessions/Application/DashboardQueryInterface.php',
+            "<?php\n\nnamespace App\\Sessions\\Application;\n\ninterface DashboardQueryInterface {}\n",
         );
 
         $report = (new DddArchitectureValidator())->validate($projectDir);

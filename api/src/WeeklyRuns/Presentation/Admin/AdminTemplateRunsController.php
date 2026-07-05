@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Presentation\Admin;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\WeeklyRuns\Application\AdminTemplateRunsQuery;
+use App\WeeklyRuns\Application\Query\AdminTemplateRunsQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;

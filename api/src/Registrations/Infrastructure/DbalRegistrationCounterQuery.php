@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Registrations\Infrastructure;
 
-use App\Registrations\Application\RegistrationCounterQueryInterface;
+use App\Registrations\Application\Query\RegistrationCounterQueryInterface;
 use App\Registrations\Domain\Registration;
 use Doctrine\DBAL\Connection;
 

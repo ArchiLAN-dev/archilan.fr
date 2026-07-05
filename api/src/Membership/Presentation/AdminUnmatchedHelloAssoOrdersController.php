@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Presentation;
 
-use App\Membership\Application\AdminUnmatchedHelloAssoOrdersQuery;
+use App\Membership\Application\Query\AdminUnmatchedHelloAssoOrdersQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

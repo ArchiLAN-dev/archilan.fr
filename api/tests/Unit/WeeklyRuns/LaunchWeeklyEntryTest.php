@@ -8,7 +8,7 @@ use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
-use App\WeeklyRuns\Application\LaunchWeeklyEntry;
+use App\WeeklyRuns\Application\Command\LaunchWeeklyEntry;
 use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
