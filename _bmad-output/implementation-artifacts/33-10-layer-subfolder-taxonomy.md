@@ -1,6 +1,6 @@
 # Story 33.10: Layer Sub-Folder Taxonomy - Exception/, Command/, Query/ (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -29,18 +29,12 @@ Story 33.5 tidied placement BY LAYER and normalised the only two sub-namespaces 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Convention + audit worklist (AC: 1)
-  - [ ] 1.1 Update `api/CLAUDE.md`: CQRS table rows gain "Lives in" = `Application/Command/` / `Application/Query/`; add the taxonomy paragraph (incl. the stays-flat rule for ports/helpers and the Domain-stays-flat rule); note `Domain/Exception/` + `Application/Exception/`.
-  - [ ] 1.2 Produce `33-10-audit-worklist.md`: per context, classify every flat Application file (Command / Query+DTO / Exception / stays-flat-with-one-line-reason) and list the 8 exceptions with their target. Classification heuristics: return type void + repository writes = Command; returns DTO/array, name `*Query|*Catalog|*View|*Lookup|*Status` = Query; `extends \RuntimeException` = Exception; interfaces other than `*QueryInterface` = flat; anything ambiguous gets READ before classification (no name-only guessing for services).
-  - [ ] 1.3 Commit convention + worklist before any src/ change.
-- [ ] Task 2: Validator rules + allowlist (AC: 2)
-  - [ ] 2.1 Rules: `*Exception.php` must live under `Domain/Exception/` or `Application/Exception/` or `Infrastructure/` (infra exceptions stay put per taxonomy); `*QueryInterface.php` must live under `Application/Query/` (update the 33.5 rule); both gated by `UNMIGRATED_TAXONOMY_CONTEXTS`.
-  - [ ] 2.2 Allowlist seeded with ALL 17 non-Legal contexts + comment; tests: violation in a migrated context detected, allowlisted context passes, migrated-clean context passes.
-  - [ ] 2.3 Gates green with the full allowlist (rules active but everything exempt - proves wiring before any move).
-- [ ] Task 3: Batch 1 - pilots Identity + GameSelection (AC: 3, 4) - moves per the worklist map, allowlist shrink, full verification battery; record per-batch stats (files moved, services.yaml lines touched).
-- [ ] Task 4: Batch 2 - Community, WeeklyRuns, Membership, Registrations, CatalogSync, Events (AC: 3, 4).
-- [ ] Task 5: Batch 3 - the 8 small contexts (AC: 3, 4).
-- [ ] Task 6: Gates + PR(s) + story record (AC: 5) - PR to `develop` (single PR with per-batch commits, or split per batch if review size demands); merge on green CI (standing authorization); `Sessions` migration recorded as the TODO epic-32 follow-up.
+- [x] Task 1: Convention + audit worklist (AC: 1) → `api/CLAUDE.md` taxonomy + colocation/flat rules; worklist classified every flat Application file (3 parallel audits, 12 judgment calls resolved by 6 consistency rulings). Commit `4d8f66f`.
+- [x] Task 2: Validator rules + allowlist (AC: 2) → `UNMIGRATED_TAXONOMY_CONTEXTS` + exception/query-interface placement rules, 4 new tests. Commit `94f90de` (proven green with full allowlist before any move).
+- [x] Task 3: Batch 1 pilots Identity + GameSelection (AC: 3, 4) → 47 files moved; commit `7bb6fce`; full isolated suite green (1460 tests).
+- [x] Task 4: Batch 2 Community/WeeklyRuns/Membership/Registrations/CatalogSync/Events (AC: 3, 4) → 103 files + Community Domain exception; part of `cb1bfa8`.
+- [x] Task 5: Batch 3 the 8 small contexts (AC: 3, 4) → 22 moves + Shared/Communications/Realtime allowlist-only; part of `cb1bfa8`; allowlist now Sessions-only.
+- [x] Task 6: Gates + PR + story record (AC: 5) → full battery green after each batch; PR opened; merge on green CI. Sessions migration recorded as TODO epic-32 follow-up.
 
 ## Dev Notes
 
@@ -74,14 +68,35 @@ Flat Application files: Community 45, Identity 36, GameSelection 31, WeeklyRuns 
 
 ### Agent Model Used
 
+Claude Fable 5 (batch 1) + Opus 4.8 1M (batches 2-3, finalisation); 3 parallel classification agents.
+
 ### Debug Log References
+
+- Classification: 3 parallel audits read every flat Application file; 12 UNSURE resolved by 6 consistency rulings (worklist section "Consistency rulings").
+- Two automation bugs found and fixed mid-run (both are the recurring Windows/refactor traps):
+  1. PowerShell `-match` is case-insensitive → the use-resolver added `use ...\Command\ConfirmEmail` to `User.php` because the docblock/method `confirmEmail()` matched `ConfirmEmail`. Fixed with `-cmatch`/`-cnotmatch`. Residual docblock-only mentions (class name cited in a comment) still need a manual check per batch - caught 2 (`User`, `SessionConfigOverride`).
+  2. Naive `.Replace()` on FQCNs is prefix-unsafe: moving `ActivateMembership` corrupted the FLAT `ActivateMembershipInterface`. Fixed with a `(?![A-Za-z0-9_])` word-boundary lookahead. `git reset --hard` + redo was cleaner than patching in place.
+- `config/reference.php` (gitignored, Flex-regenerated) excluded from both scripts to avoid polluting it.
+- Two validator test fixtures repointed from Events (now migrated) to Sessions (frozen) so the "unmigrated context" cases stay valid as the allowlist shrinks.
+- Verification per batch: phpstan (symfony/doctrine ext), cs-fixer, `app:architecture:ddd`, `lint:container`, `debug:messenger` (135 lines, unchanged - no message/handler moves), unit 562, full isolated suite (1460 tests) - green each time.
 
 ### Completion Notes List
 
+- ~150 files relocated across 16 contexts into `Application/Command|Query|Exception` + `Domain/Exception`; ~65 FLAT files (ports, helpers, mixed read/write facades, config holders) deliberately left in place per the taxonomy.
+- `DddArchitectureValidator::UNMIGRATED_TAXONOMY_CONTEXTS` shrank from 17 → `['Sessions']`; the taxonomy is now enforced for every context except the Epic-32-frozen Sessions.
+- Zero behaviour change: no message routing change (messenger untouched), no schema change, no controller/route change; the full suite is the contract.
+- Reusable tooling left in the session scratchpad: `migrate-context.ps1` (word-boundary-safe move+rewrite) and `fix-uses.ps1` (case-sensitive same-namespace→cross-namespace use-resolver) - directly applicable to the deferred Sessions migration.
+
 ### File List
+
+- Convention: `api/CLAUDE.md` (taxonomy + colocation/flat rules)
+- Validator: `api/src/Shared/Application/DddArchitectureValidator.php` (allowlist + placement rules), `api/tests/Unit/DddArchitectureValidatorTest.php` (4 new tests + 2 fixtures repointed)
+- Worklist: `_bmad-output/implementation-artifacts/33-10-audit-worklist.md`
+- ~150 moved files across Identity, GameSelection, Community, WeeklyRuns, Membership, Registrations, CatalogSync, Events, PersonalRuns, Payments, SessionConfig, Streaming, Content (+ Community Domain exception); plus their `use`-updated referencers across src/tests and `config/services.yaml`. Full list in git (commits `7bb6fce`, `cb1bfa8`).
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-05 | Story created from the in-session convention decision (post-epic-33 extension approved by Jean). Scope measured (~240 flat Application files, ~150-190 expected moves + 8 exceptions), 3 migration batches + Sessions deferral, decreasing-allowlist enforcement design, blast radius inherited from 33.5 but lighter (messenger untouched). Status: ready-for-dev. |
+| 2026-07-05 | Executed in 3 batches (Identity+GameSelection; the 6 mid contexts; the 8 small): ~150 files moved into Command/Query/Exception, allowlist shrunk 17→Sessions-only, 2 automation bugs (case-insensitive match, FQCN prefix collision) found and fixed, 2 docblock false-positives + 2 validator fixtures corrected. All gates green after each batch; full isolated suite 1460 tests. Status → ready-for-review. |
