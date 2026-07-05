@@ -139,7 +139,11 @@ final class PasswordResetTest extends FunctionalTestCase
     private function extractRawToken(): string
     {
         $sent = $this->asyncTransport()->getSent();
-        $message = $sent[array_key_last($sent)]->getMessage();
+        $lastKey = array_key_last($sent);
+        if (null === $lastKey) {
+            self::fail('No message was dispatched to the async transport.');
+        }
+        $message = $sent[$lastKey]->getMessage();
         self::assertInstanceOf(PasswordResetMessage::class, $message);
 
         return $message->rawToken;
