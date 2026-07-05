@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
 use Psr\Log\LoggerInterface;
 
 /**

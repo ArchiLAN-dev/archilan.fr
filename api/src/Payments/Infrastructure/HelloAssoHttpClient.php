@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Payments\Infrastructure;
 
+use App\Payments\Application\HelloAssoClientInterface;
 use App\Payments\Application\HelloAssoConfig;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final readonly class HelloAssoHttpClient
+final readonly class HelloAssoHttpClient implements HelloAssoClientInterface
 {
     public function __construct(
         private HelloAssoConfig $config,

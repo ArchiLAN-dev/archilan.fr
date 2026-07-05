@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
+use App\Identity\Application\DiscordOAuthClientInterface;
 use App\Identity\Application\DiscordStateToken;
 use App\Identity\Application\LinkDiscordToAccount;
 use App\Identity\Application\UnlinkDiscordFromAccount;
-use App\Identity\Infrastructure\DiscordOAuthClientInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

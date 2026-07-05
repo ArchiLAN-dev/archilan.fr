@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Payments\Application;
 
 use App\Events\Domain\EventRepositoryInterface;
+use App\Payments\Application\Message\SyncHelloAssoFormMessage;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
+use App\GameSelection\Application\IgdbHttpClientInterface;
 use App\GameSelection\Infrastructure\IgdbAuthException;
-use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

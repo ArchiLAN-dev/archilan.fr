@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Communications\Application\PasswordResetMessage;
+use App\Communications\Application\Message\PasswordResetMessage;
 use App\Identity\Domain\PasswordResetToken;
 use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
 use App\Identity\Domain\UserRepositoryInterface;

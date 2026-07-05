@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
+use App\GameSelection\Application\IgdbHttpClientInterface;
+
 final class StubIgdbHttpClient implements IgdbHttpClientInterface
 {
     public static bool $authFails = false;

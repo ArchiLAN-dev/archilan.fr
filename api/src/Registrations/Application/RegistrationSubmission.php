@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application;
 
-use App\Communications\Application\RegistrationConfirmationMessage;
+use App\Communications\Application\Message\RegistrationConfirmationMessage;
 use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Domain\User;

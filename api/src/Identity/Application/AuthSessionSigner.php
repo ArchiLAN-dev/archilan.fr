@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
+use Psr\Clock\ClockInterface;
+
 final readonly class AuthSessionSigner
 {
     public const COOKIE_NAME = '__Host-archilan_session';
     public const ACCESS_TOKEN_TTL = 900;
 
-    public function __construct(private string $appSecret)
-    {
+    public function __construct(
+        private string $appSecret,
+        private ClockInterface $clock,
+    ) {
     }
 
     public function sign(string $userId): string
     {
-        $now = time();
+        $now = $this->clock->now()->getTimestamp();
         $payload = $this->base64UrlEncode(json_encode([
             'sub' => $userId,
             'iat' => $now,
@@ -56,7 +60,7 @@ final readonly class AuthSessionSigner
             return null;
         }
 
-        if (!is_int($decodedPayload['exp'] ?? null) || $decodedPayload['exp'] <= time()) {
+        if (!is_int($decodedPayload['exp'] ?? null) || $decodedPayload['exp'] <= $this->clock->now()->getTimestamp()) {
             return null;
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Infrastructure;
 
+use App\Streaming\Application\TwitchApiClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Communications\Application;
+namespace App\Communications\Application\Message;
 
-final readonly class EmailConfirmationMessage
+final readonly class PasswordResetMessage
 {
     public function __construct(
         public string $userEmail,

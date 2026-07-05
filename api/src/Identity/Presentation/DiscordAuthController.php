@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Identity\Presentation;
 
 use App\Identity\Application\AuthSessionSigner;
+use App\Identity\Application\DiscordOAuthClientInterface;
 use App\Identity\Application\DiscordStateToken;
 use App\Identity\Application\HandleDiscordAuthCallback;
 use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Domain\RefreshTokenRepositoryInterface;
-use App\Identity\Infrastructure\DiscordOAuthClientInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Payments\Application\Message;
+namespace App\Payments\Application\Handler;
 
+use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

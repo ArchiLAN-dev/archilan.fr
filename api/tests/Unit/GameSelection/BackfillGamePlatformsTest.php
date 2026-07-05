@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\GameSelection\Application\BackfillGamePlatforms;
+use App\GameSelection\Application\IgdbHttpClientInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
 use App\GameSelection\Infrastructure\IgdbSearchException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;

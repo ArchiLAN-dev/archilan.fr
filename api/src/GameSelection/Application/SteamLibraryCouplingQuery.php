@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GameSelection\Application;
 
 use App\GameSelection\Domain\SteamProfileReference;
-use App\GameSelection\Infrastructure\SteamWebApiClientInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class SteamLibraryCouplingQuery

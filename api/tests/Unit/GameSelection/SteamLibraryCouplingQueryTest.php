@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
+use App\GameSelection\Application\SteamApiException;
 use App\GameSelection\Application\SteamCatalogQueryInterface;
 use App\GameSelection\Application\SteamLibraryCouplingQuery;
-use App\GameSelection\Infrastructure\SteamApiException;
-use App\GameSelection\Infrastructure\SteamWebApiClientInterface;
+use App\GameSelection\Application\SteamWebApiClientInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

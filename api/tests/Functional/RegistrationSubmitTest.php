@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Communications\Application\RegistrationConfirmationMessage;
+use App\Communications\Application\Message\RegistrationConfirmationMessage;
 use App\Events\Domain\Event;
 use App\Registrations\Domain\Registration;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;

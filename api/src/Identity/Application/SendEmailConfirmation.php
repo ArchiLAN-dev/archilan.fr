@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application;
 
-use App\Communications\Application\EmailConfirmationMessage;
+use App\Communications\Application\Message\EmailConfirmationMessage;
 use App\Identity\Domain\EmailConfirmationToken;
 use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;

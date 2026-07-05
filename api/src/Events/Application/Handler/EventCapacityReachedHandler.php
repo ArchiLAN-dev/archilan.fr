@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Events\Application;
+namespace App\Events\Application\Handler;
 
 use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\EventCapacityReachedEmail;
+use App\Events\Application\Message\EventCapacityReachedMessage;
 use App\Identity\Domain\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

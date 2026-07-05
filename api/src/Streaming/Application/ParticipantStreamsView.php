@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Streaming\Application;
 
 use App\Streaming\Domain\TwitchLinkResolver;
-use App\Streaming\Infrastructure\TwitchApiClientInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 

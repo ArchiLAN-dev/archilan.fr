@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Events;
 
-use App\Events\Application\Message\CleanupEventPrivateAccessLogHandler;
+use App\Events\Application\Handler\CleanupEventPrivateAccessLogHandler;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\Events\Domain\EventPrivateAccessLogRepositoryInterface;
 use PHPUnit\Framework\TestCase;
