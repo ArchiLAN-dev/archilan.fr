@@ -73,17 +73,18 @@ export function DateTimePicker({
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Date | null>(init);
   const [viewYear, setViewYear] = useState(
-    init?.getFullYear() ?? new Date().getFullYear(),
+    () => init?.getFullYear() ?? new Date().getFullYear(),
   );
   const [viewMonth, setViewMonth] = useState(
-    init?.getMonth() ?? new Date().getMonth(),
+    () => init?.getMonth() ?? new Date().getMonth(),
   );
   const [time, setTime] = useState(() => initTime(defaultValue));
 
   const hiddenValue = toHiddenValue(selected, time);
   const displayText = toDisplayText(selected, time);
 
-  const today = new Date();
+  // Mount-stable "today" for the calendar highlight (avoids an impure call during render).
+  const [today] = useState(() => new Date());
   const rawMonthLabel = new Intl.DateTimeFormat("fr-FR", {
     month: "long",
     year: "numeric",

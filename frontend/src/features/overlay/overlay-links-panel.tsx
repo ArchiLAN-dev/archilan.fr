@@ -1,9 +1,11 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Loader2, Play, RefreshCw, Tv } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import type { OverlaySlot } from "./overlay-api";
 import { fetchOverlaySlots, testOverlayEvent } from "./overlay-api";
 
@@ -44,7 +46,6 @@ export function OverlayLinksPanel({ sessionId }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [previewNonce, setPreviewNonce] = useState(0);
-  const [slots, setSlots] = useState<OverlaySlot[]>([]);
   // Selected scope: "" = all players, "group" = custom group, else a slot key.
   const [scope, setScope] = useState<string>("");
   // Slot keys ticked when scope === "group" (?slot=a,b).
@@ -54,15 +55,14 @@ export function OverlayLinksPanel({ sessionId }: Props) {
   const [testType, setTestType] = useState<string>("item-received");
   const [testPlayer, setTestPlayer] = useState<string>("");
 
-  useEffect(() => {
-    let cancelled = false;
-    void fetchOverlaySlots(sessionId).then((list) => {
-      if (!cancelled && list) setSlots(list);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId]);
+  // `null` (fetch failed, e.g. session not started) renders exactly like the empty list did before.
+  const { data: slotsData } = useQuery({
+    queryKey: ["overlay-slots", sessionId],
+    queryFn: () => fetchOverlaySlots(sessionId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false, // fetchOverlaySlots never throws; a null result must not be retried either
+  });
+  const slots: OverlaySlot[] = slotsData ?? [];
 
   // Permanent, tokenless overlay URL. slotKey "" = all players; a slot key (or comma list) scopes it.
   function overlayUrl(widget: string, slotKey: string): string {

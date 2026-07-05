@@ -582,7 +582,7 @@ function SyncHistoryPanel({ status }: { status: SyncStatus | null }) {
   return (
     <ul className="mt-2 grid gap-1.5">
       {status.recentSyncs.map((entry, i) => (
-        <li className="flex flex-wrap items-start gap-2 text-xs" key={i}>
+        <li className="flex flex-wrap items-start gap-2 text-xs" key={`${entry.attemptAt}-${i}`}>
           {entry.success ? (
             <CheckCircle2 aria-hidden="true" className="mt-px size-3 shrink-0 text-success" />
           ) : (

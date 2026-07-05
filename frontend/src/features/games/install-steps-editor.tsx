@@ -70,6 +70,11 @@ export function InstallStepsEditor({
         <p className="text-sm text-muted-foreground">Aucune étape. Ajoute une étape ou génère un brouillon.</p>
       ) : null}
 
+      {/* Index keys are the least-bad option here: steps have no natural id (type/title are all
+          editable), content-based keys would remount inputs on every keystroke (focus loss), and
+          the list is owned by the parent (controlled), so a local id store cannot stay in sync
+          with external replacements such as draft generation. Inputs are fully controlled, so
+          values stay correct across reorder/removal. */}
       {steps.map((step, index) => (
         <div className="grid gap-3 rounded-lg border border-border bg-surface p-4" key={index}>
           <div className="flex items-center justify-between gap-2">

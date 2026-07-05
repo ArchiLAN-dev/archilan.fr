@@ -3,81 +3,68 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Users } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
-
-type PreviewData = {
-  title: string;
-  ownerName: string | null;
-  participantCount: number;
-  status: string;
-};
+import { fetchInvitePreview, type RunInvitePreview } from "./personal-runs-api";
 
 type PageState =
   | { kind: "loading" }
   | { kind: "not_found" }
-  | { kind: "preview"; data: PreviewData }
+  | { kind: "preview"; data: RunInvitePreview }
   | { kind: "joining" }
   | { kind: "error"; message: string };
 
 export function JoinPage({ inviteToken }: { inviteToken: string }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [state, setState] = useState<PageState>({ kind: "loading" });
+  // Join-flow state; once set it overrides the preview query result in the rendering below.
+  const [joinState, setJoinState] = useState<PageState | null>(null);
   const joinInitiated = useRef(false);
 
-  useEffect(() => {
-    let mounted = true;
+  // fetchInvitePreview never throws (404 / server error / network failure are encoded in the
+  // result's `kind`), so the query never errors and - like the old effect - never retries.
+  const previewQuery = useQuery({
+    queryKey: ["run-invite-preview", inviteToken],
+    queryFn: () => fetchInvitePreview(inviteToken),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-    async function loadPreview() {
-      try {
-        const res = await fetch(`${env.apiBaseUrl}/runs/invite/${inviteToken}/preview`);
-        if (!mounted) return;
-
-        if (res.status === 404) {
-          setState({ kind: "not_found" });
-          return;
-        }
-
-        if (!res.ok) {
-          setState({ kind: "error", message: "Impossible de charger les informations de la partie." });
-          return;
-        }
-
-        const payload = (await res.json()) as { data: PreviewData };
-        setState({ kind: "preview", data: payload.data });
-      } catch {
-        if (mounted) setState({ kind: "error", message: "Erreur réseau." });
-      }
-    }
-
-    void loadPreview();
-    return () => { mounted = false; };
-  }, [inviteToken]);
+  const previewReady = previewQuery.data?.kind === "preview";
 
   // Authenticated: auto-join once preview is ready, guarded by a ref to prevent re-runs
   useEffect(() => {
-    if (authLoading || !user || state.kind !== "preview" || joinInitiated.current) return;
+    if (authLoading || !user || !previewReady || joinInitiated.current) return;
 
     joinInitiated.current = true;
 
     async function join() {
-      setState({ kind: "joining" });
+      setJoinState({ kind: "joining" });
       try {
         const res = await apiFetch(`${env.apiBaseUrl}/runs/join/${inviteToken}`);
-        if (res.status === 404) { setState({ kind: "not_found" }); return; }
-        if (!res.ok) { setState({ kind: "error", message: "Impossible de rejoindre la partie." }); return; }
+        if (res.status === 404) { setJoinState({ kind: "not_found" }); return; }
+        if (!res.ok) { setJoinState({ kind: "error", message: "Impossible de rejoindre la partie." }); return; }
         const payload = (await res.json()) as { data: { id: string } };
         router.replace(`/runs/${payload.data.id}`);
       } catch {
-        setState({ kind: "error", message: "Erreur réseau." });
+        setJoinState({ kind: "error", message: "Erreur réseau." });
       }
     }
 
     void join();
-  }, [authLoading, user, state.kind, inviteToken, router]);
+  }, [authLoading, user, previewReady, inviteToken, router]);
+
+  // Same state machine as before the TanStack conversion: the join flow takes precedence, then the
+  // preview query maps 1:1 onto the loading / not_found / preview / error kinds.
+  const state: PageState =
+    joinState ??
+    (previewQuery.isPending
+      ? { kind: "loading" }
+      : previewQuery.data ?? { kind: "error", message: "Erreur réseau." });
 
   const returnTo = `/runs/join/${inviteToken}`;
 

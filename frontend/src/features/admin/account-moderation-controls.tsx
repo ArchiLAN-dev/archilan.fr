@@ -35,6 +35,8 @@ export function AccountModerationControls({
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<AccountActionEntry[] | null>(null);
+  // Mount-stable lower bound for the suspension date input (avoids an impure call during render).
+  const [minDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   function open(next: ModerationActionKind) {
     setMode(next);
@@ -90,7 +92,7 @@ export function AccountModerationControls({
               Jusqu&apos;au
               <input
                 className="min-h-8 rounded border border-border bg-background px-2 text-sm text-foreground"
-                min={new Date().toISOString().slice(0, 10)}
+                min={minDate}
                 onChange={(e) => setUntil(e.target.value)}
                 type="date"
                 value={until}

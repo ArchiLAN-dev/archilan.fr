@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Calendar, Gamepad2, Radio } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 import { useAuth } from "./auth-context";
 
 type RegistrationStatus = "pending" | "confirmed" | "cancelled";
@@ -61,6 +62,38 @@ const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
   finished: "Terminée",
 };
 
+function isRegistrationStatus(v: unknown): v is RegistrationStatus {
+  return v === "pending" || v === "confirmed" || v === "cancelled";
+}
+
+function isSessionStatus(v: unknown): v is SessionStatus {
+  return typeof v === "string" && v in SESSION_STATUS_LABELS;
+}
+
+function isRegistration(v: unknown): v is Registration {
+  if (typeof v !== "object" || v === null) return false;
+  const sessionStatus: unknown = Reflect.get(v, "sessionStatus");
+  return (
+    hasStringProp(v, "registrationId") &&
+    hasStringProp(v, "eventSlug") &&
+    hasStringProp(v, "eventTitle") &&
+    hasNullableStringProp(v, "eventStartDate") &&
+    isRegistrationStatus(Reflect.get(v, "registrationStatus")) &&
+    hasNumberProp(v, "slotCount") &&
+    (sessionStatus === null || isSessionStatus(sessionStatus))
+  );
+}
+
+function isRegistrationsResponse(v: unknown): v is RegistrationsResponse {
+  if (typeof v !== "object" || v === null) return false;
+  if ("error" in v) {
+    const error: unknown = Reflect.get(v, "error");
+    return typeof error === "object" && error !== null;
+  }
+  const data: unknown = Reflect.get(v, "data");
+  return Array.isArray(data) && data.every(isRegistration);
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -90,8 +123,8 @@ export function AccountRegistrations() {
         const res = await apiFetch(`${env.apiBaseUrl}/account/registrations`);
         if (!mounted) return;
         if (!res.ok) { setError(true); return; }
-        const payload = (await res.json()) as RegistrationsResponse;
-        if ("error" in payload) { setError(true); return; }
+        const payload: unknown = await res.json();
+        if (!isRegistrationsResponse(payload) || "error" in payload) { setError(true); return; }
         setRegistrations(payload.data);
       } catch {
         if (mounted) setError(true);

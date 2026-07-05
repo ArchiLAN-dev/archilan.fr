@@ -48,6 +48,10 @@ const AUDIENCE_HINTS: Record<string, string> = {
 
 type SaveState = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string };
 
+// Local row wrapper: gives each link row a stable list key (rows can be removed/re-added and
+// label/url are editable). The rowId never leaves the form - it is stripped in handleSave.
+type SocialLinkRowState = EditableSocialLink & { rowId: string };
+
 type FormValues = {
   displayName: string;
   bio: string;
@@ -105,7 +109,7 @@ export function CommunityProfileCustomizationForm({
   const [avatar, setAvatar] = useState<SaveState>({ kind: "idle" });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [audience, setAudience] = useState<string>("members");
-  const [socialLinks, setSocialLinks] = useState<EditableSocialLink[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
   const [showcase, setShowcase] = useState<string[]>([]);
   const [catalog, setCatalog] = useState<PublicGame[]>([]);
@@ -133,7 +137,7 @@ export function CommunityProfileCustomizationForm({
     setAvatarUrl(profile.avatarUrl);
     setHasCustomAvatar(profile.hasCustomAvatar);
     setAudience(profile.audience);
-    setSocialLinks(profile.socialLinks);
+    setSocialLinks(profile.socialLinks.map((l) => ({ ...l, rowId: crypto.randomUUID() })));
     setFavorites(profile.favoriteGames);
     setShowcase(profile.showcaseLayout);
     setBaseline(
@@ -187,7 +191,7 @@ export function CommunityProfileCustomizationForm({
       bannerPreset,
       avatarFrame,
       audience,
-      socialLinks: socialLinks.filter((l) => l.url.trim() !== ""),
+      socialLinks: socialLinks.filter((l) => l.url.trim() !== "").map((l) => ({ label: l.label, url: l.url })),
       favoriteGameIds: favorites.map((g) => g.id),
       showcaseLayout: showcase,
     });
@@ -398,7 +402,7 @@ export function CommunityProfileCustomizationForm({
         <div className="grid gap-2">
           {socialLinks.map((link, index) => (
             <SocialLinkRow
-              key={index}
+              key={link.rowId}
               link={link}
               onChange={(patch) => updateLink(setSocialLinks, index, patch)}
               onRemove={() => setSocialLinks((prev) => prev.filter((_, i) => i !== index))}
@@ -407,7 +411,7 @@ export function CommunityProfileCustomizationForm({
           {socialLinks.length < MAX_SOCIAL_LINKS ? (
             <button
               className="inline-flex min-h-9 w-fit items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground hover:border-accent hover:text-foreground"
-              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "" }])}
+              onClick={() => setSocialLinks((prev) => [...prev, { label: "website", url: "", rowId: crypto.randomUUID() }])}
               type="button"
             >
               <Plus aria-hidden className="size-3.5" />
@@ -812,7 +816,7 @@ const inputClass =
   "min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent";
 
 function updateLink(
-  setSocialLinks: React.Dispatch<React.SetStateAction<EditableSocialLink[]>>,
+  setSocialLinks: React.Dispatch<React.SetStateAction<SocialLinkRowState[]>>,
   index: number,
   patch: Partial<EditableSocialLink>,
 ): void {

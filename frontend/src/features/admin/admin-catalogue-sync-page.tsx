@@ -97,6 +97,21 @@ const PAGE_SIZE = 20;
 
 // ── Data fetcher ─────────────────────────────────────────────────────────────
 
+function isCatalogSyncData(v: unknown): v is CatalogSyncData {
+  if (!v || typeof v !== "object") return false;
+  const d = v as Record<string, unknown>;
+  return (
+    (d.cachedAt === null || typeof d.cachedAt === "string") &&
+    typeof d.googleApiAvailable === "boolean" &&
+    typeof d.githubChecksAvailable === "boolean" &&
+    Array.isArray(d.newGames) &&
+    Array.isArray(d.ignoredGames) &&
+    Array.isArray(d.stabilityChanged) &&
+    Array.isArray(d.removedFromSheet) &&
+    Array.isArray(d.apworldUpdates)
+  );
+}
+
 async function fetchCatalogSync(
   force = false,
 ): Promise<{ ok: true; data: CatalogSyncData } | { ok: false; message: string }> {
@@ -110,7 +125,11 @@ async function fetchCatalogSync(
       }
       return { ok: false, message: "Impossible de charger la synchronisation catalogue." };
     }
-    return { ok: true, data: (await res.json()) as CatalogSyncData };
+    const payload: unknown = await res.json();
+    if (!isCatalogSyncData(payload)) {
+      return { ok: false, message: "Impossible de charger la synchronisation catalogue." };
+    }
+    return { ok: true, data: payload };
   } catch {
     return { ok: false, message: "Impossible de contacter l'API." };
   }
@@ -480,8 +499,8 @@ function NewGamesTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pageItems.map((game, i) => (
-                <tr className="transition-colors hover:bg-surface-2/40" key={i}>
+              {pageItems.map((game) => (
+                <tr className="transition-colors hover:bg-surface-2/40" key={game.name}>
                   <td className="px-4 py-3 font-semibold text-foreground">{game.name}</td>
                   <td className="px-4 py-3">
                     <AvailabilityBadge availability={game.availability} />

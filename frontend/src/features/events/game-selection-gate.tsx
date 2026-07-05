@@ -297,7 +297,7 @@ export function GameSelectionGate({
     const n = occurrenceProgress[gameId];
     const total = occurrenceCounts[gameId] ?? 1;
     const name = gameMap.get(gameId)?.name ?? gameId;
-    return { gameId, idx, label: total > 1 ? `${name} (monde ${n})` : name };
+    return { gameId, n, idx, label: total > 1 ? `${name} (monde ${n})` : name };
   });
 
   // Distinct selected games (name + slug) for the post-selection install nudge (story 31.4).
@@ -371,9 +371,9 @@ export function GameSelectionGate({
           </p>
         ) : (
           <ul className="grid gap-1.5" role="list">
-            {selectionItems.map(({ idx, label }) => (
+            {selectionItems.map(({ gameId, n, idx, label }) => (
               <li
-                key={idx}
+                key={`${gameId}-${n}`}
                 className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2"
               >
                 <span className="text-sm font-medium text-foreground">{label}</span>

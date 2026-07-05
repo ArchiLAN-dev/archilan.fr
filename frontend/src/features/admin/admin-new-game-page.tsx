@@ -43,7 +43,7 @@ function slugify(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export default function AdminNewGamePage() {
+export function AdminNewGamePage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [fields, setFields] = useState<Fields>({

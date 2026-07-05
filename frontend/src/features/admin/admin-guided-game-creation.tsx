@@ -397,7 +397,7 @@ function SheetLinksSection({ links }: { links: { label: string; url: string | nu
       <ul className="flex flex-wrap gap-3">
         {links.map((link, i) =>
           link.url ? (
-            <li key={i}>
+            <li key={`${link.label}-${i}`}>
               <a
                 className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-sm text-accent-text hover:underline"
                 href={link.url}
@@ -409,7 +409,7 @@ function SheetLinksSection({ links }: { links: { label: string; url: string | nu
               </a>
             </li>
           ) : (
-            <li key={i}>
+            <li key={`${link.label}-${i}`}>
               <span className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-sm text-muted-foreground/50">
                 {link.label}
               </span>

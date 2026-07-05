@@ -612,6 +612,10 @@ function RuleGroupEditor({
       </div>
 
       <div className="grid gap-2">
+        {/* Index keys are the least-bad option here: rule nodes are the persisted rule JSON
+            (no id field can be added without leaking into the payload) and every edit replaces
+            the node object, so content/identity keys would remount inputs mid-keystroke.
+            Editors are fully controlled, so values stay correct across removal. */}
         {group.rules.map((node, index) => (
           <div className="flex items-start gap-2" key={index}>
             <div className="flex-1">
