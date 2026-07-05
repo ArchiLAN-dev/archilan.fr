@@ -109,7 +109,9 @@ final readonly class ParticipantStreamsView
 
     /**
      * Cached batch live check keyed by the sorted login set, so concurrent session pages sharing streamers
-     * reuse one Helix call within the TTL.
+     * reuse one Helix call within the TTL. A Twitch outage (null from the client) is cached as "nobody live"
+     * for only 15s so a transient failure self-heals fast, instead of pinning everyone offline for the full
+     * 60s TTL reserved for authoritative results (deferred item from story 7.7, resolved in story 33.8).
      *
      * @param list<string> $logins
      *
@@ -122,9 +124,17 @@ final readonly class ParticipantStreamsView
         $key = 'streaming.participant_streams.live.'.md5(implode(',', $unique));
 
         return $this->cache->get($key, function (ItemInterface $item) use ($unique): array {
+            $result = $this->client->fetchLiveLogins($unique);
+
+            if (null === $result) {
+                $item->expiresAfter(15);
+
+                return [];
+            }
+
             $item->expiresAfter(60);
 
-            return $this->client->fetchLiveLogins($unique);
+            return $result;
         });
     }
 

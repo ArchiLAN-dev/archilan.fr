@@ -13,14 +13,16 @@ interface TwitchApiClientInterface
 
     /**
      * Batch live check: returns a map of live login => viewer count for the given logins.
-     * Offline or unknown logins are absent from the map. Empty input, missing credentials, or an
-     * unavailable API yields an empty array (every login treated as offline).
+     * Offline or unknown logins are absent from the map. Empty input or missing credentials
+     * yields an empty array (every login treated as offline). Returns null when Twitch is
+     * UNAVAILABLE (token fetch failed or every chunk failed) so callers can distinguish an
+     * outage from an authoritative "nobody is live" and cache it for a shorter time.
      *
      * @param list<string> $logins
      *
-     * @return array<string, int>
+     * @return array<string, int>|null
      */
-    public function fetchLiveLogins(array $logins): array;
+    public function fetchLiveLogins(array $logins): ?array;
 
     /**
      * Batch profile lookup: returns a map of login => profile image URL for the given logins.
