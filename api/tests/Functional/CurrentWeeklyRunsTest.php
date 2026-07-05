@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
 use App\Membership\Domain\Membership;
+use App\PersonalRuns\Domain\Run;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;

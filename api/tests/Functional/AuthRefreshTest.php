@@ -10,7 +10,7 @@ use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
-use App\Identity\Presentation\AuthController;
+use App\Identity\Presentation\Controller\AuthController;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class AuthRefreshTest extends FunctionalTestCase

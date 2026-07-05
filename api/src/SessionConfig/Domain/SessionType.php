@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Domain;
 
+use App\Events\Domain\Event;
+
 /**
  * The three session types that carry a config profile.
  */

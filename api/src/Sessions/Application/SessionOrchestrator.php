@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
+use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Identity\Domain\UserRepositoryInterface;

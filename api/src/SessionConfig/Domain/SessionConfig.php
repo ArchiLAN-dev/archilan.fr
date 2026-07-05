@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Domain;
 
+use App\Events\Domain\Event;
+
 /**
  * The full configuration applied to a session: server_options (launch-time) plus
  * generation options (generation-time). Immutable; merges a per-field override.

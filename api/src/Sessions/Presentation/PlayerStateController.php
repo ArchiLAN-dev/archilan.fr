@@ -8,7 +8,7 @@ use App\Identity\Domain\User;
 use App\Sessions\Application\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Presentation\RequiresAuthTrait;
+use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Archilan\BridgeClient\Enum\HintStatus;
 use Archilan\BridgeClient\Slots\Response\Hint;
 use Archilan\BridgeClient\Slots\Response\ItemLocation;

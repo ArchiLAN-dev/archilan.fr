@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure;
 
 use App\Identity\Application\Query\PlayerHistoryQueryInterface;
+use App\PersonalRuns\Domain\Run;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterface

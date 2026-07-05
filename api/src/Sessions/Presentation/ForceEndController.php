@@ -8,7 +8,7 @@ use App\Sessions\Application\ForceEndSessionCommand;
 use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionNotRunningException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Presentation\RequiresAuthTrait;
+use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\CatalogSync;
 
 use App\CatalogSync\Application\Service\CatalogSyncService;
+use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;

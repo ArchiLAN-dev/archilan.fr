@@ -260,11 +260,11 @@ services:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
-    App\Identity\Presentation\DiscordAuthController:
+    App\Identity\Presentation\Controller\DiscordAuthController:
         arguments:
             $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
 
-    App\Identity\Presentation\DiscordLinkController:
+    App\Identity\Presentation\Controller\DiscordLinkController:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 

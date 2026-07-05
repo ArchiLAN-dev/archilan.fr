@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\GameSelection\Domain\Game;
+use App\PersonalRuns\Domain\Run;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use App\WeeklyRuns\Domain\WeeklyEntry;
