@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\Community\Application\Notifier;
-use App\GameSelection\Application\InstallStepsNormalizer;
+use App\Community\Application\Support\Notifier;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\GameTutorialContribution;

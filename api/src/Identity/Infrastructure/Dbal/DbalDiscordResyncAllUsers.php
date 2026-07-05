@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Dbal;
 
-use App\Identity\Application\DiscordResyncAllUsersInterface;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
+use App\Identity\Application\Port\DiscordResyncAllUsersInterface;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;

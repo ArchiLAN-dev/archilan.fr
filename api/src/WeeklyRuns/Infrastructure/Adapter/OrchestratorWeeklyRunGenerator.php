@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Infrastructure\Adapter;
 
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 

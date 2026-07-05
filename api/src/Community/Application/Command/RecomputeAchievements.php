@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
-use App\Community\Application\MetricBagBuilder;
-use App\Community\Application\Notifier;
+use App\Community\Application\Support\MetricBagBuilder;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
+use App\Community\Domain\MetricBag;
 use App\Community\Domain\Notification;
 
 /**

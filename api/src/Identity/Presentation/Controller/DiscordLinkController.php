@@ -6,8 +6,8 @@ namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\Command\LinkDiscordToAccount;
 use App\Identity\Application\Command\UnlinkDiscordFromAccount;
-use App\Identity\Application\DiscordOAuthClientInterface;
-use App\Identity\Application\DiscordStateToken;
+use App\Identity\Application\Port\DiscordOAuthClientInterface;
+use App\Identity\Application\Support\DiscordStateToken;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

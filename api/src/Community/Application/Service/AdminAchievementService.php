@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\AchievementImageUrlResolver;
 use App\Community\Application\Query\EventCatalogueQueryInterface;
+use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementMetricCatalog;

@@ -6,7 +6,7 @@ namespace App\GameSelection\Application\Command;
 
 use App\GameSelection\Domain\ArchipelagoClientInfo;
 use App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 
 final readonly class UpdateArchipelagoClient
 {

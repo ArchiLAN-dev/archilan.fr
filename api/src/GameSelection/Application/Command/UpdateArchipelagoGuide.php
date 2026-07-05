@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Application\InstallStepsNormalizer;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Domain\ArchipelagoGuide;
 use App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface;
 

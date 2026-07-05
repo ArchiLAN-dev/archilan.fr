@@ -11,7 +11,7 @@ use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\ShowcaseWidget;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 
 /**
  * Owner edit of their own community profile customization (story 30.3). Upserts the profile row and

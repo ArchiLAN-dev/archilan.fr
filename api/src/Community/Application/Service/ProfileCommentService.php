@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\Notifier;
-use App\Community\Application\ProfileVisibility;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\Notifier;
+use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\ContentReport;
 use App\Community\Domain\ContentReportRepositoryInterface;

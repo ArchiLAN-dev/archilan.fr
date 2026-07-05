@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\CatalogSync\Infrastructure\Adapter;
 
 use App\CatalogSync\Application\Service\CatalogSyncService;
-use App\GameSelection\Application\GameCatalogLinksProviderInterface;
+use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
 use Psr\Log\LoggerInterface;
 
 /**

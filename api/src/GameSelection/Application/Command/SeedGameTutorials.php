@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Application\GameTutorialSeeder;
+use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use Psr\Log\LoggerInterface;
 

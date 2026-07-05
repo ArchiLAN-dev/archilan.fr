@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure\Double;
 
-use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
 
 final class NullWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {

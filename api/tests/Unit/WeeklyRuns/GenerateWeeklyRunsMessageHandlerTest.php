@@ -8,7 +8,7 @@ use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\WeeklyRuns\Application\Handler\GenerateWeeklyRunsMessageHandler;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyTemplate;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
-use App\Community\Application\Notifier;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrant;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
-use App\Community\Application\AchievementImageUrlResolver;
-use App\Community\Application\AvatarUrlResolver;
-use App\Community\Application\ProfileVisibility;
+use App\Community\Application\Support\AchievementImageUrlResolver;
+use App\Community\Application\Support\AvatarUrlResolver;
+use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Audience;
@@ -15,6 +15,7 @@ use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\Kudos;
 use App\Community\Domain\KudosRepositoryInterface;
+use App\Community\Domain\Level;
 use App\Community\Domain\ShowcaseWidget;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;

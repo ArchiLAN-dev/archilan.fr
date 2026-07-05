@@ -6,7 +6,7 @@ namespace App\PersonalRuns\Application\Command;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\Command\DeleteAccount;
+use App\Identity\Application\Support\AuthSessionSigner;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\Cookie;

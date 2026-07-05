@@ -6,7 +6,7 @@ namespace App\Tests\Unit\WeeklyRuns;
 
 use App\WeeklyRuns\Application\Handler\StopWeeklyRunsMessageHandler;
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
-use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyEntry;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;

@@ -6,6 +6,7 @@ namespace App\PersonalRuns\Application\Query;
 
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Presentation\Controller\PersonalRunPatchController;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;

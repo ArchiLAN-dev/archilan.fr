@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Streaming\Application\Query;
 
 use App\Sessions\Application\SessionQuery;
+use App\Streaming\Presentation\Controller\OverlayTestController;
 
 /**
  * Read side of the public overlay subscribe flow. Overlays are read-only (subscribe to the feed +

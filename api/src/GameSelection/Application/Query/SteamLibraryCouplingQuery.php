@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Query;
 
-use App\GameSelection\Application\SteamWebApiClientInterface;
+use App\GameSelection\Application\Port\SteamWebApiClientInterface;
 use App\GameSelection\Domain\SteamProfileReference;
 use Psr\Log\LoggerInterface;
 

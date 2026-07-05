@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Payments\Application\Handler\SyncHelloAssoFormHandler;
-use App\Payments\Application\HelloAssoConfig;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use App\Payments\Application\Message\SyncHelloAssoFormMessage;
+use App\Payments\Application\Support\HelloAssoConfig;
 use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoSyncLog;
 use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository;

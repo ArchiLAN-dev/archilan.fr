@@ -8,7 +8,7 @@ use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Domain\RegistrationRepositoryInterface;
 use App\Shared\Domain\SlotName;
 use Psr\Log\LoggerInterface;

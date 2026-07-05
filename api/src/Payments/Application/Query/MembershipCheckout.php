@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Application\Query;
 
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final readonly class MembershipCheckout

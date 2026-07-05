@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Communications\Application\Email;
 
-use App\Communications\Application\ArchilanEmail;
-
 final class MembershipReminderEmail extends ArchilanEmail
 {
     public function __construct(

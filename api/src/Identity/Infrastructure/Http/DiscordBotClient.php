@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Http;
 
-use App\Identity\Application\DiscordBotClientInterface;
+use App\Identity\Application\Port\DiscordBotClientInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class DiscordBotClient implements DiscordBotClientInterface

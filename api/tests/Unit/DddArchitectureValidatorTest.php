@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit;
 
-use App\Shared\Application\DddArchitectureValidator;
+use App\Shared\Application\Support\DddArchitectureValidator;
 use PHPUnit\Framework\TestCase;
 
 final class DddArchitectureValidatorTest extends TestCase

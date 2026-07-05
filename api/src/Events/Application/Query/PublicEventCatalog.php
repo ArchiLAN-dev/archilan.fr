@@ -6,7 +6,7 @@ namespace App\Events\Application\Query;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 

@@ -18,7 +18,7 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Shared\Application\SlotYamlNameReader;
+use App\Shared\Application\Support\SlotYamlNameReader;
 use Psr\Log\LoggerInterface;
 
 final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface

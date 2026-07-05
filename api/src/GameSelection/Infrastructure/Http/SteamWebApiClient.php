@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure\Http;
 
 use App\GameSelection\Application\Exception\SteamApiException;
-use App\GameSelection\Application\SteamWebApiClientInterface;
+use App\GameSelection\Application\Port\SteamWebApiClientInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class SteamWebApiClient implements SteamWebApiClientInterface

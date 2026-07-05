@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
-use App\Community\Application\Notifier;
 use App\Community\Application\Query\AccountReportScoreQueryInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Notification;
 use App\Community\Domain\ReportSeverity;
 

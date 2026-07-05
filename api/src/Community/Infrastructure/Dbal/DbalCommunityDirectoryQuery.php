@@ -6,6 +6,7 @@ namespace App\Community\Infrastructure\Dbal;
 
 use App\Community\Application\Query\CommunityDirectoryQueryInterface;
 use App\Community\Application\Query\CommunityLevelQuery;
+use App\Community\Domain\Level;
 use Doctrine\DBAL\Connection;
 
 /**

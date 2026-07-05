@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Game;
 use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\Run;
 use App\Shared\Infrastructure\Double\NullMinioStorage;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyTemplate;

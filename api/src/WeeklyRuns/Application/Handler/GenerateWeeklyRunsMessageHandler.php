@@ -10,7 +10,7 @@ use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\SessionType;
 use App\WeeklyRuns\Application\Command\MarkWeeklyRunGenerated;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;

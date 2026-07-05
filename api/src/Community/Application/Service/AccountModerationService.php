@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\MemberModerationGatewayInterface;
-use App\Community\Application\Notifier;
+use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\ContentReportRepositoryInterface;
 use App\Community\Domain\ModerationAction;
 use App\Community\Domain\ModerationActionRepositoryInterface;
 use App\Community\Domain\Notification;
+use App\Identity\Domain\User;
+use App\PersonalRuns\Domain\Run;
 
 /**
  * Admin actions on a member's account (story 30.29): warn / suspend / ban / lift. Suspend & ban delegate

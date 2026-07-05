@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Event;
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 
 final class HelloAssoCheckoutTest extends FunctionalTestCase
 {

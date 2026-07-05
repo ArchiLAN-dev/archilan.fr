@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Double;
 
-use App\GameSelection\Application\IgdbHttpClientInterface;
+use App\GameSelection\Application\Port\IgdbHttpClientInterface;
 use App\GameSelection\Infrastructure\Exception\IgdbAuthException;
 use App\GameSelection\Infrastructure\Exception\IgdbSearchException;
 

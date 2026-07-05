@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Sessions;
 
 use App\Sessions\Application\SlotNameGenerator;
+use App\Shared\Domain\SlotName;
 use PHPUnit\Framework\TestCase;
 
 final class SlotNameGeneratorTest extends TestCase

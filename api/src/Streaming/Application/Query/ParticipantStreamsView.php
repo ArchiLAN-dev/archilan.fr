@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Application\Query;
 
-use App\Streaming\Application\TwitchApiClientInterface;
+use App\Streaming\Application\Port\TwitchApiClientInterface;
 use App\Streaming\Domain\TwitchLinkResolver;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;

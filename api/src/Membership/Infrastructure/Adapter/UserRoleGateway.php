@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Membership\Infrastructure\Adapter;
 
 use App\Identity\Domain\User;
-use App\Membership\Application\UserRoleGatewayInterface;
+use App\Membership\Application\Port\UserRoleGatewayInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class UserRoleGateway implements UserRoleGatewayInterface

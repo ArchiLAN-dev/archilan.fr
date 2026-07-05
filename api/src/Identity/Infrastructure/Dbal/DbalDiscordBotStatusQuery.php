@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Dbal;
 
-use App\Identity\Application\DiscordBotClientInterface;
+use App\Identity\Application\Port\DiscordBotClientInterface;
 use App\Identity\Application\Query\DiscordBotStatusQueryInterface;
 use Doctrine\DBAL\Connection;
 

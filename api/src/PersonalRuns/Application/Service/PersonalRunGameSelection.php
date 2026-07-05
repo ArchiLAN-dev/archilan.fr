@@ -9,7 +9,7 @@ use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\PlatformCategory;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
 use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;

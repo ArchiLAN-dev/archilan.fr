@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\AchievementImageUrlResolver;
+use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Application\MemberModerationGatewayInterface;
-use App\Community\Application\Notifier;
+use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Service\AccountModerationService;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\ContentReportRepositoryInterface;
 use App\Community\Domain\ModerationActionRepositoryInterface;
 use PHPUnit\Framework\TestCase;

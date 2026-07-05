@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Adapter;
 
-use App\Community\Application\AvatarResolverInterface;
+use App\Community\Application\Port\AvatarResolverInterface;
 use App\Community\Application\Query\CommunityUserContactsQueryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;

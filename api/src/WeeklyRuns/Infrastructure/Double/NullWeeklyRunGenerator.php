@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure\Double;
 
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
 
 final class NullWeeklyRunGenerator implements WeeklyRunGeneratorInterface
 {

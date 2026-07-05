@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
-use App\Community\Application\AvatarUrlResolver;
+use App\Community\Application\Support\AvatarUrlResolver;
 use App\Identity\Domain\User;
 use App\PersonalRuns\Domain\Run;
 use App\Registrations\Domain\Registration;

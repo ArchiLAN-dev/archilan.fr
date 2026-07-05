@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Command;
 
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
-use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use Psr\Log\LoggerInterface;

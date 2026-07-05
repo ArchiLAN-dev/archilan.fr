@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Application\InstallStepsReader;
+use App\GameSelection\Application\Support\InstallStepsReader;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**

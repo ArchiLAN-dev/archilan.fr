@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure\Double;
 
 use App\GameSelection\Application\Exception\SteamApiException;
-use App\GameSelection\Application\SteamWebApiClientInterface;
+use App\GameSelection\Application\Port\SteamWebApiClientInterface;
 
 final class StubSteamWebApiClient implements SteamWebApiClientInterface
 {

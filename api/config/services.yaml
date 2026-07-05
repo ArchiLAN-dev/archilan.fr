@@ -92,7 +92,7 @@ services:
     App\WeeklyRuns\Application\Query\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminTemplateRunsQuery'
     App\WeeklyRuns\Application\Query\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminWeeklyRunOutputQuery'
 
-    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunnerGateway'
+    App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunnerGateway'
 
     App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunnerGateway:
         arguments:
@@ -102,7 +102,7 @@ services:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunGenerator'
+    App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunGenerator'
 
     App\Sessions\Application\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader'
 
@@ -124,7 +124,7 @@ services:
             $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
 
-    App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\Http\DolibarrClient'
+    App\Membership\Application\Port\DolibarrClientInterface: '@App\Membership\Infrastructure\Http\DolibarrClient'
 
     App\Membership\Infrastructure\Http\DolibarrClient:
         arguments:
@@ -219,14 +219,14 @@ services:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $archiveDir: '%env(ARCHIVE_DIR)%'
 
-    App\Identity\Application\DiscordOAuthClientInterface: '@App\Identity\Infrastructure\Http\DiscordOAuthClient'
+    App\Identity\Application\Port\DiscordOAuthClientInterface: '@App\Identity\Infrastructure\Http\DiscordOAuthClient'
 
     App\Identity\Infrastructure\Http\DiscordOAuthClient:
         arguments:
             $clientId: '%env(DISCORD_CLIENT_ID)%'
             $clientSecret: '%env(DISCORD_CLIENT_SECRET)%'
 
-    App\Identity\Application\DiscordBotClientInterface: '@App\Identity\Infrastructure\Http\DiscordBotClient'
+    App\Identity\Application\Port\DiscordBotClientInterface: '@App\Identity\Infrastructure\Http\DiscordBotClient'
 
     App\Identity\Infrastructure\Http\DiscordBotClient:
         arguments:
@@ -240,7 +240,7 @@ services:
 
     App\Identity\Application\Query\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordBotStatusQuery'
     App\Identity\Application\Query\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalUserDirectoryQuery'
-    App\Identity\Application\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordResyncAllUsers'
+    App\Identity\Application\Port\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordResyncAllUsers'
     App\Identity\Application\Query\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordUsersQuery'
     App\Identity\Application\Query\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalPlayerStatsQuery'
     App\Identity\Application\Query\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalPlayerHistoryQuery'
@@ -276,13 +276,13 @@ services:
     App\Membership\Application\Query\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalMembershipAllIdsQuery'
     App\Membership\Application\Query\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalMembershipExpiryCheckQuery'
 
-    App\Membership\Application\UserRoleGatewayInterface: '@App\Membership\Infrastructure\Adapter\UserRoleGateway'
+    App\Membership\Application\Port\UserRoleGatewayInterface: '@App\Membership\Infrastructure\Adapter\UserRoleGateway'
 
-    App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\Command\ActivateMembership'
+    App\Membership\Application\Port\ActivateMembershipInterface: '@App\Membership\Application\Command\ActivateMembership'
 
-    App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\Command\ProcessHelloAssoMembershipPayment'
+    App\Membership\Application\Port\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\Command\ProcessHelloAssoMembershipPayment'
 
-    App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\Command\ExpireMembership'
+    App\Membership\Application\Port\ExpireMembershipInterface: '@App\Membership\Application\Command\ExpireMembership'
 
     App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunRepository'
     App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunParticipantRepository'
@@ -308,11 +308,11 @@ services:
     App\Community\Domain\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileCommentRepository'
     App\Community\Domain\ContentReportRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineContentReportRepository'
     App\Community\Domain\ModerationActionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationActionRepository'
-    App\Community\Application\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\Adapter\IdentityMemberModerationGateway'
+    App\Community\Application\Port\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\Adapter\IdentityMemberModerationGateway'
     App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineKudosRepository'
     App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineNotificationRepository'
-    App\Community\Application\Notifier: '@App\Community\Application\Service\NotificationService'
-    App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\Adapter\DiscordAvatarResolver'
+    App\Community\Application\Support\Notifier: '@App\Community\Application\Service\NotificationService'
+    App\Community\Application\Port\AvatarResolverInterface: '@App\Community\Infrastructure\Adapter\DiscordAvatarResolver'
 
     App\Community\Infrastructure\Adapter\DiscordAvatarResolver:
         arguments:
@@ -327,7 +327,7 @@ services:
     App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\DbalPlayerConnectionQuery'
     App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
 
-    App\Streaming\Application\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
+    App\Streaming\Application\Port\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
     App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\Dbal\DbalParticipantTwitchLinksQuery'
 
     App\Streaming\Infrastructure\Http\TwitchApiClient:
@@ -336,10 +336,10 @@ services:
             $clientSecret: '%env(TWITCH_CLIENT_SECRET)%'
             $channelLogin: '%env(TWITCH_CHANNEL_LOGIN)%'
 
-    App\GameSelection\Application\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\Http\IgdbHttpClient'
-    App\GameSelection\Application\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\Http\SteamWebApiClient'
+    App\GameSelection\Application\Port\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\Http\IgdbHttpClient'
+    App\GameSelection\Application\Port\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\Http\SteamWebApiClient'
     App\GameSelection\Application\Query\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalSteamCatalogQuery'
-    App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\Adapter\CatalogSyncGameLinksProvider'
+    App\GameSelection\Application\Port\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\Adapter\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameRepository'
     App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineArchipelagoClientInfoRepository'
@@ -352,7 +352,7 @@ services:
     App\GameSelection\Application\Query\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameCatalogQuery'
     App\GameSelection\Application\Query\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameRequestListQuery'
     App\GameSelection\Application\Query\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalAdminGameListQuery'
-    App\GameSelection\Application\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameUsageCounter'
+    App\GameSelection\Application\Port\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameUsageCounter'
 
     App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\Dbal\DbalImportedCatalogNamesQuery'
 
@@ -373,7 +373,7 @@ services:
 
     App\Payments\Domain\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository'
     App\Payments\Domain\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository'
-    App\Payments\Application\HelloAssoClientInterface: '@App\Payments\Infrastructure\Http\HelloAssoHttpClient'
+    App\Payments\Application\Port\HelloAssoClientInterface: '@App\Payments\Infrastructure\Http\HelloAssoHttpClient'
 
     App\Registrations\Domain\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationRepository'
     App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationAdminMessageRepository'
@@ -428,34 +428,34 @@ when@test:
         App\Shared\Infrastructure\Double\NullMinioStorage:
             public: true
 
-        App\Streaming\Application\TwitchApiClientInterface:
+        App\Streaming\Application\Port\TwitchApiClientInterface:
             class: App\Streaming\Infrastructure\Double\NullTwitchApiClient
 
-        App\GameSelection\Application\IgdbHttpClientInterface:
+        App\GameSelection\Application\Port\IgdbHttpClientInterface:
             class: App\GameSelection\Infrastructure\Double\StubIgdbHttpClient
 
         App\GameSelection\Infrastructure\Double\StubIgdbHttpClient:
             public: true
 
-        App\GameSelection\Application\SteamWebApiClientInterface:
+        App\GameSelection\Application\Port\SteamWebApiClientInterface:
             class: App\GameSelection\Infrastructure\Double\StubSteamWebApiClient
 
         App\GameSelection\Infrastructure\Double\StubSteamWebApiClient:
             public: true
 
-        App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway'
+        App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway'
 
         App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway:
             public: true
 
-        App\WeeklyRuns\Application\WeeklyRunGeneratorInterface:
+        App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface:
             class: App\WeeklyRuns\Infrastructure\Double\NullWeeklyRunGenerator
 
-        App\Identity\Application\DiscordBotClientInterface:
+        App\Identity\Application\Port\DiscordBotClientInterface:
             class: App\Identity\Infrastructure\Double\NullDiscordBotClient
 
-        App\Membership\Application\DolibarrClientInterface:
+        App\Membership\Application\Port\DolibarrClientInterface:
             class: App\Membership\Infrastructure\Double\NullDolibarrClient
 
-        App\Community\Application\AvatarResolverInterface:
+        App\Community\Application\Port\AvatarResolverInterface:
             class: App\Community\Infrastructure\Double\StubAvatarResolver

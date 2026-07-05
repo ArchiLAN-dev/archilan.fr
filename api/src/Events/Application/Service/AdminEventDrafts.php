@@ -6,7 +6,8 @@ namespace App\Events\Application\Service;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Events\Presentation\Controller\AdminEventGalleryController;
+use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Log\LoggerInterface;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
-use App\Community\Application\AvatarResolverInterface;
+use App\Community\Application\Port\AvatarResolverInterface;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 

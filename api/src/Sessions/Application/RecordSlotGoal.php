@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
+use App\Events\Domain\Event;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use App\WeeklyRuns\Application\Command\RecordWeeklyGoal;

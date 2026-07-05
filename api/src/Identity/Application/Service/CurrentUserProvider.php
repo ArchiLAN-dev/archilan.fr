@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Service;
 
-use App\Identity\Application\AuthSessionSigner;
+use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Domain\User;
 use Symfony\Component\HttpFoundation\Request;
 

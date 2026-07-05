@@ -9,7 +9,7 @@ use App\Sessions\Application\SessionLifecycleManager;
 use App\Sessions\Application\SessionOrchestrator;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\WeeklyRuns\Application\Command\MarkWeeklyRunGenerated;
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

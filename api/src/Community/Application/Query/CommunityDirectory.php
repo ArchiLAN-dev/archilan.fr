@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Query;
 
 use App\Community\Domain\FriendshipRepositoryInterface;
+use App\Community\Domain\Level;
 
 /**
  * The /communaute directory (story 30.15): browse/search members, rank by canonical XP, list recently

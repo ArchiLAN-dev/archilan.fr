@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Membership;
 
 use App\Membership\Application\Handler\HelloAssoOrderPaidMessageHandler;
-use App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface;
+use App\Membership\Application\Port\ProcessHelloAssoMembershipPaymentInterface;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use PHPUnit\Framework\TestCase;
 

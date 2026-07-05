@@ -6,6 +6,7 @@ namespace App\CatalogSync\Application\Service;
 
 use App\CatalogSync\Domain\CatalogEntry;
 use App\GameSelection\Domain\Game;
+use App\PersonalRuns\Domain\Run;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;

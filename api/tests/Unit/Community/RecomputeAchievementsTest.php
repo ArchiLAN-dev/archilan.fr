@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Community;
 
 use App\Community\Application\Command\RecomputeAchievements;
-use App\Community\Application\MetricBagBuilder;
-use App\Community\Application\Notifier;
-use App\Community\Application\StatsMetricProvider;
+use App\Community\Application\Support\MetricBagBuilder;
+use App\Community\Application\Support\Notifier;
+use App\Community\Application\Support\StatsMetricProvider;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrant;

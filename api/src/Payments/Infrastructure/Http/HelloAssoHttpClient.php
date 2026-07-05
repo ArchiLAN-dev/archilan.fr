@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Payments\Infrastructure\Http;
 
-use App\Payments\Application\HelloAssoClientInterface;
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Port\HelloAssoClientInterface;
+use App\Payments\Application\Support\HelloAssoConfig;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class HelloAssoHttpClient implements HelloAssoClientInterface

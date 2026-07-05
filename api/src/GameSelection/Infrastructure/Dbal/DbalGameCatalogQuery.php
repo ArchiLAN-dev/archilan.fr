@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Dbal;
 
-use App\GameSelection\Application\InstallStepsReader;
 use App\GameSelection\Application\Query\GameCatalogQueryInterface;
+use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\ApworldUpdateStatus;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\PlatformCategory;
-use App\Shared\Application\PaginationHelper;
+use App\Shared\Application\Support\PaginationHelper;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 

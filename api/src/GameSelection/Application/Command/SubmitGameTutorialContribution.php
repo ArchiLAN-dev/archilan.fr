@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Application\InstallStepsNormalizer;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\GameTutorialContribution;
 use App\GameSelection\Domain\GameTutorialContributionRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 
 /**
  * Submits a community install-tutorial contribution (story 31.6): on an existing game (by slug) or a

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\Notifier;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Notification;
 use App\Community\Domain\NotificationRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;

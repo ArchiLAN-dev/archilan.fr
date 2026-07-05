@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Payments\Presentation\Controller;
 
 use App\Payments\Application\Command\HandleHelloAssoWebhook;
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 use App\Payments\Presentation\Request\HelloAssoWebhookPayload;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;

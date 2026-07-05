@@ -7,6 +7,7 @@ namespace App\Sessions\Application;
 use App\Communications\Application\Message\SessionPausedWithoutSaveMessage;
 use App\Communications\Application\Message\SessionRestartFailedMessage;
 use App\Communications\Application\Message\SessionRunningMessage;
+use App\Content\Domain\Post;
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\Identity\Domain\UserRepositoryInterface;

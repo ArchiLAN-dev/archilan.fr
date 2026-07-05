@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Membership\Infrastructure\Dbal;
 
 use App\Membership\Application\Query\AdminUnmatchedHelloAssoOrdersQueryInterface;
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminUnmatchedHelloAssoOrdersQuery implements AdminUnmatchedHelloAssoOrdersQueryInterface

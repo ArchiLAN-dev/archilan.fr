@@ -6,7 +6,7 @@ namespace App\Events\Application\Command;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventRecap

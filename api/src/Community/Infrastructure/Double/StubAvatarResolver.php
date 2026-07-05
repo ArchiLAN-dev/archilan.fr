@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Double;
 
-use App\Community\Application\AvatarResolverInterface;
+use App\Community\Application\Port\AvatarResolverInterface;
 
 /**
  * Deterministic test double: returns a stable fake URL per user so the caching pipeline can be asserted

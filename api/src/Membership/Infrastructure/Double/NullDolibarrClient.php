@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure\Double;
 
-use App\Membership\Application\DolibarrClientInterface;
+use App\Membership\Application\Port\DolibarrClientInterface;
 
 final readonly class NullDolibarrClient implements DolibarrClientInterface
 {

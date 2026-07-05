@@ -6,6 +6,7 @@ namespace App\Community\Infrastructure\Dbal;
 
 use App\Community\Application\Query\CommunityProfileQueryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
+use App\Identity\Domain\User;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryInterface

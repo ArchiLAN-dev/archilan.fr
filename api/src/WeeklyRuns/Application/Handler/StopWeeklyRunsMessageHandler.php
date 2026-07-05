@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Application\Handler;
 
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
-use App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
 use Psr\Log\LoggerInterface;

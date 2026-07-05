@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Dbal;
 
-use App\GameSelection\Application\GameUsageCounterInterface;
+use App\GameSelection\Application\Port\GameUsageCounterInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalGameUsageCounter implements GameUsageCounterInterface

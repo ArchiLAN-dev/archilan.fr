@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\AvatarUrlResolver;
+use App\Community\Application\Support\AvatarUrlResolver;
 use App\Community\Domain\CommunityProfile;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;

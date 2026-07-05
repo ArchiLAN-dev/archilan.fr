@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
-use App\Identity\Application\DiscordResyncAllUsersInterface;
+use App\Identity\Application\Port\DiscordResyncAllUsersInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Double;
 
-use App\Identity\Application\DiscordBotClientInterface;
+use App\Identity\Application\Port\DiscordBotClientInterface;
 
 final readonly class NullDiscordBotClient implements DiscordBotClientInterface
 {

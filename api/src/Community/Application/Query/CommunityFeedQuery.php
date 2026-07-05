@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
-use App\Community\Application\ProfileVisibility;
+use App\Community\Application\Support\ProfileVisibility;
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
 use App\Community\Domain\FriendshipRepositoryInterface;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Http;
 
-use App\Identity\Application\DiscordOAuthClientInterface;
+use App\Identity\Application\Port\DiscordOAuthClientInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class DiscordOAuthClient implements DiscordOAuthClientInterface

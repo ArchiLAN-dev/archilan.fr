@@ -6,9 +6,9 @@ namespace App\Tests\Unit\Membership;
 
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
-use App\Membership\Application\DolibarrClientInterface;
 use App\Membership\Application\Handler\SyncMemberToDolibarrMessageHandler;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
+use App\Membership\Application\Port\DolibarrClientInterface;
 use App\Membership\Domain\Membership;
 use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;

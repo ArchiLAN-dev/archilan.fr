@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\DefaultAchievementDefinitions;
+use App\Community\Domain\Level;
 
 final class CommunityAchievementsTest extends FunctionalTestCase
 {

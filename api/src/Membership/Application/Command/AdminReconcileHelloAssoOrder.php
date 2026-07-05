@@ -6,7 +6,7 @@ namespace App\Membership\Application\Command;
 
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
-use App\Membership\Application\ActivateMembershipInterface;
+use App\Membership\Application\Port\ActivateMembershipInterface;
 use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
 use Psr\Log\LoggerInterface;

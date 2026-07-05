@@ -8,7 +8,7 @@ use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\DefaultAchievementDefinitions;
 use App\Events\Domain\Event;
 use App\GameSelection\Domain\Game;
-use App\Identity\Application\AuthSessionSigner;
+use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Domain\User;
 use App\Registrations\Domain\Registration;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;

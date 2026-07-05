@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Communications\Application\Service;
 
-use App\Communications\Application\ArchilanEmail;
+use App\Communications\Application\Email\ArchilanEmail;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address;

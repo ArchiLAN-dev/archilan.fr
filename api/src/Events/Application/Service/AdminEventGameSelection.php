@@ -9,7 +9,7 @@ use App\Events\Domain\EventRepositoryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\GameSelection\Domain\PlatformCategory;
-use App\Identity\Application\ValidationErrors;
+use App\Identity\Application\Support\ValidationErrors;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventGameSelection

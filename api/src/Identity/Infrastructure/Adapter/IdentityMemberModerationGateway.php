@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Adapter;
 
-use App\Community\Application\MemberModerationGatewayInterface;
+use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
 
