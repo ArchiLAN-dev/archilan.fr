@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\CatalogSync;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
 use App\CatalogSync\Application\ApworldVersionInfo;
 use App\CatalogSync\Application\Exception\GithubRateLimitException;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;

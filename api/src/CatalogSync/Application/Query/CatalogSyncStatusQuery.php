@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application\Query;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
-use App\CatalogSync\Application\CatalogSyncService;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
+use App\CatalogSync\Application\Service\CatalogSyncService;
 use App\CatalogSync\Domain\CatalogEntry;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\CatalogSync\Application;
+namespace App\CatalogSync\Application\Service;
 
+use App\CatalogSync\Application\ApworldVersionInfo;
 use App\CatalogSync\Application\Exception\GithubRateLimitException;
 use App\GameSelection\Domain\Game;
 use Psr\Log\LoggerInterface;

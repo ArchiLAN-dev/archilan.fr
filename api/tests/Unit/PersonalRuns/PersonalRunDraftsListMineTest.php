@@ -6,7 +6,7 @@ namespace App\Tests\Unit\PersonalRuns;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Identity\Domain\UserRepositoryInterface;
-use App\PersonalRuns\Application\PersonalRunDrafts;
+use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\RunRepositoryInterface;

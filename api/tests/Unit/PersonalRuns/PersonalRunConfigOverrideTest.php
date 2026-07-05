@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunConfigOverride;
+use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\CatalogSync\Application;
+namespace App\CatalogSync\Application\Service;
 
 use App\CatalogSync\Domain\CatalogEntry;
 use App\GameSelection\Domain\Game;

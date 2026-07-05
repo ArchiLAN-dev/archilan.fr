@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Content\Presentation;
 
-use App\Content\Application\AdminPostCatalog;
+use App\Content\Application\Service\AdminPostCatalog;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

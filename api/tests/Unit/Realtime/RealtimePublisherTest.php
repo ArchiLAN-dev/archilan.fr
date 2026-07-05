@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Realtime;
 
-use App\Realtime\Application\RealtimePublisher;
+use App\Realtime\Application\Service\RealtimePublisher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;

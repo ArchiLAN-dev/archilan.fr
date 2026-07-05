@@ -85,11 +85,19 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 | Message handler | same name + `Handler` suffix | `void` | `Application/Handler/` |
 | Application exception | `*Exception` | - | `Application/Exception/` |
 | Domain exception | `*Exception` | - | `Domain/Exception/` |
+| Orchestration service / mixed read+write facade | `NounService` / facade | mixed | `Application/Service/` |
 
 **Colocation rule:** a query's input filters and result records live in `Application/Query/`
 with the query; a command's result record lives in `Application/Command/` with the command.
 Ports abstracting a command (`ActivateMembershipInterface`...) follow the flat-port rule below,
 not their implementation.
+
+**`Application/Service/`** holds the concrete application services that are neither a pure
+command nor a pure query: mixed read+write facades (`FriendshipService`, `AdminGameLibrary`,
+`AdminEventDrafts`...), and orchestration/facade services (mailer, media upload, publisher,
+auth/config resolvers). This keeps only ports, cross-cutting helpers, config holders and DTOs
+directly under `Application/`. There is no validator rule for `Service/` (a service has no
+name suffix a text check can key on) - it is a documented convention, not a gated one.
 
 **What stays FLAT (deliberately - story 33.10):** in `Domain/`, everything except exceptions
 (entities, value objects, enums, repository interfaces - the readable core). In `Application/`,

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\PersonalRuns\Application;
+namespace App\PersonalRuns\Application\Service;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;

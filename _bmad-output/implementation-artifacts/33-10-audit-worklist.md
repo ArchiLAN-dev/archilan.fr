@@ -8,7 +8,15 @@ consistency rulings below. `Sessions` (29 files + 2 Domain exceptions) DEFERRED 
 
 ## Consistency rulings (applied throughout)
 
-R1. Mixed read/write facades stay FLAT (AdminGameLibrary, FriendshipService, NotificationService...).
+R1. **[SUPERSEDED in-session]** Mixed read/write facades were initially kept FLAT; Jean then chose to
+    collect them under `Application/Service/`. The 26 facade/orchestration services (AdminGameLibrary,
+    FriendshipService, NotificationService, ModerationService, AccountModerationService, KudosService,
+    ProfileCommentService, AdminAchievementService, AchievementImageService, CommunityAvatarService,
+    AdminEventDrafts, AdminEventGameSelection, GameRequests, AdminPostCatalog, CatalogSyncService,
+    ApworldVersionChecker, ArchilanMailer, AuthenticateUser, CurrentUserProvider, SessionConfigResolver,
+    RealtimePublisher, PersonalRunConfigOverride, PersonalRunDrafts, PersonalRunGameSelection,
+    PersonalRunYamlTemplates, RegistrationGameSelection) moved to `Application/Service/`. Flat now holds
+    ONLY ports/interfaces, pure helpers/factories, VOs/DTOs/config, abstract bases, and dev tooling.
 R2. Non-query ports stay FLAT even when read-only (`GameUsageCounterInterface`) or abstracting a
     command (`ActivateMembershipInterface`, `ExpireMembershipInterface`, `ProcessHelloAssoMembershipPaymentInterface`).
 R3. Query input filters + result records → `Query/` with their query (`ContributionQueryFilters`,

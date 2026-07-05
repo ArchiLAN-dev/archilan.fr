@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Community\Application;
+namespace App\Community\Application\Service;
 
+use App\Community\Application\AchievementImageUrlResolver;
 use App\Shared\Infrastructure\MinioStorageInterface;
 
 /**

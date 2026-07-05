@@ -8,7 +8,7 @@ use App\Registrations\Application\Command\RegistrationCancellation;
 use App\Registrations\Application\Command\RegistrationSubmission;
 use App\Registrations\Application\Command\ReserveRegistration;
 use App\Registrations\Application\Query\MyRegistrationQuery;
-use App\Registrations\Application\RegistrationGameSelection;
+use App\Registrations\Application\Service\RegistrationGameSelection;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

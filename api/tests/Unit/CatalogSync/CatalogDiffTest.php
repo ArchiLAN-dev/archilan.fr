@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\CatalogSync;
 
-use App\CatalogSync\Application\CatalogSyncService;
+use App\CatalogSync\Application\Service\CatalogSyncService;
 use App\CatalogSync\Domain\CatalogEntry;
 use App\GameSelection\Domain\Game;
 use PHPUnit\Framework\TestCase;

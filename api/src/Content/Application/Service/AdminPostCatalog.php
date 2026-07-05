@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Content\Application;
+namespace App\Content\Application\Service;
 
 use App\Content\Domain\Post;
 use App\Content\Domain\PostRepositoryInterface;

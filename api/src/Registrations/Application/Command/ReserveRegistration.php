@@ -9,7 +9,7 @@ use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
-use App\Realtime\Application\RealtimePublisher;
+use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationRepositoryInterface;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Command;
 
-use App\Identity\Application\AuthenticateUser;
 use App\Identity\Application\RefreshTokenFactory;
+use App\Identity\Application\Service\AuthenticateUser;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;

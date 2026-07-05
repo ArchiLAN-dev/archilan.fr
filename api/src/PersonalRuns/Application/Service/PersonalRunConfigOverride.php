@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\PersonalRuns\Application;
+namespace App\PersonalRuns\Application\Service;
 
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;

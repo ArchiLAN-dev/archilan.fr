@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application\Command;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
 use App\CatalogSync\Application\Exception\GithubRateLimitException;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use Psr\Log\LoggerInterface;
 

@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Community\Application;
+namespace App\Community\Application\Service;
 
+use App\Community\Application\MemberModerationGatewayInterface;
+use App\Community\Application\Notifier;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Domain\ContentReportRepositoryInterface;

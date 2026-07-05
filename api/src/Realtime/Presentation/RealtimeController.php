@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Realtime\Presentation;
 
-use App\Realtime\Application\RealtimePublisher;
+use App\Realtime\Application\Service\RealtimePublisher;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

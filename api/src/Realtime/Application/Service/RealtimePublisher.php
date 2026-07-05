@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Realtime\Application;
+namespace App\Realtime\Application\Service;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;

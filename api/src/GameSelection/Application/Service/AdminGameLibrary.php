@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\GameSelection\Application;
+namespace App\GameSelection\Application\Service;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
+use App\GameSelection\Application\GamePlatformResolver;
+use App\GameSelection\Application\GameTutorialSeeder;
+use App\GameSelection\Application\GameUsageCounterInterface;
+use App\GameSelection\Application\InstallStepsNormalizer;
+use App\GameSelection\Application\InstallStepsReader;
 use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;

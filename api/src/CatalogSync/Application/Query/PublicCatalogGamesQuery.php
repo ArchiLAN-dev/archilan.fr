@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application\Query;
 
-use App\CatalogSync\Application\CatalogSyncService;
+use App\CatalogSync\Application\Service\CatalogSyncService;
 use App\CatalogSync\Domain\CatalogEntry;
 
 final readonly class PublicCatalogGamesQuery

@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Community\Application;
+namespace App\Community\Application\Service;
 
 use App\Community\Application\Exception\CannotKudosOwnContentException;
+use App\Community\Application\Notifier;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
 use App\Community\Domain\Kudos;

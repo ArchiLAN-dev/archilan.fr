@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
-use App\GameSelection\Application\AdminGameLibrary;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\GameSelection\Application\GameCatalogLinksProviderInterface;
 use App\GameSelection\Application\GamePlatformResolver;
 use App\GameSelection\Application\GameTutorialSeeder;
@@ -14,6 +13,7 @@ use App\GameSelection\Application\IgdbHttpClientInterface;
 use App\GameSelection\Application\InstallStepsNormalizer;
 use App\GameSelection\Application\InstallStepsReader;
 use App\GameSelection\Application\Query\AdminGameListQueryInterface;
+use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
 use App\Sessions\Application\RunnerGatewayInterface;

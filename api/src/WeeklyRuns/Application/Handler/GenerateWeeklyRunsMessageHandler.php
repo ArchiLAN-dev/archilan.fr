@@ -6,7 +6,7 @@ namespace App\WeeklyRuns\Application\Handler;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\SessionConfig\Application\SessionConfigResolver;
+use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\SessionType;
 use App\WeeklyRuns\Application\Command\MarkWeeklyRunGenerated;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;

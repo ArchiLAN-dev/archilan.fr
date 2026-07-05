@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\SessionConfig\Application;
+namespace App\SessionConfig\Application\Service;
 
 use App\SessionConfig\Domain\SessionConfig;
 use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;

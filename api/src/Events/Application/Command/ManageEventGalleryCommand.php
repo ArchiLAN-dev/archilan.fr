@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Command;
 
-use App\Events\Application\AdminEventDrafts;
+use App\Events\Application\Service\AdminEventDrafts;
 use App\Events\Domain\EventRepositoryInterface;
 use App\Shared\Infrastructure\MinioStorageInterface;
 

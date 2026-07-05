@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Registrations\Application;
+namespace App\Registrations\Application\Service;
 
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;

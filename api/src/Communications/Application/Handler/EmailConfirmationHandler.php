@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Communications\Application\Handler;
 
-use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\EmailConfirmationEmail;
 use App\Communications\Application\Message\EmailConfirmationMessage;
+use App\Communications\Application\Service\ArchilanMailer;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

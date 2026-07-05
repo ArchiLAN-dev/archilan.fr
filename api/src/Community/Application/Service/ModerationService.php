@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Community\Application;
+namespace App\Community\Application\Service;
 
 use App\Community\Application\Query\AccountReportScoreQueryInterface;
 use App\Community\Application\Query\AdminReportsQueryInterface;

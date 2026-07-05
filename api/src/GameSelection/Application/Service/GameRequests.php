@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GameSelection\Application;
+namespace App\GameSelection\Application\Service;
 
 use App\GameSelection\Application\Query\GameRequestListQueryInterface;
 use App\GameSelection\Domain\GameRequest;

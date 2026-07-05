@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
-use App\Community\Application\ModerationService;
+use App\Community\Application\Service\ModerationService;
 
 /**
  * Resolves the IDs of content reports matching the admin moderation filters (story 30.25). The DTO

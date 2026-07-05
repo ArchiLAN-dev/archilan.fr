@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Command;
 
-use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\AdminDirectMessageEmail;
+use App\Communications\Application\Service\ArchilanMailer;
 use App\Identity\Domain\UserRepositoryInterface;
 use App\Registrations\Domain\RegistrationAdminMessage;
 use App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface;

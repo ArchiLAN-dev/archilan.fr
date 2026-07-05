@@ -311,7 +311,7 @@ services:
     App\Community\Application\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\IdentityMemberModerationGateway'
     App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\DoctrineKudosRepository'
     App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\DoctrineNotificationRepository'
-    App\Community\Application\Notifier: '@App\Community\Application\NotificationService'
+    App\Community\Application\Notifier: '@App\Community\Application\Service\NotificationService'
     App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
 
     App\Community\Infrastructure\DiscordAvatarResolver:
