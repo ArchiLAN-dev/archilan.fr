@@ -21,10 +21,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
         $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T10:00:00+00:00'), 'admin', null, null, $now);
 
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('jean@example.org');
-        $user->method('getDisplayName')->willReturn('Jean');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $memberships = $this->createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
@@ -73,10 +70,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
         $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T10:00:00+00:00'), 'admin', null, null, $now);
 
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('jean@example.org');
-        $user->method('getDisplayName')->willReturn('Jean');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $memberships = $this->createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
@@ -107,10 +101,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2026-01-01T00:00:00+00:00'), 'admin', null, null, $now);
         $membership->expire(new \DateTimeImmutable('2026-01-02T00:00:00+00:00'));
 
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('jean@example.org');
-        $user->method('getDisplayName')->willReturn('Jean');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $memberships = $this->createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
@@ -134,5 +125,12 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         );
 
         $handler(new SyncMemberToDolibarrMessage('membership-id-2'));
+    }
+
+    private static function user(): User
+    {
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+
+        return new User('user-1', 'jean@example.org', 'jean@example.org', 'Jean', 'hash', ['ROLE_USER'], $now, $now, $now);
     }
 }

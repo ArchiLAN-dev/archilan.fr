@@ -8,7 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uq_game_requests_user_game', columns: ['user_id', 'normalized_name'])]
-class GameRequest
+final class GameRequest
 {
     public function __construct(
         #[ORM\Id]

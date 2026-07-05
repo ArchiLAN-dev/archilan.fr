@@ -12,7 +12,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\Table(name: '`user`')]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_email_canonical', columns: ['email_canonical'])]
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_slug', columns: ['slug'])]
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+final class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     public const CURRENT_CGU_VERSION = '2026-05-02';
 
@@ -210,7 +210,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->updatedAt = $now;
     }
 
-    public function getPassword(): ?string
+    public function getPassword(): string
     {
         return $this->passwordHash;
     }

@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 #[ORM\Index(name: 'idx_identity_privacy_rights_requests_user_id', columns: ['user_id'])]
 #[ORM\Index(name: 'idx_identity_privacy_rights_requests_status', columns: ['status'])]
-class PrivacyRightsRequest
+final class PrivacyRightsRequest
 {
     public const STATUS_RECEIVED = 'received';
     public const HANDLING_MANUAL_REVIEW = 'manual_review';

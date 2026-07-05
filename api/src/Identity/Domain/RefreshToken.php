@@ -10,7 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_identity_refresh_tokens_token_hash', columns: ['token_hash'])]
 #[ORM\Index(name: 'idx_identity_refresh_tokens_user_revoked', columns: ['user_id', 'revoked_at'])]
 #[ORM\Index(name: 'idx_identity_refresh_tokens_family', columns: ['family_id'])]
-class RefreshToken
+final class RefreshToken
 {
     private function __construct(
         #[ORM\Id]

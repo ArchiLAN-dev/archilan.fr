@@ -89,9 +89,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
     {
         $paidAt = new \DateTimeImmutable('2026-05-16T10:00:00+00:00');
 
-        $user = $this->createStub(User::class);
-        $user->method('getId')->willReturn('user-123');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $users = $this->createStub(UserRepositoryInterface::class);
         $users->method('findByEmailCanonical')->willReturn($user);
@@ -116,9 +114,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
 
     public function testProcessLogsAlreadyProcessedOnDuplicate(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getId')->willReturn('user-123');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $users = $this->createStub(UserRepositoryInterface::class);
         $users->method('findByEmailCanonical')->willReturn($user);
@@ -143,5 +139,12 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service->process('order-1', 'payer@example.org', new \DateTimeImmutable());
+    }
+
+    private static function user(): User
+    {
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+
+        return new User('user-123', 'payer@example.org', 'payer@example.org', 'Payer', 'hash', ['ROLE_USER'], $now, $now, $now);
     }
 }

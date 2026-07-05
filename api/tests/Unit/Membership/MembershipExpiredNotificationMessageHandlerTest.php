@@ -16,10 +16,7 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
 {
     public function testInvokeSendsEmailWhenUserFound(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('Test User');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
@@ -48,10 +45,7 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
 
     public function testInvokeLogsAndRethrowsOnSmtpFailure(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('Test User');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send')->willThrowException(new \RuntimeException('SMTP error'));
@@ -68,10 +62,7 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
 
     public function testInvokeBuildsFallbackUrlWhenSlugsEmpty(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('Test User');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
@@ -113,5 +104,12 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
         $users->method('findById')->willReturn($user);
 
         return $users;
+    }
+
+    private static function user(): User
+    {
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+
+        return new User('user-1', 'test@example.com', 'test@example.com', 'Test User', 'hash', ['ROLE_USER'], $now, $now, $now);
     }
 }
