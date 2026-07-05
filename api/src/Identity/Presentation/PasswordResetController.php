@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\RequestPasswordReset;
-use App\Identity\Application\ResetPassword;
+use App\Identity\Application\Command\RequestPasswordReset;
+use App\Identity\Application\Command\ResetPassword;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;

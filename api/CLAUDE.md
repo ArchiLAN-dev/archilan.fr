@@ -74,14 +74,40 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 
 ---
 
-## CQRS naming
+## CQRS naming and layer sub-folder taxonomy
 
 | Type | Naming | Returns | Lives in |
 |---|---|---|---|
-| Command service | `VerbNoun` (`RegisterUser`, `PublishEvent`) | `void` | `Application/` |
-| Query service | `NounContext` (`PlayerProfileQuery`, `LeaderboardQuery`) | typed DTO / array | `Application/` |
+| Command service | `VerbNoun` (`RegisterUser`, `PublishEvent`) | `void` | `Application/Command/` |
+| Query service | `NounContext` (`PlayerProfileQuery`, `LeaderboardQuery`) | typed DTO / array | `Application/Query/` |
+| Read DTO / `{Name}QueryInterface` | - | - | `Application/Query/` (a DTO lives with its query) |
 | Message (async) | `VerbNounJob` or `VerbNounMessage` | - | `Application/Message/` |
 | Message handler | same name + `Handler` suffix | `void` | `Application/Handler/` |
+| Application exception | `*Exception` | - | `Application/Exception/` |
+| Domain exception | `*Exception` | - | `Domain/Exception/` |
+| Orchestration service / mixed read+write facade | `NounService` / facade | mixed | `Application/Service/` |
+
+**Colocation rule:** a query's input filters and result records live in `Application/Query/`
+with the query; a command's result record lives in `Application/Command/` with the command.
+Ports abstracting a command (`ActivateMembershipInterface`...) follow the flat-port rule below,
+not their implementation.
+
+**`Application/Service/`** holds the concrete application services that are neither a pure
+command nor a pure query: mixed read+write facades (`FriendshipService`, `AdminGameLibrary`,
+`AdminEventDrafts`...), and orchestration/facade services (mailer, media upload, publisher,
+auth/config resolvers). This keeps only ports, cross-cutting helpers, config holders and DTOs
+directly under `Application/`. There is no validator rule for `Service/` (a service has no
+name suffix a text check can key on) - it is a documented convention, not a gated one.
+
+**What stays FLAT (deliberately - story 33.10):** in `Domain/`, everything except exceptions
+(entities, value objects, enums, repository interfaces - the readable core). In `Application/`,
+the shared surface that is neither a command nor a query: non-query ports/gateway interfaces
+(`RunnerGatewayInterface`, `DiscordBotClientInterface`...), cross-cutting helpers
+(`ValidationErrors`, `SlugGenerator`...), config holders and mixed read/write facades.
+`Infrastructure/` and `Presentation/` gain no kind sub-folders (class prefixes `Doctrine*`/
+`Dbal*`/`Null*`/`Stub*` and the controller convention already encode kind). Contexts are
+migrated progressively; `DddArchitectureValidator::UNMIGRATED_TAXONOMY_CONTEXTS` lists the
+not-yet-migrated ones - shrink it, never grow it.
 
 ---
 

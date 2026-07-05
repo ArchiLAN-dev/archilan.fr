@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\AdminChangeUserRole;
+use App\Identity\Application\Command\AdminChangeUserRole;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\AchievementImageService;
-use App\Community\Application\AdminAchievementGrantService;
-use App\Community\Application\AdminAchievementService;
-use App\Community\Domain\InvalidAchievementRuleException;
+use App\Community\Application\Command\AdminAchievementGrantService;
+use App\Community\Application\Service\AchievementImageService;
+use App\Community\Application\Service\AdminAchievementService;
+use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;

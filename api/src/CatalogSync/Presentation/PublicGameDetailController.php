@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Presentation;
 
-use App\CatalogSync\Application\PublicGameDetailQuery;
+use App\CatalogSync\Application\Query\PublicGameDetailQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 

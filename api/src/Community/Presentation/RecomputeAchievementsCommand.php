@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\CommunityUserIdsQueryInterface;
-use App\Community\Application\RecomputeAchievements;
+use App\Community\Application\Command\RecomputeAchievements;
+use App\Community\Application\Query\CommunityUserIdsQueryInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;

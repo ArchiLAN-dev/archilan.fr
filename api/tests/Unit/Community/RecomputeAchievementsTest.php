@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\MetricBagBuilder;
 use App\Community\Application\Notifier;
-use App\Community\Application\RecomputeAchievements;
 use App\Community\Application\StatsMetricProvider;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\DefaultAchievementDefinitions;
-use App\Identity\Application\PlayerHistoryQueryInterface;
-use App\Identity\Application\PlayerStatsQueryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class RecomputeAchievementsTest extends TestCase

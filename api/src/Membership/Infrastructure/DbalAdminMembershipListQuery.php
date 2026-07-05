@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure;
 
-use App\Membership\Application\AdminMembershipListQueryInterface;
+use App\Membership\Application\Query\AdminMembershipListQueryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 

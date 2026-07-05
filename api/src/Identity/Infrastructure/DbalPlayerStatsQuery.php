@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure;
 
-use App\Identity\Application\PlayerStatsQueryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 

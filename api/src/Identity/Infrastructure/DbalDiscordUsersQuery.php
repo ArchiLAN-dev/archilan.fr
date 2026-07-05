@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure;
 
-use App\Identity\Application\DiscordUsersQueryInterface;
+use App\Identity\Application\Query\DiscordUsersQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalDiscordUsersQuery implements DiscordUsersQueryInterface

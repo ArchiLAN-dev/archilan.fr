@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation;
 
-use App\Identity\Application\ChangeUserSlug;
+use App\Identity\Application\Command\ChangeUserSlug;
 use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;

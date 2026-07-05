@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\ModerationService;
-use App\Community\Application\ReportQueryFilters;
+use App\Community\Application\Query\ReportQueryFilters;
+use App\Community\Application\Service\ModerationService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

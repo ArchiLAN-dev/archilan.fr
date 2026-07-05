@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure;
 
-use App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface;
+use App\WeeklyRuns\Application\Query\AdminWeeklyTemplateListQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminWeeklyTemplateListQuery implements AdminWeeklyTemplateListQueryInterface

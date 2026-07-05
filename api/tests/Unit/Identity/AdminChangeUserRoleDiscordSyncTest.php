@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\AdminChangeUserRole;
+use App\Identity\Application\Command\AdminChangeUserRole;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\RoleChangeAudit;
 use App\Identity\Domain\RoleChangeAuditRepositoryInterface;

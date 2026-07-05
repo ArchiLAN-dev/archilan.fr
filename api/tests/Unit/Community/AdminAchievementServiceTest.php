@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Community;
 
 use App\Community\Application\AchievementImageUrlResolver;
-use App\Community\Application\AdminAchievementService;
-use App\Community\Application\EventCatalogueQueryInterface;
+use App\Community\Application\Query\EventCatalogueQueryInterface;
+use App\Community\Application\Service\AdminAchievementService;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementDefinitionRepositoryInterface;
-use App\Community\Domain\InvalidAchievementRuleException;
+use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Shared\Infrastructure\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\BackfillSteamAppIds;
+use App\GameSelection\Application\Command\BackfillSteamAppIds;
 use App\GameSelection\Application\IgdbHttpClientInterface;
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameCatalogSync;

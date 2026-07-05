@@ -9,7 +9,7 @@ use App\Identity\Application\Handler\SyncDiscordRoleMessageHandler;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
-use App\Membership\Application\ActiveMembershipQueryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 

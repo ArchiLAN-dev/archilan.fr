@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure;
 
-use App\GameSelection\Application\SteamCatalogQueryInterface;
+use App\GameSelection\Application\Query\SteamCatalogQueryInterface;
 use App\GameSelection\Domain\Game;
 use Doctrine\DBAL\Connection;
 

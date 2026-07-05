@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\ArchipelagoGuideQuery;
+use App\GameSelection\Application\Query\ArchipelagoGuideQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Streaming\Presentation;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Streaming\Application\OverlaySubscribeQuery;
+use App\Streaming\Application\Query\OverlaySubscribeQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Routing\Attribute\Route;

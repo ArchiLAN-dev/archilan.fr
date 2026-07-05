@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
-use App\SessionConfig\Application\SessionConfigResolver;
+use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\SessionConfig;
 use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
 use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;

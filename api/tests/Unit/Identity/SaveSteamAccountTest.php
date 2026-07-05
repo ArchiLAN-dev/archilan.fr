@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\SaveSteamAccount;
+use App\Identity\Application\Command\SaveSteamAccount;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;

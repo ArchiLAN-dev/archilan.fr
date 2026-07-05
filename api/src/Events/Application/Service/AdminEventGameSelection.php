@@ -1,0 +1,202 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Events\Application\Service;
+
+use App\Events\Domain\Event;
+use App\Events\Domain\EventRepositoryInterface;
+use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\PlatformCategory;
+use App\Identity\Application\ValidationErrors;
+use Psr\Log\LoggerInterface;
+
+final readonly class AdminEventGameSelection
+{
+    public function __construct(
+        private EventRepositoryInterface $eventRepository,
+        private GameRepositoryInterface $gameRepository,
+        private LoggerInterface $logger,
+    ) {
+    }
+
+    /**
+     * Returns the enriched game selection config for the event, or null if the event does not exist.
+     *
+     * @return array{gameSelectionEnabled: bool, gameSelectionMax: int|null, selectedGames: list<array{gameId: string, gameName: string, gameSlug: string}>, availableGames: list<array{id: string, name: string, slug: string, availability: string, isApworldReady: bool, coverImageUrl: string|null, platforms: list<string>}>}|null
+     */
+    public function getConfig(string $eventId): ?array
+    {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
+            return null;
+        }
+
+        $allGames = $this->gameRepository->findAllSortedByName();
+
+        $gamesById = [];
+        foreach ($allGames as $game) {
+            $gamesById[$game->getId()] = $game;
+        }
+
+        $selectedGames = [];
+        foreach ($event->getGameSelectionConfig() as $entry) {
+            $game = $gamesById[$entry['gameId']] ?? null;
+            if (!$game instanceof Game) {
+                continue;
+            }
+
+            $selectedGames[] = [
+                'gameId' => $game->getId(),
+                'gameName' => $game->getName(),
+                'gameSlug' => $game->getSlug(),
+            ];
+        }
+
+        $availableGames = array_map(
+            fn (Game $game): array => [
+                'id' => $game->getId(),
+                'name' => $game->getName(),
+                'slug' => $game->getSlug(),
+                'availability' => $game->getAvailability(),
+                'isApworldReady' => $game->isApworldReady(),
+                'coverImageUrl' => $game->getCoverImageUrl(),
+                'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
+            ],
+            array_values(array_filter(
+                $allGames,
+                fn (Game $game): bool => $this->isGameAvailable($game),
+            )),
+        );
+
+        return [
+            'gameSelectionEnabled' => $event->isGameSelectionEnabled(),
+            'gameSelectionMax' => $event->getGameSelectionMaxPerRegistrant(),
+            'selectedGames' => $selectedGames,
+            'availableGames' => $availableGames,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array{found: bool, errors: array<string, list<string>>}
+     */
+    public function configure(string $eventId, array $input): array
+    {
+        $event = $this->eventRepository->findById($eventId);
+
+        if (!$event instanceof Event) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $parsed = $this->parse($input);
+        $errors = $this->validate($parsed);
+
+        if ([] !== $errors) {
+            return ['found' => true, 'errors' => $errors];
+        }
+
+        $enabled = $parsed['gameSelectionEnabled'];
+        if (null === $enabled) {
+            return ['found' => true, 'errors' => ['gameSelectionEnabled' => ['Le champ gameSelectionEnabled est requis (booléen).']]];
+        }
+
+        $event->configureGameSelection(
+            $enabled,
+            $parsed['games'],
+            new \DateTimeImmutable(),
+            $parsed['gameSelectionMax'],
+        );
+        $this->eventRepository->save($event);
+
+        $this->logger->info('event.game_selection_configured', ['eventId' => $eventId, 'enabled' => $enabled, 'gameCount' => count($parsed['games'])]);
+
+        return ['found' => true, 'errors' => []];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     *
+     * @return array{gameSelectionEnabled: bool|null, gameSelectionMax: int|null, games: list<array{gameId: string}>}
+     */
+    private function parse(array $input): array
+    {
+        $games = [];
+        if (is_array($input['games'] ?? null)) {
+            foreach ($input['games'] as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+
+                $games[] = [
+                    'gameId' => is_string($entry['gameId'] ?? null) ? trim($entry['gameId']) : '',
+                ];
+            }
+        }
+
+        $gameSelectionMax = $input['gameSelectionMax'] ?? null;
+
+        return [
+            'gameSelectionEnabled' => is_bool($input['gameSelectionEnabled'] ?? null) ? $input['gameSelectionEnabled'] : null,
+            'gameSelectionMax' => is_int($gameSelectionMax) && $gameSelectionMax > 0 ? $gameSelectionMax : null,
+            'games' => $games,
+        ];
+    }
+
+    /**
+     * @param array{gameSelectionEnabled: bool|null, gameSelectionMax: int|null, games: list<array{gameId: string}>} $parsed
+     *
+     * @return array<string, list<string>>
+     */
+    private function validate(array $parsed): array
+    {
+        $errors = new ValidationErrors();
+
+        if (null === $parsed['gameSelectionEnabled']) {
+            $errors->add('gameSelectionEnabled', 'Le champ gameSelectionEnabled est requis (booléen).');
+
+            return $errors->toArray();
+        }
+
+        $seenGameIds = [];
+        foreach ($parsed['games'] as $index => $entry) {
+            $prefix = sprintf('games.%d', $index);
+
+            if ('' === $entry['gameId']) {
+                $errors->add($prefix.'.gameId', "L'identifiant du jeu est requis.");
+                continue;
+            }
+
+            if (in_array($entry['gameId'], $seenGameIds, true)) {
+                $errors->add($prefix.'.gameId', 'Ce jeu est déjà sélectionné.');
+                continue;
+            }
+            $seenGameIds[] = $entry['gameId'];
+
+            $game = $this->gameRepository->findById($entry['gameId']);
+
+            if (!$game instanceof Game) {
+                $errors->add($prefix.'.gameId', 'Jeu introuvable dans la bibliothèque.');
+                continue;
+            }
+
+            if (!$this->isGameAvailable($game)) {
+                $errors->add($prefix.'.gameId', 'Ce jeu n\'est pas disponible.');
+                continue;
+            }
+        }
+
+        return $errors->toArray();
+    }
+
+    private function isGameAvailable(Game $game): bool
+    {
+        return in_array($game->getAvailability(), [
+            Game::AVAILABILITY_AVAILABLE,
+            Game::AVAILABILITY_EXPERIMENTAL,
+        ], true);
+    }
+}

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure;
 
 use App\Identity\Application\DiscordBotClientInterface;
-use App\Identity\Application\DiscordBotStatusQueryInterface;
+use App\Identity\Application\Query\DiscordBotStatusQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalDiscordBotStatusQuery implements DiscordBotStatusQueryInterface

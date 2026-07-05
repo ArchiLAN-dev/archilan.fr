@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Infrastructure;
 
-use App\CatalogSync\Application\CatalogSyncService;
+use App\CatalogSync\Application\Service\CatalogSyncService;
 use App\GameSelection\Application\GameCatalogLinksProviderInterface;
 use Psr\Log\LoggerInterface;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\NotificationService;
+use App\Community\Application\Service\NotificationService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

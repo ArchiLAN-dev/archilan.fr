@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Application\BackfillActivity;
-use App\Community\Application\CommunityUserIdsQueryInterface;
-use App\Community\Application\RecordActivity;
+use App\Community\Application\Command\BackfillActivity;
+use App\Community\Application\Command\RecordActivity;
+use App\Community\Application\Query\CommunityUserIdsQueryInterface;
 use App\Community\Domain\ActivityEntry;
 use App\Community\Domain\ActivityEntryRepositoryInterface;
-use App\Identity\Application\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ActivityFeedTest extends TestCase

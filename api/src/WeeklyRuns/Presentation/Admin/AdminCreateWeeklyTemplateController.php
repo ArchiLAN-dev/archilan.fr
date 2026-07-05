@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Presentation\Admin;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\WeeklyRuns\Application\AdminCreateWeeklyTemplate;
+use App\WeeklyRuns\Application\Command\AdminCreateWeeklyTemplate;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;

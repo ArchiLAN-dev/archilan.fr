@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Application\EventParticipationQueryInterface;
-use App\Community\Application\RecomputeAchievements;
+use App\Community\Application\Command\RecomputeAchievements;
+use App\Community\Application\Query\EventParticipationQueryInterface;
 use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\AchievementMetricCatalog;

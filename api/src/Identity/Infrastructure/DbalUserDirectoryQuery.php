@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure;
 
-use App\Identity\Application\UserDirectoryQueryInterface;
+use App\Identity\Application\Query\UserDirectoryQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalUserDirectoryQuery implements UserDirectoryQueryInterface

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Presentation;
 
-use App\Payments\Application\MembershipCheckout;
+use App\Payments\Application\Query\MembershipCheckout;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

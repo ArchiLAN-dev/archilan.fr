@@ -6,7 +6,7 @@ namespace App\WeeklyRuns\Presentation;
 
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
-use App\WeeklyRuns\Application\WeeklyEntryPatchQuery;
+use App\WeeklyRuns\Application\Query\WeeklyEntryPatchQuery;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

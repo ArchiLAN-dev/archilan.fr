@@ -6,7 +6,7 @@ namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionLifecycleManager;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\WeeklyRuns\Application\WeeklyEntrySessionCheck;
+use App\WeeklyRuns\Application\Query\WeeklyEntrySessionCheck;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;

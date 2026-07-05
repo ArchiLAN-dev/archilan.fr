@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Membership\Application\AdminCreateMembership;
+use App\Membership\Application\Command\AdminCreateMembership;
 use App\Membership\Application\UserRoleGatewayInterface;
 use App\Membership\Domain\Membership;
 use App\Membership\Domain\MembershipRepositoryInterface;

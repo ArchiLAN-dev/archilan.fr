@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Handler;
 
-use App\Community\Application\CommunityUserIdsQueryInterface;
+use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
-use App\Community\Application\RecomputeAchievements;
+use App\Community\Application\Query\CommunityUserIdsQueryInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

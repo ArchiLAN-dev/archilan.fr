@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\SteamLibraryCouplingQuery;
+use App\GameSelection\Application\Query\SteamLibraryCouplingQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

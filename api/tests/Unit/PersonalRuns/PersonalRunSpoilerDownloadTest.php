@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunSpoilerDownload;
+use App\PersonalRuns\Application\Query\PersonalRunSpoilerDownload;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;

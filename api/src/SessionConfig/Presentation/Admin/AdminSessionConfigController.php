@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Presentation\Admin;
 
-use App\SessionConfig\Application\AdminSessionConfigQuery;
+use App\SessionConfig\Application\Query\AdminSessionConfigQuery;
 use App\SessionConfig\Domain\SessionType;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;

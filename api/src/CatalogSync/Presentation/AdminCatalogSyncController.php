@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Presentation;
 
-use App\CatalogSync\Application\CheckApworldUpdatesService;
+use App\CatalogSync\Application\Command\CheckApworldUpdatesService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

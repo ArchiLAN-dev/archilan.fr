@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Presentation;
 
-use App\PersonalRuns\Application\PersonalRunConfigOverride;
+use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

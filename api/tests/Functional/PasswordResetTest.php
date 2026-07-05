@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Communications\Application\Message\EmailConfirmationMessage;
 use App\Communications\Application\Message\PasswordResetMessage;
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class PasswordResetTest extends FunctionalTestCase

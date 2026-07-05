@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure;
 
-use App\Membership\Application\AdminUnmatchedHelloAssoOrdersQueryInterface;
+use App\Membership\Application\Query\AdminUnmatchedHelloAssoOrdersQueryInterface;
 use App\Payments\Application\HelloAssoConfig;
 use Doctrine\DBAL\Connection;
 

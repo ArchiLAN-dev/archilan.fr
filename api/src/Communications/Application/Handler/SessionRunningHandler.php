@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Communications\Application\Handler;
 
-use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\SessionRunningEmail;
 use App\Communications\Application\Message\SessionRunningMessage;
+use App\Communications\Application\Service\ArchilanMailer;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\CommunityDirectory;
+use App\Community\Application\Query\CommunityDirectory;
 use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;

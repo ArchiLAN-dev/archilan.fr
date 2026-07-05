@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application;
 
+use App\Community\Application\Query\EventParticipationQueryInterface;
 use App\Community\Domain\AchievementMetricCatalog;
 
 /**

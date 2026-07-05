@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure;
 
-use App\Membership\Application\AccountMembershipQueryInterface;
+use App\Membership\Application\Query\AccountMembershipQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAccountMembershipQuery implements AccountMembershipQueryInterface

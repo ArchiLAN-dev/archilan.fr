@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\AdminReportsQueryInterface;
-use App\Community\Application\ReportQueryFilters;
+use App\Community\Application\Query\AdminReportsQueryInterface;
+use App\Community\Application\Query\ReportQueryFilters;
 use App\Community\Domain\ReportCategory;
 use App\Community\Domain\ReportProblem;
 use App\Community\Domain\ReportSeverity;

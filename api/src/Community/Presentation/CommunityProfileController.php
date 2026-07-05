@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\CommunityProfileView;
-use App\Community\Application\ReportProfileService;
-use App\Community\Application\UpdateCommunityProfile;
+use App\Community\Application\Command\ReportProfileService;
+use App\Community\Application\Command\UpdateCommunityProfile;
+use App\Community\Application\Query\CommunityProfileView;
 use App\Identity\Domain\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;

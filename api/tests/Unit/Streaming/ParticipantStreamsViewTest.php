@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Streaming;
 
-use App\Streaming\Application\ParticipantStreamsView;
-use App\Streaming\Application\ParticipantTwitchLinksQueryInterface;
+use App\Streaming\Application\Query\ParticipantStreamsView;
+use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
 use App\Streaming\Application\TwitchApiClientInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Contracts\Cache\CacheInterface;

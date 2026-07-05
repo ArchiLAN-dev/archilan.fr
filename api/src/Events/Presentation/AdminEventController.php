@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Events\Presentation;
 
-use App\Events\Application\AdminDashboardStats;
-use App\Events\Application\AdminEventDrafts;
-use App\Events\Application\AdminEventGameSelection;
-use App\Events\Application\AdminEventRecap;
-use App\Events\Application\PublicEventCatalog;
-use App\Events\Application\RegistrationEligibility;
-use App\Events\Application\VerifyPrivateEventAccess;
-use App\Payments\Application\AdminHelloAssoSyncStatus;
-use App\Payments\Application\TriggerHelloAssoSync;
+use App\Events\Application\Command\AdminEventRecap;
+use App\Events\Application\Command\VerifyPrivateEventAccess;
+use App\Events\Application\Query\AdminDashboardStats;
+use App\Events\Application\Query\PublicEventCatalog;
+use App\Events\Application\Query\RegistrationEligibility;
+use App\Events\Application\Service\AdminEventDrafts;
+use App\Events\Application\Service\AdminEventGameSelection;
+use App\Payments\Application\Command\TriggerHelloAssoSync;
+use App\Payments\Application\Query\AdminHelloAssoSyncStatus;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

@@ -9,7 +9,7 @@ use App\Community\Domain\AudiencePolicy;
 use App\Community\Domain\BlockRepositoryInterface;
 use App\Community\Domain\CommunityProfileRepositoryInterface;
 use App\Community\Domain\FriendshipRepositoryInterface;
-use App\Membership\Application\ActiveMembershipQueryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 
 /**
  * Resolves whether a viewer may see an owner's social surface: the viewer tier (self/friend/member/

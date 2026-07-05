@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Presentation;
 
-use App\PersonalRuns\Application\PersonalRunDrafts;
-use App\PersonalRuns\Application\PersonalRunGameConfig;
-use App\PersonalRuns\Application\PersonalRunGameSelection;
-use App\PersonalRuns\Application\PersonalRunLifecycle;
+use App\PersonalRuns\Application\Command\PersonalRunGameConfig;
+use App\PersonalRuns\Application\Command\PersonalRunLifecycle;
+use App\PersonalRuns\Application\Service\PersonalRunDrafts;
+use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

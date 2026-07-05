@@ -6,7 +6,7 @@ namespace App\Tests\Unit\WeeklyRuns;
 
 use App\GameSelection\Domain\Game;
 use App\GameSelection\Domain\GameRepositoryInterface;
-use App\WeeklyRuns\Application\GenerateWeeklyRunForTemplate;
+use App\WeeklyRuns\Application\Command\GenerateWeeklyRunForTemplate;
 use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Domain\WeeklyRun;
 use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;

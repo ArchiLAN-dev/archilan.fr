@@ -83,6 +83,18 @@ final readonly class DddArchitectureValidator
         'Sessions/Application/Handler/FetchLogsJobHandler.php',
     ];
 
+    /**
+     * Contexts not yet migrated to the layer sub-folder taxonomy (story 33.10:
+     * Domain/Exception, Application/Command|Query|Exception). Shrink this list as
+     * contexts migrate - NEVER grow it. Sessions stays until Epic 32 merges
+     * (TODO epic-32). Legal is absent: it has no PHP files, trivially compliant.
+     *
+     * @var list<string>
+     */
+    private const UNMIGRATED_TAXONOMY_CONTEXTS = [
+        'Sessions',
+    ];
+
     public function validate(string $projectDir): DddArchitectureReport
     {
         $projectDir = rtrim(str_replace('\\', '/', $projectDir), '/');
@@ -247,7 +259,10 @@ final readonly class DddArchitectureValidator
 
     /**
      * Repository interfaces belong to the Domain layer, query interfaces to the
-     * Application layer (api/CLAUDE.md AC-A2).
+     * Application layer (api/CLAUDE.md AC-A2). Contexts migrated to the story-33.10
+     * taxonomy additionally require Application/Query/ for query interfaces and
+     * {Layer}/Exception/ for Domain and Application exceptions (Infrastructure
+     * exceptions deliberately stay in place).
      *
      * @return list<string>
      */
@@ -269,13 +284,25 @@ final readonly class DddArchitectureValidator
 
             $layer = $parts[1] ?? null;
             $basename = basename($relativePath);
+            $migrated = !in_array($parts[0], self::UNMIGRATED_TAXONOMY_CONTEXTS, true);
 
             if (str_ends_with($basename, 'RepositoryInterface.php') && 'Domain' !== $layer) {
                 $violations[] = "Repository interfaces must live in the Domain layer: src/{$relativePath}";
             }
 
-            if (str_ends_with($basename, 'QueryInterface.php') && 'Application' !== $layer) {
-                $violations[] = "Query interfaces must live in the Application layer: src/{$relativePath}";
+            if (str_ends_with($basename, 'QueryInterface.php')) {
+                if ($migrated && !str_starts_with($relativePath, $parts[0].'/Application/Query/')) {
+                    $violations[] = "Query interfaces must live in Application/Query/ (taxonomy-migrated context): src/{$relativePath}";
+                } elseif ('Application' !== $layer) {
+                    $violations[] = "Query interfaces must live in the Application layer: src/{$relativePath}";
+                }
+            }
+
+            if ($migrated && str_ends_with($basename, 'Exception.php') && in_array($layer, ['Domain', 'Application'], true)) {
+                $expected = $parts[0].'/'.$layer.'/Exception/';
+                if (!str_starts_with($relativePath, $expected)) {
+                    $violations[] = "Exceptions must live in {$layer}/Exception/ (taxonomy-migrated context): src/{$relativePath}";
+                }
             }
         }
 

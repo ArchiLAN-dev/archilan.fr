@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Membership;
 
 use App\Membership\Application\Handler\CheckMembershipExpiryMessageHandler;
-use App\Membership\Application\MembershipExpiryCheckQueryInterface;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Membership\Application\Message\ExpireMembershipMessage;
 use App\Membership\Application\Message\MembershipReminderMessage;
+use App\Membership\Application\Query\MembershipExpiryCheckQueryInterface;
 use App\Membership\Domain\Membership;
 use App\Membership\Domain\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\GameRequests;
+use App\GameSelection\Application\Service\GameRequests;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;

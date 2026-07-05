@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation;
 
-use App\Community\Application\AccountModerationService;
+use App\Community\Application\Service\AccountModerationService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

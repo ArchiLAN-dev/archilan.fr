@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Presentation;
 
-use App\WeeklyRuns\Application\WeeklyRunLeaderboardQuery;
+use App\WeeklyRuns\Application\Query\WeeklyRunLeaderboardQuery;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 

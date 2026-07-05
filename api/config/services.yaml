@@ -84,13 +84,13 @@ services:
     App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyRunRepository'
     App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyTemplateRepository'
     App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyEntryRepository'
-    App\WeeklyRuns\Application\CurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalCurrentWeeklyRunsQuery'
-    App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
-    App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
-    App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
-    App\WeeklyRuns\Application\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunGameListQuery'
-    App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminTemplateRunsQuery'
-    App\WeeklyRuns\Application\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunOutputQuery'
+    App\WeeklyRuns\Application\Query\CurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\Query\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\Query\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
+    App\WeeklyRuns\Application\Query\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
+    App\WeeklyRuns\Application\Query\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunGameListQuery'
+    App\WeeklyRuns\Application\Query\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminTemplateRunsQuery'
+    App\WeeklyRuns\Application\Query\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunOutputQuery'
 
     App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
 
@@ -192,7 +192,7 @@ services:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
 
-    App\WeeklyRuns\Application\WeeklyEntryPatchQuery:
+    App\WeeklyRuns\Application\Query\WeeklyEntryPatchQuery:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
@@ -238,12 +238,12 @@ services:
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
-    App\Identity\Application\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
+    App\Identity\Application\Query\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
+    App\Identity\Application\Query\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
     App\Identity\Application\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\DbalDiscordResyncAllUsers'
-    App\Identity\Application\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
-    App\Identity\Application\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
-    App\Identity\Application\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
+    App\Identity\Application\Query\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
+    App\Identity\Application\Query\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
+    App\Identity\Application\Query\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
 
     App\Identity\Infrastructure\DbalDiscordBotStatusQuery:
         arguments:
@@ -252,11 +252,11 @@ services:
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\HandleDiscordAuthCallback:
+    App\Identity\Application\Command\HandleDiscordAuthCallback:
         arguments:
             $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
 
-    App\Identity\Application\LinkDiscordToAccount:
+    App\Identity\Application\Command\LinkDiscordToAccount:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
@@ -269,36 +269,36 @@ services:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
     App\Membership\Domain\MembershipRepositoryInterface: '@App\Membership\Infrastructure\DoctrineMembershipRepository'
-    App\Membership\Application\AccountMembershipQueryInterface: '@App\Membership\Infrastructure\DbalAccountMembershipQuery'
-    App\Membership\Application\ActiveMembershipQueryInterface: '@App\Membership\Infrastructure\DbalActiveMembershipQuery'
-    App\Membership\Application\AdminMembershipListQueryInterface: '@App\Membership\Infrastructure\DbalAdminMembershipListQuery'
-    App\Membership\Application\AdminUnmatchedHelloAssoOrdersQueryInterface: '@App\Membership\Infrastructure\DbalAdminUnmatchedHelloAssoOrdersQuery'
-    App\Membership\Application\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\DbalMembershipAllIdsQuery'
-    App\Membership\Application\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\DbalMembershipExpiryCheckQuery'
+    App\Membership\Application\Query\AccountMembershipQueryInterface: '@App\Membership\Infrastructure\DbalAccountMembershipQuery'
+    App\Membership\Application\Query\ActiveMembershipQueryInterface: '@App\Membership\Infrastructure\DbalActiveMembershipQuery'
+    App\Membership\Application\Query\AdminMembershipListQueryInterface: '@App\Membership\Infrastructure\DbalAdminMembershipListQuery'
+    App\Membership\Application\Query\AdminUnmatchedHelloAssoOrdersQueryInterface: '@App\Membership\Infrastructure\DbalAdminUnmatchedHelloAssoOrdersQuery'
+    App\Membership\Application\Query\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\DbalMembershipAllIdsQuery'
+    App\Membership\Application\Query\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\DbalMembershipExpiryCheckQuery'
 
     App\Membership\Application\UserRoleGatewayInterface: '@App\Membership\Infrastructure\UserRoleGateway'
 
-    App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\ActivateMembership'
+    App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\Command\ActivateMembership'
 
-    App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\ProcessHelloAssoMembershipPayment'
+    App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\Command\ProcessHelloAssoMembershipPayment'
 
-    App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\ExpireMembership'
+    App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\Command\ExpireMembership'
 
     App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
     App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
     App\PersonalRuns\Domain\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineYamlTemplateRepository'
 
     App\Community\Domain\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\DoctrineCommunityProfileRepository'
-    App\Community\Application\CommunityProfileQueryInterface: '@App\Community\Infrastructure\DbalCommunityProfileQuery'
-    App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
-    App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
-    App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
-    App\Identity\Application\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
-    App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
-    App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
-    App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
-    App\Community\Application\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\DbalAccountReportScoreQuery'
-    App\Community\Application\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityAdminIdsQuery'
+    App\Community\Application\Query\CommunityProfileQueryInterface: '@App\Community\Infrastructure\DbalCommunityProfileQuery'
+    App\Community\Application\Query\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
+    App\Community\Application\Query\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
+    App\Community\Application\Query\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
+    App\Identity\Application\Query\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
+    App\Community\Application\Query\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
+    App\Community\Application\Query\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
+    App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
+    App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\DbalAccountReportScoreQuery'
+    App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityAdminIdsQuery'
     App\Sessions\Application\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\MessengerAchievementRecomputeTrigger'
     App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
     App\Community\Domain\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementDefinitionRepository'
@@ -311,13 +311,13 @@ services:
     App\Community\Application\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\IdentityMemberModerationGateway'
     App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\DoctrineKudosRepository'
     App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\DoctrineNotificationRepository'
-    App\Community\Application\Notifier: '@App\Community\Application\NotificationService'
+    App\Community\Application\Notifier: '@App\Community\Application\Service\NotificationService'
     App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
 
     App\Community\Infrastructure\DiscordAvatarResolver:
         arguments:
             $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
-    App\PersonalRuns\Application\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\DbalRecentlyPlayedGamesQuery'
+    App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\DbalRecentlyPlayedGamesQuery'
 
     App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
     App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
@@ -328,7 +328,7 @@ services:
     App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
 
     App\Streaming\Application\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
-    App\Streaming\Application\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\DbalParticipantTwitchLinksQuery'
+    App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\DbalParticipantTwitchLinksQuery'
 
     App\Streaming\Infrastructure\TwitchApiClient:
         arguments:
@@ -338,29 +338,29 @@ services:
 
     App\GameSelection\Application\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
     App\GameSelection\Application\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\SteamWebApiClient'
-    App\GameSelection\Application\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
+    App\GameSelection\Application\Query\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
     App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
     App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoClientInfoRepository'
     App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoGuideRepository'
     App\GameSelection\Domain\GameTutorialContributionRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameTutorialContributionRepository'
-    App\GameSelection\Application\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalMyGameTutorialContributionsQuery'
-    App\GameSelection\Application\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameContributionsQuery'
+    App\GameSelection\Application\Query\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalMyGameTutorialContributionsQuery'
+    App\GameSelection\Application\Query\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameContributionsQuery'
     App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
     App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
-    App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
-    App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
-    App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
+    App\GameSelection\Application\Query\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
+    App\GameSelection\Application\Query\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
+    App\GameSelection\Application\Query\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
     App\GameSelection\Application\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\DbalGameUsageCounter'
 
-    App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
+    App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
 
     App\Content\Domain\PostRepositoryInterface: '@App\Content\Infrastructure\DoctrinePostRepository'
 
     App\Events\Domain\EventRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventRepository'
     App\Events\Domain\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventPrivateAccessLogRepository'
-    App\Events\Application\DashboardStatsQueryInterface: '@App\Events\Infrastructure\DbalDashboardStatsQuery'
+    App\Events\Application\Query\DashboardStatsQueryInterface: '@App\Events\Infrastructure\DbalDashboardStatsQuery'
 
     App\Identity\Domain\UserRepositoryInterface: '@App\Identity\Infrastructure\DoctrineUserRepository'
     App\Identity\Domain\EmailConfirmationTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineEmailConfirmationTokenRepository'
@@ -377,9 +377,9 @@ services:
 
     App\Registrations\Domain\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationRepository'
     App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationAdminMessageRepository'
-    App\Registrations\Application\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\DbalRegistrationCounterQuery'
-    App\Registrations\Application\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\DbalAccountRegistrationsQuery'
-    App\Registrations\Application\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\DbalPrivateAccessGrantedQuery'
+    App\Registrations\Application\Query\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\DbalRegistrationCounterQuery'
+    App\Registrations\Application\Query\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\DbalAccountRegistrationsQuery'
+    App\Registrations\Application\Query\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\DbalPrivateAccessGrantedQuery'
 
     App\GameSelection\Infrastructure\IgdbHttpClient:
         arguments:

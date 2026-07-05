@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunConfigOverride;
+use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
 use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\SessionConfig\Application\ClearSessionConfigOverride;
-use App\SessionConfig\Application\SessionConfigOverrideQuery;
-use App\SessionConfig\Application\SetSessionConfigOverride;
+use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
+use App\SessionConfig\Application\Command\SetSessionConfigOverride;
+use App\SessionConfig\Application\Query\SessionConfigOverrideQuery;
 use App\SessionConfig\Domain\SessionConfig;
 use App\SessionConfig\Domain\SessionConfigOverride;
 use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;

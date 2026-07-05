@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Presentation;
 
-use App\Payments\Application\ShopCheckout;
+use App\Payments\Application\Query\ShopCheckout;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 

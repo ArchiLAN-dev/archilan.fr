@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Community\Application;
 
 use App\Community\Domain\AchievementMetricCatalog;
-use App\Identity\Application\PlayerHistoryQueryInterface;
-use App\Identity\Application\PlayerStatsQueryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 
 /**
  * The baseline achievement facts derived from the Epic-18 read models (story 30.16): runs, goals, checks,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Registrations\Infrastructure;
 
-use App\Registrations\Application\PrivateAccessGrantedQueryInterface;
+use App\Registrations\Application\Query\PrivateAccessGrantedQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalPrivateAccessGrantedQuery implements PrivateAccessGrantedQueryInterface

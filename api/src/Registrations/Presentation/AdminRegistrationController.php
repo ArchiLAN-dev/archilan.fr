@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Registrations\Presentation;
 
-use App\Registrations\Application\AdminRegistrationCancellation;
-use App\Registrations\Application\AdminRegistrationDashboard;
-use App\Registrations\Application\AdminRegistrationExporter;
-use App\Registrations\Application\AdminRegistrationInspector;
-use App\Registrations\Application\AdminRegistrationModification;
-use App\Registrations\Application\SendMessageToRegistrant;
+use App\Registrations\Application\Command\AdminRegistrationCancellation;
+use App\Registrations\Application\Command\AdminRegistrationModification;
+use App\Registrations\Application\Command\SendMessageToRegistrant;
+use App\Registrations\Application\Query\AdminRegistrationDashboard;
+use App\Registrations\Application\Query\AdminRegistrationExporter;
+use App\Registrations\Application\Query\AdminRegistrationInspector;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Psr\Log\LoggerInterface;

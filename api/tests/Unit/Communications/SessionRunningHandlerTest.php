@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Communications;
 
-use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Handler\SessionRunningHandler;
 use App\Communications\Application\Message\SessionRunningMessage;
+use App\Communications\Application\Service\ArchilanMailer;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;

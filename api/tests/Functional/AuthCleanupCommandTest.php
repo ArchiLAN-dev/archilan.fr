@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\RegisterUser;
+use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Domain\RefreshToken;
 use App\Identity\Domain\User;
 use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;

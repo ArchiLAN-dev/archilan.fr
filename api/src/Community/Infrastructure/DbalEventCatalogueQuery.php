@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\EventCatalogueQueryInterface;
+use App\Community\Application\Query\EventCatalogueQueryInterface;
 use Doctrine\DBAL\Connection;
 
 /**

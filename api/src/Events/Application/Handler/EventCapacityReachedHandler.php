@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Handler;
 
-use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\EventCapacityReachedEmail;
+use App\Communications\Application\Service\ArchilanMailer;
 use App\Events\Application\Message\EventCapacityReachedMessage;
 use App\Identity\Domain\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;

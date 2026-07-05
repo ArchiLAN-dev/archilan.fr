@@ -270,16 +270,17 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testQueryInterfaceOutsideApplicationIsReported(): void
     {
         $projectDir = $this->createProjectFixture();
+        // Sessions is unmigrated (frozen until Epic 32), so it uses the pre-taxonomy message.
         file_put_contents(
-            $projectDir.'/src/Events/Infrastructure/DashboardQueryInterface.php',
-            "<?php\n\nnamespace App\\Events\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
+            $projectDir.'/src/Sessions/Infrastructure/DashboardQueryInterface.php',
+            "<?php\n\nnamespace App\\Sessions\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
         );
 
         $report = (new DddArchitectureValidator())->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
-            'Query interfaces must live in the Application layer: src/Events/Infrastructure/DashboardQueryInterface.php',
+            'Query interfaces must live in the Application layer: src/Sessions/Infrastructure/DashboardQueryInterface.php',
             $report->violations(),
         );
     }
@@ -375,6 +376,93 @@ final class DddArchitectureValidatorTest extends TestCase
             static fn (string $v): bool => str_contains($v, 'NotAClock.php'),
         ));
         self::assertSame([], $violationsForFile);
+    }
+
+    public function testTaxonomyExceptionOutsideExceptionFolderIsReportedForMigratedContext(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Legal/Domain/ConsentMissingException.php',
+            "<?php\n\nnamespace App\\Legal\\Domain;\n\nfinal class ConsentMissingException extends \\RuntimeException {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Legal/Application/ExportFailedException.php',
+            "<?php\n\nnamespace App\\Legal\\Application;\n\nfinal class ExportFailedException extends \\RuntimeException {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Exceptions must live in Domain/Exception/ (taxonomy-migrated context): src/Legal/Domain/ConsentMissingException.php',
+            $report->violations(),
+        );
+        self::assertContains(
+            'Exceptions must live in Application/Exception/ (taxonomy-migrated context): src/Legal/Application/ExportFailedException.php',
+            $report->violations(),
+        );
+    }
+
+    public function testTaxonomyCompliantMigratedContextPasses(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Legal/Domain/Exception');
+        $this->createDirectory($projectDir.'/src/Legal/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Legal/Domain/Exception/ConsentMissingException.php',
+            "<?php\n\nnamespace App\\Legal\\Domain\\Exception;\n\nfinal class ConsentMissingException extends \\RuntimeException {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Legal/Application/Query/ConsentLogQueryInterface.php',
+            "<?php\n\nnamespace App\\Legal\\Application\\Query;\n\ninterface ConsentLogQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForContext = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'src/Legal/'),
+        ));
+        self::assertSame([], $violationsForContext);
+    }
+
+    public function testTaxonomyRulesAreNotAppliedToUnmigratedContext(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        // Sessions is unmigrated (frozen until Epic 32): taxonomy rules must not fire for it.
+        file_put_contents(
+            $projectDir.'/src/Sessions/Domain/CapacityExceededException.php',
+            "<?php\n\nnamespace App\\Sessions\\Domain;\n\nfinal class CapacityExceededException extends \\RuntimeException {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Sessions/Application/DashboardQueryInterface.php',
+            "<?php\n\nnamespace App\\Sessions\\Application;\n\ninterface DashboardQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $taxonomyViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'taxonomy-migrated'),
+        ));
+        self::assertSame([], $taxonomyViolations);
+    }
+
+    public function testMigratedContextQueryInterfaceOutsideQueryFolderIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Legal/Application/ConsentLogQueryInterface.php',
+            "<?php\n\nnamespace App\\Legal\\Application;\n\ninterface ConsentLogQueryInterface {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Query interfaces must live in Application/Query/ (taxonomy-migrated context): src/Legal/Application/ConsentLogQueryInterface.php',
+            $report->violations(),
+        );
     }
 
     public function testCreateNativeQueryInPresentationIsReported(): void

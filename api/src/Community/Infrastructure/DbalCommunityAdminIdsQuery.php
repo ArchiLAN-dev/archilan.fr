@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure;
 
-use App\Community\Application\CommunityAdminIdsQueryInterface;
+use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalCommunityAdminIdsQuery implements CommunityAdminIdsQueryInterface

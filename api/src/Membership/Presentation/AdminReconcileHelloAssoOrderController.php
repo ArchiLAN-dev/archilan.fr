@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Presentation;
 
-use App\Membership\Application\AdminReconcileHelloAssoOrder;
+use App\Membership\Application\Command\AdminReconcileHelloAssoOrder;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

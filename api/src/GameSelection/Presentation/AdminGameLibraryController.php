@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation;
 
-use App\GameSelection\Application\AdminGameLibrary;
+use App\GameSelection\Application\Service\AdminGameLibrary;
 use App\GameSelection\Domain\Game;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;

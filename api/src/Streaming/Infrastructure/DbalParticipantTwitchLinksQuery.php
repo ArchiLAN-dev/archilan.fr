@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Infrastructure;
 
-use App\Streaming\Application\ParticipantTwitchLinksQueryInterface;
+use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 

@@ -9,7 +9,7 @@ use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleCondition;
 use App\Community\Domain\AchievementRuleFactory;
 use App\Community\Domain\AchievementRuleGroup;
-use App\Community\Domain\InvalidAchievementRuleException;
+use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Community\Domain\MetricBag;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

@@ -11,7 +11,7 @@ use App\PersonalRuns\Domain\Run;
 use App\PersonalRuns\Domain\RunRepositoryInterface;
 use App\Registrations\Domain\Registration;
 use App\Registrations\Domain\RegistrationRepositoryInterface;
-use App\SessionConfig\Application\SessionConfigResolver;
+use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\SessionType;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
