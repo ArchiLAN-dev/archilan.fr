@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\Message\CleanupEmailConfirmationTokensHandler;
+use App\Identity\Application\Handler\CleanupEmailConfirmationTokensHandler;
+use App\Identity\Application\Handler\CleanupPasswordResetTokensHandler;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
-use App\Identity\Application\Message\CleanupPasswordResetTokensHandler;
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
 use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
 use App\Identity\Domain\PasswordResetTokenRepositoryInterface;

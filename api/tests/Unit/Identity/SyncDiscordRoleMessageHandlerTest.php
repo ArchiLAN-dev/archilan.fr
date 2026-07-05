@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Identity;
 
 use App\Identity\Application\DiscordBotClientInterface;
+use App\Identity\Application\Handler\SyncDiscordRoleMessageHandler;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Application\Message\SyncDiscordRoleMessageHandler;
 use App\Identity\Domain\User;
 use App\Identity\Domain\UserRepositoryInterface;
 use App\Membership\Application\ActiveMembershipQueryInterface;

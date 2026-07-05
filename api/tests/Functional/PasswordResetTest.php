@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Communications\Application\PasswordResetMessage;
+use App\Communications\Application\Message\PasswordResetMessage;
 use App\Identity\Application\RegisterUser;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 

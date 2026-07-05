@@ -232,7 +232,7 @@ services:
         arguments:
             $botToken: '%env(DISCORD_BOT_TOKEN)%'
 
-    App\Identity\Application\Message\SyncDiscordRoleMessageHandler:
+    App\Identity\Application\Handler\SyncDiscordRoleMessageHandler:
         arguments:
             $guildId: '%env(DISCORD_GUILD_ID)%'
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'

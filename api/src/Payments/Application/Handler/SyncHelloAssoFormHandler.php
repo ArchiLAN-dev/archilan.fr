@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Payments\Application;
+namespace App\Payments\Application\Handler;
 
+use App\Payments\Application\HelloAssoClientInterface;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
+use App\Payments\Application\Message\SyncHelloAssoFormMessage;
 use App\Payments\Domain\HelloAssoOrder;
 use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
 use App\Payments\Domain\HelloAssoSyncLog;

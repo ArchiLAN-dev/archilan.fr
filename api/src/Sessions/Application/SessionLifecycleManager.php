@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\Communications\Application\SessionPausedWithoutSaveMessage;
-use App\Communications\Application\SessionRestartFailedMessage;
-use App\Communications\Application\SessionRunningMessage;
+use App\Communications\Application\Message\SessionPausedWithoutSaveMessage;
+use App\Communications\Application\Message\SessionRestartFailedMessage;
+use App\Communications\Application\Message\SessionRunningMessage;
 use App\Events\Domain\Event;
 use App\Events\Domain\EventRepositoryInterface;
 use App\Identity\Domain\UserRepositoryInterface;

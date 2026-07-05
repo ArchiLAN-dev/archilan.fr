@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Communications\Application;
+namespace App\Communications\Application\Handler;
 
+use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\SessionPausedWithoutSaveEmail;
+use App\Communications\Application\Message\SessionPausedWithoutSaveMessage;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

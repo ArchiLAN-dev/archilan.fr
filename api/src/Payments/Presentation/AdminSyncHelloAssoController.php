@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Payments\Presentation;
 
 use App\Payments\Application\HelloAssoConfig;
-use App\Payments\Application\SyncHelloAssoFormMessage;
+use App\Payments\Application\Message\SyncHelloAssoFormMessage;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\RequiresAuthTrait;
 use Psr\Log\LoggerInterface;

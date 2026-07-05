@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Payments;
 
-use App\Payments\Application\Message\CleanupHelloAssoSyncLogHandler;
+use App\Payments\Application\Handler\CleanupHelloAssoSyncLogHandler;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
 use PHPUnit\Framework\TestCase;
