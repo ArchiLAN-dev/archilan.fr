@@ -14,6 +14,7 @@ use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository;
 use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository;
 use App\Payments\Infrastructure\Http\HelloAssoHttpClient;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Envelope;
@@ -188,7 +189,7 @@ final class HelloAssoSyncHandlerTest extends FunctionalTestCase
             {
                 return new Envelope($message, $stamps);
             }
-        }, new NullLogger());
+        }, new NullLogger(), new MockClock());
     }
 
     private function itemsResponse(int $orderId, ?string $payerEmail, ?string $paidAt): MockResponse

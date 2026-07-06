@@ -9,6 +9,7 @@ use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
 use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 
 final class CleanupHelloAssoSyncLogHandlerTest extends TestCase
 {
@@ -29,6 +30,6 @@ final class CleanupHelloAssoSyncLogHandlerTest extends TestCase
             ->method('info')
             ->with('data.cleanup_helloasso_sync_log', ['deleted' => 4]);
 
-        (new CleanupHelloAssoSyncLogHandler($repo, $logger, 90))(new CleanupHelloAssoSyncLogMessage());
+        (new CleanupHelloAssoSyncLogHandler($repo, $logger, new MockClock(), 90))(new CleanupHelloAssoSyncLogMessage());
     }
 }
