@@ -1,0 +1,25 @@
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": ["src"],
+        "excludes": [
+            "Kernel.php",
+            "Shared/Infrastructure/Console",
+            "**/Infrastructure/Double"
+        ]
+    },
+    "mutators": {
+        "@default": true
+    },
+    "testFramework": "phpunit",
+    "testFrameworkOptions": "--testsuite=unit",
+    "logs": {
+        "text": "var/infection/infection.log",
+        "summary": "var/infection/summary.log",
+        "html": "var/infection/infection.html"
+    },
+    "tmpDir": "var/infection",
+    "timeout": 30,
+    "minMsi": 0,
+    "minCoveredMsi": 0
+}

@@ -17,9 +17,15 @@
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 
+    <!-- Split so mutation testing (Infection, story 33.12) can target the fast, DB-free unit suite.
+         Running with no testsuite arg runs both = the whole suite, exactly as before (no overlap). -->
     <testsuites>
-        <testsuite name="Project Test Suite">
-            <directory>tests</directory>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>tests/Functional</directory>
+            <file>tests/KernelTest.php</file>
         </testsuite>
     </testsuites>
 
