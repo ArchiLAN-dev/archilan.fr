@@ -128,6 +128,18 @@ jobs:
         run: |
           php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
+      # Advisory (continue-on-error) mutation testing on the changed lines only (story 33.12).
+      # Runs its own fast unit-suite coverage via pcov. Non-blocking until the MSI floor is tuned;
+      # raise --min-msi over time, then drop continue-on-error to make it a hard gate.
+      - name: Mutation testing (advisory, diff-scoped)
+        continue-on-error: true
+        run: |
+          git fetch --no-tags --depth=1 origin develop || true
+          php -d pcov.enabled=1 vendor/bin/infection \
+            --git-diff-lines --git-diff-base=origin/develop \
+            --threads=max --no-progress --no-interaction \
+            --min-msi=0 --min-covered-msi=0 --logger-github || true
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:
