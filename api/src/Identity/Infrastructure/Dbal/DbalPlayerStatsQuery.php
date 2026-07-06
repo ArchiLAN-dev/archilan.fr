@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Dbal;
 
-use App\Events\Domain\Event;
+use App\Events\Domain\Entity\Event;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;

@@ -8,8 +8,8 @@ use App\GameSelection\Application\Command\SeedGameTutorials;
 use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
 use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 

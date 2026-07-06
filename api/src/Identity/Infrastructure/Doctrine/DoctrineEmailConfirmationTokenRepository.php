@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
+use App\Identity\Domain\Entity\EmailConfirmationToken;
+use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;

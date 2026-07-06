@@ -7,7 +7,7 @@ security:
     providers:
         identity_users:
             entity:
-                class: App\Identity\Domain\User
+                class: App\Identity\Domain\Entity\User
                 property: emailCanonical
 
     firewalls:

@@ -7,7 +7,7 @@ namespace App\Payments\Application\Command;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use App\Payments\Application\Message\SyncHelloAssoFormMessage;
 use App\Payments\Application\Port\HelloAssoClientInterface;
-use App\Payments\Domain\HelloAssoOrder;
+use App\Payments\Domain\Entity\HelloAssoOrder;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

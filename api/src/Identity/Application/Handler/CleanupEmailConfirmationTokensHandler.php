@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Application\Handler;
 
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
-use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
+use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Unit\WeeklyRuns;
 
 use App\SessionConfig\Application\Service\SessionConfigResolver;
-use App\SessionConfig\Domain\SessionConfig;
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfig;
 
 /**
  * Builds a real SessionConfigResolver backed by stub repos returning the domain defaults

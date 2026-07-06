@@ -6,10 +6,10 @@ namespace App\Registrations\Application\Command;
 
 use App\Communications\Application\Email\AdminDirectMessageEmail;
 use App\Communications\Application\Service\ArchilanMailer;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\Registrations\Domain\RegistrationAdminMessage;
-use App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Registrations\Domain\Entity\RegistrationAdminMessage;
+use App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 
 final readonly class SendMessageToRegistrant
 {

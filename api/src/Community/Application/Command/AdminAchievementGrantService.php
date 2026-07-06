@@ -6,11 +6,11 @@ namespace App\Community\Application\Command;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\Notifier;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementDefinitionRepositoryInterface;
-use App\Community\Domain\AchievementGrant;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
-use App\Community\Domain\Notification;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 
 /**
  * Manual grant / revoke of an achievement by an admin (story 30.34). Sits beside the engine: it writes the

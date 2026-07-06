@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\CommunityProfile;
-use App\Community\Domain\CommunityProfileRepositoryInterface;
+use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineCommunityProfileRepository implements CommunityProfileRepositoryInterface

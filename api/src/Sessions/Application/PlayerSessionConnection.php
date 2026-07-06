@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;

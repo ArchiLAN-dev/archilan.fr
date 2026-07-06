@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure\Doctrine;
 
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 

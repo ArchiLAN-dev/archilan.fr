@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\EventPrivateAccessLog;
+use App\Events\Domain\Entity\EventPrivateAccessLog;
 use App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository;
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\PasswordResetToken;
+use App\Identity\Domain\Entity\EmailConfirmationToken;
+use App\Identity\Domain\Entity\PasswordResetToken;
 use App\Identity\Infrastructure\Doctrine\DoctrineEmailConfirmationTokenRepository;
 use App\Identity\Infrastructure\Doctrine\DoctrinePasswordResetTokenRepository;
-use App\Payments\Domain\HelloAssoSyncLog;
+use App\Payments\Domain\Entity\HelloAssoSyncLog;
 use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository;
 
 /**

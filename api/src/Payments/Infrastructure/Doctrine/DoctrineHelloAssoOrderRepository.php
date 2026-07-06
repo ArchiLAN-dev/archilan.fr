@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Payments\Infrastructure\Doctrine;
 
-use App\Payments\Domain\HelloAssoOrder;
-use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineHelloAssoOrderRepository implements HelloAssoOrderRepositoryInterface

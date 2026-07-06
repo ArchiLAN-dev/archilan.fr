@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Registrations\Infrastructure\Doctrine;
 
-use App\Events\Domain\Event;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 

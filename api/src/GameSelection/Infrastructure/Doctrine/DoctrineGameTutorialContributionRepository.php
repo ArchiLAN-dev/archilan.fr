@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Doctrine;
 
-use App\GameSelection\Domain\GameTutorialContribution;
-use App\GameSelection\Domain\GameTutorialContributionRepositoryInterface;
+use App\GameSelection\Domain\Entity\GameTutorialContribution;
+use App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineGameTutorialContributionRepository implements GameTutorialContributionRepositoryInterface

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Membership\Application\Command;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Port\ActivateMembershipInterface;
-use App\Payments\Domain\HelloAssoOrder;
-use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminReconcileHelloAssoOrder

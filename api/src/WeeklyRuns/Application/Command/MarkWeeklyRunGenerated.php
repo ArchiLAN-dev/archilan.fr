@@ -6,8 +6,8 @@ namespace App\WeeklyRuns\Application\Command;
 
 use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
 use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 /**

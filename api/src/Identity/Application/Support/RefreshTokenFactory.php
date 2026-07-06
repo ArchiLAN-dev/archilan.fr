@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Support;
 
-use App\Identity\Domain\RefreshToken;
+use App\Identity\Domain\Entity\RefreshToken;
 
 final class RefreshTokenFactory
 {

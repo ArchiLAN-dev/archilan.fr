@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\SessionConfig;
 
-use App\SessionConfig\Domain\PlandoOption;
-use App\SessionConfig\Domain\ReleaseCollectMode;
-use App\SessionConfig\Domain\SessionConfig;
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionType;
-use App\SessionConfig\Domain\SpoilerLevel;
+use App\SessionConfig\Domain\Enum\PlandoOption;
+use App\SessionConfig\Domain\Enum\ReleaseCollectMode;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Enum\SpoilerLevel;
+use App\SessionConfig\Domain\ValueObject\SessionConfig;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use PHPUnit\Framework\TestCase;
 
 final class SessionConfigArrayTest extends TestCase

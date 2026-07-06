@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Query;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 
 final readonly class PlayerHistoryQuery
 {

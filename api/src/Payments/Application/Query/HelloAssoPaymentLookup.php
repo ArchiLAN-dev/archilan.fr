@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Payments\Application\Query;
 
-use App\Events\Domain\EventRepositoryInterface;
-use App\Payments\Domain\HelloAssoOrder;
-use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface;
 
 final readonly class HelloAssoPaymentLookup
 {

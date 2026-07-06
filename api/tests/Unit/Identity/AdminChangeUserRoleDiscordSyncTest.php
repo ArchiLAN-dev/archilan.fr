@@ -6,10 +6,10 @@ namespace App\Tests\Unit\Identity;
 
 use App\Identity\Application\Command\AdminChangeUserRole;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Domain\RoleChangeAudit;
-use App\Identity\Domain\RoleChangeAuditRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\RoleChangeAudit;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Messenger\Envelope;

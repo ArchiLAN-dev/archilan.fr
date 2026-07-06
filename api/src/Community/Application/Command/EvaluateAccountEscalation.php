@@ -8,8 +8,8 @@ use App\Community\Application\Query\AccountReportScoreQueryInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\Notifier;
-use App\Community\Domain\Notification;
-use App\Community\Domain\ReportSeverity;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\ValueObject\ReportSeverity;
 
 /**
  * Notifies admins when a reported account's weighted score *crosses* the escalation threshold (story 30.28).

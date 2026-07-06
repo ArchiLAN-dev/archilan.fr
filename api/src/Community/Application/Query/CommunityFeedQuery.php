@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Community\Application\Query;
 
 use App\Community\Application\Support\ProfileVisibility;
-use App\Community\Domain\ActivityEntry;
-use App\Community\Domain\ActivityEntryRepositoryInterface;
-use App\Community\Domain\FriendshipRepositoryInterface;
-use App\Community\Domain\Kudos;
-use App\Community\Domain\KudosRepositoryInterface;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Community\Domain\Entity\Kudos;
+use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
+use App\Community\Domain\Repository\FriendshipRepositoryInterface;
+use App\Community\Domain\Repository\KudosRepositoryInterface;
 
 /**
  * Reads the activity feed (story 30.9). Visibility is resolved at read time per actor via the shared

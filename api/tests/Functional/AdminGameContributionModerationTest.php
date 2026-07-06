@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameTutorialContribution;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameTutorialContribution;
 
 final class AdminGameContributionModerationTest extends FunctionalTestCase
 {

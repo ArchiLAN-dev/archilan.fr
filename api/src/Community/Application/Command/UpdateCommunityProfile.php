@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
-use App\Community\Domain\Audience;
-use App\Community\Domain\AvatarFrame;
-use App\Community\Domain\BannerPreset;
-use App\Community\Domain\CommunityProfile;
-use App\Community\Domain\CommunityProfileRepositoryInterface;
-use App\Community\Domain\ShowcaseWidget;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
+use App\Community\Domain\ValueObject\Audience;
+use App\Community\Domain\ValueObject\AvatarFrame;
+use App\Community\Domain\ValueObject\BannerPreset;
+use App\Community\Domain\ValueObject\ShowcaseWidget;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 
 /**

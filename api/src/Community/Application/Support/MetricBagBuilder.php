@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Support;
 
 use App\Community\Application\Port\AchievementMetricProviderInterface;
-use App\Community\Domain\MetricBag;
+use App\Community\Domain\ValueObject\MetricBag;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 /**

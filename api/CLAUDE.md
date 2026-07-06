@@ -105,8 +105,8 @@ name suffix a text check can key on) - it is a documented convention, not a gate
 |---|---|
 | `Domain/` | `Entity/` (`#[ORM\Entity]`), `ValueObject/` (final readonly, no ORM), `Enum/`, `Repository/` (`*RepositoryInterface`), `Service/` (pure domain logic), `Exception/` |
 | `Application/` | `Command/ Query/ Service/ Message/ Handler/ Exception/ Email/` + `Port/` (infra-facing interfaces, gateways, `Notifier`) + `Support/` (helpers, factories, crypto, resolvers, normalizers, builders, providers, config holders, free DTOs) |
-| `Infrastructure/` | `Doctrine/` (`Doctrine*Repository`), `Dbal/` (`Dbal*Query`), `Http/` (clients, `ApiAccessGuard`), `Console/`, `Double/` (`Null*`/`Stub*`/`Spy*`, `when@test`) |
-| `Presentation/` | `Controller/` (all controllers; `Controller/Admin/` where an admin split exists), `Command/` (console) |
+| `Infrastructure/` | `Doctrine/` (`Doctrine*Repository`), `Dbal/` (`Dbal*Query`), `Http/` (clients + `ApiAccessGuard`), `Console/`, `Double/` (`Null*`/`Stub*`/`Spy*`, `when@test`), `Exception/` (infra exceptions), `Adapter/` (remaining port impls: gateways, providers, triggers, resolvers, generators, voter, storage) |
+| `Presentation/` | `Controller/` (all controllers; `Controller/Admin/` where an admin split exists), `Command/` (console), `Support/` (controller traits), `Request/` (request/webhook DTOs) |
 
 Doctrine mapping targets `Domain/Entity/` (prefix `App\{Context}\Domain\Entity`). Name-detectable
 kinds (entities, `*RepositoryInterface`, `*Controller`, `Doctrine*`, `Dbal*`, `Null*`/`Stub*`/`Spy*`)

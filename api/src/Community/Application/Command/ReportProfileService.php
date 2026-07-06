@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Community\Application\Command;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
-use App\Community\Domain\ContentReport;
-use App\Community\Domain\ContentReportRepositoryInterface;
-use App\Community\Domain\ReportCategory;
-use App\Community\Domain\ReportProblem;
-use App\Community\Domain\ReportSeverity;
+use App\Community\Domain\Entity\ContentReport;
+use App\Community\Domain\Repository\ContentReportRepositoryInterface;
+use App\Community\Domain\ValueObject\ReportCategory;
+use App\Community\Domain\ValueObject\ReportProblem;
+use App\Community\Domain\ValueObject\ReportSeverity;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**

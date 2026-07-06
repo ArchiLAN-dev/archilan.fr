@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Doctrine;
 
-use App\GameSelection\Domain\GameRequest;
-use App\GameSelection\Domain\GameRequestRepositoryInterface;
+use App\GameSelection\Domain\Entity\GameRequest;
+use App\GameSelection\Domain\Repository\GameRequestRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineGameRequestRepository implements GameRequestRepositoryInterface

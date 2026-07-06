@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Command;
 
-use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

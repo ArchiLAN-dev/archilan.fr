@@ -6,9 +6,9 @@ namespace App\Community\Infrastructure\Dbal;
 
 use App\Community\Application\Query\AdminReportsQueryInterface;
 use App\Community\Application\Query\ReportQueryFilters;
-use App\Community\Domain\ReportCategory;
-use App\Community\Domain\ReportProblem;
-use App\Community\Domain\ReportSeverity;
+use App\Community\Domain\ValueObject\ReportCategory;
+use App\Community\Domain\ValueObject\ReportProblem;
+use App\Community\Domain\ValueObject\ReportSeverity;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminReportsQuery implements AdminReportsQueryInterface

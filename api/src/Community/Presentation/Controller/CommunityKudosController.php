@@ -6,8 +6,8 @@ namespace App\Community\Presentation\Controller;
 
 use App\Community\Application\Exception\CannotKudosOwnContentException;
 use App\Community\Application\Service\KudosService;
-use App\Community\Domain\Kudos;
-use App\Identity\Domain\User;
+use App\Community\Domain\Entity\Kudos;
+use App\Identity\Domain\Entity\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

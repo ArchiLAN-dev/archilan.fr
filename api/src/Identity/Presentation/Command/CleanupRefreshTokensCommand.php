@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Command;
 
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

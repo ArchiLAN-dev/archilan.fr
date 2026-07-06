@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\Notification;
-use App\Community\Domain\NotificationRepositoryInterface;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\NotificationRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineNotificationRepository implements NotificationRepositoryInterface

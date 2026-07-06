@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure\Doctrine;
 
-use App\WeeklyRuns\Domain\WeeklyTemplate;
-use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
+use App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineWeeklyTemplateRepository implements WeeklyTemplateRepositoryInterface

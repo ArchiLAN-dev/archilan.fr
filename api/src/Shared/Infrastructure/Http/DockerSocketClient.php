@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Infrastructure\Http;
 
-use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\Entity\Run;
 
 final readonly class DockerSocketClient
 {

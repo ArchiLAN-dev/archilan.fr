@@ -8,12 +8,12 @@ use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\Notifier;
-use App\Community\Domain\ContentReportRepositoryInterface;
-use App\Community\Domain\ModerationAction;
-use App\Community\Domain\ModerationActionRepositoryInterface;
-use App\Community\Domain\Notification;
-use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\Run;
+use App\Community\Domain\Entity\ModerationAction;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\ContentReportRepositoryInterface;
+use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
 
 /**
  * Admin actions on a member's account (story 30.29): warn / suspend / ban / lift. Suspend & ban delegate

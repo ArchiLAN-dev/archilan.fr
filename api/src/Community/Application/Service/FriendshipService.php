@@ -7,12 +7,12 @@ namespace App\Community\Application\Service;
 use App\Community\Application\Command\RecordActivity;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Support\Notifier;
-use App\Community\Domain\ActivityEntry;
-use App\Community\Domain\Block;
-use App\Community\Domain\BlockRepositoryInterface;
-use App\Community\Domain\Friendship;
-use App\Community\Domain\FriendshipRepositoryInterface;
-use App\Community\Domain\Notification;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Community\Domain\Entity\Block;
+use App\Community\Domain\Entity\Friendship;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\BlockRepositoryInterface;
+use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**

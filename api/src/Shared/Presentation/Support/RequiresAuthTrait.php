@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Presentation\Support;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

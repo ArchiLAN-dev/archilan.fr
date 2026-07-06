@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\CatalogSync;
 
 use App\CatalogSync\Application\Service\CatalogSyncService;
-use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\Game;
+use App\CatalogSync\Domain\ValueObject\CatalogEntry;
+use App\GameSelection\Domain\Entity\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Port;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 
 /**
  * Community's port for acting on a member's Identity-owned access state (story 30.29). Community defines

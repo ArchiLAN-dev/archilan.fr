@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Membership\Domain\Membership;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\Membership\Domain\Entity\Membership;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 use App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway;
 
 final class WeeklyRunLaunchTest extends FunctionalTestCase

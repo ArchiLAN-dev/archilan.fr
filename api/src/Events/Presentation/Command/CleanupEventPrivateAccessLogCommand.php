@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events\Presentation\Command;
 
-use App\Events\Domain\EventPrivateAccessLogRepositoryInterface;
+use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Command;
 
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Domain\GameTutorialContribution;
-use App\GameSelection\Domain\GameTutorialContributionRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameTutorialContribution;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 
 /**

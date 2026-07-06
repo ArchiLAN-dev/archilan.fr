@@ -7,9 +7,9 @@ namespace App\Tests\Unit\Community;
 use App\Community\Application\Query\EventCatalogueQueryInterface;
 use App\Community\Application\Service\AdminAchievementService;
 use App\Community\Application\Support\AchievementImageUrlResolver;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
+use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Presentation\Controller;
 
 use App\Identity\Application\Command\ChangeUserSlug;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

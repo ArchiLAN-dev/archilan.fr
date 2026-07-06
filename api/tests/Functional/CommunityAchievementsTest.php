@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\AchievementGrant;
 use App\Community\Domain\DefaultAchievementDefinitions;
-use App\Community\Domain\Level;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\ValueObject\Level;
 
 final class CommunityAchievementsTest extends FunctionalTestCase
 {

@@ -6,7 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Communications\Application\Message\EmailConfirmationMessage;
 use App\Identity\Application\Command\RegisterUser;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class EmailConfirmationTest extends FunctionalTestCase

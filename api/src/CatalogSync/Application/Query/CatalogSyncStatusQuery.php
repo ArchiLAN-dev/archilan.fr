@@ -6,11 +6,11 @@ namespace App\CatalogSync\Application\Query;
 
 use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\CatalogSync\Application\Service\CatalogSyncService;
-use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Domain\IgnoredCatalogEntry;
-use App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface;
+use App\CatalogSync\Domain\ValueObject\CatalogEntry;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\IgnoredCatalogEntry;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Domain\Repository\IgnoredCatalogEntryRepositoryInterface;
 
 final readonly class CatalogSyncStatusQuery
 {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Content\Infrastructure\Doctrine;
 
-use App\Content\Domain\Post;
-use App\Content\Domain\PostRepositoryInterface;
+use App\Content\Domain\Entity\Post;
+use App\Content\Domain\Repository\PostRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrinePostRepository implements PostRepositoryInterface

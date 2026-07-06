@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\SessionConfig;
 
-use App\SessionConfig\Domain\PlandoOption;
-use App\SessionConfig\Domain\SessionGenerationConfig;
-use App\SessionConfig\Domain\SpoilerLevel;
+use App\SessionConfig\Domain\Enum\PlandoOption;
+use App\SessionConfig\Domain\Enum\SpoilerLevel;
+use App\SessionConfig\Domain\ValueObject\SessionGenerationConfig;
 use PHPUnit\Framework\TestCase;
 
 final class SessionGenerationConfigTest extends TestCase

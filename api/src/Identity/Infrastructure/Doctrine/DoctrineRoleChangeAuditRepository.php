@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\RoleChangeAudit;
-use App\Identity\Domain\RoleChangeAuditRepositoryInterface;
+use App\Identity\Domain\Entity\RoleChangeAudit;
+use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineRoleChangeAuditRepository implements RoleChangeAuditRepositoryInterface

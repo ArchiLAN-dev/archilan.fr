@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\Message\RegistrationConfirmationMessage;
-use App\Events\Domain\Event;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Domain\Entity\Registration;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class RegistrationSubmitTest extends FunctionalTestCase

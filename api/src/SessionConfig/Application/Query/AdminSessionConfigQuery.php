@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Application\Query;
 
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
 
 final readonly class AdminSessionConfigQuery
 {

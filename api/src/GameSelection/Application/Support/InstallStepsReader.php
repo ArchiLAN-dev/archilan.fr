@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Support;
 
-use App\GameSelection\Domain\InstallStepType;
+use App\GameSelection\Domain\Enum\InstallStepType;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**

@@ -6,10 +6,10 @@ namespace App\Identity\Application\Command;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Application\Support\ValidationErrors;
-use App\Identity\Domain\RoleChangeAudit;
-use App\Identity\Domain\RoleChangeAuditRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\RoleChangeAudit;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

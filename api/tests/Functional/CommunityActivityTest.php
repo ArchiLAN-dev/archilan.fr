@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\ActivityEntry;
+use App\Community\Domain\Entity\ActivityEntry;
 
 final class CommunityActivityTest extends FunctionalTestCase
 {

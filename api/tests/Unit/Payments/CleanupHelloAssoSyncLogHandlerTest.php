@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Payments;
 
 use App\Payments\Application\Handler\CleanupHelloAssoSyncLogHandler;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
-use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
+use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

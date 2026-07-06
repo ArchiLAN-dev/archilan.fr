@@ -6,11 +6,11 @@ namespace App\Community\Application\Command;
 
 use App\Community\Application\Support\MetricBagBuilder;
 use App\Community\Application\Support\Notifier;
-use App\Community\Domain\AchievementDefinitionRepositoryInterface;
-use App\Community\Domain\AchievementGrant;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
-use App\Community\Domain\MetricBag;
-use App\Community\Domain\Notification;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\ValueObject\MetricBag;
 
 /**
  * Deterministic achievement engine (epic §E.1, story 30.16): builds a user's MetricBag from the registered

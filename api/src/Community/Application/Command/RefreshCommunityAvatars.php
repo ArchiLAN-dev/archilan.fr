@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Community\Application\Command;
 
 use App\Community\Application\Port\AvatarResolverInterface;
-use App\Community\Domain\CommunityProfile;
-use App\Community\Domain\CommunityProfileRepositoryInterface;
+use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 
 /**
  * Refreshes cached avatar URLs off the request path (scheduled / on-demand). Resolution is the source

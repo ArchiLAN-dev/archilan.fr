@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\DeletionAudit;
-use App\Identity\Domain\DeletionAuditRepositoryInterface;
+use App\Identity\Domain\Entity\DeletionAudit;
+use App\Identity\Domain\Repository\DeletionAuditRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineDeletionAuditRepository implements DeletionAuditRepositoryInterface

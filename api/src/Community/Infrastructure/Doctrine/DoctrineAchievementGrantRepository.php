@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\AchievementGrant;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 

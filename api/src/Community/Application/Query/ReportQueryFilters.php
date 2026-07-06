@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
-use App\Community\Domain\ContentReport;
-use App\Community\Domain\ReportProblem;
+use App\Community\Domain\Entity\ContentReport;
+use App\Community\Domain\ValueObject\ReportProblem;
 
 /**
  * Normalized, validated filters for the admin moderation reports listing (story 30.25). Built from raw

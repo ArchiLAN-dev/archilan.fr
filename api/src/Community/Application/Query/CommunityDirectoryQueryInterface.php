@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
-use App\Community\Domain\Level;
-use App\Identity\Domain\User;
+use App\Community\Domain\ValueObject\Level;
+use App\Identity\Domain\Entity\User;
 
 /**
  * Lightweight read model for the community directory (story 30.15, epic §K review #13): cheap list/search

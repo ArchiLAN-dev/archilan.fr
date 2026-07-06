@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Sessions\Domain\Session;
 
 final class TraefikAndPublisherTokenTest extends FunctionalTestCase

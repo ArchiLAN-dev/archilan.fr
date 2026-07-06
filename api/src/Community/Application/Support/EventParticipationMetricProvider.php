@@ -7,7 +7,7 @@ namespace App\Community\Application\Support;
 use App\Community\Application\Port\AchievementMetricProviderInterface;
 use App\Community\Application\Query\EventParticipationQueryInterface;
 use App\Community\Domain\AchievementMetricCatalog;
-use App\Events\Domain\Event;
+use App\Events\Domain\Entity\Event;
 
 /**
  * Event-participation achievement facts (story 30.32): a generic `eventsWithGoal` count plus a sparse

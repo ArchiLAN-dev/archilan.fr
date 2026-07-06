@@ -9,7 +9,7 @@ use App\Identity\Application\Port\DiscordOAuthClientInterface;
 use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Application\Support\DiscordStateToken;
 use App\Identity\Application\Support\RefreshTokenFactory;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;

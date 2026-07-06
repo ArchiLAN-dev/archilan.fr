@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Domain\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;

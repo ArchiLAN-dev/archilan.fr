@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Handler;
 
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\PersonalRunAdvancerInterface;
 use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\SlotNameGenerator;
@@ -73,14 +73,14 @@ final readonly class LaunchPersonalRunJobHandler
         $gameIds = array_values(array_unique(array_column($slotsForSession, 'gameId')));
 
         $users = $this->users->findByIds($userIds);
-        /** @var array<string, \App\Identity\Domain\User> $usersById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $usersById */
         $usersById = [];
         foreach ($users as $user) {
             $usersById[$user->getId()] = $user;
         }
 
         $foundGames = $this->games->findByIds($gameIds);
-        /** @var array<string, \App\GameSelection\Domain\Game> $gamesById */
+        /** @var array<string, \App\GameSelection\Domain\Entity\Game> $gamesById */
         $gamesById = [];
         foreach ($foundGames as $game) {
             $gamesById[$game->getId()] = $game;

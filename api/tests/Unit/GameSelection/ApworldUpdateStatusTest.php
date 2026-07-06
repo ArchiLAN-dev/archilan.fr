@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Domain\ApworldUpdateStatus;
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\ValueObject\ApworldUpdateStatus;
 use PHPUnit\Framework\TestCase;
 
 final class ApworldUpdateStatusTest extends TestCase

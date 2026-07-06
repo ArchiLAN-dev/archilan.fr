@@ -7,7 +7,7 @@ namespace App\Sessions\Infrastructure;
 use App\Sessions\Application\CommunityStatsQueryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 

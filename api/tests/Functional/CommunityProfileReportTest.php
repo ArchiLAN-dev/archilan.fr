@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\Notification;
+use App\Community\Domain\Entity\Notification;
 
 final class CommunityProfileReportTest extends FunctionalTestCase
 {
@@ -157,10 +157,10 @@ final class CommunityProfileReportTest extends FunctionalTestCase
         self::assertCount(1, $this->data());
     }
 
-    private function fetchUserBySlug(string $slug): \App\Identity\Domain\User
+    private function fetchUserBySlug(string $slug): \App\Identity\Domain\Entity\User
     {
-        $user = $this->entityManager->getRepository(\App\Identity\Domain\User::class)->findOneBy(['slug' => $slug]);
-        self::assertInstanceOf(\App\Identity\Domain\User::class, $user);
+        $user = $this->entityManager->getRepository(\App\Identity\Domain\Entity\User::class)->findOneBy(['slug' => $slug]);
+        self::assertInstanceOf(\App\Identity\Domain\Entity\User::class, $user);
 
         return $user;
     }

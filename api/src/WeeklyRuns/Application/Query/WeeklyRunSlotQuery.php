@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Query;
 
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 
 final readonly class WeeklyRunSlotQuery
 {

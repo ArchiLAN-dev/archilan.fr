@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Domain\GameRequest;
+use App\GameSelection\Domain\Entity\GameRequest;
 use PHPUnit\Framework\TestCase;
 
 final class GameRequestTest extends TestCase

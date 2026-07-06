@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Infrastructure\Doctrine;
 
-use App\SessionConfig\Domain\SessionConfig;
-use App\SessionConfig\Domain\SessionConfigProfile;
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Entity\SessionConfigProfile;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfig;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 

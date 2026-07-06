@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Support;
 
 use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 
 /**
  * Composes a default install tutorial for a game from the data we already have (story 31.1):

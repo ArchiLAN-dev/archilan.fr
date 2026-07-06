@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Application\Support\AuthSessionSigner;
-use App\Identity\Domain\DeletionAudit;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\DeletionAudit;
+use App\Identity\Domain\Entity\User;
 
 final class AccountDeletionTest extends FunctionalTestCase
 {

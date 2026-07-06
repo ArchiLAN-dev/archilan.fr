@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\PasswordResetToken;
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Entity\PasswordResetToken;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;

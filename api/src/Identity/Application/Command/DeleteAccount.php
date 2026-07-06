@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Command;
 
-use App\Identity\Domain\DeletionAudit;
-use App\Identity\Domain\DeletionAuditRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\PersonalRuns\Domain\YamlTemplateRepositoryInterface;
+use App\Identity\Domain\Entity\DeletionAudit;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\DeletionAuditRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class DeleteAccount

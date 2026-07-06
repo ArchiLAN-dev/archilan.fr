@@ -6,9 +6,9 @@ namespace App\GameSelection\Infrastructure\Dbal;
 
 use App\GameSelection\Application\Query\GameCatalogQueryInterface;
 use App\GameSelection\Application\Support\InstallStepsReader;
-use App\GameSelection\Domain\ApworldUpdateStatus;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\PlatformCategory;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\ValueObject\ApworldUpdateStatus;
+use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Shared\Application\Support\PaginationHelper;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;

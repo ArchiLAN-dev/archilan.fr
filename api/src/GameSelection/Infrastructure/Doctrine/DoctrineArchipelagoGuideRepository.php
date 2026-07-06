@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Doctrine;
 
-use App\GameSelection\Domain\ArchipelagoGuide;
-use App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface;
+use App\GameSelection\Domain\Entity\ArchipelagoGuide;
+use App\GameSelection\Domain\Repository\ArchipelagoGuideRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineArchipelagoGuideRepository implements ArchipelagoGuideRepositoryInterface

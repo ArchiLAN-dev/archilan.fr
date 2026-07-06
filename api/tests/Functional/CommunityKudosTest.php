@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\AchievementGrant;
-use App\Community\Domain\ActivityEntry;
-use App\Identity\Domain\User;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Identity\Domain\Entity\User;
 
 final class CommunityKudosTest extends FunctionalTestCase
 {

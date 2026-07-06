@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Events\Application\Command;
 
 use App\Events\Application\Service\AdminEventDrafts;
-use App\Events\Domain\EventRepositoryInterface;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 final readonly class UploadEventCoverImageCommand

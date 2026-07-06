@@ -8,11 +8,11 @@ use App\Community\Application\Query\AccountReportScoreQueryInterface;
 use App\Community\Application\Query\AdminReportsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Query\ReportQueryFilters;
-use App\Community\Domain\ContentReport;
-use App\Community\Domain\ContentReportRepositoryInterface;
-use App\Community\Domain\ProfileComment;
-use App\Community\Domain\ProfileCommentRepositoryInterface;
-use App\Community\Domain\ReportSeverity;
+use App\Community\Domain\Entity\ContentReport;
+use App\Community\Domain\Entity\ProfileComment;
+use App\Community\Domain\Repository\ContentReportRepositoryInterface;
+use App\Community\Domain\Repository\ProfileCommentRepositoryInterface;
+use App\Community\Domain\ValueObject\ReportSeverity;
 
 /**
  * Admin moderation (story 30.13): the report queue plus hide/restore of comments and report resolution.

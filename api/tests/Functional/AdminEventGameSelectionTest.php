@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 
 final class AdminEventGameSelectionTest extends FunctionalTestCase
 {

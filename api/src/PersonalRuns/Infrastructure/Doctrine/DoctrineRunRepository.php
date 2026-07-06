@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Infrastructure\Doctrine;
 
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineRunRepository implements RunRepositoryInterface

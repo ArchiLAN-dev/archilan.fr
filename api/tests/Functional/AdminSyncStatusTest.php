@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Payments\Domain\HelloAssoSyncLog;
+use App\Events\Domain\Entity\Event;
+use App\Payments\Domain\Entity\HelloAssoSyncLog;
 
 final class AdminSyncStatusTest extends FunctionalTestCase
 {

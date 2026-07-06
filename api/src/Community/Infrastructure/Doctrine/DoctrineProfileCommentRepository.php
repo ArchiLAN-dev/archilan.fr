@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\ProfileComment;
-use App\Community\Domain\ProfileCommentRepositoryInterface;
+use App\Community\Domain\Entity\ProfileComment;
+use App\Community\Domain\Repository\ProfileCommentRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineProfileCommentRepository implements ProfileCommentRepositoryInterface

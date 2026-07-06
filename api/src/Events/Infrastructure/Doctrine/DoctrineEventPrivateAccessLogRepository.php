@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Infrastructure\Doctrine;
 
-use App\Events\Domain\EventPrivateAccessLog;
-use App\Events\Domain\EventPrivateAccessLogRepositoryInterface;
+use App\Events\Domain\Entity\EventPrivateAccessLog;
+use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;

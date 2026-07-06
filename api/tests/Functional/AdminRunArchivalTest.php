@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
-use App\Events\Domain\Event;
-use App\Identity\Domain\User;
+use App\Events\Domain\Entity\Event;
+use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;

@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Handler\LaunchPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
-use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\PersonalRunAdvancerInterface;
 use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\SlotNameGenerator;

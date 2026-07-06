@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Query;
 
-use App\GameSelection\Domain\GameTutorialContribution;
+use App\GameSelection\Domain\Entity\GameTutorialContribution;
 
 /**
  * Normalized, validated filters for the admin tutorial-contributions listing (story 31.9). Built from raw

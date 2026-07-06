@@ -7,7 +7,7 @@ namespace App\GameSelection\Infrastructure\Dbal;
 use App\GameSelection\Application\Query\AdminGameContributionsQueryInterface;
 use App\GameSelection\Application\Query\ContributionQueryFilters;
 use App\GameSelection\Application\Support\InstallStepsReader;
-use App\GameSelection\Domain\GameTutorialContribution;
+use App\GameSelection\Domain\Entity\GameTutorialContribution;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAdminGameContributionsQuery implements AdminGameContributionsQueryInterface

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\ContentReport;
-use App\Community\Domain\ModerationAction;
-use App\Community\Domain\Notification;
+use App\Community\Domain\Entity\ContentReport;
+use App\Community\Domain\Entity\ModerationAction;
+use App\Community\Domain\Entity\Notification;
 use App\Identity\Application\Command\RegisterUser;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 
 final class AccountModerationTest extends FunctionalTestCase
 {

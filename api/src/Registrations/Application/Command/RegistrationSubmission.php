@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Registrations\Application\Command;
 
 use App\Communications\Application\Message\RegistrationConfirmationMessage;
-use App\Events\Domain\EventRepositoryInterface;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\ModerationAction;
-use App\Community\Domain\ModerationActionRepositoryInterface;
+use App\Community\Domain\Entity\ModerationAction;
+use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineModerationActionRepository implements ModerationActionRepositoryInterface

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\SessionConfig\Presentation\Controller\Admin;
 
 use App\SessionConfig\Application\Command\AdminUpdateSessionConfig;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Enum\SessionType;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

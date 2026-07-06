@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Registrations\Infrastructure\Dbal;
 
 use App\Registrations\Application\Query\AccountRegistrationsQueryInterface;
-use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\Entity\Registration;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAccountRegistrationsQuery implements AccountRegistrationsQueryInterface

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\Kudos;
-use App\Community\Domain\KudosRepositoryInterface;
+use App\Community\Domain\Entity\Kudos;
+use App\Community\Domain\Repository\KudosRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineKudosRepository implements KudosRepositoryInterface

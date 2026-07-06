@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Presentation\Controller;
 
 use App\PersonalRuns\Application\Query\PersonalRunSpoilerDownload;
-use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\Sessions\Application\SpoilerArtifact;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;

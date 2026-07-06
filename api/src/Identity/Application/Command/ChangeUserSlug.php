@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Identity\Application\Command;
 
 use App\Identity\Application\Support\SlugGenerator;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 

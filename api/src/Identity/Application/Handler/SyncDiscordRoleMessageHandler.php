@@ -6,8 +6,8 @@ namespace App\Identity\Application\Handler;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Application\Port\DiscordBotClientInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

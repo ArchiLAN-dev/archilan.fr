@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Payments\Infrastructure\Doctrine;
 
-use App\Payments\Domain\HelloAssoSyncLog;
-use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
+use App\Payments\Domain\Entity\HelloAssoSyncLog;
+use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;

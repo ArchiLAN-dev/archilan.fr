@@ -9,8 +9,8 @@ use App\Community\Application\Query\CommunityAdminIdsQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Service\AccountModerationService;
 use App\Community\Application\Support\Notifier;
-use App\Community\Domain\ContentReportRepositoryInterface;
-use App\Community\Domain\ModerationActionRepositoryInterface;
+use App\Community\Domain\Repository\ContentReportRepositoryInterface;
+use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class AccountModerationServiceTest extends TestCase

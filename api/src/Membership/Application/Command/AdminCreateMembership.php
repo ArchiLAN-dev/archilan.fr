@@ -8,8 +8,8 @@ use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Membership\Application\Message\MembershipActivatedNotificationMessage;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Application\Port\UserRoleGatewayInterface;
-use App\Membership\Domain\Membership;
-use App\Membership\Domain\MembershipRepositoryInterface;
+use App\Membership\Domain\Entity\Membership;
+use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

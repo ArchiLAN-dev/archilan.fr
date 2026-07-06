@@ -6,8 +6,8 @@ namespace App\WeeklyRuns\Application\Handler;
 
 use App\WeeklyRuns\Application\Message\StopWeeklyRunsMessage;
 use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
-use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
-use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

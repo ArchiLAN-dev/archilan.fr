@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Command;
 
-use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface;
 use Symfony\Component\Clock\ClockInterface;
 
 final readonly class AdminDeactivateWeeklyTemplate

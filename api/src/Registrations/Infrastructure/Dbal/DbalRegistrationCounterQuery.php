@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Registrations\Infrastructure\Dbal;
 
 use App\Registrations\Application\Query\RegistrationCounterQueryInterface;
-use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\Entity\Registration;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalRegistrationCounterQuery implements RegistrationCounterQueryInterface

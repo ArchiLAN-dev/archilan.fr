@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Domain\RunParticipant;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use PHPUnit\Framework\TestCase;
 
 final class RunParticipantTest extends TestCase

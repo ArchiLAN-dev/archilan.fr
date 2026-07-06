@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Registrations\Infrastructure\Doctrine;
 
-use App\Registrations\Domain\RegistrationAdminMessage;
-use App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface;
+use App\Registrations\Domain\Entity\RegistrationAdminMessage;
+use App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineRegistrationAdminMessageRepository implements RegistrationAdminMessageRepositoryInterface

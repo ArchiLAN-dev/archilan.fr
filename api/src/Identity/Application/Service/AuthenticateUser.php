@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Identity\Application\Service;
 
 use App\Identity\Application\Command\RegisterUser;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final readonly class AuthenticateUser

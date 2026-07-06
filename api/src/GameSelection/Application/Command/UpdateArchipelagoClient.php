@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Domain\ArchipelagoClientInfo;
-use App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface;
+use App\GameSelection\Domain\Entity\ArchipelagoClientInfo;
+use App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 
 final readonly class UpdateArchipelagoClient

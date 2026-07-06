@@ -6,11 +6,11 @@ namespace App\Tests\Unit\Community;
 
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\AchievementOperator;
-use App\Community\Domain\AchievementRuleCondition;
-use App\Community\Domain\AchievementRuleFactory;
 use App\Community\Domain\AchievementRuleGroup;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
-use App\Community\Domain\MetricBag;
+use App\Community\Domain\Service\AchievementRuleFactory;
+use App\Community\Domain\ValueObject\AchievementRuleCondition;
+use App\Community\Domain\ValueObject\MetricBag;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

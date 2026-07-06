@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Query;
 
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 
 final readonly class MyRegistrationQuery
 {

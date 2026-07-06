@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;

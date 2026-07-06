@@ -6,7 +6,7 @@ namespace App\Community\Presentation\Controller;
 
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Application\Service\ProfileCommentService;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

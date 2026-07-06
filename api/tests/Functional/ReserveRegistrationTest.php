@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
+use App\Events\Domain\Entity\Event;
 use App\Registrations\Application\Command\ReserveRegistration;
-use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\Entity\Registration;
 
 final class ReserveRegistrationTest extends FunctionalTestCase
 {

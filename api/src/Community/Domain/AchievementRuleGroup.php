@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Domain;
 
+use App\Community\Domain\Service\AchievementRule;
+use App\Community\Domain\ValueObject\MetricBag;
+
 /**
  * A boolean group combining child rules (story 30.16): ALL (AND), ANY (OR) or NONE (NOR). Nestable.
  */

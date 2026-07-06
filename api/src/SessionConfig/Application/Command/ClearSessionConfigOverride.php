@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Application\Command;
 
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
 
 final readonly class ClearSessionConfigOverride
 {

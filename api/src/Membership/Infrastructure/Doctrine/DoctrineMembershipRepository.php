@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure\Doctrine;
 
-use App\Membership\Domain\Membership;
-use App\Membership\Domain\MembershipRepositoryInterface;
+use App\Membership\Domain\Entity\Membership;
+use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineMembershipRepository implements MembershipRepositoryInterface

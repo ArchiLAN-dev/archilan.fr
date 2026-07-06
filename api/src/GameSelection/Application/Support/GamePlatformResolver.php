@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Support;
 
 use App\GameSelection\Application\Port\IgdbHttpClientInterface;
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 use Psr\Log\LoggerInterface;
 
 /**

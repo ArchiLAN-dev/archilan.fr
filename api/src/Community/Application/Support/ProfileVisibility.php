@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Support;
 
-use App\Community\Domain\Audience;
-use App\Community\Domain\AudiencePolicy;
-use App\Community\Domain\BlockRepositoryInterface;
-use App\Community\Domain\CommunityProfileRepositoryInterface;
-use App\Community\Domain\FriendshipRepositoryInterface;
+use App\Community\Domain\Repository\BlockRepositoryInterface;
+use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
+use App\Community\Domain\Repository\FriendshipRepositoryInterface;
+use App\Community\Domain\Service\AudiencePolicy;
+use App\Community\Domain\ValueObject\Audience;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 
 /**

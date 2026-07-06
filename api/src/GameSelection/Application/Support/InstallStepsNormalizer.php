@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Support;
 
-use App\GameSelection\Domain\InstallStepType;
+use App\GameSelection\Domain\Enum\InstallStepType;
 
 /**
  * Validates and normalizes raw install-tutorial steps coming off a request body (story 31.1).

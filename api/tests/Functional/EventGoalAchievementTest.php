@@ -6,11 +6,11 @@ namespace App\Tests\Functional;
 
 use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\Query\EventParticipationQueryInterface;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleGroup;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 

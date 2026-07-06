@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Infrastructure\Dbal;
 
 use App\Community\Application\Query\AccountReportScoreQueryInterface;
-use App\Community\Domain\ContentReport;
+use App\Community\Domain\Entity\ContentReport;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalAccountReportScoreQuery implements AccountReportScoreQueryInterface

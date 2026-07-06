@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Content\Application\Query;
 
-use App\Content\Domain\Post;
-use App\Content\Domain\PostRepositoryInterface;
+use App\Content\Domain\Entity\Post;
+use App\Content\Domain\Repository\PostRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 final readonly class PublicPostCatalog

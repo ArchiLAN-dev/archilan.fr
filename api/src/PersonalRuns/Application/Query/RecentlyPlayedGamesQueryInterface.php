@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Query;
 
-use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\Entity\Run;
 
 /**
  * Read model: the games a member has most recently played, derived on demand from their personal-run

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\Audience;
-use App\Community\Domain\BannerPreset;
-use App\Community\Domain\CommunityProfile;
-use App\Events\Domain\Event;
-use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
-use App\Registrations\Domain\Registration;
+use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\ValueObject\Audience;
+use App\Community\Domain\ValueObject\BannerPreset;
+use App\Events\Domain\Entity\Event;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\Registrations\Domain\Entity\Registration;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 
 final class ParticipantStreamsTest extends FunctionalTestCase
 {

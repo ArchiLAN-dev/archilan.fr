@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Content\Domain\Post;
+use App\Content\Domain\Entity\Post;
 
 final class PublicPostCatalogTest extends FunctionalTestCase
 {

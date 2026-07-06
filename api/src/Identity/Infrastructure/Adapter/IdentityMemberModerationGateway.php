@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Adapter;
 
 use App\Community\Application\Port\MemberModerationGatewayInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 
 /**
  * Identity-side adapter for Community's {@see MemberModerationGatewayInterface} (story 30.29): loads the

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\AdminCreationAudit;
-use App\Identity\Domain\AdminCreationAuditRepositoryInterface;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\AdminCreationAudit;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\AdminCreationAuditRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineAdminCreationAuditRepository implements AdminCreationAuditRepositoryInterface

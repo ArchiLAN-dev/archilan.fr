@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Doctrine;
 
-use App\Identity\Domain\PrivacyRightsRequest;
-use App\Identity\Domain\PrivacyRightsRequestRepositoryInterface;
+use App\Identity\Domain\Entity\PrivacyRightsRequest;
+use App\Identity\Domain\Repository\PrivacyRightsRequestRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrinePrivacyRightsRequestRepository implements PrivacyRightsRequestRepositoryInterface

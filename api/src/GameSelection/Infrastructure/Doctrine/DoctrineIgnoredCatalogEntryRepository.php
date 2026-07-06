@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Doctrine;
 
-use App\GameSelection\Domain\IgnoredCatalogEntry;
-use App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface;
+use App\GameSelection\Domain\Entity\IgnoredCatalogEntry;
+use App\GameSelection\Domain\Repository\IgnoredCatalogEntryRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineIgnoredCatalogEntryRepository implements IgnoredCatalogEntryRepositoryInterface

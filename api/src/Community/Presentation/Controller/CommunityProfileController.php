@@ -7,7 +7,7 @@ namespace App\Community\Presentation\Controller;
 use App\Community\Application\Command\ReportProfileService;
 use App\Community\Application\Command\UpdateCommunityProfile;
 use App\Community\Application\Query\CommunityProfileView;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

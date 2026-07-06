@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Infrastructure\Dbal;
 
 use App\GameSelection\Application\Query\SteamCatalogQueryInterface;
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalSteamCatalogQuery implements SteamCatalogQueryInterface

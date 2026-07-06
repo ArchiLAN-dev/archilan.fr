@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Presentation\Controller;
 
 use App\GameSelection\Application\Service\AdminGameLibrary;
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\File\UploadedFile;

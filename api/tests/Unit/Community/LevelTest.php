@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Domain\CommunityXp;
-use App\Community\Domain\Level;
+use App\Community\Domain\ValueObject\CommunityXp;
+use App\Community\Domain\ValueObject\Level;
 use PHPUnit\Framework\TestCase;
 
 final class LevelTest extends TestCase

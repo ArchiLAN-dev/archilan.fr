@@ -7,7 +7,7 @@ namespace App\Tests\Functional;
 use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Application\Support\RefreshTokenFactory;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository;
 use App\Identity\Presentation\Controller\AuthController;
 use Doctrine\ORM\EntityManagerInterface;

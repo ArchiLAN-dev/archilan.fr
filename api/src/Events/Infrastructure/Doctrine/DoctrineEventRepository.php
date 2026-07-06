@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Infrastructure\Doctrine;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineEventRepository implements EventRepositoryInterface

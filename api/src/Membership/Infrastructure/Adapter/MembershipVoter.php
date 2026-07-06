@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Infrastructure\Adapter;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Vote;

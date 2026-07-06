@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Doctrine;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineGameRepository implements GameRepositoryInterface

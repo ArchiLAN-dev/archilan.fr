@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\Message\SessionRunningMessage;
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\Run;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\Realtime\Infrastructure\Double\SpyHub;
 use App\Sessions\Domain\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;

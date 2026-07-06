@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Port;
 
 use App\GameSelection\Application\Exception\SteamApiException;
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 
 interface SteamWebApiClientInterface
 {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Command;
 
-use App\Events\Domain\EventPrivateAccessLog;
-use App\Events\Domain\EventPrivateAccessLogRepositoryInterface;
-use App\Events\Domain\EventRepositoryInterface;
+use App\Events\Domain\Entity\EventPrivateAccessLog;
+use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Registrations\Application\Query\RegistrationCounter;
 use Psr\Log\LoggerInterface;
 
@@ -59,10 +59,10 @@ final readonly class VerifyPrivateEventAccess
         return ['granted' => $granted];
     }
 
-    private function canUnlockPrivateRegistration(\App\Events\Domain\Event $event, int $confirmedCount, \DateTimeImmutable $now): bool
+    private function canUnlockPrivateRegistration(\App\Events\Domain\Entity\Event $event, int $confirmedCount, \DateTimeImmutable $now): bool
     {
         return !$event->isPublic()
-            && \App\Events\Domain\Event::STATUS_PUBLISHED === $event->getStatus()
+            && \App\Events\Domain\Entity\Event::STATUS_PUBLISHED === $event->getStatus()
             && $now >= $event->getRegistrationOpensAt()
             && $now <= $event->getRegistrationClosesAt()
             && !$event->isAtCapacity($confirmedCount);

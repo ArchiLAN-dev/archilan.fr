@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Service;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
-use App\Shared\Domain\SlotName;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;

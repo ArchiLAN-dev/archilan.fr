@@ -98,6 +98,21 @@ final readonly class DddArchitectureValidator
         'Sessions',
     ];
 
+    /**
+     * Full sub-folder taxonomy carve-out (story 33.11): these 4 Community domain classes are
+     * imported by MERGED migrations (immutable), so they keep their flat FQCN and are exempt
+     * from the "no .php directly in a layer folder" rule. See migrations/Version20260618170000
+     * and Version20260622120000.
+     *
+     * @var list<string>
+     */
+    private const FLAT_FILE_CARVE_OUT = [
+        'Community/Domain/DefaultAchievementDefinitions.php',
+        'Community/Domain/AchievementMetricCatalog.php',
+        'Community/Domain/AchievementOperator.php',
+        'Community/Domain/AchievementRuleGroup.php',
+    ];
+
     public function validate(string $projectDir): DddArchitectureReport
     {
         $projectDir = rtrim(str_replace('\\', '/', $projectDir), '/');
@@ -111,6 +126,7 @@ final readonly class DddArchitectureValidator
         $violations = [
             ...$this->validateContextDirectories($srcDir),
             ...$this->validateSourceFiles($srcDir),
+            ...$this->validateNoFlatLayerFiles($srcDir),
             ...$this->validateDomainDependencies($srcDir),
             ...$this->validateCrossContextLayerImports($srcDir),
             ...$this->validateInterfacePlacement($srcDir),
@@ -171,6 +187,43 @@ final readonly class DddArchitectureValidator
             if (!is_string($layer) || !in_array($layer, self::LAYERS, true)) {
                 $violations[] = "PHP file is outside a DDD layer: src/{$relativePath}";
             }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Full sub-folder taxonomy (story 33.11): in a migrated context, no .php file may sit directly
+     * in a layer folder - it must live in a kind sub-folder (Entity/, ValueObject/, Command/,
+     * Doctrine/, Controller/, ...). The 4 migration-pinned carve-outs are exempt. Sessions (frozen)
+     * is skipped entirely.
+     *
+     * @return list<string>
+     */
+    private function validateNoFlatLayerFiles(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach ($this->phpFiles($srcDir) as $file) {
+            $relativePath = $this->relativePath($srcDir, $file);
+            $parts = explode('/', $relativePath);
+
+            // interested only in exactly {Context}/{Layer}/{File}.php (3 segments = file directly
+            // in a layer). A file in a sub-folder has 4+ segments and is correctly placed.
+            if (3 !== count($parts)) {
+                continue;
+            }
+            if (!in_array($parts[0], self::CONTEXTS, true) || !in_array($parts[1], self::LAYERS, true)) {
+                continue;
+            }
+            if (in_array($parts[0], self::UNMIGRATED_TAXONOMY_CONTEXTS, true)) {
+                continue;
+            }
+            if (in_array($relativePath, self::FLAT_FILE_CARVE_OUT, true)) {
+                continue;
+            }
+
+            $violations[] = "No file may sit directly in a layer folder; move it into a kind sub-folder: src/{$relativePath}";
         }
 
         return $violations;
@@ -446,7 +499,10 @@ final readonly class DddArchitectureValidator
                 continue;
             }
 
-            $expectedPrefix = "App\\{$context}\\Domain";
+            // Taxonomy-migrated contexts (story 33.11) keep their entities in Domain/Entity/,
+            // so the mapping prefix gains the \Entity segment. Sessions (frozen) keeps \Domain.
+            $migrated = !in_array($context, self::UNMIGRATED_TAXONOMY_CONTEXTS, true);
+            $expectedPrefix = $migrated ? "App\\{$context}\\Domain\\Entity" : "App\\{$context}\\Domain";
             if (($mapping['prefix'] ?? null) !== $expectedPrefix) {
                 $violations[] = "Doctrine mapping {$context} must use prefix {$expectedPrefix}";
             }

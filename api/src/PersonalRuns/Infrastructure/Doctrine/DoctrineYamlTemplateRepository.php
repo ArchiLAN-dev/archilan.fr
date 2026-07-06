@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Infrastructure\Doctrine;
 
-use App\PersonalRuns\Domain\YamlTemplate;
-use App\PersonalRuns\Domain\YamlTemplateRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\YamlTemplate;
+use App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineYamlTemplateRepository implements YamlTemplateRepositoryInterface

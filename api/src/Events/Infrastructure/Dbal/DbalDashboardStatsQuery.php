@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Events\Infrastructure\Dbal;
 
 use App\Events\Application\Query\DashboardStatsQueryInterface;
-use App\Events\Domain\Event;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Domain\Entity\Registration;
 use Doctrine\DBAL\Connection;
 
 final readonly class DbalDashboardStatsQuery implements DashboardStatsQueryInterface

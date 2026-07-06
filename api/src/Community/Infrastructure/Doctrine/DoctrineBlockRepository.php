@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Infrastructure\Doctrine;
 
-use App\Community\Domain\Block;
-use App\Community\Domain\BlockRepositoryInterface;
+use App\Community\Domain\Entity\Block;
+use App\Community\Domain\Repository\BlockRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineBlockRepository implements BlockRepositoryInterface

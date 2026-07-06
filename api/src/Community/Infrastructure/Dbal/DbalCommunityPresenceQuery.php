@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Infrastructure\Dbal;
 
 use App\Community\Application\Query\CommunityPresenceQueryInterface;
-use App\Events\Domain\Event;
+use App\Events\Domain\Entity\Event;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 

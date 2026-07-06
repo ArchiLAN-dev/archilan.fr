@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Command\ProcessHelloAssoMembershipPayment;
 use App\Membership\Application\Message\MembershipPaymentUnmatchedMessage;
 use App\Membership\Application\Port\ActivateMembershipInterface;

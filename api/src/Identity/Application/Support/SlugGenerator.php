@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Support;
 
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 
 final readonly class SlugGenerator

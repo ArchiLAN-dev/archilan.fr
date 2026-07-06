@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Identity\Application\Command;
 
 use App\Communications\Application\Message\EmailConfirmationMessage;
-use App\Identity\Domain\EmailConfirmationToken;
-use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
+use App\Identity\Domain\Entity\EmailConfirmationToken;
+use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class SendEmailConfirmation

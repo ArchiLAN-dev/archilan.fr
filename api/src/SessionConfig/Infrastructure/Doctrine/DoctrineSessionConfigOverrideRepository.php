@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Infrastructure\Doctrine;
 
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
-use App\SessionConfig\Domain\SessionConfigOverrideStore;
+use App\SessionConfig\Domain\Entity\SessionConfigOverrideStore;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Clock\ClockInterface;
 

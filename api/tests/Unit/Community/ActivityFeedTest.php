@@ -7,8 +7,8 @@ namespace App\Tests\Unit\Community;
 use App\Community\Application\Command\BackfillActivity;
 use App\Community\Application\Command\RecordActivity;
 use App\Community\Application\Query\CommunityUserIdsQueryInterface;
-use App\Community\Domain\ActivityEntry;
-use App\Community\Domain\ActivityEntryRepositoryInterface;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
 use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 use PHPUnit\Framework\TestCase;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Payments\Presentation\Command;
 
-use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
+use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

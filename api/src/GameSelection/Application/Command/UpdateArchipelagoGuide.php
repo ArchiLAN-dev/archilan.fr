@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Command;
 
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
-use App\GameSelection\Domain\ArchipelagoGuide;
-use App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface;
+use App\GameSelection\Domain\Entity\ArchipelagoGuide;
+use App\GameSelection\Domain\Repository\ArchipelagoGuideRepositoryInterface;
 
 final readonly class UpdateArchipelagoGuide
 {

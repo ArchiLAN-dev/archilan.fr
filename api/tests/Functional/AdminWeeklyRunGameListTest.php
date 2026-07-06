@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class AdminWeeklyRunGameListTest extends FunctionalTestCase
 {

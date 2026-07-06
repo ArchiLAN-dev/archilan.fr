@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Infrastructure\Doctrine;
 
-use App\GameSelection\Domain\ArchipelagoClientInfo;
-use App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface;
+use App\GameSelection\Domain\Entity\ArchipelagoClientInfo;
+use App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineArchipelagoClientInfoRepository implements ArchipelagoClientInfoRepositoryInterface

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Application\Handler;
 
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

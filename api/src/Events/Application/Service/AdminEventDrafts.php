@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Service;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Events\Presentation\Controller\AdminEventGalleryController;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Application\Query\RegistrationCounter;

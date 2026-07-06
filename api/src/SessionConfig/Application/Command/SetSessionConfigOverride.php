@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\SessionConfig\Application\Command;
 
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 
 final readonly class SetSessionConfigOverride
 {

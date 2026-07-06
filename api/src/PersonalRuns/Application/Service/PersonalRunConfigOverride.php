@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Service;
 
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
 use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\SessionConfig\Application\Query\SessionConfigOverrideQuery;
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
 
 /**
  * Owner-managed config override for a private run. The override is keyed by the run id (the stable

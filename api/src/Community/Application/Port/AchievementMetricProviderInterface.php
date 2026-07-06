@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Port;
 
 use App\Community\Application\Support\MetricBagBuilder;
-use App\Community\Domain\MetricBag;
+use App\Community\Domain\ValueObject\MetricBag;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
 /**
