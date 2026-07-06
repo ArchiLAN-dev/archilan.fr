@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Membership\Application\Command;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\Membership\Application\ActivateMembershipInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Message\MembershipPaymentUnmatchedMessage;
-use App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface;
+use App\Membership\Application\Port\ActivateMembershipInterface;
+use App\Membership\Application\Port\ProcessHelloAssoMembershipPaymentInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;

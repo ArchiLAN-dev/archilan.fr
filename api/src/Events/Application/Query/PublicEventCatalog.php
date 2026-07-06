@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Query;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\Payments\Application\HelloAssoConfig;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Payments\Application\Support\HelloAssoConfig;
 use App\Registrations\Application\Query\RegistrationCounter;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 final readonly class PublicEventCatalog
 {

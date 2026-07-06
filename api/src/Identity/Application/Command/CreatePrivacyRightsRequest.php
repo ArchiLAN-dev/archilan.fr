@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Command;
 
-use App\Identity\Application\ValidationErrors;
-use App\Identity\Domain\PrivacyRightsRequest;
-use App\Identity\Domain\PrivacyRightsRequestRepositoryInterface;
-use App\Identity\Domain\User;
+use App\Identity\Application\Support\ValidationErrors;
+use App\Identity\Domain\Entity\PrivacyRightsRequest;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\PrivacyRightsRequestRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class CreatePrivacyRightsRequest

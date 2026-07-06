@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\SessionConfig;
 
-use App\SessionConfig\Domain\Compatibility;
-use App\SessionConfig\Domain\CountdownMode;
-use App\SessionConfig\Domain\ReleaseCollectMode;
-use App\SessionConfig\Domain\RemainingMode;
-use App\SessionConfig\Domain\SessionServerConfig;
+use App\SessionConfig\Domain\Enum\Compatibility;
+use App\SessionConfig\Domain\Enum\CountdownMode;
+use App\SessionConfig\Domain\Enum\ReleaseCollectMode;
+use App\SessionConfig\Domain\Enum\RemainingMode;
+use App\SessionConfig\Domain\ValueObject\SessionServerConfig;
 use PHPUnit\Framework\TestCase;
 
 final class SessionServerConfigTest extends TestCase

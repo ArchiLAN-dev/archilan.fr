@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Registrations\Domain\RegistrationAdminMessage;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Domain\Entity\RegistrationAdminMessage;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 
 final class AdminRegistrationMessageTest extends FunctionalTestCase

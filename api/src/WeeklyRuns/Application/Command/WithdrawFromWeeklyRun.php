@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Command;
 
-use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 
 final readonly class WithdrawFromWeeklyRun
 {

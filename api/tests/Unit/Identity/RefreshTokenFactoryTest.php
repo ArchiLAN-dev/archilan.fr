@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\RefreshTokenFactory;
+use App\Identity\Application\Support\RefreshTokenFactory;
 use PHPUnit\Framework\TestCase;
 
 final class RefreshTokenFactoryTest extends TestCase

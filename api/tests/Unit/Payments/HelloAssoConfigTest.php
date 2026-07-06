@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Payments;
 
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 use PHPUnit\Framework\TestCase;
 
 final class HelloAssoConfigTest extends TestCase

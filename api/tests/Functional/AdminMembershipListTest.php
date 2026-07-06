@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Membership\Domain\Membership;
+use App\Membership\Domain\Entity\Membership;
 
 final class AdminMembershipListTest extends FunctionalTestCase
 {

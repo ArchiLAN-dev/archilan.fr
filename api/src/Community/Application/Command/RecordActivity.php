@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Command;
 
-use App\Community\Domain\ActivityEntry;
-use App\Community\Domain\ActivityEntryRepositoryInterface;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
 
 /**
  * Idempotent append to the activity feed. The `(actor, type, subjectRef)` uniqueness means a backfill and

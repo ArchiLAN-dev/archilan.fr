@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementGrant;
-use App\Identity\Domain\User;
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Identity\Domain\Entity\User;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminAchievementImageTest extends FunctionalTestCase

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;

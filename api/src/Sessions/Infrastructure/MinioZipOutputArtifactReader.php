@@ -6,7 +6,7 @@ namespace App\Sessions\Infrastructure;
 
 use App\Sessions\Application\SessionOutputArtifact;
 use App\Sessions\Application\SessionOutputArtifactReaderInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Reads a session's generated output archive from MinIO (a flat zip of multidata +

@@ -6,7 +6,7 @@ namespace App\CatalogSync\Application\Command;
 
 use App\CatalogSync\Application\Exception\GithubRateLimitException;
 use App\CatalogSync\Application\Service\ApworldVersionChecker;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class CheckApworldUpdatesService
@@ -26,7 +26,7 @@ final readonly class CheckApworldUpdatesService
         $allGames = $this->gameRepository->findAllSortedByName();
         $games = array_values(array_filter(
             $allGames,
-            static fn (\App\GameSelection\Domain\Game $g): bool => str_starts_with($g->getCatalogSync()?->getApworldSourceUrl() ?? '', 'https://github.com/'),
+            static fn (\App\GameSelection\Domain\Entity\Game $g): bool => str_starts_with($g->getCatalogSync()?->getApworldSourceUrl() ?? '', 'https://github.com/'),
         ));
 
         $checked = 0;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation;
 
 use App\Sessions\Application\SessionQuery;
-use App\Shared\Infrastructure\DockerSocketClient;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Presentation\RequiresAuthTrait;
+use App\Shared\Infrastructure\Http\DockerSocketClient;
+use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;

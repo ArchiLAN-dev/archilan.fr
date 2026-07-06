@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Query;
 
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
 use App\Sessions\Application\SpoilerArtifact;
 use App\Sessions\Domain\Session;

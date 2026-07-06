@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\Registrations\Domain\Entity\Registration;
 
 final class RegistrationSlotYamlTest extends FunctionalTestCase
 {

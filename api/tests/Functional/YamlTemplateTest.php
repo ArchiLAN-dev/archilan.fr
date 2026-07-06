@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 use App\Identity\Application\Command\RegisterUser;
-use App\PersonalRuns\Domain\YamlTemplate;
+use App\PersonalRuns\Domain\Entity\YamlTemplate;
 
 final class YamlTemplateTest extends FunctionalTestCase
 {

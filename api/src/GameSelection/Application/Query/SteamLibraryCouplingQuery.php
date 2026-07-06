@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Query;
 
-use App\GameSelection\Application\SteamWebApiClientInterface;
-use App\GameSelection\Domain\SteamProfileReference;
+use App\GameSelection\Application\Port\SteamWebApiClientInterface;
+use App\GameSelection\Domain\ValueObject\SteamProfileReference;
 use Psr\Log\LoggerInterface;
 
 final readonly class SteamLibraryCouplingQuery

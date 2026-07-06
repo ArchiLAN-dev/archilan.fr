@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\ArchipelagoGuide;
+use App\GameSelection\Domain\Entity\ArchipelagoGuide;
 
 final class ArchipelagoGuideTest extends FunctionalTestCase
 {

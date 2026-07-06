@@ -7,20 +7,21 @@ namespace App\Sessions\Application;
 use App\Communications\Application\Message\SessionPausedWithoutSaveMessage;
 use App\Communications\Application\Message\SessionRestartFailedMessage;
 use App\Communications\Application\Message\SessionRunningMessage;
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Content\Domain\Entity\Post;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -563,7 +564,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         $usersList = $this->users->findByIds($userIds);
 
-        /** @var array<string, \App\Identity\Domain\User> $usersById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $usersById */
         $usersById = [];
         foreach ($usersList as $user) {
             $usersById[$user->getId()] = $user;

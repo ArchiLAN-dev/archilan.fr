@@ -6,7 +6,7 @@ namespace App\Community\Application\Query;
 
 /**
  * Reads the unresolved *profile* reports per reported account (story 30.28), so the weighted score can be
- * computed in the domain ({@see \App\Community\Domain\ReportSeverity}). Comment reports stay content-level
+ * computed in the domain ({@see \App\Community\Domain\ValueObject\ReportSeverity}). Comment reports stay content-level
  * (hide/restore) and are out of account escalation by design.
  */
 interface AccountReportScoreQueryInterface

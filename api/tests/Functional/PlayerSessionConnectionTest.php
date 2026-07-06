@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 

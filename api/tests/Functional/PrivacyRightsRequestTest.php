@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\PrivacyRightsRequest;
+use App\Identity\Domain\Entity\PrivacyRightsRequest;
 
 final class PrivacyRightsRequestTest extends FunctionalTestCase
 {

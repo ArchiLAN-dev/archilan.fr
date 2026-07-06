@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Command;
 
 use App\Community\Application\Query\CommunityUserIdsQueryInterface;
-use App\Community\Domain\ActivityEntry;
+use App\Community\Domain\Entity\ActivityEntry;
 use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 
 /**

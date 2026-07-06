@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Query;
 
-use App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface;
+use App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface;
 
 final readonly class ArchipelagoClientQuery
 {

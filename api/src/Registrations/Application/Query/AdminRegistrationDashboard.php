@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Query;
 
-use App\Events\Domain\EventRepositoryInterface;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Payments\Application\Query\HelloAssoPaymentLookup;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 
 final readonly class AdminRegistrationDashboard
 {
@@ -63,7 +63,7 @@ final readonly class AdminRegistrationDashboard
 
         $users = $this->userRepository->findByIds($userIds);
 
-        /** @var array<string, \App\Identity\Domain\User> $usersById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $usersById */
         $usersById = [];
         foreach ($users as $user) {
             $usersById[$user->getId()] = $user;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\GameSelection\Application\Command\BackfillGameOptionTypes;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;

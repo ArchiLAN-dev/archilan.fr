@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\GameSelection\Application\Command\SeedGameTutorials;
-use App\GameSelection\Application\GameCatalogLinksProviderInterface;
-use App\GameSelection\Application\GameTutorialSeeder;
-use App\GameSelection\Application\InstallStepsNormalizer;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
+use App\GameSelection\Application\Support\GameTutorialSeeder;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 

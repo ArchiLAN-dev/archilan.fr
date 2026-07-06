@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Streaming;
 
-use App\Streaming\Domain\TwitchLinkResolver;
+use App\Streaming\Domain\Service\TwitchLinkResolver;
 use PHPUnit\Framework\TestCase;
 
 final class TwitchLinkResolverTest extends TestCase

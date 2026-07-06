@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Command;
 
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final readonly class ResetPassword

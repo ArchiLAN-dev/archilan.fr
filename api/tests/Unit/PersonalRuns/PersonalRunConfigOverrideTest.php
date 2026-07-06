@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
 use App\SessionConfig\Application\Command\SetSessionConfigOverride;
 use App\SessionConfig\Application\Query\SessionConfigOverrideQuery;
-use App\SessionConfig\Domain\SessionConfig;
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfig;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunConfigOverrideTest extends TestCase

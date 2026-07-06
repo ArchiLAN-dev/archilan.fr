@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
-use App\Registrations\Domain\Registration;
+use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Application\ActiveRegistrationQueryInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

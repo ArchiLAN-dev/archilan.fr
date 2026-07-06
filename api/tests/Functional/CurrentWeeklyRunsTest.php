@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Membership\Domain\Membership;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\GameSelection\Domain\Entity\Game;
+use App\Membership\Domain\Entity\Membership;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class CurrentWeeklyRunsTest extends FunctionalTestCase
 {

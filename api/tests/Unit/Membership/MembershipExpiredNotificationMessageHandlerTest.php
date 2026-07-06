@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Handler\MembershipExpiredNotificationMessageHandler;
 use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
 use PHPUnit\Framework\TestCase;

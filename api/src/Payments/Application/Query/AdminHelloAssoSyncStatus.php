@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Payments\Application\Query;
 
-use App\Events\Domain\EventRepositoryInterface;
-use App\Payments\Domain\HelloAssoSyncLog;
-use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Payments\Domain\Entity\HelloAssoSyncLog;
+use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 
 final readonly class AdminHelloAssoSyncStatus
 {

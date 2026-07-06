@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Application\AchievementMetricProviderInterface;
 use App\Community\Application\Command\RecomputeAchievements;
-use App\Community\Application\MetricBagBuilder;
-use App\Community\Application\Notifier;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementDefinitionRepositoryInterface;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
+use App\Community\Application\Port\AchievementMetricProviderInterface;
+use App\Community\Application\Support\MetricBagBuilder;
+use App\Community\Application\Support\Notifier;
 use App\Community\Domain\DefaultAchievementDefinitions;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\ValueObject\MetricBag;
 
 /**
  * Proves the DB-seeded definitions reproduce the historical grant outcomes exactly: a recompute reading the

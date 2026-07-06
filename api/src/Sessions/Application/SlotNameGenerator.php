@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\Shared\Domain\SlotName;
+use App\Shared\Domain\ValueObject\SlotName;
 
 final class SlotNameGenerator
 {

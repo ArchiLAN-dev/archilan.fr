@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Application\Command\RegisterUser;
-use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\User;
-use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
+use App\Identity\Application\Support\RefreshTokenFactory;
+use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class RefreshTokenRepositoryTest extends FunctionalTestCase

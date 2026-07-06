@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Domain\CommunityProfile;
+use App\Community\Domain\Entity\CommunityProfile;
 use PHPUnit\Framework\TestCase;
 
 final class CommunityProfileTest extends TestCase

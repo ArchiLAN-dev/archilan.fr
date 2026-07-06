@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Identity\Application\Command;
 
-use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\Service\AuthenticateUser;
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
+use App\Identity\Application\Support\RefreshTokenFactory;
+use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 

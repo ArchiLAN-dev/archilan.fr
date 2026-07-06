@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Service;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Domain\PlatformCategory;
-use App\Identity\Application\ValidationErrors;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Domain\ValueObject\PlatformCategory;
+use App\Identity\Application\Support\ValidationErrors;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventGameSelection

@@ -7,7 +7,7 @@ namespace App\Events\Application\Handler;
 use App\Communications\Application\Email\EventCapacityReachedEmail;
 use App\Communications\Application\Service\ArchilanMailer;
 use App\Events\Application\Message\EventCapacityReachedMessage;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

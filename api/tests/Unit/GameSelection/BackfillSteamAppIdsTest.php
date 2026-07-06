@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\GameSelection\Application\Command\BackfillSteamAppIds;
-use App\GameSelection\Application\IgdbHttpClientInterface;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbSearchException;
+use App\GameSelection\Application\Port\IgdbHttpClientInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Infrastructure\Exception\IgdbSearchException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

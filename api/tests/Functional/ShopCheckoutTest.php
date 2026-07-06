@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Payments\Application\HelloAssoConfig;
 use App\Payments\Application\Query\ShopCheckout;
+use App\Payments\Application\Support\HelloAssoConfig;
 
 final class ShopCheckoutTest extends FunctionalTestCase
 {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Command;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\Identity\Application\ValidationErrors;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Identity\Application\Support\ValidationErrors;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventRecap

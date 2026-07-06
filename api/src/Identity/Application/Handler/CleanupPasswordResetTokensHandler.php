@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Application\Handler;
 
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

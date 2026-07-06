@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Identity\Application\Command;
 
 use App\Communications\Application\Message\PasswordResetMessage;
-use App\Identity\Domain\PasswordResetToken;
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\PasswordResetToken;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class RequestPasswordReset

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Query;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Registrations\Application\Query\RegistrationCounter;
 
 final readonly class RegistrationEligibility

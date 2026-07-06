@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\ContentReport;
-use App\Community\Domain\ProfileComment;
+use App\Community\Domain\Entity\ContentReport;
+use App\Community\Domain\Entity\ProfileComment;
 
 final class AdminModerationTest extends FunctionalTestCase
 {

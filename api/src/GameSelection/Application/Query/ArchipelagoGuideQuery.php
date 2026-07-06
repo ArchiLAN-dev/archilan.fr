@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Query;
 
-use App\GameSelection\Application\InstallStepsReader;
-use App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface;
+use App\GameSelection\Application\Support\InstallStepsReader;
+use App\GameSelection\Domain\Repository\ArchipelagoGuideRepositoryInterface;
 
 final readonly class ArchipelagoGuideQuery
 {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection\Infrastructure;
 
-use App\GameSelection\Infrastructure\IgdbAuthException;
-use App\GameSelection\Infrastructure\IgdbHttpClient;
-use App\GameSelection\Infrastructure\IgdbSearchException;
+use App\GameSelection\Infrastructure\Exception\IgdbAuthException;
+use App\GameSelection\Infrastructure\Exception\IgdbSearchException;
+use App\GameSelection\Infrastructure\Http\IgdbHttpClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpClient\MockHttpClient;

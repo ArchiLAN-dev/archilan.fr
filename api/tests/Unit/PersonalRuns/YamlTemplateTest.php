@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Domain\YamlTemplate;
+use App\PersonalRuns\Domain\Entity\YamlTemplate;
 use PHPUnit\Framework\TestCase;
 
 final class YamlTemplateTest extends TestCase

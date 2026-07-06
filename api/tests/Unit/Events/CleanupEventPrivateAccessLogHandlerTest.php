@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Events;
 
 use App\Events\Application\Handler\CleanupEventPrivateAccessLogHandler;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
-use App\Events\Domain\EventPrivateAccessLogRepositoryInterface;
+use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
-use App\Shared\Presentation\RequiresAuthTrait;
+use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Archilan\BridgeClient\Enum\HintStatus;
 use Archilan\BridgeClient\Slots\Response\Hint;
 use Archilan\BridgeClient\Slots\Response\ItemLocation;

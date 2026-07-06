@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Query;
 
-use App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 
 /**
  * Used by the Sessions context to verify a session ID belongs to a weekly entry

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\GameSelection\Application\Exception\SteamApiException;
+use App\GameSelection\Application\Port\SteamWebApiClientInterface;
 use App\GameSelection\Application\Query\SteamCatalogQueryInterface;
 use App\GameSelection\Application\Query\SteamLibraryCouplingQuery;
-use App\GameSelection\Application\SteamWebApiClientInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

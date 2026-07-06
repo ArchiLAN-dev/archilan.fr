@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Community\Application\Service;
 
 use App\Community\Application\Exception\CannotKudosOwnContentException;
-use App\Community\Application\Notifier;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
-use App\Community\Domain\ActivityEntryRepositoryInterface;
-use App\Community\Domain\Kudos;
-use App\Community\Domain\KudosRepositoryInterface;
-use App\Community\Domain\Notification;
+use App\Community\Application\Support\Notifier;
+use App\Community\Domain\Entity\Kudos;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
+use App\Community\Domain\Repository\KudosRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\DiscordResyncAllUsersInterface;
+use App\Identity\Application\Port\DiscordResyncAllUsersInterface;
 use App\Identity\Presentation\Command\ResyncDiscordRolesCommand;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;

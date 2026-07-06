@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 use PHPUnit\Framework\TestCase;
 
 final class ArchipelagoGameUpdateStatusTest extends TestCase

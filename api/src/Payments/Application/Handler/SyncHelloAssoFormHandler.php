@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Payments\Application\Handler;
 
-use App\Payments\Application\HelloAssoClientInterface;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use App\Payments\Application\Message\SyncHelloAssoFormMessage;
-use App\Payments\Domain\HelloAssoOrder;
-use App\Payments\Domain\HelloAssoOrderRepositoryInterface;
-use App\Payments\Domain\HelloAssoSyncLog;
-use App\Payments\Domain\HelloAssoSyncLogRepositoryInterface;
+use App\Payments\Application\Port\HelloAssoClientInterface;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Payments\Domain\Entity\HelloAssoSyncLog;
+use App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface;
+use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 use App\Shared\Application\Handler\LogsHandlerErrors;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

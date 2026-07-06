@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Service;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\PersonalRuns\Domain\YamlTemplate;
-use App\PersonalRuns\Domain\YamlTemplateRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\YamlTemplate;
+use App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;

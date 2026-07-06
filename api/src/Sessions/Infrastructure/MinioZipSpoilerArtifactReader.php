@@ -6,7 +6,7 @@ namespace App\Sessions\Infrastructure;
 
 use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
 use App\Sessions\Application\SpoilerArtifact;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Downloads the session output archive from MinIO and extracts the single spoiler entry.

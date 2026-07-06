@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Infrastructure\Http;
 
 use App\Identity\Application\Service\CurrentUserProvider;
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

@@ -8,8 +8,8 @@ use App\Identity\Application\Handler\CleanupEmailConfirmationTokensHandler;
 use App\Identity\Application\Handler\CleanupPasswordResetTokensHandler;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
-use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 

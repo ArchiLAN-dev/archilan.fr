@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Streaming;
 
+use App\Streaming\Application\Port\TwitchApiClientInterface;
 use App\Streaming\Application\Query\TwitchStatusChecker;
-use App\Streaming\Application\TwitchApiClientInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 

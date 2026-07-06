@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit;
 
-use App\Shared\Application\DddArchitectureValidator;
+use App\Shared\Application\Support\DddArchitectureValidator;
 use PHPUnit\Framework\TestCase;
 
 final class DddArchitectureValidatorTest extends TestCase
@@ -151,9 +151,10 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testCleanPresentationControllerIsNotReported(): void
     {
         $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Presentation/Controller');
         file_put_contents(
-            $projectDir.'/src/Events/Presentation/AdminEventController.php',
-            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __construct(private object \$catalog) {}\n}\n",
+            $projectDir.'/src/Events/Presentation/Controller/AdminEventController.php',
+            "<?php\n\nnamespace App\\Events\\Presentation\\Controller;\n\nfinal class AdminEventController {\n    public function __construct(private object \$catalog) {}\n}\n",
         );
 
         $report = (new DddArchitectureValidator())->validate($projectDir);
@@ -202,9 +203,10 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testCrossContextDomainAndApplicationImportsAreAllowed(): void
     {
         $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Registrations/Application/Command');
         file_put_contents(
-            $projectDir.'/src/Registrations/Application/ReserveSeat.php',
-            "<?php\n\nnamespace App\\Registrations\\Application;\n\nuse App\\Events\\Domain\\Event;\nuse App\\Payments\\Application\\PaymentLookup;\n\nfinal class ReserveSeat {}\n",
+            $projectDir.'/src/Registrations/Application/Command/ReserveSeat.php',
+            "<?php\n\nnamespace App\\Registrations\\Application\\Command;\n\nuse App\\Events\\Domain\\Event;\nuse App\\Payments\\Application\\PaymentLookup;\n\nfinal class ReserveSeat {}\n",
         );
 
         $report = (new DddArchitectureValidator())->validate($projectDir);
@@ -219,9 +221,10 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testSharedInfrastructureImportIsAllowedInApplication(): void
     {
         $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Support');
         file_put_contents(
-            $projectDir.'/src/Events/Application/CoverImageReader.php',
-            "<?php\n\nnamespace App\\Events\\Application;\n\nuse App\\Shared\\Infrastructure\\MinioStorageInterface;\n\nfinal class CoverImageReader {}\n",
+            $projectDir.'/src/Events/Application/Support/CoverImageReader.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nuse App\\Shared\\Infrastructure\\MinioStorageInterface;\n\nfinal class CoverImageReader {}\n",
         );
 
         $report = (new DddArchitectureValidator())->validate($projectDir);
@@ -357,9 +360,10 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testApplicationClockLookalikesAreNotReported(): void
     {
         $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Support');
         file_put_contents(
-            $projectDir.'/src/Events/Application/NotAClock.php',
-            "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class NotAClock {\n"
+            $projectDir.'/src/Events/Application/Support/NotAClock.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nfinal class NotAClock {\n"
             ."    public function run(object \$repo, string \$raw, \\DateTimeImmutable \$now): void {\n"
             ."        \$repo->update(\$raw);\n"
             ."        \$parsed = new \\DateTimeImmutable(\$raw);\n"
@@ -465,6 +469,58 @@ final class DddArchitectureValidatorTest extends TestCase
         );
     }
 
+    public function testFlatFileDirectlyInLayerIsReportedForMigratedContext(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/LooseHelper.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class LooseHelper {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'No file may sit directly in a layer folder; move it into a kind sub-folder: src/Events/Application/LooseHelper.php',
+            $report->violations(),
+        );
+    }
+
+    public function testFlatFileInSubFolderIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Support');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Support/LooseHelper.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nfinal class LooseHelper {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $flatViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'LooseHelper'),
+        ));
+        self::assertSame([], $flatViolations);
+    }
+
+    public function testFlatFileInFrozenContextIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Sessions/Application/LooseHelper.php',
+            "<?php\n\nnamespace App\\Sessions\\Application;\n\nfinal class LooseHelper {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $flatViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'LooseHelper'),
+        ));
+        self::assertSame([], $flatViolations);
+    }
+
     public function testCreateNativeQueryInPresentationIsReported(): void
     {
         $projectDir = $this->createProjectFixture();
@@ -518,10 +574,11 @@ final class DddArchitectureValidatorTest extends TestCase
             }
         }
 
-        file_put_contents($projectDir.'/src/Events/Domain/Event.php', <<<'PHP'
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents($projectDir.'/src/Events/Domain/Entity/Event.php', <<<'PHP'
 <?php
 
-namespace App\Events\Domain;
+namespace App\Events\Domain\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 
@@ -565,8 +622,8 @@ doctrine:
             Events:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Events/Domain'
-                prefix: 'App\Events\Domain'
+                dir: '%kernel.project_dir%/src/Events/Domain/Entity'
+                prefix: 'App\Events\Domain\Entity'
                 alias: Events
 YAML;
     }

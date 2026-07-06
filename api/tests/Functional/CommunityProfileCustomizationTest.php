@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\CommunityProfile;
+use App\Community\Domain\Entity\CommunityProfile;
 
 final class CommunityProfileCustomizationTest extends FunctionalTestCase
 {

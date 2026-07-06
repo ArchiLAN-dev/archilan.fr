@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\GameCatalogSync;
-use App\PersonalRuns\Domain\Run;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
+use App\PersonalRuns\Domain\Entity\Run;
 
 final class PersonalRunGameSelectionPayloadTest extends FunctionalTestCase
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\SlugGenerator;
+use App\Identity\Application\Support\SlugGenerator;
 use PHPUnit\Framework\TestCase;
 
 final class SlugGeneratorTest extends TestCase

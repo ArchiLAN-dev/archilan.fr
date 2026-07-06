@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application\Command;
 
-use App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface;
+use App\GameSelection\Domain\Repository\IgnoredCatalogEntryRepositoryInterface;
 
 final readonly class UnignoreCatalogEntryCommand
 {

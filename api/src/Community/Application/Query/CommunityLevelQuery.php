@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
-use App\Community\Domain\AchievementGrantRepositoryInterface;
-use App\Community\Domain\CommunityXp;
-use App\Community\Domain\Level;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Community\Domain\ValueObject\CommunityXp;
+use App\Community\Domain\ValueObject\Level;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 
 /**

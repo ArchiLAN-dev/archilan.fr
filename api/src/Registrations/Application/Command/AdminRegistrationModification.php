@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Registrations\Application\Command;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationModification

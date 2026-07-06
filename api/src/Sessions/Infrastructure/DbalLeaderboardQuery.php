@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure;
 
-use App\Community\Application\AvatarUrlResolver;
-use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\Run;
-use App\Registrations\Domain\Registration;
+use App\Community\Application\Support\AvatarUrlResolver;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Application\LeaderboardQueryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;

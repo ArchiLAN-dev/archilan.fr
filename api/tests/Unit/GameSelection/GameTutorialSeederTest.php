@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\GameCatalogLinksProviderInterface;
-use App\GameSelection\Application\GameTutorialSeeder;
-use App\GameSelection\Application\InstallStepsNormalizer;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
+use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
+use App\GameSelection\Application\Support\GameTutorialSeeder;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
 use PHPUnit\Framework\TestCase;
 
 final class GameTutorialSeederTest extends TestCase

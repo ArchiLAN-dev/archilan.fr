@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\AchievementImageUrlResolver;
 use App\Community\Application\Query\EventCatalogueQueryInterface;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementDefinitionRepositoryInterface;
+use App\Community\Application\Support\AchievementImageUrlResolver;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\AchievementOperator;
-use App\Community\Domain\AchievementRuleFactory;
 use App\Community\Domain\AchievementRuleGroup;
+use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
+use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Service\AchievementRuleFactory;
 
 /**
  * Admin CRUD for achievement definitions (story 30.16): validate + persist the composable rule trees.

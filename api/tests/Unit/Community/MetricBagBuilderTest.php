@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Application\AchievementMetricProviderInterface;
-use App\Community\Application\MetricBagBuilder;
+use App\Community\Application\Port\AchievementMetricProviderInterface;
+use App\Community\Application\Support\MetricBagBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class MetricBagBuilderTest extends TestCase

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\Command\RegisterUser;
-use App\Identity\Domain\DeletionAudit;
-use App\Identity\Domain\User;
+use App\Identity\Application\Support\AuthSessionSigner;
+use App\Identity\Domain\Entity\DeletionAudit;
+use App\Identity\Domain\Entity\User;
 
 final class AccountDeletionTest extends FunctionalTestCase
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Infrastructure\StubIgdbHttpClient;
+use App\GameSelection\Infrastructure\Double\StubIgdbHttpClient;
 
 final class AdminIgdbSearchTest extends FunctionalTestCase
 {

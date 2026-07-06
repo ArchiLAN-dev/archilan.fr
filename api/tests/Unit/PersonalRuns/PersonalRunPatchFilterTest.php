@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Presentation\PersonalRunPatchController;
+use App\PersonalRuns\Presentation\Controller\PersonalRunPatchController;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunPatchFilterTest extends TestCase

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Domain\Audience;
-use App\Community\Domain\AudiencePolicy;
+use App\Community\Domain\Service\AudiencePolicy;
+use App\Community\Domain\ValueObject\Audience;
 use PHPUnit\Framework\TestCase;
 
 final class AudiencePolicyTest extends TestCase

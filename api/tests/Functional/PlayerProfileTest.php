@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\GameSelection\Domain\Entity\Game;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class PlayerProfileTest extends FunctionalTestCase
 {

@@ -6,9 +6,9 @@ namespace App\PersonalRuns\Application\Command;
 
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\ForceEndSessionCommand;
 use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionNotRunningException;

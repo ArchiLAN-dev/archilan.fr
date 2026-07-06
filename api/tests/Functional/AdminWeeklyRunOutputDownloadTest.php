@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
-use App\Shared\Infrastructure\NullMinioStorage;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class AdminWeeklyRunOutputDownloadTest extends FunctionalTestCase
 {

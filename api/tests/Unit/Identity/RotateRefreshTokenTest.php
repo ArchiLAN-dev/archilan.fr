@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Identity;
 
 use App\Identity\Application\Command\RotateRefreshToken;
-use App\Identity\Application\RefreshTokenFactory;
 use App\Identity\Application\Service\AuthenticateUser;
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Application\Support\RefreshTokenFactory;
+use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;

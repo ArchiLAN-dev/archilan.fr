@@ -6,8 +6,8 @@ namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Handler\ReconcileStuckRunsHandler;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;

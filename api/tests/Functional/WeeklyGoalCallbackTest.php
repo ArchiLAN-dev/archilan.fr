@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Realtime\Infrastructure\SpyHub;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Realtime\Infrastructure\Double\SpyHub;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class WeeklyGoalCallbackTest extends FunctionalTestCase
 {

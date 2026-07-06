@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Membership\Application\Handler;
 
 use App\Communications\Application\Email\MembershipExpiredEmail;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Message\MembershipExpiredNotificationMessage;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Application\InstallStepsReader;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\GameSelection\Application\Support\InstallStepsReader;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Stores an uploaded tutorial-step image in the MinIO media bucket and returns its key plus a presigned

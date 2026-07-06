@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Registrations\Application\Command;
 
 use App\Events\Application\Message\EventCapacityReachedMessage;
-use App\Events\Domain\Event;
-use App\Events\Domain\EventRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

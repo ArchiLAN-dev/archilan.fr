@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Application\Query;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\WeeklyRuns\Application\Handler\GenerateWeeklyRunsMessageHandler;
-use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
-use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface;
 use Symfony\Component\Clock\ClockInterface;
 
 final readonly class AdminWeeklyTemplateDetailQuery

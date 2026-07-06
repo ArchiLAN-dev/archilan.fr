@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\AchievementImageUrlResolver;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\Community\Application\Support\AchievementImageUrlResolver;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Stores an admin-uploaded achievement image in the MinIO media bucket and returns a presigned URL for an

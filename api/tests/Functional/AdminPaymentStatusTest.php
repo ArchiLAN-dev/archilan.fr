@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Identity\Domain\User;
-use App\Payments\Domain\HelloAssoOrder;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\Identity\Domain\Entity\User;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Registrations\Domain\Entity\Registration;
 
 final class AdminPaymentStatusTest extends FunctionalTestCase
 {

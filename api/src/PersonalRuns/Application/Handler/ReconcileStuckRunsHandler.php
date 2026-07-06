@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Handler;
 
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;

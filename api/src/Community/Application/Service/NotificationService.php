@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Service;
 
-use App\Community\Application\Notifier;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
-use App\Community\Domain\Notification;
-use App\Community\Domain\NotificationRepositoryInterface;
+use App\Community\Application\Support\Notifier;
+use App\Community\Domain\Entity\Notification;
+use App\Community\Domain\Repository\NotificationRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
 use Psr\Log\LoggerInterface;
 

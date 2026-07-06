@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
 use App\Identity\Application\Command\RegisterUser;
-use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Domain\User;
-use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
-use App\Identity\Presentation\AuthController;
+use App\Identity\Application\Support\AuthSessionSigner;
+use App\Identity\Application\Support\RefreshTokenFactory;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository;
+use App\Identity\Presentation\Controller\AuthController;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\BrowserKit\Cookie;
 

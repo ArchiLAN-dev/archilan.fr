@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Identity;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Infrastructure\DbalDiscordResyncAllUsers;
+use App\Identity\Infrastructure\Dbal\DbalDiscordResyncAllUsers;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\TestCase;

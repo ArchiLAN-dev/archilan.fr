@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Service;
 
 use App\GameSelection\Application\Query\GameRequestListQueryInterface;
-use App\GameSelection\Domain\GameRequest;
-use App\GameSelection\Domain\GameRequestRepositoryInterface;
+use App\GameSelection\Domain\Entity\GameRequest;
+use App\GameSelection\Domain\Repository\GameRequestRepositoryInterface;
 
 final readonly class GameRequests
 {

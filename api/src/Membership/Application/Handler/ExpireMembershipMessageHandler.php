@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Membership\Application\Handler;
 
-use App\Membership\Application\ExpireMembershipInterface;
 use App\Membership\Application\Message\ExpireMembershipMessage;
+use App\Membership\Application\Port\ExpireMembershipInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

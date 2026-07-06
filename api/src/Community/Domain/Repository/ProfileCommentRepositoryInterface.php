@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Community\Domain\Repository;
+
+use App\Community\Domain\Entity\ProfileComment;
+
+interface ProfileCommentRepositoryInterface
+{
+    public function findById(string $id): ?ProfileComment;
+
+    /**
+     * Resolve comments by id (moderation queue enrichment), keyed by id.
+     *
+     * @param list<string> $ids
+     *
+     * @return array<string, ProfileComment>
+     */
+    public function findByIds(array $ids): array;
+
+    /**
+     * Visible (non-hidden) comments on a profile, newest first.
+     *
+     * @return list<ProfileComment>
+     */
+    public function visibleForProfile(string $profileUserId, int $limit): array;
+
+    public function countByAuthorSince(string $authorId, \DateTimeImmutable $since): int;
+
+    public function save(ProfileComment $comment): void;
+
+    public function remove(ProfileComment $comment): void;
+
+    public function flush(): void;
+}

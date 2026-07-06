@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
-use App\GameSelection\Application\IgdbHttpClientInterface;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Application\Port\IgdbHttpClientInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 /**

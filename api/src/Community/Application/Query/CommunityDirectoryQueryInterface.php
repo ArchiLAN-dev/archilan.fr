@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Query;
 
+use App\Community\Domain\ValueObject\Level;
+use App\Identity\Domain\Entity\User;
+
 /**
  * Lightweight read model for the community directory (story 30.15, epic §K review #13): cheap list/search
  * queries that never compose the full per-profile read. Level/XP are resolved separately via the shared

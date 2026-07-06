@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared;
 
-use App\Shared\Application\SlotYamlNameReader;
+use App\Shared\Application\Support\SlotYamlNameReader;
 use PHPUnit\Framework\TestCase;
 
 final class SlotYamlNameReaderTest extends TestCase

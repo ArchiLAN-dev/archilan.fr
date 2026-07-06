@@ -4,20 +4,21 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Registrations\Domain\Registration;
-use App\Registrations\Domain\RegistrationRepositoryInterface;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\SessionConfig\Application\Service\SessionConfigResolver;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Domain\Enum\SessionType;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Shared\Application\SlotYamlNameReader;
+use App\Shared\Application\Support\SlotYamlNameReader;
 use Psr\Log\LoggerInterface;
 
 final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
@@ -89,7 +90,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 
         $usersList = $this->users->findByIds($userIds);
 
-        /** @var array<string, \App\Identity\Domain\User> $usersById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $usersById */
         $usersById = [];
         foreach ($usersList as $user) {
             $usersById[$user->getId()] = $user;
@@ -522,7 +523,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 
         $usersList = [] !== $userIds ? $this->users->findByIds($userIds) : [];
 
-        /** @var array<string, \App\Identity\Domain\User> $userById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $userById */
         $userById = [];
         foreach ($usersList as $user) {
             $userById[$user->getId()] = $user;
@@ -622,7 +623,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 
         $usersList = [] !== $regList ? $this->users->findByIds($userIds) : [];
 
-        /** @var array<string, \App\Identity\Domain\User> $usersById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $usersById */
         $usersById = [];
         foreach ($usersList as $user) {
             $usersById[$user->getId()] = $user;
