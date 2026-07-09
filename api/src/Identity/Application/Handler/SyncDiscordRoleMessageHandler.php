@@ -9,6 +9,7 @@ use App\Identity\Application\Port\DiscordBotClientInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -20,6 +21,7 @@ final readonly class SyncDiscordRoleMessageHandler
         private UserRepositoryInterface $userRepository,
         private ActiveMembershipQueryInterface $membershipQuery,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
         private string $guildId,
         private string $roleIdAdmin,
         private string $roleIdMember,
@@ -78,7 +80,7 @@ final readonly class SyncDiscordRoleMessageHandler
             ]);
 
             if ($user instanceof User && $user->getDiscordId() === $message->discordUserId) {
-                $user->markDiscordSyncSuccess(new \DateTimeImmutable());
+                $user->markDiscordSyncSuccess($this->clock->now());
                 $this->userRepository->save($user);
             }
         } catch (\Throwable $e) {
@@ -89,7 +91,7 @@ final readonly class SyncDiscordRoleMessageHandler
             ]);
 
             if ($user instanceof User && $user->getDiscordId() === $message->discordUserId) {
-                $user->markDiscordSyncFailure($e->getMessage(), new \DateTimeImmutable());
+                $user->markDiscordSyncFailure($e->getMessage(), $this->clock->now());
                 $this->userRepository->save($user);
             }
 

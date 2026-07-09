@@ -10,6 +10,7 @@ use App\Identity\Domain\Entity\RoleChangeAudit;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -20,6 +21,7 @@ final readonly class AdminChangeUserRole
         private RoleChangeAuditRepositoryInterface $auditRepository,
         private LoggerInterface $logger,
         private MessageBusInterface $bus,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -67,7 +69,7 @@ final readonly class AdminChangeUserRole
             return ['user' => $this->userPayload($target), 'errors' => []];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         if ('member' === $normalizedRole) {
             $target->promoteToMember($now);

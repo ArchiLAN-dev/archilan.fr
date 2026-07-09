@@ -11,6 +11,7 @@ use App\Community\Domain\ValueObject\ReportCategory;
 use App\Community\Domain\ValueObject\ReportProblem;
 use App\Community\Domain\ValueObject\ReportSeverity;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 
 /**
  * Lets a member report another member's profile with a structured category + problem + optional comment
@@ -25,6 +26,7 @@ final readonly class ReportProfileService
         private ContentReportRepositoryInterface $reports,
         private CommunityUserDirectoryQueryInterface $directory,
         private EvaluateAccountEscalation $escalation,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -61,7 +63,7 @@ final readonly class ReportProfileService
                 ContentReport::TARGET_PROFILE,
                 $targetUserId,
                 $reason,
-                new \DateTimeImmutable(),
+                $this->clock->now(),
                 $category,
                 $problem,
                 $cleanComment,

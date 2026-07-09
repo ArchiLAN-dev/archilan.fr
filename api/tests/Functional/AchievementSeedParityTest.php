@@ -13,6 +13,7 @@ use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\ValueObject\MetricBag;
+use Symfony\Component\Clock\MockClock;
 
 /**
  * Proves the DB-seeded definitions reproduce the historical grant outcomes exactly: a recompute reading the
@@ -40,7 +41,7 @@ final class AchievementSeedParityTest extends FunctionalTestCase
         $builder = new MetricBagBuilder([$this->fixedProvider([
             'runs' => 10, 'goals' => 10, 'checks' => 1000, 'items' => 1000, 'distinctGames' => 5,
         ])]);
-        $recompute = new RecomputeAchievements($definitions, $grants, $builder, $notifier);
+        $recompute = new RecomputeAchievements($definitions, $grants, $builder, $notifier, new MockClock());
 
         $added = $recompute->recomputeForUser('user-1', notify: false);
 

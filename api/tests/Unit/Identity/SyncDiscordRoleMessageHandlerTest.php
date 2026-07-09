@@ -12,6 +12,7 @@ use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class SyncDiscordRoleMessageHandlerTest extends TestCase
 {
@@ -39,6 +40,7 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
             $userRepo,
             $membershipQuery,
             new NullLogger(),
+            new MockClock(),
             self::GUILD_ID,
             $roleIdAdmin,
             $roleIdMember,

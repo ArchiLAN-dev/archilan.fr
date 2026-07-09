@@ -14,6 +14,7 @@ use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\BlockRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 
 /**
  * Friendships + blocks (story 30.7): request/accept/decline/remove, block/unblock, and the relationship
@@ -28,6 +29,7 @@ final readonly class FriendshipService
         private CommunityUserDirectoryQueryInterface $directory,
         private RecordActivity $recordActivity,
         private Notifier $notifier,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -40,7 +42,7 @@ final readonly class FriendshipService
             return 'blocked';
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $existing = $this->friendships->findBetween($userId, $targetUserId);
 
         if ($existing instanceof Friendship) {
@@ -87,7 +89,7 @@ final readonly class FriendshipService
             return 'not_found';
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $friendship->accept($now);
         $this->friendships->save($friendship);
         $this->recordFriendshipActivity($friendship, $userId, $now);
@@ -107,7 +109,7 @@ final readonly class FriendshipService
             return 'not_found';
         }
 
-        $friendship->decline(new \DateTimeImmutable());
+        $friendship->decline($this->clock->now());
         $this->friendships->save($friendship);
 
         return 'ok';
@@ -136,7 +138,7 @@ final readonly class FriendshipService
 
         if (null === $this->blocks->find($userId, $targetUserId)) {
             try {
-                $this->blocks->save(Block::create($userId, $targetUserId, new \DateTimeImmutable()));
+                $this->blocks->save(Block::create($userId, $targetUserId, $this->clock->now()));
             } catch (UniqueConstraintViolationException) {
                 // Concurrent block - idempotent.
             }

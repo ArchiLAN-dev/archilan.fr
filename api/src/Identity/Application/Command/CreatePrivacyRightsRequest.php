@@ -8,6 +8,7 @@ use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\PrivacyRightsRequest;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\PrivacyRightsRequestRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class CreatePrivacyRightsRequest
@@ -15,6 +16,7 @@ final readonly class CreatePrivacyRightsRequest
     public function __construct(
         private PrivacyRightsRequestRepositoryInterface $requestRepository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -36,7 +38,7 @@ final readonly class CreatePrivacyRightsRequest
             $user->getId(),
             $rightType,
             $details,
-            new \DateTimeImmutable(),
+            $this->clock->now(),
         );
 
         $this->requestRepository->save($request);

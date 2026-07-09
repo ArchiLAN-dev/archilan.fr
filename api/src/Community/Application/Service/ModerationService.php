@@ -13,6 +13,7 @@ use App\Community\Domain\Entity\ProfileComment;
 use App\Community\Domain\Repository\ContentReportRepositoryInterface;
 use App\Community\Domain\Repository\ProfileCommentRepositoryInterface;
 use App\Community\Domain\ValueObject\ReportSeverity;
+use Psr\Clock\ClockInterface;
 
 /**
  * Admin moderation (story 30.13): the report queue plus hide/restore of comments and report resolution.
@@ -28,6 +29,7 @@ final readonly class ModerationService
         private CommunityUserDirectoryQueryInterface $directory,
         private AdminReportsQueryInterface $reportsQuery,
         private AccountReportScoreQueryInterface $scores,
+        private ClockInterface $clock,
         private int $escalationThreshold,
     ) {
     }
@@ -201,7 +203,7 @@ final readonly class ModerationService
             return 'not_found';
         }
 
-        $comment->hide(new \DateTimeImmutable());
+        $comment->hide($this->clock->now());
         $this->comments->flush();
 
         return 'ok';
@@ -227,7 +229,7 @@ final readonly class ModerationService
             return 'not_found';
         }
 
-        $report->resolve($adminId, new \DateTimeImmutable());
+        $report->resolve($adminId, $this->clock->now());
         $this->reports->flush();
 
         return 'ok';

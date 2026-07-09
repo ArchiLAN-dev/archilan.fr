@@ -9,6 +9,7 @@ use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\NotificationRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -25,6 +26,7 @@ final readonly class NotificationService implements Notifier
         private CommunityUserDirectoryQueryInterface $directory,
         private RealtimePublisher $realtime,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -38,7 +40,7 @@ final readonly class NotificationService implements Notifier
         // Best-effort: a notification is a side effect of an already-committed action, so a failure here
         // must never roll back or 500 the primary write (friend accept, comment, kudos, achievement).
         try {
-            $notification = Notification::create($recipientId, $type, $payload, new \DateTimeImmutable());
+            $notification = Notification::create($recipientId, $type, $payload, $this->clock->now());
             $this->notifications->save($notification);
 
             $this->realtime->userNotification($recipientId, [
@@ -111,7 +113,7 @@ final readonly class NotificationService implements Notifier
             return 'forbidden';
         }
 
-        $notification->markRead(new \DateTimeImmutable());
+        $notification->markRead($this->clock->now());
         $this->notifications->flush();
 
         return 'ok';
@@ -119,7 +121,7 @@ final readonly class NotificationService implements Notifier
 
     public function markAllRead(string $userId): void
     {
-        $this->notifications->markAllRead($userId, new \DateTimeImmutable());
+        $this->notifications->markAllRead($userId, $this->clock->now());
     }
 
     private function clampLimit(int $limit): int

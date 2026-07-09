@@ -9,6 +9,7 @@ use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 
 /**
  * Member-uploaded avatar management (story 30.27): store the image in the MinIO media bucket and point the
@@ -22,6 +23,7 @@ final readonly class CommunityAvatarService
         private CommunityProfileRepositoryInterface $profiles,
         private MinioStorageInterface $minioStorage,
         private AvatarUrlResolver $avatarUrls,
+        private ClockInterface $clock,
         private string $minioMediaBucket,
     ) {
     }
@@ -36,7 +38,7 @@ final readonly class CommunityAvatarService
         $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
 
         $profile = $this->ensureProfile($userId);
-        $profile->setCustomAvatar($key, new \DateTimeImmutable());
+        $profile->setCustomAvatar($key, $this->clock->now());
         $this->profiles->flush();
 
         return (string) $this->avatarUrls->resolve($key, null);
@@ -54,7 +56,7 @@ final readonly class CommunityAvatarService
         }
 
         if (null !== $profile->getCustomAvatarKey()) {
-            $profile->setCustomAvatar(null, new \DateTimeImmutable());
+            $profile->setCustomAvatar(null, $this->clock->now());
             $this->profiles->flush();
         }
 
@@ -68,7 +70,7 @@ final readonly class CommunityAvatarService
             return $existing;
         }
 
-        $profile = CommunityProfile::create($userId, new \DateTimeImmutable());
+        $profile = CommunityProfile::create($userId, $this->clock->now());
         try {
             $this->profiles->save($profile);
 

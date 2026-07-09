@@ -7,6 +7,7 @@ namespace App\Community\Application\Command;
 use App\Community\Application\Port\AvatarResolverInterface;
 use App\Community\Domain\Entity\CommunityProfile;
 use App\Community\Domain\Repository\CommunityProfileRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 /**
  * Refreshes cached avatar URLs off the request path (scheduled / on-demand). Resolution is the source
@@ -20,6 +21,7 @@ final readonly class RefreshCommunityAvatars
     public function __construct(
         private CommunityProfileRepositoryInterface $profiles,
         private AvatarResolverInterface $resolver,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -28,7 +30,7 @@ final readonly class RefreshCommunityAvatars
      */
     public function refreshStale(int $limit = 200): int
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $staleBefore = $now->modify(sprintf('-%d seconds', self::TTL_SECONDS));
 
         $profiles = $this->profiles->findNeedingAvatarRefresh($staleBefore, $limit);
@@ -48,7 +50,7 @@ final readonly class RefreshCommunityAvatars
             return;
         }
 
-        $profile->cacheAvatar($this->resolver->resolve($userId), new \DateTimeImmutable());
+        $profile->cacheAvatar($this->resolver->resolve($userId), $this->clock->now());
         $this->profiles->flush();
     }
 }

@@ -11,6 +11,7 @@ use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\ValueObject\MetricBag;
+use Psr\Clock\ClockInterface;
 
 /**
  * Deterministic achievement engine (epic §E.1, story 30.16): builds a user's MetricBag from the registered
@@ -25,6 +26,7 @@ final readonly class RecomputeAchievements
         private AchievementGrantRepositoryInterface $grants,
         private MetricBagBuilder $metrics,
         private Notifier $notifier,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -37,7 +39,7 @@ final readonly class RecomputeAchievements
     {
         $bag = $this->metrics->build($userId);
         $alreadyGranted = array_flip($this->grants->grantedKeys($userId));
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $added = 0;
         foreach ($this->definitions->allActive() as $definition) {

@@ -12,6 +12,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -161,11 +162,11 @@ final class DiscordLinkSyncDispatchTest extends TestCase
         UserRepositoryInterface $userRepo,
         MessageBusInterface $bus,
     ): LinkDiscordToAccount {
-        return new LinkDiscordToAccount($oauth, $userRepo, new NullLogger(), $bus, 'https://app.test/discord/link');
+        return new LinkDiscordToAccount($oauth, $userRepo, new NullLogger(), $bus, new MockClock(), 'https://app.test/discord/link');
     }
 
     private function makeUnlinkService(UserRepositoryInterface $userRepo, MessageBusInterface $bus): UnlinkDiscordFromAccount
     {
-        return new UnlinkDiscordFromAccount($userRepo, new NullLogger(), $bus);
+        return new UnlinkDiscordFromAccount($userRepo, new NullLogger(), $bus, new MockClock());
     }
 }

@@ -13,6 +13,7 @@ use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Service\AchievementRuleFactory;
+use Psr\Clock\ClockInterface;
 
 /**
  * Admin CRUD for achievement definitions (story 30.16): validate + persist the composable rule trees.
@@ -26,6 +27,7 @@ final readonly class AdminAchievementService
         private AchievementDefinitionRepositoryInterface $definitions,
         private EventCatalogueQueryInterface $events,
         private AchievementImageUrlResolver $imageUrls,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -85,7 +87,7 @@ final readonly class AdminAchievementService
         $name = $this->requireName($payload);
         $rule = AchievementRuleFactory::fromArray($this->ruleArray($payload))->toArray();
         $this->validateEventScopes($rule);
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $definition = AchievementDefinition::create($key, $name, $this->description($payload), $rule, $this->definitions->maxPosition() + 1, $now, $this->imageKey($payload));
         $this->definitions->save($definition);
@@ -111,7 +113,7 @@ final readonly class AdminAchievementService
         $name = $this->requireName($payload);
         $rule = AchievementRuleFactory::fromArray($this->ruleArray($payload))->toArray();
         $this->validateEventScopes($rule);
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $definition->update($name, $this->description($payload), $rule, $now);
         // Only touch the image when the field is present, so an edit that omits it keeps the current image.
         if ($this->hasImageKey($payload)) {
@@ -129,7 +131,7 @@ final readonly class AdminAchievementService
             return false;
         }
 
-        $definition->setActive($active, new \DateTimeImmutable());
+        $definition->setActive($active, $this->clock->now());
         $this->definitions->flush();
 
         return true;
@@ -140,7 +142,7 @@ final readonly class AdminAchievementService
      */
     public function reorder(array $orderedIds): void
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $position = 0;
         foreach ($orderedIds as $id) {
             $definition = $this->definitions->findById($id);
