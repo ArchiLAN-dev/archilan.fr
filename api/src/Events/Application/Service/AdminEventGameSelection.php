@@ -10,6 +10,7 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventGameSelection
@@ -18,6 +19,7 @@ final readonly class AdminEventGameSelection
         private EventRepositoryInterface $eventRepository,
         private GameRepositoryInterface $gameRepository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -107,7 +109,7 @@ final readonly class AdminEventGameSelection
         $event->configureGameSelection(
             $enabled,
             $parsed['games'],
-            new \DateTimeImmutable(),
+            $this->clock->now(),
             $parsed['gameSelectionMax'],
         );
         $this->eventRepository->save($event);

@@ -7,6 +7,7 @@ namespace App\Events\Application\Command;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventRecap
@@ -14,6 +15,7 @@ final readonly class AdminEventRecap
     public function __construct(
         private EventRepositoryInterface $eventRepository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -38,7 +40,7 @@ final readonly class AdminEventRecap
         }
 
         try {
-            $event->attachRecap($parsed['vodUrl'], $parsed['recapPostSlug'], new \DateTimeImmutable());
+            $event->attachRecap($parsed['vodUrl'], $parsed['recapPostSlug'], $this->clock->now());
         } catch (\DomainException) {
             return ['found' => true, 'errors' => ['status' => ["Le récap ne peut être attaché qu'à un événement terminé."]]];
         }

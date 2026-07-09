@@ -11,6 +11,7 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class AdminRegistrationExporter
 {
@@ -20,6 +21,7 @@ final readonly class AdminRegistrationExporter
         private UserRepositoryInterface $userRepository,
         private GameRepositoryInterface $gameRepository,
         private PrivateAccessGrantedQueryInterface $privateAccessGrantedQuery,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -169,7 +171,7 @@ final readonly class AdminRegistrationExporter
         return [
             'eventId' => $eventId,
             'eventTitle' => $event->getTitle(),
-            'exportedAt' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'exportedAt' => $this->clock->now()->format(\DateTimeInterface::ATOM),
             'includeCancelled' => $includeCancelled,
             'slots' => $slotRows,
             'registrations' => $registrationRows,
@@ -223,7 +225,7 @@ final readonly class AdminRegistrationExporter
         return [
             'eventId' => $event->getId(),
             'eventTitle' => $event->getTitle(),
-            'exportedAt' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'exportedAt' => $this->clock->now()->format(\DateTimeInterface::ATOM),
             'includeCancelled' => $includeCancelled,
             'slots' => [],
             'registrations' => [],

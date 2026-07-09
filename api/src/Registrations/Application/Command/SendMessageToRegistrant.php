@@ -10,6 +10,7 @@ use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\RegistrationAdminMessage;
 use App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class SendMessageToRegistrant
 {
@@ -18,6 +19,7 @@ final readonly class SendMessageToRegistrant
         private UserRepositoryInterface $userRepository,
         private RegistrationAdminMessageRepositoryInterface $adminMessageRepository,
         private ArchilanMailer $mailer,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -53,7 +55,7 @@ final readonly class SendMessageToRegistrant
             return ['outcome' => 'send_failed'];
         }
 
-        $sentAt = new \DateTimeImmutable();
+        $sentAt = $this->clock->now();
         $this->adminMessageRepository->save(RegistrationAdminMessage::record($eventId, $registrationId, $adminId, $subject, $sentAt));
 
         return ['outcome' => 'sent', 'sentAt' => $sentAt->format(\DateTimeInterface::ATOM)];

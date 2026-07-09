@@ -10,6 +10,7 @@ use App\Events\Presentation\Controller\AdminEventGalleryController;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventDrafts
@@ -19,6 +20,7 @@ final readonly class AdminEventDrafts
         private RegistrationCounter $registrationCounter,
         private LoggerInterface $logger,
         private MinioStorageInterface $minioStorage,
+        private ClockInterface $clock,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
     ) {
@@ -77,12 +79,12 @@ final readonly class AdminEventDrafts
             $complete['registrationOpensAt'],
             $complete['registrationClosesAt'],
             $complete['isPublic'],
-            new \DateTimeImmutable(),
+            $this->clock->now(),
             $parsed['coverImageUrl'],
             $parsed['photoGallery'],
         );
 
-        $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], new \DateTimeImmutable());
+        $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], $this->clock->now());
         $this->eventRepository->save($event);
 
         $this->logger->info('event.created', ['eventId' => $event->getId(), 'title' => $event->getTitle()]);
@@ -128,14 +130,14 @@ final readonly class AdminEventDrafts
             $complete['registrationOpensAt'],
             $complete['registrationClosesAt'],
             $complete['isPublic'],
-            new \DateTimeImmutable(),
+            $this->clock->now(),
             $parsed['coverImageUrl'],
             $photoGallery,
         );
         if ('url' === $parsed['coverImageMode']) {
-            $event->clearCoverImageKey(new \DateTimeImmutable());
+            $event->clearCoverImageKey($this->clock->now());
         }
-        $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], new \DateTimeImmutable());
+        $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], $this->clock->now());
         $this->eventRepository->save($event);
 
         $this->logger->info('event.updated', ['eventId' => $event->getId()]);
@@ -159,7 +161,7 @@ final readonly class AdminEventDrafts
         }
 
         try {
-            $event->transitionTo(trim($status), new \DateTimeImmutable());
+            $event->transitionTo(trim($status), $this->clock->now());
         } catch (\DomainException) {
             return ['found' => true, 'errors' => ['status' => ['Transition de statut invalide.']]];
         }
@@ -191,7 +193,7 @@ final readonly class AdminEventDrafts
         }
 
         $hash = password_hash($password, PASSWORD_DEFAULT);
-        $event->configurePrivateAccessPassword($hash, new \DateTimeImmutable());
+        $event->configurePrivateAccessPassword($hash, $this->clock->now());
         $this->eventRepository->save($event);
 
         $this->logger->info('event.private_access_configured', ['eventId' => $event->getId()]);

@@ -7,6 +7,7 @@ namespace App\Events\Application\Command;
 use App\Events\Application\Service\AdminEventDrafts;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class UploadEventCoverImageCommand
 {
@@ -14,6 +15,7 @@ final readonly class UploadEventCoverImageCommand
         private EventRepositoryInterface $eventRepository,
         private MinioStorageInterface $minioStorage,
         private AdminEventDrafts $adminEventDrafts,
+        private ClockInterface $clock,
         private string $minioMediaBucket,
     ) {
     }
@@ -34,7 +36,7 @@ final readonly class UploadEventCoverImageCommand
             return ['outcome' => 'storage_error', 'data' => null];
         }
 
-        $event->setCoverImageKey($key, new \DateTimeImmutable());
+        $event->setCoverImageKey($key, $this->clock->now());
         $this->eventRepository->save($event);
 
         return ['outcome' => 'ok', 'data' => $this->adminEventDrafts->get($eventId)];

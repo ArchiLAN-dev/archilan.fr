@@ -7,12 +7,14 @@ namespace App\Events\Application\Query;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Registrations\Application\Query\RegistrationCounter;
+use Psr\Clock\ClockInterface;
 
 final readonly class RegistrationEligibility
 {
     public function __construct(
         private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -32,7 +34,7 @@ final readonly class RegistrationEligibility
             return null;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $confirmedCount = $this->registrationCounter->countConfirmed($event->getId());
         $reason = $this->computeReason($event, $confirmedCount, $now);
 

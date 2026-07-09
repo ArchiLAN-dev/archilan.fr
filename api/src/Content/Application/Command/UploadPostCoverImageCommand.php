@@ -8,6 +8,7 @@ use App\Content\Application\Service\AdminPostCatalog;
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class UploadPostCoverImageCommand
 {
@@ -15,6 +16,7 @@ final readonly class UploadPostCoverImageCommand
         private PostRepositoryInterface $postRepository,
         private MinioStorageInterface $minioStorage,
         private AdminPostCatalog $adminPostCatalog,
+        private ClockInterface $clock,
         private string $minioMediaBucket,
     ) {
     }
@@ -36,7 +38,7 @@ final readonly class UploadPostCoverImageCommand
             return ['outcome' => 'storage_error', 'data' => null];
         }
 
-        $post->setCoverImageKey($key, new \DateTimeImmutable());
+        $post->setCoverImageKey($key, $this->clock->now());
         $this->postRepository->save($post);
 
         return ['outcome' => 'ok', 'data' => $this->adminPostCatalog->get($postId)];

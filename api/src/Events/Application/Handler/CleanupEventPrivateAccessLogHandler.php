@@ -6,6 +6,7 @@ namespace App\Events\Application\Handler;
 
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -15,13 +16,14 @@ final readonly class CleanupEventPrivateAccessLogHandler
     public function __construct(
         private EventPrivateAccessLogRepositoryInterface $repository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
         private int $eventAccessLogRetentionDays,
     ) {
     }
 
     public function __invoke(CleanupEventPrivateAccessLogMessage $message): void
     {
-        $threshold = (new \DateTimeImmutable())->modify(sprintf('-%d days', $this->eventAccessLogRetentionDays));
+        $threshold = $this->clock->now()->modify(sprintf('-%d days', $this->eventAccessLogRetentionDays));
         $deleted = $this->repository->deleteOlderThan($threshold);
 
         $this->logger->info('data.cleanup_event_private_access_log', ['deleted' => $deleted]);

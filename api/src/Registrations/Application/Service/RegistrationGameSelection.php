@@ -11,6 +11,7 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Shared\Domain\ValueObject\SlotName;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
@@ -22,6 +23,7 @@ final readonly class RegistrationGameSelection
         private EventRepositoryInterface $eventRepository,
         private GameRepositoryInterface $gameRepository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -48,7 +50,7 @@ final readonly class RegistrationGameSelection
             return null;
         }
 
-        $registrationOpen = $event->getRegistrationClosesAt() > new \DateTimeImmutable();
+        $registrationOpen = $event->getRegistrationClosesAt() > $this->clock->now();
 
         $configuredGameIds = $event->isGameSelectionEnabled()
             ? array_column($event->getGameSelectionConfig(), 'gameId')
@@ -137,7 +139,7 @@ final readonly class RegistrationGameSelection
             return ['outcome' => 'error', 'errors' => ['gameSelection' => ["La sélection de jeux n'est pas activée pour cet événement."]]];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         if ($event->getRegistrationClosesAt() <= $now) {
             return ['outcome' => 'error', 'errors' => ['registration' => ["La période d'inscription est terminée."]]];
         }
@@ -215,7 +217,7 @@ final readonly class RegistrationGameSelection
             return ['outcome' => 'error', 'errors' => ['name' => [$nameError]]];
         }
 
-        $registration->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', new \DateTimeImmutable());
+        $registration->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', $this->clock->now());
 
         $this->registrationRepository->flush();
 
