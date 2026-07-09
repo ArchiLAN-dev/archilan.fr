@@ -14,6 +14,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class PersonalRunDrafts
 {
@@ -23,6 +24,7 @@ final readonly class PersonalRunDrafts
         private UserRepositoryInterface $users,
         private SessionRepositoryInterface $sessions,
         private CommunityUserDirectoryQueryInterface $directory,
+        private ClockInterface $clock,
         private string $siteUrl,
     ) {
     }
@@ -48,7 +50,7 @@ final readonly class PersonalRunDrafts
             return ['run' => null, 'errors' => $errs];
         }
 
-        $run = Run::create($ownerId, $title, new \DateTimeImmutable());
+        $run = Run::create($ownerId, $title, $this->clock->now());
         $this->runs->save($run);
 
         return ['run' => $this->payload($run, $ownerId, []), 'errors' => []];
@@ -121,7 +123,7 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_deletable'];
         }
 
-        $run->cancel(new \DateTimeImmutable());
+        $run->cancel($this->clock->now());
         $this->runs->flush();
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
@@ -151,7 +153,7 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_archivable'];
         }
 
-        $run->cancel(new \DateTimeImmutable());
+        $run->cancel($this->clock->now());
         $this->runs->flush();
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
@@ -175,7 +177,7 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_archived'];
         }
 
-        $run->unarchive(new \DateTimeImmutable());
+        $run->unarchive($this->clock->now());
         $this->runs->flush();
 
         return ['found' => true, 'authorized' => true, 'blocked' => false, 'blockReason' => null];
@@ -224,7 +226,7 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => false, 'inviteToken' => null, 'inviteUrl' => null];
         }
 
-        $run->regenerateInviteToken(new \DateTimeImmutable());
+        $run->regenerateInviteToken($this->clock->now());
         $this->runs->flush();
 
         return [
@@ -250,7 +252,7 @@ final readonly class PersonalRunDrafts
             $existing = $this->participants->findByRunAndUser($run->getId(), $callerId);
 
             if (!$existing instanceof RunParticipant) {
-                $participant = RunParticipant::create($run->getId(), $callerId, new \DateTimeImmutable());
+                $participant = RunParticipant::create($run->getId(), $callerId, $this->clock->now());
                 $this->participants->save($participant);
             }
         }

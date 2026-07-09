@@ -20,6 +20,7 @@ use App\Sessions\Application\RunnerGatewayInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -125,6 +126,7 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
             new NullLogger(),
             $runner,
             $minio,
+            new MockClock(),
             'apworlds',
             $checker,
             $usage,

@@ -12,6 +12,7 @@ use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -34,7 +35,7 @@ final class ActivateMembershipTest extends TestCase
             ->method('dispatch')
             ->willReturn(new Envelope(new \stdClass()));
 
-        $service = new ActivateMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
+        $service = new ActivateMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->activate(self::USER_ID, new \DateTimeImmutable('2026-01-01'), 'admin');
     }
 
@@ -56,7 +57,7 @@ final class ActivateMembershipTest extends TestCase
             ->method('dispatch')
             ->willReturn(new Envelope(new \stdClass()));
 
-        $service = new ActivateMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
+        $service = new ActivateMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->activate(self::USER_ID, new \DateTimeImmutable('2026-06-01'), 'helloasso');
 
         // expiresAt should be max(2027-01-01, 2026-06-01) + 12 months = 2028-01-01
@@ -80,7 +81,7 @@ final class ActivateMembershipTest extends TestCase
             ))
             ->willReturn(new Envelope(new \stdClass()));
 
-        $service = new ActivateMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
+        $service = new ActivateMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->activate(self::USER_ID, new \DateTimeImmutable('2026-01-01'), 'admin');
     }
 
@@ -103,7 +104,7 @@ final class ActivateMembershipTest extends TestCase
                 $this->equalTo('membership.dolibarr_sync_dispatch_failed'),
             ));
 
-        $service = new ActivateMembership($memberships, $gateway, $bus, $logger);
+        $service = new ActivateMembership($memberships, $gateway, $bus, $logger, new MockClock());
         $service->activate(self::USER_ID, new \DateTimeImmutable('2026-01-01'), 'admin');
     }
 }

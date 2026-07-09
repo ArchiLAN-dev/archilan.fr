@@ -22,6 +22,7 @@ use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use App\Sessions\Infrastructure\NullRunnerGateway;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 
 final class LaunchPersonalRunJobHandlerTest extends TestCase
 {
@@ -93,6 +94,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             new NullRunnerGateway(),
             $this->createStub(PersonalRunAdvancerInterface::class),
             $this->createStub(LoggerInterface::class),
+            new MockClock(),
         );
 
         $handler(new LaunchPersonalRunJob($run->getId()));
@@ -118,6 +120,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
             $this->createStub(PersonalRunAdvancerInterface::class),
             $logger ?? $this->createStub(LoggerInterface::class),
+            new MockClock(),
         );
     }
 }

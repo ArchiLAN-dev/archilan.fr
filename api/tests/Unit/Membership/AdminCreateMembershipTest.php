@@ -10,6 +10,7 @@ use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final class AdminCreateMembershipTest extends TestCase
@@ -32,6 +33,7 @@ final class AdminCreateMembershipTest extends TestCase
             $gateway,
             $this->createStub(MessageBusInterface::class),
             $this->createStub(LoggerInterface::class),
+            new MockClock(),
         );
         $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), null);
 
@@ -53,6 +55,7 @@ final class AdminCreateMembershipTest extends TestCase
             $gateway,
             $this->createStub(MessageBusInterface::class),
             $this->createStub(LoggerInterface::class),
+            new MockClock(),
         );
         $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), null);
     }
@@ -70,6 +73,7 @@ final class AdminCreateMembershipTest extends TestCase
             $gateway,
             $this->createStub(MessageBusInterface::class),
             $this->createStub(LoggerInterface::class),
+            new MockClock(),
         );
         $result = $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), 'note');
 

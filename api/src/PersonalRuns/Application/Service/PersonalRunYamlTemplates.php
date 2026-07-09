@@ -8,6 +8,7 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\PersonalRuns\Domain\Entity\YamlTemplate;
 use App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
@@ -24,6 +25,7 @@ final readonly class PersonalRunYamlTemplates
         private YamlTemplateRepositoryInterface $templates,
         private GameRepositoryInterface $games,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -73,7 +75,7 @@ final readonly class PersonalRunYamlTemplates
             return $this->error('template_name_taken', ['name' => ['Un template porte déjà ce nom pour ce jeu.']]);
         }
 
-        $template = YamlTemplate::create($userId, $gameId, $name, $yamlResult['yaml'], new \DateTimeImmutable());
+        $template = YamlTemplate::create($userId, $gameId, $name, $yamlResult['yaml'], $this->clock->now());
         $this->templates->save($template);
 
         $this->logger->info('personal_run.yaml_template_saved', ['userId' => $userId, 'gameId' => $gameId, 'templateId' => $template->getId()]);
@@ -99,7 +101,7 @@ final readonly class PersonalRunYamlTemplates
             return $this->error('nothing_to_update', ['_' => ['Aucune modification fournie.']]);
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         if ($hasName) {
             $nameResult = $this->validateName($input);

@@ -11,6 +11,7 @@ use App\Membership\Application\Port\ExpireMembershipInterface;
 use App\Membership\Application\Port\UserRoleGatewayInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -21,6 +22,7 @@ final readonly class ExpireMembership implements ExpireMembershipInterface
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -35,7 +37,7 @@ final readonly class ExpireMembership implements ExpireMembershipInterface
             return;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $membership->expire($now);
         $membershipId = $membership->getId();
         $userId = $membership->getUserId();

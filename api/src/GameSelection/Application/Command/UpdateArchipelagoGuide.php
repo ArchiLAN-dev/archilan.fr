@@ -7,12 +7,14 @@ namespace App\GameSelection\Application\Command;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Domain\Entity\ArchipelagoGuide;
 use App\GameSelection\Domain\Repository\ArchipelagoGuideRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class UpdateArchipelagoGuide
 {
     public function __construct(
         private ArchipelagoGuideRepositoryInterface $repository,
         private InstallStepsNormalizer $normalizer,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -28,7 +30,7 @@ final readonly class UpdateArchipelagoGuide
             return ['errors' => ['steps' => $result['errors']]];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $guide = $this->repository->get();
         if (null === $guide) {
             $guide = ArchipelagoGuide::create($result['steps'], $now);

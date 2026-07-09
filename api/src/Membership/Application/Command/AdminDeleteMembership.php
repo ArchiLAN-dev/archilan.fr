@@ -8,6 +8,7 @@ use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Membership\Application\Port\UserRoleGatewayInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -18,6 +19,7 @@ final readonly class AdminDeleteMembership
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -28,7 +30,7 @@ final readonly class AdminDeleteMembership
             return false;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $wasActive = 'active' === $membership->getStatus() && $membership->getExpiresAt() >= $now;
         $userId = $membership->getUserId();
 

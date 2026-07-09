@@ -9,12 +9,14 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class PersonalRunGameConfig
 {
     public function __construct(
         private RunRepositoryInterface $runs,
         private GameRepositoryInterface $games,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -58,7 +60,7 @@ final readonly class PersonalRunGameConfig
             return $this->result(found: true, errorCode: 'unknown_game', errors: $errors);
         }
 
-        $run->configureGames($games, new \DateTimeImmutable());
+        $run->configureGames($games, $this->clock->now());
         $this->runs->flush();
 
         return $this->result(found: true);

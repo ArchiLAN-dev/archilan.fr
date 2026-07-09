@@ -18,6 +18,7 @@ use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlot;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
 use App\Shared\Application\Support\SlotYamlNameReader;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -35,6 +36,7 @@ final readonly class LaunchPersonalRunJobHandler
         private RunnerGatewayInterface $runnerGateway,
         private PersonalRunAdvancerInterface $personalRunAdvancer,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -99,7 +101,7 @@ final readonly class LaunchPersonalRunJobHandler
 
         $slotNames = $this->slotNameGenerator->generate($generatorInput);
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $sessionId = bin2hex(random_bytes(16));
         $session = Session::create($sessionId, $run->getId(), $now);
         $this->sessions->persist($session);

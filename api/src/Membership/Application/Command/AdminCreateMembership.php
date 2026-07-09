@@ -10,6 +10,7 @@ use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
 use App\Membership\Application\Port\UserRoleGatewayInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -20,6 +21,7 @@ final readonly class AdminCreateMembership
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -32,7 +34,7 @@ final readonly class AdminCreateMembership
         \DateTimeImmutable $expiresAt,
         ?string $adminNote,
     ): array {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $existing = $this->memberships->findActiveByUserId($userId);
         if ($existing instanceof Membership) {

@@ -12,6 +12,7 @@ use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class ReconcileStuckRunsHandlerTest extends TestCase
 {
@@ -86,7 +87,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         $sessions = $this->createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger()))(new ReconcileStuckRunsMessage());
+        (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger(), new MockClock()))(new ReconcileStuckRunsMessage());
     }
 
     private function makeStuckRun(string $status): Run

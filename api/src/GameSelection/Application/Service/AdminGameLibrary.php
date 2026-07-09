@@ -18,6 +18,7 @@ use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\RunnerGatewayInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminGameLibrary
@@ -28,6 +29,7 @@ final readonly class AdminGameLibrary
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
         private MinioStorageInterface $minioStorage,
+        private ClockInterface $clock,
         private string $minioApworldsBucket,
         private ApworldVersionChecker $apworldVersionChecker,
         private GameUsageCounterInterface $gameUsageCounter,
@@ -137,7 +139,7 @@ final readonly class AdminGameLibrary
             $parsed['coverImageAlt'],
             $parsed['coverImageCredit'],
             $parsed['availability'],
-            new \DateTimeImmutable(),
+            $this->clock->now(),
         );
 
         $catalogParsed = $this->parseCatalogSync($input);
@@ -186,7 +188,7 @@ final readonly class AdminGameLibrary
             $parsed['coverImageAlt'],
             $parsed['coverImageCredit'],
             $parsed['availability'],
-            new \DateTimeImmutable(),
+            $this->clock->now(),
         );
 
         if (null !== $parsed['availabilityLocked']) {
@@ -300,7 +302,7 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['file' => ['storage_unavailable']]];
         }
 
-        $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, new \DateTimeImmutable());
+        $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, $this->clock->now());
         $game->setApworldMinioKey($minioKey);
         $game->setOptionTypes(self::normalizeOptionTypes($result['optionTypes'] ?? null));
         $this->gameRepository->save($game);
