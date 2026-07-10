@@ -43,7 +43,7 @@ final readonly class BackfillGameOptionTypes
                 continue;
             }
 
-            $game->setOptionTypes($types);
+            $game->recordOptionTypes($types);
             $this->games->save($game);
             ++$updated;
         }

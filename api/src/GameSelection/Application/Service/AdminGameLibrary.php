@@ -59,7 +59,7 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['steps' => $result['errors']]];
         }
 
-        $game->setInstallSteps($result['steps']);
+        $game->updateInstallSteps($result['steps']);
         $this->gameRepository->save($game);
 
         $this->logger->info('game.tutorial_saved', ['gameId' => $gameId, 'stepCount' => count($result['steps'])]);
@@ -81,7 +81,7 @@ final readonly class AdminGameLibrary
         }
 
         if ($force || [] === $game->getInstallSteps()) {
-            $game->setInstallSteps($this->tutorialSeeder->buildFor($game));
+            $game->updateInstallSteps($this->tutorialSeeder->buildFor($game));
             $this->gameRepository->save($game);
             $this->logger->info('game.tutorial_seeded', ['gameId' => $gameId]);
         }
@@ -146,7 +146,7 @@ final readonly class AdminGameLibrary
         if ($this->hasCatalogSyncData($catalogParsed)) {
             $sync = new GameCatalogSync($game);
             $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
-            $game->setCatalogSync($sync);
+            $game->attachCatalogSync($sync);
         }
 
         if (null !== $game->getIgdbId()) {
@@ -191,8 +191,10 @@ final readonly class AdminGameLibrary
             $this->clock->now(),
         );
 
-        if (null !== $parsed['availabilityLocked']) {
-            $game->setAvailabilityLocked($parsed['availabilityLocked']);
+        if (true === $parsed['availabilityLocked']) {
+            $game->lockAvailability();
+        } elseif (false === $parsed['availabilityLocked']) {
+            $game->unlockAvailability();
         }
 
         $previousIgdbId = $game->getIgdbId();
@@ -203,7 +205,7 @@ final readonly class AdminGameLibrary
             if ($this->hasCatalogSyncData($catalogParsed)) {
                 $sync = new GameCatalogSync($game);
                 $sync->update($catalogParsed['catalogSheetName'], $catalogParsed['apworldSourceUrl'], $catalogParsed['apworldDeployedVersion'], $catalogParsed['igdbId']);
-                $game->setCatalogSync($sync);
+                $game->attachCatalogSync($sync);
             }
         } else {
             // PATCH semantics: only overwrite a catalog-sync field when its key is present in the
@@ -303,8 +305,8 @@ final readonly class AdminGameLibrary
         }
 
         $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, $this->clock->now());
-        $game->setApworldMinioKey($minioKey);
-        $game->setOptionTypes(self::normalizeOptionTypes($result['optionTypes'] ?? null));
+        $game->recordApworldMinioUpload($minioKey);
+        $game->recordOptionTypes(self::normalizeOptionTypes($result['optionTypes'] ?? null));
         $this->gameRepository->save($game);
 
         $this->logger->info('game.apworld_configured', ['gameId' => $gameId, 'hash' => $hash, 'archipelagoGameName' => $archipelagoGameName]);
@@ -410,7 +412,7 @@ final readonly class AdminGameLibrary
         }
 
         if (null !== $latestTag) {
-            $game->getCatalogSync()?->setApworldDeployedVersion($latestTag);
+            $game->getCatalogSync()?->recordApworldDeployment($latestTag);
             $this->gameRepository->save($game);
             // configureApworld built the returned payload before the deployed version was set;
             // rebuild it so the response reflects the freshly recorded version.

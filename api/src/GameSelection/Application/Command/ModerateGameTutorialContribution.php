@@ -64,7 +64,7 @@ final readonly class ModerateGameTutorialContribution
             $game = $this->games->findById($gameId);
             if ($game instanceof Game) {
                 // Replaces the whole tutorial; managed entity flushed together with the contribution below.
-                $game->setInstallSteps($result['steps']);
+                $game->updateInstallSteps($result['steps']);
             }
         }
 

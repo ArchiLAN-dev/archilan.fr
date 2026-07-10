@@ -15,7 +15,7 @@ final class AdminGameContributionModerationTest extends FunctionalTestCase
     public function testApproveAppliesStepsToGameAndMarksApproved(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->setInstallSteps([['type' => 'note', 'title' => 'Ancienne', 'description' => '', 'links' => []]]);
+        $game->updateInstallSteps([['type' => 'note', 'title' => 'Ancienne', 'description' => '', 'links' => []]]);
         $contribution = GameTutorialContribution::submitForGame(
             bin2hex(random_bytes(16)),
             $this->createUser('author@example.org', ['ROLE_USER'])->getId(),

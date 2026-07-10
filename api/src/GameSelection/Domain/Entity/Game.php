@@ -132,7 +132,7 @@ final class Game
         $this->updatedAt = $now;
     }
 
-    public function setApworldMinioKey(string $key): void
+    public function recordApworldMinioUpload(string $key): void
     {
         $this->apworldMinioKey = $key;
     }
@@ -245,7 +245,7 @@ final class Game
     /**
      * @param array<string, array{min: int, max: int, default: int|null}>|null $optionTypes
      */
-    public function setOptionTypes(?array $optionTypes): void
+    public function recordOptionTypes(?array $optionTypes): void
     {
         $this->optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
     }
@@ -261,7 +261,7 @@ final class Game
     /**
      * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null $steps
      */
-    public function setInstallSteps(?array $steps): void
+    public function updateInstallSteps(?array $steps): void
     {
         $this->installSteps = null === $steps || [] === $steps ? null : $steps;
     }
@@ -281,9 +281,14 @@ final class Game
         return $this->availabilityLocked;
     }
 
-    public function setAvailabilityLocked(bool $locked): void
+    public function lockAvailability(): void
     {
-        $this->availabilityLocked = $locked;
+        $this->availabilityLocked = true;
+    }
+
+    public function unlockAvailability(): void
+    {
+        $this->availabilityLocked = false;
     }
 
     public function updateCatalogueMetadata(
@@ -378,7 +383,7 @@ final class Game
         return 'https://github.com'.$path.$query;
     }
 
-    public function setCatalogSync(GameCatalogSync $sync): void
+    public function attachCatalogSync(GameCatalogSync $sync): void
     {
         $this->catalogSync = $sync;
     }

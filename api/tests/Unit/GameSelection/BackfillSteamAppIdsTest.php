@@ -88,7 +88,7 @@ final class BackfillSteamAppIdsTest extends TestCase
 
         if (null !== $igdbId || null !== $steamAppId) {
             $sync = new GameCatalogSync($game, igdbId: $igdbId, steamAppId: $steamAppId);
-            $game->setCatalogSync($sync);
+            $game->attachCatalogSync($sync);
         }
 
         return $game;
