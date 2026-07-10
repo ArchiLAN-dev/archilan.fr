@@ -53,7 +53,7 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     {
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
-        $run->setSessionId('sess-missing');
+        $run->attachSession('sess-missing');
 
         $runs = $this->createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
@@ -78,7 +78,7 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     {
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
-        $run->setSessionId('sess-1');
+        $run->attachSession('sess-1');
 
         $session = Session::create('sess-1', 'event-1', $now);
 

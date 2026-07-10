@@ -36,12 +36,12 @@ final class RunParticipantTest extends TestCase
         self::assertSame('hash', $slots[1]['apworldHash'] ?? null);
     }
 
-    public function testSetSlotPlayerYamlUpdatesMatchingSlot(): void
+    public function testSubmitSlotPlayerYamlUpdatesMatchingSlot(): void
     {
         $participant = RunParticipant::create('run-1', 'user-1', new \DateTimeImmutable());
         $participant->replaceSlots([['slotId' => 's1', 'gameId' => 'g1']]);
 
-        $participant->setSlotPlayerYaml('s1', 'the-yaml', 'the-hash');
+        $participant->submitSlotPlayerYaml('s1', 'the-yaml', 'the-hash');
 
         $slot = $participant->getSlot('s1');
         self::assertNotNull($slot);
@@ -49,12 +49,12 @@ final class RunParticipantTest extends TestCase
         self::assertSame('the-hash', $slot['apworldHash'] ?? null);
     }
 
-    public function testSetSlotPlayerYamlThrowsForUnknownSlot(): void
+    public function testSubmitSlotPlayerYamlThrowsForUnknownSlot(): void
     {
         $participant = RunParticipant::create('run-1', 'user-1', new \DateTimeImmutable());
         $participant->replaceSlots([['slotId' => 's1', 'gameId' => 'g1']]);
 
         $this->expectException(\DomainException::class);
-        $participant->setSlotPlayerYaml('missing', 'y', 'h');
+        $participant->submitSlotPlayerYaml('missing', 'y', 'h');
     }
 }

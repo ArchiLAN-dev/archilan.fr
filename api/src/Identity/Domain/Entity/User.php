@@ -135,7 +135,7 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->steamProfile;
     }
 
-    public function setSteamProfile(?string $steamProfile): void
+    public function updateSteamProfile(?string $steamProfile): void
     {
         $trimmed = null !== $steamProfile ? trim($steamProfile) : null;
         $this->steamProfile = '' === $trimmed ? null : $trimmed;

@@ -217,7 +217,7 @@ final readonly class RegistrationGameSelection
             return ['outcome' => 'error', 'errors' => ['name' => [$nameError]]];
         }
 
-        $registration->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', $this->clock->now());
+        $registration->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '', $this->clock->now());
 
         $this->registrationRepository->flush();
 

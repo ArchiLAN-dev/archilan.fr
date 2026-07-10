@@ -139,7 +139,7 @@ final readonly class LaunchPersonalRunJobHandler
         }
 
         $session->transition(Session::STATUS_VALIDATING, $now);
-        $run->setSessionId($sessionId);
+        $run->attachSession($sessionId);
 
         $this->sessions->flush();
 

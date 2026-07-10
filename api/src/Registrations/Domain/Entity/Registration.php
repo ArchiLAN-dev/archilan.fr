@@ -124,7 +124,7 @@ final class Registration
         $this->updatedAt = $now;
     }
 
-    public function setSlotPlayerYaml(string $slotId, string $playerYaml, string $apworldHash, \DateTimeImmutable $now): void
+    public function submitSlotPlayerYaml(string $slotId, string $playerYaml, string $apworldHash, \DateTimeImmutable $now): void
     {
         if (!$this->isReserved()) {
             throw new \DomainException('Cannot set slot YAML for an inactive registration.');

@@ -94,7 +94,7 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
     {
         $old = new \DateTimeImmutable(self::OLD);
         $run = Run::create('owner-1', 'Stuck', $old);
-        $run->setSessionId('sess-1');
+        $run->attachSession('sess-1');
 
         $run->start($old); // → starting
         if (Run::STATUS_STARTING === $status) {

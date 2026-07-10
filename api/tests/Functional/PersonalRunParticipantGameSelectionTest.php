@@ -126,7 +126,7 @@ final class PersonalRunParticipantGameSelectionTest extends FunctionalTestCase
         $slotId = bin2hex(random_bytes(8));
         $participant = RunParticipant::create($runId, $userId, new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
         $participant->replaceSlots([['slotId' => $slotId, 'gameId' => $gameId]]);
-        $participant->setSlotPlayerYaml($slotId, $yaml, 'hash');
+        $participant->submitSlotPlayerYaml($slotId, $yaml, 'hash');
         $this->entityManager->persist($participant);
         $this->entityManager->flush();
     }

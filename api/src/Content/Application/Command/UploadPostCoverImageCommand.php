@@ -38,7 +38,7 @@ final readonly class UploadPostCoverImageCommand
             return ['outcome' => 'storage_error', 'data' => null];
         }
 
-        $post->setCoverImageKey($key, $this->clock->now());
+        $post->attachCoverImage($key, $this->clock->now());
         $this->postRepository->save($post);
 
         return ['outcome' => 'ok', 'data' => $this->adminPostCatalog->get($postId)];

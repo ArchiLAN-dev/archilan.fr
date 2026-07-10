@@ -31,7 +31,7 @@ final readonly class SaveSteamAccount
             return ['outcome' => 'invalid_input'];
         }
 
-        $user->setSteamProfile(trim($rawInput));
+        $user->updateSteamProfile(trim($rawInput));
         $this->userRepository->save($user);
 
         $this->logger->info('steam.account_saved', ['userId' => $user->getId()]);
@@ -46,7 +46,7 @@ final readonly class SaveSteamAccount
             return;
         }
 
-        $user->setSteamProfile(null);
+        $user->updateSteamProfile(null);
         $this->userRepository->save($user);
 
         $this->logger->info('steam.account_removed', ['userId' => $user->getId()]);

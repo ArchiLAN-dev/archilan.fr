@@ -290,7 +290,7 @@ final readonly class PersonalRunGameSelection
             return $this->yamlResult(found: true, errors: ['name' => [$nameError]]);
         }
 
-        $participant->setSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
+        $participant->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
         $this->participants->flush();
 

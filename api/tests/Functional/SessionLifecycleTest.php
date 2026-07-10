@@ -430,7 +430,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
         $registration->replaceSlots([
             ['slotId' => 'slot-1', 'gameId' => $game->getId()],
         ], new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
-        $registration->setSlotPlayerYaml('slot-1', "name: PlayerName\ngame: Hollow Knight\n", 'test-hash', new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
+        $registration->submitSlotPlayerYaml('slot-1', "name: PlayerName\ngame: Hollow Knight\n", 'test-hash', new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
         $this->entityManager->flush();
 
         $this->client->jsonRequest('GET', '/api/v1/admin/events/evt-001/sessions/builder');
