@@ -36,7 +36,7 @@ final readonly class UploadEventCoverImageCommand
             return ['outcome' => 'storage_error', 'data' => null];
         }
 
-        $event->setCoverImageKey($key, $this->clock->now());
+        $event->attachCoverImage($key, $this->clock->now());
         $this->eventRepository->save($event);
 
         return ['outcome' => 'ok', 'data' => $this->adminEventDrafts->get($eventId)];

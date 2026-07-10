@@ -258,7 +258,7 @@ final class AdminRegistrationDashboardTest extends FunctionalTestCase
             gameSelectionConfig: $gameSelectionConfig,
         );
         if (null !== $helloassoFormSlug) {
-            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+            $event->linkHelloassoForm($helloassoFormSlug, $now);
             $this->entityManager->flush();
         }
 

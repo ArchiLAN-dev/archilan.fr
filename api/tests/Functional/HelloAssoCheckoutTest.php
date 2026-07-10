@@ -197,7 +197,7 @@ final class HelloAssoCheckoutTest extends FunctionalTestCase
         );
         $this->transitionEventTo($event, $status, $now);
         if (null !== $helloassoFormSlug) {
-            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+            $event->linkHelloassoForm($helloassoFormSlug, $now);
         }
         $this->entityManager->flush();
 
