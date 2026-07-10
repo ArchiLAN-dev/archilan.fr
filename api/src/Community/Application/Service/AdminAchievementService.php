@@ -117,7 +117,7 @@ final readonly class AdminAchievementService
         $definition->update($name, $this->description($payload), $rule, $now);
         // Only touch the image when the field is present, so an edit that omits it keeps the current image.
         if ($this->hasImageKey($payload)) {
-            $definition->setCustomImage($this->imageKey($payload), $now);
+            $definition->updateCustomImage($this->imageKey($payload), $now);
         }
         $this->definitions->flush();
 
@@ -131,7 +131,11 @@ final readonly class AdminAchievementService
             return false;
         }
 
-        $definition->setActive($active, $this->clock->now());
+        if ($active) {
+            $definition->activate($this->clock->now());
+        } else {
+            $definition->deactivate($this->clock->now());
+        }
         $this->definitions->flush();
 
         return true;

@@ -67,16 +67,22 @@ final class AchievementDefinition
         $this->updatedAt = $now;
     }
 
-    /** Set or clear (null) the custom image key. */
-    public function setCustomImage(?string $key, \DateTimeImmutable $now): void
+    /** Update or clear (null) the custom image key. */
+    public function updateCustomImage(?string $key, \DateTimeImmutable $now): void
     {
         $this->customImageKey = $key;
         $this->updatedAt = $now;
     }
 
-    public function setActive(bool $active, \DateTimeImmutable $now): void
+    public function activate(\DateTimeImmutable $now): void
     {
-        $this->active = $active;
+        $this->active = true;
+        $this->updatedAt = $now;
+    }
+
+    public function deactivate(\DateTimeImmutable $now): void
+    {
+        $this->active = false;
         $this->updatedAt = $now;
     }
 
