@@ -1,6 +1,6 @@
 # Story 33.15: ClockInterface Migration (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -36,11 +36,11 @@ dependency (used in 33.6) and autowires `ClockInterface` - no services.yaml wiri
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Commit story + pilot one context (Payments) end-to-end to fix the pattern (source + tests) (AC: 1, 2)
-- [ ] Task 2: Migrate the remaining contexts in batches (Community, Identity, Events, Registrations, PersonalRuns, Membership, GameSelection, CatalogSync, Content) - inject clock, `$this->clock->now()`, MockClock in tests (AC: 1, 2)
-- [ ] Task 3: Handle the 1 static site (`AdminRegistrationExporter`) (AC: 1)
-- [ ] Task 4: Extend the validator no-clock rule + unit tests (AC: 3)
-- [ ] Task 5: Gates + PR (AC: 5)
+- [x] Task 1: Commit story + pilot one context (Payments) end-to-end to fix the pattern (source + tests) (AC: 1, 2)
+- [x] Task 2: Migrate the remaining contexts in batches (Community, Identity, Events, Registrations, PersonalRuns, Membership, GameSelection, CatalogSync, Content) - inject clock, `$this->clock->now()`, MockClock in tests (AC: 1, 2)
+- [x] Task 3: Handle the 1 static site (`AdminRegistrationExporter`) - re-scanned, it is an INSTANCE method (false positive in the original scan); no static handling needed, injected normally like the rest (AC: 1)
+- [x] Task 4: Extend the validator no-clock rule + unit tests (AC: 3)
+- [x] Task 5: Gates + PR (AC: 5)
 
 ## Dev Notes
 
@@ -62,14 +62,45 @@ dependency (used in 33.6) and autowires `ClockInterface` - no services.yaml wiri
 
 ### Agent Model Used
 
+claude-opus-4-8 (1M context).
+
 ### Debug Log References
+
+- The `AdminRegistrationExporter` "static site" from the 33.5 §D worklist was a false positive: re-scan
+  confirmed it is an instance method. All 126 sites were instance-method reads; no static/parameter-threading
+  workaround was needed.
+- Validator self-match trap: the new clock-construct rule initially flagged its own source file, because the
+  doc-string contained the literal `new \DateTimeImmutable()` example (and later `date()`/`time()`). Reworded
+  the comment to describe the forms without the matchable literals - same discipline the existing
+  `date()`/`time()` rule relies on.
 
 ### Completion Notes List
 
+- 5 commits: Payments pilot -> Community+Identity -> Events+Registrations+Content ->
+  PersonalRuns+Membership+GameSelection+CatalogSync -> validator rule + tests.
+- 128 `$this->clock->now()` sites introduced across 66 Application services (65 migrated + Payments pilot);
+  0 zero-arg `new \DateTime*` reads remain in non-Sessions Application.
+- Every read was `\DateTimeImmutable` - no mutable `new \DateTime()`, so no `\DateTime::createFromInterface`
+  handling. Argumented constructions (ISO string / variable) and `new \DateInterval(...)` left untouched.
+- Domain purity preserved: the clock value is passed as a parameter to domain business methods
+  (`$run->start($this->clock->now())`), the domain never reads a clock (AC-D3).
+- No services.yaml change - `ClockInterface` autowires from symfony/clock; scalar binds by name are unaffected.
+  Confirmed by `lint:container`.
+- Validator: `FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS = [DateTimeImmutable, DateTime]`, Sessions exempt via
+  dedicated `CLOCK_CONSTRUCT_EXEMPT_CONTEXTS` (not coupled to the taxonomy allowlist). 3 new unit tests
+  (zero-arg reported, argumented not reported, frozen-context exempt).
+- Gates: phpstan 0, cs-fixer 0 (src+tests), arch respected, full isolated suite **1466 tests / 10269 assertions**.
+
 ### File List
+
+- 66 `src/**/Application/**` services (constructor clock injection + `$this->clock->now()`).
+- ~20 `tests/Unit/**` + 1 `tests/Functional/HelloAssoSyncHandlerTest.php` (MockClock wiring).
+- `src/Shared/Application/Support/DddArchitectureValidator.php` (new rule + 2 named consts).
+- `tests/Unit/DddArchitectureValidatorTest.php` (+3 tests).
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-06 | Story created (epic-33 follow-up 33.15). 126 sites / ~73 files / 11 contexts (Sessions excluded); only 1 static site; symfony/clock autowires. Pilot-then-batch by context. Status: ready-for-dev. |
+| 2026-07-10 | Implemented: 66 Application services migrated to injected ClockInterface, validator extended (zero-arg DateTime construct rule, Sessions-exempt) + 3 tests. All gates green (isolated suite 1466 tests). The "1 static site" was a false positive (instance method). Status: ready-for-review. |
