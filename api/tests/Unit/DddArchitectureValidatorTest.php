@@ -382,6 +382,70 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForFile);
     }
 
+    public function testApplicationZeroArgDateTimeConstructIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Application/StampNow.php',
+            "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class StampNow {\n"
+            ."    public function immutable(): \\DateTimeImmutable { return new \\DateTimeImmutable(); }\n"
+            ."    public function mutableNow(): \\DateTime { return new \\DateTime('now'); }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application layer must not construct DateTimeImmutable() to read the wall clock - inject Psr\Clock\ClockInterface and call $this->clock->now(): src/Events/Application/StampNow.php',
+            $report->violations(),
+        );
+        self::assertContains(
+            'Application layer must not construct DateTime() to read the wall clock - inject Psr\Clock\ClockInterface and call $this->clock->now(): src/Events/Application/StampNow.php',
+            $report->violations(),
+        );
+    }
+
+    public function testApplicationArgumentedDateTimeConstructIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Support');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Support/ParseInstant.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nfinal class ParseInstant {\n"
+            ."    public function fixed(): \\DateTimeImmutable { return new \\DateTimeImmutable('2026-01-01T00:00:00+00:00'); }\n"
+            ."    public function fromRaw(string \$raw): \\DateTimeImmutable { return new \\DateTimeImmutable(\$raw); }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'ParseInstant.php'),
+        ));
+        self::assertSame([], $violationsForFile);
+    }
+
+    public function testFrozenContextZeroArgDateTimeConstructIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Sessions/Application/SessionStamp.php',
+            "<?php\n\nnamespace App\\Sessions\\Application;\n\nfinal class SessionStamp {\n"
+            ."    public function now(): \\DateTimeImmutable { return new \\DateTimeImmutable(); }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $clockConstructViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'SessionStamp.php') && str_contains($v, 'read the wall clock'),
+        ));
+        self::assertSame([], $clockConstructViolations);
+    }
+
     public function testTaxonomyExceptionOutsideExceptionFolderIsReportedForMigratedContext(): void
     {
         $projectDir = $this->createProjectFixture();

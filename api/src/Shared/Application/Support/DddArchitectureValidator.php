@@ -72,6 +72,31 @@ final readonly class DddArchitectureValidator
     ];
 
     /**
+     * A DateTimeImmutable/DateTime constructed with no argument (or the literal 'now')
+     * reads the wall clock, the same class of impurity as the forbidden clock calls above
+     * (story 33.15). Application code must inject Psr\Clock\ClockInterface and call
+     * $this->clock->now() instead. Only the argument-less (or explicit 'now') form is a
+     * clock read; passing an ISO string or a variable parses a specific instant and is allowed.
+     *
+     * @var list<string>
+     */
+    private const FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS = [
+        'DateTimeImmutable',
+        'DateTime',
+    ];
+
+    /**
+     * Contexts exempt from the clock-construct rule because they are not yet migrated to
+     * ClockInterface. Sessions is frozen until Epic 32 merges (TODO epic-32); once migrated,
+     * empty this list - never grow it.
+     *
+     * @var list<string>
+     */
+    private const CLOCK_CONSTRUCT_EXEMPT_CONTEXTS = [
+        'Sessions',
+    ];
+
+    /**
      * Named allowlist for intentional rule exceptions (story 33.5): the only sanctioned
      * way to except a file from a rule - never suppress via inline annotations.
      *
@@ -421,6 +446,23 @@ final readonly class DddArchitectureValidator
                         $violations[] = sprintf(
                             'Application layer must not call %s() - inject a clock or pass the value as a parameter: src/%s',
                             $function,
+                            $relativePath,
+                        );
+                    }
+                }
+
+                if (in_array($context, self::CLOCK_CONSTRUCT_EXEMPT_CONTEXTS, true)) {
+                    continue;
+                }
+
+                foreach (self::FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS as $class) {
+                    // Zero-arg or explicit 'now' only - argumented constructions parse a specific instant.
+                    $pattern = '/new\s+\\\\?'.preg_quote($class, '/').'\s*\(\s*(?:\'now\'|"now")?\s*\)/';
+
+                    if (1 === preg_match($pattern, $contents)) {
+                        $violations[] = sprintf(
+                            'Application layer must not construct %s() to read the wall clock - inject Psr\Clock\ClockInterface and call $this->clock->now(): src/%s',
+                            $class,
                             $relativePath,
                         );
                     }
