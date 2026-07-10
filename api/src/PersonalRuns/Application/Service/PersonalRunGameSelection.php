@@ -18,6 +18,7 @@ use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Shared\Domain\ValueObject\SlotName;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
@@ -33,6 +34,7 @@ final readonly class PersonalRunGameSelection
         private CommunityUserDirectoryQueryInterface $directory,
         private CommunityLevelQuery $levels,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -329,7 +331,7 @@ final readonly class PersonalRunGameSelection
             $participant = $this->participants->findByRunAndUser($run->getId(), $userId);
 
             if (!$participant instanceof RunParticipant) {
-                $participant = RunParticipant::create($run->getId(), $userId, new \DateTimeImmutable());
+                $participant = RunParticipant::create($run->getId(), $userId, $this->clock->now());
                 $this->participants->save($participant);
             }
 

@@ -9,6 +9,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Payments\Application\Support\HelloAssoConfig;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class PublicEventCatalog
 {
@@ -17,6 +18,7 @@ final readonly class PublicEventCatalog
         private RegistrationCounter $registrationCounter,
         private HelloAssoConfig $helloAssoConfig,
         private MinioStorageInterface $minioStorage,
+        private ClockInterface $clock,
         private string $minioMediaBucket,
         private int $minioPresignTtl,
     ) {
@@ -140,7 +142,7 @@ final readonly class PublicEventCatalog
 
     private function canExposeCheckout(Event $event, int $confirmedCount): bool
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         return $event->isPublic()
             && Event::STATUS_PUBLISHED === $event->getStatus()

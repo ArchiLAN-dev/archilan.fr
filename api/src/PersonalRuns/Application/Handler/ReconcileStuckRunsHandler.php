@@ -9,6 +9,7 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -39,12 +40,13 @@ final readonly class ReconcileStuckRunsHandler
         private RunRepositoryInterface $runs,
         private SessionRepositoryInterface $sessions,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
     public function __invoke(ReconcileStuckRunsMessage $message): void
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $candidates = $this->runs->findByStatuses(Run::STUCK_STATUSES);
 

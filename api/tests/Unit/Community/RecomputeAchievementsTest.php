@@ -16,6 +16,7 @@ use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class RecomputeAchievementsTest extends TestCase
 {
@@ -77,7 +78,7 @@ final class RecomputeAchievementsTest extends TestCase
         $builder = new MetricBagBuilder([new StatsMetricProvider($stats, $history)]);
         $definitions = $this->definitionsRepo(deactivate: ['veteran']);
         $grants = $this->inMemoryGrantRepo();
-        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier());
+        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock());
 
         $service->recomputeForUser('u3');
 
@@ -99,7 +100,7 @@ final class RecomputeAchievementsTest extends TestCase
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($statsStub, $historyStub)]);
 
-        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier());
+        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock());
     }
 
     /**

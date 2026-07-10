@@ -12,6 +12,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class PersonalRunDraftsListMineTest extends TestCase
 {
@@ -23,6 +24,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
             $this->createStub(UserRepositoryInterface::class),
             $this->createStub(SessionRepositoryInterface::class),
             $this->createStub(CommunityUserDirectoryQueryInterface::class),
+            new MockClock(),
             'https://archilan.test',
         );
     }

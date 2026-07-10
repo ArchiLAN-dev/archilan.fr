@@ -21,6 +21,7 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 
 /**
  * Read facade for the community profile (stories 30.1-30.6). Composes the enriched read model and gates
@@ -47,6 +48,7 @@ final readonly class CommunityProfileView
         private CommunityLevelQuery $levels,
         private AchievementRarityQueryInterface $rarity,
         private AchievementImageUrlResolver $achievementImages,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -317,7 +319,7 @@ final readonly class CommunityProfileView
             return $existing;
         }
 
-        $profile = CommunityProfile::create($userId, new \DateTimeImmutable());
+        $profile = CommunityProfile::create($userId, $this->clock->now());
         try {
             $this->profiles->save($profile);
 

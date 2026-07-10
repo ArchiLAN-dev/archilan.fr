@@ -9,6 +9,7 @@ use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -21,6 +22,7 @@ final readonly class RegisterUser
         private LoggerInterface $logger,
         private SlugGenerator $slugGenerator,
         private SendEmailConfirmation $sendEmailConfirmation,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -40,7 +42,7 @@ final readonly class RegisterUser
             return ['errors' => $errors];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         // The 'auto' hasher is bound to PasswordAuthenticatedUserInterface; no full entity needed here.
         $passwordHash = $this->passwordHasher->hashPassword(
             new class implements PasswordAuthenticatedUserInterface {

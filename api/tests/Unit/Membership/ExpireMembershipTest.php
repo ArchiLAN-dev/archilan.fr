@@ -12,6 +12,7 @@ use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -40,7 +41,7 @@ final class ExpireMembershipTest extends TestCase
             ->method('dispatch')
             ->willReturn(new Envelope(new \stdClass()));
 
-        $service = new ExpireMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
+        $service = new ExpireMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->expire(self::MEMBERSHIP_ID);
 
         self::assertSame('expired', $membership->getStatus());
@@ -57,7 +58,7 @@ final class ExpireMembershipTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->never())->method('dispatch');
 
-        $service = new ExpireMembership($memberships, $this->createStub(UserRoleGatewayInterface::class), $bus, $this->createStub(LoggerInterface::class));
+        $service = new ExpireMembership($memberships, $this->createStub(UserRoleGatewayInterface::class), $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->expire(self::MEMBERSHIP_ID);
     }
 
@@ -69,7 +70,7 @@ final class ExpireMembershipTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->never())->method('dispatch');
 
-        $service = new ExpireMembership($memberships, $this->createStub(UserRoleGatewayInterface::class), $bus, $this->createStub(LoggerInterface::class));
+        $service = new ExpireMembership($memberships, $this->createStub(UserRoleGatewayInterface::class), $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->expire(self::MEMBERSHIP_ID);
     }
 
@@ -92,7 +93,7 @@ final class ExpireMembershipTest extends TestCase
             ))
             ->willReturn(new Envelope(new \stdClass()));
 
-        $service = new ExpireMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class));
+        $service = new ExpireMembership($memberships, $gateway, $bus, $this->createStub(LoggerInterface::class), new MockClock());
         $service->expire(self::MEMBERSHIP_ID);
     }
 }

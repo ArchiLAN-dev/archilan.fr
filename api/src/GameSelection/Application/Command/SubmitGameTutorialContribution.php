@@ -10,6 +10,7 @@ use App\GameSelection\Domain\Entity\GameTutorialContribution;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use Psr\Clock\ClockInterface;
 
 /**
  * Submits a community install-tutorial contribution (story 31.6): on an existing game (by slug) or a
@@ -24,6 +25,7 @@ final readonly class SubmitGameTutorialContribution
         private GameRepositoryInterface $games,
         private GameTutorialContributionRepositoryInterface $contributions,
         private InstallStepsNormalizer $normalizer,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -63,7 +65,7 @@ final readonly class SubmitGameTutorialContribution
             return ['found' => true, 'errors' => $errors->toArray()];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $id = bin2hex(random_bytes(16));
 
         if ($hasSlug) {

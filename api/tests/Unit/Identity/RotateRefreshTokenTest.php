@@ -13,6 +13,7 @@ use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -126,7 +127,7 @@ final class RotateRefreshTokenTest extends TestCase
         $userRepo = $this->createStub(UserRepositoryInterface::class);
         $userRepo->method('findById')->willReturn($this->user());
 
-        $auth = new AuthenticateUser($userRepo, $this->createStub(UserPasswordHasherInterface::class));
+        $auth = new AuthenticateUser($userRepo, $this->createStub(UserPasswordHasherInterface::class), new MockClock());
 
         return new RotateRefreshToken($repo, new RefreshTokenFactory(), $auth, $this->createStub(LoggerInterface::class));
     }

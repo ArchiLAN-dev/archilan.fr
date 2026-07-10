@@ -11,6 +11,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\AdminCreationAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -23,6 +24,7 @@ final readonly class AdminCreateAdminAccount
         private UserPasswordHasherInterface $passwordHasher,
         private LoggerInterface $logger,
         private SlugGenerator $slugGenerator,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -43,7 +45,7 @@ final readonly class AdminCreateAdminAccount
             return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $passwordHash = $this->passwordHasher->hashPassword(
             new class implements PasswordAuthenticatedUserInterface {
                 public function getPassword(): ?string

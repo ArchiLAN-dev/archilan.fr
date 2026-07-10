@@ -7,6 +7,7 @@ namespace App\Registrations\Application\Command;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationModification
@@ -15,6 +16,7 @@ final readonly class AdminRegistrationModification
         private RegistrationRepositoryInterface $registrationRepository,
         private EventRepositoryInterface $eventRepository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -62,7 +64,7 @@ final readonly class AdminRegistrationModification
             return ['outcome' => 'error', 'errors' => $errors];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $diffedSlots = $this->diffSlots($registration->getGameSlots(), $slotsInput);
         $registration->replaceSlots($diffedSlots, $now);

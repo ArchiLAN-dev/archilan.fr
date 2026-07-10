@@ -10,6 +10,7 @@ use App\Membership\Application\Message\MembershipReminderMessage;
 use App\Membership\Application\Query\MembershipExpiryCheckQueryInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -20,12 +21,13 @@ final readonly class CheckMembershipExpiryMessageHandler
         private MembershipExpiryCheckQueryInterface $expiryCheck,
         private MembershipRepositoryInterface $memberships,
         private MessageBusInterface $bus,
+        private ClockInterface $clock,
     ) {
     }
 
     public function __invoke(CheckMembershipExpiryMessage $message): void
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $this->dispatchExpiries($now);
         $this->dispatchReminders($now, 30);

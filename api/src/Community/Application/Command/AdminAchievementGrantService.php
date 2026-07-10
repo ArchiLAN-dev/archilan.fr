@@ -11,6 +11,7 @@ use App\Community\Domain\Entity\AchievementGrant;
 use App\Community\Domain\Entity\Notification;
 use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 /**
  * Manual grant / revoke of an achievement by an admin (story 30.34). Sits beside the engine: it writes the
@@ -24,6 +25,7 @@ final readonly class AdminAchievementGrantService
         private AchievementGrantRepositoryInterface $grants,
         private CommunityUserDirectoryQueryInterface $directory,
         private Notifier $notifier,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -50,7 +52,7 @@ final readonly class AdminAchievementGrantService
             return 'ok';
         }
 
-        $this->grants->save(AchievementGrant::grant($userId, $key, new \DateTimeImmutable()));
+        $this->grants->save(AchievementGrant::grant($userId, $key, $this->clock->now()));
         $this->notifier->notify($userId, Notification::TYPE_ACHIEVEMENT_UNLOCKED, ['achievementKey' => $key]);
 
         return 'ok';

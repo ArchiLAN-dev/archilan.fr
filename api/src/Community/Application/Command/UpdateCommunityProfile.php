@@ -12,6 +12,7 @@ use App\Community\Domain\ValueObject\BannerPreset;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use Psr\Clock\ClockInterface;
 
 /**
  * Owner edit of their own community profile customization (story 30.3). Upserts the profile row and
@@ -25,6 +26,7 @@ final readonly class UpdateCommunityProfile
     public function __construct(
         private CommunityProfileRepositoryInterface $profiles,
         private GameRepositoryInterface $games,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -66,7 +68,7 @@ final readonly class UpdateCommunityProfile
             return ['errorCode' => 'validation_failed', 'errors' => $errorsArray];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $profile = $this->profiles->findByUserId($userId);
         if (!$profile instanceof CommunityProfile) {
             $profile = CommunityProfile::create($userId, $now);

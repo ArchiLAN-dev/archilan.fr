@@ -8,6 +8,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class AdminRegistrationCancellation
@@ -18,6 +19,7 @@ final readonly class AdminRegistrationCancellation
         private RegistrationCounter $registrationCounter,
         private RealtimePublisher $realtimePublisher,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -40,7 +42,7 @@ final readonly class AdminRegistrationCancellation
             return ['outcome' => 'already_cancelled'];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $registration->cancel($now);
 
         $event = $this->eventRepository->findById($eventId);

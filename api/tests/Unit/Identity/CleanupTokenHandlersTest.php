@@ -12,6 +12,7 @@ use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
 use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 
 final class CleanupTokenHandlersTest extends TestCase
 {
@@ -36,7 +37,7 @@ final class CleanupTokenHandlersTest extends TestCase
             ->method('info')
             ->with('auth.cleanup_email_confirmation_tokens', ['deleted' => 3]);
 
-        (new CleanupEmailConfirmationTokensHandler($repo, $logger, 7))(new CleanupEmailConfirmationTokensMessage());
+        (new CleanupEmailConfirmationTokensHandler($repo, $logger, new MockClock(), 7))(new CleanupEmailConfirmationTokensMessage());
     }
 
     public function testPasswordResetHandlerAppliesGraceAndLogs(): void
@@ -51,6 +52,6 @@ final class CleanupTokenHandlersTest extends TestCase
             ->method('info')
             ->with('auth.cleanup_password_reset_tokens', ['deleted' => 5]);
 
-        (new CleanupPasswordResetTokensHandler($repo, $logger, 7))(new CleanupPasswordResetTokensMessage());
+        (new CleanupPasswordResetTokensHandler($repo, $logger, new MockClock(), 7))(new CleanupPasswordResetTokensMessage());
     }
 }

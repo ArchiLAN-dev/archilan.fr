@@ -13,6 +13,7 @@ use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -26,6 +27,7 @@ final readonly class ReserveRegistration
         private RealtimePublisher $realtimePublisher,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -64,7 +66,7 @@ final readonly class ReserveRegistration
                 return null;
             }
 
-            $now = new \DateTimeImmutable();
+            $now = $this->clock->now();
             $ineligibleReason = $this->computeIneligibleReason($lockedEvent, $now);
 
             if (null !== $ineligibleReason) {
@@ -109,9 +111,9 @@ final readonly class ReserveRegistration
         $newCount = $confirmedCount + 1;
         $remaining = max(0, $lockedEvent->getCapacity() - $newCount);
 
-        $this->dispatchCapacityNotificationIfNeeded($lockedEvent, $newCount, new \DateTimeImmutable());
+        $this->dispatchCapacityNotificationIfNeeded($lockedEvent, $newCount, $this->clock->now());
         $this->realtimePublisher->seatCounter($lockedEvent->getId(), $remaining);
-        $this->realtimePublisher->adminRegistrationCreated($lockedEvent->getId(), $registrationId, new \DateTimeImmutable());
+        $this->realtimePublisher->adminRegistrationCreated($lockedEvent->getId(), $registrationId, $this->clock->now());
 
         return ['outcome' => 'reserved', 'registrationId' => $registrationId];
     }

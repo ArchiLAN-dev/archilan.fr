@@ -10,6 +10,7 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Entity\GameTutorialContribution;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -27,6 +28,7 @@ final readonly class ModerateGameTutorialContribution
         private InstallStepsNormalizer $normalizer,
         private Notifier $notifier,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -51,7 +53,7 @@ final readonly class ModerateGameTutorialContribution
         }
 
         try {
-            $contribution->approve($reviewerId, new \DateTimeImmutable());
+            $contribution->approve($reviewerId, $this->clock->now());
         } catch (\DomainException) {
             // Lost a concurrent moderation race: the aggregate invariant rejects a non-pending transition.
             return ['found' => true, 'conflict' => true, 'errors' => []];
@@ -90,7 +92,7 @@ final readonly class ModerateGameTutorialContribution
         }
 
         try {
-            $contribution->reject($reviewerId, $reason, new \DateTimeImmutable());
+            $contribution->reject($reviewerId, $reason, $this->clock->now());
         } catch (\DomainException) {
             return ['found' => true, 'conflict' => true, 'errors' => []];
         }

@@ -12,6 +12,7 @@ use App\Membership\Application\Query\MembershipExpiryCheckQueryInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -31,6 +32,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $this->createStub(MembershipRepositoryInterface::class),
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());
@@ -76,6 +78,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $memberships,
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());
@@ -123,6 +126,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $memberships,
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());
@@ -146,6 +150,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $memberships,
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());

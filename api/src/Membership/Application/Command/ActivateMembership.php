@@ -11,6 +11,7 @@ use App\Membership\Application\Port\ActivateMembershipInterface;
 use App\Membership\Application\Port\UserRoleGatewayInterface;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -21,6 +22,7 @@ final readonly class ActivateMembership implements ActivateMembershipInterface
         private UserRoleGatewayInterface $userRoleGateway,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -32,7 +34,7 @@ final readonly class ActivateMembership implements ActivateMembershipInterface
         ?string $adminNote = null,
     ): void {
         $existing = $this->memberships->findActiveByUserId($userId);
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $notificationExpiresAt = null;
         $activatedMembershipId = '';
 

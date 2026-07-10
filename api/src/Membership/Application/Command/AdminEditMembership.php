@@ -7,12 +7,14 @@ namespace App\Membership\Application\Command;
 use App\Membership\Application\Query\AdminMembershipListQuery;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
 
 final readonly class AdminEditMembership
 {
     public function __construct(
         private MembershipRepositoryInterface $memberships,
         private AdminMembershipListQuery $membershipQuery,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -31,7 +33,7 @@ final readonly class AdminEditMembership
         }
 
         $resolvedExpiresAt = $expiresAt ?? $startedAt->add(new \DateInterval('P12M'));
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $membership->adminEdit($startedAt, $resolvedExpiresAt, $adminNote, $now);
         $this->memberships->flush();

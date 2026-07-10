@@ -9,6 +9,7 @@ use App\Identity\Application\Support\SlugGenerator;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class HandleDiscordAuthCallback
@@ -18,6 +19,7 @@ final readonly class HandleDiscordAuthCallback
         private UserRepositoryInterface $userRepository,
         private SlugGenerator $slugGenerator,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
         private string $discordRedirectUriAuth,
     ) {
     }
@@ -62,7 +64,7 @@ final readonly class HandleDiscordAuthCallback
             return ['outcome' => 'email_conflict'];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $slug = $this->slugGenerator->generateForUser($discordUsername ?: $emailCanonical);
         $displayName = '' !== $discordUsername ? $discordUsername : $email;
 

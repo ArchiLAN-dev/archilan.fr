@@ -8,6 +8,7 @@ use App\Events\Domain\Entity\EventPrivateAccessLog;
 use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Registrations\Application\Query\RegistrationCounter;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class VerifyPrivateEventAccess
@@ -17,6 +18,7 @@ final readonly class VerifyPrivateEventAccess
         private EventPrivateAccessLogRepositoryInterface $accessLogRepository,
         private RegistrationCounter $registrationCounter,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -43,7 +45,7 @@ final readonly class VerifyPrivateEventAccess
 
         $confirmedCount = $this->registrationCounter->countConfirmed($event->getId());
         $granted = is_string($password) && '' !== $password
-            && $this->canUnlockPrivateRegistration($event, $confirmedCount, new \DateTimeImmutable())
+            && $this->canUnlockPrivateRegistration($event, $confirmedCount, $this->clock->now())
             && $event->verifyPrivateAccessPassword($password);
 
         $this->accessLogRepository->save(new EventPrivateAccessLog(
@@ -51,7 +53,7 @@ final readonly class VerifyPrivateEventAccess
             $event->getId(),
             $userId,
             $granted,
-            new \DateTimeImmutable(),
+            $this->clock->now(),
         ));
 
         $this->logger->info('event.private_access_attempt', ['eventId' => $eventId, 'userId' => $userId, 'granted' => $granted]);

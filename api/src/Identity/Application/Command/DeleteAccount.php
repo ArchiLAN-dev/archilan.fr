@@ -9,6 +9,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\DeletionAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class DeleteAccount
@@ -17,6 +18,7 @@ final readonly class DeleteAccount
         private UserRepositoryInterface $userRepository,
         private DeletionAuditRepositoryInterface $auditRepository,
         private YamlTemplateRepositoryInterface $yamlTemplates,
+        private ClockInterface $clock,
         private string $emailHashSecret,
         private LoggerInterface $logger,
     ) {
@@ -24,7 +26,7 @@ final readonly class DeleteAccount
 
     public function delete(User $user, string $reason = 'user_request'): DeletionAudit
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $audit = DeletionAudit::record(
             $user->getId(),
             $user->getEmailHash($this->emailHashSecret),

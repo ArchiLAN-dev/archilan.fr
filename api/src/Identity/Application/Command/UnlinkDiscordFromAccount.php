@@ -7,6 +7,7 @@ namespace App\Identity\Application\Command;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -16,6 +17,7 @@ final readonly class UnlinkDiscordFromAccount
         private UserRepositoryInterface $userRepository,
         private LoggerInterface $logger,
         private MessageBusInterface $bus,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -27,7 +29,7 @@ final readonly class UnlinkDiscordFromAccount
         }
 
         $discordId = $user->getDiscordId();
-        $user->unlinkDiscord(new \DateTimeImmutable());
+        $user->unlinkDiscord($this->clock->now());
         $this->userRepository->save($user);
 
         $this->logger->info('discord.unlinked', ['userId' => $user->getId()]);

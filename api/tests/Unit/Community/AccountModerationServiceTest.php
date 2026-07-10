@@ -12,6 +12,7 @@ use App\Community\Application\Support\Notifier;
 use App\Community\Domain\Repository\ContentReportRepositoryInterface;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class AccountModerationServiceTest extends TestCase
 {
@@ -36,6 +37,7 @@ final class AccountModerationServiceTest extends TestCase
             $this->createStub(CommunityUserDirectoryQueryInterface::class),
             $admins,
             $this->createStub(Notifier::class),
+            new MockClock(),
         );
 
         // The whole operation aborts and rolls back rather than leaving a banned user with no audit trail.
@@ -59,6 +61,7 @@ final class AccountModerationServiceTest extends TestCase
             $this->createStub(CommunityUserDirectoryQueryInterface::class),
             $admins,
             $this->createStub(Notifier::class),
+            new MockClock(),
         );
 
         self::assertSame('forbidden', $service->ban('admin', 'admin', 'self'));

@@ -11,6 +11,7 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -23,6 +24,7 @@ final readonly class RegistrationSubmission
         private GameRepositoryInterface $gameRepository,
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -62,7 +64,7 @@ final readonly class RegistrationSubmission
         $alreadyConfirmed = null !== $registration->getSubmittedAt();
 
         if (!$alreadyConfirmed) {
-            $now = new \DateTimeImmutable();
+            $now = $this->clock->now();
             $registration->confirm($now);
             $this->registrationRepository->flush();
 

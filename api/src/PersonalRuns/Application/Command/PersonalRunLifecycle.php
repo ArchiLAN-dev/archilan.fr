@@ -12,6 +12,7 @@ use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\ForceEndSessionCommand;
 use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionNotRunningException;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class PersonalRunLifecycle
@@ -21,6 +22,7 @@ final readonly class PersonalRunLifecycle
         private RunParticipantRepositoryInterface $participants,
         private MessageBusInterface $messageBus,
         private ForceEndSessionCommand $forceEndSession,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -59,7 +61,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, blocked: true, blockReason: 'games_required');
         }
 
-        $run->start(new \DateTimeImmutable());
+        $run->start($this->clock->now());
         $this->runs->flush();
 
         $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId()));
@@ -85,7 +87,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
         }
 
-        $run->stop(new \DateTimeImmutable());
+        $run->stop($this->clock->now());
         $this->runs->flush();
 
         $this->messageBus->dispatch(new StopPersonalRunJob($run->getId()));
@@ -107,7 +109,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, blocked: true, blockReason: 'invalid_run_status');
         }
 
-        $run->markRunning($host, $port, new \DateTimeImmutable());
+        $run->markRunning($host, $port, $this->clock->now());
         $this->runs->flush();
 
         return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
@@ -127,7 +129,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, blocked: true, blockReason: 'invalid_run_status');
         }
 
-        $run->markStopped(new \DateTimeImmutable());
+        $run->markStopped($this->clock->now());
         $this->runs->flush();
 
         return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
@@ -168,7 +170,7 @@ final readonly class PersonalRunLifecycle
             return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
         }
 
-        $run->complete(new \DateTimeImmutable());
+        $run->complete($this->clock->now());
         $this->runs->flush();
 
         return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());

@@ -9,6 +9,7 @@ use App\Identity\Application\Port\DiscordOAuthClientInterface;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -19,6 +20,7 @@ final readonly class LinkDiscordToAccount
         private UserRepositoryInterface $userRepository,
         private LoggerInterface $logger,
         private MessageBusInterface $bus,
+        private ClockInterface $clock,
         private string $discordRedirectUriLink,
     ) {
     }
@@ -53,7 +55,7 @@ final readonly class LinkDiscordToAccount
             return ['outcome' => 'no_verified_email'];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $previousDiscordId = $user->getDiscordId();
         $user->linkDiscord($discordId, $discordUsername, $now);
 

@@ -12,6 +12,7 @@ use App\Payments\Domain\Entity\HelloAssoSyncLog;
 use App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface;
 use App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface;
 use App\Shared\Application\Handler\LogsHandlerErrors;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -27,6 +28,7 @@ final readonly class SyncHelloAssoFormHandler
         private HelloAssoSyncLogRepositoryInterface $syncLogRepository,
         private MessageBusInterface $bus,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -45,7 +47,7 @@ final readonly class SyncHelloAssoFormHandler
             return;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         try {
             $accessToken = $this->httpClient->getAccessToken();

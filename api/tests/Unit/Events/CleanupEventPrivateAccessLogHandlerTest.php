@@ -9,6 +9,7 @@ use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 
 final class CleanupEventPrivateAccessLogHandlerTest extends TestCase
 {
@@ -29,6 +30,6 @@ final class CleanupEventPrivateAccessLogHandlerTest extends TestCase
             ->method('info')
             ->with('data.cleanup_event_private_access_log', ['deleted' => 2]);
 
-        (new CleanupEventPrivateAccessLogHandler($repo, $logger, 365))(new CleanupEventPrivateAccessLogMessage());
+        (new CleanupEventPrivateAccessLogHandler($repo, $logger, new MockClock(), 365))(new CleanupEventPrivateAccessLogMessage());
     }
 }

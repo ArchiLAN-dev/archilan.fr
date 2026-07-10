@@ -7,6 +7,7 @@ namespace App\CatalogSync\Application\Service;
 use App\CatalogSync\Domain\ValueObject\CatalogEntry;
 use App\GameSelection\Domain\Entity\Game;
 use App\PersonalRuns\Domain\Entity\Run;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -32,6 +33,7 @@ final readonly class CatalogSyncService
         private HttpClientInterface $httpClient,
         private CacheInterface $cache,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
         private string $spreadsheetId,
         private string $googleApiKey,
     ) {
@@ -74,7 +76,7 @@ final readonly class CatalogSyncService
 
             return [
                 'entries' => $this->doFetch(),
-                'cachedAt' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                'cachedAt' => $this->clock->now()->format(\DateTimeInterface::ATOM),
             ];
         });
     }

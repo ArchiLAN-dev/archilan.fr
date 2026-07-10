@@ -7,6 +7,7 @@ namespace App\GameSelection\Application\Command;
 use App\GameSelection\Domain\Entity\ArchipelagoClientInfo;
 use App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use Psr\Clock\ClockInterface;
 
 final readonly class UpdateArchipelagoClient
 {
@@ -15,6 +16,7 @@ final readonly class UpdateArchipelagoClient
 
     public function __construct(
         private ArchipelagoClientInfoRepositoryInterface $repository,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -42,7 +44,7 @@ final readonly class UpdateArchipelagoClient
             return ['errors' => $errors->toArray()];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $info = $this->repository->get();
         if (null === $info) {
             $info = ArchipelagoClientInfo::create($version, $downloadUrl, $now);

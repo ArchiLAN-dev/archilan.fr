@@ -12,6 +12,7 @@ use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
 use App\Community\Domain\Repository\KudosRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 
 /**
  * Kudos toggling + batch state reads (story 30.11). Idempotent under concurrency.
@@ -23,6 +24,7 @@ final readonly class KudosService
         private ActivityEntryRepositoryInterface $activityEntries,
         private AchievementGrantRepositoryInterface $achievementGrants,
         private Notifier $notifier,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -48,7 +50,7 @@ final readonly class KudosService
         }
 
         try {
-            $this->kudos->save(Kudos::give($actorId, $targetType, $targetId, new \DateTimeImmutable()));
+            $this->kudos->save(Kudos::give($actorId, $targetType, $targetId, $this->clock->now()));
             if (null !== $ownerId) {
                 $this->notifier->notify($ownerId, Notification::TYPE_KUDOS_RECEIVED, [
                     'fromUserId' => $actorId,

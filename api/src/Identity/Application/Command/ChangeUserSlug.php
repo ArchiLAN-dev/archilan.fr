@@ -8,6 +8,7 @@ use App\Identity\Application\Support\SlugGenerator;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -36,6 +37,7 @@ final readonly class ChangeUserSlug
     public function __construct(
         private UserRepositoryInterface $userRepository,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -60,7 +62,7 @@ final readonly class ChangeUserSlug
             return ['outcome' => 'error', 'error' => 'slug_unchanged'];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $cutoff = $now->sub(new \DateInterval(sprintf('P%dD', self::COOLDOWN_DAYS)));
         $isReclaim = null !== $user->getPreviousSlug() && $slug === $user->getPreviousSlug();
 

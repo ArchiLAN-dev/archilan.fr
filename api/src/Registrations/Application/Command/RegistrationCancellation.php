@@ -9,6 +9,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class RegistrationCancellation
@@ -19,6 +20,7 @@ final readonly class RegistrationCancellation
         private RegistrationCounter $registrationCounter,
         private RealtimePublisher $realtimePublisher,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -54,7 +56,7 @@ final readonly class RegistrationCancellation
             ];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $registration->cancel($now);
         $this->registrationRepository->flush();
 

@@ -12,6 +12,7 @@ use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -189,6 +190,6 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
 
     private function makeService(UserRepositoryInterface $userRepo, RoleChangeAuditRepositoryInterface $auditRepo, MessageBusInterface $bus): AdminChangeUserRole
     {
-        return new AdminChangeUserRole($userRepo, $auditRepo, new NullLogger(), $bus);
+        return new AdminChangeUserRole($userRepo, $auditRepo, new NullLogger(), $bus, new MockClock());
     }
 }

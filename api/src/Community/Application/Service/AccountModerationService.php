@@ -14,6 +14,7 @@ use App\Community\Domain\Repository\ContentReportRepositoryInterface;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
+use Psr\Clock\ClockInterface;
 
 /**
  * Admin actions on a member's account (story 30.29): warn / suspend / ban / lift. Suspend & ban delegate
@@ -29,6 +30,7 @@ final readonly class AccountModerationService
         private CommunityUserDirectoryQueryInterface $directory,
         private CommunityAdminIdsQueryInterface $admins,
         private Notifier $notifier,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -61,7 +63,7 @@ final readonly class AccountModerationService
     public function suspend(string $adminId, string $targetUserId, \DateTimeImmutable $until, string $reason, ?string $relatedReportId = null): string
     {
         $reason = trim($reason);
-        if ('' === $reason || $until <= new \DateTimeImmutable()) {
+        if ('' === $reason || $until <= $this->clock->now()) {
             return 'invalid';
         }
         if (null !== ($denied = $this->guard($adminId, $targetUserId))) {
@@ -186,7 +188,7 @@ final readonly class AccountModerationService
             $targetUserId,
             $action,
             mb_substr($reason, 0, 500),
-            new \DateTimeImmutable(),
+            $this->clock->now(),
             $relatedReportId,
         ));
     }
@@ -199,7 +201,7 @@ final readonly class AccountModerationService
             return;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         foreach ($pending as $report) {
             $report->resolve($adminId, $now);
         }

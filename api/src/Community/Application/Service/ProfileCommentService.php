@@ -16,6 +16,7 @@ use App\Community\Domain\Repository\ProfileCommentRepositoryInterface;
 use App\Community\Domain\ValueObject\ReportCategory;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Psr\Clock\ClockInterface;
 
 /**
  * Profile guestbook (story 30.10). Two audiences: *viewing* follows the profile audience; *writing*
@@ -36,6 +37,7 @@ final readonly class ProfileCommentService
         private BlockRepositoryInterface $blocks,
         private CommunityUserDirectoryQueryInterface $directory,
         private Notifier $notifier,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -95,12 +97,12 @@ final readonly class ProfileCommentService
             return ['status' => 'forbidden'];
         }
 
-        $since = (new \DateTimeImmutable())->modify(sprintf('-%d seconds', self::RATE_WINDOW_SECONDS));
+        $since = $this->clock->now()->modify(sprintf('-%d seconds', self::RATE_WINDOW_SECONDS));
         if ($this->comments->countByAuthorSince($writerId, $since) >= self::RATE_MAX) {
             return ['status' => 'rate_limited'];
         }
 
-        $this->comments->save(ProfileComment::create($ownerId, $writerId, $body, new \DateTimeImmutable()));
+        $this->comments->save(ProfileComment::create($ownerId, $writerId, $body, $this->clock->now()));
         $this->notifier->notify($ownerId, Notification::TYPE_COMMENT_RECEIVED, ['fromUserId' => $writerId]);
 
         return ['status' => 'ok'];
@@ -119,7 +121,7 @@ final readonly class ProfileCommentService
             return 'ok';
         }
         if ($comment->isOnProfileOf($userId)) {
-            $comment->hide(new \DateTimeImmutable());
+            $comment->hide($this->clock->now());
             $this->comments->flush();
 
             return 'ok';
@@ -143,7 +145,7 @@ final readonly class ProfileCommentService
                     ContentReport::TARGET_COMMENT,
                     $commentId,
                     '' === $trimmed ? 'inappropriate' : mb_substr($trimmed, 0, 500),
-                    new \DateTimeImmutable(),
+                    $this->clock->now(),
                     ReportCategory::COMMENT,
                 ));
             } catch (UniqueConstraintViolationException) {
