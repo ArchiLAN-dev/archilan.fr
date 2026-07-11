@@ -30,6 +30,8 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { isFeedEvent } from "@/features/overlay/overlay-api";
+import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -75,6 +77,15 @@ type Session = {
   lastLogs?: string | null;
   validationErrors?: ValidationError[] | null;
 };
+
+// Guard for `/sessions/{id}` Mercure frames (story 33.19): the api is the single publisher of this
+// topic and publishes the full Session shape, so checking the `id`/`status` discriminants is
+// sufficient - the remaining fields are trusted from that publisher.
+function isSessionPayload(v: unknown): v is Session {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("id" in v) || typeof v.id !== "string") return false;
+  return "status" in v && typeof v.status === "string";
+}
 
 type SessionSlot = {
   id: string;
@@ -907,6 +918,7 @@ function SessionDetail({
   useSSE<Session>(
     `/sessions/${session.id}`,
     env.mercurePublicUrl || null,
+    isSessionPayload,
     handleSSEMessage,
     fallbackPoll,
   );
@@ -1549,14 +1561,20 @@ function AdminTerminal({
       es.onopen = () => { setConnected(true); };
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
+        let parsed: unknown;
         try {
-          const data = JSON.parse(event.data as string) as { type: string; text: string; timestamp: string };
-          setConnected(true);
-          setLines((prev) => [
-            ...prev,
-            { kind: "feed" as const, type: data.type, text: data.text, timestamp: data.timestamp, _key: `${Date.now()}-${Math.random()}` },
-          ].slice(-300));
-        } catch { /* ignore */ }
+          parsed = JSON.parse(frame);
+        } catch {
+          return; /* malformed frame - ignored */
+        }
+        if (!isFeedEvent(parsed)) return; /* unexpected shape - dropped, never cast */
+        setConnected(true);
+        setLines((prev) => [
+          ...prev,
+          { kind: "feed" as const, type: parsed.type, text: parsed.text, timestamp: parsed.timestamp, _key: `${Date.now()}-${Math.random()}` },
+        ].slice(-300));
       };
 
       es.onerror = () => {
@@ -1570,14 +1588,11 @@ function AdminTerminal({
     }
 
     async function init(): Promise<void> {
-      const res = await apiFetch(`${env.apiBaseUrl}/sessions/${runId}/feed-token`);
+      const payload = await fetchSubscribeToken(`/sessions/${runId}/feed-token`);
       if (cancelled) return;
-      if (!res.ok) { setFeedReady(true); return; }
-      const json = (await res.json()) as { data: { token: string; hubUrl: string; topic: string } };
-      const { token, hubUrl, topic } = json.data;
-      if (cancelled || !hubUrl) { setFeedReady(true); return; }
+      if (!payload || !payload.hubUrl) { setFeedReady(true); return; }
       setFeedReady(true);
-      connect(token, hubUrl, topic);
+      connect(payload.token, payload.hubUrl, payload.topic);
     }
 
     void init().catch(() => { if (!cancelled) setFeedReady(true); });

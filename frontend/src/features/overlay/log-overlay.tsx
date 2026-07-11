@@ -4,7 +4,7 @@ import { Gift, Info, Lightbulb, MapPin, MessageSquare } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { FeedEvent } from "./overlay-api";
-import { eventInvolvesSlots, feedItemOrigin } from "./overlay-api";
+import { eventInvolvesSlots, feedItemOrigin, isFeedEvent } from "./overlay-api";
 import type { OverlayParams } from "./overlay-params";
 import { useOverlayStream } from "./use-overlay-stream";
 
@@ -94,7 +94,7 @@ export function LogOverlay({
     [params.slots],
   );
 
-  useOverlayStream<FeedEvent>(sessionId, "feed", onEvent);
+  useOverlayStream<FeedEvent>(sessionId, "feed", isFeedEvent, onEvent);
 
   useEffect(() => {
     if (!params.demo) return;

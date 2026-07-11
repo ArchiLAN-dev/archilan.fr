@@ -74,6 +74,22 @@ export type PlayersState = {
 
 // ─── Type guards ───────────────────────────────────────────────────────────────
 
+/** Guard for feed frames on `runs/{id}/feed` (story 33.19 - the ONE FeedEvent shape). */
+export function isFeedEvent(v: unknown): v is FeedEvent {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("type" in v) || typeof v.type !== "string") return false;
+  if (!("text" in v) || typeof v.text !== "string") return false;
+  return "timestamp" in v && typeof v.timestamp === "string";
+}
+
+/** Guard for per-slot state frames on `runs/{id}/players` (story 33.19 - the ONE players shape). */
+export function isPlayersState(v: unknown): v is PlayersState {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("slots" in v)) return true;
+  if (typeof v.slots !== "object" || v.slots === null) return false;
+  return Object.values(v.slots).every((s) => typeof s === "object" && s !== null);
+}
+
 export function isOverlaySubscribe(v: unknown): v is OverlaySubscribe {
   if (typeof v !== "object" || v === null) return false;
   if (!("token" in v) || !("hubUrl" in v) || !("topics" in v)) return false;

@@ -1,6 +1,6 @@
 # Story 33.19: Typed SSE Layer (frontend/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -55,14 +55,14 @@ Full audit in the session record; the essentials:
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Shared guard modules + `fetchSubscribeToken` + unify FeedEvent/PlayersState shapes
+- [x] Task 1: Shared guard modules + `fetchSubscribeToken` + unify FeedEvent/PlayersState shapes
   (delete dups, update importers) (AC: 2)
-- [ ] Task 2: Guard-aware `useSse` + `useOverlayStream` (signature change, all existing callers
+- [x] Task 2: Guard-aware `useSse` + `useOverlayStream` (signature change, all existing callers
   updated: admin-session-page useSSE<Session>, session-connection-gate (already guard-style),
   live-seat-counter, 3 overlay widgets) (AC: 1)
-- [ ] Task 3: Migrate the 12 raw-EventSource cast sites (slot-page trios x3, PlayerProgressGrid,
+- [x] Task 3: Migrate the 12 raw-EventSource cast sites (slot-page trios x3, PlayerProgressGrid,
   event-feed, admin console feed) (AC: 3)
-- [ ] Task 4: ESLint scope extension (AC: 4)
+- [x] Task 4: ESLint scope extension (AC: 4)
 - [ ] Task 5: `pnpm gates` + smoke; PR to develop; adversarial review; merge on green
   (pre-authorized) (AC: 5)
 
@@ -87,14 +87,57 @@ Full audit in the session record; the essentials:
 
 ### Agent Model Used
 
+claude-fable-5 (foundations by the orchestrator; consumer migration fanned out to 2 parallel
+subagents on disjoint file sets, verified by orchestrator grep + full gates).
+
 ### Debug Log References
+
+- AC1's "invalid frames counted/logged in dev" clause was NOT implemented as logging: AC-ENV1 bans
+  direct `process.env` reads outside `env.ts`, so a NODE_ENV-gated console.warn would violate the
+  house rules for marginal value. Frames failing the guard are silently dropped (same observable
+  behaviour as the old silent catch), with explanatory comments at both hook sites. Recorded as a
+  deliberate deviation.
+- One cast site survived the fan-out (neither agent owned it): `reachable-overlay.tsx:70`
+  `event.data as string` - caught by the orchestrator's residual grep, fixed with the standard
+  frame-narrowing pattern. Grep now returns zero SSE/token casts tree-wide.
 
 ### Completion Notes List
 
+- Foundations: `features/realtime/realtime-api.ts` (SubscribeTokenPayload + guard +
+  `fetchSubscribeToken`, apiFetch-based so 401-refresh is preserved); `isReachabilityData` +
+  `isHintsUpdate` in `reachability/types.ts`; `isFeedEvent` + `isPlayersState` in `overlay-api.ts`;
+  guard params on `useSSE` (3rd) and `useOverlayStream` (3rd), guards held in refs.
+- 48 casts removed at SSE/token sites (36 on the 3 slot pages incl. the same-cast REST pre-checks,
+  12 across grid/feed/console/gate/seat-counter); duplicate FeedEvent (x2) and SlotData/anonymous
+  players shapes deleted - one shape per payload family now.
+- Notable semantic tightenings (all in the story's spirit, no UX change): junk frames that parsed
+  but had the wrong shape used to flow through mistyped (AdminTerminal buffered undefined fields) -
+  now dropped; the hints-merge lying cast replaced by explicit defaults under `...prev, ...data`
+  (consumers already coalesce with `?? 0`).
+- session-connection-gate wired with a real structural guard (`isSessionFrame` matching exactly
+  parseSession's rejection conditions) - no identity-guard trick.
+- ESLint `assertionStyle: "never"` scope extended to use-sse.ts, use-overlay-stream.ts,
+  features/realtime/**.
+- Gates: `pnpm gates` green (typecheck 0, lint 0, jest 172, build clean).
+
 ### File List
+
+- frontend/src/features/realtime/realtime-api.ts (new)
+- frontend/src/hooks/use-sse.ts, frontend/src/features/overlay/use-overlay-stream.ts (guard param)
+- frontend/src/features/reachability/types.ts, frontend/src/features/overlay/overlay-api.ts (guards)
+- frontend/src/features/weekly-runs/weekly-run-slot-page.tsx,
+  frontend/src/features/admin/admin-slot-reachability-page.tsx,
+  frontend/src/features/personal-runs/personal-run-slot-detail-page.tsx (slot-page trios)
+- frontend/src/components/session/PlayerProgressGrid.tsx, frontend/src/features/events/event-feed.tsx,
+  frontend/src/features/admin/admin-session-page.tsx, frontend/src/features/events/session-connection-gate.tsx,
+  frontend/src/features/events/live-seat-counter.tsx
+- frontend/src/features/overlay/notifications-overlay.tsx, log-overlay.tsx, goals-overlay.tsx,
+  reachable-overlay.tsx
+- frontend/eslint.config.mjs
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-11 | Story created (epic-33 follow-up 33.19). Audit: 14 SSE cast sites (21 payload + 15 string casts) + 12 token casts; 3 duplicate shape families; exemplar guards identified; eslint scope gap identified; sequenced before 33.18. Status: ready-for-dev. |
+| 2026-07-11 | Implemented: realtime-api module, 4 guard families, guard-aware hooks, 48 casts removed, shape dups deleted, eslint scope extended. Dev-log deviation recorded (no dev logging - AC-ENV1). pnpm gates green (172 tests). Status: ready-for-review (Task 5 pending PR/review/merge). |

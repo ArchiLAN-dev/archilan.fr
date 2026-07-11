@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import type { PlayersSlot, PlayersState } from "./overlay-api";
+import { isPlayersState } from "./overlay-api";
 import type { OverlayParams } from "./overlay-params";
 import { useOverlayStream } from "./use-overlay-stream";
 
@@ -77,7 +78,7 @@ export function GoalsOverlay({
     [params.slots],
   );
 
-  useOverlayStream<PlayersState>(sessionId, "players", onEvent);
+  useOverlayStream<PlayersState>(sessionId, "players", isPlayersState, onEvent);
 
   // Demo mode: fire a fake celebration so the source can be positioned in OBS.
   useEffect(() => {

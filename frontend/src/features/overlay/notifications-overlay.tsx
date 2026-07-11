@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ItemToast } from "@/features/reachability/item-toast";
 import type { FeedEvent } from "./overlay-api";
-import { actorMatchesSlots, feedItemOrigin } from "./overlay-api";
+import { actorMatchesSlots, feedItemOrigin, isFeedEvent } from "./overlay-api";
 import type { OverlayParams } from "./overlay-params";
 import { useOverlayStream } from "./use-overlay-stream";
 import { useViewport } from "./use-viewport";
@@ -70,7 +70,7 @@ export function NotificationsOverlay({
     [params.slots],
   );
 
-  useOverlayStream<FeedEvent>(sessionId, "feed", onEvent);
+  useOverlayStream<FeedEvent>(sessionId, "feed", isFeedEvent, onEvent);
 
   // Demo mode: stage a few fake notifications so the source can be positioned in OBS without a live
   // session. Ids are computed in the effect (never during render) to keep render pure.

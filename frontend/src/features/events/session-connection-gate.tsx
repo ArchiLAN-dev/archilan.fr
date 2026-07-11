@@ -184,7 +184,7 @@ function ConnectionView({
   const mercureUrl = isLive && env.mercurePublicUrl ? env.mercurePublicUrl : null;
 
   const onMessage = useCallback(
-    (incoming: unknown) => {
+    (incoming: SessionFrame) => {
       const session = parseSession(incoming);
       if (session) onSessionUpdate(session);
     },
@@ -202,9 +202,10 @@ function ConnectionView({
     }
   }, [registrationId, onSessionUpdate]);
 
-  useSSE<unknown>(
+  useSSE<SessionFrame>(
     topicUrl,
     isLive ? mercureUrl : null,
+    isSessionFrame,
     onMessage,
     isLive ? fallbackPoll : undefined,
   );
@@ -539,16 +540,27 @@ function PatchFilesSection({ registrationId }: { registrationId: string }) {
 
 // ─── Parsers ─────────────────────────────────────────────────────────────────
 
+// A `/sessions/{id}` Mercure frame carrying at least the two required discriminants. The guard
+// checks exactly what parseSession requires (story 33.19), so guarded frames always parse; the
+// optional connection fields are still normalized by parseSession.
+type SessionFrame = { id: string; status: string };
+
+function isSessionFrame(v: unknown): v is SessionFrame {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("id" in v) || typeof v.id !== "string") return false;
+  return "status" in v && typeof v.status === "string";
+}
+
 function parseSession(x: unknown): SessionPayload | null {
   if (!x || typeof x !== "object") return null;
-  const s = x as Record<string, unknown>;
-  if (typeof s.id !== "string" || typeof s.status !== "string") return null;
+  if (!("id" in x) || typeof x.id !== "string") return null;
+  if (!("status" in x) || typeof x.status !== "string") return null;
   return {
-    id: s.id,
-    status: s.status,
-    host: typeof s.host === "string" ? s.host : null,
-    port: typeof s.port === "number" ? s.port : null,
-    password: typeof s.password === "string" ? s.password : null,
+    id: x.id,
+    status: x.status,
+    host: "host" in x && typeof x.host === "string" ? x.host : null,
+    port: "port" in x && typeof x.port === "number" ? x.port : null,
+    password: "password" in x && typeof x.password === "string" ? x.password : null,
   };
 }
 

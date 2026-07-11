@@ -22,14 +22,20 @@ export type SSEStatus = {
  * Falls back to polling every 30 s when SSE is unavailable or disconnects.
  * Reconnects automatically after a short delay.
  * Exposes connection state after a 3 s grace period so transient blips don't flash the UI.
+ *
+ * Frames are validated by `guard` before reaching `onMessage` (story 33.19): a malformed or
+ * unexpected payload is dropped, never cast. `guard` is held in a ref like `onMessage`, so an
+ * unstable identity never re-opens the stream.
  */
 export function useSSE<T>(
   topicUrl: string,
   mercureHubUrl: string | null,
+  guard: (v: unknown) => v is T,
   onMessage: (data: T) => void,
   fallbackPoll?: () => Promise<void>,
 ): SSEStatus {
   const onMessageRef = useRef(onMessage);
+  const guardRef = useRef(guard);
   const fallbackPollRef = useRef(fallbackPoll);
   const [connected, setConnected] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
@@ -37,6 +43,7 @@ export function useSSE<T>(
   const [lastMessageAt, setLastMessageAt] = useState<Date | null>(null);
 
   useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
+  useEffect(() => { guardRef.current = guard; }, [guard]);
   useEffect(() => { fallbackPollRef.current = fallbackPoll; }, [fallbackPoll]);
 
   useEffect(() => {
@@ -97,12 +104,16 @@ export function useSSE<T>(
         setDisconnected(false);
         setLastMessageAt(new Date());
         stopPolling();
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
+        let parsed: unknown;
         try {
-          const data = JSON.parse(event.data as string) as T;
-          onMessageRef.current(data);
+          parsed = JSON.parse(frame);
         } catch {
-          // Ignore malformed messages
+          return; // malformed frame - dropped
         }
+        if (!guardRef.current(parsed)) return; // unexpected shape - dropped, never cast
+        onMessageRef.current(parsed);
       };
 
       es.onerror = () => {
