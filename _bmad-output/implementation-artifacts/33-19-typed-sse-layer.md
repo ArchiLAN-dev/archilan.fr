@@ -107,8 +107,9 @@ subagents on disjoint file sets, verified by orchestrator grep + full gates).
   `fetchSubscribeToken`, apiFetch-based so 401-refresh is preserved); `isReachabilityData` +
   `isHintsUpdate` in `reachability/types.ts`; `isFeedEvent` + `isPlayersState` in `overlay-api.ts`;
   guard params on `useSSE` (3rd) and `useOverlayStream` (3rd), guards held in refs.
-- 48 casts removed at SSE/token sites (36 on the 3 slot pages incl. the same-cast REST pre-checks,
-  12 across grid/feed/console/gate/seat-counter); duplicate FeedEvent (x2) and SlotData/anonymous
+- 56 casts removed at SSE/token sites (Auditor count over removed diff lines: 36 on the 3 slot
+  pages incl. the same-cast REST pre-checks, 20 across hooks/grid/feed/console/gate/seat-counter -
+  the story's 48 "ceiling" was an undercount); duplicate FeedEvent (x2) and SlotData/anonymous
   players shapes deleted - one shape per payload family now.
 - Notable semantic tightenings (all in the story's spirit, no UX change): junk frames that parsed
   but had the wrong shape used to flow through mistyped (AdminTerminal buffered undefined fields) -
@@ -151,6 +152,8 @@ ap_client.py/state.py/reachable.py) - that evidence settled the Blind Hunter's s
   in realtime-api; admin page keeps its documented full-Session refinement as a delegating wrapper
 - [x] [Review][Patch] AdminTerminal `setConnected(true)` had moved behind the guard - restored to
   fire on any received frame (stream-liveness signal, pre-33.19 parity)
+- [x] [Review][Patch] AC4 lint-lock gap (Auditor): `reachability/types.ts` hosts guards but matched
+  no `assertionStyle: never` glob - added to the eslint files array
 - [x] [Review][Dismissed] Hints default-seeding + array-strictness (BH HIGH) - refuted by publisher
   evidence: ap_client.py always sends the hints array plus the fields the defaults cover
 - [x] [Review][Dismissed] seat-counter/session guards dropping real frames - refuted: publisher

@@ -21,6 +21,7 @@ const eslintConfig = defineConfig([
       "src/hooks/use-sse.ts",
       "src/features/overlay/use-overlay-stream.ts",
       "src/features/realtime/**",
+      "src/features/reachability/types.ts",
     ],
     rules: {
       "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
