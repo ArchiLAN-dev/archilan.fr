@@ -17,7 +17,7 @@ use Doctrine\DBAL\Connection;
  */
 final readonly class DbalCommunityPresenceQuery implements CommunityPresenceQueryInterface
 {
-    private const RUNNING = 'running';
+    private const string RUNNING = 'running';
 
     public function __construct(private Connection $connection)
     {

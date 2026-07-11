@@ -15,9 +15,9 @@ use PHPUnit\Framework\TestCase;
 
 final class PersonalRunPatchQueryTest extends TestCase
 {
-    private const RUN_ID = 'run-0000000000000000000000000001';
-    private const SESSION_ID = 'sess-000000000000000000000000001';
-    private const USER_ID = 'user-000000000000000000000000001';
+    private const string RUN_ID = 'run-0000000000000000000000000001';
+    private const string SESSION_ID = 'sess-000000000000000000000000001';
+    private const string USER_ID = 'user-000000000000000000000000001';
 
     public function testReturnsNullWhenRunMissing(): void
     {

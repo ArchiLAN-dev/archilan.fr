@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_identity_password_reset_tokens_user', columns: ['user_id'])]
 final class PasswordResetToken
 {
-    public const TTL_MINUTES = 15;
+    public const int TTL_MINUTES = 15;
 
     private function __construct(
         #[ORM\Id]

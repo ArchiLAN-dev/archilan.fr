@@ -11,8 +11,8 @@ use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class OrchestratorWebhookTest extends FunctionalTestCase
 {
-    private const WEBHOOK_SECRET = 'test-orchestrateur-secret';
-    private const WEBHOOK_URL = '/api/v1/internal/orchestrateur/webhook';
+    private const string WEBHOOK_SECRET = 'test-orchestrateur-secret';
+    private const string WEBHOOK_URL = '/api/v1/internal/orchestrateur/webhook';
 
     protected function setUp(): void
     {

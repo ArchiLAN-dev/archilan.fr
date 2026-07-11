@@ -15,7 +15,7 @@ final readonly class SlugGenerator
 
     public static function normalize(string $source): string
     {
-        $normalized = (string) (new AsciiSlugger())->slug($source)->lower();
+        $normalized = (string) new AsciiSlugger()->slug($source)->lower();
 
         if ('' === $normalized) {
             return 'user';

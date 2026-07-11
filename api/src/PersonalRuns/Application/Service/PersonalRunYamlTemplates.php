@@ -19,7 +19,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 final readonly class PersonalRunYamlTemplates
 {
-    private const NAME_MAX_LENGTH = 80;
+    private const int NAME_MAX_LENGTH = 80;
 
     public function __construct(
         private YamlTemplateRepositoryInterface $templates,
@@ -35,7 +35,7 @@ final readonly class PersonalRunYamlTemplates
     public function list(string $userId, string $gameId): array
     {
         return array_map(
-            fn (YamlTemplate $t): array => $this->toArray($t),
+            $this->toArray(...),
             $this->templates->findByUserAndGame($userId, $gameId),
         );
     }

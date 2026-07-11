@@ -15,10 +15,10 @@ use PHPUnit\Framework\TestCase;
 
 final class PersonalRunSpoilerDownloadTest extends TestCase
 {
-    private const RUN_ID = 'run-0000000000000000000000000001';
-    private const SESSION_ID = 'sess-000000000000000000000000001';
-    private const OWNER_ID = 'owner-00000000000000000000000001';
-    private const OTHER_ID = 'other-00000000000000000000000001';
+    private const string RUN_ID = 'run-0000000000000000000000000001';
+    private const string SESSION_ID = 'sess-000000000000000000000000001';
+    private const string OWNER_ID = 'owner-00000000000000000000000001';
+    private const string OTHER_ID = 'other-00000000000000000000000001';
 
     public function testReturnsNotFoundWhenRunMissing(): void
     {

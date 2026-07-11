@@ -11,8 +11,8 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DbalRecentlyPlayedGamesQuery implements RecentlyPlayedGamesQueryInterface
 {
-    private const RUN_TABLE = 'run';
-    private const PARTICIPANT_TABLE = 'run_participant';
+    private const string RUN_TABLE = 'run';
+    private const string PARTICIPANT_TABLE = 'run_participant';
 
     public function __construct(private Connection $connection)
     {
@@ -97,7 +97,7 @@ final readonly class DbalRecentlyPlayedGamesQuery implements RecentlyPlayedGames
         }
 
         try {
-            return (new \DateTimeImmutable($raw))->format(\DateTimeInterface::ATOM);
+            return new \DateTimeImmutable($raw)->format(\DateTimeInterface::ATOM);
         } catch (\Exception) {
             return '';
         }

@@ -16,7 +16,7 @@ use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class CatalogSyncServiceTest extends TestCase
 {
-    private const MAIN_CSV = <<<CSV
+    private const string MAIN_CSV = <<<CSV
         Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes
         Hollow Knight,Stable,,Github Releases,No,Fast platformer
         Celeste,Stable,PR #123,,No,
@@ -30,7 +30,7 @@ final class CatalogSyncServiceTest extends TestCase
         Minecraft,Stable,,,No,
         CSV;
 
-    private const BUNDLED_CSV = <<<CSV
+    private const string BUNDLED_CSV = <<<CSV
         Name
         Clique the Game
         A Link to the Past

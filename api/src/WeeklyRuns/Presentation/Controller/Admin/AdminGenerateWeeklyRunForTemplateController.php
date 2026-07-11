@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AdminGenerateWeeklyRunForTemplateController
 {
-    private const ERROR_STATUS = [
+    private const array ERROR_STATUS = [
         'template_not_found' => Response::HTTP_NOT_FOUND,
         'run_already_exists' => Response::HTTP_CONFLICT,
         'template_incomplete' => Response::HTTP_UNPROCESSABLE_ENTITY,

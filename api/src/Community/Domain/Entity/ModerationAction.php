@@ -15,10 +15,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_community_mod_action_target', columns: ['target_user_id', 'created_at'])]
 final class ModerationAction
 {
-    public const ACTION_WARN = 'warn';
-    public const ACTION_SUSPEND = 'suspend';
-    public const ACTION_BAN = 'ban';
-    public const ACTION_LIFT = 'lift';
+    public const string ACTION_WARN = 'warn';
+    public const string ACTION_SUSPEND = 'suspend';
+    public const string ACTION_BAN = 'ban';
+    public const string ACTION_LIFT = 'lift';
 
     public function __construct(
         #[ORM\Id]

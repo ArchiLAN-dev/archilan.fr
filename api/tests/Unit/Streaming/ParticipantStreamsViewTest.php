@@ -72,9 +72,9 @@ final class ParticipantStreamsViewTest extends TestCase
             ],
         ]);
 
-        $client = new class($liveResult) implements TwitchApiClientInterface {
+        $client = new readonly class($liveResult) implements TwitchApiClientInterface {
             /** @param array<string, int>|null $liveResult */
-            public function __construct(private readonly ?array $liveResult)
+            public function __construct(private ?array $liveResult)
             {
             }
 
@@ -98,9 +98,7 @@ final class ParticipantStreamsViewTest extends TestCase
 
         $cache = $this->createStub(CacheInterface::class);
         $cache->method('get')->willReturnCallback(
-            static function (string $key, callable $callback) use ($liveItem, $avatarItem): mixed {
-                return $callback(str_contains($key, '.live.') ? $liveItem : $avatarItem);
-            },
+            static fn (string $key, callable $callback): mixed => $callback(str_contains($key, '.live.') ? $liveItem : $avatarItem),
         );
 
         return new ParticipantStreamsView($query, $client, $cache);

@@ -15,7 +15,7 @@ final readonly class DbalActiveMembershipQuery implements ActiveMembershipQueryI
 
     public function hasActiveMembership(string $userId): bool
     {
-        $now = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $now = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
 
         $qb = $this->connection->createQueryBuilder();
         $result = $qb

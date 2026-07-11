@@ -14,7 +14,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class ArchipelagoGuide
 {
-    public const SINGLETON_ID = 'default';
+    public const string SINGLETON_ID = 'default';
 
     /**
      * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps

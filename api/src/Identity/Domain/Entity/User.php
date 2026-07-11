@@ -14,7 +14,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\UniqueConstraint(name: 'uniq_identity_users_slug', columns: ['slug'])]
 final class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    public const CURRENT_CGU_VERSION = '2026-05-02';
+    public const string CURRENT_CGU_VERSION = '2026-05-02';
 
     /**
      * @param list<string> $roles
@@ -292,9 +292,9 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         return null !== $this->deletedAt;
     }
 
-    public const MOD_ACTIVE = 'active';
-    public const MOD_SUSPENDED = 'suspended';
-    public const MOD_BANNED = 'banned';
+    public const string MOD_ACTIVE = 'active';
+    public const string MOD_SUSPENDED = 'suspended';
+    public const string MOD_BANNED = 'banned';
 
     /** Temporarily block access until $until (story 30.29). Clears any ban; a later date overrides. */
     public function suspendUntil(\DateTimeImmutable $until, string $reason, \DateTimeImmutable $now): void

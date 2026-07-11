@@ -65,7 +65,7 @@ final readonly class MembershipExpiredNotificationMessageHandler
             $this->siteUrl,
         );
 
-        $mimeEmail = (new Email())
+        $mimeEmail = new Email()
             ->from(new Address($this->mailerSender, 'ArchiLAN'))
             ->to(new Address($emailObj->to(), $emailObj->toName() ?? $emailObj->to()))
             ->subject($emailObj->subject())

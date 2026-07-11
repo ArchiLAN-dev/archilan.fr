@@ -11,14 +11,14 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_identity_privacy_rights_requests_status', columns: ['status'])]
 final class PrivacyRightsRequest
 {
-    public const STATUS_RECEIVED = 'received';
-    public const HANDLING_MANUAL_REVIEW = 'manual_review';
+    public const string STATUS_RECEIVED = 'received';
+    public const string HANDLING_MANUAL_REVIEW = 'manual_review';
 
-    public const RIGHT_ACCESS = 'access';
-    public const RIGHT_RECTIFICATION = 'rectification';
-    public const RIGHT_ERASURE = 'erasure';
-    public const RIGHT_PORTABILITY = 'portability';
-    public const RIGHT_OPPOSITION = 'opposition';
+    public const string RIGHT_ACCESS = 'access';
+    public const string RIGHT_RECTIFICATION = 'rectification';
+    public const string RIGHT_ERASURE = 'erasure';
+    public const string RIGHT_PORTABILITY = 'portability';
+    public const string RIGHT_OPPOSITION = 'opposition';
 
     public function __construct(
         #[ORM\Id]

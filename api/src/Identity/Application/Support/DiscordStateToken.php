@@ -8,7 +8,7 @@ use Psr\Clock\ClockInterface;
 
 final readonly class DiscordStateToken
 {
-    private const MAX_AGE_SECONDS = 600;
+    private const int MAX_AGE_SECONDS = 600;
 
     public function __construct(
         private string $appSecret,

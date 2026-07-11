@@ -10,11 +10,11 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class Audience
 {
-    public const PUBLIC = 'public';
-    public const MEMBERS = 'members';
-    public const FRIENDS = 'friends';
+    public const string PUBLIC = 'public';
+    public const string MEMBERS = 'members';
+    public const string FRIENDS = 'friends';
 
-    public const ALL = [self::PUBLIC, self::MEMBERS, self::FRIENDS];
+    public const array ALL = [self::PUBLIC, self::MEMBERS, self::FRIENDS];
 
     public static function isValid(string $value): bool
     {

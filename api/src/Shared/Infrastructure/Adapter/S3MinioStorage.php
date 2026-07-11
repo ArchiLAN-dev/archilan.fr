@@ -8,10 +8,10 @@ use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
 use Psr\Http\Message\StreamInterface;
 
-final class S3MinioStorage implements MinioStorageInterface
+final readonly class S3MinioStorage implements MinioStorageInterface
 {
-    private readonly S3Client $client;
-    private readonly S3Client $presignClient;
+    private S3Client $client;
+    private S3Client $presignClient;
 
     public function __construct(
         string $endpoint,

@@ -50,13 +50,7 @@ final readonly class PersonalRunLifecycle
         }
 
         $participants = $this->participants->findByRunId($run->getId());
-        $anyHasSlots = false;
-        foreach ($participants as $participant) {
-            if ($participant->hasSlots()) {
-                $anyHasSlots = true;
-                break;
-            }
-        }
+        $anyHasSlots = array_any($participants, fn ($participant) => $participant->hasSlots());
         if (!$anyHasSlots) {
             return $this->result(found: true, blocked: true, blockReason: 'games_required');
         }

@@ -33,7 +33,7 @@ final readonly class AdminEventDrafts
     {
         $events = $this->eventRepository->findAllSortedByStartsAt();
 
-        return array_map(fn (Event $event): array => $this->payload($event), $events);
+        return array_map($this->payload(...), $events);
     }
 
     /**

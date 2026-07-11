@@ -10,24 +10,24 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class Run
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_STARTING = 'starting';
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_STOPPING = 'stopping';
-    public const STATUS_IDLE = 'idle';
-    public const STATUS_RESTARTING = 'restarting';
-    public const STATUS_COMPLETED = 'completed';
-    public const STATUS_CANCELLED = 'cancelled';
+    public const string STATUS_DRAFT = 'draft';
+    public const string STATUS_STARTING = 'starting';
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_STOPPING = 'stopping';
+    public const string STATUS_IDLE = 'idle';
+    public const string STATUS_RESTARTING = 'restarting';
+    public const string STATUS_COMPLETED = 'completed';
+    public const string STATUS_CANCELLED = 'cancelled';
 
     /** Statuses that block deletion or modification */
-    public const ACTIVE_STATUSES = [self::STATUS_STARTING, self::STATUS_ACTIVE, self::STATUS_STOPPING];
+    public const array ACTIVE_STATUSES = [self::STATUS_STARTING, self::STATUS_ACTIVE, self::STATUS_STOPPING];
 
     /**
      * Statuses indicating the run has been launched at least once - i.e. the games in it were
      * actually played. Used to surface "recently played" games (story 28.8). Excludes `draft`
      * (never launched) and `cancelled`/`starting` (no gameplay yet).
      */
-    public const LAUNCHED_STATUSES = [
+    public const array LAUNCHED_STATUSES = [
         self::STATUS_ACTIVE,
         self::STATUS_STOPPING,
         self::STATUS_IDLE,
@@ -39,10 +39,10 @@ final class Run
      * Statuts transitoires où une run peut rester bloquée si la session liée se coince ou si un webhook
      * de cycle de vie se perd. Réconciliés par le backstop planifié (story 17.14).
      */
-    public const STUCK_STATUSES = [self::STATUS_STARTING, self::STATUS_STOPPING, self::STATUS_RESTARTING];
+    public const array STUCK_STATUSES = [self::STATUS_STARTING, self::STATUS_STOPPING, self::STATUS_RESTARTING];
 
     /** Seuils (secondes) sur updatedAt au-delà desquels la run transitoire est considérée bloquée. */
-    public const STUCK_THRESHOLDS = [
+    public const array STUCK_THRESHOLDS = [
         self::STATUS_STARTING => 1800,    // 30 min - couvre une génération complète
         self::STATUS_STOPPING => 300,     // 5 min - l'arrêt est rapide
         self::STATUS_RESTARTING => 300,   // 5 min - la relance est rapide

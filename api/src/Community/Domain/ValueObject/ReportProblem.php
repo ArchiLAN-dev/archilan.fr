@@ -10,14 +10,14 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class ReportProblem
 {
-    public const NUDITY = 'nudity';
-    public const VIOLENCE = 'violence';
-    public const HATE = 'hate';
-    public const HARASSMENT = 'harassment';
-    public const SPAM = 'spam';
-    public const OTHER = 'other';
+    public const string NUDITY = 'nudity';
+    public const string VIOLENCE = 'violence';
+    public const string HATE = 'hate';
+    public const string HARASSMENT = 'harassment';
+    public const string SPAM = 'spam';
+    public const string OTHER = 'other';
 
-    public const ALL = [
+    public const array ALL = [
         self::NUDITY,
         self::VIOLENCE,
         self::HATE,

@@ -16,11 +16,11 @@ use Symfony\Component\Clock\MockClock;
 
 final class SyncDiscordRoleMessageHandlerTest extends TestCase
 {
-    private const GUILD_ID = 'guild-123';
-    private const DISCORD_USER_ID = 'discord-456';
-    private const USER_ID = 'uuid-789';
-    private const ROLE_ADMIN = 'role-admin';
-    private const ROLE_MEMBER = 'role-member';
+    private const string GUILD_ID = 'guild-123';
+    private const string DISCORD_USER_ID = 'discord-456';
+    private const string USER_ID = 'uuid-789';
+    private const string ROLE_ADMIN = 'role-admin';
+    private const string ROLE_MEMBER = 'role-member';
 
     private function makeHandler(
         DiscordBotClientInterface $client,

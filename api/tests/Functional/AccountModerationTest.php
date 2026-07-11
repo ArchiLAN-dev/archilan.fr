@@ -47,7 +47,7 @@ final class AccountModerationTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         $this->loginAs($admin);
-        $until = (new \DateTimeImmutable('+7 days'))->format(\DateTimeInterface::ATOM);
+        $until = new \DateTimeImmutable('+7 days')->format(\DateTimeInterface::ATOM);
         $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$bob->getId().'/suspend', [
             'reason' => 'Contenu explicite',
             'until' => $until,
@@ -138,7 +138,7 @@ final class AccountModerationTest extends FunctionalTestCase
         // Past date.
         $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$bob->getId().'/suspend', [
             'reason' => 'x',
-            'until' => (new \DateTimeImmutable('-1 day'))->format(\DateTimeInterface::ATOM),
+            'until' => new \DateTimeImmutable('-1 day')->format(\DateTimeInterface::ATOM),
         ]);
         self::assertResponseStatusCodeSame(422);
 
@@ -161,7 +161,7 @@ final class AccountModerationTest extends FunctionalTestCase
         // And you can't moderate yourself.
         $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$admin->getId().'/suspend', [
             'reason' => 'x',
-            'until' => (new \DateTimeImmutable('+1 day'))->format(\DateTimeInterface::ATOM),
+            'until' => new \DateTimeImmutable('+1 day')->format(\DateTimeInterface::ATOM),
         ]);
         self::assertResponseStatusCodeSame(403);
     }

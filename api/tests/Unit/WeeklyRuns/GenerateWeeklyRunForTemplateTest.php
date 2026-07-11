@@ -20,7 +20,7 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
 {
     use SessionConfigDefaultsTrait;
 
-    private const NOW = '2026-05-18T00:00:00';
+    private const string NOW = '2026-05-18T00:00:00';
 
     public function testGenerateCreatesRunAndDispatchesWhenNoneExists(): void
     {

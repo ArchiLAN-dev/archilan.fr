@@ -122,7 +122,7 @@ final readonly class AdminRegistrationController
         }
 
         $result = $this->adminRegistrationModification->update($eventId, $registrationId, $input);
-        $occurredAt = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $occurredAt = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
 
         $this->logger->info('admin.registrations.update', [
             'eventId' => $eventId,
@@ -159,7 +159,7 @@ final readonly class AdminRegistrationController
         }
 
         $result = $this->adminRegistrationCancellation->cancel($eventId, $registrationId);
-        $occurredAt = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $occurredAt = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
 
         $this->logger->info('admin.registrations.cancel', [
             'eventId' => $eventId,

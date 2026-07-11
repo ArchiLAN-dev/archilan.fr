@@ -32,7 +32,7 @@ use Psr\Clock\ClockInterface;
 final readonly class CommunityProfileView
 {
     /** Recent unlocked achievements surfaced on the profile card; the rest live on the catalogue page. */
-    private const PROFILE_RECENT_LIMIT = 6;
+    private const int PROFILE_RECENT_LIMIT = 6;
 
     public function __construct(
         private CommunityProfileQueryInterface $query,
@@ -277,7 +277,7 @@ final readonly class CommunityProfileView
      */
     private function validShowcase(array $layout): array
     {
-        return array_values(array_filter($layout, static fn (string $w): bool => ShowcaseWidget::isValid($w)));
+        return array_values(array_filter($layout, ShowcaseWidget::isValid(...)));
     }
 
     /**

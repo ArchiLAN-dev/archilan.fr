@@ -19,7 +19,7 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class SubmitGameTutorialContribution
 {
-    public const MAX_PROPOSED_NAME = 160;
+    public const int MAX_PROPOSED_NAME = 160;
 
     public function __construct(
         private GameRepositoryInterface $games,

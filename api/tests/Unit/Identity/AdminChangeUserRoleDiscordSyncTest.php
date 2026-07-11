@@ -28,12 +28,10 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->once())
             ->method('dispatch')
-            ->with($this->callback(static function (object $message): bool {
-                return $message instanceof SyncDiscordRoleMessage
-                    && 'discord-snowflake-123' === $message->discordUserId
-                    && false === $message->removeAll
-                    && \in_array('ROLE_MEMBER', $message->archilanRoles, true);
-            }))
+            ->with($this->callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+                && 'discord-snowflake-123' === $message->discordUserId
+                && false === $message->removeAll
+                && \in_array('ROLE_MEMBER', $message->archilanRoles, true)))
             ->willReturnCallback(static function (object $message) use (&$events): Envelope {
                 $events[] = 'dispatch';
 
@@ -56,12 +54,10 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects($this->once())
             ->method('dispatch')
-            ->with($this->callback(static function (object $message): bool {
-                return $message instanceof SyncDiscordRoleMessage
-                    && 'discord-snowflake-123' === $message->discordUserId
-                    && false === $message->removeAll
-                    && ['ROLE_USER'] === $message->archilanRoles;
-            }))
+            ->with($this->callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+                && 'discord-snowflake-123' === $message->discordUserId
+                && false === $message->removeAll
+                && ['ROLE_USER'] === $message->archilanRoles))
             ->willReturnCallback(static function (object $message) use (&$events): Envelope {
                 $events[] = 'dispatch';
 

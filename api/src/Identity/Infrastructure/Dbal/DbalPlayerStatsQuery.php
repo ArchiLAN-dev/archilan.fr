@@ -11,14 +11,14 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
 {
-    private const SESSION_TABLE = 'session';
-    private const SLOT_TABLE = 'session_slot';
-    private const REGISTRATION_TABLE = 'registration';
-    private const RUN_TABLE = 'run';
-    private const WEEKLY_ENTRY_TABLE = 'weekly_entries';
+    private const string SESSION_TABLE = 'session';
+    private const string SLOT_TABLE = 'session_slot';
+    private const string REGISTRATION_TABLE = 'registration';
+    private const string RUN_TABLE = 'run';
+    private const string WEEKLY_ENTRY_TABLE = 'weekly_entries';
 
     // A released slot that never reached a goal is excluded from games/checks/items everywhere.
-    private const COUNTS = 'NOT (slot.was_released AND slot.goal_reached_at IS NULL)';
+    private const string COUNTS = 'NOT (slot.was_released AND slot.goal_reached_at IS NULL)';
 
     public function __construct(private Connection $connection)
     {

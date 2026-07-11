@@ -57,7 +57,7 @@ final readonly class DbalDashboardStatsQuery implements DashboardStatsQueryInter
             ->fetchOne();
         $userCount = is_numeric($userCountRaw) ? (int) $userCountRaw : 0;
 
-        $now = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $now = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
         $memberQb = $this->connection->createQueryBuilder();
         $activeMemberRaw = $memberQb
             ->select('COUNT(m.id)')

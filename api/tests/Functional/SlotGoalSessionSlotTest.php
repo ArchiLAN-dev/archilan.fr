@@ -13,7 +13,7 @@ use App\Sessions\Domain\SessionSlot;
  */
 final class SlotGoalSessionSlotTest extends FunctionalTestCase
 {
-    private const SECRET = 'test-runner-secret';
+    private const string SECRET = 'test-runner-secret';
 
     public function testGoalCallbackRecordsStatsOntoSessionSlot(): void
     {

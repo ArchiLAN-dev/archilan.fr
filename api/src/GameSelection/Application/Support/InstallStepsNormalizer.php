@@ -18,10 +18,10 @@ use App\GameSelection\Domain\Enum\InstallStepType;
  */
 final readonly class InstallStepsNormalizer
 {
-    public const MAX_TITLE = 200;
-    public const MAX_DESCRIPTION = 2000;
-    public const MAX_LABEL = 200;
-    public const MAX_IMAGE_KEY = 256;
+    public const int MAX_TITLE = 200;
+    public const int MAX_DESCRIPTION = 2000;
+    public const int MAX_LABEL = 200;
+    public const int MAX_IMAGE_KEY = 256;
 
     /**
      * @param array<mixed> $rawSteps

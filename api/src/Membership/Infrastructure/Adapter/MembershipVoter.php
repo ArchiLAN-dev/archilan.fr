@@ -18,7 +18,7 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  */
 final class MembershipVoter extends Voter
 {
-    public const IS_MEMBER = 'IS_MEMBER';
+    public const string IS_MEMBER = 'IS_MEMBER';
 
     public function __construct(private readonly ActiveMembershipQueryInterface $membershipQuery)
     {

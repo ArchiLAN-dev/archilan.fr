@@ -15,15 +15,15 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_community_notification_recipient', columns: ['recipient_id', 'read_at'])]
 final class Notification
 {
-    public const TYPE_FRIEND_REQUEST_RECEIVED = 'friend_request_received';
-    public const TYPE_FRIEND_REQUEST_ACCEPTED = 'friend_request_accepted';
-    public const TYPE_COMMENT_RECEIVED = 'comment_received';
-    public const TYPE_KUDOS_RECEIVED = 'kudos_received';
-    public const TYPE_ACHIEVEMENT_UNLOCKED = 'achievement_unlocked';
+    public const string TYPE_FRIEND_REQUEST_RECEIVED = 'friend_request_received';
+    public const string TYPE_FRIEND_REQUEST_ACCEPTED = 'friend_request_accepted';
+    public const string TYPE_COMMENT_RECEIVED = 'comment_received';
+    public const string TYPE_KUDOS_RECEIVED = 'kudos_received';
+    public const string TYPE_ACHIEVEMENT_UNLOCKED = 'achievement_unlocked';
     /** Admin-only: an account crossed the moderation escalation threshold (story 30.28). */
-    public const TYPE_ACCOUNT_FLAGGED = 'account_flagged';
+    public const string TYPE_ACCOUNT_FLAGGED = 'account_flagged';
     /** Member-facing: a moderator warned the member to fix sensitive info (story 30.29). */
-    public const TYPE_MODERATION_WARNING = 'moderation_warning';
+    public const string TYPE_MODERATION_WARNING = 'moderation_warning';
 
     /**
      * @param array<string, mixed> $payload

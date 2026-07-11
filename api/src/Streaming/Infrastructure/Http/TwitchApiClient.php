@@ -9,14 +9,14 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final class TwitchApiClient implements TwitchApiClientInterface
+final readonly class TwitchApiClient implements TwitchApiClientInterface
 {
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly CacheInterface $cache,
-        private readonly string $clientId,
-        private readonly string $clientSecret,
-        private readonly string $channelLogin,
+        private HttpClientInterface $httpClient,
+        private CacheInterface $cache,
+        private string $clientId,
+        private string $clientSecret,
+        private string $channelLogin,
     ) {
     }
 

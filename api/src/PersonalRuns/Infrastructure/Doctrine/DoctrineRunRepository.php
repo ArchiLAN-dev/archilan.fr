@@ -41,7 +41,7 @@ final readonly class DoctrineRunRepository implements RunRepositoryInterface
             ->executeQuery()
             ->fetchFirstColumn();
 
-        $ids = array_values(array_unique(array_filter($ids, 'is_string')));
+        $ids = array_values(array_unique(array_filter($ids, is_string(...))));
         if ([] === $ids) {
             return [];
         }

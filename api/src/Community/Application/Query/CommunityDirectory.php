@@ -14,12 +14,12 @@ use App\Community\Domain\ValueObject\Level;
  */
 final readonly class CommunityDirectory
 {
-    public const MODE_TOP = 'top';
-    public const MODE_RECENT = 'recent';
-    public const MODE_FRIENDS = 'friends';
+    public const string MODE_TOP = 'top';
+    public const string MODE_RECENT = 'recent';
+    public const string MODE_FRIENDS = 'friends';
 
-    private const DEFAULT_PER_PAGE = 24;
-    private const MAX_PER_PAGE = 60;
+    private const int DEFAULT_PER_PAGE = 24;
+    private const int MAX_PER_PAGE = 60;
 
     public function __construct(
         private CommunityDirectoryQueryInterface $directory,

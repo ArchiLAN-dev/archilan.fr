@@ -14,10 +14,10 @@ namespace App\Shared\Domain\ValueObject;
  */
 final readonly class SlotName
 {
-    public const MAX_LENGTH = 16;
+    public const int MAX_LENGTH = 16;
 
     /** A name is a non-empty run of allowed chars and/or AP placeholder tokens. */
-    public const PATTERN = '/^(?:[A-Za-z0-9_]|\{(?:number|player|NUMBER|PLAYER)\})+$/';
+    public const string PATTERN = '/^(?:[A-Za-z0-9_]|\{(?:number|player|NUMBER|PLAYER)\})+$/';
 
     public static function isValid(string $name): bool
     {

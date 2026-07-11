@@ -10,7 +10,7 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class AvatarFrame
 {
-    public const ALL = [
+    public const array ALL = [
         'gold',
         'silver',
         'bronze',

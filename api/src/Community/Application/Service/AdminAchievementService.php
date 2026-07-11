@@ -21,7 +21,7 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class AdminAchievementService
 {
-    private const KEY_PATTERN = '/^[a-z0-9_]{1,64}$/';
+    private const string KEY_PATTERN = '/^[a-z0-9_]{1,64}$/';
 
     public function __construct(
         private AchievementDefinitionRepositoryInterface $definitions,
@@ -36,7 +36,7 @@ final readonly class AdminAchievementService
      */
     public function list(): array
     {
-        return array_map(fn (AchievementDefinition $d): array => $this->present($d), $this->definitions->all());
+        return array_map($this->present(...), $this->definitions->all());
     }
 
     /**

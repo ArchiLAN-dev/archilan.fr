@@ -11,8 +11,8 @@ use Psr\Clock\ClockInterface;
 
 final readonly class UpdateArchipelagoClient
 {
-    public const MAX_VERSION = 50;
-    public const MAX_URL = 500;
+    public const int MAX_VERSION = 50;
+    public const int MAX_URL = 500;
 
     public function __construct(
         private ArchipelagoClientInfoRepositoryInterface $repository,

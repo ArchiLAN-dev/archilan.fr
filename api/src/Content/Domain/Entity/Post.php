@@ -10,12 +10,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class Post
 {
-    public const TYPE_NEWS = 'news';
-    public const TYPE_RECAP = 'recap';
-    public const TYPE_ANNOUNCEMENT = 'announcement';
+    public const string TYPE_NEWS = 'news';
+    public const string TYPE_RECAP = 'recap';
+    public const string TYPE_ANNOUNCEMENT = 'announcement';
 
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_PUBLISHED = 'published';
+    public const string STATUS_DRAFT = 'draft';
+    public const string STATUS_PUBLISHED = 'published';
 
     public function __construct(
         #[ORM\Id]

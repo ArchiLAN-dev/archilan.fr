@@ -19,7 +19,7 @@ final readonly class PlatformCategory
      *
      * @var list<array{family: string, needles: list<string>}>
      */
-    private const RULES = [
+    private const array RULES = [
         ['family' => 'Super Nintendo', 'needles' => ['super nintendo', 'super famicom', 'satellaview']],
         ['family' => 'NES', 'needles' => ['nintendo entertainment system', 'family computer', 'famicom']],
         ['family' => 'Nintendo 64', 'needles' => ['nintendo 64', '64dd']],

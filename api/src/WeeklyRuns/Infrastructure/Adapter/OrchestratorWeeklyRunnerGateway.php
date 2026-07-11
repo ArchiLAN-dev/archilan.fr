@@ -12,8 +12,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class OrchestratorWeeklyRunnerGateway implements WeeklyRunnerGatewayInterface
 {
-    private const LAUNCH_POLL_INTERVAL_MS = 2_000;
-    private const LAUNCH_TIMEOUT_S = 60;
+    private const int LAUNCH_POLL_INTERVAL_MS = 2_000;
+    private const int LAUNCH_TIMEOUT_S = 60;
 
     public function __construct(
         private OrchestratorClient $client,

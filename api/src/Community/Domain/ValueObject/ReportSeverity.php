@@ -12,7 +12,7 @@ namespace App\Community\Domain\ValueObject;
 final readonly class ReportSeverity
 {
     /** Problem => weight. The weakest (`other`) is 0 so a pure "Autre" report never escalates on its own. */
-    public const WEIGHTS = [
+    public const array WEIGHTS = [
         ReportProblem::NUDITY => 10,
         ReportProblem::VIOLENCE => 10,
         ReportProblem::HATE => 8,

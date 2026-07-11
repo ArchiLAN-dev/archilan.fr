@@ -15,23 +15,23 @@ use App\Community\Domain\ValueObject\ReportProblem;
  */
 final readonly class ReportQueryFilters
 {
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_RESOLVED = 'resolved';
-    public const STATUS_ALL = 'all';
+    public const string STATUS_PENDING = 'pending';
+    public const string STATUS_RESOLVED = 'resolved';
+    public const string STATUS_ALL = 'all';
 
-    public const COMMENT_ANY = 'any';
-    public const COMMENT_HIDDEN = 'hidden';
-    public const COMMENT_VISIBLE = 'visible';
+    public const string COMMENT_ANY = 'any';
+    public const string COMMENT_HIDDEN = 'hidden';
+    public const string COMMENT_VISIBLE = 'visible';
 
-    public const TARGET_ANY = 'any';
+    public const string TARGET_ANY = 'any';
 
-    public const PROBLEM_ANY = 'any';
+    public const string PROBLEM_ANY = 'any';
 
-    public const SORT_RECENT = 'recent';
-    public const SORT_OLDEST = 'oldest';
-    public const SORT_SEVERITY = 'severity';
+    public const string SORT_RECENT = 'recent';
+    public const string SORT_OLDEST = 'oldest';
+    public const string SORT_SEVERITY = 'severity';
 
-    private const MAX_LIMIT = 100;
+    private const int MAX_LIMIT = 100;
 
     public function __construct(
         public string $status,

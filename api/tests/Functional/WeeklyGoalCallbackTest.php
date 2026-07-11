@@ -12,9 +12,9 @@ use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class WeeklyGoalCallbackTest extends FunctionalTestCase
 {
-    private const GOOD_SECRET = 'test-runner-secret';
-    private const SESSION_ID = 'session-goal-test';
-    private const SLOT_ID = 2;
+    private const string GOOD_SECRET = 'test-runner-secret';
+    private const string SESSION_ID = 'session-goal-test';
+    private const int SLOT_ID = 2;
 
     protected function setUp(): void
     {

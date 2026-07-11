@@ -11,8 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_event_registrations_event_user', columns: ['event_id', 'user_id'])]
 final class Registration
 {
-    public const STATUS_RESERVED = 'reserved';
-    public const STATUS_CANCELLED = 'cancelled';
+    public const string STATUS_RESERVED = 'reserved';
+    public const string STATUS_CANCELLED = 'cancelled';
 
     public function __construct(
         #[ORM\Id]

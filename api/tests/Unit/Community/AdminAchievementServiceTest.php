@@ -126,7 +126,7 @@ final class AdminAchievementServiceTest extends TestCase
 
     public function testFormOptionsExposesFactsOperatorsGroupsAndEvents(): void
     {
-        $options = (new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls(), new MockClock()))->formOptions();
+        $options = new AdminAchievementService($this->repo(), $this->events(['evt-1']), $this->imageUrls(), new MockClock())->formOptions();
 
         self::assertNotEmpty($options['facts']);
         self::assertContains('eventsWithGoal', array_map(static fn (array $f): string => $f['key'], $options['facts']));
@@ -162,7 +162,7 @@ final class AdminAchievementServiceTest extends TestCase
      */
     private function events(array $knownIds = []): EventCatalogueQueryInterface
     {
-        return new class($knownIds) implements EventCatalogueQueryInterface {
+        return new readonly class($knownIds) implements EventCatalogueQueryInterface {
             /** @param list<string> $knownIds */
             public function __construct(private array $knownIds)
             {
@@ -220,13 +220,7 @@ final class AdminAchievementServiceTest extends TestCase
 
             public function existsByKey(string $key): bool
             {
-                foreach ($this->defs as $d) {
-                    if ($d->getKey() === $key) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return array_any($this->defs, fn ($d) => $d->getKey() === $key);
             }
 
             public function maxPosition(): int

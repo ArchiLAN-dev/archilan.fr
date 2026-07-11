@@ -14,7 +14,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class ArchipelagoClientInfo
 {
-    public const SINGLETON_ID = 'default';
+    public const string SINGLETON_ID = 'default';
 
     public function __construct(
         #[ORM\Id]

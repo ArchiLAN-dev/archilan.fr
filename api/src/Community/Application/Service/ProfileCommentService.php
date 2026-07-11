@@ -25,9 +25,9 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class ProfileCommentService
 {
-    private const BODY_MAX = 2000;
-    private const RATE_MAX = 5;
-    private const RATE_WINDOW_SECONDS = 60;
+    private const int BODY_MAX = 2000;
+    private const int RATE_MAX = 5;
+    private const int RATE_WINDOW_SECONDS = 60;
 
     public function __construct(
         private ProfileCommentRepositoryInterface $comments,

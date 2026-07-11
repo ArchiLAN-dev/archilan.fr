@@ -20,8 +20,8 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class UpdateCommunityProfile
 {
-    private const MAX_SOCIAL_LINKS = 5;
-    private const MAX_FAVORITE_GAMES = 6;
+    private const int MAX_SOCIAL_LINKS = 5;
+    private const int MAX_FAVORITE_GAMES = 6;
 
     public function __construct(
         private CommunityProfileRepositoryInterface $profiles,

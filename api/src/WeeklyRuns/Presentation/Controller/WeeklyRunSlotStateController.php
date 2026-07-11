@@ -392,15 +392,13 @@ final readonly class WeeklyRunSlotStateController
      */
     private function stripItemRewards(array $data): array
     {
-        $strip = static function (array $locations): array {
-            return array_map(static function (mixed $entry): mixed {
-                if (is_array($entry)) {
-                    unset($entry['item']);
-                }
+        $strip = (static fn (array $locations): array => array_map(static function (mixed $entry): mixed {
+            if (is_array($entry)) {
+                unset($entry['item']);
+            }
 
-                return $entry;
-            }, $locations);
-        };
+            return $entry;
+        }, $locations));
 
         foreach (['reachable_unchecked', 'reachable_checked', 'unreachable_unchecked', 'checked_unreachable'] as $key) {
             if (isset($data[$key]) && is_array($data[$key])) {

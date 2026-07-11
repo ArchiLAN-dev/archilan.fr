@@ -17,8 +17,8 @@ use App\Community\Domain\Repository\KudosRepositoryInterface;
  */
 final readonly class CommunityFeedQuery
 {
-    private const DEFAULT_LIMIT = 30;
-    private const MAX_LIMIT = 100;
+    private const int DEFAULT_LIMIT = 30;
+    private const int MAX_LIMIT = 100;
 
     public function __construct(
         private ActivityEntryRepositoryInterface $entries,

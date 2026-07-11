@@ -10,14 +10,14 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class ReportCategory
 {
-    public const AVATAR = 'avatar';
-    public const DISPLAY_NAME = 'display_name';
-    public const BIO = 'bio';
-    public const SOCIAL_LINK = 'social_link';
-    public const COMMENT = 'comment';
-    public const OTHER = 'other';
+    public const string AVATAR = 'avatar';
+    public const string DISPLAY_NAME = 'display_name';
+    public const string BIO = 'bio';
+    public const string SOCIAL_LINK = 'social_link';
+    public const string COMMENT = 'comment';
+    public const string OTHER = 'other';
 
-    public const ALL = [
+    public const array ALL = [
         self::AVATAR,
         self::DISPLAY_NAME,
         self::BIO,

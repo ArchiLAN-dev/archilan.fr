@@ -19,8 +19,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_community_report_resolved', columns: ['resolved_at'])]
 final class ContentReport
 {
-    public const TARGET_COMMENT = 'comment';
-    public const TARGET_PROFILE = 'profile';
+    public const string TARGET_COMMENT = 'comment';
+    public const string TARGET_PROFILE = 'profile';
 
     public function __construct(
         #[ORM\Id]

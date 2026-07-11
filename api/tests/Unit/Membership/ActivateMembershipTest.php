@@ -18,8 +18,8 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class ActivateMembershipTest extends TestCase
 {
-    private const USER_ID = 'user-abc123';
-    private const DISCORD_ID = 'discord-xyz';
+    private const string USER_ID = 'user-abc123';
+    private const string DISCORD_ID = 'discord-xyz';
 
     public function testActivateCreatesNewMembershipAndDispatchesSync(): void
     {

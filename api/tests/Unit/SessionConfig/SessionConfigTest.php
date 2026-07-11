@@ -85,7 +85,7 @@ final class SessionConfigTest extends TestCase
         $base = SessionConfig::defaultsFor(SessionType::Event);
         $merged = $base->withOverride(new SessionConfigOverride());
 
-        self::assertTrue((new SessionConfigOverride())->isEmpty());
+        self::assertTrue(new SessionConfigOverride()->isEmpty());
         self::assertEquals($base->server->toServerFlags(), $merged->server->toServerFlags());
         self::assertEquals($base->generation->toGenerationParams(), $merged->generation->toGenerationParams());
     }

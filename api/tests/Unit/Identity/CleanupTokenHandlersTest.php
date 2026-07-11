@@ -25,7 +25,7 @@ final class CleanupTokenHandlersTest extends TestCase
                 self::isInstanceOf(\DateTimeImmutable::class),
                 self::callback(function (\DateTimeImmutable $consumedBefore): bool {
                     // ~7 days in the past
-                    $days = (new \DateTimeImmutable())->diff($consumedBefore)->days;
+                    $days = new \DateTimeImmutable()->diff($consumedBefore)->days;
 
                     return $consumedBefore < new \DateTimeImmutable() && 6 <= $days && $days <= 8;
                 }),

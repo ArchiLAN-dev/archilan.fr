@@ -49,9 +49,7 @@ final readonly class CommunityLevelQuery
         $stats = $this->playerStats->computeForUsers($userIds);
         $counts = $this->achievementGrants->countByUsers($userIds);
 
-        $ids = null !== $userIds
-            ? $userIds
-            : array_values(array_unique([...array_keys($stats), ...array_keys($counts)]));
+        $ids = $userIds ?? array_values(array_unique([...array_keys($stats), ...array_keys($counts)]));
 
         $out = [];
         foreach ($ids as $userId) {

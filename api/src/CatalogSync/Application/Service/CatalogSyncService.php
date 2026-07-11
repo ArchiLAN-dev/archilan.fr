@@ -15,15 +15,15 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class CatalogSyncService
 {
-    private const TTL = 3600;
-    private const GID_MAIN = 58422002;
-    private const GID_BUNDLED = 1675722515;
-    private const SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
-    private const SHEETS_EXPORT_BASE = 'https://docs.google.com/spreadsheets/d';
-    private const FIELDS_MASK = 'sheets.properties.sheetId,sheets.data.rowData.values.textFormatRuns,sheets.data.rowData.values.userEnteredValue,sheets.data.rowData.values.userEnteredFormat.textFormat.link';
+    private const int TTL = 3600;
+    private const int GID_MAIN = 58422002;
+    private const int GID_BUNDLED = 1675722515;
+    private const string SHEETS_API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
+    private const string SHEETS_EXPORT_BASE = 'https://docs.google.com/spreadsheets/d';
+    private const string FIELDS_MASK = 'sheets.properties.sheetId,sheets.data.rowData.values.textFormatRuns,sheets.data.rowData.values.userEnteredValue,sheets.data.rowData.values.userEnteredFormat.textFormat.link';
 
     /** @var array<string, string> */
-    private const STABILITY_MAP = [
+    private const array STABILITY_MAP = [
         'Stable' => 'available',
         'Unstable' => 'experimental',
         'Broken on Main' => 'unavailable',

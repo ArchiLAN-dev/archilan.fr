@@ -22,16 +22,16 @@ use Symfony\Component\Scheduler\ScheduleProviderInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 
 #[AsSchedule]
-final class Schedule implements ScheduleProviderInterface
+final readonly class Schedule implements ScheduleProviderInterface
 {
     public function __construct(
-        private readonly CacheInterface $cache,
+        private CacheInterface $cache,
     ) {
     }
 
     public function getSchedule(): SymfonySchedule
     {
-        return (new SymfonySchedule())
+        return new SymfonySchedule()
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true)
             ->add(

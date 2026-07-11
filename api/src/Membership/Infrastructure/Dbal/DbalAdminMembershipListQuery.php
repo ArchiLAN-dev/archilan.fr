@@ -10,7 +10,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 
 final readonly class DbalAdminMembershipListQuery implements AdminMembershipListQueryInterface
 {
-    private const STATUS_EXPR = "CASE WHEN m.status = 'cancelled' THEN 'cancelled' WHEN m.expires_at >= :nowSelect THEN 'active' ELSE 'expired' END";
+    private const string STATUS_EXPR = "CASE WHEN m.status = 'cancelled' THEN 'cancelled' WHEN m.expires_at >= :nowSelect THEN 'active' ELSE 'expired' END";
 
     public function __construct(private Connection $connection)
     {
@@ -24,7 +24,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
         $page = max(1, $page);
         $limit = min(200, max(1, $limit));
         $userTable = $this->connection->quoteSingleIdentifier('user');
-        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $now = new \DateTimeImmutable()->format('Y-m-d H:i:s');
 
         $qb = $this->connection->createQueryBuilder();
         $qb
@@ -78,7 +78,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
     public function findById(string $membershipId): ?array
     {
         $userTable = $this->connection->quoteSingleIdentifier('user');
-        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $now = new \DateTimeImmutable()->format('Y-m-d H:i:s');
         $qb = $this->connection->createQueryBuilder();
         $row = $qb
             ->select(
@@ -112,7 +112,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
     public function findLatestByUserId(string $userId): ?array
     {
         $userTable = $this->connection->quoteSingleIdentifier('user');
-        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $now = new \DateTimeImmutable()->format('Y-m-d H:i:s');
         $qb = $this->connection->createQueryBuilder();
         $row = $qb
             ->select(

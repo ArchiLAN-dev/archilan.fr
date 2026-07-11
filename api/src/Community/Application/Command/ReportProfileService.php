@@ -20,7 +20,7 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class ReportProfileService
 {
-    private const COMMENT_MAX = 500;
+    private const int COMMENT_MAX = 500;
 
     public function __construct(
         private ContentReportRepositoryInterface $reports,

@@ -12,10 +12,10 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class CommunityXp
 {
-    public const XP_PER_GOAL = 500;
-    public const XP_PER_CHECK = 1;
-    public const XP_PER_RUN = 50;
-    public const XP_PER_ACHIEVEMENT = 100;
+    public const int XP_PER_GOAL = 500;
+    public const int XP_PER_CHECK = 1;
+    public const int XP_PER_RUN = 50;
+    public const int XP_PER_ACHIEVEMENT = 100;
 
     public static function compute(int $goalCompletions, int $totalChecksDone, int $runsParticipated, int $achievementsUnlocked): int
     {
