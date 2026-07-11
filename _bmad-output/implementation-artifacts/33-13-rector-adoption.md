@@ -1,6 +1,6 @@
 # Story 33.13: Rector Adoption (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -43,13 +43,34 @@ already in `allow-plugins` (Rector needs no plugin).
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: `composer require --dev rector/rector` (+ `rector/rector-symfony` if Symfony sets used);
+- [x] Task 1: `composer require --dev rector/rector` (+ `rector/rector-symfony` if Symfony sets used);
   write conservative `rector.php` (paths, PHP 8.4 sets, skips: Sessions + migrations) (AC: 1)
-- [ ] Task 2: full `--dry-run`; triage the finding classes into the story record (apply vs accept vs
+- [x] Task 2: full `--dry-run`; triage the finding classes into the story record (apply vs accept vs
   skip-rule); apply the mechanical fixes in reviewable batches (AC: 2)
-- [ ] Task 3: `composer rector` script + advisory CI step + `api/CLAUDE.md` mention (AC: 3)
+- [x] Task 3: `composer rector` script + advisory CI step + `api/CLAUDE.md` mention (AC: 3)
 - [ ] Task 4: full gates on isolated DB; PR to develop; adversarial review; merge on green
   (pre-authorized) (AC: 4)
+
+### Dry-run triage (AC2 - worklist of record)
+
+First dry-run: 173 findings / 157 files / 13 rules. Verdicts:
+
+| Rule (count) | Verdict |
+|---|---|
+| AddTypeToConstRector (96) | APPLIED - typed class constants (PHP 8.3), incl. 19 Domain entities (constants only, verified) |
+| NewMethodCallWithoutParenthesesRector (35) | APPLIED - PHP 8.4 `new Foo()->bar()` chaining |
+| ArrowFunctionDelegatingCallToFirstClassCallableRector (12) | APPLIED - first-class callables |
+| ForeachToArrayAnyRector (6) + ForeachToArrayAllRector (1) | APPLIED - PHP 8.4 array_any/array_all |
+| ClosureToArrowFunctionRector (5) | APPLIED |
+| ReadOnlyClassRector (5) | APPLIED - Infrastructure adapters (IgdbHttpClient, SteamWebApiClient, S3MinioStorage, TwitchApiClient, Schedule); per-property readonly demoted to class-level |
+| ReadOnlyAnonymousClassRector (5) | APPLIED - test doubles |
+| ReadOnlyPropertyRector (4) | APPLIED - non-entity classes only (verified: no Doctrine-hydrated property touched) |
+| AddOverrideAttributeToOverriddenMethodsRector (3) | APPLIED |
+| TernaryToNullCoalescingRector (1) | APPLIED |
+| StringClassNameToClassConstantRector (1) | **SKIPPED (rule in withSkip)** - it rewrote the DDD validator's forbidden-import scan patterns to `::class`, whose source text carries single backslashes: the validator immediately flagged ITSELF (gate red). Scan patterns must stay single-quoted strings (doubled backslashes cannot self-match). Comment in rector.php records this. |
+
+Decision recorded: `rector/rector-symfony` NOT adopted in this story - conservative baseline first;
+Symfony sets are a follow-up candidate once the PHP-set baseline proves quiet.
 
 ## Dev Notes
 
@@ -91,14 +112,41 @@ already in `allow-plugins` (Rector needs no plugin).
 
 ### Agent Model Used
 
+claude-fable-5.
+
 ### Debug Log References
+
+- The anticipated Rector/validator interplay materialized on the very first apply:
+  `StringClassNameToClassConstantRector` turned the validator's own `FORBIDDEN_APPLICATION_IMPORTS`
+  and `ALLOWED_DOMAIN_SYMFONY_IMPORTS` string entries into `::class` references, and
+  `app:architecture:ddd` went red flagging the validator file for "injecting" Doctrine. Root cause:
+  single-quoted `'Doctrine\\DBAL\\Connection'` has doubled backslashes in source (cannot
+  str_contains-match), while `\Doctrine\DBAL\Connection::class` contains the literal FQCN sequence.
+  Resolution: rule added to `withSkip` with the explanation, validator file restored and re-processed.
 
 ### Completion Notes List
 
+- `rector/rector` ^2.4 (dev); conservative `rector.php`: paths src+tests, `withPhpSets(php84: true)`
+  only, skips = `src/Sessions` (Epic 32 freeze) + `StringClassNameToClassConstantRector`;
+  migrations excluded by paths.
+- 172 findings applied across 157 files (see triage table); cs-fixer restyled the output in the same
+  batch; `composer rector` dry-run exits 0 at PR time.
+- Advisory CI step added to backend.yml after the Infection step (same continue-on-error shape +
+  flip-to-hard-gate comment); `composer rector` script; `api/CLAUDE.md` advisory paragraph.
+- Gates: phpstan 0, cs-fixer 0, `app:architecture:ddd` OK, full isolated suite
+  **1489 tests / 10304 assertions** green.
+
 ### File List
+
+- api/rector.php (new), api/composer.json + composer.lock, api/CLAUDE.md,
+  .github/workflows/backend.yml
+- 157 modernised files under api/src/** and api/tests/** (typed constants, PHP 8.4 new-chaining,
+  first-class callables, array_any/all, readonly promotions on 5 Infrastructure adapters + test
+  doubles, #[\Override] x3)
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-11 | Story created (epic-33 follow-up 33.13). Dev dep approved by Jean; conservative config spec'd (PHP 8.4 sets, Sessions + migrations hard-skipped, no style sets); 33.12 advisory-CI shape as prior art; cs-fixer/validator interplay lessons baked in. Status: ready-for-dev. |
+| 2026-07-11 | Implemented: rector ^2.4 + conservative config; 172 findings applied / 157 files (triage table of record); StringClassNameToClassConstantRector skipped after self-matching the validator's scan patterns (gate red on first apply, documented); advisory composer script + CI step + doc. All gates green (isolated suite 1489 tests). Status: ready-for-review (Task 4 pending PR/review/merge). |
