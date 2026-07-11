@@ -3,46 +3,23 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CalendarClock, CheckCircle, Lock, Users, XCircle } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import {
+  fetchAuthProbe,
+  fetchRegistrationEligibility,
+  type EligibilityReason,
+  type EligibilityResult,
+  type RegistrationEligibilityResult,
+} from "./events-api";
 import { SeatCounter } from "./seat-counter";
 
-type EligibilityReason =
-  | "private_event"
-  | "event_completed"
-  | "event_in_progress"
-  | "registration_not_open_yet"
-  | "registration_closed"
-  | "capacity_full";
-
-type EligibilityEvent = {
-  id: string;
-  title: string;
-  startsAt: string;
-  endsAt: string;
-  venue: string;
-  capacity: number;
-  confirmedRegistrations: number;
-  registrationOpensAt: string;
-  registrationClosesAt: string;
-  isPublic: boolean;
-};
-
-type EligibilityResult = {
-  eligible: boolean;
-  reason: EligibilityReason | null;
-  opensAt: string | null;
-  event: EligibilityEvent;
-};
-
-type GateState =
-  | { kind: "loading" }
-  | { kind: "eligible"; result: EligibilityResult }
-  | { kind: "ineligible"; result: EligibilityResult }
-  | { kind: "not_found" }
-  | { kind: "error"; message: string };
+// "error" results are thrown inside the queryFn so TanStack keeps the last good data when a
+// 30 s background poll fails (the seat counter must not blank out on a transient failure).
+type EligibilityQueryData = Exclude<RegistrationEligibilityResult, { kind: "error" }>;
 
 export function RegistrationEligibilityGate({
   params,
@@ -51,95 +28,83 @@ export function RegistrationEligibilityGate({
 }) {
   const { eventSlug } = use(params);
   const router = useRouter();
-  const [gateState, setGateState] = useState<GateState>({ kind: "loading" });
-  const [seatCounterDisconnected, setSeatCounterDisconnected] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fresh session probe on every gate entry (staleTime 0), like the pre-TanStack effect.
+  const authQuery = useQuery({
+    queryKey: ["registration-auth-probe"],
+    queryFn: fetchAuthProbe,
+    staleTime: 0,
+    retry: false,
+  });
 
   useEffect(() => {
-    let cancelled = false;
+    if (authQuery.data === "unauthenticated") {
+      router.push(`/connexion?returnTo=/evenements/${eventSlug}/inscription`);
+    }
+  }, [authQuery.data, eventSlug, router]);
 
-    async function run() {
-      const profileRes = await apiFetch(`${env.apiBaseUrl}/account/profile`);
+  const eligibilityQuery = useQuery({
+    queryKey: ["registration-eligibility", eventSlug],
+    queryFn: async (): Promise<EligibilityQueryData> => {
+      const fresh = await fetchRegistrationEligibility(eventSlug);
+      if (fresh.kind === "error") throw new Error(fresh.message);
+      if (fresh.kind === "not_found") return fresh;
 
-      if (cancelled) return;
+      // 30 s poll semantics preserved from the pre-TanStack interval: once the gate decision
+      // is made, a refetch only updates the seat counts in place - it never flips the
+      // eligible/ineligible decision, except when capacity fills up.
+      const prev = queryClient.getQueryData<EligibilityQueryData>([
+        "registration-eligibility",
+        eventSlug,
+      ]);
+      if (!prev || prev.kind !== "success") return fresh;
 
-      if (profileRes.status === 401 || profileRes.status === 403) {
-        router.push(`/connexion?returnTo=/evenements/${eventSlug}/inscription`);
-        return;
+      const updatedResult: EligibilityResult = { ...prev.result, event: fresh.result.event };
+      if (!fresh.result.eligible && fresh.result.reason === "capacity_full") {
+        return {
+          kind: "success",
+          result: { ...updatedResult, eligible: false, reason: "capacity_full" },
+        };
       }
+      return { kind: "success", result: updatedResult };
+    },
+    enabled: authQuery.data === "authenticated",
+    // Seat counts must be fresh on every mount (the pre-TanStack gate always refetched).
+    staleTime: 0,
+    // Poll eligibility every 30s to refresh seat count and detect capacity changes.
+    refetchInterval: 30_000,
+    retry: false,
+  });
 
-      const eligibilityRes = await fetch(
-        `${env.apiBaseUrl}/events/${eventSlug}/registration-eligibility`,
-        { credentials: "include" },
+  // The API is unreachable (auth probe network failure) - same terminal error as before.
+  if (authQuery.data === null) {
+    return (
+      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+        <p className="text-sm text-muted-foreground">Impossible de contacter l&apos;API.</p>
+      </div>
+    );
+  }
+
+  const gateResult = eligibilityQuery.data;
+
+  if (gateResult === undefined) {
+    if (eligibilityQuery.isError) {
+      const message =
+        eligibilityQuery.error instanceof Error
+          ? eligibilityQuery.error.message
+          : "Impossible de contacter l'API.";
+      return (
+        <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+          <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+          <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
       );
-
-      if (cancelled) return;
-
-      if (eligibilityRes.status === 404) {
-        setGateState({ kind: "not_found" });
-        return;
-      }
-
-      if (!eligibilityRes.ok) {
-        setGateState({ kind: "error", message: "Impossible de vérifier l'éligibilité." });
-        return;
-      }
-
-      const payload: unknown = await eligibilityRes.json();
-      if (!isEligibilityPayload(payload)) {
-        setGateState({ kind: "error", message: "Réponse API invalide." });
-        return;
-      }
-
-      const result = payload.data;
-      setSeatCounterDisconnected(false);
-      setGateState(result.eligible ? { kind: "eligible", result } : { kind: "ineligible", result });
     }
 
-    void run().catch(() => {
-      if (!cancelled) {
-        setGateState({ kind: "error", message: "Impossible de contacter l'API." });
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [eventSlug, router]);
-
-  // Poll eligibility every 30s to refresh seat count and detect capacity changes.
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      void fetch(`${env.apiBaseUrl}/events/${eventSlug}/registration-eligibility`, {
-        credentials: "include",
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            setSeatCounterDisconnected(true);
-            return;
-          }
-          const payload: unknown = await res.json();
-          if (!isEligibilityPayload(payload)) {
-            setSeatCounterDisconnected(true);
-            return;
-          }
-          const fresh = payload.data;
-          setSeatCounterDisconnected(false);
-          setGateState((prev) => {
-            if (prev.kind !== "eligible" && prev.kind !== "ineligible") return prev;
-            const updatedResult = { ...prev.result, event: fresh.event };
-            if (!fresh.eligible && fresh.reason === "capacity_full") {
-              return { kind: "ineligible", result: { ...updatedResult, eligible: false, reason: "capacity_full" } };
-            }
-            return { ...prev, result: updatedResult };
-          });
-        })
-        .catch(() => setSeatCounterDisconnected(true));
-    }, 30_000);
-
-    return () => clearInterval(intervalId);
-  }, [eventSlug]);
-
-  if (gateState.kind === "loading") {
     return (
       <div aria-hidden="true" className="grid gap-8">
         {/* header */}
@@ -162,7 +127,7 @@ export function RegistrationEligibilityGate({
     );
   }
 
-  if (gateState.kind === "not_found") {
+  if (gateResult.kind === "not_found") {
     return (
       <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
         <XCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
@@ -175,17 +140,10 @@ export function RegistrationEligibilityGate({
     );
   }
 
-  if (gateState.kind === "error") {
-    return (
-      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
-        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
-        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
-        <p className="text-sm text-muted-foreground">{gateState.message}</p>
-      </div>
-    );
-  }
-
-  const { result } = gateState;
+  const { result } = gateResult;
+  // A failed background poll keeps the last data (queryFn throws on error) and only flags
+  // the seat counter as disconnected, like the pre-TanStack interval.
+  const seatCounterDisconnected = eligibilityQuery.isError;
 
   return (
     <article className="grid gap-8">
@@ -204,7 +162,7 @@ export function RegistrationEligibilityGate({
         loading={seatCounterDisconnected}
       />
 
-      {gateState.kind === "eligible" ? (
+      {result.eligible ? (
         <EligiblePanel eventSlug={eventSlug} />
       ) : result.reason === "private_event" ? (
         <>
@@ -212,7 +170,13 @@ export function RegistrationEligibilityGate({
           <PrivateAccessDisclosure
             eventSlug={eventSlug}
             onGranted={() =>
-              setGateState({ kind: "eligible", result: { ...result, eligible: true, reason: null } })
+              queryClient.setQueryData<EligibilityQueryData>(
+                ["registration-eligibility", eventSlug],
+                (prev) =>
+                  prev?.kind === "success"
+                    ? { kind: "success", result: { ...prev.result, eligible: true, reason: null } }
+                    : prev,
+              )
             }
           />
         </>
@@ -236,6 +200,7 @@ type ReserveState =
   | { kind: "error" };
 
 function EligiblePanel({ eventSlug }: { eventSlug: string }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<ReserveState>({ kind: "idle" });
 
   if (state.kind === "capacity_full") {
@@ -319,6 +284,8 @@ function EligiblePanel({ eventSlug }: { eventSlug: string }) {
             ? { kind: "already_registered", registrationId }
             : { kind: "reserved", registrationId },
         );
+        // The event-page CTA caches my-registration: a fresh reservation must invalidate it.
+        void queryClient.invalidateQueries({ queryKey: ["event-my-registration"] });
       } else {
         setState({ kind: "error" });
       }
@@ -515,19 +482,5 @@ function isGrantedResponse(payload: unknown): boolean {
     typeof data === "object" &&
     "granted" in (data as Record<string, unknown>) &&
     (data as { granted?: unknown }).granted === true
-  );
-}
-
-function isEligibilityPayload(payload: unknown): payload is { data: EligibilityResult } {
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data: unknown }).data
-      : null;
-
-  return Boolean(
-    data &&
-      typeof data === "object" &&
-      "eligible" in data &&
-      "event" in data,
   );
 }

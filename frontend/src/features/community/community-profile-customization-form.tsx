@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
 import { AVATAR_FRAME_KEYS, AVATAR_FRAMES, type AvatarFrameCategory } from "./avatar-frames";
@@ -94,7 +96,6 @@ export function CommunityProfileCustomizationForm({
   onDirtyChange,
   registerSave,
 }: CommunityProfileCustomizationFormProps = {}) {
-  const [loading, setLoading] = useState(true);
   const [slug, setSlug] = useState<string | null>(null);
   const [accountName, setAccountName] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -112,9 +113,25 @@ export function CommunityProfileCustomizationForm({
   const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
   const [showcase, setShowcase] = useState<string[]>([]);
-  const [catalog, setCatalog] = useState<PublicGame[]>([]);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const [baseline, setBaseline] = useState<string>("");
+
+  // Server state lives in TanStack Query (AC-ST2); the form fields above are the local draft copy.
+  // Both fetchers resolve to a value (null / []) on error, never throw - retry off like the old effect.
+  const { data: profileData, isLoading: loadingProfile } = useQuery({
+    queryKey: ["community-my-profile"],
+    queryFn: fetchMyCommunityProfile,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const { data: catalogData, isLoading: loadingCatalog } = useQuery({
+    queryKey: ["public-games", "all"],
+    queryFn: getAllPublicGames,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const catalog: PublicGame[] = catalogData ?? [];
+  const loading = loadingProfile || loadingCatalog;
 
   const values: FormValues = useMemo(
     () => ({ displayName, bio, tagline, pronouns, bannerPreset, avatarFrame, audience, socialLinks, favorites, showcase }),
@@ -123,7 +140,7 @@ export function CommunityProfileCustomizationForm({
   const serialized = useMemo(() => serialize(values), [values]);
   const isDirty = baseline !== "" && serialized !== baseline;
 
-  function hydrate(profile: MyCommunityProfile): void {
+  const hydrate = useCallback((profile: MyCommunityProfile): void => {
     // A frame key that no longer exists (retired) resets to "none" so saving can't 422 on it.
     const frame = profile.avatarFrame && AVATAR_FRAME_KEYS.includes(profile.avatarFrame) ? profile.avatarFrame : null;
     setSlug(profile.slug);
@@ -154,21 +171,18 @@ export function CommunityProfileCustomizationForm({
         showcase: profile.showcaseLayout,
       }),
     );
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const [profile, games] = await Promise.all([fetchMyCommunityProfile(), getAllPublicGames()]);
-      if (cancelled) return;
-      setCatalog(games);
-      if (profile) hydrate(profile);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  // Hydrate the local draft from the fetched profile. Keyed on data identity: TanStack's structural
+  // sharing keeps the same object across refetches with identical content, so this only re-runs on the
+  // initial load or when the server profile actually changed. The draft cannot be derived during render
+  // (user edits diverge from server state), hence the sanctioned setState-in-effect.
+  useEffect(() => {
+    if (profileData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeding the local form draft from query data; see comment above
+      hydrate(profileData);
+    }
+  }, [profileData, hydrate]);
 
   // Guard against losing edits on a hard navigation / refresh.
   useEffect(() => {

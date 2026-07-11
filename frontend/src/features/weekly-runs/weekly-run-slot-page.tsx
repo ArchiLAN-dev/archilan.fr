@@ -30,9 +30,7 @@ import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
 import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
-import { fetchCurrentWeeklyRuns, relaunchWeeklyEntry } from "./weekly-runs-api";
-
-type SlotInfo = { index: string; name: string };
+import { fetchCurrentWeeklyRuns, fetchWeeklyEntryPlayerSlots, relaunchWeeklyEntry } from "./weekly-runs-api";
 
 type PageState =
   | { kind: "idle" }
@@ -127,27 +125,23 @@ export function WeeklyRunSlotPage({
 
   // ─── State ─────────────────────────────────────────────────────────────────
 
-  const [slots, setSlots] = useState<SlotInfo[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const slotIndex = selectedSlot ?? null;
 
-  // Fetch available player slots (exclude Bridge/spectator slots)
-  useEffect(() => {
-    if (!entryBaseUrl) return;
-    apiFetch(`${entryBaseUrl}/players`)
-      .then((r) => r.json())
-      .then((json: { data?: { slots?: Record<string, { slot_name: string; type?: string }> } }) => {
-        const playerSlots = Object.entries(json.data?.slots ?? {})
-          .filter(([, s]) => s.type !== "spectator" && s.type !== "group" && s.slot_name !== "Bridge")
-          .map(([index, s]) => ({ index, name: s.slot_name }))
-          .sort((a, b) => Number(a.index) - Number(b.index));
-        setSlots(playerSlots);
-        if (playerSlots.length > 0 && selectedSlot === null) {
-          setSelectedSlot(playerSlots[0].index);
-        }
-      })
-      .catch(() => undefined);
-  }, [entryBaseUrl]); // eslint-disable-line react-hooks/exhaustive-deps -- `selectedSlot` is read only to seed the default selection once; listing it would refetch the slot list after every user selection
+  // Available player slots for the switcher (Bridge/spectator slots excluded API-side).
+  // The first slot seeds the default selection until the user explicitly picks one.
+  const { data: slots = [] } = useQuery({
+    queryKey: ["weekly-run-players", entryId],
+    queryFn: async () => {
+      if (!entryId) return [];
+      const playerSlots = await fetchWeeklyEntryPlayerSlots(weeklyRunId, entryId);
+      // Throw on failure so TanStack keeps the previously fetched roster instead of clearing it.
+      if (playerSlots === null) throw new Error("weekly-run-players-unavailable");
+      return playerSlots;
+    },
+    enabled: entryId !== null,
+    staleTime: DEFAULT_STALE_TIME,
+  });
+  const slotIndex = selectedSlot ?? slots[0]?.index ?? null;
 
   const [state, setState] = useState<PageState>({ kind: "idle" });
   const [refreshing, setRefreshing] = useState(false);

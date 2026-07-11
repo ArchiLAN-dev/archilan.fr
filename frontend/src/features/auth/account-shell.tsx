@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { fetchFriends } from "@/features/community/community-friends-api";
+import { fetchAccountProfile, fetchAccountRegistrations } from "./auth-api";
 import { AccountNav } from "./account-nav";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import type { Profile } from "./account-profile";
@@ -13,51 +14,41 @@ import type { Profile } from "./account-profile";
 /**
  * Shared chrome for every `/compte/*` section: fetches the profile once (header, role, email banner)
  * and the sidebar badge counts, then lays out the nav + the active section ({children}).
+ * All fetchers resolve to null on error (never throw), so retry stays off like the old effects.
  */
 export function AccountShell({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [registrationsCount, setRegistrationsCount] = useState<number | undefined>(undefined);
-  const [pendingFriends, setPendingFriends] = useState<number | undefined>(undefined);
+  const { data: profileData, isLoading: loadingProfile } = useQuery({
+    queryKey: ["account-profile"],
+    queryFn: fetchAccountProfile,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const { data: communityProfile, isLoading: loadingCommunity } = useQuery({
+    queryKey: ["community-my-profile"],
+    queryFn: fetchMyCommunityProfile,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [res, community] = await Promise.all([
-          apiFetch(`${env.apiBaseUrl}/account/profile`),
-          fetchMyCommunityProfile(),
-        ]);
-        const payload = (await res.json()) as
-          | { data: Profile }
-          | { error: { code: string; message: string } };
-        if (!cancelled && "data" in payload) setProfile(payload.data);
-        if (!cancelled && community) setAvatarUrl(community.avatarUrl);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => { cancelled = true; };
-  }, []);
+  // Sidebar badges (best-effort, independent of the header load - errors just leave them hidden).
+  const { data: friends } = useQuery({
+    queryKey: ["community-friends"],
+    queryFn: fetchFriends,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const { data: registrations } = useQuery({
+    queryKey: ["account-registrations"],
+    queryFn: fetchAccountRegistrations,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  // Sidebar badges (best-effort, independent of the header load).
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const friends = await fetchFriends();
-      if (!cancelled && friends) setPendingFriends(friends.incoming.length);
-      try {
-        const res = await apiFetch(`${env.apiBaseUrl}/account/registrations`);
-        const json = (await res.json()) as { data?: unknown };
-        if (!cancelled && Array.isArray(json.data)) setRegistrationsCount(json.data.length);
-      } catch {
-        /* non-critical */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const profile: Profile | null = profileData ?? null;
+  const avatarUrl = communityProfile?.avatarUrl ?? null;
+  const loading = loadingProfile || loadingCommunity;
+  const pendingFriends = friends ? friends.incoming.length : undefined;
+  const registrationsCount = registrations ? registrations.length : undefined;
 
   return (
     <div className="grid gap-6">

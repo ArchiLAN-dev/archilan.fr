@@ -3,50 +3,22 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, Check, CheckCircle, FolderDown, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { YamlOptionEditor, type YamlEditorHandle } from "@/features/events/yaml-option-editor";
 import { YamlOptionsView } from "@/components/yaml/yaml-options-view";
 import { apiFetch } from "@/lib/apiFetch";
-import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchMyGameSelection } from "./personal-runs-api";
 import {
   createYamlTemplate,
   deleteYamlTemplate,
   fetchYamlTemplates,
   updateYamlTemplate,
-  type YamlTemplate,
 } from "./yaml-templates-api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type SlotInfo = {
-  slotId: string;
-  slotOrder: number;
-  gameId: string;
-  gameName: string;
-  playerYaml: string | null;
-  apworldHash: string | null;
-};
-
-type GameInfo = {
-  id: string;
-  isApworldReady: boolean;
-  defaultYaml: string | null;
-  optionTypes: OptionTypesMap | null;
-};
-
-type PageData = {
-  slot: SlotInfo;
-  game: GameInfo;
-  /** True once the run is generated (not draft): the config is fixed, shown read-only. */
-  locked: boolean;
-};
-
-type PageState =
-  | { kind: "loading" }
-  | { kind: "data"; data: PageData }
-  | { kind: "not_found" }
-  | { kind: "error"; message: string };
 
 type SlotSave =
   | { kind: "idle" }
@@ -79,7 +51,6 @@ export function PersonalRunSlotYamlPage({
   params: Promise<{ runId: string; slotId: string }>;
 }) {
   const { runId, slotId } = use(params);
-  const [pageState, setPageState] = useState<PageState>({ kind: "loading" });
 
   const editorRef = useRef<YamlEditorHandle>(null);
   // The YAML currently in the editor (template mode mirrors edits here).
@@ -90,75 +61,44 @@ export function PersonalRunSlotYamlPage({
   const [editorYaml, setEditorYaml] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [slotSave, setSlotSave] = useState<SlotSave>({ kind: "idle" });
+  // Which slot the editor state was seeded for - the editor hydrates exactly once per slot, so a
+  // background refetch of the shared game-selection query can never clobber in-progress edits.
+  const [hydratedSlotId, setHydratedSlotId] = useState<string | null>(null);
 
+  // fetchMyGameSelection never throws (401/403, 404, server errors and network failures are all
+  // encoded in the result's `kind`), so the query never errors and - like the old effect - never
+  // retries. Same key as the game-selection page: both read the same endpoint and share the cache.
+  const selectionQuery = useQuery({
+    queryKey: ["personal-run-game-selection", runId],
+    queryFn: () => fetchMyGameSelection(runId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const result = selectionQuery.data;
+  const resultKind = result?.kind;
+  const selection = result?.kind === "data" ? result.data : null;
+  const slot = selection?.slots.find((s) => s.slotId === slotId) ?? null;
+  const game = slot === null ? null : selection?.availableGames.find((g) => g.id === slot.gameId) ?? null;
+
+  // 401/403: full-page login redirect, exactly as the old effect did.
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/game-selection`);
-
-      if (cancelled) return;
-
-      if (res.status === 401 || res.status === 403) {
-        window.location.href = `/connexion?returnTo=/runs/${runId}/slots/${slotId}`;
-        return;
-      }
-
-      if (res.status === 404) {
-        setPageState({ kind: "not_found" });
-        return;
-      }
-
-      if (!res.ok) {
-        setPageState({ kind: "error", message: "Impossible de charger les informations du slot." });
-        return;
-      }
-
-      const payload = (await res.json()) as {
-        data: {
-          status?: string;
-          slots: Array<{
-            slotId: string;
-            slotOrder: number;
-            gameId: string;
-            gameName: string;
-            playerYaml: string | null;
-            apworldHash: string | null;
-          }>;
-          availableGames: Array<{
-            id: string;
-            isApworldReady: boolean;
-            defaultYaml: string | null;
-            optionTypes: OptionTypesMap | null;
-          }>;
-        };
-      };
-
-      const slot = payload.data.slots.find((s) => s.slotId === slotId) ?? null;
-      if (!slot) {
-        setPageState({ kind: "not_found" });
-        return;
-      }
-
-      const game = payload.data.availableGames.find((g) => g.id === slot.gameId) ?? null;
-      if (!game) {
-        setPageState({ kind: "not_found" });
-        return;
-      }
-
-      const seed = slot.playerYaml ?? game.defaultYaml ?? "";
-      setEditorYaml(slot.playerYaml);
-      setCurrentYaml(seed);
-      setSavedYaml(seed);
-      setPageState({ kind: "data", data: { slot, game, locked: (payload.data.status ?? "draft") !== "draft" } });
+    if (resultKind === "unauthorized") {
+      window.location.href = `/connexion?returnTo=/runs/${runId}/slots/${slotId}`;
     }
+  }, [resultKind, runId, slotId]);
 
-    void run().catch(() => {
-      if (!cancelled) setPageState({ kind: "error", message: "Impossible de contacter l'API." });
-    });
-
-    return () => { cancelled = true; };
-  }, [runId, slotId]);
+  // One-shot editor hydration from the fetched slot (YamlOptionEditor reads its props at mount, so
+  // the editor is only rendered once these seeds are in place - see the hydration gate below).
+  useEffect(() => {
+    if (slot === null || game === null || hydratedSlotId === slot.slotId) return;
+    const seed = slot.playerYaml ?? game.defaultYaml ?? "";
+    /* eslint-disable react-hooks/set-state-in-effect -- sanctioned one-shot seed-into-form hydration (guarded by hydratedSlotId); the editor dirty-state stays local UI state per AC-ST2 */
+    setEditorYaml(slot.playerYaml);
+    setCurrentYaml(seed);
+    setSavedYaml(seed);
+    setHydratedSlotId(slot.slotId);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [slot, game, hydratedSlotId]);
 
   const applyTemplate = useCallback((yaml: string) => {
     setEditorYaml(yaml);
@@ -187,7 +127,7 @@ export function PersonalRunSlotYamlPage({
     }
   }
 
-  if (pageState.kind === "loading") {
+  if (selectionQuery.isPending || resultKind === "unauthorized") {
     return (
       <div aria-hidden className="mx-auto max-w-2xl grid gap-6">
         <div className="h-8 w-48 animate-pulse rounded bg-surface" />
@@ -196,7 +136,7 @@ export function PersonalRunSlotYamlPage({
     );
   }
 
-  if (pageState.kind === "not_found") {
+  if (resultKind === "not_found" || (selection !== null && (slot === null || game === null))) {
     return (
       <div className="mx-auto max-w-2xl grid gap-4 rounded-lg border border-border p-8 text-center">
         <AlertCircle aria-hidden className="mx-auto size-8 text-[color:var(--color-danger)]" />
@@ -209,17 +149,31 @@ export function PersonalRunSlotYamlPage({
     );
   }
 
-  if (pageState.kind === "error") {
+  if (selection === null || slot === null || game === null) {
+    const message =
+      result?.kind === "error" && result.reason === "network"
+        ? "Impossible de contacter l'API."
+        : "Impossible de charger les informations du slot.";
     return (
       <div className="mx-auto max-w-2xl grid gap-4 rounded-lg border border-border p-8 text-center">
         <AlertCircle aria-hidden className="mx-auto size-8 text-[color:var(--color-danger)]" />
         <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
-        <p className="text-sm text-muted-foreground">{pageState.message}</p>
+        <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     );
   }
 
-  const { data } = pageState;
+  // Wait for the one-shot hydration effect before mounting the editor (it reads its props at mount).
+  if (hydratedSlotId !== slot.slotId) {
+    return (
+      <div aria-hidden className="mx-auto max-w-2xl grid gap-6">
+        <div className="h-8 w-48 animate-pulse rounded bg-surface" />
+        <div className="h-64 animate-pulse rounded-lg border border-border bg-surface" />
+      </div>
+    );
+  }
+
+  const data = { slot, game, locked: selection.status !== "draft" };
 
   if (!data.game.isApworldReady) {
     return (
@@ -347,26 +301,27 @@ function TemplatesPanel({
   validate: () => boolean;
   onApply: (yaml: string) => void;
 }) {
-  const [templates, setTemplates] = useState<YamlTemplate[] | null>(null);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const reload = useCallback(async () => {
-    const list = await fetchYamlTemplates(gameId);
-    setTemplates(list ?? []);
-  }, [gameId]);
+  // fetchYamlTemplates never throws (failures come back as null, rendered as an empty list like
+  // before), so the query never errors and - like the old effect - never retries.
+  const templatesQuery = useQuery({
+    queryKey: ["yaml-templates", gameId],
+    queryFn: () => fetchYamlTemplates(gameId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  // Same tri-state as the old local state: null while loading, [] on fetch failure.
+  const templates = templatesQuery.isPending ? null : templatesQuery.data ?? [];
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const list = await fetchYamlTemplates(gameId);
-      if (!cancelled) setTemplates(list ?? []);
-    })();
-    return () => { cancelled = true; };
-  }, [gameId]);
+  const reload = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["yaml-templates", gameId] });
+  }, [queryClient, gameId]);
 
   async function handleCreate() {
     setError(null);

@@ -3,56 +3,19 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, FileText, Search, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { InstallNudge } from "@/features/games/install-nudge";
 import { SteamCoupling } from "@/features/games/steam-coupling";
 import { useSteamCoupling } from "@/features/games/use-steam-coupling";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
 import { allCategories, categoriesOf, isOwned } from "@/features/games/games-filter";
+import { fetchMyGameSelection, type GameSelectionSlot } from "./personal-runs-api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type AvailableGame = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  availability: string;
-  isApworldReady: boolean;
-  defaultYaml: string | null;
-  coverImageUrl: string | null;
-  coverImageAlt: string;
-  platforms: string[];
-  steamAppId: number | null;
-};
-
-type Slot = {
-  slotId: string;
-  gameId: string;
-  gameName: string;
-  playerYaml: string | null;
-};
-
-type RecentlyPlayedGame = {
-  gameId: string;
-  lastPlayedAt: string;
-  runTitle: string;
-};
-
-type SelectionData = {
-  status: string;
-  slots: Slot[];
-  availableGames: AvailableGame[];
-  recentlyPlayedGames: RecentlyPlayedGame[];
-};
-
-type PageState =
-  | { kind: "loading" }
-  | { kind: "data"; data: SelectionData }
-  | { kind: "not_found" }
-  | { kind: "error"; message: string };
 
 type SaveState =
   | { kind: "idle" }
@@ -86,8 +49,7 @@ export function PersonalRunGameSelectionPage({
   params: Promise<{ runId: string }>;
 }) {
   const { runId } = use(params);
-  const [loadKey, setLoadKey] = useState(0);
-  const [pageState, setPageState] = useState<PageState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [workingGameIds, setWorkingGameIds] = useState<string[]>([]);
   const [gameSearch, setGameSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,53 +97,37 @@ export function PersonalRunGameSelectionPage({
     addTimers.current.set(gameId, [t1, t2]);
   }, []);
 
+  // fetchMyGameSelection never throws (401/403, 404, server errors and network failures are all
+  // encoded in the result's `kind`), so the query never errors and - like the old effect - never
+  // retries.
+  const selectionQuery = useQuery({
+    queryKey: ["personal-run-game-selection", runId],
+    queryFn: () => fetchMyGameSelection(runId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const result = selectionQuery.data;
+  const selection = result?.kind === "data" ? result.data : null;
+  const resultKind = result?.kind;
+
+  // 401/403: full-page login redirect, exactly as the old effect did.
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/game-selection`);
-
-      if (cancelled) return;
-
-      if (res.status === 401 || res.status === 403) {
-        window.location.href = `/connexion?returnTo=/runs/${runId}/jeux`;
-        return;
-      }
-
-      if (res.status === 404) {
-        setPageState({ kind: "not_found" });
-        return;
-      }
-
-      if (!res.ok) {
-        setPageState({ kind: "error", message: "Impossible de charger la sélection de jeux." });
-        return;
-      }
-
-      const payload = (await res.json()) as {
-        data: { status?: string; slots: Slot[]; availableGames: AvailableGame[]; recentlyPlayedGames?: RecentlyPlayedGame[] };
-      };
-      const data: SelectionData = {
-        status: payload.data.status ?? "draft",
-        slots: payload.data.slots,
-        availableGames: payload.data.availableGames,
-        recentlyPlayedGames: payload.data.recentlyPlayedGames ?? [],
-      };
-
-      setPageState({ kind: "data", data });
-      setWorkingGameIds(data.slots.map((s) => s.gameId));
-      setSaveState({ kind: "saved" });
+    if (resultKind === "unauthorized") {
+      window.location.href = `/connexion?returnTo=/runs/${runId}/jeux`;
     }
+  }, [resultKind, runId]);
 
-    void run().catch(() => {
-      if (!cancelled) setPageState({ kind: "error", message: "Impossible de contacter l'API." });
-    });
-
-    return () => { cancelled = true; };
-  }, [runId, loadKey]);
+  // Seed-into-form hydration: the working selection re-seeds from the saved slots whenever the
+  // server data changes (initial load + post-save refetch, formerly the loadKey bump).
+  useEffect(() => {
+    if (selection === null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sanctioned seed-into-form hydration keyed on data identity; the editable selection is local UI state (AC-ST2), not query state
+    setWorkingGameIds(selection.slots.map((s) => s.gameId));
+    setSaveState({ kind: "saved" });
+  }, [selection]);
 
   async function handleSave() {
-    if (pageState.kind !== "data") return;
+    if (result?.kind !== "data") return;
     setSaveState({ kind: "saving" });
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/games`, {
@@ -195,13 +141,13 @@ export function PersonalRunGameSelectionPage({
         return;
       }
       setSaveState({ kind: "saved" });
-      setLoadKey((k) => k + 1);
+      void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] });
     } catch {
       setSaveState({ kind: "error", message: "Impossible de contacter l'API." });
     }
   }
 
-  if (pageState.kind === "loading") {
+  if (selectionQuery.isPending || resultKind === "unauthorized") {
     return (
       <div aria-hidden="true" className="mx-auto max-w-2xl grid gap-6">
         <div className="h-8 w-48 animate-pulse rounded bg-surface" />
@@ -216,7 +162,7 @@ export function PersonalRunGameSelectionPage({
     );
   }
 
-  if (pageState.kind === "not_found") {
+  if (resultKind === "not_found") {
     return (
       <div className="mx-auto max-w-2xl grid gap-4 rounded-lg border border-border p-8 text-center">
         <AlertCircle aria-hidden className="mx-auto size-8 text-[color:var(--color-danger)]" />
@@ -231,24 +177,28 @@ export function PersonalRunGameSelectionPage({
     );
   }
 
-  if (pageState.kind === "error") {
+  if (selection === null) {
+    const message =
+      result?.kind === "error" && result.reason === "network"
+        ? "Impossible de contacter l'API."
+        : "Impossible de charger la sélection de jeux.";
     return (
       <div className="mx-auto max-w-2xl grid gap-4 rounded-lg border border-border p-8 text-center">
         <AlertCircle aria-hidden className="mx-auto size-8 text-[color:var(--color-danger)]" />
         <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
-        <p className="text-sm text-muted-foreground">{pageState.message}</p>
+        <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     );
   }
 
-  const { data } = pageState;
+  const data = selection;
   // Once the run leaves draft the multiworld is generated/fixed (paused/idle included): editing the
   // selection is a no-op since resume replays the existing session, so the UI is locked.
   const locked = data.status !== "draft";
   const gameMap = new Map(data.availableGames.map((g) => [g.id, g]));
 
   // Rebuild saved slot map keyed by gameId for YAML links (post-save)
-  const savedSlotsByGameId = new Map<string, Slot[]>();
+  const savedSlotsByGameId = new Map<string, GameSelectionSlot[]>();
   for (const slot of data.slots) {
     const existing = savedSlotsByGameId.get(slot.gameId) ?? [];
     existing.push(slot);

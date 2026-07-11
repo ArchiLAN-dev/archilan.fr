@@ -1,35 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Calendar, Gamepad2, Radio } from "lucide-react";
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-import { hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "./auth-context";
-
-type RegistrationStatus = "pending" | "confirmed" | "cancelled";
-
-type SessionStatus =
-  | "draft" | "validating" | "ready"
-  | "generating" | "generated" | "launching"
-  | "running" | "idle" | "restarting"
-  | "stopped" | "failed" | "crashed" | "finished";
-
-type Registration = {
-  registrationId: string;
-  eventSlug: string;
-  eventTitle: string;
-  eventStartDate: string | null;
-  registrationStatus: RegistrationStatus;
-  slotCount: number;
-  sessionStatus: SessionStatus | null;
-};
-
-type RegistrationsResponse =
-  | { data: Registration[] }
-  | { error: { code: string; message: string } };
+import { fetchAccountRegistrations, type RegistrationStatus, type SessionStatus } from "./auth-api";
 
 const REGISTRATION_STATUS_CONFIG: Record<RegistrationStatus, { label: string; className: string }> = {
   pending: {
@@ -62,38 +40,6 @@ const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
   finished: "Terminée",
 };
 
-function isRegistrationStatus(v: unknown): v is RegistrationStatus {
-  return v === "pending" || v === "confirmed" || v === "cancelled";
-}
-
-function isSessionStatus(v: unknown): v is SessionStatus {
-  return typeof v === "string" && v in SESSION_STATUS_LABELS;
-}
-
-function isRegistration(v: unknown): v is Registration {
-  if (typeof v !== "object" || v === null) return false;
-  const sessionStatus: unknown = Reflect.get(v, "sessionStatus");
-  return (
-    hasStringProp(v, "registrationId") &&
-    hasStringProp(v, "eventSlug") &&
-    hasStringProp(v, "eventTitle") &&
-    hasNullableStringProp(v, "eventStartDate") &&
-    isRegistrationStatus(Reflect.get(v, "registrationStatus")) &&
-    hasNumberProp(v, "slotCount") &&
-    (sessionStatus === null || isSessionStatus(sessionStatus))
-  );
-}
-
-function isRegistrationsResponse(v: unknown): v is RegistrationsResponse {
-  if (typeof v !== "object" || v === null) return false;
-  if ("error" in v) {
-    const error: unknown = Reflect.get(v, "error");
-    return typeof error === "object" && error !== null;
-  }
-  const data: unknown = Reflect.get(v, "data");
-  return Array.isArray(data) && data.every(isRegistration);
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -105,39 +51,23 @@ function formatDate(iso: string) {
 export function AccountRegistrations() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [registrations, setRegistrations] = useState<Registration[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      router.push("/connexion?returnTo=/compte");
-      return;
-    }
-
-    let mounted = true;
-
-    async function load() {
-      try {
-        const res = await apiFetch(`${env.apiBaseUrl}/account/registrations`);
-        if (!mounted) return;
-        if (!res.ok) { setError(true); return; }
-        const payload: unknown = await res.json();
-        if (!isRegistrationsResponse(payload) || "error" in payload) { setError(true); return; }
-        setRegistrations(payload.data);
-      } catch {
-        if (mounted) setError(true);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    void load();
-    return () => { mounted = false; };
+    if (!user) router.push("/connexion?returnTo=/compte");
   }, [authLoading, user, router]);
 
-  if (authLoading || loading) {
+  // fetchAccountRegistrations resolves to null on error (never throws), so retry stays off.
+  // While the query is disabled (auth pending / anonymous being redirected) isPending keeps the skeleton up.
+  const { data: registrations, isPending } = useQuery({
+    queryKey: ["account-registrations"],
+    queryFn: fetchAccountRegistrations,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+    enabled: !authLoading && user !== null,
+  });
+
+  if (authLoading || isPending) {
     return (
       <section>
         <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Mes inscriptions</h2>
@@ -150,7 +80,7 @@ export function AccountRegistrations() {
     );
   }
 
-  if (error) {
+  if (registrations === null) {
     return (
       <section>
         <h2 className="mb-4 font-heading text-xl font-bold text-foreground">Mes inscriptions</h2>

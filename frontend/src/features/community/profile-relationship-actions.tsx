@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flag, UserMinus, UserPlus, UserX, X } from "lucide-react";
 
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   acceptFriendship,
   blockUser,
@@ -19,31 +21,28 @@ const PRIMARY = "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded
 const SECONDARY = "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3.5 text-sm font-medium text-foreground transition-colors hover:border-accent disabled:opacity-50";
 
 export function ProfileRelationshipActions({ slug, name }: { slug: string; name?: string }) {
-  const [rel, setRel] = useState<Relationship | null>(null);
-  const [ready, setReady] = useState(false);
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const r = await fetchRelationship(slug);
-      if (!cancelled) {
-        setRel(r);
-        setReady(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [slug]);
+  // fetchRelationship resolves to null on error/anonymous (never throws), so retry stays off.
+  const { data: rel } = useQuery({
+    queryKey: ["community-relationship", slug],
+    queryFn: () => fetchRelationship(slug),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  // Hidden for anonymous viewers (relationship needs auth -> null) and on one's own profile.
-  if (!ready || rel === null || rel.state === "self" || rel.state === "blocked") return null;
+  // Hidden while loading (undefined), for anonymous viewers (relationship needs auth -> null)
+  // and on one's own profile.
+  if (rel === undefined || rel === null || rel.state === "self" || rel.state === "blocked") return null;
 
   async function run(action: () => Promise<Relationship | null>) {
     setBusy(true);
     const next = await action();
     setBusy(false);
-    if (next) setRel(next);
+    // Mutation endpoints return the new relationship - replace it in the cache directly.
+    if (next) queryClient.setQueryData(["community-relationship", slug], next);
   }
 
   async function respond(accept: boolean) {
@@ -51,7 +50,8 @@ export function ProfileRelationshipActions({ slug, name }: { slug: string; name?
     setBusy(true);
     const ok = accept ? await acceptFriendship(rel.friendshipId) : await declineFriendship(rel.friendshipId);
     setBusy(false);
-    if (ok) setRel(await fetchRelationship(slug));
+    // accept/decline only return ok - refetch the relationship like the old manual reload.
+    if (ok) await queryClient.invalidateQueries({ queryKey: ["community-relationship", slug] });
   }
 
   return (
