@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 final class MinioZipOutputArtifactReaderTest extends TestCase
 {
-    private const array ENTRIES = [
+    private const ENTRIES = [
         'AP_123_P1_Bridge.txt' => 'patch-bridge',
         'AP_123_P2_masterkafei_LM.aplm' => 'patch-lm-bytes',
         'AP_123_Spoiler.txt' => 'spoiler',
@@ -51,7 +51,7 @@ final class MinioZipOutputArtifactReaderTest extends TestCase
         $storage = $this->createStub(MinioStorageInterface::class);
         $storage->method('download')->willThrowException(new \RuntimeException('not found'));
 
-        self::assertSame([], new MinioZipOutputArtifactReader($storage, 'sessions')->listEntries('missing.zip'));
+        self::assertSame([], (new MinioZipOutputArtifactReader($storage, 'sessions'))->listEntries('missing.zip'));
     }
 
     public function testExtractEntryNullForEmptyKey(): void
@@ -59,7 +59,7 @@ final class MinioZipOutputArtifactReaderTest extends TestCase
         $storage = $this->createMock(MinioStorageInterface::class);
         $storage->expects(self::never())->method('download');
 
-        self::assertNull(new MinioZipOutputArtifactReader($storage, 'sessions')->extractEntry('', 'x.aplm'));
+        self::assertNull((new MinioZipOutputArtifactReader($storage, 'sessions'))->extractEntry('', 'x.aplm'));
     }
 
     private function reader(string $zipBytes): MinioZipOutputArtifactReader
