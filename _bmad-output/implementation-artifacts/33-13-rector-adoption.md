@@ -162,8 +162,11 @@ time). Mechanical transformations survived adversarial reading on both sides (BH
 conversion class in the diff; ECH replayed them against the live tree incl. the 5 readonly bodies,
 services.yaml lazy/decoration absence, and CI wiring).
 
-- [x] [Review][Patch] Epic 32 freeze extended to `tests/Unit/Sessions` (skip + 3 files reverted);
-  functional Sessions-flavoured tests accepted as applied (shared surface, const-line conflicts only)
+- [x] [Review][Patch] Epic 32 freeze extended to `tests/Unit/Sessions` (skip added in rector.php).
+  CORRECTION POST-MERGE: the in-PR "revert" of the 3 files was a silent no-op (`git checkout --`
+  restores from HEAD, which already carried the Rector commit) and PR #306 merged them modified;
+  fixed by the follow-up revert PR restoring the 3 files to their pre-Rector state. Functional
+  Sessions-flavoured tests accepted as applied (shared surface, const-line conflicts only)
 - [x] [Review][Patch] rector-symfony follow-up path corrected (Rector 2.x bundles + conflicts with
   the standalone package) in rector.php comment + story record
 - [x] [Review][Patch] "Mirrors the 33.12 Infection shape" claim corrected (same intent, different
