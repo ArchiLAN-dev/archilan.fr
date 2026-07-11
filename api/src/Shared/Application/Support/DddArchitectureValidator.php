@@ -97,6 +97,60 @@ final readonly class DddArchitectureValidator
     ];
 
     /**
+     * The only sanctioned Symfony imports in a Domain layer (api/CLAUDE.md AC-D1, story 33.17):
+     * the security contracts the framework requires on the user entity. Keyed by file, values are
+     * the exact import FQCNs stripped before the forbidden-dependency scan. Anything else Symfony
+     * in Domain is a violation - extend this list only with the same kind of framework-mandated
+     * contract, never for convenience.
+     *
+     * @var array<string, list<string>>
+     */
+    private const ALLOWED_DOMAIN_SYMFONY_IMPORTS = [
+        'Identity/Domain/Entity/User.php' => [
+            'Symfony\\Component\\Security\\Core\\User\\PasswordAuthenticatedUserInterface',
+            'Symfony\\Component\\Security\\Core\\User\\UserInterface',
+        ],
+    ];
+
+    /**
+     * Contexts exempt from the Domain finality rule (api/CLAUDE.md AC-D4, story 33.17).
+     * Sessions is frozen until Epic 32 merges; its flat Domain files would escape the
+     * Entity//ValueObject/ sub-folder scan anyway, but the exemption is declared rather than
+     * accidental. 33.20 empties this list - never grow it.
+     *
+     * @var list<string>
+     */
+    private const FINALITY_EXEMPT_CONTEXTS = [
+        'Sessions',
+    ];
+
+    /**
+     * The only sanctioned non-final class in an Application layer (api/CLAUDE.md AC-A1,
+     * story 33.17): the abstract email template base - inheritance is its mechanism and its
+     * subclasses are final. Application SERVICES stay final; extend this list only for
+     * template-method style bases of the same kind, never for services.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_APPLICATION_NON_FINAL = [
+        'Communications/Application/Email/ArchilanEmail.php',
+    ];
+
+    /**
+     * The only Application classes allowed to declare a Domain entity return type
+     * (api/CLAUDE.md AC-A3, story 33.17): the auth resolvers feeding Symfony security wiring,
+     * which by nature hand the User aggregate to the framework - they are not read-model
+     * queries. Everything else returns DTOs, records or arrays; entities never cross into
+     * Presentation.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_APPLICATION_ENTITY_RETURNS = [
+        'Identity/Application/Service/AuthenticateUser.php',
+        'Identity/Application/Service/CurrentUserProvider.php',
+    ];
+
+    /**
      * Contexts exempt from the no-public-setters rule (api/CLAUDE.md AC-D5, story 33.16)
      * because their aggregates still expose set-prefixed mutators. Sessions is frozen until
      * Epic 32 merges (TODO epic-32, follow-up 33.20); once migrated, empty this list -
@@ -165,6 +219,10 @@ final readonly class DddArchitectureValidator
             ...$this->validateSourceFiles($srcDir),
             ...$this->validateNoFlatLayerFiles($srcDir),
             ...$this->validateDomainDependencies($srcDir),
+            ...$this->validateMembershipGating($srcDir),
+            ...$this->validateDomainFinality($srcDir),
+            ...$this->validateApplicationFinality($srcDir),
+            ...$this->validateApplicationEntityReturns($srcDir),
             ...$this->validateDomainAggregateSetters($srcDir),
             ...$this->validateCrossContextLayerImports($srcDir),
             ...$this->validateInterfacePlacement($srcDir),
@@ -287,6 +345,14 @@ final readonly class DddArchitectureValidator
                     continue;
                 }
 
+                $relativePath = $this->relativePath($srcDir, $file);
+                foreach (self::ALLOWED_DOMAIN_SYMFONY_IMPORTS[$relativePath] ?? [] as $allowedImport) {
+                    // Strip the exact import statement only - a bare-FQCN strip would erase the
+                    // prefix of any longer, non-allowlisted FQCN and would sanction usages of
+                    // the class name elsewhere in the file body.
+                    $contents = str_replace('use '.$allowedImport.';', '', $contents);
+                }
+
                 foreach ($this->forbiddenDomainDependencies() as $dependency) {
                     if (str_contains($contents, $dependency)) {
                         $violations[] = sprintf(
@@ -295,6 +361,228 @@ final readonly class DddArchitectureValidator
                             $this->relativePath($srcDir, $file),
                         );
                     }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Aggregates are final classes, value objects are final readonly classes (api/CLAUDE.md
+     * AC-D4, story 33.17). The rule scans the taxonomy sub-folders Domain/Entity/ and
+     * Domain/ValueObject/ - frozen Sessions has neither until 33.20 migrates it, at which point
+     * the rule applies automatically. Interfaces, traits and enums are not class declarations
+     * and pass untouched (enums are implicitly final).
+     *
+     * @return list<string>
+     */
+    private function validateDomainFinality(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            if (in_array($context, self::FINALITY_EXEMPT_CONTEXTS, true)) {
+                continue;
+            }
+
+            foreach (['Entity' => 'final', 'ValueObject' => 'final readonly'] as $kind => $required) {
+                $kindDir = "{$srcDir}/{$context}/Domain/{$kind}";
+                if (!is_dir($kindDir)) {
+                    continue;
+                }
+
+                foreach ($this->phpFiles($kindDir) as $file) {
+                    $contents = file_get_contents($file);
+                    if (!is_string($contents)) {
+                        continue;
+                    }
+
+                    if (preg_match_all('/^[ \t]*((?:(?:abstract|final|readonly)[ \t]+)*)class[ \t]+\w+/m', $contents, $matches, PREG_SET_ORDER) > 0) {
+                        foreach ($matches as $match) {
+                            $hasFinal = str_contains($match[1], 'final');
+                            $hasReadonly = str_contains($match[1], 'readonly');
+                            if ($hasFinal && ('final' === $required || $hasReadonly)) {
+                                continue;
+                            }
+
+                            $violations[] = sprintf(
+                                'Domain %s classes must be declared "%s class" (api/CLAUDE.md AC-D4): src/%s',
+                                $kind,
+                                $required,
+                                $this->relativePath($srcDir, $file),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Application classes are final - no extension, no inheritance hierarchies (api/CLAUDE.md
+     * AC-A1, story 33.17). Interfaces, traits and enums pass untouched; the named allowlist
+     * holds the sanctioned template-method bases.
+     *
+     * @return list<string>
+     */
+    private function validateApplicationFinality(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $applicationDir = "{$srcDir}/{$context}/Application";
+            if (!is_dir($applicationDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($applicationDir) as $file) {
+                $relativePath = $this->relativePath($srcDir, $file);
+                if (in_array($relativePath, self::ALLOWED_APPLICATION_NON_FINAL, true)) {
+                    continue;
+                }
+
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                if (preg_match_all('/^[ \t]*((?:(?:abstract|final|readonly)[ \t]+)*)class[ \t]+\w+/m', $contents, $matches, PREG_SET_ORDER) > 0) {
+                    foreach ($matches as $match) {
+                        if (!str_contains($match[1], 'final')) {
+                            $violations[] = sprintf(
+                                'Application classes must be final (api/CLAUDE.md AC-A1): src/%s',
+                                $relativePath,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * No public Application method declares a Domain entity return type (api/CLAUDE.md AC-A3,
+     * story 33.17): commands return void or result records/arrays, queries return DTOs - raw
+     * Doctrine entities never cross into Presentation. Lexical check: entity imports
+     * (aliased or not) are collected per file, then every declared return type is tokenized
+     * (nullable stripped, unions split) and compared; fully-qualified entity return types are
+     * caught by their Domain-entity namespace segment.
+     *
+     * @return list<string>
+     */
+    private function validateApplicationEntityReturns(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $applicationDir = "{$srcDir}/{$context}/Application";
+            if (!is_dir($applicationDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($applicationDir) as $file) {
+                $relativePath = $this->relativePath($srcDir, $file);
+                if (in_array($relativePath, self::ALLOWED_APPLICATION_ENTITY_RETURNS, true)) {
+                    continue;
+                }
+
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                $entityNames = [];
+                if (preg_match_all('/^use\s+App\\\\\w+\\\\Domain\\\\Entity\\\\(?:\w+\\\\)*(\w+)(?:\s+as\s+(\w+))?\s*;/m', $contents, $imports, PREG_SET_ORDER) > 0) {
+                    foreach ($imports as $import) {
+                        $entityNames[] = $import[2] ?? $import[1];
+                    }
+                }
+
+                // Named function declarations with their (explicit or implied-public) visibility,
+                // by offset - each return type is attributed to the nearest preceding declaration,
+                // so private/protected helpers may hand entities around inside the layer.
+                $declarations = [];
+                if (preg_match_all('/(?:(?:static|final|abstract)\s+)*(?:(private|protected|public)\s+)?(?:(?:static|final|abstract)\s+)*function\s+&?\s*\w+\s*\(/', $contents, $decls, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) > 0) {
+                    foreach ($decls as $decl) {
+                        $declarations[$decl[0][1]] = '' !== ($decl[1][0] ?? '') ? $decl[1][0] : 'public';
+                    }
+                }
+
+                // No whitespace tolerated between ")" and ":" - cs-fixer normalizes real return
+                // types to "): T", while a ternary else-branch ("... ) : User::guest()") always
+                // carries the space and must not register as a return type.
+                if (0 === preg_match_all('/\):\s*([?\w|\\\\]+)/', $contents, $returns, PREG_OFFSET_CAPTURE)) {
+                    continue;
+                }
+
+                foreach ($returns[1] as $return) {
+                    $visibility = 'public';
+                    foreach ($declarations as $offset => $declVisibility) {
+                        if ($offset > $return[1]) {
+                            break;
+                        }
+                        $visibility = $declVisibility;
+                    }
+
+                    if ('public' !== $visibility) {
+                        continue;
+                    }
+
+                    foreach (explode('|', ltrim($return[0], '?')) as $token) {
+                        $token = ltrim($token, '?');
+                        if (in_array($token, $entityNames, true) || str_contains($token, 'Domain\\Entity\\')) {
+                            $violations[] = sprintf(
+                                'Application methods must not return Domain entities ("%s") - return a DTO, record or array instead (api/CLAUDE.md AC-A3): src/%s',
+                                $return[0],
+                                $relativePath,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * ROLE_MEMBER is stale-prone (it survives membership expiry) and must never gate access
+     * (api/CLAUDE.md AC-M1, story 33.17). This rule forbids the gating call forms (positional or
+     * attribute-named argument) combining the grant checkers below with that role. The bare role
+     * string in this method cannot self-match: the pattern requires the full checker-call shape,
+     * which never appears here contiguously. Display/filter/assignment reads of the role
+     * (AC-M3: user directory, Discord sync, role mapping) use in_array and are NOT matched;
+     * variable/constant-form gating and security expressions in YAML are beyond a lexical scan
+     * (accepted limitation, same class as the deferred tokenizer work).
+     *
+     * @return list<string>
+     */
+    private function validateMembershipGating(string $srcDir): array
+    {
+        $violations = [];
+        $checkers = ['denyAccessUnlessGranted', 'isGranted', 'IsGranted'];
+        $role = 'ROLE_MEMBER';
+        $pattern = sprintf('/(?:%s)\s*\(\s*(?:attribute\s*:\s*)?[\'"]%s[\'"]/', implode('|', $checkers), $role);
+
+        foreach ($this->phpFiles($srcDir) as $file) {
+            $contents = file_get_contents($file);
+            if (!is_string($contents)) {
+                continue;
+            }
+
+            if (preg_match_all($pattern, $contents, $matches) > 0) {
+                foreach ($matches[0] as $match) {
+                    $violations[] = sprintf(
+                        'Access must never be gated on the stale %s role ("%s") - use ApiAccessGuard::requireAuthenticatedMember() or the IS_MEMBER voter (api/CLAUDE.md AC-M1): src/%s',
+                        $role,
+                        preg_replace('/\s+/', ' ', $match) ?? $match,
+                        $this->relativePath($srcDir, $file),
+                    );
                 }
             }
         }
@@ -689,10 +977,10 @@ final readonly class DddArchitectureValidator
     private function forbiddenDomainDependencies(): array
     {
         $dependencies = [
-            'Symfony\\Component\\Console\\',
-            'Symfony\\Component\\DependencyInjection\\',
-            'Symfony\\Component\\HttpFoundation\\',
-            'Symfony\\Component\\Routing\\',
+            'Symfony\\Bridge\\',
+            'Symfony\\Bundle\\',
+            'Symfony\\Component\\',
+            'Symfony\\Contracts\\',
         ];
 
         foreach (self::CONTEXTS as $context) {

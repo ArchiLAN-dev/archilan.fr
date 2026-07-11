@@ -8,7 +8,7 @@ namespace App\Community\Domain\ValueObject;
  * What part of a profile a report is about (story 30.28). The "Type de signalement" the reporter picks.
  * `comment` is set automatically for comment-target reports; the others are profile fields.
  */
-final class ReportCategory
+final readonly class ReportCategory
 {
     public const AVATAR = 'avatar';
     public const DISPLAY_NAME = 'display_name';

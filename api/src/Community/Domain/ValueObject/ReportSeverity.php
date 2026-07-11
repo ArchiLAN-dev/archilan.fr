@@ -9,7 +9,7 @@ namespace App\Community\Domain\ValueObject;
  * "most problematic first" ordering and the escalation threshold - so nudity/violence/hate pull an account
  * into review far faster than spam, and "other" barely counts. Pure domain logic, no config.
  */
-final class ReportSeverity
+final readonly class ReportSeverity
 {
     /** Problem => weight. The weakest (`other`) is 0 so a pure "Autre" report never escalates on its own. */
     public const WEIGHTS = [

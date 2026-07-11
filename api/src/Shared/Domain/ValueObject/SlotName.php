@@ -12,7 +12,7 @@ namespace App\Shared\Domain\ValueObject;
  * else - apostrophes, spaces, accents, other punctuation - is rejected: such characters break
  * generation and the in-game/text-client display. Max length mirrors AP's 16-char slot-name limit.
  */
-final class SlotName
+final readonly class SlotName
 {
     public const MAX_LENGTH = 16;
 

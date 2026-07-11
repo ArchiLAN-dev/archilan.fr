@@ -8,7 +8,7 @@ namespace App\Community\Domain\ValueObject;
  * The kind of problematic content a report flags (story 30.28). The "Contenu problématique" the reporter
  * picks; drives severity weighting (see {@see ReportSeverity}) so the worst cases surface first.
  */
-final class ReportProblem
+final readonly class ReportProblem
 {
     public const NUDITY = 'nudity';
     public const VIOLENCE = 'violence';

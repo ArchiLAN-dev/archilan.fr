@@ -539,6 +539,328 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $setterViolations);
     }
 
+    public function testDomainSymfonyImportIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/Entity/ClockHolder.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nuse Symfony\\Component\\Clock\\ClockInterface;\n\nfinal class ClockHolder {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain layer has forbidden dependency "Symfony\\Component\\": src/Events/Domain/Entity/ClockHolder.php',
+            $report->violations(),
+        );
+    }
+
+    public function testAllowlistedDomainSymfonyImportIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Identity/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Identity/Domain/Entity/User.php',
+            "<?php\n\nnamespace App\\Identity\\Domain\\Entity;\n\n"
+            ."use Symfony\\Component\\Security\\Core\\User\\PasswordAuthenticatedUserInterface;\n"
+            ."use Symfony\\Component\\Security\\Core\\User\\UserInterface;\n\n"
+            ."final class User {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $symfonyViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'Identity/Domain/Entity/User.php') && str_contains($v, 'forbidden dependency'),
+        ));
+        self::assertSame([], $symfonyViolations);
+    }
+
+    public function testMembershipGatingIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/GateCheck.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class GateCheck {\n"
+            ."    public function check(object \$auth): bool { return \$auth->isGranted('ROLE_MEMBER'); }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        $gatingViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'GateCheck.php') && str_contains($v, 'AC-M1'),
+        ));
+        self::assertCount(1, $gatingViolations);
+    }
+
+    public function testMembershipRoleDisplayReadIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/RoleBadge.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class RoleBadge {\n"
+            ."    public function badge(array \$roles): string { return in_array('ROLE_MEMBER', \$roles, true) ? 'member' : 'user'; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $gatingViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'RoleBadge.php') && str_contains($v, 'AC-M1'),
+        ));
+        self::assertSame([], $gatingViolations);
+    }
+
+    public function testNonFinalDomainEntityIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/Entity/Loose.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nclass Loose {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain Entity classes must be declared "final class" (api/CLAUDE.md AC-D4): src/Events/Domain/Entity/Loose.php',
+            $report->violations(),
+        );
+    }
+
+    public function testValueObjectWithoutReadonlyIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/ValueObject');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/ValueObject/Money.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\ValueObject;\n\nfinal class Money {}\n",
+        );
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/ValueObject/Amount.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\ValueObject;\n\nfinal readonly class Amount {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain ValueObject classes must be declared "final readonly class" (api/CLAUDE.md AC-D4): src/Events/Domain/ValueObject/Money.php',
+            $report->violations(),
+        );
+        $amountViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'Amount.php'),
+        ));
+        self::assertSame([], $amountViolations);
+    }
+
+    public function testFrozenContextNonFinalDomainClassIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Sessions/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Sessions/Domain/Entity/Legacy.php',
+            "<?php\n\nnamespace App\\Sessions\\Domain\\Entity;\n\nclass Legacy {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $finalityViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'Legacy.php') && str_contains($v, 'AC-D4'),
+        ));
+        self::assertSame([], $finalityViolations);
+    }
+
+    public function testNonFinalApplicationClassIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Support');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Support/OpenHelper.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nclass OpenHelper {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application classes must be final (api/CLAUDE.md AC-A1): src/Events/Application/Support/OpenHelper.php',
+            $report->violations(),
+        );
+    }
+
+    public function testAllowlistedApplicationBaseClassIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Communications/Application/Email');
+        file_put_contents(
+            $projectDir.'/src/Communications/Application/Email/ArchilanEmail.php',
+            "<?php\n\nnamespace App\\Communications\\Application\\Email;\n\nabstract class ArchilanEmail {}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $finalityViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'ArchilanEmail.php') && str_contains($v, 'AC-A1'),
+        ));
+        self::assertSame([], $finalityViolations);
+    }
+
+    public function testApplicationEntityReturnIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventFetcher.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event;\n\nfinal class EventFetcher {\n"
+            ."    public function fetch(string \$id): ?Event { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application methods must not return Domain entities ("?Event") - return a DTO, record or array instead (api/CLAUDE.md AC-A3): src/Events/Application/Query/EventFetcher.php',
+            $report->violations(),
+        );
+    }
+
+    public function testApplicationPrivateEntityReturnIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventPresenter.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event;\n\nfinal class EventPresenter {\n"
+            ."    public function present(string \$id): array { \$event = \$this->load(\$id); return []; }\n"
+            ."    private function load(string \$id): ?Event { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventPresenter.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertSame([], $entityReturnViolations);
+    }
+
+    public function testApplicationTernaryEntityBranchIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventChooser.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event;\n\nfinal class EventChooser {\n"
+            ."    public function choose(bool \$flag): array { \$e = \$flag ? \$this->pick(\$flag) : Event::class; return [\$e]; }\n"
+            ."    private function pick(bool \$flag): ?Event { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventChooser.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertSame([], $entityReturnViolations);
+    }
+
+    public function testApplicationPrivateFinalEntityReturnIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventLoader.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event;\n\nfinal class EventLoader {\n"
+            ."    public function load(string \$id): array { \$e = \$this->find(\$id); return []; }\n"
+            ."    private static function find(string \$id): ?Event { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventLoader.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertSame([], $entityReturnViolations);
+    }
+
+    public function testApplicationAliasedUnionEntityReturnIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventAliasFetcher.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event as EventRecord;\n\nfinal class EventAliasFetcher {\n"
+            ."    public function fetch(string \$id): EventRecord|false { return false; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventAliasFetcher.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertCount(1, $entityReturnViolations);
+    }
+
+    public function testMembershipGatingNamedArgumentAttributeIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AttributeGate.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AttributeGate {\n"
+            ."    #[IsGranted(attribute: 'ROLE_MEMBER')]\n"
+            ."    public function view(): void {}\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        $gatingViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'AttributeGate.php') && str_contains($v, 'AC-M1'),
+        ));
+        self::assertCount(1, $gatingViolations);
+    }
+
+    public function testAllowlistedAuthResolverEntityReturnIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Identity/Application/Service');
+        file_put_contents(
+            $projectDir.'/src/Identity/Application/Service/AuthenticateUser.php',
+            "<?php\n\nnamespace App\\Identity\\Application\\Service;\n\nuse App\\Identity\\Domain\\Entity\\User;\n\nfinal class AuthenticateUser {\n"
+            ."    public function authenticate(string \$email): ?User { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'AuthenticateUser.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertSame([], $entityReturnViolations);
+    }
+
     public function testTaxonomyExceptionOutsideExceptionFolderIsReportedForMigratedContext(): void
     {
         $projectDir = $this->createProjectFixture();
