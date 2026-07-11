@@ -467,6 +467,33 @@ final class DddArchitectureValidatorTest extends TestCase
         );
     }
 
+    public function testDomainSetterModifierVariantsAndMultipleSettersAreReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/Entity/Gadget.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nclass Gadget {\n"
+            ."    private string \$label = '';\n"
+            ."    private int \$rank = 0;\n"
+            ."    public final function setLabel(string \$label): void { \$this->label = \$label; }\n"
+            ."    public function setRank(int \$rank): void { \$this->rank = \$rank; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain layer must not expose public setters ("public final function setLabel") - replace with a named business method (api/CLAUDE.md AC-D5): src/Events/Domain/Entity/Gadget.php',
+            $report->violations(),
+        );
+        self::assertContains(
+            'Domain layer must not expose public setters ("public function setRank") - replace with a named business method (api/CLAUDE.md AC-D5): src/Events/Domain/Entity/Gadget.php',
+            $report->violations(),
+        );
+    }
+
     public function testDomainSetterLookalikesAreNotReported(): void
     {
         $projectDir = $this->createProjectFixture();

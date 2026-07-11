@@ -330,12 +330,14 @@ final readonly class DddArchitectureValidator
                     continue;
                 }
 
-                if (1 === preg_match('/public\s+(?:static\s+)?function\s+set[A-Z]\w*/', $contents, $matches)) {
-                    $violations[] = sprintf(
-                        'Domain layer must not expose public setters ("%s") - replace with a named business method (api/CLAUDE.md AC-D5): src/%s',
-                        trim($matches[0]),
-                        $this->relativePath($srcDir, $file),
-                    );
+                if (preg_match_all('/public\s+(?:(?:static|final|abstract)\s+)*function\s+&?\s*set[A-Z]\w*/', $contents, $matches) > 0) {
+                    foreach ($matches[0] as $match) {
+                        $violations[] = sprintf(
+                            'Domain layer must not expose public setters ("%s") - replace with a named business method (api/CLAUDE.md AC-D5): src/%s',
+                            preg_replace('/\s+/', ' ', $match) ?? $match,
+                            $this->relativePath($srcDir, $file),
+                        );
+                    }
                 }
             }
         }

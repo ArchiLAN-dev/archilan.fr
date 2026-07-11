@@ -23,3 +23,17 @@ triage table = audit of record). Outcomes:
   single shared embed showing the (single) shared channel is the only sensible rendering.
 
 Nothing remains deferred from story 7.7.
+
+## Deferred from: code review of 33-16-domain-setters-business-methods (2026-07-11)
+
+- **DDD validator text rules can false-positive on literals in comments/strings.** All the
+  validator's content rules (clock calls, clock constructs, forbidden imports, and the new AC-D5
+  setter rule) run regexes over raw `file_get_contents` - a Domain file whose doc-comment or string
+  literal contains a matchable form (e.g. a public set-prefixed declaration example) would fail the
+  gate. Latent only (tree is green; the 33.15 self-match lesson is documented). Proper fix is a
+  tokenizer-based scan (`token_get_all`) across all rules - natural companion to story 33.17
+  (validator extension), not a per-rule patch.
+- **`Post`/`Event`: `attachCoverImage` always touches `updatedAt`, sibling `clearCoverImageKey`
+  (`?\DateTimeImmutable $now = null`) touches conditionally.** Divergent timestamp contracts on the
+  same field within one aggregate. `clearCoverImageKey` predates 33.16 and is out of AC-D5 scope
+  (not set-prefixed); align its signature (require the clock) next time those entities are touched.

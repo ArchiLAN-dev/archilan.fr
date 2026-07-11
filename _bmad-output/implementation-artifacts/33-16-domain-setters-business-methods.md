@@ -96,6 +96,20 @@ refine a name during implementation if a better verb emerges - intent-revealing 
   when created) (AC: 4)
 - [x] Task 5: `composer gates` on an isolated DB; PR to develop (AC: 5)
 
+### Review Findings
+
+Adversarial review 2026-07-11 (Blind Hunter / Edge Case Hunter / Acceptance Auditor, PR #302):
+10 raw findings -> 4 patch (applied), 2 defer, 4 dismissed as refuted-or-spec-choice.
+
+- [x] [Review][Patch] Validator regex misses legal modifier orders (`public final function set*`, `public abstract function set*`, `function &set*`) [DddArchitectureValidator.php] - regex broadened to `(?:(?:static|final|abstract)\s+)*` + optional by-ref `&`; new unit test
+- [x] [Review][Patch] Only the first setter per file was reported (`preg_match`) [DddArchitectureValidator.php] - now `preg_match_all`, one violation per setter; covered by the same test
+- [x] [Review][Patch] Violation message could embed a raw newline (multiline declaration match) [DddArchitectureValidator.php] - matched excerpt whitespace-normalized
+- [x] [Review][Patch] File List said "19 existing test files"; the diff touches 26 [this file] - corrected
+- [x] [Review][Defer] Lexical scan can false-positive on `public function set{Upper}` literals inside doc-comments/strings in Domain files - deferred, pre-existing: every text rule of the validator (clock calls, imports, constructs) shares this raw-scan design; a tokenizer refactor is its own story (33.17 candidate)
+- [x] [Review][Defer] `attachCoverImage` now always touches `updatedAt` while sibling `clearCoverImageKey(?\DateTimeImmutable $now = null)` keeps the conditional touch (Post + Event) - deferred, pre-existing method out of AC-D5 scope; align when next touching those entities
+
+Dismissed (for the record): `availabilityLocked` strict-compare risk (refuted - `parse()` returns strictly `bool|null`); `linkHelloassoForm(null)`/`recordApworldDeployment(null)` null-path naming (spec choice, PATCH semantics); `recordOptionTypes`/`updateInstallSteps` not split into pairs (1:1 rename was the spec); rule blind to contexts missing from `CONTEXTS` (refuted - `validateSourceFiles` flags out-of-context files).
+
 ## Dev Notes
 
 - **Pure rename mechanics.** Doctrine hydrates properties by reflection, not setters - renaming a method
@@ -204,7 +218,7 @@ claude-fable-5.
 - src/Shared/Application/Support/DddArchitectureValidator.php (new rule + exempt const)
 - tests/Unit/GameSelection/GameAvailabilityLockTest.php (new)
 - tests/Unit/DddArchitectureValidatorTest.php (+3 tests)
-- 19 existing test files with call-site renames (see the worklist's test-caller list)
+- 26 existing test files with call-site renames (see the worklist's test-caller list)
 - _bmad-output/planning-artifacts/epics/epic-33-cleanup-and-standards-hardening.md (33.20 scope note)
 
 ## Change Log
