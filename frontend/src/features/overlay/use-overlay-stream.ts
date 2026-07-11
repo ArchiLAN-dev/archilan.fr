@@ -16,13 +16,16 @@ type TopicKind = "feed" | "players";
 export function useOverlayStream<T>(
   sessionId: string,
   kind: TopicKind,
+  guard: (v: unknown) => v is T,
   onEvent: (data: T) => void,
 ): { connected: boolean } {
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(onEvent);
+  const guardRef = useRef(guard);
 
   useLayoutEffect(() => {
     onEventRef.current = onEvent;
+    guardRef.current = guard;
   });
 
   useEffect(() => {
@@ -45,11 +48,16 @@ export function useOverlayStream<T>(
       };
 
       source.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
+        let parsed: unknown;
         try {
-          onEventRef.current(JSON.parse(event.data as string) as T);
+          parsed = JSON.parse(frame);
         } catch {
-          /* ignore malformed SSE frames */
+          return; /* malformed SSE frame - dropped */
         }
+        if (!guardRef.current(parsed)) return; /* unexpected shape - dropped, never cast */
+        onEventRef.current(parsed);
       };
 
       source.onerror = () => {

@@ -9,13 +9,15 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasStringProp } from "@/lib/type-guards";
 import { useAuth } from "@/features/auth/auth-context";
+import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
-import { HINT_STATUS_NAMES } from "@/features/reachability/types";
+import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
+import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
 import { SlotSwitcher } from "./admin-slot-switcher";
 
 type PageState =
@@ -186,9 +188,11 @@ export function AdminSlotReachabilityPage({
       es.onopen = () => { if (!cancelled) setLiveConnected(true); };
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const data = JSON.parse(event.data as string) as ReachabilityData;
-          if (!data.counts) return;
+          const data: unknown = JSON.parse(frame);
+          if (!isReachabilityData(data)) return;
 
           if (prevItemsRef.current.size === 0) {
             prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
@@ -230,16 +234,9 @@ export function AdminSlotReachabilityPage({
     }
 
     async function init(): Promise<void> {
-      const tokenRes = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/reachable-token`,
-      );
-      if (!tokenRes.ok || cancelled) return;
-      const tokenJson = (await tokenRes.json()) as {
-        data: { token: string; hubUrl: string; topic: string };
-      };
-      const { token, hubUrl, topic } = tokenJson.data;
-      if (!hubUrl || cancelled) return;
-      connect(token, hubUrl, topic);
+      const sub = await fetchSubscribeToken(`/sessions/${sessionId}/slots/${slotIndex}/reachable-token`);
+      if (!sub || !sub.hubUrl || cancelled) return;
+      connect(sub.token, sub.hubUrl, sub.topic);
     }
 
     void init().catch(() => undefined);
@@ -266,11 +263,19 @@ export function AdminSlotReachabilityPage({
       hintsEsRef.current = es;
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const data = JSON.parse(event.data as string) as Partial<HintsData>;
-          if ("hints" in data) {
-            setHints((prev) => (prev ? { ...prev, ...data } as HintsData : data as HintsData));
-          }
+          const data: unknown = JSON.parse(frame);
+          if (!isHintsUpdate(data)) return;
+          setHints((prev) => ({
+            slot: 0,
+            hintsUsed: 0,
+            hintPointsAvailable: 0,
+            hintCost: 0,
+            ...prev,
+            ...data,
+          }));
         } catch { /* ignore */ }
       };
 
@@ -284,16 +289,9 @@ export function AdminSlotReachabilityPage({
     }
 
     async function initHints(): Promise<void> {
-      const tokenRes = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/hints-token`,
-      );
-      if (!tokenRes.ok || cancelled) return;
-      const tokenJson = (await tokenRes.json()) as {
-        data: { token: string; hubUrl: string; topic: string };
-      };
-      const { token, hubUrl, topic } = tokenJson.data;
-      if (!hubUrl || cancelled) return;
-      connectHints(token, hubUrl, topic);
+      const sub = await fetchSubscribeToken(`/sessions/${sessionId}/slots/${slotIndex}/hints-token`);
+      if (!sub || !sub.hubUrl || cancelled) return;
+      connectHints(sub.token, sub.hubUrl, sub.topic);
     }
 
     void initHints().catch(() => undefined);
@@ -320,8 +318,11 @@ export function AdminSlotReachabilityPage({
       const es = new EventSource(url.toString());
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const data = JSON.parse(event.data as string) as { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> };
+          const data: unknown = JSON.parse(frame);
+          if (!isPlayersState(data)) return;
           const slot = data.slots?.[slotKey];
           if (slot?.client_status === 30 && slot.goal_reached_at) {
             setGoalReached(true);
@@ -356,19 +357,20 @@ export function AdminSlotReachabilityPage({
       // Check current state first - goal may have been reached before this page was opened
       const stateRes = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players`).catch(() => null);
       if (stateRes?.ok && !cancelled) {
-        const stateJson = (await stateRes.json()) as { data: { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> } };
-        const slot = stateJson.data.slots?.[slotKey];
+        const statePayload: unknown = await stateRes.json();
+        const stateData: unknown =
+          typeof statePayload === "object" && statePayload !== null && "data" in statePayload
+            ? statePayload.data
+            : null;
+        const slot = isPlayersState(stateData) ? stateData.slots?.[slotKey] : undefined;
         if (slot?.client_status === 30 && slot.goal_reached_at) {
           setGoalReached(true);
         }
       }
 
-      const tokenRes = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/players-token`);
-      if (!tokenRes.ok || cancelled) return;
-      const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
-      const { token, hubUrl, topic } = tokenJson.data;
-      if (!hubUrl || cancelled) return;
-      connectPlayers(token, hubUrl, topic);
+      const sub = await fetchSubscribeToken(`/sessions/${sessionId}/players-token`);
+      if (!sub || !sub.hubUrl || cancelled) return;
+      connectPlayers(sub.token, sub.hubUrl, sub.topic);
     }
 
     void initPlayers().catch(() => undefined);

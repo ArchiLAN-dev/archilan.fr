@@ -11,6 +11,14 @@ type SeatCounterMessage = {
   remainingSeats: number;
 };
 
+// Guard for seat-counter Mercure frames (story 33.19): the api is the single publisher of this
+// topic, so checking the two required fields is sufficient.
+function isSeatCounterMessage(v: unknown): v is SeatCounterMessage {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("eventId" in v) || typeof v.eventId !== "string") return false;
+  return "remainingSeats" in v && typeof v.remainingSeats === "number";
+}
+
 type LiveSeatCounterProps = {
   eventId: string;
   initialCapacity: number;
@@ -65,9 +73,15 @@ export function LiveSeatCounter({
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/events/${eventId}`);
       if (!res.ok) return;
-      const payload = (await res.json()) as unknown;
-      const data = (payload as { data?: { confirmedRegistrations?: number } }).data;
-      if (typeof data?.confirmedRegistrations === "number") {
+      const payload: unknown = await res.json();
+      if (typeof payload !== "object" || payload === null || !("data" in payload)) return;
+      const data: unknown = payload.data;
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        "confirmedRegistrations" in data &&
+        typeof data.confirmedRegistrations === "number"
+      ) {
         applyRemainingSeats(initialCapacity - data.confirmedRegistrations);
       }
     } catch {
@@ -78,6 +92,7 @@ export function LiveSeatCounter({
   const { connected, disconnected, polling } = useSSE(
     topicUrl,
     mercureHubUrl,
+    isSeatCounterMessage,
     onMessage,
     fallbackPoll,
   );
