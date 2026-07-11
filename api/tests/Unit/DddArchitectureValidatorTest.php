@@ -446,6 +446,99 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $clockConstructViolations);
     }
 
+    public function testDomainPublicSetterIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/Entity/Widget.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nfinal class Widget {\n"
+            ."    private string \$name = '';\n"
+            ."    public function setName(string \$name): void { \$this->name = \$name; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain layer must not expose public setters ("public function setName") - replace with a named business method (api/CLAUDE.md AC-D5): src/Events/Domain/Entity/Widget.php',
+            $report->violations(),
+        );
+    }
+
+    public function testDomainSetterModifierVariantsAndMultipleSettersAreReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/Entity/Gadget.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nclass Gadget {\n"
+            ."    private string \$label = '';\n"
+            ."    private int \$rank = 0;\n"
+            ."    public final function setLabel(string \$label): void { \$this->label = \$label; }\n"
+            ."    public function setRank(int \$rank): void { \$this->rank = \$rank; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Domain layer must not expose public setters ("public final function setLabel") - replace with a named business method (api/CLAUDE.md AC-D5): src/Events/Domain/Entity/Gadget.php',
+            $report->violations(),
+        );
+        self::assertContains(
+            'Domain layer must not expose public setters ("public function setRank") - replace with a named business method (api/CLAUDE.md AC-D5): src/Events/Domain/Entity/Gadget.php',
+            $report->violations(),
+        );
+    }
+
+    public function testDomainSetterLookalikesAreNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Domain/Entity');
+        file_put_contents(
+            $projectDir.'/src/Events/Domain/Entity/Invoice.php',
+            "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nfinal class Invoice {\n"
+            ."    private bool \$settled = false;\n"
+            ."    private string \$offset = '';\n"
+            ."    public function settle(): void { \$this->settled = true; }\n"
+            ."    public function reset(): void { \$this->settled = false; }\n"
+            ."    private function setOffset(string \$offset): void { \$this->offset = \$offset; }\n"
+            ."    public function shift(string \$offset): void { \$this->setOffset(\$offset); }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $violationsForFile = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'Invoice.php'),
+        ));
+        self::assertSame([], $violationsForFile);
+    }
+
+    public function testFrozenContextDomainSetterIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Sessions/Domain/SessionThing.php',
+            "<?php\n\nnamespace App\\Sessions\\Domain;\n\nfinal class SessionThing {\n"
+            ."    private ?string \$logs = null;\n"
+            ."    public function setLastLogs(?string \$logs): void { \$this->logs = \$logs; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $setterViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'SessionThing.php') && str_contains($v, 'public setters'),
+        ));
+        self::assertSame([], $setterViolations);
+    }
+
     public function testTaxonomyExceptionOutsideExceptionFolderIsReportedForMigratedContext(): void
     {
         $projectDir = $this->createProjectFixture();

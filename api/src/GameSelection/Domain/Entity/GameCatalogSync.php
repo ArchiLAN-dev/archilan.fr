@@ -43,7 +43,7 @@ final class GameCatalogSync
         #[ORM\Column(name: 'platforms', type: 'json', nullable: true)]
         private ?array $platforms = null,
     ) {
-        $game->setCatalogSync($this);
+        $game->attachCatalogSync($this);
     }
 
     public function update(
@@ -65,7 +65,7 @@ final class GameCatalogSync
         $this->apworldReleaseUrl = $releaseUrl;
     }
 
-    public function setApworldDeployedVersion(?string $version): void
+    public function recordApworldDeployment(?string $version): void
     {
         $this->apworldDeployedVersion = null !== $version ? ltrim($version, 'vV') : null;
     }

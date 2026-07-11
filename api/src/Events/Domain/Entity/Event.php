@@ -237,7 +237,7 @@ final class Event
         return $this->helloassoFormSlug;
     }
 
-    public function setHelloassoFormSlug(?string $slug, \DateTimeImmutable $now): void
+    public function linkHelloassoForm(?string $slug, \DateTimeImmutable $now): void
     {
         $this->helloassoFormSlug = self::nullableTrim($slug);
         $this->updatedAt = $now;
@@ -253,12 +253,10 @@ final class Event
         return $this->coverImageKey;
     }
 
-    public function setCoverImageKey(string $key, ?\DateTimeImmutable $now = null): void
+    public function attachCoverImage(string $key, \DateTimeImmutable $now): void
     {
         $this->coverImageKey = $key;
-        if (null !== $now) {
-            $this->updatedAt = $now;
-        }
+        $this->updatedAt = $now;
     }
 
     public function clearCoverImageKey(?\DateTimeImmutable $now = null): void

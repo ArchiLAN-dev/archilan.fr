@@ -47,7 +47,7 @@ final readonly class SeedGameTutorials
                 continue;
             }
 
-            $game->setInstallSteps($steps);
+            $game->updateInstallSteps($steps);
             $this->games->save($game);
             ++$seeded;
         }

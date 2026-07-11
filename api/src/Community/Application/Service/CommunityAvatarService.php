@@ -38,7 +38,7 @@ final readonly class CommunityAvatarService
         $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
 
         $profile = $this->ensureProfile($userId);
-        $profile->setCustomAvatar($key, $this->clock->now());
+        $profile->uploadCustomAvatar($key, $this->clock->now());
         $this->profiles->flush();
 
         return (string) $this->avatarUrls->resolve($key, null);
@@ -56,7 +56,7 @@ final readonly class CommunityAvatarService
         }
 
         if (null !== $profile->getCustomAvatarKey()) {
-            $profile->setCustomAvatar(null, $this->clock->now());
+            $profile->removeCustomAvatar($this->clock->now());
             $this->profiles->flush();
         }
 

@@ -157,7 +157,7 @@ final class Run
         $this->updatedAt = $now;
     }
 
-    public function setSessionId(string $sessionId): void
+    public function attachSession(string $sessionId): void
     {
         $this->sessionId = $sessionId;
     }

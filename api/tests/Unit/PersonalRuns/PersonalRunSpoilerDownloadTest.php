@@ -113,7 +113,7 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
     private function launchedRun(): Run
     {
         $run = Run::create(self::OWNER_ID, 'My run', new \DateTimeImmutable());
-        $run->setSessionId(self::SESSION_ID);
+        $run->attachSession(self::SESSION_ID);
 
         return $run;
     }

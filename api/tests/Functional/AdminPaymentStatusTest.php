@@ -103,7 +103,7 @@ final class AdminPaymentStatusTest extends FunctionalTestCase
             published: true,
         );
         if (null !== $helloassoFormSlug) {
-            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+            $event->linkHelloassoForm($helloassoFormSlug, $now);
             $this->entityManager->flush();
         }
 

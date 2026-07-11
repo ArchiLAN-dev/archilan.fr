@@ -385,7 +385,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
         $run = Run::create($ownerId, 'Test Run', $now);
-        $run->setSessionId($sessionId);
+        $run->attachSession($sessionId);
         (new \ReflectionProperty(Run::class, 'status'))->setValue($run, Run::STATUS_ACTIVE);
 
         $this->entityManager->persist($run);

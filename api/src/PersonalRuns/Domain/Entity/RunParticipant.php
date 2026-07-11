@@ -87,7 +87,7 @@ final class RunParticipant
         $this->gameSlots = $orderedSlots;
     }
 
-    public function setSlotPlayerYaml(string $slotId, string $playerYaml, string $apworldHash): void
+    public function submitSlotPlayerYaml(string $slotId, string $playerYaml, string $apworldHash): void
     {
         foreach ($this->gameSlots as &$slot) {
             if ($slot['slotId'] === $slotId) {

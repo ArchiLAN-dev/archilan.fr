@@ -137,7 +137,7 @@ final class RegistrationSlotYamlTest extends FunctionalTestCase
 
         $slotId = $reg->getGameSlots()[0]['slotId'];
         $playerYaml = "name: Custom\ngame: Hollow Knight\n";
-        $reg->setSlotPlayerYaml($slotId, $playerYaml, 'test-hash', new \DateTimeImmutable());
+        $reg->submitSlotPlayerYaml($slotId, $playerYaml, 'test-hash', new \DateTimeImmutable());
         $this->entityManager->flush();
 
         $this->loginAs($owner);

@@ -56,7 +56,7 @@ final class SaveSteamAccountTest extends TestCase
     public function testRemoveClearsTheProfile(): void
     {
         $user = $this->user();
-        $user->setSteamProfile('gaben');
+        $user->updateSteamProfile('gaben');
 
         $repo = $this->createMock(UserRepositoryInterface::class);
         $repo->method('findById')->willReturn($user);

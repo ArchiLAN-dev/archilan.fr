@@ -109,7 +109,7 @@ final class PersonalRunPatchQueryTest extends TestCase
     private function launchedRun(): Run
     {
         $run = Run::create('owner-x', 'My run', new \DateTimeImmutable());
-        $run->setSessionId(self::SESSION_ID);
+        $run->attachSession(self::SESSION_ID);
 
         return $run;
     }

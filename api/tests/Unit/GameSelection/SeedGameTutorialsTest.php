@@ -19,7 +19,7 @@ final class SeedGameTutorialsTest extends TestCase
     {
         $fresh = $this->makeGame('fresh');
         $authored = $this->makeGame('authored');
-        $authored->setInstallSteps([['type' => 'note', 'title' => 'kept', 'description' => '', 'links' => []]]);
+        $authored->updateInstallSteps([['type' => 'note', 'title' => 'kept', 'description' => '', 'links' => []]]);
 
         $repo = $this->createMock(GameRepositoryInterface::class);
         $repo->method('findAllSortedByName')->willReturn([$fresh, $authored]);
@@ -36,7 +36,7 @@ final class SeedGameTutorialsTest extends TestCase
     {
         $a = $this->makeGame('a');
         $b = $this->makeGame('b');
-        $b->setInstallSteps([['type' => 'note', 'title' => 'old', 'description' => '', 'links' => []]]);
+        $b->updateInstallSteps([['type' => 'note', 'title' => 'old', 'description' => '', 'links' => []]]);
 
         $repo = $this->createMock(GameRepositoryInterface::class);
         $repo->method('findAllSortedByName')->willReturn([$a, $b]);

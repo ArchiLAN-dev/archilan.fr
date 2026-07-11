@@ -91,7 +91,7 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Ma partie', $now);
         $run->start($now);
-        $run->setSessionId($session->getId());
+        $run->attachSession($session->getId());
         $this->entityManager->persist($run);
         $this->entityManager->flush();
 

@@ -72,7 +72,7 @@ final class BackfillGamePlatformsTest extends TestCase
 
         if (null !== $igdbId || null !== $platforms) {
             $sync = new GameCatalogSync($game, igdbId: $igdbId, platforms: $platforms);
-            $game->setCatalogSync($sync);
+            $game->attachCatalogSync($sync);
         }
 
         return $game;

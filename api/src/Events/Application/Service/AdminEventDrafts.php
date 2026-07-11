@@ -84,7 +84,7 @@ final readonly class AdminEventDrafts
             $parsed['photoGallery'],
         );
 
-        $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], $this->clock->now());
+        $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
         $this->eventRepository->save($event);
 
         $this->logger->info('event.created', ['eventId' => $event->getId(), 'title' => $event->getTitle()]);
@@ -137,7 +137,7 @@ final readonly class AdminEventDrafts
         if ('url' === $parsed['coverImageMode']) {
             $event->clearCoverImageKey($this->clock->now());
         }
-        $event->setHelloassoFormSlug($parsed['helloassoFormSlug'], $this->clock->now());
+        $event->linkHelloassoForm($parsed['helloassoFormSlug'], $this->clock->now());
         $this->eventRepository->save($event);
 
         $this->logger->info('event.updated', ['eventId' => $event->getId()]);

@@ -114,7 +114,7 @@ final class RecomputeAchievementsTest extends TestCase
         foreach (DefaultAchievementDefinitions::all() as $raw) {
             $def = AchievementDefinition::create($raw['key'], $raw['name'], $raw['description'], $raw['rule'], $position, $now);
             if (\in_array($raw['key'], $deactivate, true)) {
-                $def->setActive(false, $now);
+                $def->deactivate($now);
             }
             $defs[] = $def;
             ++$position;

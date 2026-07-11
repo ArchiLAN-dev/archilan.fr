@@ -108,7 +108,7 @@ final class AdminApworldMinioTest extends FunctionalTestCase
 
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->configureApworld($minioKey, $sha256, 'Hollow Knight', "game: Hollow Knight\n", new \DateTimeImmutable());
-        $game->setApworldMinioKey($minioKey);
+        $game->recordApworldMinioUpload($minioKey);
         $this->entityManager->flush();
 
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);

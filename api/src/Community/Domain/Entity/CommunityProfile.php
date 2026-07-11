@@ -103,12 +103,21 @@ final class CommunityProfile
     }
 
     /**
-     * Set (or clear, with null) the member-uploaded avatar key. Uploading overrides the external source;
-     * clearing falls back to the resolved external avatar, then the default (story 30.27).
+     * Record the member-uploaded avatar key. Uploading overrides the external source (story 30.27).
      */
-    public function setCustomAvatar(?string $key, \DateTimeImmutable $now): void
+    public function uploadCustomAvatar(string $key, \DateTimeImmutable $now): void
     {
         $this->customAvatarKey = $key;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * Clear the member-uploaded avatar; display falls back to the resolved external avatar, then the
+     * default (story 30.27).
+     */
+    public function removeCustomAvatar(\DateTimeImmutable $now): void
+    {
+        $this->customAvatarKey = null;
         $this->updatedAt = $now;
     }
 

@@ -213,7 +213,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
         $reg = $this->createRegistration($eventId, $userId);
         $reg->replaceSlots([['slotId' => $slotId, 'gameId' => $gameId]], $now);
-        $reg->setSlotPlayerYaml($slotId, $playerYaml, 'test-hash', $now);
+        $reg->submitSlotPlayerYaml($slotId, $playerYaml, 'test-hash', $now);
         $this->entityManager->flush();
 
         return $reg;
