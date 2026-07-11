@@ -53,13 +53,13 @@ already in `allow-plugins` (Rector needs no plugin).
 
 ### Dry-run triage (AC2 - worklist of record)
 
-First dry-run: 173 findings / 157 files / 13 rules. Verdicts:
+First dry-run: 178 rule applications / 157 files / 13 rules. Verdicts:
 
 | Rule (count) | Verdict |
 |---|---|
 | AddTypeToConstRector (96) | APPLIED - typed class constants (PHP 8.3), incl. 19 Domain entities (constants only, verified) |
 | NewMethodCallWithoutParenthesesRector (35) | APPLIED - PHP 8.4 `new Foo()->bar()` chaining |
-| ArrowFunctionDelegatingCallToFirstClassCallableRector (12) | APPLIED - first-class callables |
+| ArrowFunctionDelegatingCallToFirstClassCallableRector (12) + FunctionFirstClassCallableRector (4) | APPLIED - first-class callables |
 | ForeachToArrayAnyRector (6) + ForeachToArrayAllRector (1) | APPLIED - PHP 8.4 array_any/array_all |
 | ClosureToArrowFunctionRector (5) | APPLIED |
 | ReadOnlyClassRector (5) | APPLIED - Infrastructure adapters (IgdbHttpClient, SteamWebApiClient, S3MinioStorage, TwitchApiClient, Schedule); per-property readonly demoted to class-level |
@@ -69,8 +69,16 @@ First dry-run: 173 findings / 157 files / 13 rules. Verdicts:
 | TernaryToNullCoalescingRector (1) | APPLIED |
 | StringClassNameToClassConstantRector (1) | **SKIPPED (rule in withSkip)** - it rewrote the DDD validator's forbidden-import scan patterns to `::class`, whose source text carries single backslashes: the validator immediately flagged ITSELF (gate red). Scan patterns must stay single-quoted strings (doubled backslashes cannot self-match). Comment in rector.php records this. |
 
-Decision recorded: `rector/rector-symfony` NOT adopted in this story - conservative baseline first;
-Symfony sets are a follow-up candidate once the PHP-set baseline proves quiet.
+Decision recorded: Symfony rules NOT adopted in this story - conservative baseline first. CORRECTION
+(review finding): Rector 2.x BUNDLES the Symfony rules and CONFLICTS with the standalone
+`rector/rector-symfony` package (composer.lock conflict entry) - the follow-up path is Rector's own
+Symfony set API, never a new dependency. The story's original Dev Note claiming a separate package
+was wrong.
+
+Post-review scope correction: the Epic 32 freeze covers the context's dedicated unit tests too -
+`tests/Unit/Sessions` added to `withSkip` and its 3 files reverted (Sessions-flavoured FUNCTIONAL
+tests keep their typed-constant hunks: shared cross-context surface, conflict risk limited to
+declaration lines - accepted).
 
 ## Dev Notes
 
@@ -131,8 +139,11 @@ claude-fable-5.
   migrations excluded by paths.
 - 172 findings applied across 157 files (see triage table); cs-fixer restyled the output in the same
   batch; `composer rector` dry-run exits 0 at PR time.
-- Advisory CI step added to backend.yml after the Infection step (same continue-on-error shape +
-  flip-to-hard-gate comment); `composer rector` script; `api/CLAUDE.md` advisory paragraph.
+- Advisory CI step added to backend.yml after the Infection step - same advisory INTENT, different
+  mechanism (step-level `continue-on-error` vs Infection's internal `|| true` swallow; the Rector
+  step surfaces as an annotated neutral step, which is the better behaviour); `composer rector`
+  script; `api/CLAUDE.md` advisory paragraph. The `checks` job's `defaults.run.working-directory:
+  api` applies (review-verified; the step produced Rector output on the first CI run).
 - Gates: phpstan 0, cs-fixer 0, `app:architecture:ddd` OK, full isolated suite
   **1489 tests / 10304 assertions** green.
 
@@ -143,6 +154,32 @@ claude-fable-5.
 - 157 modernised files under api/src/** and api/tests/** (typed constants, PHP 8.4 new-chaining,
   first-class callables, array_any/all, readonly promotions on 5 Infrastructure adapters + test
   doubles, #[\Override] x3)
+
+### Review Findings
+
+Adversarial review 2026-07-11 (Blind Hunter / Edge Case Hunter, PR #306; Auditor pending at write
+time). Mechanical transformations survived adversarial reading on both sides (BH walked every
+conversion class in the diff; ECH replayed them against the live tree incl. the 5 readonly bodies,
+services.yaml lazy/decoration absence, and CI wiring).
+
+- [x] [Review][Patch] Epic 32 freeze extended to `tests/Unit/Sessions` (skip + 3 files reverted);
+  functional Sessions-flavoured tests accepted as applied (shared surface, const-line conflicts only)
+- [x] [Review][Patch] rector-symfony follow-up path corrected (Rector 2.x bundles + conflicts with
+  the standalone package) in rector.php comment + story record
+- [x] [Review][Patch] "Mirrors the 33.12 Infection shape" claim corrected (same intent, different
+  mechanism - step-level continue-on-error, arguably better)
+- [x] [Review][Patch] Triage arithmetic fixed (178 rule applications, FunctionFirstClassCallable row
+  was missing)
+- [x] [Review][Dismissed] CI working-directory doubt - refuted: `defaults.run.working-directory: api`
+  (backend.yml:53-55) and the step produced output on the first green run
+- [x] [Review][Dismissed] readonly-vs-lazy-services risk - refuted on the tree: none of the 5
+  adapters is lazy/decorated/reflection-hydrated (ECH verified bodies + config); a future
+  `lazy: true` on a readonly class fails loudly at container build
+- [x] [Review][Defer] `decodedJsonResponse()` triple override suggests dead duplication in 3
+  functional tests - follow-up worklist candidate, not this PR
+- [x] [Review][Defer] Rector-generated closures are untyped/non-static vs the codebase's
+  `static fn (Type $x): bool` discipline - accepted as the tool's output baseline; revisit if the
+  gate flips to hard
 
 ## Change Log
 
