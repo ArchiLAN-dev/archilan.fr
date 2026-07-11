@@ -75,7 +75,17 @@ export type HintsData = {
 export function isReachabilityData(v: unknown): v is ReachabilityData {
   if (typeof v !== "object" || v === null) return false;
   if (!("counts" in v) || typeof v.counts !== "object" || v.counts === null) return false;
-  return "reachable_unchecked" in v && Array.isArray(v.reachable_unchecked);
+  // Every array the pages hard-dereference (map/spread/length) is verified, so a passing frame
+  // can never throw mid-handler or mid-render. The bridge always publishes all of them together
+  // (review-verified against reachable.py) - these checks cost nothing in drop risk.
+  return (
+    "reachable_unchecked" in v && Array.isArray(v.reachable_unchecked)
+    && "reachable_checked" in v && Array.isArray(v.reachable_checked)
+    && "unreachable_unchecked" in v && Array.isArray(v.unreachable_unchecked)
+    && "checked_unreachable" in v && Array.isArray(v.checked_unreachable)
+    && "items_received" in v && Array.isArray(v.items_received)
+    && "items_not_received" in v && Array.isArray(v.items_not_received)
+  );
 }
 
 /** Hints pushes arrive as partial frames; `hints` is the discriminant the pages already keyed on. */

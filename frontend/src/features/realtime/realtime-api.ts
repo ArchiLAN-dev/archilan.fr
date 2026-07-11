@@ -16,6 +16,21 @@ export function isSubscribeTokenPayload(v: unknown): v is SubscribeTokenPayload 
   return typeof v.token === "string" && typeof v.hubUrl === "string" && typeof v.topic === "string";
 }
 
+// Discriminants of every frame published on the `/sessions/{id}` Mercure topic
+// (SessionLifecycleManager publishes the full Session payload; id + status are the
+// stable core). Shared by the admin session page and the connection gate - one
+// structural check for the session family (story 33.19 review).
+export type SessionStatusFrame = {
+  id: string;
+  status: string;
+};
+
+export function isSessionStatusFrame(v: unknown): v is SessionStatusFrame {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("id" in v) || typeof v.id !== "string") return false;
+  return "status" in v && typeof v.status === "string";
+}
+
 /**
  * Fetches a Mercure subscribe token from an api `*-token` endpoint (path relative to the api base,
  * e.g. `/sessions/{id}/players-token`). Cookie-authenticated via apiFetch (401-refresh preserved).

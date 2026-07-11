@@ -6,6 +6,7 @@ import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { useSSE } from "@/hooks/use-sse";
+import { isSessionStatusFrame, type SessionStatusFrame } from "@/features/realtime/realtime-api";
 import { EventFeed } from "./event-feed";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
@@ -540,16 +541,12 @@ function PatchFilesSection({ registrationId }: { registrationId: string }) {
 
 // ─── Parsers ─────────────────────────────────────────────────────────────────
 
-// A `/sessions/{id}` Mercure frame carrying at least the two required discriminants. The guard
-// checks exactly what parseSession requires (story 33.19), so guarded frames always parse; the
-// optional connection fields are still normalized by parseSession.
-type SessionFrame = { id: string; status: string };
+// A `/sessions/{id}` Mercure frame carrying at least the two required discriminants. The shared
+// guard checks exactly what parseSession requires (story 33.19), so guarded frames always parse;
+// the optional connection fields are still normalized by parseSession.
+type SessionFrame = SessionStatusFrame;
 
-function isSessionFrame(v: unknown): v is SessionFrame {
-  if (typeof v !== "object" || v === null) return false;
-  if (!("id" in v) || typeof v.id !== "string") return false;
-  return "status" in v && typeof v.status === "string";
-}
+const isSessionFrame = isSessionStatusFrame;
 
 function parseSession(x: unknown): SessionPayload | null {
   if (!x || typeof x !== "object") return null;

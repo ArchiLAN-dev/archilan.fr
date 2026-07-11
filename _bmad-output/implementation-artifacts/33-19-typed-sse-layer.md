@@ -135,6 +135,36 @@ subagents on disjoint file sets, verified by orchestrator grep + full gates).
   reachable-overlay.tsx
 - frontend/eslint.config.mjs
 
+### Review Findings
+
+Adversarial review 2026-07-11 (Blind Hunter / Edge Case Hunter, PR #308). The ECH replayed every
+guard against the actual publishers (api RealtimePublisher/SessionLifecycleManager, bridge
+ap_client.py/state.py/reachable.py) - that evidence settled the Blind Hunter's shape-mismatch HIGHs.
+
+- [x] [Review][Patch] REAL BUG: bridge `death_link` feed frames carry no `text` and were dropped by
+  `isFeedEvent` on all 4 feed surfaces - `FeedEvent.text` made optional, guard accepts absent text,
+  consumers render `?? ""` (pre-33.19 parity: blank text, type badge + timestamp)
+- [x] [Review][Patch] `isReachabilityData` verified 2 of the 6 arrays the pages hard-dereference -
+  all 6 now checked (bridge always publishes them together; zero added drop risk, and a passing
+  frame can no longer throw mid-handler/mid-render)
+- [x] [Review][Patch] Duplicate byte-identical session guards - unified as `isSessionStatusFrame`
+  in realtime-api; admin page keeps its documented full-Session refinement as a delegating wrapper
+- [x] [Review][Patch] AdminTerminal `setConnected(true)` had moved behind the guard - restored to
+  fire on any received frame (stream-liveness signal, pre-33.19 parity)
+- [x] [Review][Dismissed] Hints default-seeding + array-strictness (BH HIGH) - refuted by publisher
+  evidence: ap_client.py always sends the hints array plus the fields the defaults cover
+- [x] [Review][Dismissed] seat-counter/session guards dropping real frames - refuted: publisher
+  matrix verified exact (RealtimePublisher.php:53, Session::payload())
+- [x] [Review][Dismissed] `fetchSubscribeToken` requiring `topic` - callers always used
+  `payload.topic` to connect; a topicless payload was already broken (worse: silently)
+- [x] [Review][Accepted] Guards check discriminants, not leaves ("the lie moved from as to is") -
+  documented tradeoff (single-publisher contract), comment blocks at the guard families
+- [x] [Review][Accepted] No dev logging of dropped frames (AC1 deviation) - AC-ENV1 bans direct
+  process.env and env.ts exposes no dev flag; silent drop = pre-33.19 parity
+- [x] [Review][Accepted] guardRef sync mechanisms differ between hooks (useEffect vs
+  useLayoutEffect) - each consistent with its own file's pre-existing onMessage ref pattern; all
+  call sites pass module-constant guards
+
 ## Change Log
 
 | Date | Change |

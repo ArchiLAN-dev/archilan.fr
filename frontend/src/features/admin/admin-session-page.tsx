@@ -31,7 +31,7 @@ import { env } from "@/lib/env";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { isFeedEvent } from "@/features/overlay/overlay-api";
-import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, isSessionStatusFrame } from "@/features/realtime/realtime-api";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -78,13 +78,11 @@ type Session = {
   validationErrors?: ValidationError[] | null;
 };
 
-// Guard for `/sessions/{id}` Mercure frames (story 33.19): the api is the single publisher of this
-// topic and publishes the full Session shape, so checking the `id`/`status` discriminants is
-// sufficient - the remaining fields are trusted from that publisher.
+// Guard for `/sessions/{id}` Mercure frames (story 33.19): structural check delegated to the
+// shared session-frame guard; the refinement to the full Session shape is a documented trust
+// decision - the api is the single publisher of this topic and publishes the complete payload.
 function isSessionPayload(v: unknown): v is Session {
-  if (typeof v !== "object" || v === null) return false;
-  if (!("id" in v) || typeof v.id !== "string") return false;
-  return "status" in v && typeof v.status === "string";
+  return isSessionStatusFrame(v);
 }
 
 type SessionSlot = {
@@ -1561,6 +1559,8 @@ function AdminTerminal({
       es.onopen = () => { setConnected(true); };
 
       es.onmessage = (event) => {
+        // Any frame - even one the guard will drop - proves the stream is alive (pre-33.19 parity).
+        setConnected(true);
         const frame: unknown = event.data;
         if (typeof frame !== "string") return;
         let parsed: unknown;
@@ -1570,10 +1570,9 @@ function AdminTerminal({
           return; /* malformed frame - ignored */
         }
         if (!isFeedEvent(parsed)) return; /* unexpected shape - dropped, never cast */
-        setConnected(true);
         setLines((prev) => [
           ...prev,
-          { kind: "feed" as const, type: parsed.type, text: parsed.text, timestamp: parsed.timestamp, _key: `${Date.now()}-${Math.random()}` },
+          { kind: "feed" as const, type: parsed.type, text: parsed.text ?? "", timestamp: parsed.timestamp, _key: `${Date.now()}-${Math.random()}` },
         ].slice(-300));
       };
 

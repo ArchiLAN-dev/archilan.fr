@@ -61,7 +61,7 @@ export function NotificationsOverlay({
         ...prev,
         {
           id: (idRef.current += 1),
-          name: event.item?.name ?? event.text,
+          name: event.item?.name ?? event.text ?? "",
           flags: deriveFlags(event),
           subtitle: feedItemOrigin(event) ?? undefined,
         },
