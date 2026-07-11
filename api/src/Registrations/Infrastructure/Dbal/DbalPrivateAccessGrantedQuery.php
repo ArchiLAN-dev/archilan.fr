@@ -27,7 +27,7 @@ final readonly class DbalPrivateAccessGrantedQuery implements PrivateAccessGrant
             ->executeQuery()
             ->fetchFirstColumn();
 
-        return array_values(array_filter($rawUserIds, 'is_string'));
+        return array_values(array_filter($rawUserIds, is_string(...)));
     }
 
     public function countGrantedForUser(string $eventId, string $userId): int

@@ -55,9 +55,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
         $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
         $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
         $expiryCheck->method('findPendingReminderIds')
-            ->willReturnCallback(static function (\DateTimeImmutable $now, int $daysLeft): array {
-                return 30 === $daysLeft ? ['id-30'] : [];
-            });
+            ->willReturnCallback(static fn (\DateTimeImmutable $now, int $daysLeft): array => 30 === $daysLeft ? ['id-30'] : []);
 
         $memberships = $this->createMock(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
@@ -103,9 +101,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
         $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
         $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
         $expiryCheck->method('findPendingReminderIds')
-            ->willReturnCallback(static function (\DateTimeImmutable $now, int $daysLeft): array {
-                return 7 === $daysLeft ? ['id-7'] : [];
-            });
+            ->willReturnCallback(static fn (\DateTimeImmutable $now, int $daysLeft): array => 7 === $daysLeft ? ['id-7'] : []);
 
         $memberships = $this->createMock(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);

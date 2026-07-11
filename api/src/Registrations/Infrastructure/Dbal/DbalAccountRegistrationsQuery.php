@@ -86,7 +86,7 @@ final readonly class DbalAccountRegistrationsQuery implements AccountRegistratio
         /** @var list<string> $eventIds */
         $eventIds = array_values(array_unique(array_filter(
             array_column($rows, 'event_id'),
-            'is_string',
+            is_string(...),
         )));
 
         if ([] === $eventIds) {

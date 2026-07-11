@@ -62,7 +62,7 @@ final class AchievementSeedParityTest extends FunctionalTestCase
      */
     private function fixedProvider(array $facts): AchievementMetricProviderInterface
     {
-        return new class($facts) implements AchievementMetricProviderInterface {
+        return new readonly class($facts) implements AchievementMetricProviderInterface {
             /** @param array<string, int> $facts */
             public function __construct(private array $facts)
             {

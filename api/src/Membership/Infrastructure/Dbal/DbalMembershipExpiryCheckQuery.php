@@ -30,7 +30,7 @@ final readonly class DbalMembershipExpiryCheckQuery implements MembershipExpiryC
             ->executeQuery()
             ->fetchFirstColumn();
 
-        return array_values(array_filter($ids, static fn (mixed $id): bool => is_string($id)));
+        return array_values(array_filter($ids, is_string(...)));
     }
 
     /**
@@ -55,6 +55,6 @@ final readonly class DbalMembershipExpiryCheckQuery implements MembershipExpiryC
             ->executeQuery()
             ->fetchFirstColumn();
 
-        return array_values(array_filter($ids, static fn (mixed $id): bool => is_string($id)));
+        return array_values(array_filter($ids, is_string(...)));
     }
 }

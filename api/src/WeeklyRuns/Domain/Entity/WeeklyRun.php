@@ -11,8 +11,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'weekly_runs')]
 final class WeeklyRun
 {
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_FINISHED = 'finished';
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_FINISHED = 'finished';
 
     public function __construct(
         #[ORM\Id]

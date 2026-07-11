@@ -103,6 +103,7 @@
         "cs-fixer": "php vendor/bin/php-cs-fixer fix --dry-run --diff",
         "arch": "php bin/console app:architecture:ddd",
         "infection": "php -d pcov.enabled=1 vendor/bin/infection --threads=max --min-msi=0 --min-covered-msi=0",
+        "rector": "php vendor/bin/rector process --dry-run",
         "gates": [
             "@phpstan",
             "@cs-fixer",
@@ -127,6 +128,7 @@
         "phpstan/phpstan-doctrine": "^2.0.25",
         "phpstan/phpstan-symfony": "^2.0.20",
         "phpunit/phpunit": "^13.1.10",
+        "rector/rector": "^2.4",
         "symfony/browser-kit": "7.4.*",
         "symfony/css-selector": "7.4.*"
     }

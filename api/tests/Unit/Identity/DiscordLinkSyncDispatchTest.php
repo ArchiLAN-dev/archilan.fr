@@ -18,7 +18,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class DiscordLinkSyncDispatchTest extends TestCase
 {
-    private const USER_ID = 'user-123';
+    private const string USER_ID = 'user-123';
 
     public function testLinkDispatchesSyncAfterSuccessfulSave(): void
     {

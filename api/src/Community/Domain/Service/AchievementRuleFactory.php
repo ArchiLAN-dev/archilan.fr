@@ -16,7 +16,7 @@ use App\Community\Domain\ValueObject\AchievementRuleCondition;
  */
 final class AchievementRuleFactory
 {
-    public const MAX_DEPTH = 5;
+    public const int MAX_DEPTH = 5;
 
     /**
      * @param array<mixed, mixed> $data

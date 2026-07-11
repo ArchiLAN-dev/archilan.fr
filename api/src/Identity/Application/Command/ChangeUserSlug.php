@@ -24,12 +24,12 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class ChangeUserSlug
 {
-    public const COOLDOWN_DAYS = 30;
-    public const MIN_LENGTH = 3;
-    public const MAX_LENGTH = 30;
+    public const int COOLDOWN_DAYS = 30;
+    public const int MIN_LENGTH = 3;
+    public const int MAX_LENGTH = 30;
 
     /** Reserved for routing/UX (the /joueurs/{slug} namespace and common words). */
-    private const RESERVED = [
+    private const array RESERVED = [
         'me', 'moi', 'admin', 'administrateur', 'compte', 'account', 'settings', 'parametres',
         'nouveau', 'new', 'joueurs', 'joueur', 'user', 'users', 'succes', 'null', 'undefined', 'api',
     ];

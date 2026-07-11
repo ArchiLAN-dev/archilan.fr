@@ -34,7 +34,7 @@ final class BackfillGameOptionTypesTest extends TestCase
             $saved[] = $g;
         });
 
-        $result = (new BackfillGameOptionTypes($repo, $runner, new NullLogger()))->run();
+        $result = new BackfillGameOptionTypes($repo, $runner, new NullLogger())->run();
 
         self::assertSame(1, $result['processed']);
         self::assertSame(1, $result['updated']);

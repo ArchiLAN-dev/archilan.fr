@@ -11,8 +11,8 @@ namespace App\GameSelection\Domain\ValueObject;
  */
 final readonly class SteamProfileReference
 {
-    public const KIND_STEAMID64 = 'steamid64';
-    public const KIND_VANITY = 'vanity';
+    public const string KIND_STEAMID64 = 'steamid64';
+    public const string KIND_VANITY = 'vanity';
 
     private function __construct(
         public string $kind,

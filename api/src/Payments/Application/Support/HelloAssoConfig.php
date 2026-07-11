@@ -8,9 +8,9 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final readonly class HelloAssoConfig
 {
-    public const FORM_TYPE_EVENT = 'evenements';
-    public const FORM_TYPE_MEMBERSHIP = 'adhesions';
-    public const FORM_TYPE_SHOP = 'boutiques';
+    public const string FORM_TYPE_EVENT = 'evenements';
+    public const string FORM_TYPE_MEMBERSHIP = 'adhesions';
+    public const string FORM_TYPE_SHOP = 'boutiques';
 
     public function __construct(
         #[Autowire('%env(HELLOASSO_CLIENT_ID)%')]

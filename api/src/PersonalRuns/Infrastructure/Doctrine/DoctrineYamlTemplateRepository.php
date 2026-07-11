@@ -33,13 +33,7 @@ final readonly class DoctrineYamlTemplateRepository implements YamlTemplateRepos
         $criteria = ['userId' => $userId, 'gameId' => $gameId, 'name' => $name];
         $matches = $this->entityManager->getRepository(YamlTemplate::class)->findBy($criteria);
 
-        foreach ($matches as $match) {
-            if (null === $excludeId || $match->getId() !== $excludeId) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($matches, fn ($match) => null === $excludeId || $match->getId() !== $excludeId);
     }
 
     public function save(YamlTemplate $template): void

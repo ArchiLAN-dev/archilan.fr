@@ -8,11 +8,11 @@ use App\GameSelection\Application\Exception\SteamApiException;
 use App\GameSelection\Application\Port\SteamWebApiClientInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final class SteamWebApiClient implements SteamWebApiClientInterface
+final readonly class SteamWebApiClient implements SteamWebApiClientInterface
 {
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly string $apiKey,
+        private HttpClientInterface $httpClient,
+        private string $apiKey,
     ) {
     }
 

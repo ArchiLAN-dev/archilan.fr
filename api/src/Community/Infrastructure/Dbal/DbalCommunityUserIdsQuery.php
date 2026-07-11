@@ -26,6 +26,6 @@ final readonly class DbalCommunityUserIdsQuery implements CommunityUserIdsQueryI
             ->executeQuery()
             ->fetchFirstColumn();
 
-        return array_values(array_filter($rows, 'is_string'));
+        return array_values(array_filter($rows, is_string(...)));
     }
 }

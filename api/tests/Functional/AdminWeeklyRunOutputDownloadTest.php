@@ -13,7 +13,7 @@ use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class AdminWeeklyRunOutputDownloadTest extends FunctionalTestCase
 {
-    private const SESSIONS_BUCKET = 'sessions';
+    private const string SESSIONS_BUCKET = 'sessions';
 
     private User $admin;
     private Game $game;

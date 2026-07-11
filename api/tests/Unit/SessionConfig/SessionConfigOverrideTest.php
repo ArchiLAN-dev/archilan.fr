@@ -32,7 +32,7 @@ final class SessionConfigOverrideTest extends TestCase
 
     public function testToArrayOmitsNullFields(): void
     {
-        $array = (new SessionConfigOverride(releaseMode: ReleaseCollectMode::Goal))->toArray();
+        $array = new SessionConfigOverride(releaseMode: ReleaseCollectMode::Goal)->toArray();
 
         self::assertSame(['releaseMode' => ReleaseCollectMode::Goal->value], $array);
     }

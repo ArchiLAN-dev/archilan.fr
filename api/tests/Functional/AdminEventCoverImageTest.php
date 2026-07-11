@@ -181,6 +181,7 @@ final class AdminEventCoverImageTest extends FunctionalTestCase
     /**
      * @return array<string, mixed>
      */
+    #[\Override]
     protected function decodedJsonResponse(): array
     {
         $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);

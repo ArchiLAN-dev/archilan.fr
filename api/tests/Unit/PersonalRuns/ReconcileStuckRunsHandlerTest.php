@@ -17,7 +17,7 @@ use Symfony\Component\Clock\MockClock;
 final class ReconcileStuckRunsHandlerTest extends TestCase
 {
     // Older than the longest stuck threshold (STARTING = 30 min) so every transitional run counts.
-    private const OLD = '-40 minutes';
+    private const string OLD = '-40 minutes';
 
     public function testStuckStoppingWithResolvedSessionGoesIdle(): void
     {

@@ -81,7 +81,7 @@ final readonly class DbalAdminReportsQuery implements AdminReportsQueryInterface
 
         $ids = $qb->executeQuery()->fetchFirstColumn();
 
-        return array_values(array_filter($ids, static fn (mixed $id): bool => is_string($id)));
+        return array_values(array_filter($ids, is_string(...)));
     }
 
     /**

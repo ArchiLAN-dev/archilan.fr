@@ -58,7 +58,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
         $this->applyFilters($dataQb, $search, $availability, $yamlReady, $apworldReady);
 
         $rows = $dataQb->executeQuery()->fetchAllAssociative();
-        $items = array_map(fn (array $row): array => $this->mapRow($row), $rows);
+        $items = array_map($this->mapRow(...), $rows);
 
         return ['items' => $items, 'total' => $total];
     }
@@ -127,7 +127,7 @@ final readonly class DbalAdminGameListQuery implements AdminGameListQueryInterfa
         }
 
         try {
-            return (new \DateTimeImmutable($value))->format(\DateTimeInterface::ATOM);
+            return new \DateTimeImmutable($value)->format(\DateTimeInterface::ATOM);
         } catch (\Throwable) {
             return null;
         }

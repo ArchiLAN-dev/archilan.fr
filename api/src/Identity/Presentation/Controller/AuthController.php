@@ -19,9 +19,9 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class AuthController
 {
-    public const REFRESH_COOKIE_NAME = '__Secure-archilan_refresh';
-    public const REFRESH_COOKIE_PATH = '/api/v1/auth/refresh';
-    public const REFRESH_COOKIE_SCOPE = '/api/v1/auth';
+    public const string REFRESH_COOKIE_NAME = '__Secure-archilan_refresh';
+    public const string REFRESH_COOKIE_PATH = '/api/v1/auth/refresh';
+    public const string REFRESH_COOKIE_SCOPE = '/api/v1/auth';
 
     public function __construct(
         private AuthenticateUser $authenticateUser,

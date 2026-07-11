@@ -18,9 +18,9 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 final class ExpireMembershipTest extends TestCase
 {
-    private const MEMBERSHIP_ID = 'membership-abc';
-    private const USER_ID = 'user-abc123';
-    private const DISCORD_ID = 'discord-xyz';
+    private const string MEMBERSHIP_ID = 'membership-abc';
+    private const string USER_ID = 'user-abc123';
+    private const string DISCORD_ID = 'discord-xyz';
 
     public function testExpireSetsStatusExpiredAndDispatchesSync(): void
     {

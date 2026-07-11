@@ -23,7 +23,7 @@ final readonly class ArchilanMailer
     {
         $toName = $email->toName() ?? $email->to();
 
-        $message = (new Email())
+        $message = new Email()
             ->from(new Address($this->mailerSender, 'ArchiLAN'))
             ->to(new Address($email->to(), $toName))
             ->subject($email->subject())

@@ -22,7 +22,7 @@ final class DddArchitectureValidatorTest extends TestCase
     {
         $projectDir = $this->createProjectFixture();
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertTrue($report->isSuccessful(), implode("\n", $report->violations()));
         self::assertSame([], $report->violations());
@@ -33,7 +33,7 @@ final class DddArchitectureValidatorTest extends TestCase
         $projectDir = $this->createProjectFixture();
         file_put_contents($projectDir.'/src/Events/EventHelper.php', "<?php\n");
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains('PHP file is outside a DDD layer: src/Events/EventHelper.php', $report->violations());
@@ -47,7 +47,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Domain;\n\nuse App\\Events\\Presentation\\AdminEventController;\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -64,7 +64,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Presentation;\n\nuse Doctrine\\DBAL\\Connection;\n\nfinal class AdminEventController {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -81,7 +81,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Presentation;\n\nuse Doctrine\\ORM\\EntityManagerInterface;\n\nfinal class AdminEventController {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -98,7 +98,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __invoke(): void { \$this->conn->fetchAllAssociative('SELECT 1'); }\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -115,7 +115,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __invoke(): void { \$this->em->createQueryBuilder()->select('e')->from('Event', 'e'); }\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violations = $report->violations();
 
@@ -139,7 +139,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\nuse Doctrine\\DBAL\\Connection;\nuse Doctrine\\ORM\\EntityManagerInterface;\n\nfinal class EventQuery {\n    public function __construct(private Connection \$conn, private EntityManagerInterface \$em) {}\n    public function find(): array { return \$this->conn->fetchAllAssociative('SELECT 1'); }\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $cqrsViolationsForApplicationFile = array_values(array_filter(
             $report->violations(),
@@ -157,7 +157,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Presentation\\Controller;\n\nfinal class AdminEventController {\n    public function __construct(private object \$catalog) {}\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $cqrsViolations = array_filter(
             $report->violations(),
@@ -174,7 +174,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\nuse App\\Payments\\Infrastructure\\HelloAssoHttpClient;\n\nfinal class SyncBridge {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -191,7 +191,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Infrastructure;\n\nuse App\\Payments\\Presentation\\MembershipCheckoutController;\n\nfinal class WeirdBridge {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -209,7 +209,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Registrations\\Application\\Command;\n\nuse App\\Events\\Domain\\Event;\nuse App\\Payments\\Application\\PaymentLookup;\n\nfinal class ReserveSeat {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForFile = array_values(array_filter(
             $report->violations(),
@@ -227,7 +227,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nuse App\\Shared\\Infrastructure\\MinioStorageInterface;\n\nfinal class CoverImageReader {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForFile = array_values(array_filter(
             $report->violations(),
@@ -244,7 +244,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Domain;\n\nuse App\\Payments\\Application\\PaymentLookup;\n\nfinal class CrossLayerLeak {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -261,7 +261,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\ninterface EventRepositoryInterface {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -279,7 +279,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Sessions\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -296,7 +296,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\nuse App\\Events\\Infrastructure\\GalleryHttpClient;\n\nfinal class GalleryService {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -314,7 +314,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Sessions\\Application\\Handler;\n\nuse App\\Sessions\\Infrastructure\\RunnerCallbackClient;\n\nfinal class ArchiveRunJobHandler {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForFile = array_values(array_filter(
             $report->violations(),
@@ -331,7 +331,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class InlineFactory {\n    public function make(): object { return new \\App\\Events\\Infrastructure\\GalleryHttpClient(); }\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -348,7 +348,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class ClockUser {\n    public function stamp(): string { return date('Y-m-d'); }\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -373,7 +373,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForFile = array_values(array_filter(
             $report->violations(),
@@ -393,7 +393,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -418,7 +418,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForFile = array_values(array_filter(
             $report->violations(),
@@ -437,7 +437,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $clockConstructViolations = array_values(array_filter(
             $report->violations(),
@@ -458,7 +458,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -481,7 +481,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -510,7 +510,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForFile = array_values(array_filter(
             $report->violations(),
@@ -530,7 +530,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $setterViolations = array_values(array_filter(
             $report->violations(),
@@ -548,7 +548,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nuse Symfony\\Component\\Clock\\ClockInterface;\n\nfinal class ClockHolder {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -569,7 +569,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."final class User {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $symfonyViolations = array_values(array_filter(
             $report->violations(),
@@ -588,7 +588,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         $gatingViolations = array_values(array_filter(
@@ -608,7 +608,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $gatingViolations = array_values(array_filter(
             $report->violations(),
@@ -626,7 +626,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Domain\\Entity;\n\nclass Loose {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -648,7 +648,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Domain\\ValueObject;\n\nfinal readonly class Amount {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -671,7 +671,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Sessions\\Domain\\Entity;\n\nclass Legacy {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $finalityViolations = array_values(array_filter(
             $report->violations(),
@@ -689,7 +689,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nclass OpenHelper {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -707,7 +707,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Communications\\Application\\Email;\n\nabstract class ArchilanEmail {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $finalityViolations = array_values(array_filter(
             $report->violations(),
@@ -727,7 +727,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -748,7 +748,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $entityReturnViolations = array_values(array_filter(
             $report->violations(),
@@ -769,7 +769,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $entityReturnViolations = array_values(array_filter(
             $report->violations(),
@@ -790,7 +790,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $entityReturnViolations = array_values(array_filter(
             $report->violations(),
@@ -810,7 +810,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         $entityReturnViolations = array_values(array_filter(
@@ -831,7 +831,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         $gatingViolations = array_values(array_filter(
@@ -852,7 +852,7 @@ final class DddArchitectureValidatorTest extends TestCase
             ."}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $entityReturnViolations = array_values(array_filter(
             $report->violations(),
@@ -873,7 +873,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Legal\\Application;\n\nfinal class ExportFailedException extends \\RuntimeException {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -900,7 +900,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Legal\\Application\\Query;\n\ninterface ConsentLogQueryInterface {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $violationsForContext = array_values(array_filter(
             $report->violations(),
@@ -922,7 +922,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Sessions\\Application;\n\ninterface DashboardQueryInterface {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $taxonomyViolations = array_values(array_filter(
             $report->violations(),
@@ -939,7 +939,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Legal\\Application;\n\ninterface ConsentLogQueryInterface {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -956,7 +956,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application;\n\nfinal class LooseHelper {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
@@ -974,7 +974,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Application\\Support;\n\nfinal class LooseHelper {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $flatViolations = array_values(array_filter(
             $report->violations(),
@@ -991,7 +991,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Sessions\\Application;\n\nfinal class LooseHelper {}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         $flatViolations = array_values(array_filter(
             $report->violations(),
@@ -1008,7 +1008,7 @@ final class DddArchitectureValidatorTest extends TestCase
             "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AdminEventController {\n    public function __invoke(): void { \$this->em->createNativeQuery('SELECT 1', \$rsm); }\n}\n",
         );
 
-        $report = (new DddArchitectureValidator())->validate($projectDir);
+        $report = new DddArchitectureValidator()->validate($projectDir);
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(

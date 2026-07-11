@@ -149,13 +149,7 @@ final class RecomputeAchievementsTest extends TestCase
 
             public function existsByKey(string $key): bool
             {
-                foreach ($this->defs as $d) {
-                    if ($d->getKey() === $key) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return array_any($this->defs, fn ($d) => $d->getKey() === $key);
             }
 
             public function maxPosition(): int

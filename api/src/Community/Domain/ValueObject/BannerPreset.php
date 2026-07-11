@@ -9,9 +9,9 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class BannerPreset
 {
-    public const DEFAULT = 'default';
+    public const string DEFAULT = 'default';
 
-    public const ALL = [
+    public const array ALL = [
         self::DEFAULT,
         'sunset',
         'forest',

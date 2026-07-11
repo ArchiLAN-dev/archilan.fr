@@ -11,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_identity_email_confirmation_tokens_user', columns: ['user_id'])]
 final class EmailConfirmationToken
 {
-    public const TTL_HOURS = 24;
+    public const int TTL_HOURS = 24;
 
     private function __construct(
         #[ORM\Id]

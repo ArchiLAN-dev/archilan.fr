@@ -8,9 +8,9 @@ use App\Identity\Domain\Entity\RefreshToken;
 
 final class RefreshTokenFactory
 {
-    public const TOKEN_TTL_LONG_DAYS = 30;
+    public const int TOKEN_TTL_LONG_DAYS = 30;
 
-    public const TOKEN_TTL_SHORT_DAYS = 1;
+    public const int TOKEN_TTL_SHORT_DAYS = 1;
 
     /**
      * @return array{rawToken: string, entity: RefreshToken}

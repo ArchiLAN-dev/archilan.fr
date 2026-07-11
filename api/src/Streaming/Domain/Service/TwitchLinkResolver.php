@@ -15,9 +15,9 @@ namespace App\Streaming\Domain\Service;
 final class TwitchLinkResolver
 {
     /** Twitch logins: 3-25 chars, letters/digits/underscore (see story 7.7 AC3). */
-    private const LOGIN_PATTERN = '/^[a-z0-9_]{3,25}$/';
+    private const string LOGIN_PATTERN = '/^[a-z0-9_]{3,25}$/';
 
-    private const TWITCH_HOSTS = ['twitch.tv', 'www.twitch.tv'];
+    private const array TWITCH_HOSTS = ['twitch.tv', 'www.twitch.tv'];
 
     /**
      * Returns the first valid Twitch login among the social links, or null when none match.

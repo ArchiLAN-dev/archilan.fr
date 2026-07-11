@@ -50,8 +50,8 @@ final readonly class DbalCommunityProfileQuery implements CommunityProfileQueryI
 
         $displayName = is_string($row['display_name'] ?? null) ? $row['display_name'] : null;
         $joinedAt = is_string($row['created_at'] ?? null)
-            ? (new \DateTimeImmutable($row['created_at']))->format(\DateTimeInterface::ATOM)
-            : (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+            ? new \DateTimeImmutable($row['created_at'])->format(\DateTimeInterface::ATOM)
+            : new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
 
         $stats = $this->playerStats->computeForUser($userId);
         $runsParticipated = $stats['runs_participated'];

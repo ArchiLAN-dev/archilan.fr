@@ -19,7 +19,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class RotateRefreshTokenTest extends TestCase
 {
-    private const FAMILY = 'fam00000000000000000000000000001';
+    private const string FAMILY = 'fam00000000000000000000000000001';
 
     public function testNormalRotationKeepsFamilyAndMarksParent(): void
     {

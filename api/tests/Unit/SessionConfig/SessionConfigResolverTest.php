@@ -22,7 +22,7 @@ final class SessionConfigResolverTest extends TestCase
         $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
         $overrides->expects(self::never())->method('find');
 
-        $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Weekly);
+        $resolved = new SessionConfigResolver($profiles, $overrides)->resolve(SessionType::Weekly);
 
         self::assertSame(ReleaseCollectMode::Disabled, $resolved->server->releaseMode);
     }
@@ -34,7 +34,7 @@ final class SessionConfigResolverTest extends TestCase
         $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
         $overrides->method('find')->willReturn(new SessionConfigOverride(releaseMode: ReleaseCollectMode::Goal));
 
-        $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Weekly, 'sess-1');
+        $resolved = new SessionConfigResolver($profiles, $overrides)->resolve(SessionType::Weekly, 'sess-1');
 
         self::assertSame(ReleaseCollectMode::Goal, $resolved->server->releaseMode);
         // Untouched field still from the profile:
@@ -48,7 +48,7 @@ final class SessionConfigResolverTest extends TestCase
         $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
         $overrides->method('find')->willReturn(new SessionConfigOverride());
 
-        $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Private, 'sess-2');
+        $resolved = new SessionConfigResolver($profiles, $overrides)->resolve(SessionType::Private, 'sess-2');
 
         self::assertSame(ReleaseCollectMode::Goal, $resolved->server->releaseMode);
     }

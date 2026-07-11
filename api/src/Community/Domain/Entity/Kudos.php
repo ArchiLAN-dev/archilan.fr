@@ -17,10 +17,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_community_kudos_target', columns: ['target_type', 'target_id'])]
 final class Kudos
 {
-    public const TARGET_RUN = 'run';
-    public const TARGET_ACHIEVEMENT = 'achievement';
+    public const string TARGET_RUN = 'run';
+    public const string TARGET_ACHIEVEMENT = 'achievement';
 
-    public const TARGET_TYPES = [self::TARGET_RUN, self::TARGET_ACHIEVEMENT];
+    public const array TARGET_TYPES = [self::TARGET_RUN, self::TARGET_ACHIEVEMENT];
 
     public function __construct(
         #[ORM\Id]

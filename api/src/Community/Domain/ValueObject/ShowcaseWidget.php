@@ -14,11 +14,11 @@ use App\Community\Domain\Entity\CommunityProfile;
  */
 final readonly class ShowcaseWidget
 {
-    public const FAVORITE_GAMES = 'favorite_games';
-    public const BEST_RUNS = 'best_runs';
-    public const MOST_PLAYED = 'most_played';
+    public const string FAVORITE_GAMES = 'favorite_games';
+    public const string BEST_RUNS = 'best_runs';
+    public const string MOST_PLAYED = 'most_played';
 
-    public const ALL = [
+    public const array ALL = [
         self::FAVORITE_GAMES,
         self::BEST_RUNS,
         self::MOST_PLAYED,

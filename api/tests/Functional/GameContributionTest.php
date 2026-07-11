@@ -8,7 +8,7 @@ use App\GameSelection\Domain\Entity\Game;
 
 final class GameContributionTest extends FunctionalTestCase
 {
-    private const STEPS = [['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'd', 'links' => []]];
+    private const array STEPS = [['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'd', 'links' => []]];
 
     public function testSubmitForUnavailableGameReturns404(): void
     {

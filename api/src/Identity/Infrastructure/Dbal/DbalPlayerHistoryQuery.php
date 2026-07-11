@@ -10,15 +10,15 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DbalPlayerHistoryQuery implements PlayerHistoryQueryInterface
 {
-    private const SESSION_TABLE = 'session';
-    private const SLOT_TABLE = 'session_slot';
-    private const REGISTRATION_TABLE = 'registration';
-    private const RUN_TABLE = 'run';
-    private const EVENT_TABLE = 'event';
-    private const GAME_TABLE = 'game';
-    private const WEEKLY_ENTRY_TABLE = 'weekly_entries';
-    private const WEEKLY_RUN_TABLE = 'weekly_runs';
-    private const WEEKLY_TEMPLATE_TABLE = 'weekly_templates';
+    private const string SESSION_TABLE = 'session';
+    private const string SLOT_TABLE = 'session_slot';
+    private const string REGISTRATION_TABLE = 'registration';
+    private const string RUN_TABLE = 'run';
+    private const string EVENT_TABLE = 'event';
+    private const string GAME_TABLE = 'game';
+    private const string WEEKLY_ENTRY_TABLE = 'weekly_entries';
+    private const string WEEKLY_RUN_TABLE = 'weekly_runs';
+    private const string WEEKLY_TEMPLATE_TABLE = 'weekly_templates';
 
     public function __construct(private Connection $connection)
     {

@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 final class FeedPushTest extends FunctionalTestCase
 {
-    private const URI = '/api/v1/internal/sessions/run-feed-1/feed-push';
-    private const SECRET = 'test-runner-secret'; // matches CENTRAL_API_SECRET in .env.test
+    private const string URI = '/api/v1/internal/sessions/run-feed-1/feed-push';
+    private const string SECRET = 'test-runner-secret'; // matches CENTRAL_API_SECRET in .env.test
 
     public function testFeedPushRejectsMissingSecret(): void
     {

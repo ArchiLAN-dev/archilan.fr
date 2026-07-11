@@ -12,7 +12,7 @@ use Symfony\Component\Yaml\Yaml;
 final readonly class DddArchitectureValidator
 {
     /** @var list<string> */
-    private const CONTEXTS = [
+    private const array CONTEXTS = [
         'Shared',
         'Identity',
         'Events',
@@ -34,26 +34,26 @@ final readonly class DddArchitectureValidator
     ];
 
     /** @var list<string> */
-    private const LAYERS = ['Domain', 'Application', 'Infrastructure', 'Presentation'];
+    private const array LAYERS = ['Domain', 'Application', 'Infrastructure', 'Presentation'];
 
     /** @var list<string> */
-    private const STARTER_PLACEHOLDERS = ['Controller', 'Entity', 'Repository'];
+    private const array STARTER_PLACEHOLDERS = ['Controller', 'Entity', 'Repository'];
 
     /** @var list<string> */
-    private const FORBIDDEN_APPLICATION_IMPORTS = [
+    private const array FORBIDDEN_APPLICATION_IMPORTS = [
         'Doctrine\\DBAL\\Connection',
         'Doctrine\\ORM\\EntityManagerInterface',
         'App\\Shared\\Application\\EntityFinderTrait',
     ];
 
     /** @var list<string> */
-    private const FORBIDDEN_PRESENTATION_IMPORTS = [
+    private const array FORBIDDEN_PRESENTATION_IMPORTS = [
         'Doctrine\\DBAL\\Connection',
         'Doctrine\\ORM\\EntityManagerInterface',
     ];
 
     /** @var list<string> */
-    private const FORBIDDEN_PRESENTATION_CALLS = [
+    private const array FORBIDDEN_PRESENTATION_CALLS = [
         'fetchAllAssociative',
         'fetchOne',
         'executeQuery',
@@ -64,7 +64,7 @@ final readonly class DddArchitectureValidator
     ];
 
     /** @var list<string> */
-    private const FORBIDDEN_APPLICATION_CLOCK_CALLS = [
+    private const array FORBIDDEN_APPLICATION_CLOCK_CALLS = [
         'date',
         'time',
         'rand',
@@ -80,7 +80,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS = [
+    private const array FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS = [
         'DateTimeImmutable',
         'DateTime',
     ];
@@ -92,7 +92,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const CLOCK_CONSTRUCT_EXEMPT_CONTEXTS = [
+    private const array CLOCK_CONSTRUCT_EXEMPT_CONTEXTS = [
         'Sessions',
     ];
 
@@ -105,7 +105,7 @@ final readonly class DddArchitectureValidator
      *
      * @var array<string, list<string>>
      */
-    private const ALLOWED_DOMAIN_SYMFONY_IMPORTS = [
+    private const array ALLOWED_DOMAIN_SYMFONY_IMPORTS = [
         'Identity/Domain/Entity/User.php' => [
             'Symfony\\Component\\Security\\Core\\User\\PasswordAuthenticatedUserInterface',
             'Symfony\\Component\\Security\\Core\\User\\UserInterface',
@@ -120,7 +120,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const FINALITY_EXEMPT_CONTEXTS = [
+    private const array FINALITY_EXEMPT_CONTEXTS = [
         'Sessions',
     ];
 
@@ -132,7 +132,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const ALLOWED_APPLICATION_NON_FINAL = [
+    private const array ALLOWED_APPLICATION_NON_FINAL = [
         'Communications/Application/Email/ArchilanEmail.php',
     ];
 
@@ -145,7 +145,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const ALLOWED_APPLICATION_ENTITY_RETURNS = [
+    private const array ALLOWED_APPLICATION_ENTITY_RETURNS = [
         'Identity/Application/Service/AuthenticateUser.php',
         'Identity/Application/Service/CurrentUserProvider.php',
     ];
@@ -158,7 +158,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const AGGREGATE_SETTER_EXEMPT_CONTEXTS = [
+    private const array AGGREGATE_SETTER_EXEMPT_CONTEXTS = [
         'Sessions',
     ];
 
@@ -172,7 +172,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS = [
+    private const array ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS = [
         'Sessions/Application/Handler/ArchiveRunJobHandler.php',
         'Sessions/Application/Handler/FetchLogsJobHandler.php',
     ];
@@ -185,7 +185,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const UNMIGRATED_TAXONOMY_CONTEXTS = [
+    private const array UNMIGRATED_TAXONOMY_CONTEXTS = [
         'Sessions',
     ];
 
@@ -197,7 +197,7 @@ final readonly class DddArchitectureValidator
      *
      * @var list<string>
      */
-    private const FLAT_FILE_CARVE_OUT = [
+    private const array FLAT_FILE_CARVE_OUT = [
         'Community/Domain/DefaultAchievementDefinitions.php',
         'Community/Domain/AchievementMetricCatalog.php',
         'Community/Domain/AchievementOperator.php',

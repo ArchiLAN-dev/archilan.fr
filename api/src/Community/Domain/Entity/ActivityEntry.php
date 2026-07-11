@@ -18,8 +18,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_community_activity_actor_time', columns: ['actor_id', 'occurred_at'])]
 final class ActivityEntry
 {
-    public const TYPE_RUN_FINISHED = 'run_finished';
-    public const TYPE_FRIENDSHIP = 'friendship';
+    public const string TYPE_RUN_FINISHED = 'run_finished';
+    public const string TYPE_FRIENDSHIP = 'friendship';
 
     /**
      * @param array<string, mixed> $payload

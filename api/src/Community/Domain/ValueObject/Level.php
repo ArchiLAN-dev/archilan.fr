@@ -10,7 +10,7 @@ namespace App\Community\Domain\ValueObject;
  */
 final readonly class Level
 {
-    private const MAX_LEVEL = 999;
+    private const int MAX_LEVEL = 999;
 
     public function __construct(
         public int $level,

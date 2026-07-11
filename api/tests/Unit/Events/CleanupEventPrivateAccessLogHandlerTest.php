@@ -19,7 +19,7 @@ final class CleanupEventPrivateAccessLogHandlerTest extends TestCase
         $repo->expects(self::once())
             ->method('deleteOlderThan')
             ->with(self::callback(function (\DateTimeImmutable $threshold): bool {
-                $days = (new \DateTimeImmutable())->diff($threshold)->days;
+                $days = new \DateTimeImmutable()->diff($threshold)->days;
 
                 return $threshold < new \DateTimeImmutable() && 364 <= $days && $days <= 366;
             }))

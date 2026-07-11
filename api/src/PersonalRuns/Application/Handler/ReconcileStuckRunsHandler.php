@@ -28,7 +28,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class ReconcileStuckRunsHandler
 {
-    private const RESOLVED_SESSION_STATUSES = [
+    private const array RESOLVED_SESSION_STATUSES = [
         Session::STATUS_IDLE,
         Session::STATUS_STOPPED,
         Session::STATUS_CRASHED,

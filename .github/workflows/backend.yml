@@ -140,6 +140,13 @@ jobs:
             --threads=max --no-progress --no-interaction \
             --min-msi=0 --min-covered-msi=0 --logger-github || true
 
+      # Advisory (continue-on-error) Rector dry-run (story 33.13): mechanical modernisation and
+      # dead-code drift surfaces as a diff without blocking. Flip to a hard gate (drop
+      # continue-on-error) once the baseline proves it stays clean between stories.
+      - name: Rector (advisory, dry-run)
+        continue-on-error: true
+        run: composer rector
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v7
         with:

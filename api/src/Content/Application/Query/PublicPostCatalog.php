@@ -25,7 +25,7 @@ final readonly class PublicPostCatalog
     {
         $posts = $this->postRepository->findByStatus(Post::STATUS_PUBLISHED);
 
-        return array_map(fn (Post $post): array => $this->payload($post), $posts);
+        return array_map($this->payload(...), $posts);
     }
 
     /**

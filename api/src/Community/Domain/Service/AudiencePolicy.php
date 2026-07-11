@@ -14,11 +14,11 @@ use App\Community\Domain\ValueObject\Audience;
  */
 final class AudiencePolicy
 {
-    public const TIER_ANONYMOUS = 'anonymous';
-    public const TIER_AUTHENTICATED = 'authenticated';
-    public const TIER_MEMBER = 'member';
-    public const TIER_FRIEND = 'friend';
-    public const TIER_SELF = 'self';
+    public const string TIER_ANONYMOUS = 'anonymous';
+    public const string TIER_AUTHENTICATED = 'authenticated';
+    public const string TIER_MEMBER = 'member';
+    public const string TIER_FRIEND = 'friend';
+    public const string TIER_SELF = 'self';
 
     public static function canView(string $viewerTier, string $audience): bool
     {

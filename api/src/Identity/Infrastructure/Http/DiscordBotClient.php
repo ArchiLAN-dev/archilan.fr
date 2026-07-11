@@ -9,7 +9,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class DiscordBotClient implements DiscordBotClientInterface
 {
-    private const BASE_URL = 'https://discord.com/api/v10';
+    private const string BASE_URL = 'https://discord.com/api/v10';
 
     public function __construct(
         private string $botToken,

@@ -83,8 +83,8 @@ final class HelloAssoConfigTest extends TestCase
 
     public function testIsSandboxReflectsConfiguration(): void
     {
-        self::assertTrue((new HelloAssoConfig('id', 's', 'org', true))->isSandbox());
-        self::assertFalse((new HelloAssoConfig('id', 's', 'org', false))->isSandbox());
+        self::assertTrue(new HelloAssoConfig('id', 's', 'org', true)->isSandbox());
+        self::assertFalse(new HelloAssoConfig('id', 's', 'org', false)->isSandbox());
     }
 
     public function testBuildEmbedUrlReturnsSandboxUrl(): void

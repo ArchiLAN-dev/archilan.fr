@@ -51,7 +51,7 @@ final readonly class DbalAccountMembershipQuery implements AccountMembershipQuer
      */
     public function queryHistoryForUser(string $userId): array
     {
-        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $now = new \DateTimeImmutable()->format('Y-m-d H:i:s');
         $qb = $this->connection->createQueryBuilder();
         $rows = $qb
             ->select(
@@ -96,7 +96,7 @@ final readonly class DbalAccountMembershipQuery implements AccountMembershipQuer
         }
 
         try {
-            return (new \DateTimeImmutable($raw))->format(\DateTimeInterface::ATOM);
+            return new \DateTimeImmutable($raw)->format(\DateTimeInterface::ATOM);
         } catch (\Throwable) {
             return null;
         }

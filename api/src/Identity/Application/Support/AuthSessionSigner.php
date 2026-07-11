@@ -8,8 +8,8 @@ use Psr\Clock\ClockInterface;
 
 final readonly class AuthSessionSigner
 {
-    public const COOKIE_NAME = '__Host-archilan_session';
-    public const ACCESS_TOKEN_TTL = 900;
+    public const string COOKIE_NAME = '__Host-archilan_session';
+    public const int ACCESS_TOKEN_TTL = 900;
 
     public function __construct(
         private string $appSecret,

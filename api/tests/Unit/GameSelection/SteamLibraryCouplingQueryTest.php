@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 
 final class SteamLibraryCouplingQueryTest extends TestCase
 {
-    private const STEAM_ID = '76561197960287930';
+    private const string STEAM_ID = '76561197960287930';
 
     public function testOkIntersectsOwnedAppIdsWithCatalog(): void
     {

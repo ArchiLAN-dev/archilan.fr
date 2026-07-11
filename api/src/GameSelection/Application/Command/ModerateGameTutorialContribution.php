@@ -20,7 +20,7 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class ModerateGameTutorialContribution
 {
-    public const NOTIFICATION_TYPE = 'tutorial_contribution_reviewed';
+    public const string NOTIFICATION_TYPE = 'tutorial_contribution_reviewed';
 
     public function __construct(
         private GameTutorialContributionRepositoryInterface $contributions,

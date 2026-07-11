@@ -10,8 +10,8 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DbalDiscordBotStatusQuery implements DiscordBotStatusQueryInterface
 {
-    private const BOT_INVITE_URL = 'https://discord.com/oauth2/authorize';
-    private const MANAGE_ROLES_PERMISSION = 268435456;
+    private const string BOT_INVITE_URL = 'https://discord.com/oauth2/authorize';
+    private const int MANAGE_ROLES_PERMISSION = 268435456;
 
     public function __construct(
         private DiscordBotClientInterface $discordBotClient,
@@ -60,7 +60,7 @@ final readonly class DbalDiscordBotStatusQuery implements DiscordBotStatusQueryI
 
     private function countActiveMembers(): int
     {
-        $now = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $now = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
         $qb = $this->connection->createQueryBuilder();
         $raw = $qb
             ->select('COUNT(m.id)')

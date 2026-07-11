@@ -124,11 +124,9 @@ final class LaunchWeeklyEntryTest extends TestCase
         // Story 17.13: a Session aggregate is registered for the entry so the lifecycle/relaunch apply.
         $sessions = $this->createMock(SessionRepositoryInterface::class);
         $sessions->expects(self::once())->method('persist')
-            ->with(self::callback(static function (Session $session): bool {
-                return 'sess-1' === $session->getId()
-                    && Session::STATUS_RUNNING === $session->getStatus()
-                    && 'run-1' === $session->getEventId();
-            }));
+            ->with(self::callback(static fn (Session $session): bool => 'sess-1' === $session->getId()
+                && Session::STATUS_RUNNING === $session->getStatus()
+                && 'run-1' === $session->getEventId()));
 
         $result = $this->makeHandler($runs, $entries, $gateway, null, $sessions)->execute('run-1', 'entry-1', 'user-1');
 

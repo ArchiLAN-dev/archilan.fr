@@ -54,13 +54,7 @@ final class ActivityFeedTest extends TestCase
 
             public function exists(string $actorId, string $type, string $subjectRef): bool
             {
-                foreach ($this->stored as $entry) {
-                    if ($entry->getActorId() === $actorId && $entry->getType() === $type && $entry->getSubjectRef() === $subjectRef) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return array_any($this->stored, fn ($entry) => $entry->getActorId() === $actorId && $entry->getType() === $type && $entry->getSubjectRef() === $subjectRef);
             }
 
             public function ownerOf(string $entryId): ?string

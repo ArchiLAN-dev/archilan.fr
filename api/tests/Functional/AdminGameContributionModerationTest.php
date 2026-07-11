@@ -10,7 +10,7 @@ use App\GameSelection\Domain\Entity\GameTutorialContribution;
 final class AdminGameContributionModerationTest extends FunctionalTestCase
 {
     /** @var list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> */
-    private const PROPOSED = [['type' => 'apworld', 'title' => 'Nouvelle étape', 'description' => 'd', 'links' => []]];
+    private const array PROPOSED = [['type' => 'apworld', 'title' => 'Nouvelle étape', 'description' => 'd', 'links' => []]];
 
     public function testApproveAppliesStepsToGameAndMarksApproved(): void
     {

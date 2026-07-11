@@ -17,9 +17,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_community_friendship_requester', columns: ['requester_id', 'status'])]
 final class Friendship
 {
-    public const PENDING = 'pending';
-    public const ACCEPTED = 'accepted';
-    public const DECLINED = 'declined';
+    public const string PENDING = 'pending';
+    public const string ACCEPTED = 'accepted';
+    public const string DECLINED = 'declined';
 
     public function __construct(
         #[ORM\Id]

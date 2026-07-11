@@ -11,7 +11,7 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 final readonly class AdminPostCatalog
 {
-    private const VALID_TYPES = [Post::TYPE_NEWS, Post::TYPE_RECAP, Post::TYPE_ANNOUNCEMENT];
+    private const array VALID_TYPES = [Post::TYPE_NEWS, Post::TYPE_RECAP, Post::TYPE_ANNOUNCEMENT];
 
     public function __construct(
         private PostRepositoryInterface $postRepository,
@@ -28,7 +28,7 @@ final readonly class AdminPostCatalog
     {
         $posts = $this->postRepository->findAllSortedByUpdatedAt();
 
-        return array_map(fn (Post $post): array => $this->payload($post), $posts);
+        return array_map($this->payload(...), $posts);
     }
 
     /**

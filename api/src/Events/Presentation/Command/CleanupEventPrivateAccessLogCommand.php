@@ -27,7 +27,7 @@ final class CleanupEventPrivateAccessLogCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $threshold = (new \DateTimeImmutable())->modify(sprintf('-%d days', $this->eventAccessLogRetentionDays));
+        $threshold = new \DateTimeImmutable()->modify(sprintf('-%d days', $this->eventAccessLogRetentionDays));
         $deleted = $this->repository->deleteOlderThan($threshold);
 
         $this->logger->info('data.cleanup_event_private_access_log', ['deleted' => $deleted]);

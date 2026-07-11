@@ -10,12 +10,12 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class Event
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_PUBLISHED = 'published';
-    public const STATUS_IN_PROGRESS = 'in-progress';
-    public const STATUS_COMPLETED = 'completed';
+    public const string STATUS_DRAFT = 'draft';
+    public const string STATUS_PUBLISHED = 'published';
+    public const string STATUS_IN_PROGRESS = 'in-progress';
+    public const string STATUS_COMPLETED = 'completed';
 
-    public const PUBLIC_STATUSES = [
+    public const array PUBLIC_STATUSES = [
         self::STATUS_PUBLISHED,
         self::STATUS_IN_PROGRESS,
         self::STATUS_COMPLETED,

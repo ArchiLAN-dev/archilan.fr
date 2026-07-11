@@ -28,7 +28,7 @@ final readonly class DbalAccountReportScoreQuery implements AccountReportScoreQu
             ->executeQuery()
             ->fetchFirstColumn();
 
-        return array_values(array_filter($rows, static fn (mixed $p): bool => is_string($p)));
+        return array_values(array_filter($rows, is_string(...)));
     }
 
     public function unresolvedProblemsByAccount(): array

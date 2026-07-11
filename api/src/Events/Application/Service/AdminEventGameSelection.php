@@ -69,7 +69,7 @@ final readonly class AdminEventGameSelection
             ],
             array_values(array_filter(
                 $allGames,
-                fn (Game $game): bool => $this->isGameAvailable($game),
+                $this->isGameAvailable(...),
             )),
         );
 

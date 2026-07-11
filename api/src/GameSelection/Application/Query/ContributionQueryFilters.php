@@ -12,14 +12,14 @@ use App\GameSelection\Domain\Entity\GameTutorialContribution;
  */
 final readonly class ContributionQueryFilters
 {
-    public const STATUS_ALL = 'all';
+    public const string STATUS_ALL = 'all';
 
-    public const TARGET_ANY = 'any';
-    public const TARGET_LISTED = 'listed';
-    public const TARGET_UNLISTED = 'unlisted';
+    public const string TARGET_ANY = 'any';
+    public const string TARGET_LISTED = 'listed';
+    public const string TARGET_UNLISTED = 'unlisted';
 
-    public const SORT_RECENT = 'recent';
-    public const SORT_OLDEST = 'oldest';
+    public const string SORT_RECENT = 'recent';
+    public const string SORT_OLDEST = 'oldest';
 
     public function __construct(
         public string $status,

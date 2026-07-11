@@ -81,7 +81,7 @@ final readonly class OverlayTestController
      */
     private function samplePayload(string $type, string $slot): array
     {
-        $now = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $now = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
         $slotInt = ctype_digit($slot) ? (int) $slot : 0;
 
         if ('goal' === $type) {

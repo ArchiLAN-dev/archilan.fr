@@ -27,7 +27,7 @@ final class CleanupHelloAssoSyncLogCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $threshold = (new \DateTimeImmutable())->modify(sprintf('-%d days', $this->helloAssoSyncLogRetentionDays));
+        $threshold = new \DateTimeImmutable()->modify(sprintf('-%d days', $this->helloAssoSyncLogRetentionDays));
         $deleted = $this->repository->deleteOlderThan($threshold);
 
         $this->logger->info('data.cleanup_helloasso_sync_log', ['deleted' => $deleted]);

@@ -10,14 +10,14 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_games_slug', columns: ['slug'])]
 final class Game
 {
-    public const AVAILABILITY_AVAILABLE = 'available';
-    public const AVAILABILITY_UNAVAILABLE = 'unavailable';
-    public const AVAILABILITY_EXPERIMENTAL = 'experimental';
+    public const string AVAILABILITY_AVAILABLE = 'available';
+    public const string AVAILABILITY_UNAVAILABLE = 'unavailable';
+    public const string AVAILABILITY_EXPERIMENTAL = 'experimental';
 
-    public const UPDATE_STATUS_NOT_TRACKED = 'not_tracked';
-    public const UPDATE_STATUS_UNKNOWN = 'unknown';
-    public const UPDATE_STATUS_UP_TO_DATE = 'up_to_date';
-    public const UPDATE_STATUS_UPDATE_AVAILABLE = 'update_available';
+    public const string UPDATE_STATUS_NOT_TRACKED = 'not_tracked';
+    public const string UPDATE_STATUS_UNKNOWN = 'unknown';
+    public const string UPDATE_STATUS_UP_TO_DATE = 'up_to_date';
+    public const string UPDATE_STATUS_UPDATE_AVAILABLE = 'update_available';
 
     #[ORM\OneToOne(mappedBy: 'game', cascade: ['persist', 'remove'])]
     private ?GameCatalogSync $catalogSync = null;

@@ -9,9 +9,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class DiscordOAuthClient implements DiscordOAuthClientInterface
 {
-    private const AUTH_URL = 'https://discord.com/api/oauth2/authorize';
-    private const TOKEN_URL = 'https://discord.com/api/oauth2/token';
-    private const USER_URL = 'https://discord.com/api/users/@me';
+    private const string AUTH_URL = 'https://discord.com/api/oauth2/authorize';
+    private const string TOKEN_URL = 'https://discord.com/api/oauth2/token';
+    private const string USER_URL = 'https://discord.com/api/users/@me';
 
     public function __construct(
         private string $clientId,

@@ -15,9 +15,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'game_tutorial_contribution')]
 final class GameTutorialContribution
 {
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_REJECTED = 'rejected';
+    public const string STATUS_PENDING = 'pending';
+    public const string STATUS_APPROVED = 'approved';
+    public const string STATUS_REJECTED = 'rejected';
 
     /**
      * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps

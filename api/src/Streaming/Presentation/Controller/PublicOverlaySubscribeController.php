@@ -17,7 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final readonly class PublicOverlaySubscribeController
 {
-    private const TOKEN_TTL_SECONDS = 3600;
+    private const int TOKEN_TTL_SECONDS = 3600;
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,

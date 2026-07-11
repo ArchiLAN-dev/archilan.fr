@@ -11,13 +11,13 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final class IgdbHttpClient implements IgdbHttpClientInterface
+final readonly class IgdbHttpClient implements IgdbHttpClientInterface
 {
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly CacheInterface $cache,
-        private readonly string $clientId,
-        private readonly string $clientSecret,
+        private HttpClientInterface $httpClient,
+        private CacheInterface $cache,
+        private string $clientId,
+        private string $clientSecret,
     ) {
     }
 

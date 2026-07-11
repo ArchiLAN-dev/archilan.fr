@@ -245,7 +245,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
      */
     private function fakeLive(array $live): void
     {
-        $fake = new class($live) implements TwitchApiClientInterface {
+        $fake = new readonly class($live) implements TwitchApiClientInterface {
             /** @param array<string, int> $live */
             public function __construct(private array $live)
             {

@@ -38,7 +38,7 @@ final readonly class RealtimeController
 
         $allowedTopics = array_values(array_filter(
             $rawTopics,
-            static fn (string $t): bool => self::isAdminTopic($t),
+            self::isAdminTopic(...),
         ));
 
         if ([] === $allowedTopics) {
