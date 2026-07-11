@@ -8,7 +8,7 @@ namespace App\Community\Domain\ValueObject;
  * Curated decorative avatar frames. Null means "no frame". The frontend maps each key to a ring treatment
  * (flat colour, neon glow, or an animated effect); the backend only validates the key.
  */
-final class AvatarFrame
+final readonly class AvatarFrame
 {
     public const ALL = [
         'gold',

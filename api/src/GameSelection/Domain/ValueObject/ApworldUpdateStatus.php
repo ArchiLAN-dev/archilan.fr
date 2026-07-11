@@ -13,7 +13,7 @@ use App\GameSelection\Domain\Entity\GameCatalogSync;
  * Extracted so the read-side catalog query can compute the same status as the
  * {@see GameCatalogSync} aggregate without a hydrated entity. Keep the two in lockstep.
  */
-final class ApworldUpdateStatus
+final readonly class ApworldUpdateStatus
 {
     public static function compute(
         ?string $sourceUrl,

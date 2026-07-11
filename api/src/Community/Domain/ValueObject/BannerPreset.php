@@ -7,7 +7,7 @@ namespace App\Community\Domain\ValueObject;
 /**
  * Curated banner presets (no image upload this epic). The frontend maps each key to a gradient/treatment.
  */
-final class BannerPreset
+final readonly class BannerPreset
 {
     public const DEFAULT = 'default';
 

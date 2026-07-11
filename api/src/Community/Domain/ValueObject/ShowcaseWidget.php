@@ -12,7 +12,7 @@ use App\Community\Domain\Entity\CommunityProfile;
  * profile / run history. `featured_achievements` was retired - the full "Succès" panel already shows every
  * achievement, so the teaser was a duplicate; invalid keys are stripped from existing layouts on next save.
  */
-final class ShowcaseWidget
+final readonly class ShowcaseWidget
 {
     public const FAVORITE_GAMES = 'favorite_games';
     public const BEST_RUNS = 'best_runs';

@@ -11,7 +11,7 @@ namespace App\GameSelection\Domain\ValueObject;
  * "Super Famicom", "64DD" or "New Nintendo 3DS" collapse into their family. Unmapped
  * platforms fall back to their IGDB name so nothing is silently dropped.
  */
-final class PlatformCategory
+final readonly class PlatformCategory
 {
     /**
      * Ordered rules: the first family whose any-needle is contained in the (lowercased)

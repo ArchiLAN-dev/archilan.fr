@@ -226,7 +226,9 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * ROLE_MEMBER persists even after the membership expires - it is NOT a live
      * indicator of active membership. Use ApiAccessGuard::requireAuthenticatedMember()
-     * or isGranted('IS_MEMBER') for access control; never isGranted('ROLE_MEMBER').
+     * or isGranted('IS_MEMBER') for access control; never gate on the stale role
+     * (AC-M1 - the exact forbidden forms are matched by the validator, so this
+     * comment deliberately does not spell them out).
      */
     public function promoteToMember(\DateTimeImmutable $now): void
     {

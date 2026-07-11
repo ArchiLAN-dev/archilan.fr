@@ -24,7 +24,7 @@ final readonly class DeleteAccount
     ) {
     }
 
-    public function delete(User $user, string $reason = 'user_request'): DeletionAudit
+    public function delete(User $user, string $reason = 'user_request'): void
     {
         $now = $this->clock->now();
         $audit = DeletionAudit::record(
@@ -43,7 +43,5 @@ final readonly class DeleteAccount
         $this->userRepository->save($user);
 
         $this->logger->info('user.deleted', ['userId' => $user->getId(), 'reason' => $reason]);
-
-        return $audit;
     }
 }

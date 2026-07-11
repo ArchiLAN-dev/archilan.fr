@@ -10,7 +10,7 @@ namespace App\Community\Domain\ValueObject;
  * participation and achievements. This is the single ranking source the directory "top players" (30.15)
  * must reuse - do not introduce a competing score.
  */
-final class CommunityXp
+final readonly class CommunityXp
 {
     public const XP_PER_GOAL = 500;
     public const XP_PER_CHECK = 1;

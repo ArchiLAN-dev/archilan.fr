@@ -8,7 +8,7 @@ namespace App\Community\Domain\ValueObject;
  * Who may see a profile's customization / social surface. The core profile (identity + aggregate stats)
  * is always public; this gates the rest (epic 30 §G).
  */
-final class Audience
+final readonly class Audience
 {
     public const PUBLIC = 'public';
     public const MEMBERS = 'members';
