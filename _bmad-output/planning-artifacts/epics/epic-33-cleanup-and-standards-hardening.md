@@ -263,7 +263,11 @@ Grouped into (a) new quality tooling, (b) sized code-quality debt already enumer
   Apply the 33.10 + 33.11 taxonomy to the frozen `Sessions` context once Epic 32 has merged; remove `Sessions` from
   `UNMIGRATED_TAXONOMY_CONTEXTS` and the two `ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS` entries (extract the runner
   callback port). The 33.10/33.11 tooling (`migrate-context.ps1`, `migrate-layer.ps1`, `migrate-domain.ps1`,
-  `fix-uses.ps1`) replays it in one pass. AC: all gates green; `debug:messenger` diff clean.
+  `fix-uses.ps1`) replays it in one pass. Also absorbs the Sessions carve-outs from the later sweeps: the 6 zero-arg
+  `new \DateTimeImmutable()` Application sites (33.15, empty `CLOCK_CONSTRUCT_EXEMPT_CONTEXTS`) and the 9 Domain
+  setters - `Session::setLastLogs/setArchivedSavePath/setArchivedSpoilerPath/setGeneratedOutputKey/setValidationErrors`,
+  `SessionSlot::setSlotName/setChecksDone/setItemsReceived/setGoalReachedAt` - to rename to business methods
+  (33.16, empty `AGGREGATE_SETTER_EXEMPT_CONTEXTS`). AC: all gates green; `debug:messenger` diff clean.
 
 **(d) Process**
 

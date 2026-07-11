@@ -1,6 +1,6 @@
 # Story 33.16: Domain Aggregate Setters -> Business Methods (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -80,21 +80,21 @@ refine a name during implementation if a better verb emerges - intent-revealing 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Re-validate the worklist against the tree; per setter identify the covering test; add a
+- [x] Task 1: Re-validate the worklist against the tree; per setter identify the covering test; add a
   characterization test where a setter's behaviour (guards / normalization / `updatedAt` touch) has no
   direct or service-level coverage - notably `Post::setCoverImageKey`, `Event::setCoverImageKey`,
   `CommunityProfile::setCustomAvatar`, `GameCatalogSync::setApworldDeployedVersion`,
   `Game::setAvailabilityLocked` did not surface in the test-caller scan (they may be covered via their
   Application service tests - confirm, and only add tests where truly uncovered) (AC: 1)
-- [ ] Task 2: Migrate in per-context batches (mirrors 33.15's commit shape): GameSelection (6) ->
+- [x] Task 2: Migrate in per-context batches (mirrors 33.15's commit shape): GameSelection (6) ->
   Community (3) -> Events (2) -> PersonalRuns (2) -> Content + Registrations + Identity (3) - rename
   entity method, update src callers, update test callers, run the touched suites (AC: 2)
-- [ ] Task 3: Add the validator rule (`public function set{Upper}` in Domain entities; Sessions exempt
+- [x] Task 3: Add the validator rule (`public function set{Upper}` in Domain entities; Sessions exempt
   via a named const) + its unit tests; verify it passes on the migrated tree and would fail on a
   reintroduced setter (AC: 3)
-- [ ] Task 4: Record the 9 Sessions setters in the 33.20 follow-up scope (epic file note or 33.20 story
+- [x] Task 4: Record the 9 Sessions setters in the 33.20 follow-up scope (epic file note or 33.20 story
   when created) (AC: 4)
-- [ ] Task 5: `composer gates` on an isolated DB; PR to develop (AC: 5)
+- [x] Task 5: `composer gates` on an isolated DB; PR to develop (AC: 5)
 
 ## Dev Notes
 
@@ -148,14 +148,68 @@ refine a name during implementation if a better verb emerges - intent-revealing 
 
 ### Agent Model Used
 
+claude-fable-5.
+
 ### Debug Log References
+
+- Coverage audit (Task 1): the 5 setters absent from the test-caller scan were all covered at the
+  service/endpoint level (AdminPostCoverImageTest, AdminEventCoverImageTest, CommunityAvatarTest,
+  AdminGameLibraryImportFromGithubTest) EXCEPT `Game::setAvailabilityLocked` - CatalogDiffTest reaches
+  the flag only through `updateCatalogueMetadata`. Added `GameAvailabilityLockTest` (3 tests) to
+  characterize the lock flag.
+- Scoped phpstan runs on `src/Events` alone reported 2 `property.onlyWritten` false positives
+  (`$apiAccessGuard` is read by `RequiresAuthTrait` in Shared, outside the analyzed subset). Full
+  `phpstan analyse src tests` is clean - scoped runs must include Shared or be treated as advisory.
 
 ### Completion Notes List
 
+- 4 rename commits (GameSelection -> Community -> Events -> PersonalRuns+Registrations+Content+Identity)
+  + 1 validator commit. All 16 in-scope setters renamed 1:1 (bodies untouched); 9 Sessions setters left
+  (33.20).
+- Boolean setters split into pairs as planned: `lockAvailability()`/`unlockAvailability()` (caller
+  branches on the parsed nullable bool), `activate($now)`/`deactivate($now)`,
+  `uploadCustomAvatar($key, $now)`/`removeCustomAvatar($now)`.
+- `Post::attachCoverImage` / `Event::attachCoverImage`: the optional `?\DateTimeImmutable $now = null`
+  default was dropped (sole callers always pass the clock) - `updatedAt` is now always touched, which
+  matches every existing call's behaviour.
+- `AdminAchievementService::setActive` (Application facade) deliberately kept its name; AC-D5 covers
+  Domain aggregates only. `testSetActiveAndReorder` still refers to the service method.
+- Validator: `validateDomainAggregateSetters` scans the whole Domain layer (not just `Domain/Entity/`,
+  so flat Sessions files and any future VO/domain-service setter are caught), regex
+  `public (static )?function set{Upper}`; `AGGREGATE_SETTER_EXEMPT_CONTEXTS = ['Sessions']` (dedicated
+  const, 33.15 pattern). 3 new unit tests (reported / lookalikes settle-reset-private not reported /
+  frozen context not reported). No self-match trap: the rule's doc-comment describes the form in words.
+- Gates: phpstan 0 (src+tests), cs-fixer 0, `app:architecture:ddd` OK, full isolated suite
+  **1472 tests / 10276 assertions** green (1466 before + 6 new).
+
 ### File List
+
+- src/GameSelection/Domain/Entity/Game.php, GameCatalogSync.php
+- src/GameSelection/Application/Service/AdminGameLibrary.php
+- src/GameSelection/Application/Command/BackfillGameOptionTypes.php, ModerateGameTutorialContribution.php, SeedGameTutorials.php
+- src/Community/Domain/Entity/AchievementDefinition.php, CommunityProfile.php
+- src/Community/Application/Service/AdminAchievementService.php, CommunityAvatarService.php
+- src/Events/Domain/Entity/Event.php
+- src/Events/Application/Service/AdminEventDrafts.php
+- src/Events/Application/Command/UploadEventCoverImageCommand.php
+- src/PersonalRuns/Domain/Entity/Run.php, RunParticipant.php
+- src/PersonalRuns/Application/Service/PersonalRunGameSelection.php
+- src/PersonalRuns/Application/Handler/LaunchPersonalRunJobHandler.php
+- src/Registrations/Domain/Entity/Registration.php
+- src/Registrations/Application/Service/RegistrationGameSelection.php
+- src/Content/Domain/Entity/Post.php
+- src/Content/Application/Command/UploadPostCoverImageCommand.php
+- src/Identity/Domain/Entity/User.php
+- src/Identity/Application/Command/SaveSteamAccount.php
+- src/Shared/Application/Support/DddArchitectureValidator.php (new rule + exempt const)
+- tests/Unit/GameSelection/GameAvailabilityLockTest.php (new)
+- tests/Unit/DddArchitectureValidatorTest.php (+3 tests)
+- 19 existing test files with call-site renames (see the worklist's test-caller list)
+- _bmad-output/planning-artifacts/epics/epic-33-cleanup-and-standards-hardening.md (33.20 scope note)
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-10 | Story created (epic-33 follow-up 33.16). Fresh scan confirms the audit's 25 setters / 12 entities; 9 Sessions setters excluded (Epic 32 freeze), 16 in scope across 7 contexts. Full worklist with proposed business names, src + test callers enumerated; validator rule (Sessions-exempt, dedicated const) specified with the 33.15 self-match lesson. Status: ready-for-dev. |
+| 2026-07-11 | Implemented: 16 setters renamed to business methods across 7 contexts (3 split into explicit pairs), all callers updated, GameAvailabilityLockTest added (only uncovered setter), validator AC-D5 rule + 3 tests, 33.20 scope note. All gates green (isolated suite 1472 tests). Status: ready-for-review. |
