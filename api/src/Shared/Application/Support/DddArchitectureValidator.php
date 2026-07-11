@@ -97,6 +97,18 @@ final readonly class DddArchitectureValidator
     ];
 
     /**
+     * Contexts exempt from the no-public-setters rule (api/CLAUDE.md AC-D5, story 33.16)
+     * because their aggregates still expose set-prefixed mutators. Sessions is frozen until
+     * Epic 32 merges (TODO epic-32, follow-up 33.20); once migrated, empty this list -
+     * never grow it.
+     *
+     * @var list<string>
+     */
+    private const AGGREGATE_SETTER_EXEMPT_CONTEXTS = [
+        'Sessions',
+    ];
+
+    /**
      * Named allowlist for intentional rule exceptions (story 33.5): the only sanctioned
      * way to except a file from a rule - never suppress via inline annotations.
      *
@@ -153,6 +165,7 @@ final readonly class DddArchitectureValidator
             ...$this->validateSourceFiles($srcDir),
             ...$this->validateNoFlatLayerFiles($srcDir),
             ...$this->validateDomainDependencies($srcDir),
+            ...$this->validateDomainAggregateSetters($srcDir),
             ...$this->validateCrossContextLayerImports($srcDir),
             ...$this->validateInterfacePlacement($srcDir),
             ...$this->validateApplicationCqrs($srcDir),
@@ -282,6 +295,47 @@ final readonly class DddArchitectureValidator
                             $this->relativePath($srcDir, $file),
                         );
                     }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * State changes on Domain aggregates happen through named business methods, never through
+     * public set-prefixed mutators (api/CLAUDE.md AC-D5, story 33.16). The rule matches the
+     * declaration form only; the method body is irrelevant - a mutator with logic is still a
+     * mutator whose name hides the intent.
+     *
+     * @return list<string>
+     */
+    private function validateDomainAggregateSetters(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            if (in_array($context, self::AGGREGATE_SETTER_EXEMPT_CONTEXTS, true)) {
+                continue;
+            }
+
+            $domainDir = "{$srcDir}/{$context}/Domain";
+            if (!is_dir($domainDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($domainDir) as $file) {
+                $contents = file_get_contents($file);
+                if (!is_string($contents)) {
+                    continue;
+                }
+
+                if (1 === preg_match('/public\s+(?:static\s+)?function\s+set[A-Z]\w*/', $contents, $matches)) {
+                    $violations[] = sprintf(
+                        'Domain layer must not expose public setters ("%s") - replace with a named business method (api/CLAUDE.md AC-D5): src/%s',
+                        trim($matches[0]),
+                        $this->relativePath($srcDir, $file),
+                    );
                 }
             }
         }
