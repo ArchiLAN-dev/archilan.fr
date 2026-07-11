@@ -347,7 +347,10 @@ final readonly class DddArchitectureValidator
 
                 $relativePath = $this->relativePath($srcDir, $file);
                 foreach (self::ALLOWED_DOMAIN_SYMFONY_IMPORTS[$relativePath] ?? [] as $allowedImport) {
-                    $contents = str_replace($allowedImport, '', $contents);
+                    // Strip the exact import statement only - a bare-FQCN strip would erase the
+                    // prefix of any longer, non-allowlisted FQCN and would sanction usages of
+                    // the class name elsewhere in the file body.
+                    $contents = str_replace('use '.$allowedImport.';', '', $contents);
                 }
 
                 foreach ($this->forbiddenDomainDependencies() as $dependency) {
@@ -494,7 +497,7 @@ final readonly class DddArchitectureValidator
                 }
 
                 $entityNames = [];
-                if (preg_match_all('/^use\s+App\\\\\w+\\\\Domain\\\\Entity\\\\(\w+)(?:\s+as\s+(\w+))?\s*;/m', $contents, $imports, PREG_SET_ORDER) > 0) {
+                if (preg_match_all('/^use\s+App\\\\\w+\\\\Domain\\\\Entity\\\\(?:\w+\\\\)*(\w+)(?:\s+as\s+(\w+))?\s*;/m', $contents, $imports, PREG_SET_ORDER) > 0) {
                     foreach ($imports as $import) {
                         $entityNames[] = $import[2] ?? $import[1];
                     }
@@ -504,13 +507,16 @@ final readonly class DddArchitectureValidator
                 // by offset - each return type is attributed to the nearest preceding declaration,
                 // so private/protected helpers may hand entities around inside the layer.
                 $declarations = [];
-                if (preg_match_all('/(?:(private|protected|public)\s+)?(?:static\s+)?function\s+&?\s*\w+\s*\(/', $contents, $decls, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) > 0) {
+                if (preg_match_all('/(?:(?:static|final|abstract)\s+)*(?:(private|protected|public)\s+)?(?:(?:static|final|abstract)\s+)*function\s+&?\s*\w+\s*\(/', $contents, $decls, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) > 0) {
                     foreach ($decls as $decl) {
                         $declarations[$decl[0][1]] = '' !== ($decl[1][0] ?? '') ? $decl[1][0] : 'public';
                     }
                 }
 
-                if (0 === preg_match_all('/\)\s*:\s*([?\w|\\\\]+)/', $contents, $returns, PREG_OFFSET_CAPTURE)) {
+                // No whitespace tolerated between ")" and ":" - cs-fixer normalizes real return
+                // types to "): T", while a ternary else-branch ("... ) : User::guest()") always
+                // carries the space and must not register as a return type.
+                if (0 === preg_match_all('/\):\s*([?\w|\\\\]+)/', $contents, $returns, PREG_OFFSET_CAPTURE)) {
                     continue;
                 }
 
@@ -546,10 +552,13 @@ final readonly class DddArchitectureValidator
 
     /**
      * ROLE_MEMBER is stale-prone (it survives membership expiry) and must never gate access
-     * (api/CLAUDE.md AC-M1, story 33.17). This rule forbids the gating call forms combining the
-     * grant checkers below with that role; the pattern is assembled from fragments so this file
-     * never contains a matchable literal itself. Display/filter/assignment reads of the role
-     * (AC-M3: user directory, Discord sync, role mapping) use in_array and are NOT matched.
+     * (api/CLAUDE.md AC-M1, story 33.17). This rule forbids the gating call forms (positional or
+     * attribute-named argument) combining the grant checkers below with that role. The bare role
+     * string in this method cannot self-match: the pattern requires the full checker-call shape,
+     * which never appears here contiguously. Display/filter/assignment reads of the role
+     * (AC-M3: user directory, Discord sync, role mapping) use in_array and are NOT matched;
+     * variable/constant-form gating and security expressions in YAML are beyond a lexical scan
+     * (accepted limitation, same class as the deferred tokenizer work).
      *
      * @return list<string>
      */
@@ -558,7 +567,7 @@ final readonly class DddArchitectureValidator
         $violations = [];
         $checkers = ['denyAccessUnlessGranted', 'isGranted', 'IsGranted'];
         $role = 'ROLE_MEMBER';
-        $pattern = sprintf('/(?:%s)\s*\(\s*[\'"]%s[\'"]/', implode('|', $checkers), $role);
+        $pattern = sprintf('/(?:%s)\s*\(\s*(?:attribute\s*:\s*)?[\'"]%s[\'"]/', implode('|', $checkers), $role);
 
         foreach ($this->phpFiles($srcDir) as $file) {
             $contents = file_get_contents($file);
@@ -968,6 +977,8 @@ final readonly class DddArchitectureValidator
     private function forbiddenDomainDependencies(): array
     {
         $dependencies = [
+            'Symfony\\Bridge\\',
+            'Symfony\\Bundle\\',
             'Symfony\\Component\\',
             'Symfony\\Contracts\\',
         ];

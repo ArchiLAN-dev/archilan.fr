@@ -124,6 +124,31 @@ fixtures in `tests/Unit/DddArchitectureValidatorTest.php`.
   `ALLOWED_APPLICATION_ENTITY_RETURNS`, tests (AC: 1, 2, 3)
 - [x] Task 6: full gates on isolated DB; PR to develop (AC: 5)
 
+### Review Findings
+
+Adversarial review 2026-07-11 (Blind Hunter / Edge Case Hunter / Acceptance Auditor, PR #304).
+The Edge Case Hunter replayed every rule against the live tree: zero current-tree defects; the
+patches below close forward-looking lexical gaps. Triage: 8 patch (applied), rest deferred or
+dismissed.
+
+- [x] [Review][Patch] Ternary else-branch `) : Entity` false positive in the return-type scan - regex tightened to `\):` (cs-fixer normalizes real return types to no-space form) + test
+- [x] [Review][Patch] Sub-namespaced entity imports (`Domain\Entity\Sub\Foo`) bypassed the import collector - regex now tolerates intermediate segments
+- [x] [Review][Patch] Visibility mis-attribution on legal modifier orders (`private static final function`) - declaration regex accepts modifiers on both sides of the visibility keyword + test
+- [x] [Review][Patch] Allowlist stripping anchored to the full `use X;` statement (was bare-FQCN substring: prefix-erasure hole + sanctioned the FQCN anywhere in the file)
+- [x] [Review][Patch] AC-M1 pattern extended to the named-argument attribute form (`IsGranted(attribute: ...)`) + test
+- [x] [Review][Patch] `Symfony\Bridge\` + `Symfony\Bundle\` added to the Domain ban prefixes (AC-D1 prose says any Symfony; zero live occurrences)
+- [x] [Review][Patch] R5 doc-comment updated: cs-fixer's `no_useless_concat_operator` folded the fragment-assembled role literal, so the comment now explains why a bare literal cannot self-match (the pattern needs the full call shape) and records the accepted lexical limits (variable/constant-form gating, YAML expressions)
+- [x] [Review][Patch] Aliased-import + union return coverage test added (advertised in Dev Notes, previously untested)
+- [x] [Review][Defer] Multiline class declarations / phantom declarations in strings-docblocks / `preg_match_all === false` silently passing - all instances of the validator-wide raw-lexical-scan design, folded into the existing tokenizer deferred item (deferred-work.md, 33.16 entry)
+- [x] [Review][Defer] Group `use` imports invisible to the entity-return collector - unreachable in a cs-fixer-clean tree (`single_import_per_statement`); falls with the tokenizer refactor
+
+Dismissed: DeletionAudit "dead store" (refuted - `auditRepository->save($audit)` line 42, ECH
+confirmed zero return consumers); duplicate violations for multi-class files (no such file exists,
+PSR-4); `case expr():` residual after the ternary fix (harmless unless an entity name follows a
+switch case - not producible under cs-fixer); expression-language/YAML gating (accepted limitation,
+documented in the rule comment). Auditor record defects fixed: 33.22 ride-along removed from the
+branch (fc719ac), test count corrected (36, not 38).
+
 ## Dev Notes
 
 - **Branch from develop AFTER PR #302 (33.16) is merged** - both stories touch
@@ -155,7 +180,7 @@ fixtures in `tests/Unit/DddArchitectureValidatorTest.php`.
 ### Project Structure Notes
 
 - Validator: `api/src/Shared/Application/Support/DddArchitectureValidator.php`; tests:
-  `api/tests/Unit/DddArchitectureValidatorTest.php` (38 tests post-33.16).
+  `api/tests/Unit/DddArchitectureValidatorTest.php` (36 tests post-33.16).
 - Doc to amend (R3): `api/CLAUDE.md` section "Application layer", AC-A3 line.
 - The 11 VO files are listed in the R1 audit above - no other file moves or renames.
 

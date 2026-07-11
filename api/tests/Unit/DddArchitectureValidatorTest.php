@@ -757,6 +757,90 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $entityReturnViolations);
     }
 
+    public function testApplicationTernaryEntityBranchIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventChooser.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event;\n\nfinal class EventChooser {\n"
+            ."    public function choose(bool \$flag): array { \$e = \$flag ? \$this->pick(\$flag) : Event::class; return [\$e]; }\n"
+            ."    private function pick(bool \$flag): ?Event { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventChooser.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertSame([], $entityReturnViolations);
+    }
+
+    public function testApplicationPrivateFinalEntityReturnIsNotReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventLoader.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event;\n\nfinal class EventLoader {\n"
+            ."    public function load(string \$id): array { \$e = \$this->find(\$id); return []; }\n"
+            ."    private static function find(string \$id): ?Event { return null; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventLoader.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertSame([], $entityReturnViolations);
+    }
+
+    public function testApplicationAliasedUnionEntityReturnIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        $this->createDirectory($projectDir.'/src/Events/Application/Query');
+        file_put_contents(
+            $projectDir.'/src/Events/Application/Query/EventAliasFetcher.php',
+            "<?php\n\nnamespace App\\Events\\Application\\Query;\n\nuse App\\Events\\Domain\\Entity\\Event as EventRecord;\n\nfinal class EventAliasFetcher {\n"
+            ."    public function fetch(string \$id): EventRecord|false { return false; }\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        $entityReturnViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'EventAliasFetcher.php') && str_contains($v, 'AC-A3'),
+        ));
+        self::assertCount(1, $entityReturnViolations);
+    }
+
+    public function testMembershipGatingNamedArgumentAttributeIsReported(): void
+    {
+        $projectDir = $this->createProjectFixture();
+        file_put_contents(
+            $projectDir.'/src/Events/Presentation/AttributeGate.php',
+            "<?php\n\nnamespace App\\Events\\Presentation;\n\nfinal class AttributeGate {\n"
+            ."    #[IsGranted(attribute: 'ROLE_MEMBER')]\n"
+            ."    public function view(): void {}\n"
+            ."}\n",
+        );
+
+        $report = (new DddArchitectureValidator())->validate($projectDir);
+
+        self::assertFalse($report->isSuccessful());
+        $gatingViolations = array_values(array_filter(
+            $report->violations(),
+            static fn (string $v): bool => str_contains($v, 'AttributeGate.php') && str_contains($v, 'AC-M1'),
+        ));
+        self::assertCount(1, $gatingViolations);
+    }
+
     public function testAllowlistedAuthResolverEntityReturnIsNotReported(): void
     {
         $projectDir = $this->createProjectFixture();
