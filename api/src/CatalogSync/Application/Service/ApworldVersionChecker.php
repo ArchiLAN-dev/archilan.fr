@@ -207,6 +207,125 @@ final readonly class ApworldVersionChecker
     }
 
     /**
+     * Build a `sha256 => normalized-tag` map from every .apworld asset across ALL releases
+     * of the game's GitHub source repo.
+     *
+     * Unlike check()/listAssets() - which stop at the latest matching release - this scans
+     * every release so a game deployed on an OLD version can still be resolved by its stored
+     * hash. Used by the deployed-version backfill: the runner stores sha256 over the raw
+     * uploaded bytes and GitHub serves those same bytes verbatim, so an exact hash match
+     * recovers the tag. Byte-exact by design (a re-zipped .apworld simply will not match).
+     *
+     * Returns an empty map for non-GitHub, direct .apworld, or token-less sources. Honors the
+     * same `?q=` release/asset filter as check(). On a hash seen in more than one release the
+     * first (newest) tag wins.
+     *
+     * @return array<string, string> lowercase-hex sha256 => tag (v/V prefix stripped)
+     *
+     * @throws GithubRateLimitException when the GitHub API rate limit runs low mid-scan
+     */
+    public function mapApworldAssetHashesByTag(Game $game): array
+    {
+        $sourceUrl = $game->getApworldSourceUrl();
+
+        if (null === $sourceUrl
+            || $this->isDirectApworldUrl($sourceUrl)
+            || !str_starts_with($sourceUrl, 'https://github.com/')
+            || '' === $this->githubToken) {
+            return [];
+        }
+
+        [$owner, $repo, $filterTerm] = $this->parseSourceUrl($sourceUrl);
+
+        if (null === $owner) {
+            return [];
+        }
+
+        $headers = $this->githubHeaders();
+        $map = [];
+        $remaining = null;
+
+        for ($page = 1; $page <= 10; ++$page) {
+            $response = $this->httpClient->request(
+                'GET',
+                sprintf('https://api.github.com/repos/%s/%s/releases?per_page=100&page=%d', $owner, $repo, $page),
+                ['headers' => $headers],
+            );
+
+            if ($response->getStatusCode() >= 400) {
+                break;
+            }
+
+            $responseHeaders = $response->getHeaders();
+            $remaining = isset($responseHeaders['x-ratelimit-remaining'][0]) ? (int) $responseHeaders['x-ratelimit-remaining'][0] : $remaining;
+
+            /** @var list<array<string, mixed>> $releases */
+            $releases = $response->toArray();
+
+            if ([] === $releases) {
+                break;
+            }
+
+            foreach ($releases as $release) {
+                if (true === ($release['draft'] ?? false)) {
+                    continue;
+                }
+
+                $tagRaw = is_string($release['tag_name'] ?? null) ? (string) $release['tag_name'] : '';
+
+                if ('' === $tagRaw) {
+                    continue;
+                }
+
+                $tag = ltrim($tagRaw, 'vV');
+                $releaseName = is_string($release['name'] ?? null) ? (string) $release['name'] : '';
+                $assets = is_array($release['assets'] ?? null) ? $release['assets'] : [];
+
+                foreach ($assets as $asset) {
+                    if (!is_array($asset) || !is_string($asset['name'] ?? null)) {
+                        continue;
+                    }
+
+                    $assetName = (string) $asset['name'];
+
+                    if (!str_ends_with($assetName, '.apworld')) {
+                        continue;
+                    }
+
+                    if (null !== $filterTerm) {
+                        $releaseMatches = false !== stripos($releaseName, $filterTerm)
+                            || false !== stripos($tagRaw, $filterTerm);
+
+                        if (!$releaseMatches && false === stripos($assetName, $filterTerm)) {
+                            continue;
+                        }
+                    }
+
+                    $downloadUrl = is_string($asset['browser_download_url'] ?? null) ? (string) $asset['browser_download_url'] : '';
+
+                    if ('' === $downloadUrl) {
+                        continue;
+                    }
+
+                    $hash = hash('sha256', $this->downloadAsset($downloadUrl));
+
+                    if (!isset($map[$hash])) {
+                        $map[$hash] = $tag;
+                    }
+                }
+            }
+
+            $this->checkRateLimit($remaining);
+
+            if (\count($releases) < 100) {
+                break;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
      * Parse a GitHub source URL into [owner, repo, filterTerm|null].
      * Returns [null, '', null] when the URL is malformed.
      *
