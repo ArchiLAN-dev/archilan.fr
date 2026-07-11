@@ -1,6 +1,6 @@
 # Story 33.17: Extend the DDD Validator to the Remaining Documented ACs (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -114,15 +114,15 @@ fixtures in `tests/Unit/DddArchitectureValidatorTest.php`.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: R4 (AC-D1 full ban + `ALLOWED_DOMAIN_SYMFONY_IMPORTS`) + tests - smallest rule,
+- [x] Task 1: R4 (AC-D1 full ban + `ALLOWED_DOMAIN_SYMFONY_IMPORTS`) + tests - smallest rule,
   fixes the pattern for the story (AC: 1, 2)
-- [ ] Task 2: R5 (AC-M1 gating ban, three forms, no allowlist) + tests (AC: 1, 2)
-- [ ] Task 3: R1 (AC-D4 finality) - add `readonly` to the 11 catalog VOs, then the rule
+- [x] Task 2: R5 (AC-M1 gating ban, three forms, no allowlist) + tests (AC: 1, 2)
+- [x] Task 3: R1 (AC-D4 finality) - add `readonly` to the 11 catalog VOs, then the rule
   (Entity: final; ValueObject: final readonly; Sessions exempt/documented) + tests (AC: 1, 2, 4)
-- [ ] Task 4: R2 (AC-A1 Application final + ArchilanEmail allowlist) + tests (AC: 1, 2)
-- [ ] Task 5: R3 (AC-A3) - amend `api/CLAUDE.md`, add the no-entity-return rule +
+- [x] Task 4: R2 (AC-A1 Application final + ArchilanEmail allowlist) + tests (AC: 1, 2)
+- [x] Task 5: R3 (AC-A3) - amend `api/CLAUDE.md`, add the no-entity-return rule +
   `ALLOWED_APPLICATION_ENTITY_RETURNS`, tests (AC: 1, 2, 3)
-- [ ] Task 6: full gates on isolated DB; PR to develop (AC: 5)
+- [x] Task 6: full gates on isolated DB; PR to develop (AC: 5)
 
 ## Dev Notes
 
@@ -173,14 +173,53 @@ fixtures in `tests/Unit/DddArchitectureValidatorTest.php`.
 
 ### Agent Model Used
 
+claude-fable-5.
+
 ### Debug Log References
+
+- The audit's entity-return scan (grep on known entity names) under-counted: the actual rule's
+  first run also caught `DeletionAudit`, `?Run`, `?RunParticipant`, `?Game`, `?CommunityProfile`
+  returns - all but one were PRIVATE helpers, which AC-A3 does not concern (entities may circulate
+  inside the layer). The rule was made visibility-aware: each return type is attributed to the
+  nearest preceding named function declaration; private/protected are skipped; closures inherit
+  the enclosing declaration's visibility, which errs on the strict side inside public methods.
+- The one real public hit, `DeleteAccount::delete(): DeletionAudit`, was fixed (-> `void`) rather
+  than allowlisted: its sole caller (`AccountDeletionController:35`) ignored the return and no
+  test consumed it.
+- `User.php`'s AC-M1 doc comment contained the literal gating form and would have tripped R5 -
+  reworded (the 33.15 self-match lesson, this time in a scanned file rather than the validator).
+  R5's own pattern is assembled from fragments (`'ROLE_'.'MEMBER'`, callers in an array) so the
+  validator never contains a matchable literal.
 
 ### Completion Notes List
 
+- 2 commits: compliance migrations first (11 VOs -> `final readonly`, `DeleteAccount` -> void,
+  User comment reword, AC-A3 doc amendment + epic-35 pointer), then the 5 rules + 12 tests.
+- All 5 rules use the 33.16 review lessons from day one: modifier-order-tolerant declaration
+  regexes, `preg_match_all` (every occurrence reported), whitespace-normalized excerpts.
+- Allowlists as specified: `ALLOWED_DOMAIN_SYMFONY_IMPORTS` (User.php x2, stripped before scan),
+  `ALLOWED_APPLICATION_NON_FINAL` (ArchilanEmail), `ALLOWED_APPLICATION_ENTITY_RETURNS`
+  (AuthenticateUser, CurrentUserProvider), `FINALITY_EXEMPT_CONTEXTS` (Sessions, explicit).
+- Gates: phpstan 0 (src+tests), cs-fixer 0, `app:architecture:ddd` OK (5 new rules active),
+  full isolated suite **1485 tests / 10298 assertions** green (48 validator tests).
+
 ### File List
+
+- api/src/Shared/Application/Support/DddArchitectureValidator.php (5 rules, 4 new consts,
+  full-prefix Symfony ban, allowed-import stripping in validateDomainDependencies)
+- api/tests/Unit/DddArchitectureValidatorTest.php (+12 tests)
+- api/src/GameSelection/Domain/ValueObject/PlatformCategory.php, ApworldUpdateStatus.php (readonly)
+- api/src/Community/Domain/ValueObject/ShowcaseWidget.php, AvatarFrame.php, ReportSeverity.php,
+  Audience.php, ReportProblem.php, ReportCategory.php, CommunityXp.php, BannerPreset.php (readonly)
+- api/src/Shared/Domain/ValueObject/SlotName.php (readonly)
+- api/src/Identity/Domain/Entity/User.php (AC-M1 comment reword)
+- api/src/Identity/Application/Command/DeleteAccount.php (delete(): void)
+- api/CLAUDE.md (AC-A3 amended)
+- _bmad-output/planning-artifacts/epics/epic-35-strict-cqrs-write-path.md (new, idea status)
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-11 | Story created (epic-33 follow-up 33.17). Fresh audit: tree nearly compliant - R1: 11 static-catalog VOs to make readonly + finality rule (Sessions escapes until 33.20); R2: only ArchilanEmail non-final (allowlist); R3: AC-A3 doc contradicted by the outcome-array convention -> amend doc + enforce no-entity-returns (2 auth resolvers allowlisted); R4: full Symfony ban trips only User.php Security imports (allowlist); R5: zero gating usages, rule lands clean. 33.16 review lessons baked into Dev Notes. Status: ready-for-dev. |
+| 2026-07-11 | Implemented: 5 rules + 4 named allowlist/exempt consts + 12 tests; 11 VOs readonly, DeleteAccount void (real AC-A3 fix), User.php comment reword, AC-A3 doc amended, epic-35 recorded. Entity-return rule made visibility-aware after the first gate run caught private helpers. All gates green (isolated suite 1485 tests). Status: ready-for-review. |
