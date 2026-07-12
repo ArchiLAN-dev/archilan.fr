@@ -179,8 +179,8 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
 
     private function spoilerReaderReturning(?string $contents): SessionSpoilerArtifactReaderInterface
     {
-        return new class($contents) implements SessionSpoilerArtifactReaderInterface {
-            public function __construct(private readonly ?string $contents)
+        return new readonly class($contents) implements SessionSpoilerArtifactReaderInterface {
+            public function __construct(private ?string $contents)
             {
             }
 
