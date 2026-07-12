@@ -15,6 +15,7 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Message\BuildSessionRecapJob;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
@@ -652,6 +653,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         // Post-commit (AC-A4): now that the final goal/check stats are persisted, (re)evaluate the
         // participants' achievements with a notification (story 30.26). Async, off this request path.
         $this->achievementRecomputeTrigger->recomputeForUsers($this->resolveParticipantUserIds(array_keys($registrationIds)));
+
+        // Post-commit (AC-A4): (re)build the public session recap from the archived spoiler (story 32.1).
+        $this->messageBus->dispatch(new BuildSessionRecapJob($sessionId));
 
         return ['found' => true];
     }

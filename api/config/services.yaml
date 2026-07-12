@@ -322,6 +322,7 @@ services:
     App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
     App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
     App\Sessions\Domain\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineRunAuditLogRepository'
+    App\Sessions\Domain\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRecapRepository'
     App\Sessions\Application\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\DbalCommunityStatsQuery'
     App\Sessions\Application\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\DbalLeaderboardQuery'
     App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\DbalPlayerConnectionQuery'
