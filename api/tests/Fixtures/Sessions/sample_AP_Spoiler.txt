@@ -1,0 +1,1485 @@
+﻿Archipelago Version 0.6.7  -  Seed: 26439335837289878412
+
+Filling Algorithm:               balanced
+Players:                         3
+Total Location Count:            339
+Plando Options:                  items, connections, texts, bosses
+
+Player 1: Player1
+Game:                            Luigi's Mansion
+Location Count:                  82
+Progression Balancing:           50
+Accessibility:                   Full
+Local Items:                     
+Non-local Items:                 
+Start Inventory:                 
+Start Hints:                     
+Start Location Hints:            
+Excluded Locations:              
+Priority Locations:              
+Item Links:                      
+Plando Items:                    
+Death Link:                      No
+Rank Requirement:                Rank H
+Game Mode:                       Default
+Starting Vacuum:                 Yes
+Walk Speed:                      Normal Speed
+Vacuum Upgrades:                 1
+Boo Radar:                       Include
+Hidden Mansion:                  No
+Enable Fear Animation:           Yes
+Enable Pickup Animation:         Yes
+Luigi's Maximum Health:          100
+Music Randomization:             No
+Randomized Door Model:           No
+Early First Key:                 No
+Door Randomization:              Off
+Enemizer:                        Vanilla
+Random Spawn Location:           No
+Portrait Ghost Hints:            No
+Hint Distribution:               Balanced
+Send Hints:                      Yes
+Toadsanity:                      No
+ Gold Mice:                      No
+Furnisanity:                     
+Boosanity:                       No
+Portrification:                  No
+Silver Border Portrait Ghosts:   No
+Gold Border Portrait Ghosts:     No
+Lightsanity:                     No
+Walksanity:                      No
+Speedy Spirits:                  No
+What do you mean these are locations?:No
+Grassanity:                      No
+Boo Gates:                       Yes
+Show Self Received Item Messaging:All Messages
+Fortune-Teller Requirements:     5
+Balcony Boo Count:               20
+Altar Boo Count:                 40
+King Boo's Health:               500
+Boolossus Diffculty:             Normal
+Boo Health Option:               Choice
+Boo Health Value:                30
+Boo Speed:                       15
+Boo Escape Time:                 120
+Angry Boos:                      No
+Portrait Health Option:          Choice
+Portrait Health Value:           100
+Extra Boo Spots:                 No
+Chest Cosmetics:                 Vanilla
+Trap Appearance:                 Filler
+Press A to Mario:                No
+Spookiness:                      Vanilla
+TrapLink:                        No
+Enable Trap Link Client Message: Yes
+EnergyLink:                      No
+RingLink:                        No
+Enable Ring Link Client Message: Yes
+Filler Weights:                  Bars: 10, Bills: 10, Bundles: 10, Coins: 15, Dust: 40, Gems: 5, Hearts: 10
+Trap Percentage:                 0
+Trap Weights:                    Banana Trap: 15, Bomb: 15, Bonk Trap: 15, Fear Trap: 25, Ghost: 15, Ice Trap: 15, No Vac Trap: 5, Poison Mushroom: 15, Possession Trap: 5, Spooky Time: 25, Squash Trap: 15
+Start Inventory from Pool:       
+
+Player 2: Player2
+Game:                            Super Mario 64
+Location Count:                  149
+Progression Balancing:           50
+Accessibility:                   Full
+Local Items:                     
+Non-local Items:                 
+Start Inventory:                 
+Start Hints:                     
+Start Location Hints:            
+Excluded Locations:              
+Priority Locations:              
+Item Links:                      
+Plando Items:                    
+Entrance Randomizer:             Off
+Bob-omb Buddy Checks:            No
+Randomize 1Up !-Blocks:          No
+Progressive Keys:                Yes
+Enable 100 Coin Stars:           Off
+Enable Locked Paintings:         No
+Enable Move Randomizer:          No
+Randomized Moves:                Backflip, Climb, Dive, Ground Pound, Kick, Ledge Grab, Long Jump, Side Flip, Triple Jump, Wall Kick
+Strict Cap Requirements:         Yes
+Strict Cannon Requirements:      Yes
+Strict Move Requirements:        Yes
+Total Power Stars:               120
+First Star Door Cost %:          7
+Basement Star Door %:            25
+Second Floor Star Door %:        42
+MIPS 1 Star %:                   12
+MIPS 2 Star %:                   42
+Endless Stairs Star %:           58
+Death Link:                      No
+Completion Goal:                 Last Bowser Stage
+
+Player 3: Player3
+Game:                            The Wind Waker
+Location Count:                  108
+Progression Balancing:           50
+Accessibility:                   Full
+Local Items:                     
+Non-local Items:                 
+Start Inventory:                 
+Start Hints:                     
+Start Location Hints:            
+Excluded Locations:              
+Priority Locations:              
+Item Links:                      
+Plando Items:                    
+Start Inventory from Pool:       
+Dungeons:                        Yes
+Tingle Chests:                   No
+Dungeon Secrets:                 No
+Puzzle Secret Caves:             Yes
+Combat Secret Caves:             No
+Savage Labyrinth:                No
+Great Fairies:                   Yes
+Short Sidequests:                No
+Long Sidequests:                 No
+Spoils Trading:                  No
+Minigames:                       No
+Battlesquid Minigame:            No
+Free Gifts:                      Yes
+Mail:                            No
+Lookout Platforms and Rafts:     No
+Submarines:                      No
+Eye Reef Chests:                 No
+Big Octos and Gunboats:          No
+Sunken Treasure (From Triforce Charts):No
+Sunken Treasure (From Treasure Charts):No
+Expensive Purchases:             Yes
+Island Puzzles:                  No
+Miscellaneous:                   No
+Randomize Maps & Compasses:      Dungeon
+Randomize Small Keys:            Dungeon
+Randomize Big Keys:              Dungeon
+Sword Mode:                      Start With Sword
+Required Bosses Mode:            No
+Number of Required Bosses:       4
+Included Dungeons:               
+Excluded Dungeons:               
+Chest Type Matches Contents:     No
+Hero Mode:                       No
+Obscure Tricks Required:         None
+Precise Tricks Required:         None
+Enable Tuner Logic:              No
+Randomize Dungeons:              No
+Randomize Secret Caves:          No
+Randomize Nested Minibosses:     No
+Randomize Nested Bosses:         No
+Randomize Inner Secret Caves:    No
+Randomize Fairy Fountains:       No
+Mix Entrances:                   Separate Pools
+Randomize Enemies:               No
+Randomize Starting Island:       No
+Randomize Charts:                No
+Swift Sail:                      Yes
+Instant Text Boxes:              Yes
+Reveal Full Sea Chart:           Yes
+Add Shortcut Warps Between Dungeons:No
+Skip Boss Rematches:             Yes
+Remove Music:                    No
+Death Link:                      No
+
+
+Player2 Star Costs for Super Mario 64:
+
+First Floor Big Star Door  = 7
+Basement Big Star Door     = 26
+Second Floor Big Star Door = 44
+MIPS 1                     = 13
+MIPS 2                     = 44
+Endless Stairs             = 61
+
+
+Starting Items:
+
+Poltergust 3000 (Player1)
+Progressive Sword (Player3)
+
+Locations:
+
+Luigi's Courage (Player1): Laundry Room Key (Player1)
+E. Gadd's Gift (Player1): Power Star (Player2)
+1F Washroom Toilet (Player1): Gold Diamond (Player1)
+Laundry Room Washing Machine (Player1): Power Star (Player2)
+Hidden Room Large Chest R (Player1): Farore's Pearl (Player3)
+Hidden Room Small Chest R Shelf (Player1): Progressive Flower (Player1)
+Hidden Room Small Chest L Floor (Player1): Power Star (Player2)
+Rec Room Treadmill Key (Player1): Power Star (Player2)
+Courtyard Birdhouse (Player1): Billiards Room Key (Player1)
+Sealed Room NW Shelf Chest (Player1): 20 Coins & Bills (Player1)
+Sealed Room NE Shelf Chest (Player1): Large Heart (Player1)
+Sealed Room SE Shelf Chest (Player1): Power Star (Player2)
+Sealed Room Table Chest (Player1): Triforce Shard 8 (Player3)
+Sealed Room Upper L Big Chest (Player1): Piece of Heart (Player3)
+Sealed Room Upper R Big Chest (Player1): Power Star (Player2)
+Armory Gray Chest (left, back Wall) (Player1): Emerald (Player1)
+Armory Gray Chest (middle, back Wall) (Player1): Power Star (Player2)
+Armory Gray Chest (right, back Wall) (Player1): Power Star (Player2)
+Telephone Room R2 Chest (Player1): Orange Rupee (Player3)
+Huge Flower (Boneyard) (Player1): Power Star (Player2)
+Hidden Room Large Chest L (Player1): Power Star (Player2)
+Hidden Room Large Chest C (Player1): Magic Armor (Player3)
+Hidden Room Small Chest L Shelf (Player1): Ballroom Key (Player1)
+Hidden Room Small Chest R Floor (Player1): Diamond Key (Player1)
+Sealed Room Lower Big Chest (Player1): Dust (Player1)
+Sealed Room Upper C Big Chest (Player1): Triforce Shard 5 (Player3)
+Sealed Room SW Shelf Chest (Player1): Orange Rupee (Player3)
+Armory 4th Gray Chest (Player1): Piece of Heart (Player3)
+Armory 5th Gray Chest (Player1): Empty Bottle (Player3)
+Telephone Room C Chest (Player1): Power Star (Player2)
+Telephone Room R1 Chest (Player1): Piece of Heart (Player3)
+Visit E. Gadd's Gallery (Player1): Power Star (Player2)
+Complete Training (Player1): Earth God's Lyric (Player3)
+Catch 9 Ghosts in Training (Player1): Parlor Key (Player1)
+Wardrobe Clear Chest (Player1): Piece of Heart (Player3)
+Observatory Shoot the Moon (Player1): Power Star (Player2)
+Breaker Box (Player1): Blackout (Player1)
+King Boo (Player1): Mario's Painting (Player1)
+Clockwork Clear (Player1): Defeat Clockwork (Player1)
+Shivers Spawn (Player1): Shivers Spawn (Player1)
+Laundry Room Clear Chest (Player1): Power Star (Player2)
+Hidden Room Clear Chest (Player1): Power Star (Player2)
+Mirror Room Clear Chest (Player1): Pipe Room Key (Player1)
+Kitchen Clear Chest (Player1): Power Star (Player2)
+Graveyard Clear Chest (Player1): Triforce Shard 3 (Player3)
+Courtyard Clear Chest (Player1): Power Star (Player2)
+Tea Room Clear Chest (Player1): Bomb Bag Capacity Upgrade (Player3)
+2F Washroom Clear Chest (Player1): Piece of Heart (Player3)
+Projection Room Clear Chest (Player1): Power Star (Player2)
+Safari Room Clear Chest (Player1): Dust (Player1)
+Ballroom Clear Chest (Player1): Power Star (Player2)
+Cellar Clear Chest (Player1): Mario's Star (Player1)
+Roof Clear Chest (Player1): Dining Room Key (Player1)
+Sealed Room Clear Chest (Player1): Power Star (Player2)
+Armory Clear Chest (Player1): Progressive Flower (Player1)
+Telephone Room Clear Chest (Player1): Power Star (Player2)
+Van Gore's Painting (Artist's Studio) (Player1): Anteroom Key (Player1)
+Defeat Chauncey (Player1): Power Star (Player2)
+Defeat Bogmire (Player1): Delivery Bag (Player3)
+Defeat Boolossus (Player1): Dust (Player1)
+Storage Room Cage Button (Player1): Power Star (Player2)
+Storage Room Wall Button (Player1): Piece of Heart (Player3)
+Butler Clear Chest (Player1): 20 Coins (Player1)
+Guest Room Clear Chest (Player1): Power Star (Player2)
+Parlor Clear Chest (Player1): Mario's Glove (Player1)
+Cold Storage Clear Chest (Player1): Dust (Player1)
+Breaker Room Clear Chest (Player1): Fortune Teller Key (Player1)
+Twins' Room Clear Chest (Player1): Power Star (Player2)
+Billiards Room Clear Chest (Player1): Power Star (Player2)
+Balcony Clear Chest (Player1): Triforce Shard 6 (Player3)
+Ceramics Studio Clear Chest (Player1): Silver Rupee (Player3)
+2F Bathroom Clear Chest (Player1): 30 Coins (Player1)
+Nana's Room Clear Chest (Player1): Deku Leaf (Player3)
+Rec Room Clear Chest (Player1): Ice Element Medal (Player1)
+Conservatory Clear Chest (Player1): Power Star (Player2)
+Dining Room Clear Chest (Player1): Power Star (Player2)
+Fortune Teller Clear Chest (Player1): Piece of Heart (Player3)
+Study Clear Chest (Player1): Power Star (Player2)
+Master Bedroom Clear Chest (Player1): Emerald (Player1)
+Nursery Clear Chest (Player1): Din's Pearl (Player3)
+Pipe Room Clear Chest (Player1): 1F Washroom Key (Player1)
+Ghost Foyer Key (Player1): Vanish Cap (Player2)
+Fortune Teller Candles (Player1): Heart Container (Player3)
+The Well Key (Player1): Large Heart (Player1)
+Wardrobe Shelf Key (Player1): Power Star (Player2)
+1F Bathroom Shelf Key (Player1): Power Star (Player2)
+Neville, the Bookish Father (Player1): Portrait _Ghost (Player1)
+Lydia, the Mirror-Gazing Mother (Player1): Portrait _Ghost (Player1)
+Chauncey, the Spoiled Baby (Player1): Portrait _Ghost (Player1)
+Henry and Orville, the Twin Brothers (Player1): Portrait _Ghost (Player1)
+The Floating Whirlindas (Player1): Portrait _Ghost (Player1)
+Shivers, the Wandering Butler (Player1): Portrait _Ghost (Player1)
+Madame Clairvoya, the Freaky Fortune-Teller (Player1): Portrait _Ghost (Player1)
+Melody Pianissima, the Beautiful Pianist (Player1): Portrait _Ghost (Player1)
+Mr. Luggs, the Glutton (Player1): Portrait _Ghost (Player1)
+Spooky, the Guard Dog (Player1): Portrait _Ghost (Player1)
+Bogmire, the Cemetary Shadow (Player1): Portrait _Ghost (Player1)
+Biff Atlas, the Bodybuilder (Player1): Portrait _Ghost (Player1)
+Slim Bankshot, the Lonely Poolshark (Player1): Portrait _Ghost (Player1)
+Miss Petunia, the Bathing Beauty (Player1): Portrait _Ghost (Player1)
+Nana, the Scarf-Knitting Granny (Player1): Portrait _Ghost (Player1)
+Sue Pea, the Dozing Girl (Player1): Portrait _Ghost (Player1)
+Uncle Grimmly, Hermit of the Darkness (Player1): Portrait _Ghost (Player1)
+Boolossus, the Jumbo Ghost (Player1): Portrait _Ghost (Player1)
+Jarvis, the Jar Collector (Player1): Portrait _Ghost (Player1)
+Clockwork Soldiers, the Toy Platoon (Player1): Portrait _Ghost (Player1)
+Vincent van Gore, the Starving Artist (Player1): Portrait _Ghost (Player1)
+Sir Weston, the Chilly Climber (Player1): Portrait _Ghost (Player1)
+Butler's Room Boo (Player1): Boo (Player1)
+Hidden Room Boo (Player1): Boo (Player1)
+Fortune-Teller's Room Boo (Player1): Boo (Player1)
+Mirror Room Boo (Player1): Boo (Player1)
+Laundry Room Boo (Player1): Boo (Player1)
+Kitchen Boo (Player1): Boo (Player1)
+Dining Room Boo (Player1): Boo (Player1)
+Ballroom Boo (Player1): Boo (Player1)
+Billiards Room Boo (Player1): Boo (Player1)
+Projection Room Boo (Player1): Boo (Player1)
+Storage Room Boo (Player1): Boo (Player1)
+Conservatory Boo (Player1): Boo (Player1)
+Rec Room Boo (Player1): Boo (Player1)
+Nursery Boo (Player1): Boo (Player1)
+Twins' Room Boo (Player1): Boo (Player1)
+Sitting Room Boo (Player1): Boo (Player1)
+Guest Room Boo (Player1): Boo (Player1)
+Master Bedroom Boo (Player1): Boo (Player1)
+Study Boo (Player1): Boo (Player1)
+Parlor Boo (Player1): Boo (Player1)
+Wardrobe Boo (Player1): Boo (Player1)
+Anteroom Boo (Player1): Boo (Player1)
+Astral Hall Boo (Player1): Boo (Player1)
+Nana's Room Boo (Player1): Boo (Player1)
+Tea Room Boo (Player1): Boo (Player1)
+Armory Boo (Player1): Boo (Player1)
+Telephone Room Boo (Player1): Boo (Player1)
+Safari Room Boo (Player1): Boo (Player1)
+Ceramics Studio Boo (Player1): Boo (Player1)
+Clockwork Room Boo (Player1): Boo (Player1)
+Artist's Studio Boo (Player1): Boo (Player1)
+Cold Storage Boo (Player1): Boo (Player1)
+Cellar Boo (Player1): Boo (Player1)
+Pipe Room Boo (Player1): Boo (Player1)
+Breaker Room Boo (Player1): Boo (Player1)
+Boolossus Fragment 1 (Player1): Boo (Player1)
+Boolossus Fragment 2 (Player1): Boo (Player1)
+Boolossus Fragment 3 (Player1): Boo (Player1)
+Boolossus Fragment 4 (Player1): Boo (Player1)
+Boolossus Fragment 5 (Player1): Boo (Player1)
+Boolossus Fragment 6 (Player1): Boo (Player1)
+Boolossus Fragment 7 (Player1): Boo (Player1)
+Boolossus Fragment 8 (Player1): Boo (Player1)
+Boolossus Fragment 9 (Player1): Boo (Player1)
+Boolossus Fragment 10 (Player1): Boo (Player1)
+Boolossus Fragment 11 (Player1): Boo (Player1)
+Boolossus Fragment 12 (Player1): Boo (Player1)
+Boolossus Fragment 13 (Player1): Boo (Player1)
+Boolossus Fragment 14 (Player1): Boo (Player1)
+Boolossus Fragment 15 (Player1): Boo (Player1)
+Toad (Basement) (Player2): Mario's Letter (Player1)
+Toad (Second Floor) (Player2): Wind Waker (Player3)
+Toad (Third Floor) (Player2): Fire Element Medal (Player1)
+MIPS 1 (Player2): Power Star (Player2)
+MIPS 2 (Player2): 2 Gold Bars (Player1)
+BoB: Big Bob-Omb on the Summit (Player2): Cold Storage Key (Player1)
+BoB: Footrace with Koopa The Quick (Player2): Nayru's Pearl (Player3)
+BoB: Mario Wings to the Sky (Player2): Power Star (Player2)
+BoB: Behind Chain Chomp's Gate (Player2): Empty Bottle (Player3)
+BoB: Bob-omb Buddy (Player2): Cannon Unlock BoB (Player2)
+BoB: Shoot to the Island in the Sky (Player2): Power Star (Player2)
+BoB: Find the 8 Red Coins (Player2): Empty Bottle (Player3)
+WF: Chip Off Whomp's Block (Player2): Progressive Key (Player2)
+WF: Shoot into the Wild Blue (Player2): Ghost Ship Chart (Player3)
+WF: Red Coins on the Floating Isle (Player2): Progressive Sword (Player3)
+WF: Fall onto the Caged Island (Player2): Power Star (Player2)
+WF: Blast Away the Wall (Player2): Triforce Shard 1 (Player3)
+WF: To the Top of the Fortress (Player2): Power Star (Player2)
+WF: Bob-omb Buddy (Player2): Cannon Unlock WF (Player2)
+JRB: Plunder in the Sunken Ship (Player2): Power Star (Player2)
+JRB: Can the Eel Come Out to Play? (Player2): Progressive Magic Meter (Player3)
+JRB: Treasure of the Ocean Cave (Player2): Triforce Shard 2 (Player3)
+JRB: Blast to the Stone Pillar (Player2): Progressive Sword (Player3)
+JRB: Through the Jet Stream (Player2): 25 Bills (Player1)
+JRB: Bob-omb Buddy (Player2): Cannon Unlock JRB (Player2)
+JRB: Red Coins on the Ship Afloat (Player2): Bombs (Player3)
+CCM: Slip Slidin' Away (Player2): Breaker Room Key (Player1)
+CCM: Li'l Penguin Lost (Player2): Power Star (Player2)
+CCM: Big Penguin Race (Player2): Power Star (Player2)
+CCM: Frosty Slide for 8 Red Coins (Player2): Cabana Deed (Player3)
+CCM: Snowman's Lost His Head (Player2): Nursery Key (Player1)
+CCM: Wall Kicks Will Work (Player2): Power Star (Player2)
+CCM: Bob-omb Buddy (Player2): Cannon Unlock CCM (Player2)
+CCM: 1Up Block Near Snowman (Player2): 1Up Mushroom (Player2)
+CCM: 1Up Block Ice Pillar (Player2): 1Up Mushroom (Player2)
+CCM: 1Up Block Secret Slide (Player2): 1Up Mushroom (Player2)
+BBH: Go on a Ghost Hunt (Player2): Power Star (Player2)
+BBH: Ride Big Boo's Merry-Go-Round (Player2): Power Star (Player2)
+BBH: Secret of the Haunted Books (Player2): Power Star (Player2)
+BBH: Seek the 8 Red Coins (Player2): Progressive Bow (Player3)
+BBH: Eye to Eye in the Secret Room (Player2): Tingle Tuner (Player3)
+BBH: Big Boo's Balcony (Player2): Artist's Studio Key (Player1)
+BBH: 1Up Block Top of Mansion (Player2): 1Up Mushroom (Player2)
+The Princess's Secret Slide Block (Player2): Triforce Shard 4 (Player3)
+The Princess's Secret Slide Fast (Player2): Power Star (Player2)
+The Secret Aquarium (Player2): Song of Passing (Player3)
+Tower of the Wing Cap Switch (Player2): Power Star (Player2)
+Tower of the Wing Cap Red Coins (Player2): Power Star (Player2)
+Bowser in the Dark World Red Coins (Player2): Power Star (Player2)
+Bowser in the Dark World Key (Player2): 10 Coins (Player1)
+Bowser in the Dark World 1Up Block on Tower (Player2): 1Up Mushroom (Player2)
+Bowser in the Dark World 1Up Block near Goombas (Player2): 1Up Mushroom (Player2)
+HMC: Swimming Beast in the Cavern (Player2): 1 Gold Bar (Player1)
+HMC: Metal-Head Mario Can Move! (Player2): Power Star (Player2)
+HMC: Watch for Rolling Rocks (Player2): Progressive Key (Player2)
+HMC: Navigating the Toxic Maze (Player2): Power Star (Player2)
+HMC: 1Up Block Past Rolling Rocks (Player2): 1Up Mushroom (Player2)
+HMC: Elevate for 8 Red Coins (Player2): Piece of Heart (Player3)
+HMC: A-Maze-Ing Emergency Exit (Player2): Safari Room Key (Player1)
+HMC: 1Up Block above Pit (Player2): 1Up Mushroom (Player2)
+LLL: Boil the Big Bully (Player2): Power Star (Player2)
+LLL: Bully the Bullies (Player2): Progressive Bow (Player3)
+LLL: 8-Coin Puzzle with 15 Pieces (Player2): Power Star (Player2)
+LLL: Red-Hot Log Rolling (Player2): Piece of Heart (Player3)
+LLL: Hot-Foot-It into the Volcano (Player2): Bait Bag (Player3)
+LLL: Elevator Tour in the Volcano (Player2): Power Star (Player2)
+SSL: In the Talons of the Big Bird (Player2): North Rec Room Key (Player1)
+SSL: Shining Atop the Pyramid (Player2): Power Star (Player2)
+SSL: Free Flying for 8 Red Coins (Player2): Power Star (Player2)
+SSL: Bob-omb Buddy (Player2): Cannon Unlock SSL (Player2)
+SSL: 1Up Block Outside Pyramid (Player2): 1Up Mushroom (Player2)
+SSL: 1Up Block Pyramid Left Path (Player2): 1Up Mushroom (Player2)
+SSL: 1Up Block Pyramid Back (Player2): 1Up Mushroom (Player2)
+SSL: Inside the Ancient Pyramid (Player2): Power Star (Player2)
+SSL: Stand Tall on the Four Pillars (Player2): Power Star (Player2)
+SSL: Pyramid Puzzle (Player2): Power Star (Player2)
+DDD: Board Bowser's Sub (Player2): Power Star (Player2)
+DDD: Chests in the Current (Player2): Power Star (Player2)
+DDD: Through the Jet Stream (Player2): Dust (Player1)
+DDD: The Manta Ray's Reward (Player2): Gold Diamond (Player1)
+DDD: Collect the Caps... (Player2): Conservatory Key (Player1)
+DDD: Pole-Jumping for Red Coins (Player2): Gold Diamond (Player1)
+Cavern of the Metal Cap Switch (Player2): Club Key (Player1)
+Cavern of the Metal Cap Red Coins (Player2): Power Star (Player2)
+Cavern of the Metal Cap 1Up Block (Player2): 1Up Mushroom (Player2)
+Vanish Cap Under the Moat Switch (Player2): Power Star (Player2)
+Vanish Cap Under the Moat Red Coins (Player2): Hurricane Spin (Player3)
+Vanish Cap Under the Moat 1Up Block (Player2): 1Up Mushroom (Player2)
+Bowser in the Fire Sea Red Coins (Player2): Small Heart (Player1)
+Bowser in the Fire Sea Key (Player2): Master Bedroom Key (Player1)
+Bowser in the Fire Sea 1Up Block Swaying Stairs (Player2): 1Up Mushroom (Player2)
+Bowser in the Fire Sea 1Up Block Near Poles (Player2): 1Up Mushroom (Player2)
+SL: Snowman's Big Head (Player2): Power Star (Player2)
+SL: Chill with the Bully (Player2): Dust (Player1)
+SL: In the Deep Freeze (Player2): Clockwork Key (Player1)
+SL: Whirl from the Freezing Pond (Player2): Piece of Heart (Player3)
+SL: Shell Shreddin' for Red Coins (Player2): Power Star (Player2)
+SL: Into the Igloo (Player2): Orange Rupee (Player3)
+SL: Bob-omb Buddy (Player2): Cannon Unlock SL (Player2)
+SL: 1Up Block Near Moneybags (Player2): 1Up Mushroom (Player2)
+SL: 1Up Block inside Igloo (Player2): 1Up Mushroom (Player2)
+WDW: Express Elevator--Hurry Up! (Player2): 10 Coins (Player1)
+WDW: Shocking Arrow Lifts! (Player2): Power Star (Player2)
+WDW: Top o' the Town (Player2): Power Star (Player2)
+WDW: Secrets in the Shallows & Sky (Player2): Power Star (Player2)
+WDW: Bob-omb Buddy (Player2): Cannon Unlock WDW (Player2)
+WDW: Go to Town for Red Coins (Player2): Power Star (Player2)
+WDW: Quick Race Through Downtown! (Player2): Iron Boots (Player3)
+WDW: 1Up Block in Downtown (Player2): 1Up Mushroom (Player2)
+TTM: Scary 'Shrooms, Red Coins (Player2): Power Star (Player2)
+TTM: Blast to the Lonely Mushroom (Player2): Power Star (Player2)
+TTM: Bob-omb Buddy (Player2): Cannon Unlock TTM (Player2)
+TTM: 1Up Block on Red Mushroom (Player2): 1Up Mushroom (Player2)
+TTM: Scale the Mountain (Player2): Piece of Heart (Player3)
+TTM: Mystery of the Monkey Cage (Player2): Dust (Player1)
+TTM: Mysterious Mountainside (Player2): Power Star (Player2)
+TTM: Breathtaking View from Bridge (Player2): Orange Rupee (Player3)
+THI: 1Up Block THI Small near Start (Player2): 1Up Mushroom (Player2)
+THI: The Tip Top of the Huge Island (Player2): Power Star (Player2)
+THI: Pluck the Piranha Flower (Player2): Power Star (Player2)
+THI: Rematch with Koopa the Quick (Player2): Power Star (Player2)
+THI: Five Itty Bitty Secrets (Player2): Power Star (Player2)
+THI: Wiggler's Red Coins (Player2): Silver Rupee (Player3)
+THI: Bob-omb Buddy (Player2): Cannon Unlock THI (Player2)
+THI: 1Up Block THI Large near Start (Player2): 1Up Mushroom (Player2)
+THI: 1Up Block Windy Area (Player2): 1Up Mushroom (Player2)
+THI: Make Wiggler Squirm (Player2): Power Star (Player2)
+TTC: Stop Time for Red Coins (Player2): 20 Coins & Bills (Player1)
+TTC: Roll into the Cage (Player2): Silver Rupee (Player3)
+TTC: Get a Hand (Player2): Power Star (Player2)
+TTC: Timed Jumps on Moving Bars (Player2): Power Star (Player2)
+TTC: The Pit and the Pendulums (Player2): Silver Rupee (Player3)
+TTC: 1Up Block Midway Up (Player2): 1Up Mushroom (Player2)
+TTC: Stomp on the Thwomp (Player2): Silver Rupee (Player3)
+TTC: 1Up Block at the Top (Player2): 1Up Mushroom (Player2)
+RR: Swingin' in the Breeze (Player2): Silver Rupee (Player3)
+RR: Tricky Triangles! (Player2): Power Star (Player2)
+RR: 1Up Block Top of Red Coin Maze (Player2): 1Up Mushroom (Player2)
+RR: 1Up Block Under Fly Guy (Player2): 1Up Mushroom (Player2)
+RR: Bob-omb Buddy (Player2): Cannon Unlock RR (Player2)
+RR: Coins Amassed in a Maze (Player2): Diamond (Player1)
+RR: Cruiser Crossing the Rainbow (Player2): Empty Bottle (Player3)
+RR: Somewhere Over the Rainbow (Player2): Progressive Shield (Player3)
+RR: The Big House in the Sky (Player2): Piece of Heart (Player3)
+RR: 1Up Block On House in the Sky (Player2): 1Up Mushroom (Player2)
+Wing Mario Over the Rainbow Red Coins (Player2): Power Star (Player2)
+Wing Mario Over the Rainbow 1Up Block (Player2): 1Up Mushroom (Player2)
+Bowser in the Sky 1Up Block (Player2): 1Up Mushroom (Player2)
+Bowser in the Sky Red Coins (Player2): Vacuum Upgrade (Player1)
+Angular Isles - Cave (Player3): Power Star (Player2)
+Bird's Peak Rock - Cave (Player3): Ballad of Gales (Player3)
+Bomb Island - Cave (Player3): Power Star (Player2)
+Cliff Plateau Isles - Cave (Player3): Water Element Medal (Player1)
+Cliff Plateau Isles - Highest Isle (Player3): Wallet Capacity Upgrade (Player3)
+Defeat Ganondorf (Player3): Victory (Player3)
+Diamond Steppe Island - Warp Maze Cave - First Chest (Player3): Power Star (Player2)
+Diamond Steppe Island - Warp Maze Cave - Second Chest (Player3): Wing Cap (Player2)
+Dragon Roost Cavern - Alcove With Water Jugs (Player3): DRC Small Key (Player3)
+Dragon Roost Cavern - Big Key Chest (Player3): 20 Coins (Player1)
+Dragon Roost Cavern - Bird's Nest (Player3): 20 Coins (Player1)
+Dragon Roost Cavern - Boarded Up Chest (Player3): DRC Big Key (Player3)
+Dragon Roost Cavern - Boss Stairs Left Chest (Player3): Wind's Requiem (Player3)
+Dragon Roost Cavern - Boss Stairs Right Chest (Player3): Power Star (Player2)
+Dragon Roost Cavern - Chest Across Lava Pit (Player3): DRC Small Key (Player3)
+Dragon Roost Cavern - Dark Room (Player3): DRC Compass (Player3)
+Dragon Roost Cavern - First Room (Player3): DRC Small Key (Player3)
+Dragon Roost Cavern - Gohma Heart Container (Player3): Twins Bedroom Key (Player1)
+Dragon Roost Cavern - Miniboss (Player3): Power Star (Player2)
+Dragon Roost Cavern - Pot Room Chest (Player3): Power Star (Player2)
+Dragon Roost Cavern - Rat Room (Player3): DRC Small Key (Player3)
+Dragon Roost Cavern - Rat Room Boarded Up Chest (Player3): Power Star (Player2)
+Dragon Roost Cavern - Under Rope Bridge (Player3): DRC Dungeon Map (Player3)
+Earth Temple - Big Key Chest (Player3): ET Dungeon Map (Player3)
+Earth Temple - Casket in Second Crypt (Player3): Power Star (Player2)
+Earth Temple - Chest Behind Destructible Walls (Player3): ET Small Key (Player3)
+Earth Temple - Chest Behind Statues (Player3): ET Small Key (Player3)
+Earth Temple - Chest In Three Blocks Room (Player3): ET Big Key (Player3)
+Earth Temple - Chest in Third Crypt (Player3): Note to Mom (Player3)
+Earth Temple - End of Foggy Room With Floormasters (Player3): 10 Coins (Player1)
+Earth Temple - Jalhalla Heart Container (Player3): 10 Coins (Player1)
+Earth Temple - Kill All Floormasters in Foggy Room (Player3): Dust (Player1)
+Earth Temple - Many Mirrors Room Left Chest (Player3): Family Hallway Key (Player1)
+Earth Temple - Many Mirrors Room Right Chest (Player3): Power Star (Player2)
+Earth Temple - Stalfos Crypt Room (Player3): ET Compass (Player3)
+Earth Temple - Stalfos Miniboss Room (Player3): 20 Coins (Player1)
+Earth Temple - Transparent Chest In Warp Pot Room (Player3): Spade Key (Player1)
+Earth Temple - Transparent Chest in First Crypt (Player3): ET Small Key (Player3)
+Eastern Fairy Island - Great Fairy (Player3): Boo Radar (Player1)
+Forbidden Woods - Big Key Chest (Player3): Command Melody (Player3)
+Forbidden Woods - Chest Across Red Hanging Flower (Player3): Power Star (Player2)
+Forbidden Woods - Chest in Locked Tree Trunk (Player3): Power Star (Player2)
+Forbidden Woods - Climb to Top Using Boko Baba Bulbs (Player3): FW Small Key (Player3)
+Forbidden Woods - Double Mothula Room (Player3): FW Dungeon Map (Player3)
+Forbidden Woods - First Room (Player3): FW Compass (Player3)
+Forbidden Woods - Hole in Tree (Player3): Power Bracelets (Player3)
+Forbidden Woods - Inside Hollow Tree's Mouth (Player3): Power Star (Player2)
+Forbidden Woods - Kalle Demos Heart Container (Player3): Wind God's Aria (Player3)
+Forbidden Woods - Morth Pit (Player3): 10 Coins (Player1)
+Forbidden Woods - Mothula Miniboss Room (Player3): Orange Rupee (Player3)
+Forbidden Woods - Past Seeds Hanging by Vines (Player3): FW Big Key (Player3)
+Forbidden Woods - Tall Room Before Miniboss (Player3): Progressive Magic Meter (Player3)
+Forbidden Woods - Vine Maze Left Chest (Player3): Progressive Bow (Player3)
+Forbidden Woods - Vine Maze Right Chest (Player3): Hookshot (Player3)
+Forsaken Fortress - Chest Guarded By Bokoblin (Player3): Sitting Room Key (Player1)
+Forsaken Fortress - Chest Inside Lower Jail Cell (Player3): Dust (Player1)
+Forsaken Fortress - Chest Outside Upper Jail Cell (Player3): FF Compass (Player3)
+Forsaken Fortress - Chest on Bed (Player3): Power Star (Player2)
+Forsaken Fortress - Helmaroc King Heart Container (Player3): Power Star (Player2)
+Forsaken Fortress - Phantom Ganon (Player3): FF Dungeon Map (Player3)
+Ganon's Tower - Maze Chest (Player3): Power Star (Player2)
+Hyrule - Master Sword Chamber (Player3): Progressive Shield (Player3)
+Ice Ring Isle - Cave - Chest (Player3): Metal Cap (Player2)
+Needle Rock Isle - Cave (Player3): Skull Hammer (Player3)
+Northern Fairy Island - Great Fairy (Player3): Power Star (Player2)
+Outset Island - Great Fairy (Player3): Gold Diamond (Player1)
+Pawprint Isle - Chuchu Cave - Behind Left Boulder (Player3): Power Star (Player2)
+Pawprint Isle - Chuchu Cave - Behind Right Boulder (Player3): Silver Rupee (Player3)
+Pawprint Isle - Chuchu Cave - Chest (Player3): Heart Key (Player1)
+Pawprint Isle - Chuchu Cave - Scale the Wall (Player3): Power Star (Player2)
+Private Oasis - Cabana Labyrinth - Lower Floor Chest (Player3): Gold Diamond (Player1)
+Private Oasis - Cabana Labyrinth - Upper Floor Chest (Player3): Mario's Hat (Player1)
+Rock Spire Isle - Beedle's Special Shop Ship - 500 Rupee Item (Player3): Grappling Hook (Player3)
+Rock Spire Isle - Beedle's Special Shop Ship - 900 Rupee Item (Player3): Armory Key (Player1)
+Rock Spire Isle - Beedle's Special Shop Ship - 950 Rupee Item (Player3): Boomerang (Player3)
+Southern Fairy Island - Great Fairy (Player3): Power Star (Player2)
+The Great Sea - Salvage Corp Gift (Player3): Power Star (Player2)
+Thorned Fairy Island - Great Fairy (Player3): Power Star (Player2)
+Tower of the Gods - Big Key Chest (Player3): TotG Big Key (Player3)
+Tower of the Gods - Chest Behind Bombable Walls (Player3): Fill-Up Coupon (Player3)
+Tower of the Gods - Darknut Miniboss Room (Player3): TotG Compass (Player3)
+Tower of the Gods - First Chest Guarded by Armos Knights (Player3): TotG Small Key (Player3)
+Tower of the Gods - Floating Platforms Room (Player3): Progressive Sword (Player3)
+Tower of the Gods - Gohdan Heart Container (Player3): Dust (Player1)
+Tower of the Gods - Hop Across Floating Boxes (Player3): Power Star (Player2)
+Tower of the Gods - Light Two Torches (Player3): Power Star (Player2)
+Tower of the Gods - Second Chest Guarded by Armos Knights (Player3): TotG Dungeon Map (Player3)
+Tower of the Gods - Shoot Eye Above Skulls Room Chest (Player3): Cellar Key (Player1)
+Tower of the Gods - Skulls Room Chest (Player3): TotG Small Key (Player3)
+Tower of the Gods - Stone Tablet (Player3): Orange Rupee (Player3)
+Tower of the Gods - Top of Floating Platforms Room (Player3): 15 Bills (Player1)
+Western Fairy Island - Great Fairy (Player3): Orange Rupee (Player3)
+Wind Temple - Big Key Chest (Player3): WT Compass (Player3)
+Wind Temple - Chest Behind Seven Armos (Player3): Progressive Flower (Player1)
+Wind Temple - Chest Behind Stone Head (Player3): Power Star (Player2)
+Wind Temple - Chest Between Two Dirt Patches (Player3): Power Star (Player2)
+Wind Temple - Chest In Many Cyclones Room (Player3): Dust (Player1)
+Wind Temple - Chest In Middle Of Hub Room (Player3): WT Small Key (Player3)
+Wind Temple - Chest at Top of Hub Room (Player3): WT Small Key (Player3)
+Wind Temple - Chest in Left Alcove (Player3): Mario's Shoe (Player1)
+Wind Temple - Kill All Enemies in Tall Basement Room (Player3): WT Dungeon Map (Player3)
+Wind Temple - Molgera Heart Container (Player3): 10 Coins (Player1)
+Wind Temple - Spike Wall Room - Destroy All Cracked Floors (Player3): Storage Room Key (Player1)
+Wind Temple - Spike Wall Room - First Chest (Player3): Dust (Player1)
+Wind Temple - Wizzrobe Miniboss Room (Player3): WT Big Key (Player3)
+Windfall Island - Jail - Tingle - First Gift (Player3): Triforce Shard 7 (Player3)
+Windfall Island - Jail - Tingle - Second Gift (Player3): Wallet Capacity Upgrade (Player3)
+Windfall Island - Maggie - Free Item (Player3): Power Star (Player2)
+Windfall Island - Tott - Teach Rhythm (Player3): Lower 2F Stairwell Key (Player1)
+
+Playthrough:
+
+0: {
+  Poltergust 3000 (Player1)
+  Progressive Sword (Player3)
+}
+1: {
+  Catch 9 Ghosts in Training (Player1): Parlor Key (Player1)
+  Complete Training (Player1): Earth God's Lyric (Player3)
+  E. Gadd's Gift (Player1): Power Star (Player2)
+  Ghost Foyer Key (Player1): Vanish Cap (Player2)
+  Luigi's Courage (Player1): Laundry Room Key (Player1)
+  Visit E. Gadd's Gallery (Player1): Power Star (Player2)
+  BoB: Bob-omb Buddy (Player2): Cannon Unlock BoB (Player2)
+  BoB: Footrace with Koopa The Quick (Player2): Nayru's Pearl (Player3)
+  Cliff Plateau Isles - Cave (Player3): Water Element Medal (Player1)
+  Dragon Roost Cavern - First Room (Player3): DRC Small Key (Player3)
+  Northern Fairy Island - Great Fairy (Player3): Power Star (Player2)
+  Pawprint Isle - Chuchu Cave - Chest (Player3): Heart Key (Player1)
+  The Great Sea - Salvage Corp Gift (Player3): Power Star (Player2)
+  Windfall Island - Jail - Tingle - First Gift (Player3): Triforce Shard 7 (Player3)
+  Windfall Island - Jail - Tingle - Second Gift (Player3): Wallet Capacity Upgrade (Player3)
+  Windfall Island - Maggie - Free Item (Player3): Power Star (Player2)
+}
+2: {
+  1F Bathroom Shelf Key (Player1): Power Star (Player2)
+  Hidden Room Large Chest L (Player1): Power Star (Player2)
+  Hidden Room Large Chest R (Player1): Farore's Pearl (Player3)
+  Hidden Room Small Chest L Floor (Player1): Power Star (Player2)
+  Hidden Room Small Chest L Shelf (Player1): Ballroom Key (Player1)
+  Hidden Room Small Chest R Floor (Player1): Diamond Key (Player1)
+  Laundry Room Clear Chest (Player1): Power Star (Player2)
+  Laundry Room Washing Machine (Player1): Power Star (Player2)
+  Shivers Spawn (Player1): Shivers Spawn (Player1)
+  BoB: Shoot to the Island in the Sky (Player2): Power Star (Player2)
+  CCM: Big Penguin Race (Player2): Power Star (Player2)
+  CCM: Bob-omb Buddy (Player2): Cannon Unlock CCM (Player2)
+  CCM: Li'l Penguin Lost (Player2): Power Star (Player2)
+  CCM: Slip Slidin' Away (Player2): Breaker Room Key (Player1)
+  CCM: Snowman's Lost His Head (Player2): Nursery Key (Player1)
+  JRB: Bob-omb Buddy (Player2): Cannon Unlock JRB (Player2)
+  JRB: Can the Eel Come Out to Play? (Player2): Progressive Magic Meter (Player3)
+  JRB: Plunder in the Sunken Ship (Player2): Power Star (Player2)
+  JRB: Red Coins on the Ship Afloat (Player2): Bombs (Player3)
+  JRB: Treasure of the Ocean Cave (Player2): Triforce Shard 2 (Player3)
+  The Princess's Secret Slide Block (Player2): Triforce Shard 4 (Player3)
+  The Princess's Secret Slide Fast (Player2): Power Star (Player2)
+  WF: Bob-omb Buddy (Player2): Cannon Unlock WF (Player2)
+  WF: Chip Off Whomp's Block (Player2): Progressive Key (Player2)
+  WF: Fall onto the Caged Island (Player2): Power Star (Player2)
+  WF: Red Coins on the Floating Isle (Player2): Progressive Sword (Player3)
+  WF: To the Top of the Fortress (Player2): Power Star (Player2)
+  Dragon Roost Cavern - Alcove With Water Jugs (Player3): DRC Small Key (Player3)
+  Rock Spire Isle - Beedle's Special Shop Ship - 500 Rupee Item (Player3): Grappling Hook (Player3)
+  Rock Spire Isle - Beedle's Special Shop Ship - 900 Rupee Item (Player3): Armory Key (Player1)
+  Rock Spire Isle - Beedle's Special Shop Ship - 950 Rupee Item (Player3): Boomerang (Player3)
+}
+3: {
+  Ballroom Clear Chest (Player1): Power Star (Player2)
+  Breaker Box (Player1): Blackout (Player1)
+  BBH: Big Boo's Balcony (Player2): Artist's Studio Key (Player1)
+  BBH: Go on a Ghost Hunt (Player2): Power Star (Player2)
+  BBH: Ride Big Boo's Merry-Go-Round (Player2): Power Star (Player2)
+  BBH: Secret of the Haunted Books (Player2): Power Star (Player2)
+  BBH: Seek the 8 Red Coins (Player2): Progressive Bow (Player3)
+  Bowser in the Dark World Red Coins (Player2): Power Star (Player2)
+  CCM: Wall Kicks Will Work (Player2): Power Star (Player2)
+  Cavern of the Metal Cap Switch (Player2): Club Key (Player1)
+  HMC: A-Maze-Ing Emergency Exit (Player2): Safari Room Key (Player1)
+  HMC: Navigating the Toxic Maze (Player2): Power Star (Player2)
+  HMC: Watch for Rolling Rocks (Player2): Progressive Key (Player2)
+  JRB: Blast to the Stone Pillar (Player2): Progressive Sword (Player3)
+  LLL: 8-Coin Puzzle with 15 Pieces (Player2): Power Star (Player2)
+  LLL: Boil the Big Bully (Player2): Power Star (Player2)
+  LLL: Bully the Bullies (Player2): Progressive Bow (Player3)
+  LLL: Elevator Tour in the Volcano (Player2): Power Star (Player2)
+  MIPS 1 (Player2): Power Star (Player2)
+  SSL: In the Talons of the Big Bird (Player2): North Rec Room Key (Player1)
+  SSL: Inside the Ancient Pyramid (Player2): Power Star (Player2)
+  SSL: Pyramid Puzzle (Player2): Power Star (Player2)
+  SSL: Shining Atop the Pyramid (Player2): Power Star (Player2)
+  Tower of the Wing Cap Red Coins (Player2): Power Star (Player2)
+  Tower of the Wing Cap Switch (Player2): Power Star (Player2)
+  Vanish Cap Under the Moat Switch (Player2): Power Star (Player2)
+  WF: Blast Away the Wall (Player2): Triforce Shard 1 (Player3)
+  Bomb Island - Cave (Player3): Power Star (Player2)
+  Dragon Roost Cavern - Chest Across Lava Pit (Player3): DRC Small Key (Player3)
+  Dragon Roost Cavern - Rat Room (Player3): DRC Small Key (Player3)
+  Dragon Roost Cavern - Rat Room Boarded Up Chest (Player3): Power Star (Player2)
+  Eastern Fairy Island - Great Fairy (Player3): Boo Radar (Player1)
+  Pawprint Isle - Chuchu Cave - Behind Left Boulder (Player3): Power Star (Player2)
+  Pawprint Isle - Chuchu Cave - Scale the Wall (Player3): Power Star (Player2)
+  Southern Fairy Island - Great Fairy (Player3): Power Star (Player2)
+}
+4: {
+  Artist's Studio Boo (Player1): Boo (Player1)
+  Ballroom Boo (Player1): Boo (Player1)
+  Breaker Room Boo (Player1): Boo (Player1)
+  Breaker Room Clear Chest (Player1): Fortune Teller Key (Player1)
+  Courtyard Birdhouse (Player1): Billiards Room Key (Player1)
+  Courtyard Clear Chest (Player1): Power Star (Player2)
+  Laundry Room Boo (Player1): Boo (Player1)
+  Nana's Room Boo (Player1): Boo (Player1)
+  Nana's Room Clear Chest (Player1): Deku Leaf (Player3)
+  Parlor Boo (Player1): Boo (Player1)
+  Rec Room Boo (Player1): Boo (Player1)
+  Rec Room Clear Chest (Player1): Ice Element Medal (Player1)
+  Rec Room Treadmill Key (Player1): Power Star (Player2)
+  Tea Room Boo (Player1): Boo (Player1)
+  Van Gore's Painting (Artist's Studio) (Player1): Anteroom Key (Player1)
+  DDD: Board Bowser's Sub (Player2): Power Star (Player2)
+  DDD: Chests in the Current (Player2): Power Star (Player2)
+  SL: In the Deep Freeze (Player2): Clockwork Key (Player1)
+  SL: Shell Shreddin' for Red Coins (Player2): Power Star (Player2)
+  SL: Snowman's Big Head (Player2): Power Star (Player2)
+  THI: Five Itty Bitty Secrets (Player2): Power Star (Player2)
+  THI: Make Wiggler Squirm (Player2): Power Star (Player2)
+  THI: Pluck the Piranha Flower (Player2): Power Star (Player2)
+  THI: Rematch with Koopa the Quick (Player2): Power Star (Player2)
+  THI: The Tip Top of the Huge Island (Player2): Power Star (Player2)
+  TTM: Mysterious Mountainside (Player2): Power Star (Player2)
+  TTM: Scary 'Shrooms, Red Coins (Player2): Power Star (Player2)
+  Toad (Second Floor) (Player2): Wind Waker (Player3)
+  WDW: Go to Town for Red Coins (Player2): Power Star (Player2)
+  WDW: Quick Race Through Downtown! (Player2): Iron Boots (Player3)
+  WDW: Secrets in the Shallows & Sky (Player2): Power Star (Player2)
+  WDW: Shocking Arrow Lifts! (Player2): Power Star (Player2)
+  WDW: Top o' the Town (Player2): Power Star (Player2)
+  Dragon Roost Cavern - Boss Stairs Left Chest (Player3): Wind's Requiem (Player3)
+  Dragon Roost Cavern - Boss Stairs Right Chest (Player3): Power Star (Player2)
+  Dragon Roost Cavern - Miniboss (Player3): Power Star (Player2)
+  Dragon Roost Cavern - Pot Room Chest (Player3): Power Star (Player2)
+  Ice Ring Isle - Cave - Chest (Player3): Metal Cap (Player2)
+  Needle Rock Isle - Cave (Player3): Skull Hammer (Player3)
+}
+5: {
+  Anteroom Boo (Player1): Boo (Player1)
+  Billiards Room Boo (Player1): Boo (Player1)
+  Mirror Room Boo (Player1): Boo (Player1)
+  Projection Room Boo (Player1): Boo (Player1)
+  Safari Room Boo (Player1): Boo (Player1)
+  Wardrobe Boo (Player1): Boo (Player1)
+  DDD: Collect the Caps... (Player2): Conservatory Key (Player1)
+  RR: Bob-omb Buddy (Player2): Cannon Unlock RR (Player2)
+  RR: Tricky Triangles! (Player2): Power Star (Player2)
+  Toad (Third Floor) (Player2): Fire Element Medal (Player1)
+  Forbidden Woods - Big Key Chest (Player3): Command Melody (Player3)
+  Forbidden Woods - Hole in Tree (Player3): Power Bracelets (Player3)
+  Forbidden Woods - Vine Maze Left Chest (Player3): Progressive Bow (Player3)
+  Forbidden Woods - Vine Maze Right Chest (Player3): Hookshot (Player3)
+  Forsaken Fortress - Chest Guarded By Bokoblin (Player3): Sitting Room Key (Player1)
+  Forsaken Fortress - Helmaroc King Heart Container (Player3): Power Star (Player2)
+}
+6: {
+  Astral Hall Boo (Player1): Boo (Player1)
+  Butler's Room Boo (Player1): Boo (Player1)
+  Conservatory Boo (Player1): Boo (Player1)
+  Guest Room Boo (Player1): Boo (Player1)
+  Hidden Room Boo (Player1): Boo (Player1)
+  Sitting Room Boo (Player1): Boo (Player1)
+  RR: Somewhere Over the Rainbow (Player2): Progressive Shield (Player3)
+  Earth Temple - Transparent Chest In Warp Pot Room (Player3): Spade Key (Player1)
+  Earth Temple - Transparent Chest in First Crypt (Player3): ET Small Key (Player3)
+  Wind Temple - Spike Wall Room - Destroy All Cracked Floors (Player3): Storage Room Key (Player1)
+}
+7: {
+  Armory Boo (Player1): Boo (Player1)
+  Balcony Clear Chest (Player1): Triforce Shard 6 (Player3)
+  Boolossus Fragment 1 (Player1): Boo (Player1)
+  Boolossus Fragment 10 (Player1): Boo (Player1)
+  Boolossus Fragment 11 (Player1): Boo (Player1)
+  Boolossus Fragment 12 (Player1): Boo (Player1)
+  Boolossus Fragment 13 (Player1): Boo (Player1)
+  Boolossus Fragment 14 (Player1): Boo (Player1)
+  Boolossus Fragment 15 (Player1): Boo (Player1)
+  Boolossus Fragment 2 (Player1): Boo (Player1)
+  Boolossus Fragment 3 (Player1): Boo (Player1)
+  Boolossus Fragment 4 (Player1): Boo (Player1)
+  Boolossus Fragment 5 (Player1): Boo (Player1)
+  Boolossus Fragment 6 (Player1): Boo (Player1)
+  Boolossus Fragment 7 (Player1): Boo (Player1)
+  Boolossus Fragment 8 (Player1): Boo (Player1)
+  Boolossus Fragment 9 (Player1): Boo (Player1)
+  Ceramics Studio Boo (Player1): Boo (Player1)
+  Clockwork Clear (Player1): Defeat Clockwork (Player1)
+  Clockwork Room Boo (Player1): Boo (Player1)
+  Storage Room Boo (Player1): Boo (Player1)
+  Telephone Room Boo (Player1): Boo (Player1)
+}
+8: {
+  Roof Clear Chest (Player1): Dining Room Key (Player1)
+  Sealed Room Table Chest (Player1): Triforce Shard 8 (Player3)
+  Sealed Room Upper C Big Chest (Player1): Triforce Shard 5 (Player3)
+}
+9: {
+  Graveyard Clear Chest (Player1): Triforce Shard 3 (Player3)
+}
+10: {
+  Hyrule - Master Sword Chamber (Player3): Progressive Shield (Player3)
+}
+11: {
+  Earth Temple - Chest Behind Destructible Walls (Player3): ET Small Key (Player3)
+}
+12: {
+  Earth Temple - Chest Behind Statues (Player3): ET Small Key (Player3)
+}
+13: {
+  Earth Temple - Many Mirrors Room Left Chest (Player3): Family Hallway Key (Player1)
+}
+14: {
+  Nursery Clear Chest (Player1): Din's Pearl (Player3)
+}
+15: {
+  Tower of the Gods - Shoot Eye Above Skulls Room Chest (Player3): Cellar Key (Player1)
+  Tower of the Gods - Skulls Room Chest (Player3): TotG Small Key (Player3)
+}
+16: {
+  King Boo (Player1): Mario's Painting (Player1)
+  Tower of the Gods - Floating Platforms Room (Player3): Progressive Sword (Player3)
+}
+17: {
+  Defeat Ganondorf (Player3): Victory (Player3)
+}
+
+Paths:
+
+1F Bathroom Shelf Key (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> 1F Bathroom
+   =>   1F Bathroom
+Anteroom Boo (Player1)
+        Foyer -> Foyer -> Parlor
+   =>   Parlor -> Parlor -> Anteroom
+   =>   Anteroom
+Armory Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Armory
+   =>   Armory
+Artist's Studio Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Artist's Studio
+   =>   Artist's Studio
+Astral Hall Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Astral Hall
+   =>   Astral Hall
+Balcony Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Ballroom Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Ballroom
+   =>   Ballroom
+Ballroom Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Ballroom
+   =>   Ballroom
+Billiards Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Billiards Room
+   =>   Billiards Room
+Bomb Island - Cave (Player3)
+        The Great Sea -> Secret Cave Entrance on Bomb Island -> Bomb Island Secret Cave
+   =>   Bomb Island Secret Cave
+Boolossus Fragment 1 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 10 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 11 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 12 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 13 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 14 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 15 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 2 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 3 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 4 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 5 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 6 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 7 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 8 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Boolossus Fragment 9 (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony
+Breaker Box (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Basement Stairwell
+   =>   Basement Stairwell -> Basement Stairwell -> Breaker Room
+   =>   Breaker Room
+Breaker Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Basement Stairwell
+   =>   Basement Stairwell -> Basement Stairwell -> Breaker Room
+   =>   Breaker Room
+Breaker Room Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Basement Stairwell
+   =>   Basement Stairwell -> Basement Stairwell -> Breaker Room
+   =>   Breaker Room
+Butler's Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room
+Catch 9 Ghosts in Training (Player1)
+        Foyer -> Foyer -> Training Room
+   =>   Training Room
+Ceramics Studio Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Armory
+   =>   Armory -> Armory -> Ceramics Studio
+   =>   Ceramics Studio
+Cliff Plateau Isles - Cave (Player3)
+        The Great Sea -> Secret Cave Entrance on Cliff Plateau Isles -> Cliff Plateau Isles Secret Cave
+   =>   Cliff Plateau Isles Secret Cave
+Clockwork Clear (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Telephone Room
+   =>   Telephone Room -> Telephone Room -> Clockwork Room
+   =>   Clockwork Room
+Clockwork Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Telephone Room
+   =>   Telephone Room -> Telephone Room -> Clockwork Room
+   =>   Clockwork Room
+Complete Training (Player1)
+        Foyer -> Foyer -> Training Room
+   =>   Training Room
+Conservatory Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Conservatory
+   =>   Conservatory
+Courtyard Birdhouse (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard
+Courtyard Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard
+Defeat Ganondorf (Player3)
+        The Great Sea (Player3)
+Dragon Roost Cavern - Alcove With Water Jugs (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Boss Stairs Left Chest (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Boss Stairs Right Chest (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Chest Across Lava Pit (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - First Room (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Miniboss (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Pot Room Chest (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Rat Room (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+Dragon Roost Cavern - Rat Room Boarded Up Chest (Player3)
+        The Great Sea -> Dungeon Entrance on Dragon Roost Island -> Dragon Roost Cavern
+   =>   Dragon Roost Cavern
+E. Gadd's Gift (Player1)
+        Foyer (Player1)
+Earth Temple - Chest Behind Destructible Walls (Player3)
+        The Great Sea -> Dungeon Entrance on Headstone Island -> Earth Temple
+   =>   Earth Temple
+Earth Temple - Chest Behind Statues (Player3)
+        The Great Sea -> Dungeon Entrance on Headstone Island -> Earth Temple
+   =>   Earth Temple
+Earth Temple - Many Mirrors Room Left Chest (Player3)
+        The Great Sea -> Dungeon Entrance on Headstone Island -> Earth Temple
+   =>   Earth Temple
+Earth Temple - Transparent Chest In Warp Pot Room (Player3)
+        The Great Sea -> Dungeon Entrance on Headstone Island -> Earth Temple
+   =>   Earth Temple
+Earth Temple - Transparent Chest in First Crypt (Player3)
+        The Great Sea -> Dungeon Entrance on Headstone Island -> Earth Temple
+   =>   Earth Temple
+Eastern Fairy Island - Great Fairy (Player3)
+        The Great Sea -> Fairy Fountain Entrance on Eastern Fairy Island -> Eastern Fairy Fountain
+   =>   Eastern Fairy Fountain
+Forbidden Woods - Big Key Chest (Player3)
+        The Great Sea -> Dungeon Entrance in Forest Haven Sector -> Forbidden Woods
+   =>   Forbidden Woods
+Forbidden Woods - Hole in Tree (Player3)
+        The Great Sea -> Dungeon Entrance in Forest Haven Sector -> Forbidden Woods
+   =>   Forbidden Woods
+Forbidden Woods - Vine Maze Left Chest (Player3)
+        The Great Sea -> Dungeon Entrance in Forest Haven Sector -> Forbidden Woods
+   =>   Forbidden Woods
+Forbidden Woods - Vine Maze Right Chest (Player3)
+        The Great Sea -> Dungeon Entrance in Forest Haven Sector -> Forbidden Woods
+   =>   Forbidden Woods
+Forsaken Fortress - Chest Guarded By Bokoblin (Player3)
+        The Great Sea (Player3)
+Forsaken Fortress - Helmaroc King Heart Container (Player3)
+        The Great Sea -> Boss Entrance in Forsaken Fortress -> Helmaroc King Boss Arena
+   =>   Helmaroc King Boss Arena
+Ghost Foyer Key (Player1)
+        Foyer (Player1)
+Graveyard Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Dining Room
+   =>   Dining Room -> Dining Room -> Kitchen
+   =>   Kitchen -> Kitchen -> Boneyard
+   =>   Boneyard -> Boneyard -> Graveyard
+   =>   Graveyard
+Guest Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Sitting Room
+   =>   Sitting Room -> Sitting Room -> Guest Room
+   =>   Guest Room
+Hidden Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room -> Butler's Room -> Hidden Room
+   =>   Hidden Room
+Hidden Room Large Chest L (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room -> Butler's Room -> Hidden Room
+   =>   Hidden Room
+Hidden Room Large Chest R (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room -> Butler's Room -> Hidden Room
+   =>   Hidden Room
+Hidden Room Small Chest L Floor (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room -> Butler's Room -> Hidden Room
+   =>   Hidden Room
+Hidden Room Small Chest L Shelf (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room -> Butler's Room -> Hidden Room
+   =>   Hidden Room
+Hidden Room Small Chest R Floor (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room -> Laundry Room -> Butler's Room
+   =>   Butler's Room -> Butler's Room -> Hidden Room
+   =>   Hidden Room
+Hyrule - Master Sword Chamber (Player3)
+        The Great Sea -> Miniboss Entrance in Hyrule Castle -> Master Sword Chamber
+   =>   Master Sword Chamber
+Ice Ring Isle - Cave - Chest (Player3)
+        The Great Sea -> Secret Cave Entrance on Ice Ring Isle -> Ice Ring Isle Secret Cave
+   =>   Ice Ring Isle Secret Cave
+King Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Basement Stairwell
+   =>   Basement Stairwell -> Basement Stairwell -> Cellar
+   =>   Cellar -> Cellar -> Basement Hallway
+   =>   Basement Hallway -> Basement Hallway -> Altar Hallway
+   =>   Altar Hallway -> Altar Hallway -> Secret Altar
+   =>   Secret Altar
+Laundry Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room
+Laundry Room Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room
+Laundry Room Washing Machine (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Laundry Room
+   =>   Laundry Room
+Luigi's Courage (Player1)
+        Foyer (Player1)
+Mirror Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Fortune-Teller's Room
+   =>   Fortune-Teller's Room -> Fortune-Teller's Room -> Mirror Room
+   =>   Mirror Room
+Nana's Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Nana's Room
+   =>   Nana's Room
+Nana's Room Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Nana's Room
+   =>   Nana's Room
+Needle Rock Isle - Cave (Player3)
+        The Great Sea -> Secret Cave Entrance on Needle Rock Isle -> Needle Rock Isle Secret Cave
+   =>   Needle Rock Isle Secret Cave
+Northern Fairy Island - Great Fairy (Player3)
+        The Great Sea -> Fairy Fountain Entrance on Northern Fairy Island -> Northern Fairy Fountain
+   =>   Northern Fairy Fountain
+Nursery Clear Chest (Player1)
+        Foyer -> Foyer -> Family Hallway
+   =>   Family Hallway -> Family Hallway -> Nursery
+   =>   Nursery
+Parlor Boo (Player1)
+        Foyer -> Foyer -> Parlor
+   =>   Parlor
+Pawprint Isle - Chuchu Cave - Behind Left Boulder (Player3)
+        The Great Sea -> Secret Cave Entrance on Pawprint Isle -> Pawprint Isle Chuchu Cave
+   =>   Pawprint Isle Chuchu Cave
+Pawprint Isle - Chuchu Cave - Chest (Player3)
+        The Great Sea -> Secret Cave Entrance on Pawprint Isle -> Pawprint Isle Chuchu Cave
+   =>   Pawprint Isle Chuchu Cave
+Pawprint Isle - Chuchu Cave - Scale the Wall (Player3)
+        The Great Sea -> Secret Cave Entrance on Pawprint Isle -> Pawprint Isle Chuchu Cave
+   =>   Pawprint Isle Chuchu Cave
+Projection Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Billiards Room
+   =>   Billiards Room -> Billiards Room -> Projection Room
+   =>   Projection Room
+Rec Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room
+Rec Room Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room
+Rec Room Treadmill Key (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room
+Rock Spire Isle - Beedle's Special Shop Ship - 500 Rupee Item (Player3)
+        The Great Sea (Player3)
+Rock Spire Isle - Beedle's Special Shop Ship - 900 Rupee Item (Player3)
+        The Great Sea (Player3)
+Rock Spire Isle - Beedle's Special Shop Ship - 950 Rupee Item (Player3)
+        The Great Sea (Player3)
+Roof Clear Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Telephone Room
+   =>   Telephone Room -> Telephone Room -> Clockwork Room
+   =>   Clockwork Room -> Clockwork Room -> Roof
+   =>   Roof
+Safari Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room
+Sealed Room Table Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Telephone Room
+   =>   Telephone Room -> Telephone Room -> Clockwork Room
+   =>   Clockwork Room -> Clockwork Room -> Roof
+   =>   Roof -> Roof -> Sealed Room
+   =>   Sealed Room
+Sealed Room Upper C Big Chest (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Telephone Room
+   =>   Telephone Room -> Telephone Room -> Clockwork Room
+   =>   Clockwork Room -> Clockwork Room -> Roof
+   =>   Roof -> Roof -> Sealed Room
+   =>   Sealed Room
+Shivers Spawn (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway
+Sitting Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Sitting Room
+   =>   Sitting Room
+Southern Fairy Island - Great Fairy (Player3)
+        The Great Sea -> Fairy Fountain Entrance on Southern Fairy Island -> Southern Fairy Fountain
+   =>   Southern Fairy Fountain
+Storage Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Ballroom
+   =>   Ballroom -> Ballroom -> Storage Room
+   =>   Storage Room
+Tea Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> Tea Room
+   =>   Tea Room
+Telephone Room Boo (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Balcony
+   =>   Balcony -> Balcony -> West Attic Hallway
+   =>   West Attic Hallway -> West Attic Hallway -> Telephone Room
+   =>   Telephone Room
+The Great Sea - Salvage Corp Gift (Player3)
+        The Great Sea (Player3)
+Tower of the Gods - Floating Platforms Room (Player3)
+        The Great Sea -> Dungeon Entrance in Tower of the Gods Sector -> Tower of the Gods
+   =>   Tower of the Gods
+Tower of the Gods - Shoot Eye Above Skulls Room Chest (Player3)
+        The Great Sea -> Dungeon Entrance in Tower of the Gods Sector -> Tower of the Gods
+   =>   Tower of the Gods
+Tower of the Gods - Skulls Room Chest (Player3)
+        The Great Sea -> Dungeon Entrance in Tower of the Gods Sector -> Tower of the Gods
+   =>   Tower of the Gods
+Van Gore's Painting (Artist's Studio) (Player1)
+        Foyer -> Foyer -> 1F Hallway
+   =>   1F Hallway -> 1F Hallway -> Courtyard
+   =>   Courtyard -> Courtyard -> Rec Room
+   =>   Rec Room -> Rec Room -> 2F Stairwell
+   =>   2F Stairwell -> 2F Stairwell -> 2F Rear Hallway
+   =>   2F Rear Hallway -> 2F Rear Hallway -> Safari Room
+   =>   Safari Room -> Safari Room -> East Attic Hallway
+   =>   East Attic Hallway -> East Attic Hallway -> Artist's Studio
+   =>   Artist's Studio
+Visit E. Gadd's Gallery (Player1)
+        Foyer -> Foyer -> Gallery
+   =>   Gallery
+Wardrobe Boo (Player1)
+        Foyer -> Foyer -> Parlor
+   =>   Parlor -> Parlor -> Anteroom
+   =>   Anteroom -> Anteroom -> Wardrobe
+   =>   Wardrobe
+Wind Temple - Spike Wall Room - Destroy All Cracked Floors (Player3)
+        The Great Sea -> Dungeon Entrance on Gale Isle -> Wind Temple
+   =>   Wind Temple
+Windfall Island - Jail - Tingle - First Gift (Player3)
+        The Great Sea (Player3)
+Windfall Island - Jail - Tingle - Second Gift (Player3)
+        The Great Sea (Player3)
+Windfall Island - Maggie - Free Item (Player3)
+        The Great Sea (Player3)
