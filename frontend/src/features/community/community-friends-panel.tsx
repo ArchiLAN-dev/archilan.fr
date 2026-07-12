@@ -1,52 +1,44 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 import {
   acceptFriendship,
   declineFriendship,
   fetchFriends,
   type FriendCard,
-  type FriendsData,
   type IncomingRequest,
 } from "./community-friends-api";
 
 export function CommunityFriendsPanel() {
-  const [data, setData] = useState<FriendsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
 
-  const reload = useCallback(async () => {
-    setData(await fetchFriends());
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const d = await fetchFriends();
-      if (!cancelled) {
-        setData(d);
-        setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // fetchFriends resolves to null on error (never throws), so retry stays off like the old one-shot effect.
+  const { data, isLoading } = useQuery({
+    queryKey: ["community-friends"],
+    queryFn: fetchFriends,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
   async function respond(id: string, accept: boolean) {
     setBusy(true);
     const ok = accept ? await acceptFriendship(id) : await declineFriendship(id);
     setBusy(false);
-    if (ok) await reload();
+    if (ok) await queryClient.invalidateQueries({ queryKey: ["community-friends"] });
   }
 
-  if (loading) {
+  if (isLoading) {
     return <CommunityLoadingSkeleton rows={3} />;
   }
 
-  if (data === null) {
+  if (data === undefined || data === null) {
     return <p className="text-sm text-muted-foreground">Impossible de charger tes amis.</p>;
   }
 

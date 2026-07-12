@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { YamlOptionEditor, type YamlEditorHandle } from "@/features/events/yaml-option-editor";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { AdminGamePicker } from "./admin-game-picker";
 import {
   ADMIN_WEEKLY_GAME_DETAIL_QUERY_KEY,
@@ -15,7 +16,7 @@ import {
   fetchAdminWeeklyTemplate,
   updateAdminWeeklyTemplate,
 } from "./admin-weekly-runs-api";
-import type { AdminGameOption, AdminWeeklyTemplate, CreateTemplateResult } from "./admin-weekly-runs-api";
+import type { AdminGameOption, CreateTemplateResult } from "./admin-weekly-runs-api";
 
 type Props = {
   mode: "create" | "edit";
@@ -30,8 +31,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
   const queryClient = useQueryClient();
 
   const [selectedGame, setSelectedGame] = useState<AdminGameOption | null>(null);
-  const [template, setTemplate] = useState<AdminWeeklyTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,43 +45,67 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
   const [yamlEditorKey, setYamlEditorKey] = useState(0);
   const yamlEditorRef = useRef<YamlEditorHandle>(null);
 
+  // Both fetch fns return null on failure (never throw), so the queries never error and - like
+  // the old effect - never retry. In edit mode the game-detail query chains on the template's
+  // gameId; in create mode it only runs for a pre-selected game (enabled gating per mode).
+  const templateQuery = useQuery({
+    queryKey: ["admin-weekly-template", templateId],
+    queryFn: () => fetchAdminWeeklyTemplate(templateId!),
+    enabled: mode === "edit" && Boolean(templateId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const templateResult = templateQuery.data;
+  const template = templateResult ?? null;
+
+  const detailGameId = mode === "edit" ? template?.gameId ?? null : initialGameId ?? null;
+  const detailQuery = useQuery({
+    queryKey: ["admin-game-option-detail", detailGameId],
+    queryFn: () => fetchAdminGameOptionDetail(detailGameId!),
+    enabled: detailGameId !== null,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const gameDetailResult = detailQuery.data;
+
+  // One-shot seed of the form from the fetched template + game detail, guarded so background
+  // refetches never clobber in-progress edits.
   useEffect(() => {
-    async function load() {
-      if (mode === "edit" && templateId) {
-        const tmpl = await fetchAdminWeeklyTemplate(templateId);
-        if (!tmpl) {
-          setError("Template introuvable.");
-          setLoading(false);
-          return;
-        }
-        setTemplate(tmpl);
-        setGameId(tmpl.gameId);
-        setName(tmpl.name ?? "");
-        setYamlConfig(tmpl.yamlConfig);
-        setInitialTemplateYaml(tmpl.yamlConfig);
-        setMaxAttempts(tmpl.maxAttempts != null ? String(tmpl.maxAttempts) : "");
+    if (hydrated) return;
 
-        const gameDetail = await fetchAdminGameOptionDetail(tmpl.gameId);
-        setDefaultYaml(gameDetail?.defaultYaml || tmpl.yamlConfig || FALLBACK_YAML);
-        setOptionTypes(gameDetail?.optionTypes ?? null);
-      } else if (mode === "create" && initialGameId) {
-        // Game pre-selected from the per-game detail page: lock it and load its defaults.
-        const gameDetail = await fetchAdminGameOptionDetail(initialGameId);
-        if (gameDetail) {
-          setSelectedGame(gameDetail);
-          setGameId(gameDetail.id);
-          const nextDefaultYaml = gameDetail.defaultYaml || FALLBACK_YAML;
-          setDefaultYaml(nextDefaultYaml);
-          setYamlConfig(nextDefaultYaml);
-          setOptionTypes(gameDetail.optionTypes ?? null);
-        }
+    /* eslint-disable react-hooks/set-state-in-effect -- sanctioned one-shot seed-into-form hydration (guarded by hydrated); the edited template draft is local UI state (AC-ST2), not query state */
+    if (mode === "edit" && templateId) {
+      if (templateResult === undefined) return;
+      if (templateResult === null) {
+        setError("Template introuvable.");
+      } else {
+        if (gameDetailResult === undefined) return;
+        setGameId(templateResult.gameId);
+        setName(templateResult.name ?? "");
+        setYamlConfig(templateResult.yamlConfig);
+        setInitialTemplateYaml(templateResult.yamlConfig);
+        setMaxAttempts(templateResult.maxAttempts != null ? String(templateResult.maxAttempts) : "");
+        setDefaultYaml(gameDetailResult?.defaultYaml || templateResult.yamlConfig || FALLBACK_YAML);
+        setOptionTypes(gameDetailResult?.optionTypes ?? null);
       }
-
-      setLoading(false);
+    } else if (mode === "create" && initialGameId) {
+      // Game pre-selected from the per-game detail page: lock it and load its defaults.
+      if (gameDetailResult === undefined) return;
+      if (gameDetailResult !== null) {
+        setSelectedGame(gameDetailResult);
+        setGameId(gameDetailResult.id);
+        const nextDefaultYaml = gameDetailResult.defaultYaml || FALLBACK_YAML;
+        setDefaultYaml(nextDefaultYaml);
+        setYamlConfig(nextDefaultYaml);
+        setOptionTypes(gameDetailResult.optionTypes ?? null);
+      }
     }
 
-    void load();
-  }, [mode, templateId, initialGameId]);
+    setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [hydrated, mode, templateId, initialGameId, templateResult, gameDetailResult]);
+
+  const loading = !hydrated;
 
   async function handleGameSelect(game: AdminGameOption) {
     setSelectedGame(game);

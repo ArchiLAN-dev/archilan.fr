@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Trash2 } from "lucide-react";
 
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import {
   deleteComment,
@@ -15,36 +17,25 @@ import {
 
 export function ProfileComments({ slug }: { slug: string }) {
   const { user } = useAuth();
-  const [comments, setComments] = useState<ProfileComment[]>([]);
-  const [forbidden, setForbidden] = useState(false);
-  const [ready, setReady] = useState(false);
+  const queryClient = useQueryClient();
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reported, setReported] = useState<Set<string>>(new Set());
 
-  async function reload() {
-    const result = await fetchComments(slug);
-    if (result === "forbidden") {
-      setForbidden(true);
-    } else if (result !== null) {
-      setComments(result);
-    }
-  }
+  // fetchComments encodes the outcome in the result ("forbidden" / null on error), never throws.
+  const { data, isLoading } = useQuery({
+    queryKey: ["community-profile-comments", slug],
+    queryFn: () => fetchComments(slug),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await fetchComments(slug);
-      if (cancelled) return;
-      if (result === "forbidden") setForbidden(true);
-      else if (result !== null) setComments(result);
-      setReady(true);
-    })();
-    return () => { cancelled = true; };
-  }, [slug]);
+  // Hidden while loading and when the audience gate rejects the viewer - same as before.
+  if (isLoading || data === "forbidden") return null;
 
-  if (!ready || forbidden) return null;
+  // A plain fetch error (null) renders the section with an empty list, like the old state default.
+  const comments: ProfileComment[] = Array.isArray(data) ? data : [];
 
   async function handlePost() {
     setError(null);
@@ -54,7 +45,7 @@ export function ProfileComments({ slug }: { slug: string }) {
     setBusy(false);
     if (result === "ok") {
       setBody("");
-      await reload();
+      await queryClient.invalidateQueries({ queryKey: ["community-profile-comments", slug] });
     } else if (result === "rate_limited") {
       setError("Trop de commentaires d'affilée - réessaie dans une minute.");
     } else if (result === "forbidden") {
@@ -65,7 +56,7 @@ export function ProfileComments({ slug }: { slug: string }) {
   }
 
   async function handleDelete(id: string) {
-    if (await deleteComment(id)) await reload();
+    if (await deleteComment(id)) await queryClient.invalidateQueries({ queryKey: ["community-profile-comments", slug] });
   }
 
   async function handleReport(id: string) {

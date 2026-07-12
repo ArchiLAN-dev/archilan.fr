@@ -2,72 +2,35 @@
 
 import { ArrowLeft, Pencil, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
-  type AdminEventFormData,
   EventDraftError,
   EventForm,
   type EventFormInput,
   fieldErrorsFromPayload,
 } from "./admin-event-form";
+import { fetchAdminEventForEdit, type AdminEventEditResult } from "./admin-events-api";
 
-type PageState =
-  | { kind: "loading" }
-  | { kind: "ready"; event: AdminEventFormData }
-  | { kind: "not-found" }
-  | { kind: "error"; message: string };
+type PageState = { kind: "loading" } | AdminEventEditResult;
 
 export function AdminEventEditPage({ eventId }: { eventId: string }) {
-  const [state, setState] = useState<PageState>({ kind: "loading" });
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadEvent() {
-      try {
-        const response = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}`);
-
-        if (cancelled) return;
-
-        if (response.status === 404) {
-          setState({ kind: "not-found" });
-          return;
-        }
-
-        if (response.status === 401 || response.status === 403) {
-          setState({ kind: "error", message: "Accès réservé aux admins ArchiLAN." });
-          return;
-        }
-
-        if (!response.ok) {
-          setState({ kind: "error", message: "Impossible de charger l'événement." });
-          return;
-        }
-
-        const payload: unknown = await response.json();
-        const event = extractEventData(payload);
-
-        if (!event) {
-          setState({ kind: "error", message: "Réponse API invalide." });
-          return;
-        }
-
-        setState({ kind: "ready", event });
-      } catch {
-        if (!cancelled) {
-          setState({ kind: "error", message: "Impossible de contacter l'API." });
-        }
-      }
-    }
-
-    void loadEvent();
-    return () => { cancelled = true; };
-  }, [eventId]);
+  // fetchAdminEventForEdit never throws (not-found/denied/HTTP/network are all encoded in the
+  // result kind), so the query never errors and - like the old effect - never retries.
+  const { data } = useQuery({
+    queryKey: ["admin-event-edit", eventId],
+    queryFn: () => fetchAdminEventForEdit(eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const state: PageState = data ?? { kind: "loading" };
 
   async function handleSubmit(input: EventFormInput) {
     const response = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}`, {
@@ -148,23 +111,13 @@ export function AdminEventEditPage({ eventId }: { eventId: string }) {
         <EventForm
           event={state.event}
           mode="edit"
-          onEventUpdated={(event) => setState({ kind: "ready", event })}
+          onEventUpdated={(event) => {
+            const next: AdminEventEditResult = { kind: "ready", event };
+            queryClient.setQueryData(["admin-event-edit", eventId], next);
+          }}
           onSubmit={handleSubmit}
         />
       </div>
     </section>
   );
-}
-
-function extractEventData(payload: unknown): AdminEventFormData | null {
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data: unknown }).data
-      : null;
-
-  if (!data || typeof data !== "object" || !("id" in data) || !("title" in data)) {
-    return null;
-  }
-
-  return data as AdminEventFormData;
 }

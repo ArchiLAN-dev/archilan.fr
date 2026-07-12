@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchAccountProfile } from "./auth-api";
 import { DangerSection, DiscordSection, SteamSection } from "./account-profile";
-import type { Profile } from "./account-profile";
 
 /**
  * "Connexions & sécurité" section: Discord/Steam linking + account deletion. Fetches the profile itself
@@ -18,26 +17,16 @@ export function AccountSecuritySection({
   discordLinked?: string;
   discordLinkError?: string;
 }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  // fetchAccountProfile resolves to null on error (never throws), so retry stays off like the old effect.
+  const { data, isLoading } = useQuery({
+    queryKey: ["account-profile"],
+    queryFn: fetchAccountProfile,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const profile = data ?? null;
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await apiFetch(`${env.apiBaseUrl}/account/profile`);
-        const payload = (await res.json()) as
-          | { data: Profile }
-          | { error: { code: string; message: string } };
-        if (!cancelled && "data" in payload) setProfile(payload.data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div aria-hidden className="grid gap-4">
         <div className="h-32 animate-pulse rounded-lg border border-border bg-surface" />

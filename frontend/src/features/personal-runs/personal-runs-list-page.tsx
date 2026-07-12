@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Gamepad2, Loader2, Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { fetchMyRuns } from "./personal-runs-api";
 import { PersonalRunCard } from "./personal-run-card";
 import type { PersonalRun, PersonalRunStatus } from "./types";
 
@@ -34,23 +37,10 @@ const GROUP_LABELS: Partial<Record<PersonalRunStatus, string>> = {
   completed: "Terminées",
 };
 
-type MineData = { owned: PersonalRun[]; joined: PersonalRun[] };
-
-function isMineData(value: unknown): value is MineData {
-  if (typeof value !== "object" || value === null) return false;
-  const data = value as Record<string, unknown>;
-  return Array.isArray(data.owned) && Array.isArray(data.joined);
-}
-
-type PageState =
-  | { kind: "loading" }
-  | { kind: "error" }
-  | { kind: "ready"; owned: PersonalRun[]; joined: PersonalRun[] };
-
 export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [state, setState] = useState<PageState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -59,31 +49,23 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
   const [restartingId, setRestartingId] = useState<string | null>(null);
   const formId = useId();
 
-  const loadRuns = useCallback(async () => {
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/runs/mine`);
-      if (!res.ok) { setState({ kind: "error" }); return; }
-      const payload = (await res.json()) as { data?: unknown };
-      if (!isMineData(payload.data)) { setState({ kind: "error" }); return; }
-      setState({ kind: "ready", owned: payload.data.owned, joined: payload.data.joined });
-    } catch {
-      setState({ kind: "error" });
-    }
-  }, []);
+  // fetchMyRuns never throws (failures are encoded as null), so the query never errors and - like
+  // the old effect - never retries.
+  const runsQuery = useQuery({
+    queryKey: ["personal-runs", "mine"],
+    queryFn: fetchMyRuns,
+    enabled: !authLoading && user !== null,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
+  // Redirect unauthenticated users - only once the session has finished resolving, so a cold load
+  // doesn't bounce an authenticated user to /connexion before the profile resolves.
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
+    if (!authLoading && !user) {
       router.push("/connexion?returnTo=/runs");
-      return;
     }
-
-    const timeout = setTimeout(() => {
-      void loadRuns();
-    }, 0);
-
-    return () => clearTimeout(timeout);
-  }, [authLoading, user, router, loadRuns]);
+  }, [authLoading, user, router]);
 
   async function handleRestart(run: PersonalRun) {
     if (run.sessionId === null || run.pausedWithoutSave) return;
@@ -92,7 +74,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/sessions/${run.sessionId}/restart`, { method: "POST" });
       if (res.ok) {
-        await loadRuns();
+        await queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
       }
     } finally {
       setRestartingId(null);
@@ -130,6 +112,9 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
       }
 
       const payload = (await res.json()) as { data: PersonalRun };
+      // Mark the cached list stale so the next visit to /runs refetches it (the old effect refetched
+      // on every mount).
+      void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
       router.push(`/runs/${payload.data.id}`);
     } catch {
       setTitleError("Erreur réseau.");
@@ -138,7 +123,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     }
   }
 
-  if (authLoading || state.kind === "loading") {
+  if (authLoading || runsQuery.isPending) {
     return (
       <div className={embedded ? undefined : "mx-auto max-w-3xl"}>
         <div className="grid gap-3">
@@ -150,7 +135,9 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     );
   }
 
-  if (state.kind === "error") {
+  const mine = runsQuery.data ?? null;
+
+  if (mine === null) {
     return (
       <div className={embedded ? undefined : "mx-auto max-w-3xl"}>
         <p className="text-sm text-muted-foreground">
@@ -160,7 +147,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
     );
   }
 
-  const { owned, joined } = state;
+  const { owned, joined } = mine;
 
   // Group owned runs by status
   const grouped: Partial<Record<PersonalRunStatus, PersonalRun[]>> = {};

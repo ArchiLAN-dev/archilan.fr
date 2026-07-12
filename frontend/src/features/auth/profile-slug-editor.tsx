@@ -3,9 +3,12 @@
 import { AlertCircle, Check, Link2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchAccountSlugState, type AccountSlugState } from "./auth-api";
 
 const ERROR_MESSAGES: Record<string, string> = {
   slug_invalid: "URL invalide : 3 à 30 caractères, minuscules, chiffres et tirets (pas d'espace ni accent).",
@@ -28,36 +31,34 @@ type ProfileSlugEditorProps = {
 };
 
 export function ProfileSlugEditor({ onDirtyChange, registerSave }: ProfileSlugEditorProps = {}) {
-  const [slug, setSlug] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [value, setValue] = useState("");
-  const [nextAllowedAt, setNextAllowedAt] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await apiFetch(`${env.apiBaseUrl}/account/profile`);
-        const json = (await res.json()) as { data?: { slug?: string | null; nextSlugChangeAllowedAt?: string | null } };
-        if (cancelled) return;
-        const s = json.data?.slug ?? null;
-        setSlug(s);
-        setValue(s ?? "");
-        // Only keep the date if the cooldown is still in the future (Date.now() must stay out of render).
-        const next = json.data?.nextSlugChangeAllowedAt ?? null;
-        setNextAllowedAt(next !== null && new Date(next).getTime() > Date.now() ? next : null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // fetchAccountSlugState resolves to null on error (never throws) and already computed the cooldown
+  // at fetch time, so Date.now() stays out of render. Retry off like the old one-shot effect.
+  const { data: slugState, isLoading: loading } = useQuery({
+    queryKey: ["account-slug"],
+    queryFn: fetchAccountSlugState,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  // nextAllowedAt is already null unless the cooldown is in the future (computed at load).
-  const cooldownUntil = nextAllowedAt;
+  const slug = slugState?.slug ?? null;
+  // cooldownUntil is null unless the cooldown was still in the future at fetch time.
+  const cooldownUntil = slugState?.cooldownUntil ?? null;
+
+  // Seed the editable input from the fetched slug. Keyed on data identity: structural sharing keeps the
+  // object stable across refetches with identical content, so this only re-runs when the server slug
+  // actually changed. The draft diverges from server state while typing - not derivable during render.
+  useEffect(() => {
+    if (slugState) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeding the local input draft from query data; see comment above
+      setValue(slugState.slug ?? "");
+    }
+  }, [slugState]);
   const candidate = value.trim().toLowerCase();
   const dirty = candidate !== (slug ?? "");
   // Only count as dirty (savable) when the URL is actually editable and non-empty.
@@ -88,9 +89,12 @@ export function ProfileSlugEditor({ onDirtyChange, registerSave }: ProfileSlugEd
         return false;
       }
       const newSlug = json.data?.slug ?? candidate;
-      setSlug(newSlug);
+      // Reflect the new slug immediately, then let a background refetch pick up the fresh cooldown.
+      const nextState: AccountSlugState = { slug: newSlug, cooldownUntil };
+      queryClient.setQueryData(["account-slug"], nextState);
       setValue(newSlug);
       setSaved(true);
+      void queryClient.invalidateQueries({ queryKey: ["account-slug"] });
       return true;
     } catch {
       setError("Impossible de contacter l'API.");

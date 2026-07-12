@@ -5,48 +5,28 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 import { ThumbnailPreview } from "@/features/admin/admin-game-library-dashboard";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchAdminEventGameSelection, fetchAdminEventTitle } from "./admin-events-api";
 
 type AvailabilityScope = "available" | "available_experimental";
 type ApworldFilter = "all" | "ready" | "not_ready";
 type SortDir = "asc" | "desc";
 
-type AvailableGame = {
-  id: string;
-  name: string;
-  slug: string;
-  availability: string;
-  isApworldReady: boolean;
-  coverImageUrl: string | null;
-  platforms: string[];
-};
-
-type GameSelectionEntry = {
-  gameId: string;
-  gameName: string;
-  gameSlug: string;
-};
-
-type GameSelectionConfig = {
-  gameSelectionEnabled: boolean;
-  gameSelectionMax: number | null;
-  selectedGames: GameSelectionEntry[];
-  availableGames: AvailableGame[];
-};
-
 type PageState =
   | { kind: "loading" }
-  | { kind: "ready"; config: GameSelectionConfig; eventTitle: string }
+  | { kind: "ready"; eventTitle: string }
   | { kind: "error"; message: string };
 
 export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
-  const [state, setState] = useState<PageState>({ kind: "loading" });
   const [enabled, setEnabled] = useState(false);
   const [maxGames, setMaxGames] = useState<number | null>(null);
   const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(new Set());
+  const [hydratedEventId, setHydratedEventId] = useState<string | null>(null);
   const [scope, setScope] = useState<AvailabilityScope>("available");
   const [search, setSearch] = useState("");
   const [apworldFilter, setApworldFilter] = useState<ApworldFilter>("all");
@@ -58,57 +38,47 @@ export function AdminEventGameSelectionPage({ eventId }: { eventId: string }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Both query fns never throw (failures are encoded in the result / degrade to null), so the
+  // queries never error and - like the old one-shot effect - never retry. The two requests run
+  // in parallel, exactly like the former Promise.all.
+  const configQuery = useQuery({
+    queryKey: ["admin-event-game-selection", eventId],
+    queryFn: () => fetchAdminEventGameSelection(eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const titleQuery = useQuery({
+    queryKey: ["admin-event-title", eventId],
+    queryFn: () => fetchAdminEventTitle(eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const configResult = configQuery.data;
+
+  // One-shot seed of the editing state from the fetched config, keyed on the event identity so
+  // background refetches never clobber in-progress edits.
   useEffect(() => {
-    let cancelled = false;
+    if (configResult?.kind !== "ready" || hydratedEventId === eventId) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- sanctioned one-shot seed-into-form hydration (guarded by hydratedEventId); the editable selection is local UI state (AC-ST2), not query state */
+    setEnabled(configResult.config.gameSelectionEnabled);
+    setMaxGames(configResult.config.gameSelectionMax ?? null);
+    setSelectedGameIds(new Set(configResult.config.selectedGames.map((g) => g.gameId)));
+    setHydratedEventId(eventId);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [configResult, hydratedEventId, eventId]);
 
-    async function load() {
-      try {
-        const [configRes, eventRes] = await Promise.all([
-          fetch(`${env.apiBaseUrl}/admin/events/${eventId}/game-selection`, { credentials: "include" }),
-          fetch(`${env.apiBaseUrl}/admin/events/${eventId}`, { credentials: "include" }),
-        ]);
-
-        if (cancelled) return;
-
-        if (!configRes.ok) {
-          setState({ kind: "error", message: "Impossible de charger la configuration de sélection." });
-          return;
-        }
-
-        const configPayload: unknown = await configRes.json();
-
-        if (!isGameSelectionConfigPayload(configPayload)) {
-          setState({ kind: "error", message: "Réponse API invalide." });
-          return;
-        }
-
-        let eventTitle = "";
-        if (eventRes.ok) {
-          const eventPayload: unknown = await eventRes.json();
-          if (isEventPayload(eventPayload)) {
-            eventTitle = eventPayload.data.title;
-          }
-        }
-
-        const config = configPayload.data;
-        setState({ kind: "ready", config, eventTitle });
-        setEnabled(config.gameSelectionEnabled);
-        setMaxGames(config.gameSelectionMax ?? null);
-        setSelectedGameIds(new Set(config.selectedGames.map((g) => g.gameId)));
-      } catch {
-        if (!cancelled) {
-          setState({ kind: "error", message: "Impossible de contacter l'API." });
-        }
-      }
-    }
-
-    void load();
-    return () => { cancelled = true; };
-  }, [eventId]);
+  const state: PageState =
+    configResult === undefined ||
+    titleQuery.data === undefined ||
+    (configResult.kind === "ready" && hydratedEventId !== eventId)
+      ? { kind: "loading" }
+      : configResult.kind === "error"
+        ? { kind: "error", message: configResult.message }
+        : { kind: "ready", eventTitle: titleQuery.data ?? "" };
 
   const allGames = useMemo(
-    () => (state.kind === "ready" ? state.config.availableGames : []),
-    [state],
+    () => (configResult?.kind === "ready" ? configResult.config.availableGames : []),
+    [configResult],
   );
 
   const platformOptions = useMemo(() => {
@@ -587,26 +557,4 @@ function Checkbox({
       </span>
     </span>
   );
-}
-
-function isGameSelectionConfigPayload(payload: unknown): payload is { data: GameSelectionConfig } {
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data: unknown }).data
-      : null;
-  return Boolean(
-    data &&
-      typeof data === "object" &&
-      "gameSelectionEnabled" in data &&
-      "selectedGames" in data &&
-      "availableGames" in data,
-  );
-}
-
-function isEventPayload(payload: unknown): payload is { data: { id: string; title: string } } {
-  const data =
-    payload && typeof payload === "object" && "data" in payload
-      ? (payload as { data: unknown }).data
-      : null;
-  return Boolean(data && typeof data === "object" && "id" in data && "title" in data);
 }

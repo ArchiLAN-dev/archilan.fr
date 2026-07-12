@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Search, Trash2, X, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
@@ -9,43 +10,17 @@ import { InstallNudge } from "@/features/games/install-nudge";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import {
+  fetchAuthProbe,
+  fetchGameSelection,
+  type GameSelectionResult,
+} from "./events-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type AvailableGame = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  availability: string;
-  isApworldReady: boolean;
-  defaultYaml: string | null;
-  coverImageUrl: string | null;
-  coverImageAlt: string | null;
-};
-
-type Slot = {
-  slotId: string;
-  gameId: string;
-  gameName: string;
-};
-
-type SelectionData = {
-  registrationId: string;
-  eventId: string;
-  eventTitle: string;
-  registrationOpen: boolean;
-  gameSelectionEnabled: boolean;
-  maxGamesPerRegistrant: number | null;
-  slots: Slot[];
-  availableGames: AvailableGame[];
-};
-
-type GateState =
-  | { kind: "loading" }
-  | { kind: "data"; data: SelectionData }
-  | { kind: "not_found" }
-  | { kind: "error"; message: string };
+// "error" results are thrown inside the queryFn so a failed background refetch keeps the
+// last good data instead of blanking the page.
+type GameSelectionQueryData = Exclude<GameSelectionResult, { kind: "error" }>;
 
 type SaveState =
   | { kind: "idle" }
@@ -70,8 +45,7 @@ export function GameSelectionGate({
   params: Promise<{ eventSlug: string; registrationId: string }>;
 }) {
   const { eventSlug, registrationId } = use(params);
-  const [loadKey, setLoadKey] = useState(0);
-  const [gateState, setGateState] = useState<GateState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [workingGameIds, setWorkingGameIds] = useState<string[]>([]);
   const [gameSearch, setGameSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -110,59 +84,52 @@ export function GameSelectionGate({
     addTimers.current.set(gameId, [t1, t2]);
   }, []);
 
+  // Fresh session probe on every gate entry (staleTime 0), like the pre-TanStack effect.
+  const authQuery = useQuery({
+    queryKey: ["registration-auth-probe"],
+    queryFn: fetchAuthProbe,
+    staleTime: 0,
+    retry: false,
+  });
+
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const profileRes = await apiFetch(`${env.apiBaseUrl}/account/profile`);
-
-      if (cancelled) return;
-
-      if (profileRes.status === 401 || profileRes.status === 403) {
-        window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/jeux`;
-        return;
-      }
-
-      const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/game-selection`);
-
-      if (cancelled) return;
-
-      if (res.status === 404) {
-        setGateState({ kind: "not_found" });
-        return;
-      }
-
-      if (!res.ok) {
-        setGateState({ kind: "error", message: "Impossible de charger la sélection de jeux." });
-        return;
-      }
-
-      const payload: unknown = await res.json();
-      const data = parseSelectionData(payload);
-
-      if (!data) {
-        setGateState({ kind: "error", message: "Réponse API invalide." });
-        return;
-      }
-
-      setGateState({ kind: "data", data });
-      setWorkingGameIds(data.slots.map((s) => s.gameId));
-      setSaveState({ kind: "saved" });
+    if (authQuery.data === "unauthenticated") {
+      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/jeux`;
     }
+  }, [authQuery.data, eventSlug, registrationId]);
 
-    void run().catch(() => {
-      if (!cancelled) {
-        setGateState({ kind: "error", message: "Impossible de contacter l'API." });
-      }
-    });
+  const selectionQuery = useQuery({
+    queryKey: ["game-selection", registrationId],
+    queryFn: async (): Promise<GameSelectionQueryData> => {
+      const result = await fetchGameSelection(registrationId);
+      if (result.kind === "error") throw new Error(result.message);
+      return result;
+    },
+    enabled: authQuery.data === "authenticated",
+    // Funnel steps write to each other's data (save, yaml edits): refetch on every mount
+    // like the pre-TanStack effect did.
+    staleTime: 0,
+    retry: false,
+    // The unsaved working selection lives in local state: a focus-triggered background
+    // refetch must not reseed it under the user (the pre-TanStack gate never refetched).
+    refetchOnWindowFocus: false,
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [registrationId, eventSlug, loadKey]);
+  const selectionData = selectionQuery.data?.kind === "success" ? selectionQuery.data.data : null;
+
+  // Seed the working draft from freshly fetched server state - on initial load and after the
+  // post-save invalidation - mirroring the pre-TanStack `loadKey` reload. Structural sharing
+  // keeps the data reference stable when a refetch returns identical content, so this never
+  // clobbers the draft without an actual server-side change.
+  useEffect(() => {
+    if (selectionData === null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reseed the local draft when new server data arrives (initial load / post-save refetch); the draft cannot be derived during render because the user edits it between saves
+    setWorkingGameIds(selectionData.slots.map((s) => s.gameId));
+    setSaveState({ kind: "saved" });
+  }, [selectionData]);
 
   async function handleSave() {
-    if (gateState.kind !== "data") return;
+    if (selectionData === null) return;
     setSaveState({ kind: "saving" });
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/game-selection`, {
@@ -175,7 +142,7 @@ export function GameSelectionGate({
         return;
       }
       setSaveState({ kind: "saved" });
-      setLoadKey((k) => k + 1);
+      void queryClient.invalidateQueries({ queryKey: ["game-selection", registrationId] });
     } catch {
       setSaveState({ kind: "error", message: "Impossible de contacter l'API." });
     }
@@ -196,12 +163,41 @@ export function GameSelectionGate({
         return;
       }
       setCancelState({ kind: "cancelled" });
+      // The event-page CTA caches my-registration: a cancellation must invalidate it.
+      void queryClient.invalidateQueries({ queryKey: ["event-my-registration"] });
     } catch {
       setCancelState({ kind: "error", message: "Impossible de contacter l'API." });
     }
   }
 
-  if (gateState.kind === "loading") {
+  // The API is unreachable (auth probe network failure) - same terminal error as before.
+  if (authQuery.data === null) {
+    return (
+      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+        <p className="text-sm text-muted-foreground">Impossible de contacter l&apos;API.</p>
+      </div>
+    );
+  }
+
+  const gateResult = selectionQuery.data;
+
+  if (gateResult === undefined) {
+    if (selectionQuery.isError) {
+      const message =
+        selectionQuery.error instanceof Error
+          ? selectionQuery.error.message
+          : "Impossible de contacter l'API.";
+      return (
+        <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+          <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+          <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
+      );
+    }
+
     return (
       <div aria-hidden="true" className="grid gap-8">
         {/* stepper */}
@@ -236,7 +232,7 @@ export function GameSelectionGate({
     );
   }
 
-  if (gateState.kind === "not_found") {
+  if (gateResult.kind === "not_found") {
     return (
       <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
         <XCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
@@ -247,16 +243,6 @@ export function GameSelectionGate({
         <Link className="text-sm text-accent-text hover:text-accent-text-hover" href="/evenements">
           Voir tous les événements
         </Link>
-      </div>
-    );
-  }
-
-  if (gateState.kind === "error") {
-    return (
-      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
-        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
-        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
-        <p className="text-sm text-muted-foreground">{gateState.message}</p>
       </div>
     );
   }
@@ -279,7 +265,7 @@ export function GameSelectionGate({
     );
   }
 
-  const { data } = gateState;
+  const { data } = gateResult;
   const max = data.maxGamesPerRegistrant;
   const limitReached = max !== null && workingGameIds.length >= max;
   const gameMap = new Map(data.availableGames.map((g) => [g.id, g]));
@@ -649,73 +635,4 @@ export function GameSelectionGate({
       ) : null}
     </article>
   );
-}
-
-// ─── Parsers ──────────────────────────────────────────────────────────────────
-
-function parseSelectionData(payload: unknown): SelectionData | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = (payload as { data?: unknown }).data;
-  if (!data || typeof data !== "object") return null;
-  const d = data as Record<string, unknown>;
-
-  if (
-    typeof d.registrationId !== "string" ||
-    typeof d.eventId !== "string" ||
-    typeof d.eventTitle !== "string" ||
-    typeof d.gameSelectionEnabled !== "boolean" ||
-    !Array.isArray(d.availableGames) ||
-    !Array.isArray(d.slots)
-  ) {
-    return null;
-  }
-
-  return {
-    registrationId: d.registrationId,
-    eventId: d.eventId,
-    eventTitle: d.eventTitle,
-    registrationOpen: typeof d.registrationOpen === "boolean" ? d.registrationOpen : true,
-    gameSelectionEnabled: d.gameSelectionEnabled,
-    maxGamesPerRegistrant:
-      typeof d.maxGamesPerRegistrant === "number" ? d.maxGamesPerRegistrant : null,
-    slots: (d.slots as unknown[]).flatMap((s) => {
-      if (!s || typeof s !== "object") return [];
-      const slot = s as Record<string, unknown>;
-      if (typeof slot.slotId !== "string" || typeof slot.gameId !== "string") return [];
-      return [{
-        slotId: slot.slotId,
-        gameId: slot.gameId,
-        gameName: typeof slot.gameName === "string" ? slot.gameName : slot.gameId,
-      }];
-    }),
-    availableGames: (d.availableGames as unknown[]).flatMap((g) => {
-      const game = toAvailableGame(g);
-      return game ? [game] : [];
-    }),
-  };
-}
-
-function toAvailableGame(x: unknown): AvailableGame | null {
-  if (!x || typeof x !== "object") return null;
-  const g = x as Record<string, unknown>;
-  if (
-    typeof g.id !== "string" ||
-    typeof g.name !== "string" ||
-    typeof g.slug !== "string" ||
-    typeof g.description !== "string" ||
-    typeof g.availability !== "string"
-  ) {
-    return null;
-  }
-  return {
-    id: g.id,
-    name: g.name,
-    slug: g.slug,
-    description: g.description,
-    availability: g.availability,
-    isApworldReady: g.isApworldReady === true,
-    defaultYaml: typeof g.defaultYaml === "string" ? g.defaultYaml : null,
-    coverImageUrl: typeof g.coverImageUrl === "string" ? g.coverImageUrl : null,
-    coverImageAlt: typeof g.coverImageAlt === "string" ? g.coverImageAlt : null,
-  };
 }

@@ -1,16 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-import { hasStringProp } from "@/lib/type-guards";
-
-type CtaState =
-  | { kind: "loading" }
-  | { kind: "guest" }
-  | { kind: "registered"; registrationId: string }
-  | { kind: "not_registered" };
+import { useQuery } from "@tanstack/react-query";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchMyRegistrationCta } from "./events-api";
 
 export function EventRegistrationCta({
   eventId,
@@ -19,64 +12,25 @@ export function EventRegistrationCta({
   eventId: string;
   eventSlug: string;
 }) {
-  const [state, setState] = useState<CtaState>({ kind: "loading" });
+  // Guest-graceful: fetchMyRegistrationCta encodes the profile probe and the my-registration
+  // lookup in a single result - a 401/403 is a guest (never a redirect) and any failure
+  // degrades to the "not_registered" CTA, both of which render the same sign-up link below.
+  const { data, isPending } = useQuery({
+    queryKey: ["event-my-registration", eventId],
+    queryFn: () => fetchMyRegistrationCta(eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const profileRes = await apiFetch(`${env.apiBaseUrl}/account/profile`);
-
-      if (cancelled) return;
-
-      if (profileRes.status === 401 || profileRes.status === 403) {
-        setState({ kind: "guest" });
-        return;
-      }
-
-      const regRes = await apiFetch(`${env.apiBaseUrl}/events/${eventId}/my-registration`);
-
-      if (cancelled) return;
-
-      if (!regRes.ok) {
-        setState({ kind: "not_registered" });
-        return;
-      }
-
-      const payload: unknown = await regRes.json();
-      const data: unknown =
-        typeof payload === "object" && payload !== null ? Reflect.get(payload, "data") : null;
-      const registrationId =
-        typeof data === "object" && data !== null && hasStringProp(data, "registrationId")
-          ? data.registrationId
-          : null;
-
-      if (!registrationId) {
-        setState({ kind: "not_registered" });
-        return;
-      }
-
-      setState({ kind: "registered", registrationId });
-    }
-
-    void run().catch(() => {
-      if (!cancelled) setState({ kind: "not_registered" });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId]);
-
-  if (state.kind === "loading") {
+  if (isPending) {
     return <div className="h-12 w-full animate-pulse rounded bg-surface" />;
   }
 
-  if (state.kind === "registered") {
+  if (data?.kind === "registered") {
     return (
       <Link
         className="inline-flex min-h-12 w-full items-center justify-center rounded bg-accent px-5 font-semibold text-white transition-colors hover:bg-accent-hover"
-        href={`/evenements/${eventSlug}/inscription/${state.registrationId}/recap`}
+        href={`/evenements/${eventSlug}/inscription/${data.registrationId}/recap`}
       >
         Modifier mon inscription
       </Link>

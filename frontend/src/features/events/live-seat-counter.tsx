@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch } from "@/lib/apiFetch";
+import { useQuery } from "@tanstack/react-query";
 import { env } from "@/lib/env";
+import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
+import { fetchEventConfirmedRegistrations } from "./events-api";
 import { SeatCounter } from "./seat-counter";
 
 type SeatCounterMessage = {
@@ -69,25 +71,23 @@ export function LiveSeatCounter({
     [applyRemainingSeats, eventId],
   );
 
+  // SSE is the primary transport: this query never fetches on its own (enabled: false) and
+  // is only refetched by useSSE's fallback polling (or the manual "Actualiser" button).
+  const { refetch: refetchSeats } = useQuery({
+    queryKey: ["event-seats", eventId],
+    queryFn: () => fetchEventConfirmedRegistrations(eventId),
+    enabled: false,
+    staleTime: REALTIME_STALE_TIME,
+    retry: false,
+  });
+
   const fallbackPoll = useCallback(async () => {
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/events/${eventId}`);
-      if (!res.ok) return;
-      const payload: unknown = await res.json();
-      if (typeof payload !== "object" || payload === null || !("data" in payload)) return;
-      const data: unknown = payload.data;
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        "confirmedRegistrations" in data &&
-        typeof data.confirmedRegistrations === "number"
-      ) {
-        applyRemainingSeats(initialCapacity - data.confirmedRegistrations);
-      }
-    } catch {
-      // Keep current count when polling fails.
+    const { data } = await refetchSeats();
+    // Keep current count when polling fails (data is null/undefined on failure).
+    if (typeof data === "number") {
+      applyRemainingSeats(initialCapacity - data);
     }
-  }, [applyRemainingSeats, eventId, initialCapacity]);
+  }, [applyRemainingSeats, initialCapacity, refetchSeats]);
 
   const { connected, disconnected, polling } = useSSE(
     topicUrl,

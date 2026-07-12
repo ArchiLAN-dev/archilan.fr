@@ -4,10 +4,18 @@ import { CalendarPlus, CheckCircle2, Eye, Gamepad2, KeyRound, Pencil, Play, Plus
 import type { LucideIcon } from "lucide-react";
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import {
+  fetchAdminEvents,
+  saveAdminEventRecap,
+  updateAdminEventPrivateAccess,
+  updateAdminEventStatus,
+  type AdminEvent,
+  type AdminEventsResult,
+} from "./admin-events-api";
 
 // Unified row-button styles: neutral for actions, accent for "state" chips
 // (game selection enabled, recap attached). Same size / radius / hover everywhere.
@@ -15,32 +23,6 @@ const ROW_BTN_BASE =
   "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors";
 const ROW_BTN_NEUTRAL = `${ROW_BTN_BASE} border-border text-foreground hover:border-accent hover:text-accent-text`;
 const ROW_BTN_ACTIVE = `${ROW_BTN_BASE} border-accent/60 text-accent-text hover:border-accent`;
-
-type AdminEvent = {
-  id: string;
-  title: string;
-  description: string;
-  coverImageUrl: string | null;
-  photoGallery: string[];
-  status: "draft" | "published" | "in-progress" | "completed";
-  startsAt: string;
-  endsAt: string;
-  venue: string;
-  capacity: number;
-  confirmedRegistrations: number;
-  isAtCapacity: boolean;
-  registrationOpensAt: string;
-  registrationClosesAt: string;
-  isPublic: boolean;
-  visibility: "public" | "private";
-  hasPrivateAccessPassword: boolean;
-  gameSelectionEnabled: boolean;
-  vodUrl: string | null;
-  recapPostSlug: string | null;
-  hasRecap: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
 
 type DashboardState =
   | { kind: "loading" }
@@ -60,43 +42,29 @@ type PendingPrivateAccess = {
 };
 
 export function AdminEventDashboard() {
-  const [state, setState] = useState<DashboardState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const [pendingTransition, setPendingTransition] = useState<PendingTransition | null>(null);
   const [pendingPrivateAccess, setPendingPrivateAccess] = useState<PendingPrivateAccess | null>(null);
   const [recapEvent, setRecapEvent] = useState<AdminEvent | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  // fetchAdminEvents never throws (denied/error are encoded in the result kind), so the query
+  // never errors and - like the old effect - never retries.
+  const { data } = useQuery({
+    queryKey: ["admin-events"],
+    queryFn: fetchAdminEvents,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const state: DashboardState = data ?? { kind: "loading" };
 
-    async function loadEvents() {
-      try {
-        const response = await apiFetch(`${env.apiBaseUrl}/admin/events`);
-
-        if (cancelled) return;
-
-        if (response.status === 401 || response.status === 403) {
-          setState({ kind: "denied", message: "Accès réservé aux admins ArchiLAN." });
-          return;
-        }
-
-        if (!response.ok) {
-          setState({ kind: "error", message: "Impossible de charger les événements." });
-          return;
-        }
-
-        const payload: unknown = await response.json();
-        setState({ kind: "ready", events: isEventListPayload(payload) ? payload.data : [] });
-      } catch {
-        if (!cancelled) {
-          setState({ kind: "error", message: "Impossible de contacter l'API événements." });
-        }
-      }
-    }
-
-    void loadEvents();
-    return () => { cancelled = true; };
-  }, []);
+  // Former in-place setState after each mutation: patch the cached list with the PATCH response
+  // instead of refetching, preserving the no-flash semantics.
+  function patchCachedEvent(mapper: (item: AdminEvent) => AdminEvent) {
+    queryClient.setQueryData<AdminEventsResult>(["admin-events"], (prev) =>
+      prev?.kind === "ready" ? { kind: "ready", events: prev.events.map(mapper) } : prev,
+    );
+  }
 
   function requestTransition(event: AdminEvent, status: AdminEvent["status"]) {
     setPendingTransition({ event, status });
@@ -108,38 +76,28 @@ export function AdminEventDashboard() {
     const { event, status } = pendingTransition;
     setPendingTransition(null);
 
-    try {
-      const updated = await submitStatus(event.id, status);
+    const updated = await updateAdminEventStatus(event.id, status);
 
-      if (state.kind === "ready") {
-        setState({
-          kind: "ready",
-          events: state.events.map((item) => (item.id === updated.id ? updated : item)),
-        });
-      }
-
-      setMessage(status === "draft" ? "Événement dépublié." : "Statut mis à jour.");
-    } catch {
+    if (updated === null) {
       setMessage("Transition de statut impossible.");
+      return;
     }
+
+    patchCachedEvent((item) => (item.id === updated.id ? updated : item));
+    setMessage(status === "draft" ? "Événement dépublié." : "Statut mis à jour.");
   }
 
   async function configurePrivateAccess(event: AdminEvent, password: string) {
-    try {
-      const updated = await submitPrivateAccess(event.id, password);
+    const updated = await updateAdminEventPrivateAccess(event.id, password);
 
-      if (state.kind === "ready") {
-        setState({
-          kind: "ready",
-          events: state.events.map((item) => (item.id === updated.id ? updated : item)),
-        });
-      }
-
-      setMessage("Accès privé configuré.");
-      setPendingPrivateAccess(null);
-    } catch {
+    if (updated === null) {
       setMessage("Configuration d'accès privé impossible.");
+      return;
     }
+
+    patchCachedEvent((item) => (item.id === updated.id ? updated : item));
+    setMessage("Accès privé configuré.");
+    setPendingPrivateAccess(null);
   }
 
   return (
@@ -197,16 +155,11 @@ export function AdminEventDashboard() {
           event={recapEvent}
           onClose={() => setRecapEvent(null)}
           onSaved={(vodUrl, recapPostSlug) => {
-            if (state.kind === "ready") {
-              setState({
-                kind: "ready",
-                events: state.events.map((e) =>
-                  e.id === recapEvent.id
-                    ? { ...e, vodUrl, recapPostSlug, hasRecap: vodUrl !== null || recapPostSlug !== null }
-                    : e,
-                ),
-              });
-            }
+            patchCachedEvent((e) =>
+              e.id === recapEvent.id
+                ? { ...e, vodUrl, recapPostSlug, hasRecap: vodUrl !== null || recapPostSlug !== null }
+                : e,
+            );
             setRecapEvent(null);
             setMessage("Récap mis à jour.");
           }}
@@ -214,36 +167,6 @@ export function AdminEventDashboard() {
       ) : null}
     </section>
   );
-}
-
-async function submitStatus(eventId: string, status: AdminEvent["status"]): Promise<AdminEvent> {
-  const response = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/status`, {
-    body: JSON.stringify({ status }),
-    headers: { "Content-Type": "application/json" },
-    method: "PATCH",
-  });
-  const payload: unknown = await response.json();
-
-  if (!response.ok || !isEventPayload(payload)) {
-    throw new Error("Transition de statut impossible.");
-  }
-
-  return payload.data;
-}
-
-async function submitPrivateAccess(eventId: string, password: string): Promise<AdminEvent> {
-  const response = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/private-access`, {
-    body: JSON.stringify({ password }),
-    headers: { "Content-Type": "application/json" },
-    method: "PATCH",
-  });
-  const payload: unknown = await response.json();
-
-  if (!response.ok || !isEventPayload(payload)) {
-    throw new Error("Configuration d'accès privé impossible.");
-  }
-
-  return payload.data;
 }
 
 function StatusTransitionDialog({
@@ -722,29 +645,21 @@ function RecapDialog({
     const vodUrl = String(form.get("vodUrl") ?? "").trim() || null;
     const recapPostSlug = String(form.get("recapPostSlug") ?? "").trim() || null;
 
-    try {
-      const response = await apiFetch(`${env.apiBaseUrl}/admin/events/${event.id}/recap`, {
-        body: JSON.stringify({ vodUrl, recapPostSlug }),
-        headers: { "Content-Type": "application/json" },
-        method: "PATCH",
-      });
+    const result = await saveAdminEventRecap(event.id, vodUrl, recapPostSlug);
+    setSubmitting(false);
 
-      const payload: unknown = await response.json();
-
-      if (!response.ok) {
-        const details = extractDetails(payload);
-        if (details.vodUrl) setVodUrlError(details.vodUrl);
-        if (details.recapPostSlug) setSlugError(details.recapPostSlug);
-        if (!details.vodUrl && !details.recapPostSlug) setGenericError("Impossible d'enregistrer le récap.");
+    if (!result.ok) {
+      if (result.reason === "network") {
+        setGenericError("Impossible de contacter l'API.");
         return;
       }
-
-      onSaved(vodUrl, recapPostSlug);
-    } catch {
-      setGenericError("Impossible de contacter l'API.");
-    } finally {
-      setSubmitting(false);
+      if (result.details.vodUrl) setVodUrlError(result.details.vodUrl);
+      if (result.details.recapPostSlug) setSlugError(result.details.recapPostSlug);
+      if (!result.details.vodUrl && !result.details.recapPostSlug) setGenericError("Impossible d'enregistrer le récap.");
+      return;
     }
+
+    onSaved(vodUrl, recapPostSlug);
   }
 
   return (
@@ -818,23 +733,6 @@ function RecapDialog({
   );
 }
 
-function extractDetails(payload: unknown): Record<string, string> {
-  const details =
-    payload && typeof payload === "object" && "error" in payload && typeof (payload as { error: unknown }).error === "object"
-      ? ((payload as { error: { details?: unknown } }).error.details ?? {})
-      : {};
-
-  if (!details || typeof details !== "object") return {};
-
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(details as Record<string, unknown>)) {
-    if (Array.isArray(value) && typeof value[0] === "string") {
-      result[key] = value[0];
-    }
-  }
-  return result;
-}
-
 function statusLabel(status: AdminEvent["status"]) {
   return { draft: "Brouillon", published: "Publié", "in-progress": "En cours", completed: "Terminé" }[status];
 }
@@ -887,13 +785,4 @@ function formatDateShort(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function isEventListPayload(payload: unknown): payload is { data: AdminEvent[] } {
-  return Boolean(payload && typeof payload === "object" && "data" in payload && Array.isArray((payload as { data: unknown }).data));
-}
-
-function isEventPayload(payload: unknown): payload is { data: AdminEvent } {
-  const data = payload && typeof payload === "object" && "data" in payload ? (payload as { data: unknown }).data : null;
-  return Boolean(data && typeof data === "object" && "id" in data && "title" in data && "gameSelectionEnabled" in data && "hasRecap" in data);
 }

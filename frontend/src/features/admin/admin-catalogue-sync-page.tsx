@@ -22,155 +22,46 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-type CatalogLink = { label: string; url: string | null };
-
-type NewGame = {
-  name: string;
-  availability: string;
-  bundledWithAp: boolean;
-  adultContent: boolean;
-  links: CatalogLink[];
-  votes: number;
-};
-
-type StabilityChange = {
-  gameId: string;
-  gameName: string;
-  currentAvailability: string;
-  newAvailability: string;
-  availabilityLocked: boolean;
-};
-
-type RemovedGame = {
-  gameId: string;
-  gameName: string;
-};
-
-type ApworldUpdate = {
-  gameId: string;
-  gameName: string;
-  deployedVersion: string | null;
-  latestVersion: string | null;
-  releaseUrl: string | null;
-  publishedAt: string | null;
-  updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
-};
-
-type IgnoredGame = {
-  name: string;
-  ignoredAt: string;
-};
-
-type CatalogSyncData = {
-  cachedAt: string | null;
-  googleApiAvailable: boolean;
-  githubChecksAvailable: boolean;
-  newGames: NewGame[];
-  ignoredGames: IgnoredGame[];
-  stabilityChanged: StabilityChange[];
-  removedFromSheet: RemovedGame[];
-  apworldUpdates: ApworldUpdate[];
-};
-
-type PageState =
-  | { kind: "loading" }
-  | { kind: "ready"; data: CatalogSyncData }
-  | { kind: "error"; message: string };
-
-type AdminGameBase = {
-  name: string;
-  slug: string;
-  description: string;
-  coverImageUrl: string | null;
-  coverImageAlt: string;
-  coverImageCredit: string;
-};
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import {
+  checkApworldUpdates,
+  fetchAdminGameBase,
+  fetchCatalogSync,
+  fetchGameRequestVotes,
+  ignoreCatalogGame,
+  unignoreCatalogGame,
+  updateGameAvailability,
+  type ApworldUpdate,
+  type CatalogSyncData,
+  type CatalogSyncResult,
+  type IgnoredGame,
+  type NewGame,
+  type RemovedGame,
+  type StabilityChange,
+} from "./admin-catalogue-sync-api";
 
 const PAGE_SIZE = 20;
 
-// ── Data fetcher ─────────────────────────────────────────────────────────────
+const SYNC_QUERY_KEY = ["admin-catalog-sync"] as const;
+const VOTES_QUERY_KEY = ["admin-game-request-votes"] as const;
 
-function isCatalogSyncData(v: unknown): v is CatalogSyncData {
-  if (!v || typeof v !== "object") return false;
-  const d = v as Record<string, unknown>;
-  return (
-    (d.cachedAt === null || typeof d.cachedAt === "string") &&
-    typeof d.googleApiAvailable === "boolean" &&
-    typeof d.githubChecksAvailable === "boolean" &&
-    Array.isArray(d.newGames) &&
-    Array.isArray(d.ignoredGames) &&
-    Array.isArray(d.stabilityChanged) &&
-    Array.isArray(d.removedFromSheet) &&
-    Array.isArray(d.apworldUpdates)
-  );
-}
-
-async function fetchCatalogSync(
-  force = false,
-): Promise<{ ok: true; data: CatalogSyncData } | { ok: false; message: string }> {
-  const url = `${env.apiBaseUrl}/admin/catalog-sync${force ? "?force=true" : ""}`;
-  try {
-    const res = await apiFetch(url);
-    if (!res.ok) {
-      if (res.status === 503) {
-        const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-        return { ok: false, message: body.error?.message ?? "Le catalogue Google Sheets est injoignable." };
-      }
-      return { ok: false, message: "Impossible de charger la synchronisation catalogue." };
-    }
-    const payload: unknown = await res.json();
-    if (!isCatalogSyncData(payload)) {
-      return { ok: false, message: "Impossible de charger la synchronisation catalogue." };
-    }
-    return { ok: true, data: payload };
-  } catch {
-    return { ok: false, message: "Impossible de contacter l'API." };
-  }
-}
-
-async function fetchGameRequestVotes(): Promise<Map<string, number>> {
-  try {
-    const res = await apiFetch(`${env.apiBaseUrl}/game-requests`);
-    if (!res.ok) return new Map();
-    const json = (await res.json()) as { data?: { normalizedName: string; voteCount: number }[] };
-    const map = new Map<string, number>();
-    for (const item of json.data ?? []) {
-      map.set(item.normalizedName, item.voteCount);
-    }
-    return map;
-  } catch {
-    return new Map();
-  }
-}
-
-async function reloadAll(
-  force = false,
-): Promise<{ kind: "ready"; data: CatalogSyncData } | { kind: "error"; message: string }> {
-  const [syncResult, votesMap] = await Promise.all([fetchCatalogSync(force), fetchGameRequestVotes()]);
-  if (!syncResult.ok) return { kind: "error", message: syncResult.message };
+function withVotes(data: CatalogSyncData, votes: Map<string, number>): CatalogSyncData {
   return {
-    kind: "ready",
-    data: {
-      ...syncResult.data,
-      newGames: syncResult.data.newGames.map((g) => ({
-        ...g,
-        votes: votesMap.get(g.name.toLowerCase().trim()) ?? 0,
-      })),
-    },
+    ...data,
+    newGames: data.newGames.map((g) => ({
+      ...g,
+      votes: votes.get(g.name.toLowerCase().trim()) ?? 0,
+    })),
   };
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function AdminCatalogueSyncPage() {
-  const [state, setState] = useState<PageState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -181,6 +72,28 @@ export function AdminCatalogueSyncPage() {
   const [updatesPage, setUpdatesPage] = useState(1);
   const [changesPage, setChangesPage] = useState(1);
 
+  // fetchCatalogSync never throws (the 503 "Google Sheets down" message and other failures are
+  // encoded in the result's `kind`), so the query never errors and never retries.
+  const syncQuery = useQuery({
+    queryKey: SYNC_QUERY_KEY,
+    queryFn: () => fetchCatalogSync(),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const votesQuery = useQuery({
+    queryKey: VOTES_QUERY_KEY,
+    queryFn: fetchGameRequestVotes,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+
+  const loading = syncQuery.isPending || votesQuery.isPending;
+  const syncResult = syncQuery.data;
+  const data: CatalogSyncData | null =
+    !loading && syncResult !== undefined && syncResult.kind === "ready"
+      ? withVotes(syncResult.data, votesQuery.data ?? new Map<string, number>())
+      : null;
+
   function handleSearch(q: string) {
     setSearch(q);
     setNewGamesPage(1);
@@ -188,20 +101,23 @@ export function AdminCatalogueSyncPage() {
     setChangesPage(1);
   }
 
-  useEffect(() => {
-    let cancelled = false;
-    async function init() {
-      const next = await reloadAll();
-      if (!cancelled) setState(next);
-    }
-    void init();
-    return () => { cancelled = true; };
-  }, []);
+  // Actions used to rebuild the whole page state via reloadAll(); they now invalidate both query
+  // keys instead so TanStack refetches the diff and the vote counts.
+  async function refreshAll(): Promise<void> {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: SYNC_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: VOTES_QUERY_KEY }),
+    ]);
+  }
 
   async function handleSync(): Promise<void> {
     setSyncing(true);
     try {
-      setState(await reloadAll(true));
+      // `force=true` busts the api-side sheet cache - a plain invalidate would refetch without it -
+      // so the forced result is written straight into the cache.
+      const result: CatalogSyncResult = await fetchCatalogSync(true);
+      queryClient.setQueryData(SYNC_QUERY_KEY, result);
+      await queryClient.invalidateQueries({ queryKey: VOTES_QUERY_KEY });
     } finally {
       setSyncing(false);
     }
@@ -211,17 +127,14 @@ export function AdminCatalogueSyncPage() {
     setCheckingUpdates(true);
     setFlash(null);
     try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/catalog-sync/check-updates`, { method: "POST" });
-      if (!res.ok) {
+      const summary = await checkApworldUpdates();
+      if (summary === null) {
         setFlash({ kind: "error", text: "La vérification des mises à jour a échoué." });
         return;
       }
-      const body = await res.json() as { checked?: number; rateLimitHit?: boolean };
-      const extra = body.rateLimitHit ? " (limite GitHub atteinte)" : "";
-      setFlash({ kind: "success", text: `${body.checked ?? 0} jeu(x) vérifié(s)${extra}.` });
-      setState(await reloadAll());
-    } catch {
-      setFlash({ kind: "error", text: "Impossible de contacter l'API." });
+      const extra = summary.rateLimitHit ? " (limite GitHub atteinte)" : "";
+      setFlash({ kind: "success", text: `${summary.checked} jeu(x) vérifié(s)${extra}.` });
+      await refreshAll();
     } finally {
       setCheckingUpdates(false);
     }
@@ -231,36 +144,20 @@ export function AdminCatalogueSyncPage() {
     setApplyingId(gameId);
     setFlash(null);
     try {
-      const gameRes = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}`);
-      if (!gameRes.ok) {
+      const game = await fetchAdminGameBase(gameId);
+      if (game === null) {
         setFlash({ kind: "error", text: "Impossible de récupérer les données du jeu." });
         return;
       }
-      const { data: game } = await gameRes.json() as { data: AdminGameBase };
 
-      const patchRes = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: game.name,
-          slug: game.slug,
-          description: game.description,
-          coverImageUrl: game.coverImageUrl,
-          coverImageAlt: game.coverImageAlt,
-          coverImageCredit: game.coverImageCredit,
-          availability: newAvailability,
-        }),
-      });
-
-      if (!patchRes.ok) {
+      const patched = await updateGameAvailability(gameId, game, newAvailability);
+      if (!patched) {
         setFlash({ kind: "error", text: "Impossible d'appliquer le changement de disponibilité." });
         return;
       }
 
       setFlash({ kind: "success", text: `Disponibilité mise à jour : ${availabilityLabel(newAvailability)}.` });
-      setState(await reloadAll());
-    } catch {
-      setFlash({ kind: "error", text: "Impossible de contacter l'API." });
+      await refreshAll();
     } finally {
       setApplyingId(null);
     }
@@ -270,18 +167,12 @@ export function AdminCatalogueSyncPage() {
     setIgnoringName(name);
     setFlash(null);
     try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/catalog-sync/ignored`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) {
+      const ok = await ignoreCatalogGame(name);
+      if (!ok) {
         setFlash({ kind: "error", text: "Impossible d'ignorer ce jeu." });
         return;
       }
-      setState(await reloadAll());
-    } catch {
-      setFlash({ kind: "error", text: "Impossible de contacter l'API." });
+      await refreshAll();
     } finally {
       setIgnoringName(null);
     }
@@ -291,22 +182,17 @@ export function AdminCatalogueSyncPage() {
     setIgnoringName(name);
     setFlash(null);
     try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/catalog-sync/ignored/${encodeURIComponent(name)}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
+      const ok = await unignoreCatalogGame(name);
+      if (!ok) {
         setFlash({ kind: "error", text: "Impossible de retirer l'état ignoré." });
         return;
       }
-      setState(await reloadAll());
-    } catch {
-      setFlash({ kind: "error", text: "Impossible de contacter l'API." });
+      await refreshAll();
     } finally {
       setIgnoringName(null);
     }
   }
 
-  const data = state.kind === "ready" ? state.data : null;
   const q = search.toLowerCase().trim();
   const filteredNewGames = data?.newGames.filter((g) => !q || g.name.toLowerCase().includes(q)) ?? [];
   const allTrackedUpdates = data?.apworldUpdates.filter((u) => u.updateStatus !== "not_tracked") ?? [];
@@ -341,7 +227,7 @@ export function AdminCatalogueSyncPage() {
             ) : null}
             <button
               className="inline-flex min-h-9 items-center gap-2 rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={syncing || state.kind === "loading"}
+              disabled={syncing || loading}
               type="button"
               onClick={() => void handleSync()}
             >
@@ -373,10 +259,17 @@ export function AdminCatalogueSyncPage() {
         </p>
       ) : null}
 
-      {state.kind === "loading" ? (
+      {loading ? (
         <LoadingSkeleton />
-      ) : state.kind === "error" ? (
-        <ErrorPanel message={state.message} onRetry={() => void handleSync()} />
+      ) : data === null ? (
+        <ErrorPanel
+          message={
+            syncResult !== undefined && syncResult.kind === "error"
+              ? syncResult.message
+              : "Impossible de charger la synchronisation catalogue."
+          }
+          onRetry={() => void handleSync()}
+        />
       ) : (
         <>
           <div className="relative">
@@ -393,21 +286,21 @@ export function AdminCatalogueSyncPage() {
           <div className="grid gap-6">
             <NewGamesTable
               games={filteredNewGames}
-              totalCount={data!.newGames.length}
+              totalCount={data.newGames.length}
               page={newGamesPage}
               onPageChange={setNewGamesPage}
               ignoringName={ignoringName}
               onIgnore={(name) => void handleIgnore(name)}
             />
             <IgnoredGamesSection
-              games={data!.ignoredGames}
+              games={data.ignoredGames}
               ignoringName={ignoringName}
               onUnignore={(name) => void handleUnignore(name)}
             />
             <ApworldUpdatesTable
               updates={filteredTrackedUpdates}
               totalCount={allTrackedUpdates.length}
-              githubChecksAvailable={data!.githubChecksAvailable}
+              githubChecksAvailable={data.githubChecksAvailable}
               checkingUpdates={checkingUpdates}
               onCheckUpdates={() => void handleCheckUpdates()}
               page={updatesPage}
@@ -415,13 +308,13 @@ export function AdminCatalogueSyncPage() {
             />
             <StabilityChangedTable
               changes={filteredChanges}
-              totalCount={data!.stabilityChanged.length}
+              totalCount={data.stabilityChanged.length}
               applyingId={applyingId}
               onApply={(id, av) => void handleApply(id, av)}
               page={changesPage}
               onPageChange={setChangesPage}
             />
-            <RemovedFromSheetSection games={data!.removedFromSheet} />
+            <RemovedFromSheetSection games={data.removedFromSheet} />
           </div>
         </>
       )}

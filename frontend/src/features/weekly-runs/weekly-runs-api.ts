@@ -113,6 +113,32 @@ export async function fetchWeeklyEntryPatches(
   }
 }
 
+export type WeeklyEntryPlayerSlot = { index: string; name: string };
+
+/**
+ * Player slots of a launched entry - spectator/group/Bridge slots excluded, sorted by
+ * slot index. Returns null on network error, non-OK response or invalid payload.
+ */
+export async function fetchWeeklyEntryPlayerSlots(
+  weeklyRunId: string,
+  entryId: string,
+): Promise<WeeklyEntryPlayerSlot[] | null> {
+  try {
+    const res = await apiFetch(
+      `${env.apiBaseUrl}/weekly-runs/${weeklyRunId}/entries/${entryId}/players`,
+    );
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    if (!isEntryPlayersPayload(payload)) return null;
+    return Object.entries(payload.data.slots)
+      .filter(([, s]) => s.type !== "spectator" && s.type !== "group" && s.slot_name !== "Bridge")
+      .map(([index, s]) => ({ index, name: s.slot_name }))
+      .sort((a, b) => Number(a.index) - Number(b.index));
+  } catch {
+    return null;
+  }
+}
+
 export async function withdrawFromWeeklyRun(
   weeklyRunId: string,
   entryId: string,
@@ -195,6 +221,24 @@ function isLaunchPayload(v: unknown): v is { data: LaunchResult } {
   if (!("entryId" in d) || typeof d.entryId !== "string") return false;
   if (!("connectionInfo" in d) || typeof d.connectionInfo !== "object" || d.connectionInfo === null) return false;
   return true;
+}
+
+type RawEntryPlayerSlot = { slot_name: string; type?: string };
+
+function isRawEntryPlayerSlot(v: unknown): v is RawEntryPlayerSlot {
+  if (typeof v !== "object" || v === null) return false;
+  if (!("slot_name" in v) || typeof v.slot_name !== "string") return false;
+  if ("type" in v && v.type !== undefined && typeof v.type !== "string") return false;
+  return true;
+}
+
+function isEntryPlayersPayload(v: unknown): v is { data: { slots: Record<string, RawEntryPlayerSlot> } } {
+  if (typeof v !== "object" || v === null || !("data" in v)) return false;
+  const data: unknown = Reflect.get(v, "data");
+  if (typeof data !== "object" || data === null || !("slots" in data)) return false;
+  const slots: unknown = Reflect.get(data, "slots");
+  if (typeof slots !== "object" || slots === null) return false;
+  return Object.values(slots).every((s: unknown) => isRawEntryPlayerSlot(s));
 }
 
 function isWeeklyEntryPatchesPayload(v: unknown): v is { data: { files: string[] } } {

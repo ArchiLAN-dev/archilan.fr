@@ -2,30 +2,23 @@
 
 import {Search, ShieldAlert, UserPlus, Users} from "lucide-react";
 import type {FormEvent, ReactNode} from "react";
-import {useEffect, useId, useMemo, useState} from "react";
+import {useId, useState} from "react";
+import {useQuery, useQueryClient} from "@tanstack/react-query";
 
-import {apiFetch} from "@/lib/apiFetch";
-import {env} from "@/lib/env";
-
-type AdminUser = {
-    id: string;
-    email: string;
-    displayName: string | null;
-    role: "admin" | "member" | "user";
-    roles: string[];
-    status: "active" | "deleted";
-    createdAt: string;
-    updatedAt: string;
-    deletedAt: string | null;
-};
+import {DEFAULT_STALE_TIME} from "@/lib/query-client";
+import {
+    createAdminUser,
+    fetchAdminUsers,
+    updateAdminUserRole,
+    type AdminUser,
+    type AdminUserFieldErrors as FieldErrors,
+} from "./admin-users-api";
 
 type DirectoryState =
     | { kind: "loading" }
     | { kind: "ready"; users: AdminUser[] }
     | { kind: "denied"; message: string }
     | { kind: "error"; message: string };
-
-type FieldErrors = Partial<Record<"email" | "password" | "displayName", string>>;
 
 const roleLabels: Record<AdminUser["role"], string> = {
     admin: "Admin",
@@ -39,9 +32,9 @@ const statusLabels: Record<AdminUser["status"], string> = {
 };
 
 export function AdminUserDirectory() {
+    const queryClient = useQueryClient();
     const [query, setQuery] = useState("");
     const [role, setRole] = useState("all");
-    const [state, setState] = useState<DirectoryState>({kind: "loading"});
     const [changingUserId, setChangingUserId] = useState<string | null>(null);
     const [mutationError, setMutationError] = useState<string | null>(null);
     const [pendingChange, setPendingChange] = useState<{
@@ -50,138 +43,62 @@ export function AdminUserDirectory() {
     } | null>(null);
     const [creationMessage, setCreationMessage] = useState<string | null>(null);
 
-    const requestUrl = useMemo(() => {
-        const params = new URLSearchParams();
-
-        if (query.trim() !== "") {
-            params.set("q", query.trim());
-        }
-
-        if (role !== "all") {
-            params.set("role", role);
-        }
-
-        const suffix = params.toString();
-
-        return `${env.apiBaseUrl}/admin/users${suffix === "" ? "" : `?${suffix}`}`;
-    }, [query, role]);
-
-    useEffect(() => {
-        const controller = new AbortController();
-
-        async function loadUsers() {
-            setState({kind: "loading"});
-            setMutationError(null);
-            setCreationMessage(null);
-
-            try {
-                const response = await fetch(requestUrl, {
-                    credentials: "include",
-                    signal: controller.signal,
-                });
-
-                if (response.status === 401 || response.status === 403) {
-                    setState({
-                        kind: "denied",
-                        message: "Accès réservé aux admins ArchiLAN.",
-                    });
-
-                    return;
-                }
-
-                if (!response.ok) {
-                    setState({
-                        kind: "error",
-                        message: "Impossible de charger l'annuaire utilisateurs.",
-                    });
-
-                    return;
-                }
-
-                const payload: unknown = await response.json();
-                const data = isDirectoryPayload(payload) ? payload.data : [];
-                setState({kind: "ready", users: data});
-            } catch (error) {
-                if (error instanceof DOMException && error.name === "AbortError") {
-                    return;
-                }
-
-                setState({
-                    kind: "error",
-                    message: "Impossible de contacter l'API utilisateurs.",
-                });
-            }
-        }
-
-        void loadUsers();
-
-        return () => controller.abort();
-    }, [requestUrl]);
+    // Filters in the key: changing the search or role refetches automatically, and TanStack's
+    // signal replaces the old AbortController on rapid keystrokes. fetchAdminUsers never throws
+    // (denied/error are encoded in the result kind), so - like the old effect - no retry.
+    const {data} = useQuery({
+        queryKey: ["admin-users", query.trim(), role],
+        queryFn: ({signal}) => fetchAdminUsers(query.trim(), role, signal),
+        staleTime: DEFAULT_STALE_TIME,
+        retry: false,
+    });
+    const state: DirectoryState = data ?? {kind: "loading"};
 
     const hasFilters = query.trim() !== "" || role !== "all";
+
+    // The old effect cleared the banners on every filter-triggered reload.
+    function applyFilterChange(apply: () => void) {
+        setMutationError(null);
+        setCreationMessage(null);
+        apply();
+    }
 
     function requestRoleChange(user: AdminUser, targetRole: "user" | "member") {
         setPendingChange({user, targetRole});
     }
 
     async function executeRoleChange() {
-        if (!pendingChange || state.kind !== "ready") {
-            setPendingChange(null);
+        if (!pendingChange) {
             return;
         }
 
         const {user, targetRole} = pendingChange;
         setPendingChange(null);
-
-        const previousUsers = state.users;
-        const optimisticUser = withRole(user, targetRole);
         setMutationError(null);
         setChangingUserId(user.id);
-        setState({kind: "ready", users: nextUsersForCurrentFilter(previousUsers, optimisticUser, role)});
 
-        try {
-            const response = await apiFetch(`${env.apiBaseUrl}/admin/users/${user.id}/role`, {
-                body: JSON.stringify({role: targetRole, confirmed: true}),
-                headers: {"Content-Type": "application/json"},
-                method: "PATCH",
-            });
+        const updated = await updateAdminUserRole(user.id, targetRole);
 
-            if (!response.ok) {
-                throw new Error("role-change-failed");
-            }
-
-            const payload: unknown = await response.json();
-            const updatedUser = isUserPayload(payload) ? payload.data : optimisticUser;
-            setState({kind: "ready", users: nextUsersForCurrentFilter(previousUsers, updatedUser, role)});
-        } catch {
-            setState({kind: "ready", users: previousUsers});
+        if (updated === null) {
             setMutationError("Le changement de rôle a échoué. L'affichage a été restauré.");
-        } finally {
-            setChangingUserId(null);
+        } else {
+            await queryClient.invalidateQueries({queryKey: ["admin-users"]});
         }
+
+        setChangingUserId(null);
     }
 
     async function createAdminAccount(input: { email: string; password: string; displayName: string }) {
-        const response = await apiFetch(`${env.apiBaseUrl}/admin/users/admins`, {
-            body: JSON.stringify(input),
-            headers: {"Content-Type": "application/json"},
-            method: "POST",
-        });
+        const result = await createAdminUser(input);
 
-        const payload: unknown = await response.json();
-
-        if (!response.ok) {
-            throw new AdminCreationError(fieldErrorsFromPayload(payload));
+        if (!result.ok) {
+            if (result.reason === "validation") {
+                throw new AdminCreationError(result.fieldErrors);
+            }
+            throw new Error("admin-creation-failed");
         }
 
-        const createdUser = isUserPayload(payload) ? payload.data : null;
-        if (createdUser && state.kind === "ready") {
-            setState({
-                kind: "ready",
-                users: role === "all" || role === "admin" ? [createdUser, ...state.users] : state.users,
-            });
-        }
-
+        await queryClient.invalidateQueries({queryKey: ["admin-users"]});
         setCreationMessage("Compte admin créé.");
     }
 
@@ -211,7 +128,7 @@ export function AdminUserDirectory() {
             <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground"/>
             <input
                 className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => applyFilterChange(() => setQuery(event.target.value))}
                 placeholder="Email ou nom affiché"
                 type="search"
                 value={query}
@@ -223,7 +140,7 @@ export function AdminUserDirectory() {
                     Rôle
                     <select
                         className="min-h-11 border border-border bg-background px-3 text-foreground outline-none focus:border-accent"
-                        onChange={(event) => setRole(event.target.value)}
+                        onChange={(event) => applyFilterChange(() => setRole(event.target.value))}
                         value={role}
                     >
                         <option value="all">Tous les rôles</option>
@@ -619,70 +536,6 @@ function EmptyPanel({
             <p className="max-w-md text-sm leading-6 text-muted-foreground">{children}</p>
         </div>
     );
-}
-
-function withRole(user: AdminUser, role: "user" | "member"): AdminUser {
-    return {
-        ...user,
-        role,
-        roles: role === "member" ? ["ROLE_USER", "ROLE_MEMBER"] : ["ROLE_USER"],
-    };
-}
-
-function nextUsersForCurrentFilter(users: AdminUser[], updatedUser: AdminUser, roleFilter: string): AdminUser[] {
-    const nextUsers = users.map((user) => (user.id === updatedUser.id ? updatedUser : user));
-
-    if (roleFilter === "all" || roleFilter === updatedUser.role) {
-        return nextUsers;
-    }
-
-    return nextUsers.filter((user) => user.id !== updatedUser.id);
-}
-
-function isDirectoryPayload(payload: unknown): payload is { data: AdminUser[] } {
-    if (!payload || typeof payload !== "object" || !("data" in payload)) {
-        return false;
-    }
-
-    return Array.isArray((payload as { data: unknown }).data);
-}
-
-function isUserPayload(payload: unknown): payload is { data: AdminUser } {
-    if (!payload || typeof payload !== "object" || !("data" in payload)) {
-        return false;
-    }
-
-    const data = (payload as { data: unknown }).data;
-
-    return Boolean(data && typeof data === "object" && "id" in data && "role" in data);
-}
-
-function fieldErrorsFromPayload(payload: unknown): FieldErrors {
-    if (!payload || typeof payload !== "object" || !("error" in payload)) {
-        return {email: "Le formulaire contient une erreur."};
-    }
-
-    const error = (payload as { error: unknown }).error;
-    if (!error || typeof error !== "object" || !("details" in error)) {
-        return {email: "Le formulaire contient une erreur."};
-    }
-
-    const details = (error as { details: unknown }).details;
-    if (!details || typeof details !== "object") {
-        return {email: "Le formulaire contient une erreur."};
-    }
-
-    return {
-        email: firstDetail(details, "email"),
-        password: firstDetail(details, "password"),
-        displayName: firstDetail(details, "displayName"),
-    };
-}
-
-function firstDetail(details: object, key: keyof FieldErrors): string | undefined {
-    const value = (details as Record<string, unknown>)[key];
-
-    return Array.isArray(value) && typeof value[0] === "string" ? value[0] : undefined;
 }
 
 class AdminCreationError extends Error {

@@ -1,21 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Bot, Calendar, CreditCard, Gamepad2, Library, Newspaper, Users } from "lucide-react";
+import { fetchAdminDashboardStats } from "@/features/admin/admin-dashboard-api";
+import { fetchAdminEvents } from "@/features/admin/admin-events-api";
 import { useAuth } from "@/features/auth/auth-context";
-import { env } from "@/lib/env";
-
-type AdminEventStatus = "draft" | "published" | "in-progress" | "completed";
-type AdminEventSummary = { status: AdminEventStatus };
-
-type DashboardStats = {
-  totalActiveRegistrations: number;
-  gameCount: number;
-  userCount: number;
-  activeMemberCount: number;
-  totalRevenueCents: number;
-};
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
 const sections = [
   {
@@ -74,33 +65,33 @@ const numFormatter = new Intl.NumberFormat("fr-FR");
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
-  const [publishedEvents, setPublishedEvents] = useState<number | null>(null);
-  const [dashStats, setDashStats] = useState<DashboardStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
 
   // The community pseudo (auth payload's displayName already resolves the community override); the email
   // local-part is only a last-resort fallback.
   const displayName = (user?.displayName ?? "").trim() || (user ? user.email.split("@")[0] : "");
 
-  useEffect(() => {
-    Promise.all([
-      fetch(`${env.apiBaseUrl}/admin/events`, { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((payload: { data: AdminEventSummary[] } | null) => {
-          if (payload?.data) {
-            setPublishedEvents(payload.data.filter((e) => e.status !== "draft").length);
-          }
-        })
-        .catch(() => {}),
+  // Both query fns encode every failure (401/403, HTTP, network) in their return value instead of
+  // throwing, so - like the old fire-and-forget effect - errors leave "-" placeholders, no retry.
+  const eventsQuery = useQuery({
+    queryKey: ["admin-events"],
+    queryFn: fetchAdminEvents,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const statsQuery = useQuery({
+    queryKey: ["admin-dashboard-stats"],
+    queryFn: fetchAdminDashboardStats,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-      fetch(`${env.apiBaseUrl}/admin/dashboard-stats`, { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((payload: { data: DashboardStats } | null) => {
-          if (payload?.data) setDashStats(payload.data);
-        })
-        .catch(() => {}),
-    ]).finally(() => setStatsLoading(false));
-  }, []);
+  // Skeleton until both queries settle, mirroring the former Promise.all([...]).finally().
+  const statsLoading = eventsQuery.isPending || statsQuery.isPending;
+  const publishedEvents =
+    eventsQuery.data?.kind === "ready"
+      ? eventsQuery.data.events.filter((e) => e.status !== "draft").length
+      : null;
+  const dashStats = statsQuery.data ?? null;
 
   return (
     <div className="w-full px-4 py-6 md:py-8">

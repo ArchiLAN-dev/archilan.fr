@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Gamepad2, Users } from "lucide-react";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { CommunityLoadingSkeleton } from "./community-loading-skeleton";
 
 import { fetchFriendsFeed, fetchProfileActivity, type ActivityItem } from "./community-feed-api";
@@ -10,22 +11,16 @@ import { KudosButton } from "./kudos-button";
 
 /** One actor's recent activity, on their public profile (audience-gated server-side). */
 export function ProfileActivity({ slug }: { slug: string }) {
-  const [items, setItems] = useState<ActivityItem[] | null>(null);
-  const [ready, setReady] = useState(false);
+  // fetchProfileActivity resolves to null on error (never throws), so retry stays off like the old one-shot effect.
+  const { data: items } = useQuery({
+    queryKey: ["community-profile-activity", slug],
+    queryFn: () => fetchProfileActivity(slug),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await fetchProfileActivity(slug);
-      if (!cancelled) {
-        setItems(result);
-        setReady(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [slug]);
-
-  if (!ready || items === null || items.length === 0) return null;
+  // Nothing while loading (undefined), on error (null) or when empty - same as before.
+  if (items === undefined || items === null || items.length === 0) return null;
 
   return (
     <section className="grid gap-3">
@@ -41,26 +36,18 @@ export function ProfileActivity({ slug }: { slug: string }) {
 
 /** The viewer's feed: their own + their friends' activity. */
 export function CommunityFeedPanel() {
-  const [items, setItems] = useState<ActivityItem[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: items, isLoading } = useQuery({
+    queryKey: ["community-feed"],
+    queryFn: () => fetchFriendsFeed(),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const result = await fetchFriendsFeed();
-      if (!cancelled) {
-        setItems(result);
-        setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return <CommunityLoadingSkeleton rows={4} />;
   }
 
-  if (items === null) {
+  if (items === undefined || items === null) {
     return <p className="text-sm text-muted-foreground">Impossible de charger le fil d&apos;activité.</p>;
   }
 
