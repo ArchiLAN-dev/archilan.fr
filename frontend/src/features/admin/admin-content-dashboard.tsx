@@ -3,25 +3,15 @@
 import { FilePenLine, FileText, Pencil, PlusCircle, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-
-type AdminPost = {
-  id: string;
-  slug: string;
-  title: string;
-  type: "news" | "recap" | "announcement";
-  status: "draft" | "published";
-  excerpt: string;
-  body: string[];
-  readingTime: string;
-  coverImageUrl: string | null;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import {
+  fetchAdminPosts,
+  togglePostPublish,
+  type AdminPostSummary as AdminPost,
+} from "./admin-posts-api";
 
 type DashboardState =
   | { kind: "loading" }
@@ -36,49 +26,22 @@ const typeLabels: Record<AdminPost["type"], string> = {
 };
 
 export function AdminContentDashboard() {
-  const [state, setState] = useState<DashboardState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<AdminPost["type"] | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadPosts() {
-      setState({ kind: "loading" });
-      setActionError(null);
-
-      try {
-        const response = await apiFetch(`${env.apiBaseUrl}/admin/posts`, {
-          signal: controller.signal,
-        });
-
-        if (response.status === 401 || response.status === 403) {
-          setState({ kind: "denied", message: "Accès réservé aux admins ArchiLAN." });
-          return;
-        }
-
-        if (!response.ok) {
-          setState({ kind: "error", message: "Impossible de charger les articles." });
-          return;
-        }
-
-        const payload: unknown = await response.json();
-        const posts = isPostListPayload(payload) ? payload.data : [];
-        setState({ kind: "ready", posts });
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setState({ kind: "error", message: "Impossible de contacter l'API." });
-      }
-    }
-
-    void loadPosts();
-
-    return () => controller.abort();
-  }, [refreshKey]);
+  // fetchAdminPosts never throws (denied/error are encoded in the result kind), so the query
+  // never errors and - like the old effect - never retries.
+  const { data } = useQuery({
+    queryKey: ["admin-posts"],
+    queryFn: fetchAdminPosts,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const state: DashboardState = data ?? { kind: "loading" };
 
   const filteredPosts = useMemo(() => {
     if (state.kind !== "ready") return [];
@@ -96,22 +59,16 @@ export function AdminContentDashboard() {
     setActioningId(post.id);
     setActionError(null);
 
-    try {
-      const response = await apiFetch(`${env.apiBaseUrl}/admin/posts/${post.id}/${action}`, {
-        method: "POST",
-      });
+    const result = await togglePostPublish(post.id, action);
 
-      if (!response.ok) {
-        setActionError("L'action a échoué. Veuillez réessayer.");
-        return;
-      }
-
-      setRefreshKey((k) => k + 1);
-    } catch {
-      setActionError("Impossible de contacter l'API.");
-    } finally {
-      setActioningId(null);
+    if (!result.ok) {
+      setActionError(result.message);
+    } else {
+      // Former refreshKey bump: refetch the list so the new status shows up.
+      await queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
     }
+
+    setActioningId(null);
   }
 
   return (
@@ -422,9 +379,4 @@ function EmptyPanel({
       <p className="max-w-md text-sm leading-6 text-muted-foreground">{children}</p>
     </div>
   );
-}
-
-function isPostListPayload(payload: unknown): payload is { data: AdminPost[] } {
-  if (!payload || typeof payload !== "object" || !("data" in payload)) return false;
-  return Array.isArray((payload as { data: unknown }).data);
 }

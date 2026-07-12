@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { getArchipelagoClient, saveArchipelagoClient } from "@/features/games/archipelago-client-api";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 
 /**
  * Admin editor for the global Archipelago client version + download URL (story 31.8),
@@ -12,25 +14,32 @@ import { getArchipelagoClient, saveArchipelagoClient } from "@/features/games/ar
 export function ArchipelagoClientSettings() {
   const [version, setVersion] = useState("");
   const [downloadUrl, setDownloadUrl] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
+  // getArchipelagoClient returns null on any failure (never throws): the form simply starts
+  // empty, exactly like the old effect. No retry (the old effect was one-shot).
+  const { data: client } = useQuery({
+    queryKey: ["archipelago-client"],
+    queryFn: getArchipelagoClient,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+
+  // One-shot seed of the form, guarded so background refetches never clobber in-progress edits.
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const client = await getArchipelagoClient();
-      if (cancelled) return;
-      if (client) {
-        setVersion(client.version);
-        setDownloadUrl(client.downloadUrl);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (client === undefined || hydrated) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- sanctioned one-shot seed-into-form hydration (guarded by hydrated); the edited fields are local UI state (AC-ST2), not query state */
+    if (client !== null) {
+      setVersion(client.version);
+      setDownloadUrl(client.downloadUrl);
+    }
+    setHydrated(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [client, hydrated]);
+
+  const loading = !hydrated;
 
   async function save() {
     setSaving(true);

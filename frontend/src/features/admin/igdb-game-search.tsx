@@ -2,31 +2,22 @@
 
 import { Gamepad2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { searchIgdbGames, type IgdbSearchEntry } from "./admin-igdb-api";
 
-export type IgdbResult = {
-  igdbId: number;
-  name: string;
-  slug: string;
-  summary: string | null;
-  coverUrl: string | null;
-};
+export type IgdbResult = IgdbSearchEntry;
 
 const PAGE_SIZE = 10;
 
-type Status = "idle" | "loading" | "error" | "done";
-
 export function IgdbGameSearch({ onSelect }: { onSelect: (result: IgdbResult) => void }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<IgdbResult[]>([]);
-  const [status, setStatus] = useState<Status>("idle");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,67 +36,49 @@ export function IgdbGameSearch({ onSelect }: { onSelect: (result: IgdbResult) =>
     return () => document.removeEventListener("keydown", handleKeydown);
   }, []);
 
-  async function fetchResults(q: string, pageIndex: number, signal: AbortSignal) {
-    setStatus("loading");
-    setOpen(true);
-    try {
-      const offset = pageIndex * PAGE_SIZE;
-      const res = await fetch(
-        `${env.apiBaseUrl}/admin/igdb/search?q=${encodeURIComponent(q)}&offset=${offset}`,
-        { credentials: "include", signal },
-      );
-      if (!res.ok) {
-        setStatus("error");
-        return;
-      }
-      const payload: unknown = await res.json();
-      if (!isIgdbPayload(payload)) {
-        setStatus("error");
-        return;
-      }
-      setResults(payload.data);
-      setHasMore(payload.meta.hasMore);
-      setStatus("done");
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setStatus("error");
-    }
-  }
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  // The 300ms debounce feeds the KEY input (debouncedQuery); TanStack's signal subsumes the old
+  // AbortController. searchIgdbGames returns null on any failure (never throws), so
+  // `data === null` is the error state and - like the old handler - there is no retry.
+  const searchQuery = useQuery({
+    queryKey: ["admin-igdb-search", debouncedQuery, page * PAGE_SIZE],
+    queryFn: ({ signal }) => searchIgdbGames(debouncedQuery, page * PAGE_SIZE, signal),
+    enabled: debouncedQuery.trim().length > 0,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+  const results = searchQuery.data?.results ?? [];
+  const hasMore = searchQuery.data?.hasMore ?? false;
 
   function handleQueryChange(q: string) {
     setQuery(q);
     setPage(0);
     if (timerRef.current) clearTimeout(timerRef.current);
-    abortRef.current?.abort();
     if (!q.trim()) {
-      setStatus("idle");
-      setResults([]);
-      setHasMore(false);
+      setDebouncedQuery("");
       setOpen(false);
       return;
     }
     timerRef.current = setTimeout(() => {
-      abortRef.current = new AbortController();
-      void fetchResults(q, 0, abortRef.current.signal);
+      setDebouncedQuery(q);
+      setOpen(true);
     }, 300);
   }
 
   function handlePageChange(delta: number) {
-    const next = page + delta;
-    setPage(next);
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-    void fetchResults(query, next, abortRef.current.signal);
+    setPage((p) => p + delta);
   }
 
   function handleSelect(result: IgdbResult) {
     onSelect(result);
     setOpen(false);
     setQuery("");
-    setResults([]);
-    setHasMore(false);
+    setDebouncedQuery("");
     setPage(0);
-    setStatus("idle");
   }
 
   const showDropdown = open && query.trim().length > 0;
@@ -120,15 +93,15 @@ export function IgdbGameSearch({ onSelect }: { onSelect: (result: IgdbResult) =>
         value={query}
         onChange={(e) => handleQueryChange(e.target.value)}
         onFocus={() => {
-          if (query.trim() && (results.length > 0 || status === "loading")) setOpen(true);
+          if (query.trim() && (results.length > 0 || searchQuery.isFetching)) setOpen(true);
         }}
       />
 
       {showDropdown ? (
         <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded border border-border bg-surface shadow-lg">
-          {status === "loading" ? (
+          {searchQuery.isPending ? (
             <li className="px-4 py-3 text-sm text-muted-foreground">Recherche en cours…</li>
-          ) : status === "error" ? (
+          ) : searchQuery.data === null ? (
             <li className="px-4 py-3 text-sm text-danger">Erreur lors de la recherche IGDB.</li>
           ) : results.length === 0 ? (
             <li className="px-4 py-3 text-sm text-muted-foreground">
@@ -186,12 +159,4 @@ export function IgdbGameSearch({ onSelect }: { onSelect: (result: IgdbResult) =>
       ) : null}
     </div>
   );
-}
-
-function isIgdbPayload(payload: unknown): payload is { data: IgdbResult[]; meta: { hasMore: boolean } } {
-  if (!payload || typeof payload !== "object") return false;
-  if (!("data" in payload) || !Array.isArray((payload as { data: unknown }).data)) return false;
-  if (!("meta" in payload)) return false;
-  const meta = (payload as { meta: unknown }).meta;
-  return typeof meta === "object" && meta !== null && "hasMore" in meta && typeof (meta as { hasMore: unknown }).hasMore === "boolean";
 }

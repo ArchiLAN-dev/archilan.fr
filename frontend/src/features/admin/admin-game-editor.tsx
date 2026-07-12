@@ -3,51 +3,25 @@
 import {ArrowLeft, Info, RefreshCw, ShieldAlert} from "lucide-react";
 import Link from "next/link";
 import type {FormEvent} from "react";
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
+import {useQuery, useQueryClient} from "@tanstack/react-query";
 
+import {
+    fetchAdminGame,
+    isAdminGamePayload as isGamePayload,
+    type AdminGame,
+    type AdminGameResult,
+    type GameAvailability,
+} from "@/features/admin/admin-games-api";
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
 import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
+import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type GameAvailability = "available" | "unavailable" | "experimental";
-
-type AdminGame = {
-    id: string;
-    name: string;
-    slug: string;
-    description: string;
-    coverImageUrl: string | null;
-    coverImageAlt: string;
-    coverImageCredit: string;
-    availability: GameAvailability;
-    archipelagoGameName: string | null;
-    isYamlReady: boolean;
-    isApworldReady: boolean;
-    apworldHash: string | null;
-    apworldUploadedAt: string | null;
-    defaultYaml: string | null;
-    catalogSheetName: string | null;
-    apworldSourceUrl: string | null;
-    apworldDeployedVersion: string | null;
-    apworldLatestVersion: string | null;
-    apworldCheckedAt: string | null;
-    apworldReleaseUrl: string | null;
-    availabilityLocked: boolean;
-    igdbId: number | null;
-    platforms: string[];
-    installSteps: InstallStep[];
-    updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
-};
-
-type LoadState =
-    | { kind: "loading" }
-    | { kind: "ready"; game: AdminGame }
-    | { kind: "denied" }
-    | { kind: "not_found" }
-    | { kind: "error" };
+type LoadState = { kind: "loading" } | AdminGameResult;
 
 type GithubAsset = { name: string; downloadUrl: string; size: number; tag: string | null };
 
@@ -63,47 +37,25 @@ const EDITOR_TABS = [
 type EditorTab = (typeof EDITOR_TABS)[number]["id"];
 
 export function AdminGameEditor({gameId}: { gameId: string }) {
-    const [loadState, setLoadState] = useState<LoadState>({kind: "loading"});
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<EditorTab>("general");
 
+    // fetchAdminGame never throws (denied/not_found/error are encoded in the result kind), so
+    // the query never errors and - like the old effect - never retries.
+    const {data} = useQuery({
+        queryKey: ["admin-game", gameId],
+        queryFn: () => fetchAdminGame(gameId),
+        staleTime: DEFAULT_STALE_TIME,
+        retry: false,
+    });
+    const loadState: LoadState = data ?? {kind: "loading"};
+
+    // Mutation handlers push the PATCH/POST response straight into the cache: no refetch, the
+    // sections keep their no-flash update semantics.
     function refreshGame(updated: AdminGame) {
-        setLoadState({kind: "ready", game: updated});
+        const next: AdminGameResult = {kind: "ready", game: updated};
+        queryClient.setQueryData(["admin-game", gameId], next);
     }
-
-    useEffect(() => {
-        let cancelled = false;
-
-        async function load() {
-            try {
-                const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}`);
-                if (cancelled) return;
-
-                if (res.status === 401 || res.status === 403) {
-                    setLoadState({kind: "denied"});
-                    return;
-                }
-                if (res.status === 404) {
-                    setLoadState({kind: "not_found"});
-                    return;
-                }
-                if (!res.ok) {
-                    setLoadState({kind: "error"});
-                    return;
-                }
-
-                const payload: unknown = await res.json();
-                const game = isGamePayload(payload) ? payload.data : null;
-                setLoadState(game ? {kind: "ready", game} : {kind: "error"});
-            } catch {
-                if (!cancelled) setLoadState({kind: "error"});
-            }
-        }
-
-        void load();
-        return () => {
-            cancelled = true;
-        };
-    }, [gameId]);
 
     if (loadState.kind === "loading") {
         return (
@@ -1029,11 +981,4 @@ function fieldErrorsFromPayload(payload: unknown): BasicInfoErrors {
         coverImageCredit: first("coverImageCredit"),
         availability: first("availability"),
     };
-}
-
-function isGamePayload(payload: unknown): payload is { data: AdminGame } {
-    const data = payload && typeof payload === "object" && "data" in payload
-        ? (payload as { data: unknown }).data
-        : null;
-    return Boolean(data && typeof data === "object" && "id" in data && "name" in data);
 }
