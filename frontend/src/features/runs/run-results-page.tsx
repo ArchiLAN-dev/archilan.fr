@@ -54,6 +54,12 @@ export function RunResultsPage({ runId, results }: { runId: string; results: Run
           >
             Voir le classement communautaire
           </Link>
+          <Link
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded border border-accent bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover"
+            href={`/parties/${results.sessionId}`}
+          >
+            Voir le récap
+          </Link>
         </div>
       </header>
 
