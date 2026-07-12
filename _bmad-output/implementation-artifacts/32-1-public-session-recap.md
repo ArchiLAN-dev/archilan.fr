@@ -1,6 +1,6 @@
 # Story 32.1: Récap public et narratif d'une partie
 
-Status: draft
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -88,22 +88,31 @@ superlatives, and expose a public page.
 
 ## Tasks / Subtasks
 
-- [ ] **T1 - Read-model (AC #1).** `SessionRecap` value/DTO + `SessionRecapRepositoryInterface`
-  (Domain) + DBAL impl (Infra). Flag migration for Jean.
-- [ ] **T2 - Parser (AC #2).** `SpoilerGraphParser` in `Sessions/Application` (pure). Unit tests
-  built from the committed fixture `api/tests/Fixtures/Sessions/sample_AP_Spoiler.txt` (see Dev
-  Notes for the exact line format). Cover empty and malformed inputs.
-- [ ] **T3 - Superlatives (AC #4).** `RecapSuperlativesCalculator` (pure) over edges +
-  `goalReachedAt`. Named labels.
-- [ ] **T4 - Build job (AC #3).** `BuildSessionRecapJob` + handler; dispatched after the `archived`
-  callback in `SessionLifecycleManager` / `RunnerCallbackController`. Idempotent.
-- [ ] **T5 - Query + endpoint (AC #5).** `SessionRecapQuery` facade (projection + `RunResultsQuery`
-  + VOD) and `SessionRecapController`.
-- [ ] **T6 - Frontend (AC #6).** `/parties/[id]` page, force-directed graph component (lightweight
-  Next 15-compatible lib, client-only canvas - to be chosen here), timeline, superlatives,
-  consent-gated VOD embed, OG metadata.
-- [ ] **T7 - Discovery links (AC #7).** From `/resultats` and the event recap.
-- [ ] **T8 - Functional tests + gates (AC #8, #9).**
+- [x] **T1 - Read-model (AC #1).** `SessionRecap` ORM entity (slot-id-keyed JSON projection) +
+  `SessionRecapRepositoryInterface` (Domain) + `DoctrineSessionRecapRepository` (Infra), wired in
+  `services.yaml`. Migration for the `session_recap` table flagged for Jean (functional tests build
+  the schema via SchemaTool). *(Chose an ORM entity over raw DBAL so the schema is created in tests
+  and Doctrine mapping is automatic - Sessions stays flat/unmigrated.)*
+- [x] **T2 - Parser (AC #2).** `SpoilerGraphParser` (pure) + `RecapGraph/RecapNode/RecapEdge` DTOs.
+  Unit-tested against the committed fixture (exact edge/local aggregates) + synthetic
+  paren/self-edge/empty/malformed cases. Anchored from the right for parenthesised names.
+- [x] **T3 - Superlatives (AC #4).** `RecapSuperlativesCalculator` (pure): most generous, biggest
+  hub, first to goal, longest road; ArchiLAN-style labels; deterministic tie-breaking; unit-tested.
+- [x] **T4 - Build job (AC #3).** `BuildSessionRecapJob` + handler; dispatched post-commit from
+  `SessionLifecycleManager::storeArchive` (routed to the `async` transport). Reconciles slot names ->
+  slot ids/goal times; idempotent rebuild; stats-only fallback on missing/unreadable spoiler.
+- [x] **T5 - Query + endpoint (AC #5).** `SessionRecapQuery` facade (projection + reused
+  `RunResultsQuery` podium + event VOD) and `SessionRecapController` at
+  `GET /api/v1/parties/{sessionId}/recap` (public; 404 on not-finished / non-public-event /
+  personal-or-weekly run / no projection).
+- [x] **T6 - Frontend (AC #6).** `/parties/[sessionId]` page + `features/recap/` module: cached
+  fetcher with full-shape guards, hand-rolled client-only force-directed `<canvas>` exchange graph
+  (no graph dependency), superlatives, podium, goal timeline, consent-gated Twitch VOD embed, OG
+  metadata, friendly not-found.
+- [x] **T7 - Discovery links (AC #7).** "Voir le récap" link added to the run results header.
+- [x] **T8 - Functional tests + gates (AC #8, #9).** Handler reconciliation + stats-only + idempotent
+  rebuild; endpoint 200 shape + four 404 cases. Full suite green (1510 tests); `composer gates` +
+  `pnpm gates` green.
 
 ## Dev Notes
 
@@ -155,3 +164,75 @@ superlatives, and expose a public page.
 - 32.2 - share card / OG image generation for `/parties/{id}`.
 - 32.3 - recap index per event ("toutes les parties de cet event").
 - 32.4 - tie achievements (30.4) to recap superlatives (e.g. "le plus généreux" unlock).
+
+## Dev Agent Record
+
+### Decisions taken during implementation
+
+- **Read-model is an ORM entity, not a raw DBAL table.** The story said "DBAL implementation"; an
+  ORM entity (`Sessions/Domain/SessionRecap`, JSON columns) was chosen instead so `SchemaTool` builds
+  the table for functional tests and Doctrine mapping is automatic (`Sessions/Domain` is already a
+  mapped dir). The repository interface/impl split the story asked for is preserved.
+- **The projection is entirely slot-id-keyed.** The parser can only see slot *names* (all the spoiler
+  exposes). The build handler reconciles name -> `slotId` (+ goal time) against the session slots, so
+  the stored graph joins cleanly to the podium by `slotId`. Display names are *not* snapshotted -
+  they are read live from `RunResultsQuery`, so a later rename stays consistent.
+- **Stats-only fallback keeps its time-based superlatives.** With no/unreadable spoiler the exchange
+  graph is empty (no nodes/edges, no `most_generous`/`biggest_hub`), but `first_to_goal` /
+  `longest_road` still stand: they come from the slots' goal times, not the spoiler.
+- **`BuildSessionRecapJob` routed to `async`** (not `run_server`): it runs on the central API side
+  (MinIO + DB). This also keeps it off the synchronous path in tests.
+- **No graph dependency added.** No force-directed lib is installed and none was added; the graph is a
+  hand-rolled client-only `<canvas>` simulation following the project's existing canvas lifecycle
+  (`grav-wave.tsx`): deterministic seed (no `Math.random`, AC-HK3), DPR-aware resize, RAF +
+  ResizeObserver with full cleanup, hover/drag, reduced-motion settle, and a visually-hidden table
+  mirror for a11y/crawlers.
+
+### Deferred / follow-up
+
+- **Migration for the `session_recap` table is deferred to Jean** (project convention - no migration
+  written in-story). Until it lands, the endpoint 404s in a real environment because the table is
+  absent; functional tests are unaffected (SchemaTool).
+- **Pre-existing finished sessions have no projection** and therefore 404 on `/parties/{id}` - a
+  backfill command was out of scope.
+- The "Voir le récap" link on the run results header is unconditional; for a personal/weekly run it
+  lands on the friendly not-found page. Gating it needs a public-event flag on the results payload -
+  a small follow-up.
+- **AC #7 is only half done.** The link from `/resultats` is in. The link from the *event recap
+  surface* is **not**: an event has N sessions, so that surface needs to pick *which* party to link -
+  which is exactly the per-event recap index of proposed story **32.3**. Deferred there rather than
+  guessing a session here.
+
+### File List
+
+**api/ (new)**
+- `src/Sessions/Application/RecapNode.php`, `RecapEdge.php`, `RecapGraph.php`, `RecapSuperlative.php`
+- `src/Sessions/Application/SpoilerGraphParser.php`
+- `src/Sessions/Application/RecapSuperlativesCalculator.php`
+- `src/Sessions/Application/SessionRecapQuery.php`
+- `src/Sessions/Application/Message/BuildSessionRecapJob.php`
+- `src/Sessions/Application/Handler/BuildSessionRecapJobHandler.php`
+- `src/Sessions/Domain/SessionRecap.php`, `SessionRecapRepositoryInterface.php`
+- `src/Sessions/Infrastructure/DoctrineSessionRecapRepository.php`
+- `src/Sessions/Presentation/SessionRecapController.php`
+- `tests/Unit/Sessions/SpoilerGraphParserTest.php`, `RecapSuperlativesCalculatorTest.php`
+- `tests/Functional/BuildSessionRecapJobHandlerTest.php`, `SessionRecapEndpointTest.php`
+- `tests/Fixtures/Sessions/sample_AP_Spoiler.txt` (fixture, landed with the planning commit)
+
+**api/ (modified)**
+- `src/Sessions/Application/SessionLifecycleManager.php` (post-commit dispatch in `storeArchive`)
+- `config/services.yaml` (recap repository binding)
+- `config/packages/messenger.yaml` (route `BuildSessionRecapJob` to `async`)
+
+**frontend/ (new)**
+- `src/app/(public)/parties/[sessionId]/page.tsx`
+- `src/features/recap/recap-api.ts`, `session-recap-page.tsx`, `exchange-graph.tsx`, `recap-vod.tsx`
+
+**frontend/ (modified)**
+- `src/features/runs/run-results-page.tsx` ("Voir le récap" discovery link)
+
+### Gates
+
+- `phpstan analyse src tests` - 0 errors; `php-cs-fixer check` - 0; `app:architecture:ddd` - OK.
+- `php bin/phpunit` (isolated DB) - **1510 tests, 10420 assertions, green**.
+- `pnpm gates` (typecheck / lint / jest / build) - green.
