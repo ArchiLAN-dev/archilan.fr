@@ -178,16 +178,16 @@ services:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
-    App\Sessions\Presentation\OrchestratorWebhookController:
+    App\Sessions\Presentation\Controller\OrchestratorWebhookController:
         arguments:
             $orchestrateurWebhookSecret: '%env(ORCHESTRATEUR_WEBHOOK_SECRET)%'
 
-    App\Sessions\Presentation\SessionOrchestrationController:
+    App\Sessions\Presentation\Controller\SessionOrchestrationController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\Sessions\Presentation\PlayerPatchController:
+    App\Sessions\Presentation\Controller\PlayerPatchController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
@@ -200,7 +200,7 @@ services:
         arguments:
             $wsDomain: '%env(WS_DOMAIN)%'
 
-    App\Sessions\Presentation\TraefikConfigController:
+    App\Sessions\Presentation\Controller\TraefikConfigController:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
 
