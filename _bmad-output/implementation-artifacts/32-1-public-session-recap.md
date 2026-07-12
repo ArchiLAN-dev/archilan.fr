@@ -90,9 +90,9 @@ superlatives, and expose a public page.
 
 - [x] **T1 - Read-model (AC #1).** `SessionRecap` ORM entity (slot-id-keyed JSON projection) +
   `SessionRecapRepositoryInterface` (Domain) + `DoctrineSessionRecapRepository` (Infra), wired in
-  `services.yaml`. Migration for the `session_recap` table flagged for Jean (functional tests build
-  the schema via SchemaTool). *(Chose an ORM entity over raw DBAL so the schema is created in tests
-  and Doctrine mapping is automatic - Sessions stays flat/unmigrated.)*
+  `services.yaml`, plus the `session_recap` migration (`Version20260622160002`). *(Chose an ORM entity
+  over raw DBAL so the schema is created in tests and Doctrine mapping is automatic - Sessions stays
+  flat/unmigrated.)*
 - [x] **T2 - Parser (AC #2).** `SpoilerGraphParser` (pure) + `RecapGraph/RecapNode/RecapEdge` DTOs.
   Unit-tested against the committed fixture (exact edge/local aggregates) + synthetic
   paren/self-edge/empty/malformed cases. Anchored from the right for parenthesised names.
@@ -190,9 +190,10 @@ superlatives, and expose a public page.
 
 ### Deferred / follow-up
 
-- **Migration for the `session_recap` table is deferred to Jean** (project convention - no migration
-  written in-story). Until it lands, the endpoint 404s in a real environment because the table is
-  absent; functional tests are unaffected (SchemaTool).
+- ~~Migration deferred to Jean~~ - **done**: `migrations/Version20260622160002.php` creates
+  `session_recap`. DDL taken verbatim from Doctrine's own schema diff for the entity (no mapping
+  drift possible); verified on the dev DB - up leaves the schema in sync, down drops the table, re-up
+  restores it.
 - **Pre-existing finished sessions have no projection** and therefore 404 on `/parties/{id}` - a
   backfill command was out of scope.
 - The "Voir le récap" link on the run results header is unconditional; for a personal/weekly run it
@@ -223,6 +224,7 @@ superlatives, and expose a public page.
 - `src/Sessions/Application/SessionLifecycleManager.php` (post-commit dispatch in `storeArchive`)
 - `config/services.yaml` (recap repository binding)
 - `config/packages/messenger.yaml` (route `BuildSessionRecapJob` to `async`)
+- `migrations/Version20260622160002.php` (new - `session_recap` table)
 
 **frontend/ (new)**
 - `src/app/(public)/parties/[sessionId]/page.tsx`
