@@ -6,7 +6,7 @@ namespace App\Tests\Functional;
 
 use App\PersonalRuns\Domain\Entity\Run;
 use App\Sessions\Application\Service\SessionLifecycleManager;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 
 /**

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Doctrine;
 
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineSessionSlotRepository implements SessionSlotRepositoryInterface

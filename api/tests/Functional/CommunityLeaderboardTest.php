@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Community\Domain\Entity\CommunityProfile;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 
 final class CommunityLeaderboardTest extends FunctionalTestCase

@@ -10,7 +10,7 @@ use App\GameSelection\Domain\Entity\Game;
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\Realtime\Infrastructure\Double\SpyHub;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class SessionLifecycleTest extends FunctionalTestCase

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Entity\Event;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRecap;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionRecap;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class SessionRecapEndpointTest extends FunctionalTestCase
 {

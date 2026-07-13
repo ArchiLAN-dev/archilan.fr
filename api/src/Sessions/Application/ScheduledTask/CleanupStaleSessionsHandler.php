@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Application\ScheduledTask;
 
 use App\Sessions\Application\Port\SessionReconcilerInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

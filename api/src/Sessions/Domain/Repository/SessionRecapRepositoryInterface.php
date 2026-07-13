@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Domain;
+namespace App\Sessions\Domain\Repository;
+
+use App\Sessions\Domain\Entity\SessionRecap;
 
 interface SessionRecapRepositoryInterface
 {

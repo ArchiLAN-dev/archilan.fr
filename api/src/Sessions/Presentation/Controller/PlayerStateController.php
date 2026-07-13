@@ -6,7 +6,7 @@ namespace App\Sessions\Presentation\Controller;
 
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Query\SessionQuery;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Archilan\BridgeClient\Enum\HintStatus;

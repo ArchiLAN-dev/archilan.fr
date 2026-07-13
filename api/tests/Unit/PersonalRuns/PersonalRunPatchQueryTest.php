@@ -7,10 +7,10 @@ namespace App\Tests\Unit\PersonalRuns;
 use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunPatchQueryTest extends TestCase

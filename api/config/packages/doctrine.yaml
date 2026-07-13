@@ -47,8 +47,8 @@ doctrine:
             Sessions:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Sessions/Domain'
-                prefix: 'App\Sessions\Domain'
+                dir: '%kernel.project_dir%/src/Sessions/Domain/Entity'
+                prefix: 'App\Sessions\Domain\Entity'
                 alias: Sessions
             Content:
                 type: attribute

@@ -9,8 +9,8 @@ use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Application\Query\LeaderboardQueryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 

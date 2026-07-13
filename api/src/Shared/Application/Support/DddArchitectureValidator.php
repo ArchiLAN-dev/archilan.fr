@@ -112,17 +112,9 @@ final readonly class DddArchitectureValidator
         ],
     ];
 
-    /**
-     * Contexts exempt from the Domain finality rule (api/CLAUDE.md AC-D4, story 33.17).
-     * Sessions is frozen until Epic 32 merges; its flat Domain files would escape the
-     * Entity//ValueObject/ sub-folder scan anyway, but the exemption is declared rather than
-     * accidental. 33.20 empties this list - never grow it.
-     *
-     * @var list<string>
-     */
-    private const array FINALITY_EXEMPT_CONTEXTS = [
-        'Sessions',
-    ];
+    // FINALITY_EXEMPT_CONTEXTS (story 33.17) is GONE. Its only entry was the frozen Sessions
+    // context; 33.20 made its four entities final, which left the exemption branch as dead
+    // code. The finality rule (AC-D4) now applies to every context, unconditionally.
 
     /**
      * The only sanctioned non-final class in an Application layer (api/CLAUDE.md AC-A1,
@@ -171,17 +163,11 @@ final readonly class DddArchitectureValidator
     // Infrastructure. If a future exception is ever genuinely warranted, re-introduce the
     // allowlist deliberately - do not suppress inline (api/CLAUDE.md).
 
-    /**
-     * Contexts not yet migrated to the layer sub-folder taxonomy (story 33.10:
-     * Domain/Exception, Application/Command|Query|Exception). Shrink this list as
-     * contexts migrate - NEVER grow it. Sessions stays until Epic 32 merges
-     * (TODO epic-32). Legal is absent: it has no PHP files, trivially compliant.
-     *
-     * @var list<string>
-     */
-    private const array UNMIGRATED_TAXONOMY_CONTEXTS = [
-        'Sessions',
-    ];
+    // UNMIGRATED_TAXONOMY_CONTEXTS (stories 33.10/33.11) is GONE. It shrank 17 -> 1 -> 0:
+    // Sessions was the last holdout, frozen for Epic 32, and 33.20 migrated it. The taxonomy
+    // (no flat layer files; Application/Query/ for query interfaces; {Layer}/Exception/ for
+    // exceptions; Domain/Entity/ for the Doctrine prefix) is now enforced for EVERY context
+    // with no escape hatch. The decreasing-allowlist model did its job and retired.
 
     /**
      * Full sub-folder taxonomy carve-out (story 33.11): these 4 Community domain classes are
@@ -306,9 +292,6 @@ final readonly class DddArchitectureValidator
             if (!in_array($parts[0], self::CONTEXTS, true) || !in_array($parts[1], self::LAYERS, true)) {
                 continue;
             }
-            if (in_array($parts[0], self::UNMIGRATED_TAXONOMY_CONTEXTS, true)) {
-                continue;
-            }
             if (in_array($relativePath, self::FLAT_FILE_CARVE_OUT, true)) {
                 continue;
             }
@@ -376,10 +359,6 @@ final readonly class DddArchitectureValidator
         $violations = [];
 
         foreach (self::CONTEXTS as $context) {
-            if (in_array($context, self::FINALITY_EXEMPT_CONTEXTS, true)) {
-                continue;
-            }
-
             foreach (['Entity' => 'final', 'ValueObject' => 'final readonly'] as $kind => $required) {
                 $kindDir = "{$srcDir}/{$context}/Domain/{$kind}";
                 if (!is_dir($kindDir)) {
@@ -703,24 +682,21 @@ final readonly class DddArchitectureValidator
 
             $layer = $parts[1] ?? null;
             $basename = basename($relativePath);
-            $migrated = !in_array($parts[0], self::UNMIGRATED_TAXONOMY_CONTEXTS, true);
 
             if (str_ends_with($basename, 'RepositoryInterface.php') && 'Domain' !== $layer) {
                 $violations[] = "Repository interfaces must live in the Domain layer: src/{$relativePath}";
             }
 
-            if (str_ends_with($basename, 'QueryInterface.php')) {
-                if ($migrated && !str_starts_with($relativePath, $parts[0].'/Application/Query/')) {
-                    $violations[] = "Query interfaces must live in Application/Query/ (taxonomy-migrated context): src/{$relativePath}";
-                } elseif ('Application' !== $layer) {
-                    $violations[] = "Query interfaces must live in the Application layer: src/{$relativePath}";
-                }
+            if (str_ends_with($basename, 'QueryInterface.php')
+                && !str_starts_with($relativePath, $parts[0].'/Application/Query/')
+            ) {
+                $violations[] = "Query interfaces must live in Application/Query/: src/{$relativePath}";
             }
 
-            if ($migrated && str_ends_with($basename, 'Exception.php') && in_array($layer, ['Domain', 'Application'], true)) {
+            if (str_ends_with($basename, 'Exception.php') && in_array($layer, ['Domain', 'Application'], true)) {
                 $expected = $parts[0].'/'.$layer.'/Exception/';
                 if (!str_starts_with($relativePath, $expected)) {
-                    $violations[] = "Exceptions must live in {$layer}/Exception/ (taxonomy-migrated context): src/{$relativePath}";
+                    $violations[] = "Exceptions must live in {$layer}/Exception/: src/{$relativePath}";
                 }
             }
         }
@@ -878,10 +854,9 @@ final readonly class DddArchitectureValidator
                 continue;
             }
 
-            // Taxonomy-migrated contexts (story 33.11) keep their entities in Domain/Entity/,
-            // so the mapping prefix gains the \Entity segment. Sessions (frozen) keeps \Domain.
-            $migrated = !in_array($context, self::UNMIGRATED_TAXONOMY_CONTEXTS, true);
-            $expectedPrefix = $migrated ? "App\\{$context}\\Domain\\Entity" : "App\\{$context}\\Domain";
+            // Every context keeps its entities in Domain/Entity/ (story 33.11, and Sessions
+            // since 33.20), so the mapping prefix always carries the \Entity segment.
+            $expectedPrefix = "App\\{$context}\\Domain\\Entity";
             if (($mapping['prefix'] ?? null) !== $expectedPrefix) {
                 $violations[] = "Doctrine mapping {$context} must use prefix {$expectedPrefix}";
             }

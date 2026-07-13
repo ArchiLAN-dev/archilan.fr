@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Doctrine;
 
-use App\Sessions\Domain\SessionRecap;
-use App\Sessions\Domain\SessionRecapRepositoryInterface;
+use App\Sessions\Domain\Entity\SessionRecap;
+use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineSessionRecapRepository implements SessionRecapRepositoryInterface

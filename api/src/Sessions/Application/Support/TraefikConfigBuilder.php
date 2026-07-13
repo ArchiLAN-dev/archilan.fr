@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Support;
 
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 
 final readonly class TraefikConfigBuilder
 {

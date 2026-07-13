@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Entity\Game;
 use App\PersonalRuns\Domain\Entity\Run;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;

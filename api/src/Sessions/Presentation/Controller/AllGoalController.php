@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation\Controller;
 
 use App\Sessions\Application\Command\NotifyAllGoalCommand;
-use App\Sessions\Domain\SessionNotFoundException;
+use App\Sessions\Domain\Exception\SessionNotFoundException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

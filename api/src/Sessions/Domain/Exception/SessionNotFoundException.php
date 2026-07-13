@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Domain;
+namespace App\Sessions\Domain\Exception;
 
 final class SessionNotFoundException extends \DomainException
 {

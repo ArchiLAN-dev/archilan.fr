@@ -17,10 +17,10 @@ use App\SessionConfig\Domain\Enum\SessionType;
 use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Support\SlotNameGenerator;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Shared\Application\Support\SlotYamlNameReader;
 use Psr\Log\LoggerInterface;
 

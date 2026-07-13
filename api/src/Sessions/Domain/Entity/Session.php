@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Domain;
+namespace App\Sessions\Domain\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-class Session
+final class Session
 {
     public const STATUS_DRAFT = 'draft';
     public const STATUS_VALIDATING = 'validating';

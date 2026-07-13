@@ -8,8 +8,8 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
 use App\Sessions\Application\Port\SpoilerArtifact;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 
 /**
  * Resolves the spoiler log of a private run for download, from durable storage (MinIO),

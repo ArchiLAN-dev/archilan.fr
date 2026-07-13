@@ -6,11 +6,11 @@ namespace App\Sessions\Application\Command;
 
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
-use App\Sessions\Domain\RunAuditLog;
-use App\Sessions\Domain\RunAuditLogRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionNotFoundException;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\RunAuditLog;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Exception\SessionNotFoundException;
+use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class NotifyAllGoalCommand

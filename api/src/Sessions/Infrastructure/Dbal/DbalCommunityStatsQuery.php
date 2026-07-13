@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Infrastructure\Dbal;
 
 use App\Sessions\Application\Query\CommunityStatsQueryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;

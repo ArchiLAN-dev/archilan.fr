@@ -8,8 +8,8 @@ use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
 use App\Events\Domain\Entity\Event;
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class AdminRunArchivalTest extends FunctionalTestCase

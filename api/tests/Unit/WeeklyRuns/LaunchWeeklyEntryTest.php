@@ -6,8 +6,8 @@ namespace App\Tests\Unit\WeeklyRuns;
 
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\WeeklyRuns\Application\Command\LaunchWeeklyEntry;
 use App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;

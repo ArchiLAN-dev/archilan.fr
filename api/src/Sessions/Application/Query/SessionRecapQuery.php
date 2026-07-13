@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Query;
 
 use App\Events\Domain\Repository\EventRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRecapRepositoryInterface;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 
 /**
  * Public read facade for a finished session's recap.

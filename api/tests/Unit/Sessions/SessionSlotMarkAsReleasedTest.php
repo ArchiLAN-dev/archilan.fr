@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\SessionSlot;
 use PHPUnit\Framework\TestCase;
 
 final class SessionSlotMarkAsReleasedTest extends TestCase

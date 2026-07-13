@@ -6,7 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
 use App\Registrations\Domain\Entity\Registration;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 
 final class FeedTokenTest extends FunctionalTestCase
 {

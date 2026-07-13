@@ -11,8 +11,8 @@ use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleGroup;
 use App\Community\Domain\Entity\AchievementDefinition;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class EventGoalAchievementTest extends FunctionalTestCase
 {

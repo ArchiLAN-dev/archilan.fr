@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation\Controller;
 
 use App\Sessions\Application\Command\ForceEndSessionCommand;
-use App\Sessions\Domain\SessionNotFoundException;
-use App\Sessions\Domain\SessionNotRunningException;
+use App\Sessions\Domain\Exception\SessionNotFoundException;
+use App\Sessions\Domain\Exception\SessionNotRunningException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

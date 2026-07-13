@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Entity\Event;
 use App\PersonalRuns\Domain\Entity\Run;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class RunResultsTest extends FunctionalTestCase
 {

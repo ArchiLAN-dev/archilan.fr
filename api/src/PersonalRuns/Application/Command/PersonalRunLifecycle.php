@@ -10,8 +10,8 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Command\ForceEndSessionCommand;
-use App\Sessions\Domain\SessionNotFoundException;
-use App\Sessions\Domain\SessionNotRunningException;
+use App\Sessions\Domain\Exception\SessionNotFoundException;
+use App\Sessions\Domain\Exception\SessionNotRunningException;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 

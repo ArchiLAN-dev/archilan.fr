@@ -9,7 +9,7 @@ use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class PersonalRunLifecycleTest extends FunctionalTestCase

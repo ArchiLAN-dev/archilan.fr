@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Command;
 
 use App\Events\Domain\Entity\Event;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\WeeklyRuns\Application\Command\RecordWeeklyGoal;
 use Psr\Log\LoggerInterface;
 

@@ -10,11 +10,11 @@ use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
 use App\Sessions\Application\Port\SpoilerArtifact;
 use App\Sessions\Application\Support\RecapSuperlativesCalculator;
 use App\Sessions\Application\Support\SpoilerGraphParser;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRecapRepositoryInterface;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
@@ -100,7 +100,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         $this->runHandler($this->spoilerReaderReturning($this->fixtureContents()), '2026-06-02T00:00:00+00:00');
 
         $all = $this->entityManager
-            ->getRepository(\App\Sessions\Domain\SessionRecap::class)
+            ->getRepository(\App\Sessions\Domain\Entity\SessionRecap::class)
             ->findAll();
         self::assertCount(1, $all, 'rebuild must not create a second projection row');
 

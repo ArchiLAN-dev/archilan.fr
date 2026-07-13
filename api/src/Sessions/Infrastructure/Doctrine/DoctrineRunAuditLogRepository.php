@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Doctrine;
 
-use App\Sessions\Domain\RunAuditLog;
-use App\Sessions\Domain\RunAuditLogRepositoryInterface;
+use App\Sessions\Domain\Entity\RunAuditLog;
+use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class DoctrineRunAuditLogRepository implements RunAuditLogRepositoryInterface

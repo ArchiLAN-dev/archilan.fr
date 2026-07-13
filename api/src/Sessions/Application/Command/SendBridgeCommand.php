@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Command;
 
-use App\Sessions\Domain\RunAuditLog;
-use App\Sessions\Domain\RunAuditLogRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\RunAuditLog;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class SendBridgeCommand
