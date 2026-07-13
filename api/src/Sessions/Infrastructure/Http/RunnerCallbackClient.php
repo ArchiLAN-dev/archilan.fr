@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Http;
 
+use App\Sessions\Application\Port\RunnerCallbackClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-final readonly class RunnerCallbackClient
+final readonly class RunnerCallbackClient implements RunnerCallbackClientInterface
 {
     public function __construct(
         private HttpClientInterface $httpClient,

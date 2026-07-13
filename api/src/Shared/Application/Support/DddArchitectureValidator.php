@@ -162,20 +162,14 @@ final readonly class DddArchitectureValidator
         'Sessions',
     ];
 
-    /**
-     * Named allowlist for intentional rule exceptions (story 33.5): the only sanctioned
-     * way to except a file from a rule - never suppress via inline annotations.
-     *
-     * Sessions is frozen until Epic 32 merges; its two runner-callback handlers inject
-     * the concrete RunnerCallbackClient (Sessions Infrastructure). TODO epic-32: extract
-     * an Application-layer port for the runner callback client and drop these entries.
-     *
-     * @var list<string>
-     */
-    private const array ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS = [
-        'Sessions/Application/Handler/ArchiveRunJobHandler.php',
-        'Sessions/Application/Handler/FetchLogsJobHandler.php',
-    ];
+    // The Application->Infrastructure allowlist (story 33.5) is GONE, not merely emptied.
+    // Its last two entries were the Sessions runner-callback handlers injecting the concrete
+    // RunnerCallbackClient; story 33.20 extracted RunnerCallbackClientInterface
+    // (Sessions/Application/Port) and dropped them. With the list empty the allowlist branch
+    // was provably dead code (phpstan: `in_array($x, [])` is always false), so the mechanism
+    // went with it. The rule now holds unconditionally: no Application file anywhere imports
+    // Infrastructure. If a future exception is ever genuinely warranted, re-introduce the
+    // allowlist deliberately - do not suppress inline (api/CLAUDE.md).
 
     /**
      * Contexts not yet migrated to the layer sub-folder taxonomy (story 33.10:
@@ -759,7 +753,6 @@ final readonly class DddArchitectureValidator
                 }
 
                 $relativePath = $this->relativePath($srcDir, $file);
-                $allowlisted = in_array($relativePath, self::ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS, true);
 
                 foreach (self::CONTEXTS as $other) {
                     if ('Shared' === $other) {
@@ -768,7 +761,7 @@ final readonly class DddArchitectureValidator
 
                     $needle = "App\\{$other}\\Infrastructure\\";
 
-                    if (!$allowlisted && str_contains($contents, $needle)) {
+                    if (str_contains($contents, $needle)) {
                         $violations[] = sprintf(
                             'Application layer must not depend on the Infrastructure layer ("%s"): src/%s',
                             $needle,

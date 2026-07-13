@@ -305,22 +305,28 @@ final class DddArchitectureValidatorTest extends TestCase
         );
     }
 
-    public function testAllowlistedApplicationInfrastructureImportPasses(): void
+    /**
+     * The Application->Infrastructure allowlist is gone (story 33.20): its last two entries
+     * were these very Sessions runner-callback handlers, and extracting
+     * RunnerCallbackClientInterface removed the need for them. The rule now holds
+     * unconditionally - the formerly-exempt path is reported like any other.
+     */
+    public function testFormerlyAllowlistedApplicationInfrastructureImportIsNowReported(): void
     {
         $projectDir = $this->createProjectFixture();
         $this->createDirectory($projectDir.'/src/Sessions/Application/Handler');
         file_put_contents(
             $projectDir.'/src/Sessions/Application/Handler/ArchiveRunJobHandler.php',
-            "<?php\n\nnamespace App\\Sessions\\Application\\Handler;\n\nuse App\\Sessions\\Infrastructure\\RunnerCallbackClient;\n\nfinal class ArchiveRunJobHandler {}\n",
+            "<?php\n\nnamespace App\\Sessions\\Application\\Handler;\n\nuse App\\Sessions\\Infrastructure\\Http\\RunnerCallbackClient;\n\nfinal class ArchiveRunJobHandler {}\n",
         );
 
         $report = new DddArchitectureValidator()->validate($projectDir);
 
-        $violationsForFile = array_values(array_filter(
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application layer must not depend on the Infrastructure layer ("App\\Sessions\\Infrastructure\\"): src/Sessions/Application/Handler/ArchiveRunJobHandler.php',
             $report->violations(),
-            static fn (string $v): bool => str_contains($v, 'ArchiveRunJobHandler.php'),
-        ));
-        self::assertSame([], $violationsForFile);
+        );
     }
 
     public function testApplicationNewOnInfrastructureIsReported(): void
