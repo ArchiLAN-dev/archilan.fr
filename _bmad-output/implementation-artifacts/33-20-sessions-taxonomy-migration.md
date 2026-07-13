@@ -1,6 +1,6 @@
 # Story 33.20: Sessions Taxonomy Migration - Unfreeze the Last Context (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -127,46 +127,46 @@ Order matters. **Each phase = one commit, fully green before the next.** Recomme
 (33.11's proven order: least-coupled layer first, Domain last because `doctrine.yaml` is the riskiest
 edit).
 
-- [ ] **T0 - Rebuild the tooling (prerequisite, AC1).** Re-write `migrate-context.ps1` + `fix-uses.ps1`
+- [x] **T0 - Rebuild the tooling (prerequisite, AC1).** Re-write `migrate-context.ps1` + `fix-uses.ps1`
       to the spec in §5 (word-boundary-safe FQCN rewrite; case-SENSITIVE; `[Environment]::CurrentDirectory`).
       **Commit them into `api/scripts/` this time** - do not leave them in a scratchpad again (that is
       exactly why this story has to redo them). Dry-run on one file first.
 
-- [ ] **T1 - Presentation (AC1).** 32 controllers → `Presentation/Controller/`. Update the 3 `services.yaml`
+- [x] **T1 - Presentation (AC1).** 32 controllers → `Presentation/Controller/`. Update the 3 `services.yaml`
       controller FQCNs (lines 181, 185, 190, 203). No `Admin/` split (there is none today - keep
       `AdminSessionController` in `Controller/`).
 
-- [ ] **T2 - Infrastructure (AC1).** 14 files → `Doctrine/` (4), `Dbal/` (4), `Http/` (`RunnerGateway`,
+- [x] **T2 - Infrastructure (AC1).** 14 files → `Doctrine/` (4), `Dbal/` (4), `Http/` (`RunnerGateway`,
       `RunnerCallbackClient`), `Adapter/` (`MinioZip*` ×2, `RawOptionValue`), `Double/` (`NullRunnerGateway`).
       Update `services.yaml` (lines 107-329 incl. the `when@test` `NullRunnerGateway` at 424-425).
 
-- [ ] **T3 - Application moves (AC1).** 36 flat files → `Command/`, `Query/` (incl. the 4 `*QueryInterface`
+- [x] **T3 - Application moves (AC1).** 36 flat files → `Command/`, `Query/` (incl. the 4 `*QueryInterface`
       - **validator-gated**), `Service/`, `Port/`, `Support/` per §2. `Message/`, `Handler/`,
       `ScheduledTask/` **untouched**.
 
-- [ ] **T4 - Runner-callback port (AC6).** Extract the port, rebind, delete both allowlist entries.
+- [x] **T4 - Runner-callback port (AC6).** Extract the port, rebind, delete both allowlist entries.
       *(Do this with T3 while you are already in Application.)*
 
-- [ ] **T5 - Domain moves + finality (AC1, AC2, AC3).** 10 files → `Entity/` (4), `Repository/` (4),
+- [x] **T5 - Domain moves + finality (AC1, AC2, AC3).** 10 files → `Entity/` (4), `Repository/` (4),
       `Exception/` (2). **Same commit:** `doctrine.yaml` `dir` + `prefix`, and `final` on the 3
       non-final entities. `services.yaml:73` (`- '../src/Sessions/Domain/'`) is a **path glob - no change
       needed** (it still covers `Domain/Entity/` recursively).
 
-- [ ] **T6 - Clock injection (AC4).** 16 sites / 6 files. Reference pattern already in the context:
+- [x] **T6 - Clock injection (AC4).** 16 sites / 6 files. Reference pattern already in the context:
       `Application/Handler/BuildSessionRecapJobHandler.php` (injects `Psr\Clock\ClockInterface`, calls
       `$this->clock->now()`). ⚠️ In `SessionLifecycleManager` the ctor ends with a **defaulted** promoted
       param (`private string $runnerPublicHost = 'localhost'`) - insert `ClockInterface` **before** it.
 
-- [ ] **T7 - Setter → business methods (AC5).** Apply the §4 mapping. **51 test call sites in 9 files** -
+- [x] **T7 - Setter → business methods (AC5).** Apply the §4 mapping. **51 test call sites in 9 files** -
       this is the bulk of the work. Push the idempotence guard into the Domain where noted.
 
-- [ ] **T8 - Empty the allowlists + rebuild validator tests (AC3, AC4, AC5, AC6, AC7).** Empty all 5
+- [x] **T8 - Empty the allowlists + rebuild validator tests (AC3, AC4, AC5, AC6, AC7).** Empty all 5
       constants. Rebuild the ~8 `DddArchitectureValidatorTest` fixtures per §6.
 
-- [ ] **T9 - Rector unfreeze (AC8).** Drop the 2 `rector.php` skip paths; run `composer rector`; fix what
+- [x] **T9 - Rector unfreeze (AC8).** Drop the 2 `rector.php` skip paths; run `composer rector`; fix what
       it reports (expect a batch - Sessions has never been analysed).
 
-- [ ] **T10 - Full battery + PR (AC9).** §7 verification battery. `debug:messenger` diff must be empty.
+- [x] **T10 - Full battery + PR (AC9).** §7 verification battery. `debug:messenger` diff must be empty.
 
 ---
 
@@ -424,4 +424,115 @@ reviewer-enforced. Place files correctly anyway; do **not** "discover" that a sh
 
 | Date | Change |
 |------|--------|
-| 2026-07-12 | Story created. Unblocked by Epic 32 (PR #310 merged). Grounded in a full re-measure of the code: 102 Sessions files (92 to move), 16 clock sites in 6 Application files, 9 setters landing on 51 test call sites, 375 `App\Sessions\` occurrences across 162 files. **Five corrections to the epic recorded**: the migration tooling was never committed (must be rebuilt), a fifth exemption (`FINALITY_EXEMPT_CONTEXTS`) exists and 3 entities are not `final`, the "6 clock sites" are 6 *files* / 16 sites, `ScheduledTask/` does not move so `debug:messenger` must stay byte-identical, and zero Sessions classes are migration-pinned. The validator's own test suite uses Sessions as its frozen-context fixture and needs a redesign (§6). Re-sized M → L/XL, phased execution. Status: ready-for-dev. |
+| 2026-07-12 | Story created. Unblocked by Epic 32 (PR #310 merged). Grounded in a full re-measure of the code: 102 Sessions files (92 to move), 16 clock sites in 6 Application files, 9 setters landing on 51 test call sites, 375 `App\Sessions\` occurrences across 162 files. **Five corrections to the epic recorded**: the migration tooling was never committed (must be rebuilt), a fifth exemption (`FINALITY_EXEMPT_CONTEXTS`) exists and 3 entities are not `final`, the "6 clock sites" are 6 *files* / 16 sites, `ScheduledTask/` does not move so `debug:messenger` must stay byte-identical, and zero Sessions classes are migration-pinned. The validator's own test suite uses Sessions as its frozen-context fixture and needs a redesign (§6). Re-sized M → L/XL, phased execution. Status: ready-for-review. |
+
+---
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 4.8 (1M context)
+
+### What the plan got right
+
+All five corrections to the epic held. In particular: the `.ps1` tooling really did not exist, the
+fifth exemption (`FINALITY_EXEMPT_CONTEXTS`) really did fire, the "6 clock sites" really were 6 files /
+16 sites, `ScheduledTask/` really did stay put (so `debug:messenger` was byte-identical at every
+phase), and no migration pinned a Sessions class.
+
+### The decision the plan did not anticipate: the allowlists were REMOVED, not emptied
+
+The story said "empty the five constants". phpstan (level max) would not allow it: once a list is `[]`,
+`in_array($x, [])` is provably always false and every exemption branch becomes dead code -
+`Call to function in_array() ... will always evaluate to false`, `Left side of && is always true`,
+`Ternary operator condition is always true`.
+
+Keeping an empty list would have meant keeping dead code to satisfy the letter of the AC. So each
+mechanism was **deleted with its last entry**:
+
+| Constant | Fate |
+|---|---|
+| `ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS` | removed (T4) - rule now unconditional |
+| `UNMIGRATED_TAXONOMY_CONTEXTS` | removed (T5) - shrank 17 -> 1 -> 0 |
+| `FINALITY_EXEMPT_CONTEXTS` | removed (T5) |
+| `CLOCK_CONSTRUCT_EXEMPT_CONTEXTS` | removed (T6) |
+| `AGGREGATE_SETTER_EXEMPT_CONTEXTS` | removed (T7) |
+
+The decreasing-allowlist model did its job and retired. Every DDD rule now holds for every context with
+**no escape hatch of any kind**. The `(taxonomy-migrated context)` suffix was dropped from the violation
+messages - with no unmigrated context left it said nothing.
+
+Consequence, exactly as §6 predicted: `DddArchitectureValidatorTest` used `Sessions` as its
+"frozen context" fixture *because* it was the exempt one, so with no frozen context left those negative
+tests had nothing to point at. **Six** of them were inverted - they now assert each rule *fires* for the
+context that used to be exempt, which is a strictly stronger guarantee than the synthetic-fixture-context
+option the story floated.
+
+### Other decisions taken in flight
+
+- **Tooling in PHP, not PowerShell** (`api/scripts/taxonomy-migrate.php`, `api/scripts/fix-uses.php`,
+  both committed this time). The three bugs the 33.10/33.11 `.ps1` scripts hit - prefix-unsafe FQCN
+  replace, case-insensitive `-match`, .NET not inheriting the PS working directory - are all PowerShell
+  pathologies. PHP has none of them and no shell-quoting layer to mangle backslashes.
+- **phpstan as the missing-`use` oracle**, rather than a heuristic resolver. `fix-uses.php` reads
+  phpstan's JSON report and only imports a short name when exactly one class in `src/` carries it;
+  ambiguities are reported and left alone. It never guesses.
+- **`SpoilerArtifact` / `SessionOutputArtifact` -> `Port/`, not `Support/`.** They are the return records
+  of the reader ports and the project's colocation rule keeps a result record with its port. Putting them
+  in `Support/` broke interface/impl return-type compatibility outright (a phpstan *fatal*, not a soft
+  error) - the tell that the placement, not the import, was wrong.
+- **`RawOptionValue` -> `Http/`, not `Adapter/`.** Its only consumer is `RunnerGateway` (Http).
+- **`SessionSlot` got TWO goal methods, not one.** `recordGoal(non-null, idempotent)` for a real goal
+  event; `syncFromArchive(checks, items, ?goal)` for archive reconciliation, which is authoritative and
+  must be able to *clear* the instant. One method would have needed a misleading nullable.
+- **`RecordSlotGoal` KEPT its Application-side early return.** Pushing the idempotence guard into the
+  Domain (`??=`) was correct for the goal instant, but the existing early return also suppresses the
+  *progress counters* on a repeat callback. Relying on the domain guard alone would have started updating
+  them - a silent behaviour change in a story that promises none.
+
+### Bug found and fixed in my own migration
+
+The naive per-setter rewrite of the tests turned an adjacent `setChecksDone(A); setItemsReceived(B);`
+pair into `recordProgress(A, 0); recordProgress(0, B);` - the second call **resetting checks to 0**. 11
+occurrences. Caught and merged into single truthful calls; the suite's own assertions are what proved
+the fix (they would have failed on the clobbered counters).
+
+### Out of scope, deliberately
+
+- The **2 Presentation clock sites** (`LogsController:53`, `SessionActivityController:38`) are untouched.
+  The clock rule only scans the Application layer, so they are not gated;
+  `SessionActivityController`'s is a default-value fallback overwritten from the request body, and
+  converting it would have been actively wrong.
+
+### File List
+
+**Tooling (new, committed):** `api/scripts/taxonomy-migrate.php`, `api/scripts/fix-uses.php`
+
+**Moved:** 92 files across `api/src/Sessions/` (Presentation 32 -> `Controller/`; Infrastructure 14 ->
+`Doctrine|Dbal|Http|Double/`; Application 36 -> `Command|Query|Service|Port|Support/`; Domain 10 ->
+`Entity|Repository|Exception/`). `Message/`, `Handler/`, `ScheduledTask/` untouched.
+
+**New:** `api/src/Sessions/Application/Port/RunnerCallbackClientInterface.php`
+
+**Modified:** `api/config/services.yaml` (24 FQCNs + the new port binding),
+`api/config/packages/doctrine.yaml` (dir + prefix), `api/rector.php` (skips dropped),
+`api/src/Shared/Application/Support/DddArchitectureValidator.php` (5 exemption mechanisms removed),
+`api/tests/Unit/DddArchitectureValidatorTest.php` (6 exemption tests inverted), 16 cross-context `src/`
+files and 35 `tests/` files (imports + 51 setter call sites).
+`api/config/packages/messenger.yaml`: **unchanged**, as designed.
+
+### Gates
+
+`phpstan analyse src tests` 0 · `php-cs-fixer check` 0 · `composer rector` clean (Sessions analysed for
+the first time; 14 files of conservative PHP-level modernisations applied) · `app:architecture:ddd` OK
+**with no allowlist at all** · `lint:container` OK · `cache:clear` OK · `doctrine:mapping:info` 46
+entities · **`debug:messenger` byte-identical to the pre-migration baseline** · full suite on an
+isolated DB: **1510 tests, 10425 assertions, green**.
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| 2026-07-12 | Story created, grounded in a full re-measure; five corrections to the epic recorded. Status: ready-for-dev. |
+| 2026-07-13 | Implemented in 8 phased commits (T0/T1 tooling+Presentation, T2 Infrastructure, T3 Application, T4 port, T5 Domain+doctrine+finality, T6 clock, T7 setters, T9 Rector), each independently green. The five exemption constants were **removed, not emptied** - phpstan proved each branch dead once its list hit zero - so the codebase now has no DDD escape hatch at all. Status: ready-for-review. |
