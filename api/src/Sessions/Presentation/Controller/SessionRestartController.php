@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
-use App\Sessions\Application\SessionLifecycleManager;
+use App\Sessions\Application\Service\SessionLifecycleManager;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

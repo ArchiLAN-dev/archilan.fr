@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
-use App\Sessions\Application\ForceEndSessionCommand;
+use App\Sessions\Application\Command\ForceEndSessionCommand;
 use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionNotRunningException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\BuildSessionRecapJob;
-use App\Sessions\Application\RecapGraph;
-use App\Sessions\Application\RecapSuperlativesCalculator;
-use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
-use App\Sessions\Application\SpoilerGraphParser;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Support\RecapGraph;
+use App\Sessions\Application\Support\RecapSuperlativesCalculator;
+use App\Sessions\Application\Support\SpoilerGraphParser;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRecap;
 use App\Sessions\Domain\SessionRecapRepositoryInterface;

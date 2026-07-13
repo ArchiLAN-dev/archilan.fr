@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
-use App\Sessions\Application\SessionExportQuery;
+use App\Sessions\Application\Query\SessionExportQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

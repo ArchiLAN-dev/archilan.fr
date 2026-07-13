@@ -6,7 +6,7 @@ namespace App\Tests\Unit\Sessions;
 
 use App\Sessions\Application\Handler\ResumeRunJobHandler;
 use App\Sessions\Application\Message\ResumeRunJob;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 

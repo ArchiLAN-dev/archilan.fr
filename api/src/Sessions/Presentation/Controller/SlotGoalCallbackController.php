@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
-use App\Sessions\Application\RecordSlotGoal;
+use App\Sessions\Application\Command\RecordSlotGoal;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

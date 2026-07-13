@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Presentation\Controller;
 
-use App\Sessions\Application\SessionQuery;
+use App\Sessions\Application\Query\SessionQuery;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

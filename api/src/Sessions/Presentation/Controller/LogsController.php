@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation\Controller;
 
 use App\Sessions\Application\Message\FetchLogsJob;
-use App\Sessions\Application\SessionQuery;
+use App\Sessions\Application\Query\SessionQuery;
 use App\Sessions\Domain\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;

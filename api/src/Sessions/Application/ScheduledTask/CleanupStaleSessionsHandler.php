@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\ScheduledTask;
 
-use App\Sessions\Application\SessionReconcilerInterface;
+use App\Sessions\Application\Port\SessionReconcilerInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;

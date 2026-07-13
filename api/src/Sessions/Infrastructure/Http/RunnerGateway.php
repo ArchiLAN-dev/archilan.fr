@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Http;
 
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;

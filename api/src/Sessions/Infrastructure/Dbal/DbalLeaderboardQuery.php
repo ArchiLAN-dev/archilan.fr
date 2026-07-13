@@ -8,7 +8,7 @@ use App\Community\Application\Support\AvatarUrlResolver;
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\Registrations\Domain\Entity\Registration;
-use App\Sessions\Application\LeaderboardQueryInterface;
+use App\Sessions\Application\Query\LeaderboardQueryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use Doctrine\DBAL\Connection;

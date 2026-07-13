@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\FetchLogsJob;
-use App\Sessions\Infrastructure\RunnerCallbackClient;
+use App\Sessions\Infrastructure\Http\RunnerCallbackClient;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Process\Process;

@@ -7,7 +7,7 @@ namespace App\Tests\Unit\GameSelection;
 use App\GameSelection\Application\Command\BackfillGameOptionTypes;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Adapter;
 
-use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
-use App\Sessions\Application\SpoilerArtifact;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Port\SpoilerArtifact;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**

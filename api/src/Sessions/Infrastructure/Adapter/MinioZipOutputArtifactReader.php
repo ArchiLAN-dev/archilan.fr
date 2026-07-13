@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Adapter;
 
-use App\Sessions\Application\SessionOutputArtifact;
-use App\Sessions\Application\SessionOutputArtifactReaderInterface;
+use App\Sessions\Application\Port\SessionOutputArtifact;
+use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**

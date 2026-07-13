@@ -9,7 +9,7 @@ use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
-use App\Sessions\Application\ForceEndSessionCommand;
+use App\Sessions\Application\Command\ForceEndSessionCommand;
 use App\Sessions\Domain\SessionNotFoundException;
 use App\Sessions\Domain\SessionNotRunningException;
 use Psr\Clock\ClockInterface;

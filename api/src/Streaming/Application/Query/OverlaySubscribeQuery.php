@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Streaming\Application\Query;
 
-use App\Sessions\Application\SessionQuery;
+use App\Sessions\Application\Query\SessionQuery;
 use App\Streaming\Presentation\Controller\OverlayTestController;
 
 /**

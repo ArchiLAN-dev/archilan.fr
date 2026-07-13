@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Application\RecapEdge;
-use App\Sessions\Application\RecapGraph;
-use App\Sessions\Application\RecapSuperlative;
-use App\Sessions\Application\RecapSuperlativesCalculator;
+use App\Sessions\Application\Support\RecapEdge;
+use App\Sessions\Application\Support\RecapGraph;
+use App\Sessions\Application\Support\RecapSuperlative;
+use App\Sessions\Application\Support\RecapSuperlativesCalculator;
 use PHPUnit\Framework\TestCase;
 
 final class RecapSuperlativesCalculatorTest extends TestCase

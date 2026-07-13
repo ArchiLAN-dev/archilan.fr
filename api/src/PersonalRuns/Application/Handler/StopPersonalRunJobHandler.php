@@ -7,7 +7,7 @@ namespace App\PersonalRuns\Application\Handler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;

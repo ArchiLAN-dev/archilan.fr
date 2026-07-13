@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Double;
 
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 
 final class NullRunnerGateway implements RunnerGatewayInterface
 {

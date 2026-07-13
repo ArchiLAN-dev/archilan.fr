@@ -104,13 +104,13 @@ services:
 
     App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunGenerator'
 
-    App\Sessions\Application\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader'
+    App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader'
 
     App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader:
         arguments:
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\Sessions\Application\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader'
+    App\Sessions\Application\Port\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader'
 
     App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader:
         arguments:
@@ -131,7 +131,7 @@ services:
             $dolibarrApiUrl: '%env(default:default_empty_string:DOLIBARR_API_URL)%'
             $dolibarrApiKey: '%env(default:default_empty_string:DOLIBARR_API_KEY)%'
 
-    App\Sessions\Application\RunnerGatewayInterface: '@App\Sessions\Infrastructure\Http\RunnerGateway'
+    App\Sessions\Application\Port\RunnerGatewayInterface: '@App\Sessions\Infrastructure\Http\RunnerGateway'
 
     App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Adapter\S3MinioStorage'
 
@@ -170,11 +170,11 @@ services:
             $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
             $runnerId: '%env(RUNNER_ID)%'
 
-    App\Sessions\Application\SessionOrchestrator:
+    App\Sessions\Application\Service\SessionOrchestrator:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
-    App\Sessions\Application\SessionLifecycleManager:
+    App\Sessions\Application\Service\SessionLifecycleManager:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
@@ -196,7 +196,7 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\Sessions\Application\TraefikConfigBuilder:
+    App\Sessions\Application\Support\TraefikConfigBuilder:
         arguments:
             $wsDomain: '%env(WS_DOMAIN)%'
 
@@ -299,7 +299,7 @@ services:
     App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
     App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
     App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'
-    App\Sessions\Application\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
+    App\Sessions\Application\Port\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
     App\Community\Domain\Repository\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementGrantRepository'
     App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementDefinitionRepository'
     App\Community\Domain\Repository\FriendshipRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendshipRepository'
@@ -323,10 +323,10 @@ services:
     App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
     App\Sessions\Domain\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineRunAuditLogRepository'
     App\Sessions\Domain\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRecapRepository'
-    App\Sessions\Application\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalCommunityStatsQuery'
-    App\Sessions\Application\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalLeaderboardQuery'
-    App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPlayerConnectionQuery'
-    App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalActiveRegistrationQuery'
+    App\Sessions\Application\Query\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalCommunityStatsQuery'
+    App\Sessions\Application\Query\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalLeaderboardQuery'
+    App\Sessions\Application\Query\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPlayerConnectionQuery'
+    App\Sessions\Application\Query\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalActiveRegistrationQuery'
 
     App\Streaming\Application\Port\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
     App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\Dbal\DbalParticipantTwitchLinksQuery'
@@ -421,7 +421,7 @@ when@test:
 
         Symfony\Contracts\HttpClient\HttpClientInterface: '@Symfony\Component\HttpClient\MockHttpClient'
 
-        App\Sessions\Application\RunnerGatewayInterface:
+        App\Sessions\Application\Port\RunnerGatewayInterface:
             class: App\Sessions\Infrastructure\Double\NullRunnerGateway
 
         App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'

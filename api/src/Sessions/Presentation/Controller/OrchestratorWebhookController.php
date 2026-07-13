@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
-use App\Sessions\Application\RecordSessionGeneratedOutput;
-use App\Sessions\Application\SessionLifecycleManager;
-use App\Sessions\Application\SessionOrchestrator;
+use App\Sessions\Application\Command\RecordSessionGeneratedOutput;
+use App\Sessions\Application\Service\SessionLifecycleManager;
+use App\Sessions\Application\Service\SessionOrchestrator;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\WeeklyRuns\Application\Command\MarkWeeklyRunGenerated;
 use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;

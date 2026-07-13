@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Infrastructure\Dbal;
 
-use App\Sessions\Application\PlayerConnectionQueryInterface;
+use App\Sessions\Application\Query\PlayerConnectionQueryInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionSlot;
 use Doctrine\DBAL\Connection;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Presentation\Controller;
 
 use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
-use App\Sessions\Application\SessionOutputArtifactReaderInterface;
+use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

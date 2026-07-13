@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Application\RecordSessionGeneratedOutput;
+use App\Sessions\Application\Command\RecordSessionGeneratedOutput;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Application\RecapGraph;
-use App\Sessions\Application\SpoilerGraphParser;
+use App\Sessions\Application\Support\RecapGraph;
+use App\Sessions\Application\Support\SpoilerGraphParser;
 use PHPUnit\Framework\TestCase;
 
 final class SpoilerGraphParserTest extends TestCase

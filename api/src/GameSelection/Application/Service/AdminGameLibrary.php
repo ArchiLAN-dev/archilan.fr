@@ -16,7 +16,7 @@ use App\GameSelection\Domain\Entity\GameCatalogSync;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;

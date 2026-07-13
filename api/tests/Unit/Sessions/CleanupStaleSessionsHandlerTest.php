@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
+use App\Sessions\Application\Port\SessionReconcilerInterface;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsHandler;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
-use App\Sessions\Application\SessionReconcilerInterface;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;

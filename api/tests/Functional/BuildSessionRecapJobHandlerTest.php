@@ -6,10 +6,10 @@ namespace App\Tests\Functional;
 
 use App\Sessions\Application\Handler\BuildSessionRecapJobHandler;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
-use App\Sessions\Application\RecapSuperlativesCalculator;
-use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
-use App\Sessions\Application\SpoilerArtifact;
-use App\Sessions\Application\SpoilerGraphParser;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Port\SpoilerArtifact;
+use App\Sessions\Application\Support\RecapSuperlativesCalculator;
+use App\Sessions\Application\Support\SpoilerGraphParser;
 use App\Sessions\Domain\Session;
 use App\Sessions\Domain\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\SessionRepositoryInterface;
