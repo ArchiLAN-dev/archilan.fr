@@ -50,7 +50,7 @@ final readonly class LogsController
         return new JsonResponse([
             'data' => [
                 'logs' => $session['lastLogs'] ?? '',
-                'fetched_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                'fetched_at' => new \DateTimeImmutable()->format(\DateTimeInterface::ATOM),
             ],
         ]);
     }

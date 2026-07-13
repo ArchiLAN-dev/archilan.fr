@@ -222,8 +222,8 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
                 continue;
             }
             try {
-                $seconds = (new \DateTimeImmutable($goalAt))->getTimestamp()
-                    - (new \DateTimeImmutable($startedAt))->getTimestamp();
+                $seconds = new \DateTimeImmutable($goalAt)->getTimestamp()
+                    - new \DateTimeImmutable($startedAt)->getTimestamp();
             } catch (\Exception) {
                 continue;
             }

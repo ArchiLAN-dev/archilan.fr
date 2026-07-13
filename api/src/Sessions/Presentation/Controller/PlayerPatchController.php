@@ -17,7 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final readonly class PlayerPatchController
 {
     use RequiresAuthTrait;
-    private const ALLOWED_STATUSES = ['running', 'stopped', 'finished'];
+    private const array ALLOWED_STATUSES = ['running', 'stopped', 'finished'];
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,

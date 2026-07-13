@@ -22,7 +22,7 @@ final readonly class OrchestratorWebhookController
      * in the orchestrateur session volume (relaunch-from-save reads it there); this marker only
      * makes the session resumable through the existing "has a save" gate in initiateRestart().
      */
-    private const VOLUME_SAVE_MARKER = 'orchestrateur:volume';
+    private const string VOLUME_SAVE_MARKER = 'orchestrateur:volume';
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,

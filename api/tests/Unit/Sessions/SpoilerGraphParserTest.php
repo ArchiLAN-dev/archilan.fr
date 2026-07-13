@@ -86,7 +86,7 @@ final class SpoilerGraphParserTest extends TestCase
             Playthrough:
             TXT;
 
-        $graph = (new SpoilerGraphParser())->parse($spoiler);
+        $graph = new SpoilerGraphParser()->parse($spoiler);
 
         self::assertCount(1, $graph->edges);
         self::assertSame('Alice', $graph->edges[0]->fromSlotName);
@@ -110,7 +110,7 @@ final class SpoilerGraphParserTest extends TestCase
             Loc Three (Bob): Item Z (Alice)
             TXT;
 
-        $graph = (new SpoilerGraphParser())->parse($spoiler);
+        $graph = new SpoilerGraphParser()->parse($spoiler);
 
         $edges = [];
         foreach ($graph->edges as $edge) {
@@ -122,14 +122,14 @@ final class SpoilerGraphParserTest extends TestCase
 
     public function testEmptyInputYieldsEmptyGraph(): void
     {
-        $graph = (new SpoilerGraphParser())->parse('');
+        $graph = new SpoilerGraphParser()->parse('');
 
         self::assertEmptyGraph($graph);
     }
 
     public function testUnexpectedInputIsToleratedAsEmptyGraph(): void
     {
-        $graph = (new SpoilerGraphParser())->parse("not a spoiler at all\n:::\n(garbage)\n");
+        $graph = new SpoilerGraphParser()->parse("not a spoiler at all\n:::\n(garbage)\n");
 
         self::assertEmptyGraph($graph);
     }
@@ -150,7 +150,7 @@ final class SpoilerGraphParserTest extends TestCase
             Loc Two (Bob): Item Y (Alice)
             TXT;
 
-        $graph = (new SpoilerGraphParser())->parse($spoiler);
+        $graph = new SpoilerGraphParser()->parse($spoiler);
 
         // The line after `Playthrough:` must not be read as an exchange.
         self::assertCount(1, $graph->edges);
@@ -163,7 +163,7 @@ final class SpoilerGraphParserTest extends TestCase
         $contents = file_get_contents(self::FIXTURE);
         self::assertNotFalse($contents, 'fixture spoiler must be readable');
 
-        return (new SpoilerGraphParser())->parse($contents);
+        return new SpoilerGraphParser()->parse($contents);
     }
 
     private static function assertEmptyGraph(RecapGraph $graph): void

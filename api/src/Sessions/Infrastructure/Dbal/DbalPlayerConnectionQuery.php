@@ -32,7 +32,7 @@ final readonly class DbalPlayerConnectionQuery implements PlayerConnectionQueryI
             ->fetchFirstColumn();
 
         /** @var list<string> $sessionIds */
-        $sessionIds = array_values(array_filter($rows, 'is_string'));
+        $sessionIds = array_values(array_filter($rows, is_string(...)));
 
         if ([] === $sessionIds) {
             return null;

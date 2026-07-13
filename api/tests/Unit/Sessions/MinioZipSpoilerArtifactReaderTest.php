@@ -41,7 +41,7 @@ final class MinioZipSpoilerArtifactReaderTest extends TestCase
         $storage = $this->createStub(MinioStorageInterface::class);
         $storage->method('download')->willThrowException(new \RuntimeException('object not found'));
 
-        self::assertNull((new MinioZipSpoilerArtifactReader($storage, 'sessions'))->extractSpoiler('missing.zip'));
+        self::assertNull(new MinioZipSpoilerArtifactReader($storage, 'sessions')->extractSpoiler('missing.zip'));
     }
 
     public function testReturnsNullForEmptyKey(): void
@@ -49,7 +49,7 @@ final class MinioZipSpoilerArtifactReaderTest extends TestCase
         $storage = $this->createMock(MinioStorageInterface::class);
         $storage->expects(self::never())->method('download');
 
-        self::assertNull((new MinioZipSpoilerArtifactReader($storage, 'sessions'))->extractSpoiler(''));
+        self::assertNull(new MinioZipSpoilerArtifactReader($storage, 'sessions')->extractSpoiler(''));
     }
 
     private function reader(string $zipBytes): MinioZipSpoilerArtifactReader

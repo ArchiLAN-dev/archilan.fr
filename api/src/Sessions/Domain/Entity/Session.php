@@ -10,21 +10,21 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class Session
 {
-    public const STATUS_DRAFT = 'draft';
-    public const STATUS_VALIDATING = 'validating';
-    public const STATUS_READY = 'ready';
-    public const STATUS_GENERATING = 'generating';
-    public const STATUS_GENERATED = 'generated';
-    public const STATUS_LAUNCHING = 'launching';
-    public const STATUS_RUNNING = 'running';
-    public const STATUS_IDLE = 'idle';
-    public const STATUS_RESTARTING = 'restarting';
-    public const STATUS_STOPPED = 'stopped';
-    public const STATUS_FAILED = 'failed';
-    public const STATUS_CRASHED = 'crashed';
-    public const STATUS_FINISHED = 'finished';
+    public const string STATUS_DRAFT = 'draft';
+    public const string STATUS_VALIDATING = 'validating';
+    public const string STATUS_READY = 'ready';
+    public const string STATUS_GENERATING = 'generating';
+    public const string STATUS_GENERATED = 'generated';
+    public const string STATUS_LAUNCHING = 'launching';
+    public const string STATUS_RUNNING = 'running';
+    public const string STATUS_IDLE = 'idle';
+    public const string STATUS_RESTARTING = 'restarting';
+    public const string STATUS_STOPPED = 'stopped';
+    public const string STATUS_FAILED = 'failed';
+    public const string STATUS_CRASHED = 'crashed';
+    public const string STATUS_FINISHED = 'finished';
 
-    private const ALLOWED_TRANSITIONS = [
+    private const array ALLOWED_TRANSITIONS = [
         self::STATUS_DRAFT => [self::STATUS_VALIDATING],
         self::STATUS_VALIDATING => [self::STATUS_READY, self::STATUS_FAILED, self::STATUS_DRAFT],
         self::STATUS_READY => [self::STATUS_GENERATING],
@@ -44,7 +44,7 @@ final class Session
      * Statuts (transitoires ou actifs) susceptibles de rester bloqués si le runner/orchestrateur
      * s'arrête ou si un webhook se perd. Le watchdog (CleanupStaleSessionsHandler) les réconcilie.
      */
-    public const STALE_STATUSES = [
+    public const array STALE_STATUSES = [
         self::STATUS_VALIDATING,
         self::STATUS_GENERATING,
         self::STATUS_LAUNCHING,
@@ -53,7 +53,7 @@ final class Session
     ];
 
     /** Seuils (en secondes) d'inactivité au-delà desquels une session est considérée bloquée. */
-    public const STALE_THRESHOLDS = [
+    public const array STALE_THRESHOLDS = [
         self::STATUS_VALIDATING => 180,  // 3 min - la validation est rapide
         self::STATUS_GENERATING => 1200, // 20 min - une génération peut être longue
         self::STATUS_LAUNCHING => 600,  // 10 min

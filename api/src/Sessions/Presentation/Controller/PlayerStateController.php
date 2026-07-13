@@ -192,23 +192,21 @@ final readonly class PlayerStateController
             $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
             $response = $bridge->slots()->hints($slotIndex);
 
-            $hints = array_map(static function (Hint $h): array {
-                return [
-                    'receivingPlayer' => $h->receivingSlot,
-                    'receivingPlayerName' => $h->receivingPlayerName,
-                    'findingPlayer' => $h->findingSlot,
-                    'findingPlayerName' => $h->findingPlayerName,
-                    'locationId' => $h->locationId,
-                    'locationName' => $h->locationName,
-                    'itemId' => $h->itemId,
-                    'itemName' => $h->itemName,
-                    'itemFlags' => $h->itemFlags,
-                    'entrance' => $h->entrance,
-                    'status' => $h->status->value,
-                    'statusName' => $h->status->label(),
-                    'found' => $h->found,
-                ];
-            }, $response->hints);
+            $hints = array_map(static fn (Hint $h): array => [
+                'receivingPlayer' => $h->receivingSlot,
+                'receivingPlayerName' => $h->receivingPlayerName,
+                'findingPlayer' => $h->findingSlot,
+                'findingPlayerName' => $h->findingPlayerName,
+                'locationId' => $h->locationId,
+                'locationName' => $h->locationName,
+                'itemId' => $h->itemId,
+                'itemName' => $h->itemName,
+                'itemFlags' => $h->itemFlags,
+                'entrance' => $h->entrance,
+                'status' => $h->status->value,
+                'statusName' => $h->status->label(),
+                'found' => $h->found,
+            ], $response->hints);
 
             return new JsonResponse(['data' => [
                 'slot' => $response->slot,
@@ -462,17 +460,15 @@ final readonly class PlayerStateController
             $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
             $response = $bridge->slots()->itemLocations($slotIndex);
 
-            $locations = array_map(static function (ItemLocation $loc): array {
-                return [
-                    'itemId' => $loc->itemId,
-                    'itemName' => $loc->itemName,
-                    'locationId' => $loc->locationId,
-                    'locationName' => $loc->locationName,
-                    'findingPlayer' => $loc->findingSlot,
-                    'findingPlayerName' => $loc->findingPlayerName,
-                    'checkStatus' => $loc->checkStatus,
-                ];
-            }, $response->locations);
+            $locations = array_map(static fn (ItemLocation $loc): array => [
+                'itemId' => $loc->itemId,
+                'itemName' => $loc->itemName,
+                'locationId' => $loc->locationId,
+                'locationName' => $loc->locationName,
+                'findingPlayer' => $loc->findingSlot,
+                'findingPlayerName' => $loc->findingPlayerName,
+                'checkStatus' => $loc->checkStatus,
+            ], $response->locations);
 
             return new JsonResponse(['data' => [
                 'slot' => $response->slot,
@@ -536,15 +532,13 @@ final readonly class PlayerStateController
      */
     private function stripItemRewards(array $data): array
     {
-        $strip = static function (array $locations): array {
-            return array_map(static function (mixed $entry): mixed {
-                if (is_array($entry)) {
-                    unset($entry['item']);
-                }
+        $strip = (static fn (array $locations): array => array_map(static function (mixed $entry): mixed {
+            if (is_array($entry)) {
+                unset($entry['item']);
+            }
 
-                return $entry;
-            }, $locations);
-        };
+            return $entry;
+        }, $locations));
 
         foreach (['reachable_unchecked', 'reachable_checked', 'unreachable_unchecked', 'checked_unreachable'] as $key) {
             if (isset($data[$key]) && is_array($data[$key])) {

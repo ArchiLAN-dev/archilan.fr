@@ -23,7 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
  */
 final readonly class FeedPushController
 {
-    private const TYPE_MAP = [
+    private const array TYPE_MAP = [
         'item_sent' => 'item-received',
     ];
 

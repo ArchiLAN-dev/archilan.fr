@@ -12,8 +12,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final readonly class LeaderboardController
 {
-    private const VALID_AXES = ['goals', 'checks', 'speed'];
-    private const UNITS = ['goals' => 'goals', 'checks' => 'checks', 'speed' => 'seconds'];
+    private const array VALID_AXES = ['goals', 'checks', 'speed'];
+    private const array UNITS = ['goals' => 'goals', 'checks' => 'checks', 'speed' => 'seconds'];
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
