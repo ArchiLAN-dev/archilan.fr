@@ -280,6 +280,16 @@ Grouped into (a) new quality tooling, (b) sized code-quality debt already enumer
   Run `bmad-retrospective` on the completed epic: the audit-first pattern, the decreasing-allowlist enforcement model,
   the Windows/refactor execution lessons (recorded in memory), and what the sweeps surfaced for future epics.
 
+**(e) Data hygiene (added 2026-07-11)**
+
+- **33.22 - Backfill APWorld deployed version by hash match (api/). [S-M, Should]**
+  Many GitHub-tracked games show "Version inconnue" because `apworld_deployed_version` is null (configured by direct
+  upload, or added before tracking). A one-shot `app:backfill-apworld-deployed-version` command infers it by matching
+  the stored `apworldHash` (`sha256(rawbytes)`) against every release asset of the source repo (byte-exact ⇒ false
+  negatives only; unmatched games reported, never guessed). No app behaviour change - fills an existing column.
+  `--dry-run`, group-by-repo download-once, rate-limit early-stop. Reuses `ApworldVersionChecker` + the
+  `check-apworld-updates` command/service shape.
+
 ## Sequencing
 
 1. **33.1** first - a trustworthy, isolated, one-command gate makes every subsequent story safe to verify.
