@@ -1,6 +1,6 @@
 # Story 33.18: TanStack Query Migration of Fetch-in-Effect Pages (frontend/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -121,4 +121,4 @@ so that AC-NX1/AC-API1/AC-API4/AC-ST2 hold across the tree, server state gets ca
 
 | Date | Change |
 |------|--------|
-| 2026-07-11 | Story created (epic-33 follow-up 33.18, sequenced after 33.19). Scope locked: 38 files across 6 batches; auth-context + overlay group + server-side fetch OUT (recorded); C1 resolves organically per migrated page; mutations stay hand-rolled + invalidation. House patterns and adaptive-polling/SSE-invalidate targets identified. Status: ready-for-dev. |
+| 2026-07-11 | Story created (epic-33 follow-up 33.18, sequenced after 33.19). Scope locked: 38 files across 6 batches; auth-context + overlay group + server-side fetch OUT (recorded); C1 resolves organically per migrated page; mutations stay hand-rolled + invalidation. House patterns and adaptive-polling/SSE-invalidate targets identified. Status: ready-for-review. |
