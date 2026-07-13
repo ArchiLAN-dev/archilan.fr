@@ -12,6 +12,7 @@ use App\Sessions\Domain\Exception\SessionNotFoundException;
 use App\Sessions\Domain\Exception\SessionNotRunningException;
 use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class ForceEndSessionCommand
@@ -21,6 +22,7 @@ final readonly class ForceEndSessionCommand
         private RunAuditLogRepositoryInterface $auditLogs,
         private MessageBusInterface $messageBus,
         private RunnerGatewayInterface $runnerGateway,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -41,7 +43,7 @@ final readonly class ForceEndSessionCommand
             throw new SessionNotRunningException($sessionId);
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->transition(Session::STATUS_FINISHED, $now);

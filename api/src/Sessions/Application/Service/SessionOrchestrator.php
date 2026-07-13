@@ -22,6 +22,7 @@ use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Shared\Application\Support\SlotYamlNameReader;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
 final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
@@ -38,6 +39,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         private SlotNameGenerator $slotNameGenerator,
         private LoggerInterface $logger,
         private SessionConfigResolver $configResolver,
+        private ClockInterface $clock,
         private string $runnerPublicHost,
     ) {
     }
@@ -315,7 +317,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
 
         try {
-            $personalRun->markStopped(new \DateTimeImmutable());
+            $personalRun->markStopped($this->clock->now());
             $this->runs->flush();
             $this->logger->info('session.personal_run.marked_stopped', ['sessionId' => $sessionId]);
         } catch (\Throwable $e) {

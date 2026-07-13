@@ -11,6 +11,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class CleanupStaleSessionsHandlerTest extends TestCase
 {
@@ -97,6 +98,6 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         SessionRepositoryInterface $sessions,
         SessionReconcilerInterface $reconciler,
     ): CleanupStaleSessionsHandler {
-        return new CleanupStaleSessionsHandler($sessions, $reconciler, new NullLogger());
+        return new CleanupStaleSessionsHandler($sessions, $reconciler, new NullLogger(), new MockClock());
     }
 }

@@ -10,6 +10,7 @@ use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class SendBridgeCommand
@@ -19,6 +20,7 @@ final readonly class SendBridgeCommand
         private RunAuditLogRepositoryInterface $auditLogs,
         private SessionSlotRepositoryInterface $slots,
         private HttpClientInterface $httpClient,
+        private ClockInterface $clock,
         private string $bridgeHttpHost,
     ) {
     }
@@ -70,7 +72,7 @@ final readonly class SendBridgeCommand
             $actorId,
             'command',
             ['command' => $command],
-            new \DateTimeImmutable(),
+            $this->clock->now(),
         );
         $this->auditLogs->persist($log);
 

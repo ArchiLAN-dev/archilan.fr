@@ -26,6 +26,7 @@ use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -46,6 +47,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private RunnerGatewayInterface $runnerGateway,
         private WeeklyEntryRepositoryInterface $weeklyEntries,
         private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
+        private ClockInterface $clock,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -57,7 +59,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
      */
     public function createSession(string $eventId, array $slots): array
     {
-        $session = Session::create($this->generateId(), $eventId, new \DateTimeImmutable());
+        $session = Session::create($this->generateId(), $eventId, $this->clock->now());
         $this->sessions->persist($session);
 
         foreach ($slots as $order => $slotData) {
@@ -122,7 +124,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         if (null !== $runnerId && !$session->isLockedTo($runnerId)) {
             $this->logger->warning('session.transition.runner_mismatch', [
@@ -226,7 +228,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true, 'errors' => ["Crash signalé depuis un état inattendu '$from'."]];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $session->transition(Session::STATUS_FAILED, $now);
 
         $message = 'La génération a échoué côté serveur. Vérifie ta configuration (YAML / jeux) puis relance.';
@@ -260,7 +262,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true];
         }
 
-        $session->updateHeartbeat(new \DateTimeImmutable());
+        $session->updateHeartbeat($this->clock->now());
         $this->sessions->flush();
 
         return ['found' => true];
@@ -276,7 +278,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         $previous = $session->getStatus();
 
-        $session->forceReset(new \DateTimeImmutable());
+        $session->forceReset($this->clock->now());
         $this->sessions->flush();
         $this->publish($session);
 
@@ -325,7 +327,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $host = $this->runnerPublicHost;
         $password = $session->getPassword() ?? '';
         $serverPassword = $session->getAdminPassword();
@@ -512,7 +514,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
      */
     private function recoverStaleRunningToIdle(Session $session): string
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         try {
             $session->transition(Session::STATUS_CRASHED, $now);
@@ -716,7 +718,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             }
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $session->markRestarting($now);
 
         if ($personalRun instanceof Run) {
@@ -757,7 +759,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true, 'status' => 'unexpected_status'];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $effectiveHost = '' !== $host ? $host : ($session->getHost() ?? '');
         $effectivePort = $port > 0 ? $port : ($session->getPort() ?? 0);
@@ -796,7 +798,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true, 'error' => 'invalid_status', 'status' => null];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         try {
             $session->markRestartFailed($now);
@@ -836,7 +838,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true, 'status' => 'unexpected_status'];
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $session->markIdle($saveKey, $failedSave, $now);
 
         $personalRun = $this->runs->findBySessionId($sessionId);

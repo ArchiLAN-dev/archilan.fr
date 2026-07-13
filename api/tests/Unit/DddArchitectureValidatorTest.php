@@ -432,7 +432,12 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForFile);
     }
 
-    public function testFrozenContextZeroArgDateTimeConstructIsNotReported(): void
+    /**
+     * There is no clock exemption any more (story 33.20 emptied and then removed
+     * CLOCK_CONSTRUCT_EXEMPT_CONTEXTS, whose last entry was the frozen Sessions). The
+     * Application layer may not construct the wall clock in any context.
+     */
+    public function testZeroArgDateTimeConstructIsReportedInEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
         file_put_contents(
@@ -448,7 +453,7 @@ final class DddArchitectureValidatorTest extends TestCase
             $report->violations(),
             static fn (string $v): bool => str_contains($v, 'SessionStamp.php') && str_contains($v, 'read the wall clock'),
         ));
-        self::assertSame([], $clockConstructViolations);
+        self::assertCount(1, $clockConstructViolations);
     }
 
     public function testDomainPublicSetterIsReported(): void

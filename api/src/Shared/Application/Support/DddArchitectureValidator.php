@@ -85,16 +85,10 @@ final readonly class DddArchitectureValidator
         'DateTime',
     ];
 
-    /**
-     * Contexts exempt from the clock-construct rule because they are not yet migrated to
-     * ClockInterface. Sessions is frozen until Epic 32 merges (TODO epic-32); once migrated,
-     * empty this list - never grow it.
-     *
-     * @var list<string>
-     */
-    private const array CLOCK_CONSTRUCT_EXEMPT_CONTEXTS = [
-        'Sessions',
-    ];
+    // CLOCK_CONSTRUCT_EXEMPT_CONTEXTS (story 33.15) is GONE. Its only entry was the frozen
+    // Sessions context; 33.20 injected Psr\Clock\ClockInterface into its 6 Application classes
+    // (16 call sites), which left the exemption branch as dead code. The Application layer may
+    // not read the wall clock by construction anywhere, with no escape hatch.
 
     /**
      * The only sanctioned Symfony imports in a Domain layer (api/CLAUDE.md AC-D1, story 33.17):
@@ -762,10 +756,6 @@ final readonly class DddArchitectureValidator
                             $relativePath,
                         );
                     }
-                }
-
-                if (in_array($context, self::CLOCK_CONSTRUCT_EXEMPT_CONTEXTS, true)) {
-                    continue;
                 }
 
                 foreach (self::FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS as $class) {

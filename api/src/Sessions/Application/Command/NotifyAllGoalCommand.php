@@ -11,6 +11,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Exception\SessionNotFoundException;
 use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class NotifyAllGoalCommand
@@ -20,6 +21,7 @@ final readonly class NotifyAllGoalCommand
         private RunAuditLogRepositoryInterface $auditLogs,
         private MessageBusInterface $messageBus,
         private RunnerGatewayInterface $runnerGateway,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -34,7 +36,7 @@ final readonly class NotifyAllGoalCommand
             return;
         }
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $bridgePort = $session->getBridgePort() ?? 0;
 
         $session->transition(Session::STATUS_FINISHED, $now);
