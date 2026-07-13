@@ -89,7 +89,8 @@ final class SessionSlot
         return $this->slotName;
     }
 
-    public function setSlotName(string $slotName): void
+    /** The generator assigned this slot its (deduplicated) Archipelago name. */
+    public function assignSlotName(string $slotName): void
     {
         $this->slotName = $slotName;
     }
@@ -104,19 +105,9 @@ final class SessionSlot
         return $this->checksDone;
     }
 
-    public function setChecksDone(int $checksDone): void
-    {
-        $this->checksDone = $checksDone;
-    }
-
     public function getItemsReceived(): int
     {
         return $this->itemsReceived;
-    }
-
-    public function setItemsReceived(int $itemsReceived): void
-    {
-        $this->itemsReceived = $itemsReceived;
     }
 
     public function getGoalReachedAt(): ?\DateTimeImmutable
@@ -124,8 +115,30 @@ final class SessionSlot
         return $this->goalReachedAt;
     }
 
-    public function setGoalReachedAt(?\DateTimeImmutable $goalReachedAt): void
+    /** Live progress reported by the bridge. */
+    public function recordProgress(int $checksDone, int $itemsReceived): void
     {
+        $this->checksDone = $checksDone;
+        $this->itemsReceived = $itemsReceived;
+    }
+
+    /**
+     * The slot reached its goal. Idempotent: the instant is captured once, because the
+     * bridge callback may fire more than once (cf. Notification::markRead).
+     */
+    public function recordGoal(\DateTimeImmutable $goalReachedAt): void
+    {
+        $this->goalReachedAt ??= $goalReachedAt;
+    }
+
+    /**
+     * Archive reconciliation (story 9.16): the archived run is authoritative, so unlike
+     * recordGoal() this overwrites - and may clear - the goal instant.
+     */
+    public function syncFromArchive(int $checksDone, int $itemsReceived, ?\DateTimeImmutable $goalReachedAt): void
+    {
+        $this->checksDone = $checksDone;
+        $this->itemsReceived = $itemsReceived;
         $this->goalReachedAt = $goalReachedAt;
     }
 

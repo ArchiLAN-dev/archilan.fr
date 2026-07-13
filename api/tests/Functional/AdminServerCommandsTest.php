@@ -190,7 +190,7 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         $this->loginAs($admin);
 
         $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'reg-002', 'game-001', 'Bob', 0);
-        $slot->setGoalReachedAt(new \DateTimeImmutable());
+        $slot->recordGoal(new \DateTimeImmutable());
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 

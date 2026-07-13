@@ -62,14 +62,15 @@ final readonly class RecordSlotGoal
             return null;
         }
 
-        // Idempotent: the goal-reached instant is captured once (the callback may fire more than once).
+        // Idempotent: the callback may fire more than once, and a repeat must be a complete
+        // no-op - not just for the goal instant (SessionSlot::recordGoal() guards that too)
+        // but for the progress counters as well. Keep the early return.
         if (null !== $slot->getGoalReachedAt()) {
             return null;
         }
 
-        $slot->setChecksDone($checksTotal);
-        $slot->setItemsReceived($itemsTotal);
-        $slot->setGoalReachedAt($goalReachedAt);
+        $slot->recordProgress($checksTotal, $itemsTotal);
+        $slot->recordGoal($goalReachedAt);
         $this->slots->flush();
 
         return null;

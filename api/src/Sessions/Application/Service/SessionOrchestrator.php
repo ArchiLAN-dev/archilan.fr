@@ -235,7 +235,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $generatedNames = $this->slotNameGenerator->generate($generatorInput);
 
         foreach ($sessionSlots as $i => $slot) {
-            $slot->setSlotName($generatedNames[$i]);
+            $slot->assignSlotName($generatedNames[$i]);
         }
 
         $transitionResult = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_VALIDATING);

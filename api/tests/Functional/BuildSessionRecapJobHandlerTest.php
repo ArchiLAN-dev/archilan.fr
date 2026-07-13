@@ -125,7 +125,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         }
         $session->transition(Session::STATUS_RUNNING, $now, 'bridge.local', 38281, 'secret', 5000);
         $session->transition(Session::STATUS_FINISHED, $now->modify('+2 hours'));
-        $session->setGeneratedOutputKey('sess-recap/output/archive.zip');
+        $session->markGenerated('sess-recap/output/archive.zip');
         $this->entityManager->persist($session);
 
         // slotName matches the spoiler player names; goal times drive the time-based
@@ -149,7 +149,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
                 $order - 1,
                 'slot-p'.$order,
             );
-            $slot->setGoalReachedAt(new \DateTimeImmutable($goalAt));
+            $slot->recordGoal(new \DateTimeImmutable($goalAt));
             $this->entityManager->persist($slot);
         }
         $this->entityManager->flush();

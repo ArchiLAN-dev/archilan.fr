@@ -76,8 +76,8 @@ final class EventGoalAchievementTest extends FunctionalTestCase
 
         $session = $this->makeFinishedSession($eventId);
         $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $registration->getId(), $game->getId(), 'A', 0);
-        $slot->setGoalReachedAt($this->now()->modify('+1 hour'));
-        $slot->setChecksDone(50);
+        $slot->recordGoal($this->now()->modify('+1 hour'));
+        $slot->recordProgress(50, 0);
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
     }

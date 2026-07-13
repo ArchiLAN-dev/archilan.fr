@@ -152,7 +152,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         }
 
         if (Session::STATUS_DRAFT === $newStatus && null !== $validationErrors) {
-            $session->setValidationErrors($validationErrors);
+            $session->recordValidationErrors($validationErrors);
 
             $personalRun = $this->runs->findBySessionId($sessionId);
             if ($personalRun instanceof Run && Run::STATUS_STARTING === $personalRun->getStatus()) {
@@ -161,7 +161,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         }
 
         if (null !== $lastLogs && in_array($newStatus, [Session::STATUS_FAILED, Session::STATUS_CRASHED], true)) {
-            $session->setLastLogs($lastLogs);
+            $session->recordLogs($lastLogs);
         }
 
         $shouldNotify = Session::STATUS_RUNNING === $newStatus && !$session->isNotified();
@@ -232,9 +232,9 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $session->transition(Session::STATUS_FAILED, $now);
 
         $message = 'La génération a échoué côté serveur. Vérifie ta configuration (YAML / jeux) puis relance.';
-        $session->setValidationErrors([['slotName' => 'Génération', 'errors' => [$message]]]);
+        $session->recordValidationErrors([['slotName' => 'Génération', 'errors' => [$message]]]);
         if (null !== $reason && '' !== trim($reason)) {
-            $session->setLastLogs($reason);
+            $session->recordLogs($reason);
         }
 
         $personalRun = $this->runs->findBySessionId($sessionId);
@@ -618,8 +618,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
-        $session->setArchivedSavePath($archivedSavePath);
-        $session->setArchivedSpoilerPath($archivedSpoilerPath);
+        $session->recordArchive($archivedSavePath, $archivedSpoilerPath);
 
         $registrationIds = [];
         foreach ($slots as $slotData) {
@@ -636,19 +635,22 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
             $registrationIds[$slot->getRegistrationId()] = true;
 
-            $slot->setChecksDone(is_int($slotData['checks_done'] ?? null) ? $slotData['checks_done'] : 0);
-            $slot->setItemsReceived(is_int($slotData['items_received'] ?? null) ? $slotData['items_received'] : 0);
-
             $goalAt = $slotData['goal_reached_at'] ?? null;
+            $goalReachedAt = null;
             if (is_string($goalAt)) {
                 try {
-                    $slot->setGoalReachedAt(new \DateTimeImmutable($goalAt));
+                    $goalReachedAt = new \DateTimeImmutable($goalAt);
                 } catch (\Throwable) {
-                    $slot->setGoalReachedAt(null);
+                    $goalReachedAt = null;
                 }
-            } else {
-                $slot->setGoalReachedAt(null);
             }
+
+            // The archived run is authoritative - it may also clear a goal instant.
+            $slot->syncFromArchive(
+                is_int($slotData['checks_done'] ?? null) ? $slotData['checks_done'] : 0,
+                is_int($slotData['items_received'] ?? null) ? $slotData['items_received'] : 0,
+                $goalReachedAt,
+            );
         }
 
         $this->sessions->flush();
@@ -884,7 +886,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
-        $session->setLastLogs($output);
+        $session->recordLogs($output);
         $this->sessions->flush();
 
         $this->logger->info('session.logs.stored', ['sessionId' => $sessionId, 'length' => strlen($output)]);

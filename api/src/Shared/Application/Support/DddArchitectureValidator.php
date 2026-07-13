@@ -136,17 +136,10 @@ final readonly class DddArchitectureValidator
         'Identity/Application/Service/CurrentUserProvider.php',
     ];
 
-    /**
-     * Contexts exempt from the no-public-setters rule (api/CLAUDE.md AC-D5, story 33.16)
-     * because their aggregates still expose set-prefixed mutators. Sessions is frozen until
-     * Epic 32 merges (TODO epic-32, follow-up 33.20); once migrated, empty this list -
-     * never grow it.
-     *
-     * @var list<string>
-     */
-    private const array AGGREGATE_SETTER_EXEMPT_CONTEXTS = [
-        'Sessions',
-    ];
+    // AGGREGATE_SETTER_EXEMPT_CONTEXTS (story 33.16) is GONE. Its only entry was the frozen
+    // Sessions context; 33.20 replaced its 9 public setters with 6 named business methods,
+    // which left the exemption branch as dead code. AC-D5 now holds for every aggregate in
+    // the codebase, with no escape hatch.
 
     // The Application->Infrastructure allowlist (story 33.5) is GONE, not merely emptied.
     // Its last two entries were the Sessions runner-callback handlers injecting the concrete
@@ -570,10 +563,6 @@ final readonly class DddArchitectureValidator
         $violations = [];
 
         foreach (self::CONTEXTS as $context) {
-            if (in_array($context, self::AGGREGATE_SETTER_EXEMPT_CONTEXTS, true)) {
-                continue;
-            }
-
             $domainDir = "{$srcDir}/{$context}/Domain";
             if (!is_dir($domainDir)) {
                 continue;

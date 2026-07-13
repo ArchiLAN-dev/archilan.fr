@@ -514,7 +514,8 @@ final class Session
         }
     }
 
-    public function setLastLogs(?string $logs): void
+    /** Store the runner's output for this session (crash reason, or fetched container logs). */
+    public function recordLogs(?string $logs): void
     {
         $this->lastLogs = $logs;
     }
@@ -524,19 +525,16 @@ final class Session
         return $this->archivedSavePath;
     }
 
-    public function setArchivedSavePath(?string $path): void
-    {
-        $this->archivedSavePath = $path;
-    }
-
     public function getArchivedSpoilerPath(): ?string
     {
         return $this->archivedSpoilerPath;
     }
 
-    public function setArchivedSpoilerPath(?string $path): void
+    /** The run was archived: record where its save and spoiler landed (always set together). */
+    public function recordArchive(?string $savePath, ?string $spoilerPath): void
     {
-        $this->archivedSpoilerPath = $path;
+        $this->archivedSavePath = $savePath;
+        $this->archivedSpoilerPath = $spoilerPath;
     }
 
     public function getGeneratedOutputKey(): ?string
@@ -544,13 +542,14 @@ final class Session
         return $this->generatedOutputKey;
     }
 
-    public function setGeneratedOutputKey(?string $key): void
+    /** Generation produced an output archive at this key (cf. WeeklyRun::markGenerated). */
+    public function markGenerated(string $outputKey): void
     {
-        $this->generatedOutputKey = $key;
+        $this->generatedOutputKey = $outputKey;
     }
 
     /** @param list<array{slotName: string, errors: list<string>}>|null $errors */
-    public function setValidationErrors(?array $errors): void
+    public function recordValidationErrors(?array $errors): void
     {
         $this->validationErrors = $errors;
     }

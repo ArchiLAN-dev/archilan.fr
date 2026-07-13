@@ -122,7 +122,7 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
     {
         $session = Session::create(self::SESSION_ID, self::RUN_ID, new \DateTimeImmutable());
         if (null !== $generatedOutputKey) {
-            $session->setGeneratedOutputKey($generatedOutputKey);
+            $session->markGenerated($generatedOutputKey);
         }
 
         return $session;

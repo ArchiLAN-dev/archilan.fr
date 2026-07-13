@@ -529,7 +529,12 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForFile);
     }
 
-    public function testFrozenContextDomainSetterIsNotReported(): void
+    /**
+     * There is no setter exemption any more (story 33.20 emptied and then removed
+     * AGGREGATE_SETTER_EXEMPT_CONTEXTS, whose last entry was the frozen Sessions). AC-D5
+     * holds for every aggregate, including the one that used to be exempt.
+     */
+    public function testDomainSetterIsReportedInEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
         file_put_contents(
@@ -546,7 +551,7 @@ final class DddArchitectureValidatorTest extends TestCase
             $report->violations(),
             static fn (string $v): bool => str_contains($v, 'SessionThing.php') && str_contains($v, 'public setters'),
         ));
-        self::assertSame([], $setterViolations);
+        self::assertCount(1, $setterViolations);
     }
 
     public function testDomainSymfonyImportIsReported(): void

@@ -31,7 +31,7 @@ final readonly class RecordSessionGeneratedOutput
             return;
         }
 
-        $session->setGeneratedOutputKey($outputKey);
+        $session->markGenerated($outputKey);
         $this->sessions->persist($session);
         $this->sessions->flush();
     }
