@@ -18,9 +18,9 @@ php bin/phpunit                        # all suites green - 0 notices/deprecatio
 Run all four (`composer gates`) before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations. Note the cs-fixer gate covers **src and tests** - passing `src` as a path argument narrows it and lets test-file violations through that CI will reject.
 
 Advisory (not part of `composer gates` yet): `composer rector` runs the Rector dry-run (story 33.13,
-conservative PHP-level sets, Sessions + migrations skipped); CI runs it non-blocking. Keep it clean -
-it flips to a hard gate once the baseline proves stable. After applying Rector diffs, always run
-cs-fixer before committing (Rector output is not @Symfony-styled).
+conservative PHP-level sets; **migrations** skipped - the Sessions freeze was lifted in 33.20); CI runs
+it non-blocking. Keep it clean - it flips to a hard gate once the baseline proves stable. After applying
+Rector diffs, always run cs-fixer before committing (Rector output is not @Symfony-styled).
 
 **Zero PHPUnit notices is a validation prerequisite.** `phpunit.xml.dist` sets `failOnNotice`,
 `failOnDeprecation` and `failOnWarning` to `true`, so any notice/deprecation/warning makes
@@ -113,14 +113,25 @@ name suffix a text check can key on) - it is a documented convention, not a gate
 | `Infrastructure/` | `Doctrine/` (`Doctrine*Repository`), `Dbal/` (`Dbal*Query`), `Http/` (clients + `ApiAccessGuard`), `Console/`, `Double/` (`Null*`/`Stub*`/`Spy*`, `when@test`), `Exception/` (infra exceptions), `Adapter/` (remaining port impls: gateways, providers, triggers, resolvers, generators, voter, storage) |
 | `Presentation/` | `Controller/` (all controllers; `Controller/Admin/` where an admin split exists), `Command/` (console), `Support/` (controller traits), `Request/` (request/webhook DTOs) |
 
-Doctrine mapping targets `Domain/Entity/` (prefix `App\{Context}\Domain\Entity`). Name-detectable
-kinds (entities, `*RepositoryInterface`, `*Controller`, `Doctrine*`, `Dbal*`, `Null*`/`Stub*`/`Spy*`)
-are validator-gated; content-only distinctions (VO vs Support, Port vs Service) are documented
-convention. **Carve-out:** the 4 `Community\Domain` classes imported by merged migrations
+Doctrine mapping targets `Domain/Entity/` (prefix `App\{Context}\Domain\Entity`).
+
+**Every context is migrated (story 33.20 was the last - Sessions). There is no per-context escape
+hatch: `UNMIGRATED_TAXONOMY_CONTEXTS` no longer exists.**
+
+**What the validator actually gates** (do not over-trust this table - the rest is reviewer-enforced
+convention):
+
+| Gated by `app:architecture:ddd` | NOT gated (convention only) |
+|---|---|
+| no `.php` directly in a layer folder (catch-all) | `*Controller` → `Presentation/Controller/` |
+| `*QueryInterface` → `Application/Query/` | `Doctrine*` → `Infrastructure/Doctrine/` |
+| `*Exception` → `{Domain,Application}/Exception/` | `Dbal*` → `Infrastructure/Dbal/` |
+| Doctrine mapping prefix → `Domain\Entity` | `Null*`/`Stub*`/`Spy*` → `Infrastructure/Double/` |
+| | `*RepositoryInterface` → `Domain/Repository/` (only the *layer* is gated) |
+
+**Carve-out:** the 4 `Community\Domain` classes imported by merged migrations
 (`DefaultAchievementDefinitions`, `AchievementMetricCatalog`, `AchievementOperator`,
 `AchievementRuleGroup`) keep their current FQCN - merged migrations are immutable.
-Contexts migrate progressively; `DddArchitectureValidator::UNMIGRATED_TAXONOMY_CONTEXTS` lists the
-not-yet-migrated ones (`Sessions` until Epic 32) - shrink it, never grow it.
 
 ---
 
