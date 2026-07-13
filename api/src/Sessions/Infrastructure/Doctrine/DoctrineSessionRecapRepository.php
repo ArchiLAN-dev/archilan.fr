@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Infrastructure;
+namespace App\Sessions\Infrastructure\Doctrine;
 
 use App\Sessions\Domain\SessionRecap;
 use App\Sessions\Domain\SessionRecapRepositoryInterface;

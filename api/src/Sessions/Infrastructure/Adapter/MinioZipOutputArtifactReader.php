@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Infrastructure;
+namespace App\Sessions\Infrastructure\Adapter;
 
 use App\Sessions\Application\SessionOutputArtifact;
 use App\Sessions\Application\SessionOutputArtifactReaderInterface;

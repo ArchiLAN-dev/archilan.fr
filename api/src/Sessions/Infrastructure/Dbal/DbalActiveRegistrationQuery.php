@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Infrastructure;
+namespace App\Sessions\Infrastructure\Dbal;
 
 use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Application\ActiveRegistrationQueryInterface;

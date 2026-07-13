@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Infrastructure;
+namespace App\Sessions\Infrastructure\Dbal;
 
 use App\Community\Application\Support\AvatarUrlResolver;
 use App\Identity\Domain\Entity\User;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Infrastructure;
+namespace App\Sessions\Infrastructure\Dbal;
 
 use App\Sessions\Application\CommunityStatsQueryInterface;
 use App\Sessions\Domain\Session;

@@ -19,7 +19,7 @@ use App\Sessions\Application\RunnerGatewayInterface;
 use App\Sessions\Application\SlotNameGenerator;
 use App\Sessions\Domain\SessionRepositoryInterface;
 use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Sessions\Infrastructure\NullRunnerGateway;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Clock\MockClock;

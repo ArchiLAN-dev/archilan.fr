@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader;
+use App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 

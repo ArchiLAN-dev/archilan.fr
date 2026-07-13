@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Sessions\Infrastructure;
+namespace App\Sessions\Infrastructure\Http;
 
 use Archilan\OrchestratorClient\Sessions\Yaml\Option\OptionValue;
 

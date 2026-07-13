@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Entity\Game;
-use App\Sessions\Infrastructure\NullRunnerGateway;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 

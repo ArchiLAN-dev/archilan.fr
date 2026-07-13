@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Infrastructure\MinioZipOutputArtifactReader;
+use App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 
