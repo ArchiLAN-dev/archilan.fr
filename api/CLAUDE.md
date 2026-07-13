@@ -35,6 +35,25 @@ Rector diffs, always run cs-fixer before committing (Rector output is not @Symfo
 
 ---
 
+## This file is gated
+
+`tests/Unit/Shared/StandardsDocsMatchToolingTest.php` runs in `composer gates` and **fails the build**
+when this document drifts from the tooling it describes. It checks what is mechanically checkable:
+
+- every validator symbol cited here (`DddArchitectureValidator::` + a name) **exists** on the class;
+- the "authoritative" context list below **equals** `DddArchitectureValidator::CONTEXTS`;
+- the "What it runs, in order" block above lists **exactly** the legs `composer gates` really runs.
+
+Write the first bullet's pattern without a matchable placeholder: a rule that scans raw text will
+match its own documentation (the trap stories 33.13/33.15/33.17 each fell into).
+
+Epic 33 existed to stop the docs lying about the tooling, and still ended with this file citing a
+constant story 33.20 had deleted - because a doc has nothing that fails when it goes stale. Now it does
+(epic-33 retro, action A1). The prose claims it cannot check (which kind belongs in which sub-folder)
+stay reviewer-enforced: **when this file and the code disagree, the code wins and this file moves.**
+
+---
+
 ## DDD layer rules
 
 ### Bounded contexts
