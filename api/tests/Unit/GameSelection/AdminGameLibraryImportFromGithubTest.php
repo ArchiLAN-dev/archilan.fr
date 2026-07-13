@@ -16,7 +16,7 @@ use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;

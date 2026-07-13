@@ -7,9 +7,9 @@ namespace App\Tests\Functional;
 use App\GameSelection\Domain\Entity\Game;
 use App\Identity\Domain\Entity\User;
 use App\Registrations\Domain\Entity\Registration;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Infrastructure\NullRunnerGateway;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 
 final class RunnerValidatePipelineTest extends FunctionalTestCase
 {

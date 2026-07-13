@@ -16,9 +16,10 @@ use Rector\Php55\Rector\String_\StringClassNameToClassConstantRector;
  * path is Rector's own Symfony set API, not a new dependency.
  *
  * Hard skips:
- *  - src/Sessions + tests/Unit/Sessions: frozen until Epic 32 merges (same carve-out
- *    as every 33.x story; the freeze covers the context's dedicated tests too).
  *  - migrations/ is simply not in the paths: merged migrations are immutable.
+ *
+ * The Sessions freeze (src/Sessions + tests/Unit/Sessions) is LIFTED: Epic 32 merged and
+ * story 33.20 migrated the context, so Rector now analyses it like every other.
  *
  * Advisory gate: `composer rector` runs --dry-run; CI mirrors it (continue-on-error)
  * until the baseline proves stable, then it flips to a hard gate.
@@ -29,8 +30,6 @@ return RectorConfig::configure()
         __DIR__.'/tests',
     ])
     ->withSkip([
-        __DIR__.'/src/Sessions',
-        __DIR__.'/tests/Unit/Sessions',
         // The DDD validator's forbidden-import lists are SCAN PATTERNS, not class references.
         // As single-quoted strings their source text carries doubled backslashes and cannot
         // self-match; rewritten to ::class references the file contains the literal FQCN

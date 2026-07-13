@@ -8,8 +8,8 @@ use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
 use App\Events\Domain\Entity\Event;
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class AdminRunArchivalTest extends FunctionalTestCase
@@ -153,8 +153,7 @@ final class AdminRunArchivalTest extends FunctionalTestCase
             'Bob',
             1,
         );
-        $slot->setChecksDone(10);
-        $slot->setItemsReceived(5);
+        $slot->recordProgress(10, 5);
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 
@@ -194,8 +193,7 @@ final class AdminRunArchivalTest extends FunctionalTestCase
             'Charlie',
             1,
         );
-        $slot->setChecksDone(55);
-        $slot->setItemsReceived(40);
+        $slot->recordProgress(55, 40);
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 
@@ -231,8 +229,7 @@ final class AdminRunArchivalTest extends FunctionalTestCase
             'Diana',
             1,
         );
-        $slot->setChecksDone(22);
-        $slot->setItemsReceived(15);
+        $slot->recordProgress(22, 15);
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 

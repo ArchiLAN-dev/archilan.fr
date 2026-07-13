@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Infrastructure\Adapter;
 
 use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
-use App\Sessions\Application\AchievementRecomputeTriggerInterface;
+use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**

@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Entity\Game;
 use App\PersonalRuns\Domain\Entity\Run;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
@@ -36,15 +36,13 @@ final class PlayerProfileTest extends FunctionalTestCase
 
         // Slot 1: goal reached (counts in goalCompletions, checks, items)
         $slot1 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Jean', 0);
-        $slot1->setGoalReachedAt($startedAt->modify('+100 seconds'));
-        $slot1->setChecksDone(50);
-        $slot1->setItemsReceived(30);
+        $slot1->recordGoal($startedAt->modify('+100 seconds'));
+        $slot1->recordProgress(50, 30);
         $this->entityManager->persist($slot1);
 
         // Slot 2: invalidated (was_released, no goal) - excluded from goalCompletions, checks, items
         $slot2 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Jean2', 1);
-        $slot2->setChecksDone(10);
-        $slot2->setItemsReceived(5);
+        $slot2->recordProgress(10, 5);
         $slot2->markAsReleased();
         $this->entityManager->persist($slot2);
 
@@ -85,16 +83,14 @@ final class PlayerProfileTest extends FunctionalTestCase
         $startedAt1 = $session1->getStartedAt();
         self::assertNotNull($startedAt1);
         $s1slot = SessionSlot::create(bin2hex(random_bytes(16)), $session1->getId(), $reg->getId(), $game->getId(), 'Alice', 0);
-        $s1slot->setGoalReachedAt($startedAt1->modify('+60 seconds'));
-        $s1slot->setChecksDone(20);
-        $s1slot->setItemsReceived(10);
+        $s1slot->recordGoal($startedAt1->modify('+60 seconds'));
+        $s1slot->recordProgress(20, 10);
         $this->entityManager->persist($s1slot);
 
         // Session 2: invalidated (no goal)
         $session2 = $this->makeFinishedSession($event->getId(), $now->modify('+1 day'));
         $s2slot = SessionSlot::create(bin2hex(random_bytes(16)), $session2->getId(), $reg->getId(), $game->getId(), 'Alice', 0);
-        $s2slot->setChecksDone(5);
-        $s2slot->setItemsReceived(3);
+        $s2slot->recordProgress(5, 3);
         $s2slot->markAsReleased();
         $this->entityManager->persist($s2slot);
 
@@ -159,11 +155,11 @@ final class PlayerProfileTest extends FunctionalTestCase
 
         // Two slots in the same session, both with goals
         $slot1 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Diana', 0);
-        $slot1->setGoalReachedAt($startedAt->modify('+60 seconds'));
+        $slot1->recordGoal($startedAt->modify('+60 seconds'));
         $this->entityManager->persist($slot1);
 
         $slot2 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Diana2', 1);
-        $slot2->setGoalReachedAt($startedAt->modify('+120 seconds'));
+        $slot2->recordGoal($startedAt->modify('+120 seconds'));
         $this->entityManager->persist($slot2);
 
         $this->entityManager->flush();
@@ -195,7 +191,7 @@ final class PlayerProfileTest extends FunctionalTestCase
 
         // One game beaten, one game played but not beaten (not released).
         $beaten = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Erik', 0);
-        $beaten->setGoalReachedAt($startedAt->modify('+60 seconds'));
+        $beaten->recordGoal($startedAt->modify('+60 seconds'));
         $this->entityManager->persist($beaten);
 
         $unbeaten = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Erik2', 1);
@@ -342,7 +338,7 @@ final class PlayerProfileTest extends FunctionalTestCase
 
         foreach ([$session1, $session2, $session3] as $session) {
             $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'Carol', 0);
-            $slot->setChecksDone(10);
+            $slot->recordProgress(10, 0);
             $this->entityManager->persist($slot);
         }
         $this->entityManager->flush();

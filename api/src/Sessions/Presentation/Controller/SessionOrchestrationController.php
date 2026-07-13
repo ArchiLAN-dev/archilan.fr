@@ -1,0 +1,287 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Sessions\Presentation\Controller;
+
+use App\Sessions\Application\Query\SessionQuery;
+use App\Sessions\Application\Service\SessionOrchestrator;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiresAuthTrait;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Routing\Attribute\Route;
+
+final readonly class SessionOrchestrationController
+{
+    use RequiresAuthTrait;
+
+    public function __construct(
+        private ApiAccessGuard $apiAccessGuard,
+        private SessionOrchestrator $sessionOrchestrator,
+        private SessionQuery $sessionQuery,
+        private MinioStorageInterface $minioStorage,
+        private string $workspaceDir,
+        private string $minioSessionsBucket,
+    ) {
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/validate', methods: ['POST'])]
+    public function validate(Request $request, string $sessionId): JsonResponse
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateValidate($sessionId);
+
+        if (!($result['found'] ?? false)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $rawErrors = $result['errors'] ?? null;
+        if (is_array($rawErrors)) {
+            $errors = $this->toStringList($rawErrors);
+
+            return $this->apiAccessGuard->errorResponse('invalid_state', implode(' ', $errors), 409);
+        }
+
+        return new JsonResponse(['data' => $result['session']]);
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/generate', methods: ['POST'])]
+    public function generate(Request $request, string $sessionId): JsonResponse
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateGenerate($sessionId);
+
+        if (!($result['found'] ?? false)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $rawErrors = $result['errors'] ?? null;
+        if (is_array($rawErrors)) {
+            $errors = $this->toStringList($rawErrors);
+            if (in_array('runner_unavailable', $errors, true)) {
+                return $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible.', 503);
+            }
+
+            return $this->apiAccessGuard->errorResponse('invalid_transition', implode(' ', $errors), 409);
+        }
+
+        return new JsonResponse(['data' => $result['session']]);
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/launch', methods: ['POST'])]
+    public function launch(Request $request, string $sessionId): JsonResponse
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateLaunch($sessionId);
+
+        if (!($result['found'] ?? false)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $rawErrors = $result['errors'] ?? null;
+        if (is_array($rawErrors)) {
+            $errors = $this->toStringList($rawErrors);
+            if (in_array('runner_unavailable', $errors, true)) {
+                return $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible.', 503);
+            }
+
+            return $this->apiAccessGuard->errorResponse('invalid_transition', implode(' ', $errors), 409);
+        }
+
+        return new JsonResponse(['data' => $result['session']]);
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/force-launch', methods: ['POST'])]
+    public function forceLaunch(Request $request, string $sessionId): JsonResponse
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateForceLaunch($sessionId);
+
+        if (!($result['found'] ?? false)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $rawErrors = $result['errors'] ?? null;
+        if (is_array($rawErrors)) {
+            $errors = $this->toStringList($rawErrors);
+
+            return $this->apiAccessGuard->errorResponse('invalid_transition', implode(' ', $errors), 409);
+        }
+
+        return new JsonResponse(['data' => $result['session']]);
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/stop', methods: ['POST'])]
+    public function stop(Request $request, string $sessionId): JsonResponse
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateStop($sessionId);
+
+        if (!($result['found'] ?? false)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $rawErrors = $result['errors'] ?? null;
+        if (is_array($rawErrors)) {
+            $errors = $this->toStringList($rawErrors);
+
+            return $this->apiAccessGuard->errorResponse('invalid_transition', implode(' ', $errors), 409);
+        }
+
+        return new JsonResponse(['data' => $result['session']]);
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/restart', methods: ['POST'])]
+    public function restart(Request $request, string $sessionId): JsonResponse
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $result = $this->sessionOrchestrator->orchestrateRestart($sessionId);
+
+        if (!($result['found'] ?? false)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $rawErrors = $result['errors'] ?? null;
+        if (is_array($rawErrors)) {
+            $errors = $this->toStringList($rawErrors);
+            if (in_array('runner_unavailable', $errors, true)) {
+                return $this->apiAccessGuard->errorResponse('runner_unavailable', 'Le runner est indisponible.', 503);
+            }
+
+            return $this->apiAccessGuard->errorResponse('invalid_transition', implode(' ', $errors), 409);
+        }
+
+        return new JsonResponse(['data' => $result['session']]);
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/yamls.zip', methods: ['GET'])]
+    public function downloadYamls(Request $request, string $sessionId): Response
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        $yamlsDir = $this->workspaceDir.'/'.$sessionId.'/yamls';
+
+        if (!is_dir($yamlsDir)) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier YAML trouvé.', 404);
+        }
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'yamls_');
+        if (false === $tmpFile) {
+            return $this->apiAccessGuard->errorResponse('server_error', 'Impossible de créer le fichier temporaire.', 500);
+        }
+
+        $zip = new \ZipArchive();
+        $zip->open($tmpFile, \ZipArchive::OVERWRITE);
+
+        $added = 0;
+        foreach (glob($yamlsDir.'/*.yaml') ?: [] as $file) {
+            $zip->addFile($file, basename($file));
+            ++$added;
+        }
+
+        $zip->close();
+
+        if (0 === $added) {
+            unlink($tmpFile);
+
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier YAML trouvé.', 404);
+        }
+
+        $response = new BinaryFileResponse($tmpFile);
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $sessionId.'-yamls.zip');
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
+    #[Route('/api/v1/admin/sessions/{sessionId}/generation.zip', methods: ['GET'])]
+    public function downloadGeneration(Request $request, string $sessionId): Response
+    {
+        $guard = $this->requireAuthenticatedAdmin($request);
+        if ($guard instanceof JsonResponse) {
+            return $guard;
+        }
+
+        // Generated artifacts now live in MinIO (a single flat zip: multidata +
+        // per-player patches + spoiler), recorded as the session's output key on
+        // `session.generated`. The local workspace is no longer the source of truth.
+        $sessionData = $this->sessionQuery->findById($sessionId);
+        if (null === $sessionData) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        $outputKey = $sessionData['generatedOutputKey'];
+        if (null === $outputKey || '' === $outputKey) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
+        }
+
+        try {
+            $archive = $this->minioStorage->download($this->minioSessionsBucket, $outputKey);
+        } catch (\Throwable) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
+        }
+
+        if ('' === $archive) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Aucun fichier de génération trouvé.', 404);
+        }
+
+        $response = new StreamedResponse(static function () use ($archive): void {
+            echo $archive;
+        });
+        $response->headers->set('Content-Type', 'application/zip');
+        $response->headers->set('Content-Disposition', 'attachment; filename="'.$sessionId.'-generation.zip"');
+
+        return $response;
+    }
+
+    /**
+     * @param array<mixed> $list
+     *
+     * @return list<string>
+     */
+    private function toStringList(array $list): array
+    {
+        $result = [];
+        foreach ($list as $item) {
+            if (is_string($item)) {
+                $result[] = $item;
+            }
+        }
+
+        return $result;
+    }
+}

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\PersonalRuns\Domain\Entity\Run;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 

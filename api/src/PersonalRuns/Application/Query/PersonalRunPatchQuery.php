@@ -7,9 +7,9 @@ namespace App\PersonalRuns\Application\Query;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\PersonalRuns\Presentation\Controller\PersonalRunPatchController;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 
 /**
  * Resolves, for a private-run participant, the session's generated output archive key and

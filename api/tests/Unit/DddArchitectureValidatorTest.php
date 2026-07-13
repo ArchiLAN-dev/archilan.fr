@@ -273,7 +273,6 @@ final class DddArchitectureValidatorTest extends TestCase
     public function testQueryInterfaceOutsideApplicationIsReported(): void
     {
         $projectDir = $this->createProjectFixture();
-        // Sessions is unmigrated (frozen until Epic 32), so it uses the pre-taxonomy message.
         file_put_contents(
             $projectDir.'/src/Sessions/Infrastructure/DashboardQueryInterface.php',
             "<?php\n\nnamespace App\\Sessions\\Infrastructure;\n\ninterface DashboardQueryInterface {}\n",
@@ -283,7 +282,7 @@ final class DddArchitectureValidatorTest extends TestCase
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
-            'Query interfaces must live in the Application layer: src/Sessions/Infrastructure/DashboardQueryInterface.php',
+            'Query interfaces must live in Application/Query/: src/Sessions/Infrastructure/DashboardQueryInterface.php',
             $report->violations(),
         );
     }
@@ -305,22 +304,28 @@ final class DddArchitectureValidatorTest extends TestCase
         );
     }
 
-    public function testAllowlistedApplicationInfrastructureImportPasses(): void
+    /**
+     * The Application->Infrastructure allowlist is gone (story 33.20): its last two entries
+     * were these very Sessions runner-callback handlers, and extracting
+     * RunnerCallbackClientInterface removed the need for them. The rule now holds
+     * unconditionally - the formerly-exempt path is reported like any other.
+     */
+    public function testFormerlyAllowlistedApplicationInfrastructureImportIsNowReported(): void
     {
         $projectDir = $this->createProjectFixture();
         $this->createDirectory($projectDir.'/src/Sessions/Application/Handler');
         file_put_contents(
             $projectDir.'/src/Sessions/Application/Handler/ArchiveRunJobHandler.php',
-            "<?php\n\nnamespace App\\Sessions\\Application\\Handler;\n\nuse App\\Sessions\\Infrastructure\\RunnerCallbackClient;\n\nfinal class ArchiveRunJobHandler {}\n",
+            "<?php\n\nnamespace App\\Sessions\\Application\\Handler;\n\nuse App\\Sessions\\Infrastructure\\Http\\RunnerCallbackClient;\n\nfinal class ArchiveRunJobHandler {}\n",
         );
 
         $report = new DddArchitectureValidator()->validate($projectDir);
 
-        $violationsForFile = array_values(array_filter(
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Application layer must not depend on the Infrastructure layer ("App\\Sessions\\Infrastructure\\"): src/Sessions/Application/Handler/ArchiveRunJobHandler.php',
             $report->violations(),
-            static fn (string $v): bool => str_contains($v, 'ArchiveRunJobHandler.php'),
-        ));
-        self::assertSame([], $violationsForFile);
+        );
     }
 
     public function testApplicationNewOnInfrastructureIsReported(): void
@@ -427,7 +432,12 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForFile);
     }
 
-    public function testFrozenContextZeroArgDateTimeConstructIsNotReported(): void
+    /**
+     * There is no clock exemption any more (story 33.20 emptied and then removed
+     * CLOCK_CONSTRUCT_EXEMPT_CONTEXTS, whose last entry was the frozen Sessions). The
+     * Application layer may not construct the wall clock in any context.
+     */
+    public function testZeroArgDateTimeConstructIsReportedInEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
         file_put_contents(
@@ -443,7 +453,7 @@ final class DddArchitectureValidatorTest extends TestCase
             $report->violations(),
             static fn (string $v): bool => str_contains($v, 'SessionStamp.php') && str_contains($v, 'read the wall clock'),
         ));
-        self::assertSame([], $clockConstructViolations);
+        self::assertCount(1, $clockConstructViolations);
     }
 
     public function testDomainPublicSetterIsReported(): void
@@ -519,7 +529,12 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForFile);
     }
 
-    public function testFrozenContextDomainSetterIsNotReported(): void
+    /**
+     * There is no setter exemption any more (story 33.20 emptied and then removed
+     * AGGREGATE_SETTER_EXEMPT_CONTEXTS, whose last entry was the frozen Sessions). AC-D5
+     * holds for every aggregate, including the one that used to be exempt.
+     */
+    public function testDomainSetterIsReportedInEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
         file_put_contents(
@@ -536,7 +551,7 @@ final class DddArchitectureValidatorTest extends TestCase
             $report->violations(),
             static fn (string $v): bool => str_contains($v, 'SessionThing.php') && str_contains($v, 'public setters'),
         ));
-        self::assertSame([], $setterViolations);
+        self::assertCount(1, $setterViolations);
     }
 
     public function testDomainSymfonyImportIsReported(): void
@@ -662,7 +677,12 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $amountViolations);
     }
 
-    public function testFrozenContextNonFinalDomainClassIsNotReported(): void
+    /**
+     * There is no finality exemption any more (story 33.20 emptied and then removed
+     * FINALITY_EXEMPT_CONTEXTS, whose last entry was the frozen Sessions). AC-D4 holds for
+     * every context, including the one that used to be exempt.
+     */
+    public function testNonFinalDomainEntityIsReportedInEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
         $this->createDirectory($projectDir.'/src/Sessions/Domain/Entity');
@@ -677,7 +697,7 @@ final class DddArchitectureValidatorTest extends TestCase
             $report->violations(),
             static fn (string $v): bool => str_contains($v, 'Legacy.php') && str_contains($v, 'AC-D4'),
         ));
-        self::assertSame([], $finalityViolations);
+        self::assertCount(1, $finalityViolations);
     }
 
     public function testNonFinalApplicationClassIsReported(): void
@@ -877,11 +897,11 @@ final class DddArchitectureValidatorTest extends TestCase
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
-            'Exceptions must live in Domain/Exception/ (taxonomy-migrated context): src/Legal/Domain/ConsentMissingException.php',
+            'Exceptions must live in Domain/Exception/: src/Legal/Domain/ConsentMissingException.php',
             $report->violations(),
         );
         self::assertContains(
-            'Exceptions must live in Application/Exception/ (taxonomy-migrated context): src/Legal/Application/ExportFailedException.php',
+            'Exceptions must live in Application/Exception/: src/Legal/Application/ExportFailedException.php',
             $report->violations(),
         );
     }
@@ -909,10 +929,14 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $violationsForContext);
     }
 
-    public function testTaxonomyRulesAreNotAppliedToUnmigratedContext(): void
+    /**
+     * The taxonomy has no per-context escape hatch any more: UNMIGRATED_TAXONOMY_CONTEXTS
+     * shrank 17 -> 1 -> 0 and was removed with its last entry (Sessions, frozen for Epic 32).
+     * The rules fire for every context.
+     */
+    public function testTaxonomyRulesApplyToEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
-        // Sessions is unmigrated (frozen until Epic 32): taxonomy rules must not fire for it.
         file_put_contents(
             $projectDir.'/src/Sessions/Domain/CapacityExceededException.php',
             "<?php\n\nnamespace App\\Sessions\\Domain;\n\nfinal class CapacityExceededException extends \\RuntimeException {}\n",
@@ -924,11 +948,15 @@ final class DddArchitectureValidatorTest extends TestCase
 
         $report = new DddArchitectureValidator()->validate($projectDir);
 
-        $taxonomyViolations = array_values(array_filter(
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'Exceptions must live in Domain/Exception/: src/Sessions/Domain/CapacityExceededException.php',
             $report->violations(),
-            static fn (string $v): bool => str_contains($v, 'taxonomy-migrated'),
-        ));
-        self::assertSame([], $taxonomyViolations);
+        );
+        self::assertContains(
+            'Query interfaces must live in Application/Query/: src/Sessions/Application/DashboardQueryInterface.php',
+            $report->violations(),
+        );
     }
 
     public function testMigratedContextQueryInterfaceOutsideQueryFolderIsReported(): void
@@ -943,7 +971,7 @@ final class DddArchitectureValidatorTest extends TestCase
 
         self::assertFalse($report->isSuccessful());
         self::assertContains(
-            'Query interfaces must live in Application/Query/ (taxonomy-migrated context): src/Legal/Application/ConsentLogQueryInterface.php',
+            'Query interfaces must live in Application/Query/: src/Legal/Application/ConsentLogQueryInterface.php',
             $report->violations(),
         );
     }
@@ -983,7 +1011,7 @@ final class DddArchitectureValidatorTest extends TestCase
         self::assertSame([], $flatViolations);
     }
 
-    public function testFlatFileInFrozenContextIsNotReported(): void
+    public function testFlatFileIsReportedInEveryContext(): void
     {
         $projectDir = $this->createProjectFixture();
         file_put_contents(
@@ -993,11 +1021,11 @@ final class DddArchitectureValidatorTest extends TestCase
 
         $report = new DddArchitectureValidator()->validate($projectDir);
 
-        $flatViolations = array_values(array_filter(
+        self::assertFalse($report->isSuccessful());
+        self::assertContains(
+            'No file may sit directly in a layer folder; move it into a kind sub-folder: src/Sessions/Application/LooseHelper.php',
             $report->violations(),
-            static fn (string $v): bool => str_contains($v, 'LooseHelper'),
-        ));
-        self::assertSame([], $flatViolations);
+        );
     }
 
     public function testCreateNativeQueryInPresentationIsReported(): void

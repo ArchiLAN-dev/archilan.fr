@@ -6,8 +6,8 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Entity\Event;
 use App\PersonalRuns\Domain\Entity\Run;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class RunResultsTest extends FunctionalTestCase
 {
@@ -40,22 +40,19 @@ final class RunResultsTest extends FunctionalTestCase
 
         // Slot A: goal reached at +200s → completionSeconds=200
         $slotA = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'Alice', 0, 'slot-1');
-        $slotA->setGoalReachedAt($startedAt->modify('+200 seconds'));
-        $slotA->setChecksDone(50);
-        $slotA->setItemsReceived(30);
+        $slotA->recordGoal($startedAt->modify('+200 seconds'));
+        $slotA->recordProgress(50, 30);
         $this->entityManager->persist($slotA);
 
         // Slot B: goal reached at +100s → completionSeconds=100 (should appear first)
         $slotB = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'Bob', 1, 'slot-2');
-        $slotB->setGoalReachedAt($startedAt->modify('+100 seconds'));
-        $slotB->setChecksDone(40);
-        $slotB->setItemsReceived(20);
+        $slotB->recordGoal($startedAt->modify('+100 seconds'));
+        $slotB->recordProgress(40, 20);
         $this->entityManager->persist($slotB);
 
         // Slot C: incomplete (no goal, not released)
         $slotC = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regC->getId(), $game->getId(), 'Carol', 2, 'slot-3');
-        $slotC->setChecksDone(10);
-        $slotC->setItemsReceived(5);
+        $slotC->recordProgress(10, 5);
         $this->entityManager->persist($slotC);
 
         // Slot D: invalidated (wasReleased=true, no goal)
@@ -188,11 +185,13 @@ final class RunResultsTest extends FunctionalTestCase
         // Session eventId = Run id (no Event row exists)
         $session = $this->createFinishedSession($pr->getId(), $now);
 
+        $startedAt = $session->getStartedAt();
+        self::assertNotNull($startedAt);
+
         // For personal runs, registrationId IS the userId
         $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $user->getId(), $game->getId(), 'Frank', 0, 'slot-pr-1');
-        $slot->setGoalReachedAt($session->getStartedAt()?->modify('+300 seconds'));
-        $slot->setChecksDone(25);
-        $slot->setItemsReceived(15);
+        $slot->recordGoal($startedAt->modify('+300 seconds'));
+        $slot->recordProgress(25, 15);
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 

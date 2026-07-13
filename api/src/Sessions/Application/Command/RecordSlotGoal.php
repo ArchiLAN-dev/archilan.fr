@@ -1,0 +1,78 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Sessions\Application\Command;
+
+use App\Events\Domain\Entity\Event;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\WeeklyRuns\Application\Command\RecordWeeklyGoal;
+use Psr\Log\LoggerInterface;
+
+/**
+ * Handles the generic slot-goal callback fired by the bridge when a slot reaches its goal, dispatching
+ * by session type:
+ *
+ * - Weekly runs capture their goal stats in their own `weekly_entries` table (RecordWeeklyGoal).
+ * - Event / personal runs capture them onto the matching `session_slot` **at goal time**. This is the
+ *   robust moment to record: the bridge is alive and sending the data. The later archival
+ *   (ArchiveRunJobHandler) re-reads bridge state, but the bridge container may already be stopped by
+ *   then (idle=stop), leaving the slot at its defaults - hence bug #6.
+ *
+ * The slot is matched by name (consistent with the archival path), never by the AP slot index, which
+ * has no reliable mapping to `session_slot.slot_order`.
+ */
+final readonly class RecordSlotGoal
+{
+    public function __construct(
+        private RecordWeeklyGoal $recordWeeklyGoal,
+        private SessionSlotRepositoryInterface $slots,
+        private LoggerInterface $logger,
+    ) {
+    }
+
+    /**
+     * @return array{entryId: string}|null the weekly result when the session is a weekly entry, else null
+     */
+    public function execute(
+        string $sessionId,
+        ?string $slotName,
+        int $checksTotal,
+        int $itemsTotal,
+        \DateTimeImmutable $goalReachedAt,
+    ): ?array {
+        $weekly = $this->recordWeeklyGoal->execute($sessionId, $checksTotal, $itemsTotal, $goalReachedAt);
+        if (null !== $weekly) {
+            return $weekly;
+        }
+
+        // Not a weekly run: record onto the session_slot. Without a slot name we can't match safely.
+        if (null === $slotName || '' === $slotName) {
+            return null;
+        }
+
+        $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
+        if (!$slot instanceof SessionSlot) {
+            $this->logger->warning('slot_goal_callback.slot_not_found', [
+                'sessionId' => $sessionId,
+                'slotName' => $slotName,
+            ]);
+
+            return null;
+        }
+
+        // Idempotent: the callback may fire more than once, and a repeat must be a complete
+        // no-op - not just for the goal instant (SessionSlot::recordGoal() guards that too)
+        // but for the progress counters as well. Keep the early return.
+        if (null !== $slot->getGoalReachedAt()) {
+            return null;
+        }
+
+        $slot->recordProgress($checksTotal, $itemsTotal);
+        $slot->recordGoal($goalReachedAt);
+        $this->slots->flush();
+
+        return null;
+    }
+}

@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\ScheduledTask;
 
-use App\Sessions\Application\SessionReconcilerInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Application\Port\SessionReconcilerInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -24,12 +25,13 @@ final readonly class CleanupStaleSessionsHandler
         private SessionRepositoryInterface $sessions,
         private SessionReconcilerInterface $sessionReconciler,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
     public function __invoke(CleanupStaleSessionsTask $task): void
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $candidates = $this->sessions->findByStatuses(Session::STALE_STATUSES);
 

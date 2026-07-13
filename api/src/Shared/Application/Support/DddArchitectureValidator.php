@@ -85,16 +85,10 @@ final readonly class DddArchitectureValidator
         'DateTime',
     ];
 
-    /**
-     * Contexts exempt from the clock-construct rule because they are not yet migrated to
-     * ClockInterface. Sessions is frozen until Epic 32 merges (TODO epic-32); once migrated,
-     * empty this list - never grow it.
-     *
-     * @var list<string>
-     */
-    private const array CLOCK_CONSTRUCT_EXEMPT_CONTEXTS = [
-        'Sessions',
-    ];
+    // CLOCK_CONSTRUCT_EXEMPT_CONTEXTS (story 33.15) is GONE. Its only entry was the frozen
+    // Sessions context; 33.20 injected Psr\Clock\ClockInterface into its 6 Application classes
+    // (16 call sites), which left the exemption branch as dead code. The Application layer may
+    // not read the wall clock by construction anywhere, with no escape hatch.
 
     /**
      * The only sanctioned Symfony imports in a Domain layer (api/CLAUDE.md AC-D1, story 33.17):
@@ -112,17 +106,9 @@ final readonly class DddArchitectureValidator
         ],
     ];
 
-    /**
-     * Contexts exempt from the Domain finality rule (api/CLAUDE.md AC-D4, story 33.17).
-     * Sessions is frozen until Epic 32 merges; its flat Domain files would escape the
-     * Entity//ValueObject/ sub-folder scan anyway, but the exemption is declared rather than
-     * accidental. 33.20 empties this list - never grow it.
-     *
-     * @var list<string>
-     */
-    private const array FINALITY_EXEMPT_CONTEXTS = [
-        'Sessions',
-    ];
+    // FINALITY_EXEMPT_CONTEXTS (story 33.17) is GONE. Its only entry was the frozen Sessions
+    // context; 33.20 made its four entities final, which left the exemption branch as dead
+    // code. The finality rule (AC-D4) now applies to every context, unconditionally.
 
     /**
      * The only sanctioned non-final class in an Application layer (api/CLAUDE.md AC-A1,
@@ -150,44 +136,25 @@ final readonly class DddArchitectureValidator
         'Identity/Application/Service/CurrentUserProvider.php',
     ];
 
-    /**
-     * Contexts exempt from the no-public-setters rule (api/CLAUDE.md AC-D5, story 33.16)
-     * because their aggregates still expose set-prefixed mutators. Sessions is frozen until
-     * Epic 32 merges (TODO epic-32, follow-up 33.20); once migrated, empty this list -
-     * never grow it.
-     *
-     * @var list<string>
-     */
-    private const array AGGREGATE_SETTER_EXEMPT_CONTEXTS = [
-        'Sessions',
-    ];
+    // AGGREGATE_SETTER_EXEMPT_CONTEXTS (story 33.16) is GONE. Its only entry was the frozen
+    // Sessions context; 33.20 replaced its 9 public setters with 6 named business methods,
+    // which left the exemption branch as dead code. AC-D5 now holds for every aggregate in
+    // the codebase, with no escape hatch.
 
-    /**
-     * Named allowlist for intentional rule exceptions (story 33.5): the only sanctioned
-     * way to except a file from a rule - never suppress via inline annotations.
-     *
-     * Sessions is frozen until Epic 32 merges; its two runner-callback handlers inject
-     * the concrete RunnerCallbackClient (Sessions Infrastructure). TODO epic-32: extract
-     * an Application-layer port for the runner callback client and drop these entries.
-     *
-     * @var list<string>
-     */
-    private const array ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS = [
-        'Sessions/Application/Handler/ArchiveRunJobHandler.php',
-        'Sessions/Application/Handler/FetchLogsJobHandler.php',
-    ];
+    // The Application->Infrastructure allowlist (story 33.5) is GONE, not merely emptied.
+    // Its last two entries were the Sessions runner-callback handlers injecting the concrete
+    // RunnerCallbackClient; story 33.20 extracted RunnerCallbackClientInterface
+    // (Sessions/Application/Port) and dropped them. With the list empty the allowlist branch
+    // was provably dead code (phpstan: `in_array($x, [])` is always false), so the mechanism
+    // went with it. The rule now holds unconditionally: no Application file anywhere imports
+    // Infrastructure. If a future exception is ever genuinely warranted, re-introduce the
+    // allowlist deliberately - do not suppress inline (api/CLAUDE.md).
 
-    /**
-     * Contexts not yet migrated to the layer sub-folder taxonomy (story 33.10:
-     * Domain/Exception, Application/Command|Query|Exception). Shrink this list as
-     * contexts migrate - NEVER grow it. Sessions stays until Epic 32 merges
-     * (TODO epic-32). Legal is absent: it has no PHP files, trivially compliant.
-     *
-     * @var list<string>
-     */
-    private const array UNMIGRATED_TAXONOMY_CONTEXTS = [
-        'Sessions',
-    ];
+    // UNMIGRATED_TAXONOMY_CONTEXTS (stories 33.10/33.11) is GONE. It shrank 17 -> 1 -> 0:
+    // Sessions was the last holdout, frozen for Epic 32, and 33.20 migrated it. The taxonomy
+    // (no flat layer files; Application/Query/ for query interfaces; {Layer}/Exception/ for
+    // exceptions; Domain/Entity/ for the Doctrine prefix) is now enforced for EVERY context
+    // with no escape hatch. The decreasing-allowlist model did its job and retired.
 
     /**
      * Full sub-folder taxonomy carve-out (story 33.11): these 4 Community domain classes are
@@ -312,9 +279,6 @@ final readonly class DddArchitectureValidator
             if (!in_array($parts[0], self::CONTEXTS, true) || !in_array($parts[1], self::LAYERS, true)) {
                 continue;
             }
-            if (in_array($parts[0], self::UNMIGRATED_TAXONOMY_CONTEXTS, true)) {
-                continue;
-            }
             if (in_array($relativePath, self::FLAT_FILE_CARVE_OUT, true)) {
                 continue;
             }
@@ -382,10 +346,6 @@ final readonly class DddArchitectureValidator
         $violations = [];
 
         foreach (self::CONTEXTS as $context) {
-            if (in_array($context, self::FINALITY_EXEMPT_CONTEXTS, true)) {
-                continue;
-            }
-
             foreach (['Entity' => 'final', 'ValueObject' => 'final readonly'] as $kind => $required) {
                 $kindDir = "{$srcDir}/{$context}/Domain/{$kind}";
                 if (!is_dir($kindDir)) {
@@ -603,10 +563,6 @@ final readonly class DddArchitectureValidator
         $violations = [];
 
         foreach (self::CONTEXTS as $context) {
-            if (in_array($context, self::AGGREGATE_SETTER_EXEMPT_CONTEXTS, true)) {
-                continue;
-            }
-
             $domainDir = "{$srcDir}/{$context}/Domain";
             if (!is_dir($domainDir)) {
                 continue;
@@ -709,24 +665,21 @@ final readonly class DddArchitectureValidator
 
             $layer = $parts[1] ?? null;
             $basename = basename($relativePath);
-            $migrated = !in_array($parts[0], self::UNMIGRATED_TAXONOMY_CONTEXTS, true);
 
             if (str_ends_with($basename, 'RepositoryInterface.php') && 'Domain' !== $layer) {
                 $violations[] = "Repository interfaces must live in the Domain layer: src/{$relativePath}";
             }
 
-            if (str_ends_with($basename, 'QueryInterface.php')) {
-                if ($migrated && !str_starts_with($relativePath, $parts[0].'/Application/Query/')) {
-                    $violations[] = "Query interfaces must live in Application/Query/ (taxonomy-migrated context): src/{$relativePath}";
-                } elseif ('Application' !== $layer) {
-                    $violations[] = "Query interfaces must live in the Application layer: src/{$relativePath}";
-                }
+            if (str_ends_with($basename, 'QueryInterface.php')
+                && !str_starts_with($relativePath, $parts[0].'/Application/Query/')
+            ) {
+                $violations[] = "Query interfaces must live in Application/Query/: src/{$relativePath}";
             }
 
-            if ($migrated && str_ends_with($basename, 'Exception.php') && in_array($layer, ['Domain', 'Application'], true)) {
+            if (str_ends_with($basename, 'Exception.php') && in_array($layer, ['Domain', 'Application'], true)) {
                 $expected = $parts[0].'/'.$layer.'/Exception/';
                 if (!str_starts_with($relativePath, $expected)) {
-                    $violations[] = "Exceptions must live in {$layer}/Exception/ (taxonomy-migrated context): src/{$relativePath}";
+                    $violations[] = "Exceptions must live in {$layer}/Exception/: src/{$relativePath}";
                 }
             }
         }
@@ -759,7 +712,6 @@ final readonly class DddArchitectureValidator
                 }
 
                 $relativePath = $this->relativePath($srcDir, $file);
-                $allowlisted = in_array($relativePath, self::ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS, true);
 
                 foreach (self::CONTEXTS as $other) {
                     if ('Shared' === $other) {
@@ -768,7 +720,7 @@ final readonly class DddArchitectureValidator
 
                     $needle = "App\\{$other}\\Infrastructure\\";
 
-                    if (!$allowlisted && str_contains($contents, $needle)) {
+                    if (str_contains($contents, $needle)) {
                         $violations[] = sprintf(
                             'Application layer must not depend on the Infrastructure layer ("%s"): src/%s',
                             $needle,
@@ -793,10 +745,6 @@ final readonly class DddArchitectureValidator
                             $relativePath,
                         );
                     }
-                }
-
-                if (in_array($context, self::CLOCK_CONSTRUCT_EXEMPT_CONTEXTS, true)) {
-                    continue;
                 }
 
                 foreach (self::FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS as $class) {
@@ -885,10 +833,9 @@ final readonly class DddArchitectureValidator
                 continue;
             }
 
-            // Taxonomy-migrated contexts (story 33.11) keep their entities in Domain/Entity/,
-            // so the mapping prefix gains the \Entity segment. Sessions (frozen) keeps \Domain.
-            $migrated = !in_array($context, self::UNMIGRATED_TAXONOMY_CONTEXTS, true);
-            $expectedPrefix = $migrated ? "App\\{$context}\\Domain\\Entity" : "App\\{$context}\\Domain";
+            // Every context keeps its entities in Domain/Entity/ (story 33.11, and Sessions
+            // since 33.20), so the mapping prefix always carries the \Entity segment.
+            $expectedPrefix = "App\\{$context}\\Domain\\Entity";
             if (($mapping['prefix'] ?? null) !== $expectedPrefix) {
                 $violations[] = "Doctrine mapping {$context} must use prefix {$expectedPrefix}";
             }

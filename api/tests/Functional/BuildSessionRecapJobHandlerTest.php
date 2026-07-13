@@ -6,15 +6,15 @@ namespace App\Tests\Functional;
 
 use App\Sessions\Application\Handler\BuildSessionRecapJobHandler;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
-use App\Sessions\Application\RecapSuperlativesCalculator;
-use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
-use App\Sessions\Application\SpoilerArtifact;
-use App\Sessions\Application\SpoilerGraphParser;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRecapRepositoryInterface;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Port\SpoilerArtifact;
+use App\Sessions\Application\Support\RecapSuperlativesCalculator;
+use App\Sessions\Application\Support\SpoilerGraphParser;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 
@@ -100,7 +100,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         $this->runHandler($this->spoilerReaderReturning($this->fixtureContents()), '2026-06-02T00:00:00+00:00');
 
         $all = $this->entityManager
-            ->getRepository(\App\Sessions\Domain\SessionRecap::class)
+            ->getRepository(\App\Sessions\Domain\Entity\SessionRecap::class)
             ->findAll();
         self::assertCount(1, $all, 'rebuild must not create a second projection row');
 
@@ -125,7 +125,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         }
         $session->transition(Session::STATUS_RUNNING, $now, 'bridge.local', 38281, 'secret', 5000);
         $session->transition(Session::STATUS_FINISHED, $now->modify('+2 hours'));
-        $session->setGeneratedOutputKey('sess-recap/output/archive.zip');
+        $session->markGenerated('sess-recap/output/archive.zip');
         $this->entityManager->persist($session);
 
         // slotName matches the spoiler player names; goal times drive the time-based
@@ -149,7 +149,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
                 $order - 1,
                 'slot-p'.$order,
             );
-            $slot->setGoalReachedAt(new \DateTimeImmutable($goalAt));
+            $slot->recordGoal(new \DateTimeImmutable($goalAt));
             $this->entityManager->persist($slot);
         }
         $this->entityManager->flush();

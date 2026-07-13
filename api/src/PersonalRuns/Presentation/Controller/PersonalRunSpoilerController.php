@@ -6,7 +6,7 @@ namespace App\PersonalRuns\Presentation\Controller;
 
 use App\PersonalRuns\Application\Query\PersonalRunSpoilerDownload;
 use App\PersonalRuns\Domain\Entity\Run;
-use App\Sessions\Application\SpoilerArtifact;
+use App\Sessions\Application\Port\SpoilerArtifact;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;

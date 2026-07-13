@@ -259,7 +259,12 @@ Grouped into (a) new quality tooling, (b) sized code-quality debt already enumer
 
 **(c) Carve-out**
 
-- **33.20 - Sessions taxonomy migration (api/). [M, Should] [blocked: Epic 32]**
+- **33.20 - Sessions taxonomy migration (api/). [L/XL, Should] [UNBLOCKED - Epic 32 merged 2026-07-12, PR #310]**
+  > Story written: `implementation-artifacts/33-20-sessions-taxonomy-migration.md` (ready-for-dev). **It corrects five
+  > stale points in the entry below** - the `.ps1` tooling was never committed and must be rebuilt; a fifth exemption
+  > (`FINALITY_EXEMPT_CONTEXTS`, story 33.17) exists and 3 entities are not `final`; the "6 clock sites" are 6 *files* /
+  > 16 sites; `ScheduledTask/` does NOT move so `debug:messenger` must stay byte-identical; and zero Sessions classes are
+  > migration-pinned. Re-sized M → L/XL (92 file moves + 51 test call sites for the setter rename).
   Apply the 33.10 + 33.11 taxonomy to the frozen `Sessions` context once Epic 32 has merged; remove `Sessions` from
   `UNMIGRATED_TAXONOMY_CONTEXTS` and the two `ALLOWED_APPLICATION_INFRASTRUCTURE_IMPORTS` entries (extract the runner
   callback port). The 33.10/33.11 tooling (`migrate-context.ps1`, `migrate-layer.ps1`, `migrate-domain.ps1`,

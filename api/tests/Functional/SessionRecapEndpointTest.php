@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Entity\Event;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRecap;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionRecap;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class SessionRecapEndpointTest extends FunctionalTestCase
 {
@@ -32,10 +32,10 @@ final class SessionRecapEndpointTest extends FunctionalTestCase
         $regB = $this->createRegistration($event->getId(), $userB->getId());
 
         $slotA = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'Player1', 0, 'slot-p1');
-        $slotA->setGoalReachedAt($startedAt->modify('+100 seconds'));
+        $slotA->recordGoal($startedAt->modify('+100 seconds'));
         $this->entityManager->persist($slotA);
         $slotB = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'Player2', 1, 'slot-p2');
-        $slotB->setGoalReachedAt($startedAt->modify('+200 seconds'));
+        $slotB->recordGoal($startedAt->modify('+200 seconds'));
         $this->entityManager->persist($slotB);
 
         $this->persistProjection($session->getId());

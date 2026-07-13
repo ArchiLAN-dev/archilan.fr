@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Infrastructure\RunnerCallbackClient;
+use App\Sessions\Application\Port\RunnerCallbackClientInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -14,7 +14,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 final readonly class ArchiveRunJobHandler
 {
     public function __construct(
-        private RunnerCallbackClient $callbackClient,
+        private RunnerCallbackClientInterface $callbackClient,
         private LoggerInterface $logger,
         private HttpClientInterface $httpClient,
         private string $runnerId,

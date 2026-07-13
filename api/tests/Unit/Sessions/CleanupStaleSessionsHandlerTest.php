@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
+use App\Sessions\Application\Port\SessionReconcilerInterface;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsHandler;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
-use App\Sessions\Application\SessionReconcilerInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class CleanupStaleSessionsHandlerTest extends TestCase
 {
@@ -97,6 +98,6 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         SessionRepositoryInterface $sessions,
         SessionReconcilerInterface $reconciler,
     ): CleanupStaleSessionsHandler {
-        return new CleanupStaleSessionsHandler($sessions, $reconciler, new NullLogger());
+        return new CleanupStaleSessionsHandler($sessions, $reconciler, new NullLogger(), new MockClock());
     }
 }

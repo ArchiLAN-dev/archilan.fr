@@ -6,7 +6,7 @@ namespace App\GameSelection\Application\Command;
 
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 
 /**

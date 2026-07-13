@@ -104,15 +104,15 @@ services:
 
     App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunGenerator'
 
-    App\Sessions\Application\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader'
+    App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader'
 
-    App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader:
+    App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader:
         arguments:
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\Sessions\Application\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\MinioZipOutputArtifactReader'
+    App\Sessions\Application\Port\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader'
 
-    App\Sessions\Infrastructure\MinioZipOutputArtifactReader:
+    App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader:
         arguments:
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
@@ -131,7 +131,7 @@ services:
             $dolibarrApiUrl: '%env(default:default_empty_string:DOLIBARR_API_URL)%'
             $dolibarrApiKey: '%env(default:default_empty_string:DOLIBARR_API_KEY)%'
 
-    App\Sessions\Application\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
+    App\Sessions\Application\Port\RunnerGatewayInterface: '@App\Sessions\Infrastructure\Http\RunnerGateway'
 
     App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Adapter\S3MinioStorage'
 
@@ -142,7 +142,7 @@ services:
             $secretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
             $presignEndpoint: '%env(default:default_empty_string:MINIO_PRESIGN_ENDPOINT)%'
 
-    App\Sessions\Infrastructure\RunnerGateway:
+    App\Sessions\Infrastructure\Http\RunnerGateway:
         arguments:
             $client: '@archilan.orchestrateur_client'
 
@@ -164,30 +164,32 @@ services:
             $apiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $httpClient: '@http_client'
 
-    App\Sessions\Infrastructure\RunnerCallbackClient:
+    App\Sessions\Application\Port\RunnerCallbackClientInterface: '@App\Sessions\Infrastructure\Http\RunnerCallbackClient'
+
+    App\Sessions\Infrastructure\Http\RunnerCallbackClient:
         arguments:
             $centralApiUrl: '%env(CENTRAL_API_URL)%'
             $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
             $runnerId: '%env(RUNNER_ID)%'
 
-    App\Sessions\Application\SessionOrchestrator:
+    App\Sessions\Application\Service\SessionOrchestrator:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
-    App\Sessions\Application\SessionLifecycleManager:
+    App\Sessions\Application\Service\SessionLifecycleManager:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
-    App\Sessions\Presentation\OrchestratorWebhookController:
+    App\Sessions\Presentation\Controller\OrchestratorWebhookController:
         arguments:
             $orchestrateurWebhookSecret: '%env(ORCHESTRATEUR_WEBHOOK_SECRET)%'
 
-    App\Sessions\Presentation\SessionOrchestrationController:
+    App\Sessions\Presentation\Controller\SessionOrchestrationController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\Sessions\Presentation\PlayerPatchController:
+    App\Sessions\Presentation\Controller\PlayerPatchController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
@@ -196,11 +198,11 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\Sessions\Application\TraefikConfigBuilder:
+    App\Sessions\Application\Support\TraefikConfigBuilder:
         arguments:
             $wsDomain: '%env(WS_DOMAIN)%'
 
-    App\Sessions\Presentation\TraefikConfigController:
+    App\Sessions\Presentation\Controller\TraefikConfigController:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
 
@@ -299,7 +301,7 @@ services:
     App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
     App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
     App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'
-    App\Sessions\Application\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
+    App\Sessions\Application\Port\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
     App\Community\Domain\Repository\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementGrantRepository'
     App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementDefinitionRepository'
     App\Community\Domain\Repository\FriendshipRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendshipRepository'
@@ -319,14 +321,14 @@ services:
             $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
     App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRecentlyPlayedGamesQuery'
 
-    App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
-    App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
-    App\Sessions\Domain\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineRunAuditLogRepository'
-    App\Sessions\Domain\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRecapRepository'
-    App\Sessions\Application\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\DbalCommunityStatsQuery'
-    App\Sessions\Application\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\DbalLeaderboardQuery'
-    App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\DbalPlayerConnectionQuery'
-    App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
+    App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
+    App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineRunAuditLogRepository'
+    App\Sessions\Domain\Repository\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRecapRepository'
+    App\Sessions\Application\Query\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalCommunityStatsQuery'
+    App\Sessions\Application\Query\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalLeaderboardQuery'
+    App\Sessions\Application\Query\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPlayerConnectionQuery'
+    App\Sessions\Application\Query\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalActiveRegistrationQuery'
 
     App\Streaming\Application\Port\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
     App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\Dbal\DbalParticipantTwitchLinksQuery'
@@ -421,8 +423,8 @@ when@test:
 
         Symfony\Contracts\HttpClient\HttpClientInterface: '@Symfony\Component\HttpClient\MockHttpClient'
 
-        App\Sessions\Application\RunnerGatewayInterface:
-            class: App\Sessions\Infrastructure\NullRunnerGateway
+        App\Sessions\Application\Port\RunnerGatewayInterface:
+            class: App\Sessions\Infrastructure\Double\NullRunnerGateway
 
         App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'
 

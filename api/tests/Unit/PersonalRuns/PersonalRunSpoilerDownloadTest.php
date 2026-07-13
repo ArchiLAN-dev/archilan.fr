@@ -7,10 +7,10 @@ namespace App\Tests\Unit\PersonalRuns;
 use App\PersonalRuns\Application\Query\PersonalRunSpoilerDownload;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
-use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
-use App\Sessions\Application\SpoilerArtifact;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Port\SpoilerArtifact;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunSpoilerDownloadTest extends TestCase
@@ -122,7 +122,7 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
     {
         $session = Session::create(self::SESSION_ID, self::RUN_ID, new \DateTimeImmutable());
         if (null !== $generatedOutputKey) {
-            $session->setGeneratedOutputKey($generatedOutputKey);
+            $session->markGenerated($generatedOutputKey);
         }
 
         return $session;
