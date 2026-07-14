@@ -101,12 +101,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      # warn-only for now: pre-existing advisories (e.g. symfony/yaml low CVE) are
-      # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
-      # once the backlog is green - story 0.7 AC3.
+      # HARD GATE since A5. The backlog it was waiting on (the symfony/yaml low CVE and
+      # friends) is cleared - `composer audit` reports no advisories. A supply-chain alarm
+      # that cannot fail the build protects nothing, so it now blocks. If a new advisory
+      # lands on a dependency, this goes red until it is triaged - that is the job.
       - name: Composer audit (known vulnerabilities)
         run: composer audit
-        continue-on-error: true
 
       - name: PHPStan
         run: composer phpstan
@@ -128,10 +128,20 @@ jobs:
         run: |
           php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
-      # Advisory (continue-on-error) mutation testing on the changed lines only (story 33.12).
-      # Runs its own fast unit-suite coverage via pcov. Non-blocking until the MSI floor is tuned;
-      # raise --min-msi over time, then drop continue-on-error to make it a hard gate.
-      - name: Mutation testing (advisory, diff-scoped)
+      # ADVISORY, and honestly so. This step cannot fail: --min-msi=0, `|| true` AND
+      # continue-on-error. It reports; it does not gate.
+      #
+      # It stays that way ON PURPOSE, and NOT "until the floor is tuned" - that promise sat here
+      # unowned since 33.12 and was going to sit here forever (epic-33 retro, action A5). The real
+      # blocker is concrete and unresolved: the 33.12 baseline was MSI 72% with **141 timeouts**
+      # (30s each), and nobody knows whether those are legitimately-surviving mutants or an
+      # Infection/pcov configuration problem. Raising --min-msi on top of 141 unexplained timeouts
+      # would gate the build on a number nobody trusts.
+      #
+      # Condition to flip, written down so it can actually be met: story 33.24 investigates the
+      # timeouts and sets a defensible floor. Until that story lands, this is a report, and the
+      # comment says so.
+      - name: Mutation testing (advisory - reports, does not gate)
         continue-on-error: true
         run: |
           git fetch --no-tags --depth=1 origin develop || true
@@ -140,11 +150,10 @@ jobs:
             --threads=max --no-progress --no-interaction \
             --min-msi=0 --min-covered-msi=0 --logger-github || true
 
-      # Advisory (continue-on-error) Rector dry-run (story 33.13): mechanical modernisation and
-      # dead-code drift surfaces as a diff without blocking. Flip to a hard gate (drop
-      # continue-on-error) once the baseline proves it stays clean between stories.
-      - name: Rector (advisory, dry-run)
-        continue-on-error: true
+      # HARD GATE since A5, and now also a leg of `composer gates` (local/CI parity, story 33.1).
+      # It was advisory from 33.13 until the baseline proved it stays clean between stories -
+      # 33.14 and 33.20 finished making that true, and it has been clean since.
+      - name: Rector (dry-run)
         run: composer rector
 
       - name: Upload coverage report
