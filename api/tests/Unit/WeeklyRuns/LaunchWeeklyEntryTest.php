@@ -35,7 +35,7 @@ final class LaunchWeeklyEntryTest extends TestCase
     {
         $run = $this->makeRun(generatedOutputKey: null);
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
         $entries = $this->createMock(WeeklyEntryRepositoryInterface::class);
@@ -44,7 +44,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('run_not_generated');
 
-        $this->makeHandler($runs, $entries, $this->createStub(WeeklyRunnerGatewayInterface::class))
+        $this->makeHandler($runs, $entries, self::createStub(WeeklyRunnerGatewayInterface::class))
             ->execute('run-1', 'entry-1', 'user-1');
     }
 
@@ -53,16 +53,16 @@ final class LaunchWeeklyEntryTest extends TestCase
         $run = $this->makeRun();
         $entry = $this->makeEntry(externalSessionId: 'existing-session');
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findById')->willReturn($entry);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('session_already_started');
 
-        $this->makeHandler($runs, $entries, $this->createStub(WeeklyRunnerGatewayInterface::class))
+        $this->makeHandler($runs, $entries, self::createStub(WeeklyRunnerGatewayInterface::class))
             ->execute('run-1', 'entry-1', 'user-1');
     }
 
@@ -78,16 +78,16 @@ final class LaunchWeeklyEntryTest extends TestCase
             updatedAt: new \DateTimeImmutable(),
         );
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findById')->willReturn($entry);
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('forbidden');
 
-        $this->makeHandler($runs, $entries, $this->createStub(WeeklyRunnerGatewayInterface::class))
+        $this->makeHandler($runs, $entries, self::createStub(WeeklyRunnerGatewayInterface::class))
             ->execute('run-1', 'entry-1', 'user-1');
     }
 
@@ -96,7 +96,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         $run = $this->makeRun();
         $entry = $this->makeEntry();
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
         $entries = $this->createMock(WeeklyEntryRepositoryInterface::class);
@@ -144,10 +144,10 @@ final class LaunchWeeklyEntryTest extends TestCase
         $run = $this->makeRun();
         $entry = $this->makeEntry();
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findById')->willReturn($entry);
         $entries->method('flush');
 
@@ -170,10 +170,10 @@ final class LaunchWeeklyEntryTest extends TestCase
         $run = $this->makeRun();
         $entry = $this->makeEntry();
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findById')->willReturn($entry);
         $entries->method('flush')->willThrowException(new \RuntimeException('db error'));
 
@@ -251,7 +251,7 @@ final class LaunchWeeklyEntryTest extends TestCase
         ?SessionRepositoryInterface $sessions = null,
     ): LaunchWeeklyEntry {
         if (null === $templates) {
-            $stub = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+            $stub = self::createStub(WeeklyTemplateRepositoryInterface::class);
             $stub->method('findById')->willReturn($this->makeTemplate());
             $templates = $stub;
         }
@@ -259,10 +259,10 @@ final class LaunchWeeklyEntryTest extends TestCase
         $gameNow = new \DateTimeImmutable('2026-01-01T00:00:00Z');
         $game = Game::create('Archipelago', 'archipelago', 'Description.', null, 'Alt', 'Credit', Game::AVAILABILITY_AVAILABLE, $gameNow);
         $game->configureApworld('apworlds/archipelago.apworld', 'apworld-hash-123', 'Archipelago', '', $gameNow);
-        $games = $this->createStub(GameRepositoryInterface::class);
+        $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
 
-        $sessions ??= $this->createStub(SessionRepositoryInterface::class);
+        $sessions ??= self::createStub(SessionRepositoryInterface::class);
 
         return new LaunchWeeklyEntry($runs, $entries, $templates, $games, $gateway, self::$clock, $this->defaultsResolver(), $sessions);
     }

@@ -71,13 +71,13 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         /** @var WeeklyRun|null $saved */
         $saved = null;
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('existsByTemplateAndWeek')->willReturn(false);
         $runs->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
             $saved = $run;
         });
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator = self::createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate'); // void dispatch
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
@@ -98,13 +98,13 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         /** @var WeeklyRun|null $saved */
         $saved = null;
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('existsByTemplateAndWeek')->willReturn(false);
         $runs->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
             $saved = $run;
         });
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator = self::createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate'); // void dispatch
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator, $boundaryDate)
@@ -141,7 +141,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             $saved = $run;
         });
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator = self::createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate')->willThrowException(new \RuntimeException('orchestrator unreachable'));
 
         // A failed dispatch is logged, not thrown: it leaves the run not-launchable
@@ -164,7 +164,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             $templateIds,
         );
 
-        $repo = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+        $repo = self::createStub(WeeklyTemplateRepositoryInterface::class);
         $repo->method('findAllActive')->willReturn($templates);
 
         return $repo;
@@ -186,7 +186,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         WeeklyRunGeneratorInterface $generator,
         ?\DateTimeImmutable $now = null,
     ): GenerateWeeklyRunsMessageHandler {
-        $games = $this->createStub(GameRepositoryInterface::class);
+        $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
 
         return new GenerateWeeklyRunsMessageHandler(

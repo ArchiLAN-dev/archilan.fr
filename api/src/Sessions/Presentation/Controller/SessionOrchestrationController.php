@@ -41,7 +41,7 @@ final readonly class SessionOrchestrationController
 
         $result = $this->sessionOrchestrator->orchestrateValidate($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -65,7 +65,7 @@ final readonly class SessionOrchestrationController
 
         $result = $this->sessionOrchestrator->orchestrateGenerate($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -92,7 +92,7 @@ final readonly class SessionOrchestrationController
 
         $result = $this->sessionOrchestrator->orchestrateLaunch($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -119,7 +119,7 @@ final readonly class SessionOrchestrationController
 
         $result = $this->sessionOrchestrator->orchestrateForceLaunch($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -143,7 +143,7 @@ final readonly class SessionOrchestrationController
 
         $result = $this->sessionOrchestrator->orchestrateStop($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -167,7 +167,7 @@ final readonly class SessionOrchestrationController
 
         $result = $this->sessionOrchestrator->orchestrateRestart($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 

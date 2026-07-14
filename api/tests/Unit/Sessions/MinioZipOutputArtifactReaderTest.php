@@ -48,7 +48,7 @@ final class MinioZipOutputArtifactReaderTest extends TestCase
 
     public function testListEntriesEmptyWhenDownloadFails(): void
     {
-        $storage = $this->createStub(MinioStorageInterface::class);
+        $storage = self::createStub(MinioStorageInterface::class);
         $storage->method('download')->willThrowException(new \RuntimeException('not found'));
 
         self::assertSame([], new MinioZipOutputArtifactReader($storage, 'sessions')->listEntries('missing.zip'));
@@ -64,7 +64,7 @@ final class MinioZipOutputArtifactReaderTest extends TestCase
 
     private function reader(string $zipBytes): MinioZipOutputArtifactReader
     {
-        $storage = $this->createStub(MinioStorageInterface::class);
+        $storage = self::createStub(MinioStorageInterface::class);
         $storage->method('download')->willReturn($zipBytes);
 
         return new MinioZipOutputArtifactReader($storage, 'sessions');

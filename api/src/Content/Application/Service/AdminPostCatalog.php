@@ -196,7 +196,7 @@ final readonly class AdminPostCatalog
             $slug = is_string($input['slug'] ?? null) ? trim($input['slug']) : '';
             if ('' === $slug) {
                 $errors['slug'][] = 'Le slug est requis.';
-            } elseif (!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
+            } elseif (1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug)) {
                 $errors['slug'][] = 'Le slug ne doit contenir que des lettres minuscules, chiffres et tirets.';
             }
         }

@@ -59,7 +59,7 @@ final readonly class CatalogSyncController
         }
 
         /** @var array<string, mixed> $body */
-        $body = json_decode((string) $request->getContent(), true) ?? [];
+        $body = json_decode($request->getContent(), true) ?? [];
         $name = is_string($body['name'] ?? null) ? trim($body['name']) : '';
 
         if ('' === $name) {

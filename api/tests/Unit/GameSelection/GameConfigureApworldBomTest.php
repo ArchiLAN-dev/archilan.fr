@@ -17,7 +17,7 @@ final class GameConfigureApworldBomTest extends TestCase
         $game->configureApworld('storage/key', 'hash', 'Paint', $withBom, new \DateTimeImmutable());
 
         self::assertSame("name: Player{number}\ngame: Paint\n", $game->getDefaultYaml());
-        self::assertStringStartsNotWith("\u{FEFF}", (string) $game->getDefaultYaml());
+        self::assertStringStartsNotWith("\u{FEFF}", $game->getDefaultYaml());
     }
 
     public function testConfigureApworldLeavesBomlessYamlUnchanged(): void

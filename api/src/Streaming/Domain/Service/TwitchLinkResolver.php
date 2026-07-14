@@ -44,7 +44,7 @@ final class TwitchLinkResolver
         }
 
         // parse_url needs a scheme to populate the host; a bare "twitch.tv/foo" otherwise lands in the path.
-        $normalized = preg_match('#^[a-z][a-z0-9+.-]*://#i', $url) ? $url : 'https://'.$url;
+        $normalized = 1 === preg_match('#^[a-z][a-z0-9+.-]*://#i', $url) ? $url : 'https://'.$url;
         $parts = parse_url($normalized);
         if (false === $parts) {
             return null;

@@ -300,7 +300,7 @@ final readonly class RegistrationGameSelection
 
         $result = [];
         foreach ($gameIds as $gameId) {
-            if (!empty($existingByGameId[$gameId])) {
+            if ([] !== ($existingByGameId[$gameId] ?? [])) {
                 $matched = array_shift($existingByGameId[$gameId]);
                 $result[] = [
                     'slotId' => $matched['slotId'],

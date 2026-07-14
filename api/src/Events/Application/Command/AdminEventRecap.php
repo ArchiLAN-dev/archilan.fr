@@ -81,7 +81,7 @@ final readonly class AdminEventRecap
             $errors->add('vodUrl', "L'URL de la VOD est invalide.");
         }
 
-        if (null !== $parsed['recapPostSlug'] && !preg_match('/^[a-z0-9][a-z0-9-]*$/', $parsed['recapPostSlug'])) {
+        if (null !== $parsed['recapPostSlug'] && 1 !== preg_match('/^[a-z0-9][a-z0-9-]*$/', $parsed['recapPostSlug'])) {
             $errors->add('recapPostSlug', 'Le slug du récap est invalide (minuscules, chiffres et tirets uniquement).');
         }
 

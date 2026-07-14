@@ -44,7 +44,7 @@ final class GameTutorialSeederTest extends TestCase
      */
     private function seeder(array $providerLinks): GameTutorialSeeder
     {
-        $provider = $this->createStub(GameCatalogLinksProviderInterface::class);
+        $provider = self::createStub(GameCatalogLinksProviderInterface::class);
         $provider->method('linksFor')->willReturn($providerLinks);
 
         return new GameTutorialSeeder($provider, new InstallStepsNormalizer());

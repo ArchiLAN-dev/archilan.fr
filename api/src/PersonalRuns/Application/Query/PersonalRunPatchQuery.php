@@ -62,8 +62,8 @@ final readonly class PersonalRunPatchQuery
         }
 
         $allSlotNames = [];
-        foreach ($this->slots->findBySessionId($sessionId) as $slot) {
-            $allSlotNames[] = $slot->getSlotName();
+        foreach ($this->slots->findBySessionId($sessionId) as $sessionSlot) {
+            $allSlotNames[] = $sessionSlot->getSlotName();
         }
 
         $session = $this->sessions->findById($sessionId);

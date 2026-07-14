@@ -35,12 +35,12 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
         $entry1 = $this->makeEntry('entry-1', 'run-1', 'session-1');
         $entry2 = $this->makeEntry('entry-2', 'run-1', 'session-2');
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findActiveEntriesForRun')->willReturn([$entry1, $entry2]);
 
         /** @var list<string> $terminateCalls */
         $terminateCalls = [];
-        $gateway = $this->createStub(WeeklyRunnerGatewayInterface::class);
+        $gateway = self::createStub(WeeklyRunnerGatewayInterface::class);
         $gateway->method('terminate')->willReturnCallback(static function (string $sessionId) use (&$terminateCalls): void {
             $terminateCalls[] = $sessionId;
             if ('session-1' === $sessionId) {
@@ -65,10 +65,10 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
 
         $entry1 = $this->makeEntry('entry-1', 'run-1', 'session-1');
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findActiveEntriesForRun')->willReturn([$entry1]);
 
-        $gateway = $this->createStub(WeeklyRunnerGatewayInterface::class);
+        $gateway = self::createStub(WeeklyRunnerGatewayInterface::class);
         $gateway->method('terminate')->willThrowException(new \RuntimeException('all fail'));
 
         $this->makeHandler($runs, $entries, $gateway)
@@ -86,7 +86,7 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
         $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);
         $gateway->expects(self::never())->method('terminate');
 
-        $this->makeHandler($runs, $this->createStub(WeeklyEntryRepositoryInterface::class), $gateway)
+        $this->makeHandler($runs, self::createStub(WeeklyEntryRepositoryInterface::class), $gateway)
             ->__invoke(new StopWeeklyRunsMessage());
     }
 
@@ -100,7 +100,7 @@ final class StopWeeklyRunsMessageHandlerTest extends TestCase
 
         $entry = $this->makeEntry('entry-1', 'run-1', null);
 
-        $entries = $this->createStub(WeeklyEntryRepositoryInterface::class);
+        $entries = self::createStub(WeeklyEntryRepositoryInterface::class);
         $entries->method('findActiveEntriesForRun')->willReturn([$entry]);
 
         $gateway = $this->createMock(WeeklyRunnerGatewayInterface::class);

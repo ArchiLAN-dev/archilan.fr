@@ -19,11 +19,11 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
     {
         $session = $this->makeSession(Session::STATUS_RESTARTING, '-30 minutes');
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findByStatuses')->willReturn([$session]);
 
         $reconciler = $this->createMock(SessionReconcilerInterface::class);
-        $reconciler->expects($this->once())
+        $reconciler->expects(self::once())
             ->method('reconcilePending')
             ->with($session->getId())
             ->willReturn(['found' => true, 'from' => Session::STATUS_RESTARTING, 'action' => 'forced_idle', 'to' => Session::STATUS_IDLE]);
@@ -36,11 +36,11 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         // A session that has not crossed its threshold must not be reconciled.
         $session = $this->makeSession(Session::STATUS_RESTARTING, 'now');
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findByStatuses')->willReturn([$session]);
 
         $reconciler = $this->createMock(SessionReconcilerInterface::class);
-        $reconciler->expects($this->never())->method('reconcilePending');
+        $reconciler->expects(self::never())->method('reconcilePending');
 
         $this->makeHandler($sessions, $reconciler)(new CleanupStaleSessionsTask());
     }
@@ -50,11 +50,11 @@ final class CleanupStaleSessionsHandlerTest extends TestCase
         // A reconciler that reports "skipped" (nothing to do) must not raise the handler.
         $session = $this->makeSession(Session::STATUS_RUNNING, '-30 minutes');
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findByStatuses')->willReturn([$session]);
 
         $reconciler = $this->createMock(SessionReconcilerInterface::class);
-        $reconciler->expects($this->once())
+        $reconciler->expects(self::once())
             ->method('reconcilePending')
             ->willReturn(['found' => true, 'from' => Session::STATUS_RUNNING, 'action' => 'skipped', 'to' => null]);
 

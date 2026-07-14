@@ -81,10 +81,10 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
 
     private function handle(Run $run, ?Session $session): void
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByStatuses')->willReturn([$run]);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
         (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger(), new MockClock()))(new ReconcileStuckRunsMessage());

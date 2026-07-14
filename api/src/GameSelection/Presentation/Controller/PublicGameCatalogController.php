@@ -19,7 +19,7 @@ final readonly class PublicGameCatalogController
     #[Route('/api/v1/games', name: 'api_game_selection_public_games', methods: ['GET'])]
     public function list(Request $request): JsonResponse
     {
-        $query = trim((string) $request->query->get('q', ''));
+        $query = trim($request->query->get('q', ''));
 
         if ('1' === $request->query->get('all')) {
             return new JsonResponse(['data' => $this->catalog->all($query)]);

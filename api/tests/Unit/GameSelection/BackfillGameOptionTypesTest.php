@@ -22,13 +22,13 @@ final class BackfillGameOptionTypesTest extends TestCase
 
         $noApworld = Game::create('Draft Game', 'draft-game', '', null, '', '', 'available', $now);
 
-        $runner = $this->createStub(RunnerGatewayInterface::class);
+        $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchOptionTypes')->willReturnMap([
             ['hash-md', ['song_difficulty_min' => ['min' => 1, 'max' => 11, 'default' => 4]]],
         ]);
 
         $saved = [];
-        $repo = $this->createStub(GameRepositoryInterface::class);
+        $repo = self::createStub(GameRepositoryInterface::class);
         $repo->method('findAllSortedByName')->willReturn([$withApworld, $noApworld]);
         $repo->method('save')->willReturnCallback(function (Game $g) use (&$saved): void {
             $saved[] = $g;

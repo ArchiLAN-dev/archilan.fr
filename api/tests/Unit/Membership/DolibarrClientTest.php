@@ -16,7 +16,7 @@ final class DolibarrClientTest extends TestCase
     {
         $client = new DolibarrClient(
             new MockHttpClient(new MockResponse('Service Unavailable', ['http_code' => 503])),
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
             'https://dolibarr.example.test',
             'secret-key',
         );
@@ -34,7 +34,7 @@ final class DolibarrClientTest extends TestCase
                 new MockResponse('[]', ['http_code' => 200]),
                 new MockResponse('Bad Request', ['http_code' => 400]),
             ]),
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
             'https://dolibarr.example.test',
             'secret-key',
         );

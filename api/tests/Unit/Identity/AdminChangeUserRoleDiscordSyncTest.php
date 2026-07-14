@@ -26,9 +26,9 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())
+        $bus->expects(self::once())
             ->method('dispatch')
-            ->with($this->callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+            ->with(self::callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
                 && 'discord-snowflake-123' === $message->discordUserId
                 && false === $message->removeAll
                 && \in_array('ROLE_MEMBER', $message->archilanRoles, true)))
@@ -52,9 +52,9 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())
+        $bus->expects(self::once())
             ->method('dispatch')
-            ->with($this->callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+            ->with(self::callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
                 && 'discord-snowflake-123' === $message->discordUserId
                 && false === $message->removeAll
                 && ['ROLE_USER'] === $message->archilanRoles))
@@ -78,7 +78,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->never())->method('dispatch');
+        $bus->expects(self::never())->method('dispatch');
 
         $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
@@ -93,7 +93,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->never())->method('dispatch');
+        $bus->expects(self::never())->method('dispatch');
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
@@ -112,7 +112,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
+        $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
@@ -169,12 +169,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
      */
     private function makeRepositories(User $target, array &$events): array
     {
-        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo = self::createStub(UserRepositoryInterface::class);
         $userRepo->method('findById')->willReturnCallback(
             static fn (string $id): ?User => $id === $target->getId() ? $target : null,
         );
 
-        $auditRepo = $this->createStub(RoleChangeAuditRepositoryInterface::class);
+        $auditRepo = self::createStub(RoleChangeAuditRepositoryInterface::class);
         $auditRepo->method('saveAuditAndFlushUser')->willReturnCallback(
             static function (RoleChangeAudit $audit) use (&$events): void {
                 $events[] = 'flush';

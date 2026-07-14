@@ -382,7 +382,7 @@ final readonly class PersonalRunGameSelection
         $result = [];
         foreach ($gameIds as $gameId) {
             $game = $gamesById[$gameId] ?? null;
-            if (!empty($existingByGameId[$gameId])) {
+            if ([] !== ($existingByGameId[$gameId] ?? [])) {
                 $matched = array_shift($existingByGameId[$gameId]);
                 $existingYaml = $matched['playerYaml'] ?? null;
                 $result[] = [

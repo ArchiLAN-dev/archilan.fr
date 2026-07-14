@@ -132,15 +132,15 @@ final readonly class RunResultsQuery
         }
 
         usort($rows, static function (array $a, array $b): int {
-            $aPriority = null !== $a['completionSeconds'] ? 0 : ((bool) $a['isInvalidated'] ? 2 : 1);
-            $bPriority = null !== $b['completionSeconds'] ? 0 : ((bool) $b['isInvalidated'] ? 2 : 1);
+            $aPriority = null !== $a['completionSeconds'] ? 0 : ($a['isInvalidated'] ? 2 : 1);
+            $bPriority = null !== $b['completionSeconds'] ? 0 : ($b['isInvalidated'] ? 2 : 1);
 
             if ($aPriority !== $bPriority) {
                 return $aPriority <=> $bPriority;
             }
 
             if (0 === $aPriority) {
-                return (int) $a['completionSeconds'] <=> (int) $b['completionSeconds'];
+                return $a['completionSeconds'] <=> $b['completionSeconds'];
             }
 
             return 0;

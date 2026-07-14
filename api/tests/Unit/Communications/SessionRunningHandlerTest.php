@@ -22,15 +22,15 @@ final class SessionRunningHandlerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->innerMailer = $this->createStub(MailerInterface::class);
-        $this->hub = $this->createStub(HubInterface::class);
+        $this->innerMailer = self::createStub(MailerInterface::class);
+        $this->hub = self::createStub(HubInterface::class);
         $this->hub->method('publish')->willReturn('');
     }
 
     public function testEmailIsSentToRegistrant(): void
     {
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send');
+        $innerMailer->expects(self::once())->method('send');
         $handler = $this->makeHandler(innerMailer: $innerMailer);
 
         $handler($this->makeMessage());
@@ -40,7 +40,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $sentEmail = null;
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send')
+        $innerMailer->expects(self::once())->method('send')
             ->willReturnCallback(static function (Email $email) use (&$sentEmail): void {
                 $sentEmail = $email;
             });
@@ -55,7 +55,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $sentEmail = null;
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send')
+        $innerMailer->expects(self::once())->method('send')
             ->willReturnCallback(static function (Email $email) use (&$sentEmail): void {
                 $sentEmail = $email;
             });
@@ -73,7 +73,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $sentEmail = null;
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send')
+        $innerMailer->expects(self::once())->method('send')
             ->willReturnCallback(static function (Email $email) use (&$sentEmail): void {
                 $sentEmail = $email;
             });
@@ -92,7 +92,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $sentEmail = null;
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send')
+        $innerMailer->expects(self::once())->method('send')
             ->willReturnCallback(static function (Email $email) use (&$sentEmail): void {
                 $sentEmail = $email;
             });
@@ -112,7 +112,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $publishedUpdate = null;
         $hub = $this->createMock(HubInterface::class);
-        $hub->expects($this->once())->method('publish')
+        $hub->expects(self::once())->method('publish')
             ->willReturnCallback(static function (Update $update) use (&$publishedUpdate): string {
                 $publishedUpdate = $update;
 
@@ -130,7 +130,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $publishedUpdate = null;
         $hub = $this->createMock(HubInterface::class);
-        $hub->expects($this->once())->method('publish')
+        $hub->expects(self::once())->method('publish')
             ->willReturnCallback(static function (Update $update) use (&$publishedUpdate): string {
                 $publishedUpdate = $update;
 
@@ -158,18 +158,18 @@ final class SessionRunningHandlerTest extends TestCase
 
     public function testMercureFailureDoesNotPreventEmailSend(): void
     {
-        $hub = $this->createStub(HubInterface::class);
+        $hub = self::createStub(HubInterface::class);
         $hub->method('publish')->willThrowException(new \RuntimeException('Mercure down'));
 
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send');
+        $innerMailer->expects(self::once())->method('send');
 
         $this->makeHandler(innerMailer: $innerMailer, hub: $hub)($this->makeMessage());
     }
 
     public function testEmailTransportExceptionIsHandledGracefully(): void
     {
-        $innerMailer = $this->createStub(MailerInterface::class);
+        $innerMailer = self::createStub(MailerInterface::class);
         $innerMailer->method('send')->willThrowException(new \RuntimeException('Transport down'));
 
         $this->makeHandler(innerMailer: $innerMailer)($this->makeMessage());
@@ -181,7 +181,7 @@ final class SessionRunningHandlerTest extends TestCase
     {
         $sentEmail = null;
         $innerMailer = $this->createMock(MailerInterface::class);
-        $innerMailer->expects($this->once())->method('send')
+        $innerMailer->expects(self::once())->method('send')
             ->willReturnCallback(static function (Email $email) use (&$sentEmail): void {
                 $sentEmail = $email;
             });

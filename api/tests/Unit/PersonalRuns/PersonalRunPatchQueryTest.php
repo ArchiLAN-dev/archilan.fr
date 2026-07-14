@@ -93,13 +93,13 @@ final class PersonalRunPatchQueryTest extends TestCase
      */
     private function query(?Run $run, ?Session $session, array $slots, ?array $allSlots = null): PersonalRunPatchQuery
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        $slotRepo = $this->createStub(SessionSlotRepositoryInterface::class);
+        $slotRepo = self::createStub(SessionSlotRepositoryInterface::class);
         $slotRepo->method('findByRegistrationAndSession')->willReturn($slots);
         $slotRepo->method('findBySessionId')->willReturn($allSlots ?? $slots);
 

@@ -239,7 +239,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
 
         $transitionResult = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_VALIDATING);
-        if (!($transitionResult['found'] ?? false) || isset($transitionResult['errors'])) {
+        if (true !== ($transitionResult['found'] ?? false) || isset($transitionResult['errors'])) {
             return $transitionResult;
         }
 
@@ -294,7 +294,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_GENERATING);
-        if (!($result['found'] ?? false) || isset($result['errors'])) {
+        if (true !== ($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
@@ -380,7 +380,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         unset($serverOptions['password']);
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
-        if (!($result['found'] ?? false) || isset($result['errors'])) {
+        if (true !== ($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
@@ -430,7 +430,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         unset($serverOptions['password']);
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
-        if (!($result['found'] ?? false) || isset($result['errors'])) {
+        if (true !== ($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
@@ -461,7 +461,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_STOPPED);
-        if (!($result['found'] ?? false) || isset($result['errors'])) {
+        if (true !== ($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
@@ -487,7 +487,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
 
         $result = $this->sessionLifecycleManager->transition($sessionId, Session::STATUS_LAUNCHING);
-        if (!($result['found'] ?? false) || isset($result['errors'])) {
+        if (true !== ($result['found'] ?? false) || isset($result['errors'])) {
             return $result;
         }
 
@@ -646,7 +646,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         foreach ($slots as $slot) {
             $registration = $regById[$slot['registrationId']] ?? null;
             $game = $gameById[$slot['gameId']] ?? null;
-            $registrationSlot = null !== ($slot['slotId'] ?? null) ? $registration?->getSlot((string) $slot['slotId']) : null;
+            $registrationSlot = null !== ($slot['slotId'] ?? null) ? $registration?->getSlot($slot['slotId']) : null;
             $user = $registration instanceof Registration ? ($usersById[$registration->getUserId()] ?? null) : null;
 
             $savedYaml = is_string($registrationSlot['playerYaml'] ?? null) ? $registrationSlot['playerYaml'] : '';

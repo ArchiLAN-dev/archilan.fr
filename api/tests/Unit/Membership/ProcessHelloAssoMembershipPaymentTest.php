@@ -26,9 +26,9 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createStub(UserRepositoryInterface::class),
-            $this->createStub(ActivateMembershipInterface::class),
-            $this->createStub(MessageBusInterface::class),
+            self::createStub(UserRepositoryInterface::class),
+            self::createStub(ActivateMembershipInterface::class),
+            self::createStub(MessageBusInterface::class),
             $logger,
         );
 
@@ -44,9 +44,9 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         );
 
         $service = new ProcessHelloAssoMembershipPayment(
-            $this->createStub(UserRepositoryInterface::class),
-            $this->createStub(ActivateMembershipInterface::class),
-            $this->createStub(MessageBusInterface::class),
+            self::createStub(UserRepositoryInterface::class),
+            self::createStub(ActivateMembershipInterface::class),
+            self::createStub(MessageBusInterface::class),
             $logger,
         );
 
@@ -61,7 +61,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
             self::anything()
         );
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findByEmailCanonical')->willReturn(null);
 
         $activateMembership = $this->createMock(ActivateMembershipInterface::class);
@@ -91,7 +91,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
 
         $user = self::user();
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findByEmailCanonical')->willReturn($user);
 
         $activateMembership = $this->createMock(ActivateMembershipInterface::class);
@@ -105,8 +105,8 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         $service = new ProcessHelloAssoMembershipPayment(
             $users,
             $activateMembership,
-            $this->createStub(MessageBusInterface::class),
-            $this->createStub(LoggerInterface::class),
+            self::createStub(MessageBusInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $service->process('order-1', 'payer@example.org', $paidAt);
@@ -116,13 +116,13 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
     {
         $user = self::user();
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findByEmailCanonical')->willReturn($user);
 
-        $driverEx = $this->createStub(\Doctrine\DBAL\Driver\Exception::class);
+        $driverEx = self::createStub(\Doctrine\DBAL\Driver\Exception::class);
         $exception = new UniqueConstraintViolationException($driverEx, null);
 
-        $activateMembership = $this->createStub(ActivateMembershipInterface::class);
+        $activateMembership = self::createStub(ActivateMembershipInterface::class);
         $activateMembership->method('activate')->willThrowException($exception);
 
         $logger = $this->createMock(LoggerInterface::class);
@@ -134,7 +134,7 @@ final class ProcessHelloAssoMembershipPaymentTest extends TestCase
         $service = new ProcessHelloAssoMembershipPayment(
             $users,
             $activateMembership,
-            $this->createStub(MessageBusInterface::class),
+            self::createStub(MessageBusInterface::class),
             $logger,
         );
 

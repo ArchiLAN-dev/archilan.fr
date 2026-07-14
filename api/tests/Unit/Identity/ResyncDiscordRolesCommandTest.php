@@ -15,7 +15,7 @@ final class ResyncDiscordRolesCommandTest extends TestCase
     public function testDispatchesMessagesAndOutputsCount(): void
     {
         $service = $this->createMock(DiscordResyncAllUsersInterface::class);
-        $service->expects($this->once())->method('run')->with(false)->willReturn(5);
+        $service->expects(self::once())->method('run')->with(false)->willReturn(5);
 
         $tester = new CommandTester(new ResyncDiscordRolesCommand($service));
         $tester->execute([]);
@@ -27,7 +27,7 @@ final class ResyncDiscordRolesCommandTest extends TestCase
     public function testDryRunDoesNotDispatchAndOutputsCountWithPrefix(): void
     {
         $service = $this->createMock(DiscordResyncAllUsersInterface::class);
-        $service->expects($this->once())->method('run')->with(true)->willReturn(3);
+        $service->expects(self::once())->method('run')->with(true)->willReturn(3);
 
         $tester = new CommandTester(new ResyncDiscordRolesCommand($service));
         $tester->execute(['--dry-run' => true]);
@@ -38,7 +38,7 @@ final class ResyncDiscordRolesCommandTest extends TestCase
 
     public function testNoLinkedAccountsOutputsSpecificMessage(): void
     {
-        $service = $this->createStub(DiscordResyncAllUsersInterface::class);
+        $service = self::createStub(DiscordResyncAllUsersInterface::class);
         $service->method('run')->willReturn(0);
 
         $tester = new CommandTester(new ResyncDiscordRolesCommand($service));
@@ -50,7 +50,7 @@ final class ResyncDiscordRolesCommandTest extends TestCase
 
     public function testNoLinkedAccountsWithDryRunAlsoOutputsNoAccountsMessage(): void
     {
-        $service = $this->createStub(DiscordResyncAllUsersInterface::class);
+        $service = self::createStub(DiscordResyncAllUsersInterface::class);
         $service->method('run')->willReturn(0);
 
         $tester = new CommandTester(new ResyncDiscordRolesCommand($service));

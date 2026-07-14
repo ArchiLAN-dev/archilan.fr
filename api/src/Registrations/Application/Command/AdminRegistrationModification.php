@@ -143,7 +143,7 @@ final readonly class AdminRegistrationModification
         $result = [];
         foreach ($slotsInput as $entry) {
             $gameId = $entry['gameId'];
-            if (!empty($existingByGameId[$gameId])) {
+            if ([] !== ($existingByGameId[$gameId] ?? [])) {
                 $matched = array_shift($existingByGameId[$gameId]);
                 $result[] = ['slotId' => $matched['slotId'], 'gameId' => $gameId];
             } else {

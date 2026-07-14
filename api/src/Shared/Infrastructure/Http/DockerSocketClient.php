@@ -213,7 +213,7 @@ final readonly class DockerSocketClient
 
         $response = curl_exec($ch);
         $error = curl_error($ch);
-        $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+        $httpCode = curl_getinfo($ch, \CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if (!is_string($response)) {

@@ -23,10 +23,10 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
         $user = self::user();
 
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -41,7 +41,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
             $memberships,
             $users,
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('membership-id-1'));
@@ -49,7 +49,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
     public function testHandleReturnsEarlyWhenMembershipNotFound(): void
     {
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn(null);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -57,9 +57,9 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
         $handler = new SyncMemberToDolibarrMessageHandler(
             $memberships,
-            $this->createStub(UserRepositoryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('missing-id'));
@@ -72,10 +72,10 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
         $user = self::user();
 
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -86,7 +86,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
             $memberships,
             $users,
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $this->expectException(\RuntimeException::class);
@@ -103,10 +103,10 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
         $user = self::user();
 
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -121,7 +121,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
             $memberships,
             $users,
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('membership-id-2'));

@@ -74,7 +74,7 @@ final readonly class OrchestratorWebhookController
 
         if ('session.generated' === $event) {
             $result = $this->sessionLifecycleManager->transition($sessionId, 'generated');
-            if (!($result['found'] ?? false)) {
+            if (true !== ($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }
 
@@ -95,7 +95,7 @@ final readonly class OrchestratorWebhookController
             $bridgePort = is_int($bridgePortRaw) ? $bridgePortRaw : null;
 
             $result = $this->sessionLifecycleManager->transitionToRunningFromOrchestrateur($sessionId, $apPort, $bridgePort);
-            if (!($result['found'] ?? false)) {
+            if (true !== ($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }
 
@@ -105,7 +105,7 @@ final readonly class OrchestratorWebhookController
         if ('session.crashed' === $event) {
             $reason = is_string($body['error'] ?? null) ? $body['error'] : null;
             $result = $this->sessionLifecycleManager->recordCrash($sessionId, $reason);
-            if (!($result['found'] ?? false)) {
+            if (true !== ($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }
 

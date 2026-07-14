@@ -24,7 +24,7 @@ final readonly class LeaderboardController
     #[Route('/api/v1/leaderboard', methods: ['GET'])]
     public function leaderboard(Request $request): JsonResponse
     {
-        $axis = (string) $request->query->get('axis', '');
+        $axis = $request->query->get('axis', '');
         if (!in_array($axis, self::VALID_AXES, true)) {
             return $this->apiAccessGuard->errorResponse(
                 'invalid_axis',

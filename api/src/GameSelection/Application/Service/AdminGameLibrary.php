@@ -269,7 +269,7 @@ final readonly class AdminGameLibrary
                 'invalid_file' => 'Le fichier n\'est pas un .apworld valide.',
                 'invalid_apworld' => $detail ?? 'Le fichier .apworld est invalide (archipelago.json manquant ou corrompu).',
                 'template_timeout' => 'La génération du template a expiré - le runner est peut-être surchargé.',
-                'template_failed' => 'ArchipelagoGenerate a échoué'.($detail ? " : {$detail}" : '.'),
+                'template_failed' => 'ArchipelagoGenerate a échoué'.(null !== $detail && '' !== $detail ? " : {$detail}" : '.'),
                 'archigenerate_not_found' => 'ArchipelagoGenerate est introuvable dans le runner. Configurez ARCHIPELAGO_GENERATE_CMD.',
                 default => $detail ?? 'Erreur runner : '.(is_string($result['error']) ? $result['error'] : ''),
             };
@@ -485,7 +485,7 @@ final readonly class AdminGameLibrary
             }
         }
 
-        if ('' !== $input['slug'] && !preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $input['slug'])) {
+        if ('' !== $input['slug'] && 1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $input['slug'])) {
             $errors->add('slug', 'Le slug doit contenir seulement des minuscules, chiffres et tirets.');
         }
 
