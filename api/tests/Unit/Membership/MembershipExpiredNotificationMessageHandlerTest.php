@@ -70,7 +70,7 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
         $handler = new MembershipExpiredNotificationMessageHandler(
             $this->stubUsers($user),
             $mailer,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
             'noreply@archilan.fr',
             'https://archilan.fr',
             '',
@@ -100,7 +100,7 @@ final class MembershipExpiredNotificationMessageHandlerTest extends TestCase
 
     private function stubUsers(?User $user): UserRepositoryInterface
     {
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         return $users;

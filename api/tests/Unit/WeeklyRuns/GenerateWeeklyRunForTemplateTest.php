@@ -132,10 +132,10 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
         ?Game $game,
         WeeklyRunGeneratorInterface $generator,
     ): GenerateWeeklyRunForTemplate {
-        $templates = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+        $templates = self::createStub(WeeklyTemplateRepositoryInterface::class);
         $templates->method('findById')->willReturn($template);
 
-        $games = $this->createStub(GameRepositoryInterface::class);
+        $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
 
         return new GenerateWeeklyRunForTemplate(

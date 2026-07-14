@@ -19,7 +19,7 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
     {
         $user = self::user();
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -50,7 +50,7 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
 
     public function testInvokeLogsAndRethrowsWhenUserNotFound(): void
     {
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn(null);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -76,7 +76,7 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
     {
         $user = self::user();
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -102,7 +102,7 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
     {
         $user = self::user('');
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -111,7 +111,7 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
         $handler = new MembershipActivatedNotificationMessageHandler(
             $users,
             $mailer,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
             'noreply@archilan.fr',
             'https://archilan.fr',
         );

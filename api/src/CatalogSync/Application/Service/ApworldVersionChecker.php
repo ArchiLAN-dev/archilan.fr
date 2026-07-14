@@ -68,21 +68,21 @@ final readonly class ApworldVersionChecker
             return null;
         }
 
-        $tagRaw = is_string($data['tag_name'] ?? null) ? (string) $data['tag_name'] : '';
+        $tagRaw = is_string($data['tag_name'] ?? null) ? $data['tag_name'] : '';
         $normalizedTag = ltrim($tagRaw, 'vV');
 
-        $publishedAtRaw = is_string($data['published_at'] ?? null) ? (string) $data['published_at'] : 'now';
+        $publishedAtRaw = is_string($data['published_at'] ?? null) ? $data['published_at'] : 'now';
         $publishedAt = new \DateTimeImmutable($publishedAtRaw);
 
-        $releaseUrl = is_string($data['html_url'] ?? null) ? (string) $data['html_url'] : '';
+        $releaseUrl = is_string($data['html_url'] ?? null) ? $data['html_url'] : '';
 
         $assetName = null;
         $assetDownloadUrl = null;
         $assets = is_array($data['assets'] ?? null) ? $data['assets'] : [];
         foreach ($assets as $asset) {
-            if (is_array($asset) && is_string($asset['name'] ?? null) && str_ends_with((string) $asset['name'], '.apworld')) {
-                $assetName = (string) $asset['name'];
-                $assetDownloadUrl = is_string($asset['browser_download_url'] ?? null) ? (string) $asset['browser_download_url'] : null;
+            if (is_array($asset) && is_string($asset['name'] ?? null) && str_ends_with($asset['name'], '.apworld')) {
+                $assetName = $asset['name'];
+                $assetDownloadUrl = is_string($asset['browser_download_url'] ?? null) ? $asset['browser_download_url'] : null;
                 break;
             }
         }
@@ -162,7 +162,7 @@ final readonly class ApworldVersionChecker
             return null;
         }
 
-        $tagRaw = is_string($releaseData['tag_name'] ?? null) ? (string) $releaseData['tag_name'] : '';
+        $tagRaw = is_string($releaseData['tag_name'] ?? null) ? $releaseData['tag_name'] : '';
         $tag = '' !== $tagRaw ? ltrim($tagRaw, 'vV') : null;
 
         $assets = is_array($releaseData['assets'] ?? null) ? $releaseData['assets'] : [];
@@ -173,9 +173,9 @@ final readonly class ApworldVersionChecker
                 continue;
             }
 
-            $name = is_string($asset['name'] ?? null) ? (string) $asset['name'] : '';
-            $downloadUrl = is_string($asset['browser_download_url'] ?? null) ? (string) $asset['browser_download_url'] : '';
-            $size = is_int($asset['size'] ?? null) ? (int) $asset['size'] : 0;
+            $name = is_string($asset['name'] ?? null) ? $asset['name'] : '';
+            $downloadUrl = is_string($asset['browser_download_url'] ?? null) ? $asset['browser_download_url'] : '';
+            $size = is_int($asset['size'] ?? null) ? $asset['size'] : 0;
 
             if (str_ends_with($name, '.apworld') && '' !== $downloadUrl) {
                 $result[] = ['name' => $name, 'downloadUrl' => $downloadUrl, 'size' => $size, 'tag' => $tag];
@@ -271,14 +271,14 @@ final readonly class ApworldVersionChecker
                     continue;
                 }
 
-                $tagRaw = is_string($release['tag_name'] ?? null) ? (string) $release['tag_name'] : '';
+                $tagRaw = is_string($release['tag_name'] ?? null) ? $release['tag_name'] : '';
 
                 if ('' === $tagRaw) {
                     continue;
                 }
 
                 $tag = ltrim($tagRaw, 'vV');
-                $releaseName = is_string($release['name'] ?? null) ? (string) $release['name'] : '';
+                $releaseName = is_string($release['name'] ?? null) ? $release['name'] : '';
                 $assets = is_array($release['assets'] ?? null) ? $release['assets'] : [];
 
                 foreach ($assets as $asset) {
@@ -286,7 +286,7 @@ final readonly class ApworldVersionChecker
                         continue;
                     }
 
-                    $assetName = (string) $asset['name'];
+                    $assetName = $asset['name'];
 
                     if (!str_ends_with($assetName, '.apworld')) {
                         continue;
@@ -301,7 +301,7 @@ final readonly class ApworldVersionChecker
                         }
                     }
 
-                    $downloadUrl = is_string($asset['browser_download_url'] ?? null) ? (string) $asset['browser_download_url'] : '';
+                    $downloadUrl = is_string($asset['browser_download_url'] ?? null) ? $asset['browser_download_url'] : '';
 
                     if ('' === $downloadUrl) {
                         continue;
@@ -424,7 +424,7 @@ final readonly class ApworldVersionChecker
                         continue;
                     }
 
-                    $assetName = (string) $asset['name'];
+                    $assetName = $asset['name'];
 
                     if (!str_ends_with($assetName, '.apworld')) {
                         continue;
@@ -434,8 +434,8 @@ final readonly class ApworldVersionChecker
                         return ['release' => $release, 'remaining' => $remaining];
                     }
 
-                    $releaseName = is_string($release['name'] ?? null) ? (string) $release['name'] : '';
-                    $releaseTag = is_string($release['tag_name'] ?? null) ? (string) $release['tag_name'] : '';
+                    $releaseName = is_string($release['name'] ?? null) ? $release['name'] : '';
+                    $releaseTag = is_string($release['tag_name'] ?? null) ? $release['tag_name'] : '';
                     $releaseMatches = false !== stripos($releaseName, $filterTerm)
                         || false !== stripos($releaseTag, $filterTerm);
 

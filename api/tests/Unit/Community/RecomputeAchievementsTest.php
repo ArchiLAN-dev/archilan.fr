@@ -68,11 +68,11 @@ final class RecomputeAchievementsTest extends TestCase
 
     public function testInactiveDefinitionsAreNeverGranted(): void
     {
-        $stats = $this->createStub(PlayerStatsQueryInterface::class);
+        $stats = self::createStub(PlayerStatsQueryInterface::class);
         $stats->method('computeForUser')->willReturn([
             'runs_participated' => 50, 'goal_completions' => 0, 'total_checks_done' => 0, 'total_items_received' => 0,
         ]);
-        $history = $this->createStub(PlayerHistoryQueryInterface::class);
+        $history = self::createStub(PlayerHistoryQueryInterface::class);
         $history->method('fetchForUser')->willReturn([]);
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($stats, $history)]);
@@ -93,9 +93,9 @@ final class RecomputeAchievementsTest extends TestCase
      */
     private function serviceFor(array $stats, array $history, AchievementGrantRepositoryInterface $grants): RecomputeAchievements
     {
-        $statsStub = $this->createStub(PlayerStatsQueryInterface::class);
+        $statsStub = self::createStub(PlayerStatsQueryInterface::class);
         $statsStub->method('computeForUser')->willReturn($stats);
-        $historyStub = $this->createStub(PlayerHistoryQueryInterface::class);
+        $historyStub = self::createStub(PlayerHistoryQueryInterface::class);
         $historyStub->method('fetchForUser')->willReturn($history);
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($statsStub, $historyStub)]);

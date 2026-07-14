@@ -43,7 +43,7 @@ final readonly class TwitchApiClient implements TwitchApiClientInterface
             $streams = $data['data'] ?? [];
 
             if ([] !== $streams && isset($streams[0]['viewer_count'])) {
-                return (int) $streams[0]['viewer_count'];
+                return $streams[0]['viewer_count'];
             }
 
             return null;

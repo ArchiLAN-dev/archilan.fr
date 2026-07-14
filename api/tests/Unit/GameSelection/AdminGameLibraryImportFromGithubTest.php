@@ -94,10 +94,10 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
 
     private function makeLibrary(Game $game): AdminGameLibrary
     {
-        $repository = $this->createStub(GameRepositoryInterface::class);
+        $repository = self::createStub(GameRepositoryInterface::class);
         $repository->method('findById')->willReturn($game);
 
-        $runner = $this->createStub(RunnerGatewayInterface::class);
+        $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('uploadApworld')->willReturn([
             'storageKey' => 'storage-key',
             'hash' => 'deadbeef',
@@ -106,10 +106,10 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
             'optionTypes' => [],
         ]);
 
-        $minio = $this->createStub(MinioStorageInterface::class);
+        $minio = self::createStub(MinioStorageInterface::class);
         $minio->method('exists')->willReturn(false);
 
-        $usage = $this->createStub(GameUsageCounterInterface::class);
+        $usage = self::createStub(GameUsageCounterInterface::class);
         $usage->method('count')->willReturn(0);
 
         $checker = new ApworldVersionChecker(
@@ -122,7 +122,7 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
 
         return new AdminGameLibrary(
             $repository,
-            $this->createStub(AdminGameListQueryInterface::class),
+            self::createStub(AdminGameListQueryInterface::class),
             new NullLogger(),
             $runner,
             $minio,
@@ -130,9 +130,9 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
             'apworlds',
             $checker,
             $usage,
-            new GamePlatformResolver($this->createStub(IgdbHttpClientInterface::class), new NullLogger()),
+            new GamePlatformResolver(self::createStub(IgdbHttpClientInterface::class), new NullLogger()),
             $normalizer,
-            new GameTutorialSeeder($this->createStub(GameCatalogLinksProviderInterface::class), $normalizer),
+            new GameTutorialSeeder(self::createStub(GameCatalogLinksProviderInterface::class), $normalizer),
             new InstallStepsReader($minio, 'media', 3600),
         );
     }

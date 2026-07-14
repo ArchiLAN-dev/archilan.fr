@@ -49,7 +49,7 @@ final class SeedGameTutorialsTest extends TestCase
 
     private function service(GameRepositoryInterface $repo): SeedGameTutorials
     {
-        $provider = $this->createStub(GameCatalogLinksProviderInterface::class);
+        $provider = self::createStub(GameCatalogLinksProviderInterface::class);
         $provider->method('linksFor')->willReturn([]);
         $seeder = new GameTutorialSeeder($provider, new InstallStepsNormalizer());
 

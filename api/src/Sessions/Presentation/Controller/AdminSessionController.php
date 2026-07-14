@@ -108,7 +108,7 @@ final readonly class AdminSessionController
 
         $result = $this->sessionLifecycleManager->getSession($sessionId);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -134,7 +134,7 @@ final readonly class AdminSessionController
 
         $result = $this->sessionLifecycleManager->transition($sessionId, $newStatus, $host, $port, $password);
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
@@ -175,7 +175,7 @@ final readonly class AdminSessionController
 
         $result = $this->sessionLifecycleManager->transition($sessionId, 'stopped');
 
-        if (!($result['found'] ?? false)) {
+        if (true !== ($result['found'] ?? false)) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 

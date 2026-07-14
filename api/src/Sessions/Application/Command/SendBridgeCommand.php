@@ -85,7 +85,7 @@ final readonly class SendBridgeCommand
 
     private function maybeMarkSlotReleased(string $sessionId, string $command): void
     {
-        if (!preg_match('/^!admin\s+\/(collect|release|forfeit)\s+(\S+)/i', $command, $matches)) {
+        if (1 !== preg_match('/^!admin\s+\/(collect|release|forfeit)\s+(\S+)/i', $command, $matches)) {
             return;
         }
 

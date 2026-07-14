@@ -79,8 +79,10 @@ final class SlotNameGenerator
             return 'UNK';
         }
 
-        /** @var list<string> $words */
-        $words = (array) preg_split('/\s+/', trim($gameName), -1, PREG_SPLIT_NO_EMPTY);
+        // preg_split returns false on failure, and `(array) false` is `[false]` - which would
+        // have fed a bool to mb_substr() below. Handle the failure branch explicitly.
+        $split = preg_split('/\s+/', trim($gameName), -1, PREG_SPLIT_NO_EMPTY);
+        $words = false === $split ? [] : $split;
         $abbr = '';
         foreach ($words as $word) {
             $abbr .= mb_strtoupper(mb_substr($word, 0, 1));

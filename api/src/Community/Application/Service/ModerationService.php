@@ -82,12 +82,12 @@ final readonly class ModerationService
             return [];
         }
 
-        $userIds = array_map(static fn (int|string $k): string => (string) $k, array_keys($scored));
+        $userIds = array_map(static fn (int|string $k): string => $k, array_keys($scored));
         $cards = $this->directory->cards($userIds);
 
         $flagged = [];
         foreach ($scored as $key => $agg) {
-            $userId = (string) $key;
+            $userId = $key;
             $card = $cards[$userId] ?? null;
             $flagged[] = [
                 'userId' => $userId,

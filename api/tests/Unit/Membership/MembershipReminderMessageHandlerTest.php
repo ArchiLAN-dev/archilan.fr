@@ -40,13 +40,13 @@ final class MembershipReminderMessageHandlerTest extends TestCase
         $mailer = $this->createMock(MailerInterface::class);
         $mailer->expects(self::once())->method('send');
 
-        $handler = $this->createHandler($membership, $user, $mailer, $this->createStub(LoggerInterface::class));
+        $handler = $this->createHandler($membership, $user, $mailer, self::createStub(LoggerInterface::class));
         $handler(new MembershipReminderMessage('membership-1', 7));
     }
 
     public function testInvokeLogsAndRethrowsWhenMembershipNotFound(): void
     {
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn(null);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -58,7 +58,7 @@ final class MembershipReminderMessageHandlerTest extends TestCase
 
         $handler = new MembershipReminderMessageHandler(
             $memberships,
-            $this->createStub(UserRepositoryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
             $mailer,
             $logger,
             'noreply@archilan.fr',
@@ -110,10 +110,10 @@ final class MembershipReminderMessageHandlerTest extends TestCase
         MailerInterface $mailer,
         LoggerInterface $logger,
     ): MembershipReminderMessageHandler {
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         return new MembershipReminderMessageHandler(

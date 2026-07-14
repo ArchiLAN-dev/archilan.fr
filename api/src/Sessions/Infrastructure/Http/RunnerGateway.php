@@ -138,7 +138,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         // Prefer the exception message from our own warning line:
         // "Warning: failed to load <file> (<pkg>): <ExceptionType: message>"
         foreach ($lines as $line) {
-            if (preg_match('/^Warning: failed to load .+\((.+)\): (.+)$/', trim($line), $m)) {
+            if (1 === preg_match('/^Warning: failed to load .+\((.+)\): (.+)$/', trim($line), $m)) {
                 $detail = $m[2];
                 break;
             }
@@ -148,7 +148,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         if (null === $detail) {
             foreach (array_reverse($lines) as $line) {
                 $line = trim($line);
-                if (preg_match('/^[A-Z][A-Za-z]+Error: .+/', $line) || preg_match('/^[A-Z][A-Za-z]+Exception: .+/', $line)) {
+                if (1 === preg_match('/^[A-Z][A-Za-z]+Error: .+/', $line) || 1 === preg_match('/^[A-Z][A-Za-z]+Exception: .+/', $line)) {
                     $detail = $line;
                     break;
                 }

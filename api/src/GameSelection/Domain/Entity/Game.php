@@ -328,7 +328,7 @@ final class Game
         // GitLab direct file URL - blob → raw normalisation
         if ('gitlab.com' === $host) {
             // Accept /-/blob/{branch}/{file}.apworld and /-/raw/{branch}/{file}.apworld
-            if (preg_match('#/-/(blob|raw)/.+\.apworld$#i', $path)) {
+            if (1 === preg_match('#/-/(blob|raw)/.+\.apworld$#i', $path)) {
                 return 'https://gitlab.com'.preg_replace('#/-/blob/#', '/-/raw/', $path);
             }
 

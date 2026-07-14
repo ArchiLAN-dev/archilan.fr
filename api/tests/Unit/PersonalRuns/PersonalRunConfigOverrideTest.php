@@ -21,10 +21,10 @@ final class PersonalRunConfigOverrideTest extends TestCase
 {
     private function service(?Run $run, SessionConfigOverrideRepositoryInterface $overrides): PersonalRunConfigOverride
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles = self::createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Private));
 
         return new PersonalRunConfigOverride(
@@ -63,7 +63,7 @@ final class PersonalRunConfigOverrideTest extends TestCase
 
     public function testMissingRunIsNotFound(): void
     {
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
 
         $result = $this->service(null, $overrides)->get('missing', 'owner-1');
 
@@ -100,7 +100,7 @@ final class PersonalRunConfigOverrideTest extends TestCase
     public function testOwnerSetInvalidThrows(): void
     {
         $run = Run::create('owner-1', 'My run', new \DateTimeImmutable());
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
 
         $this->expectException(\DomainException::class);
         $this->service($run, $overrides)->set($run->getId(), 'owner-1', ['spoiler' => 9]);

@@ -62,7 +62,7 @@ final class ParticipantStreamsViewTest extends TestCase
      */
     private function makeView(?array $liveResult, ItemInterface $liveItem): ParticipantStreamsView
     {
-        $query = $this->createStub(ParticipantTwitchLinksQueryInterface::class);
+        $query = self::createStub(ParticipantTwitchLinksQueryInterface::class);
         $query->method('forEvent')->willReturn([
             [
                 'userId' => 'user-1',
@@ -94,9 +94,9 @@ final class ParticipantStreamsViewTest extends TestCase
             }
         };
 
-        $avatarItem = $this->createStub(ItemInterface::class);
+        $avatarItem = self::createStub(ItemInterface::class);
 
-        $cache = $this->createStub(CacheInterface::class);
+        $cache = self::createStub(CacheInterface::class);
         $cache->method('get')->willReturnCallback(
             static fn (string $key, callable $callback): mixed => $callback(str_contains($key, '.live.') ? $liveItem : $avatarItem),
         );

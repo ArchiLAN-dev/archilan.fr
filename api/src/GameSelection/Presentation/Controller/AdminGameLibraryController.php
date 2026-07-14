@@ -34,7 +34,7 @@ final readonly class AdminGameLibraryController
 
         $page = max(1, (int) $request->query->get('page', '1'));
         $perPage = min(200, max(1, (int) $request->query->get('per_page', '50')));
-        $search = trim((string) $request->query->get('search', ''));
+        $search = trim($request->query->get('search', ''));
 
         $rawAvailability = $request->query->has('availability') ? (string) $request->query->get('availability') : null;
         $availability = null !== $rawAvailability && in_array($rawAvailability, Game::supportedAvailabilities(), true)
@@ -55,10 +55,10 @@ final readonly class AdminGameLibraryController
             default => null,
         };
 
-        $rawSort = (string) $request->query->get('sort', 'name');
+        $rawSort = $request->query->get('sort', 'name');
         $sort = in_array($rawSort, ['name', 'usage'], true) ? $rawSort : 'name';
 
-        $rawDir = strtolower((string) $request->query->get('dir', 'asc'));
+        $rawDir = strtolower($request->query->get('dir', 'asc'));
         $dir = in_array($rawDir, ['asc', 'desc'], true) ? $rawDir : 'asc';
 
         $result = $this->adminGameLibrary->list($page, $perPage, $search, $availability, $yamlReady, $apworldReady, $sort, $dir);

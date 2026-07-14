@@ -20,7 +20,7 @@ final class SaveSteamAccountTest extends TestCase
         $repo->method('findById')->willReturn($user);
         $repo->expects(self::once())->method('save')->with($user);
 
-        $service = new SaveSteamAccount($repo, $this->createStub(LoggerInterface::class));
+        $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
         $result = $service->save($user->getId(), '76561197960287930');
 
@@ -36,7 +36,7 @@ final class SaveSteamAccountTest extends TestCase
         $repo->method('findById')->willReturn($user);
         $repo->expects(self::never())->method('save');
 
-        $service = new SaveSteamAccount($repo, $this->createStub(LoggerInterface::class));
+        $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
         self::assertSame('invalid_input', $service->save($user->getId(), 'bad profile !!')['outcome']);
         self::assertNull($user->getSteamProfile());
@@ -48,7 +48,7 @@ final class SaveSteamAccountTest extends TestCase
         $repo->method('findById')->willReturn(null);
         $repo->expects(self::never())->method('save');
 
-        $service = new SaveSteamAccount($repo, $this->createStub(LoggerInterface::class));
+        $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
         self::assertSame('not_found', $service->save('missing', '76561197960287930')['outcome']);
     }
@@ -62,7 +62,7 @@ final class SaveSteamAccountTest extends TestCase
         $repo->method('findById')->willReturn($user);
         $repo->expects(self::once())->method('save')->with($user);
 
-        $service = new SaveSteamAccount($repo, $this->createStub(LoggerInterface::class));
+        $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
         $service->remove($user->getId());
 

@@ -34,7 +34,7 @@ final readonly class RealtimeController
         }
 
         /** @var list<string> $rawTopics */
-        $rawTopics = array_values((array) $request->query->all('topics'));
+        $rawTopics = array_values($request->query->all('topics'));
 
         $allowedTopics = array_values(array_filter(
             $rawTopics,

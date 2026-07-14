@@ -31,7 +31,7 @@ final class BackfillSteamAppIdsTest extends TestCase
         ]);
         $games->expects(self::once())->method('save')->with($withIgdbNoSteam);
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchSteamAppId')->willReturnCallback(
             static fn (int $id): ?int => match ($id) {
                 1234 => 367520,
@@ -40,7 +40,7 @@ final class BackfillSteamAppIdsTest extends TestCase
             },
         );
 
-        $service = new BackfillSteamAppIds($games, $igdb, $this->createStub(LoggerInterface::class));
+        $service = new BackfillSteamAppIds($games, $igdb, self::createStub(LoggerInterface::class));
 
         $result = $service->run();
 
@@ -59,7 +59,7 @@ final class BackfillSteamAppIdsTest extends TestCase
         $games->method('findAllSortedByName')->willReturn([$failing, $succeeding]);
         $games->expects(self::once())->method('save')->with($succeeding);
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchSteamAppId')->willReturnCallback(
             static fn (int $id): ?int => match ($id) {
                 3333 => throw new IgdbSearchException('boom'),

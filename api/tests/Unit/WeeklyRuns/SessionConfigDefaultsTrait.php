@@ -19,11 +19,11 @@ trait SessionConfigDefaultsTrait
 {
     private function defaultsResolver(): SessionConfigResolver
     {
-        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles = self::createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturnCallback(
             static fn (SessionType $type): SessionConfig => SessionConfig::defaultsFor($type),
         );
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
 
         return new SessionConfigResolver($profiles, $overrides);
     }

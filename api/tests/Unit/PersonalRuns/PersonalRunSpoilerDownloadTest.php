@@ -101,10 +101,10 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
 
     private function service(?Run $run, ?Session $session, SessionSpoilerArtifactReaderInterface $reader): PersonalRunSpoilerDownload
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
         return new PersonalRunSpoilerDownload($runs, $sessions, $reader);

@@ -20,10 +20,10 @@ final class PersonalRunDraftsListMineTest extends TestCase
     {
         return new PersonalRunDrafts(
             $runs,
-            $this->createStub(RunParticipantRepositoryInterface::class),
-            $this->createStub(UserRepositoryInterface::class),
-            $this->createStub(SessionRepositoryInterface::class),
-            $this->createStub(CommunityUserDirectoryQueryInterface::class),
+            self::createStub(RunParticipantRepositoryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
+            self::createStub(SessionRepositoryInterface::class),
+            self::createStub(CommunityUserDirectoryQueryInterface::class),
             new MockClock(),
             'https://archilan.test',
         );
@@ -35,7 +35,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
         $ownedRun = Run::create('user-1', 'Ma partie', $now);
         $joinedRun = Run::create('owner-2', 'Partie de Bob', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByOwnerId')->willReturn([$ownedRun]);
         $runs->method('findJoinedByUserId')->willReturn([$joinedRun]);
 
@@ -52,7 +52,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
         $now = new \DateTimeImmutable('2026-06-12T10:00:00+00:00');
         $ownedRun = Run::create('user-1', 'Ma partie', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByOwnerId')->willReturn([$ownedRun]);
         $runs->method('findJoinedByUserId')->willReturn([]);
 
@@ -67,7 +67,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
         $now = new \DateTimeImmutable('2026-06-12T10:00:00+00:00');
         $joinedRun = Run::create('owner-2', 'Partie de Bob', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByOwnerId')->willReturn([]);
         $runs->method('findJoinedByUserId')->willReturn([$joinedRun]);
 

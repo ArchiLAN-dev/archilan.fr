@@ -39,7 +39,7 @@ final readonly class GameRequestController
             return $user;
         }
 
-        $body = json_decode((string) $request->getContent(), true);
+        $body = json_decode($request->getContent(), true);
         $gameName = is_array($body) && is_string($body['gameName'] ?? null) ? trim($body['gameName']) : '';
 
         if ('' === $gameName) {

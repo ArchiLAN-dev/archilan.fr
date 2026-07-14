@@ -25,12 +25,12 @@ final class BackfillGamePlatformsTest extends TestCase
         $games->method('findAllSortedByName')->willReturn([$toResolve, $alreadyResolved, $withoutIgdb]);
         $games->expects(self::once())->method('save')->with($toResolve);
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchPlatforms')->willReturnCallback(
             static fn (int $id): array => 1234 === $id ? [['id' => 19, 'name' => 'Super Nintendo Entertainment System']] : self::fail('unexpected '.$id),
         );
 
-        $service = new BackfillGamePlatforms($games, $igdb, $this->createStub(LoggerInterface::class));
+        $service = new BackfillGamePlatforms($games, $igdb, self::createStub(LoggerInterface::class));
 
         $result = $service->run();
 
@@ -47,7 +47,7 @@ final class BackfillGamePlatformsTest extends TestCase
         $games->method('findAllSortedByName')->willReturn([$failing]);
         $games->expects(self::never())->method('save');
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchPlatforms')->willThrowException(new IgdbSearchException('boom'));
 
         $logger = $this->createMock(LoggerInterface::class);

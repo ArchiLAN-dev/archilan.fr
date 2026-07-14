@@ -126,6 +126,7 @@
         "phpstan/extension-installer": "^1.4.3",
         "phpstan/phpstan": "^2.1.54",
         "phpstan/phpstan-doctrine": "^2.0.25",
+        "phpstan/phpstan-strict-rules": "^2.0",
         "phpstan/phpstan-symfony": "^2.0.20",
         "phpunit/phpunit": "^13.1.10",
         "rector/rector": "^2.4",

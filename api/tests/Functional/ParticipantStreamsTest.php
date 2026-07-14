@@ -48,7 +48,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         $data = $this->dataList();
 
         self::assertCount(2, $data);
@@ -82,7 +82,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         $data = $this->dataList();
 
         self::assertCount(1, $data);
@@ -104,7 +104,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         $data = $this->dataList();
 
         self::assertCount(1, $data);
@@ -125,7 +125,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/runs/'.$run->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         $data = $this->dataList();
 
         self::assertCount(1, $data);
@@ -158,7 +158,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/weekly-runs/'.$weekly->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         $data = $this->dataList();
 
         self::assertCount(1, $data);
@@ -179,7 +179,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         self::assertSame([], $this->dataList());
     }
 
@@ -206,7 +206,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/weekly-runs/'.$weekly->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         self::assertSame([], $this->dataList());
     }
 
@@ -222,7 +222,7 @@ final class ParticipantStreamsTest extends FunctionalTestCase
 
         $this->client->request('GET', '/api/v1/events/'.$event->getId().'/participant-streams');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
         self::assertSame([], $this->dataList());
     }
 
@@ -231,13 +231,13 @@ final class ParticipantStreamsTest extends FunctionalTestCase
         $this->fakeLive([]);
 
         $this->client->request('GET', '/api/v1/events/does-not-exist/participant-streams');
-        $this->assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(404);
 
         $this->client->request('GET', '/api/v1/runs/does-not-exist/participant-streams');
-        $this->assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(404);
 
         $this->client->request('GET', '/api/v1/weekly-runs/does-not-exist/participant-streams');
-        $this->assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(404);
     }
 
     /**

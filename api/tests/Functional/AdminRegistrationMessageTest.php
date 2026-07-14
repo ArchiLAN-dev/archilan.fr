@@ -39,12 +39,12 @@ final class AdminRegistrationMessageTest extends FunctionalTestCase
         self::assertSame('sent', $data['outcome']);
         self::assertIsString($data['sentAt']);
 
-        $this->assertEmailCount(1);
-        $email = $this->getMailerMessage();
+        self::assertEmailCount(1);
+        $email = self::getMailerMessage();
         self::assertNotNull($email);
-        $this->assertEmailAddressContains($email, 'to', 'participant@example.org');
-        $this->assertEmailSubjectContains($email, 'Information importante');
-        $this->assertEmailTextBodyContains($email, 'Veuillez vérifier vos options de jeu.');
+        self::assertEmailAddressContains($email, 'to', 'participant@example.org');
+        self::assertEmailSubjectContains($email, 'Information importante');
+        self::assertEmailTextBodyContains($email, 'Veuillez vérifier vos options de jeu.');
         $history = $this->entityManager->getRepository(RegistrationAdminMessage::class)->findOneBy([
             'registrationId' => $registration->getId(),
         ]);

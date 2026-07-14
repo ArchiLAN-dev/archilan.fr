@@ -28,10 +28,10 @@ final class ActivityFeedTest extends TestCase
 
     public function testBackfillMaterialisesFinishedRunsAndIsIdempotent(): void
     {
-        $userIds = $this->createStub(CommunityUserIdsQueryInterface::class);
+        $userIds = self::createStub(CommunityUserIdsQueryInterface::class);
         $userIds->method('allUserIds')->willReturn(['u1']);
 
-        $history = $this->createStub(PlayerHistoryQueryInterface::class);
+        $history = self::createStub(PlayerHistoryQueryInterface::class);
         $history->method('fetchForUser')->willReturn([
             ['session_id' => 'sess1', 'event_name' => 'LAN', 'finished_at' => '2026-06-01T10:00:00+00:00', 'game' => 'Zelda'],
             ['session_id' => 'sess1', 'event_name' => 'LAN', 'finished_at' => '2026-06-01T10:00:00+00:00', 'game' => 'Metroid'],

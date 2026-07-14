@@ -111,7 +111,7 @@ final class RotateRefreshTokenTest extends TestCase
 
     public function testUnknownTokenIsInvalid(): void
     {
-        $repo = $this->createStub(RefreshTokenRepositoryInterface::class);
+        $repo = self::createStub(RefreshTokenRepositoryInterface::class);
         $repo->method('findByTokenHash')->willReturn(null);
 
         self::assertSame('invalid', $this->rotator($repo)->rotate('raw', $this->now(), 'UA', $this->req())->outcome);
@@ -124,12 +124,12 @@ final class RotateRefreshTokenTest extends TestCase
 
     private function rotator(RefreshTokenRepositoryInterface $repo): RotateRefreshToken
     {
-        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo = self::createStub(UserRepositoryInterface::class);
         $userRepo->method('findById')->willReturn($this->user());
 
-        $auth = new AuthenticateUser($userRepo, $this->createStub(UserPasswordHasherInterface::class), new MockClock());
+        $auth = new AuthenticateUser($userRepo, self::createStub(UserPasswordHasherInterface::class), new MockClock());
 
-        return new RotateRefreshToken($repo, new RefreshTokenFactory(), $auth, $this->createStub(LoggerInterface::class));
+        return new RotateRefreshToken($repo, new RefreshTokenFactory(), $auth, self::createStub(LoggerInterface::class));
     }
 
     private function user(): User

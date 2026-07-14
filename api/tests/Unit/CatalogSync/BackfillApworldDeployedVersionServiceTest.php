@@ -113,7 +113,7 @@ final class BackfillApworldDeployedVersionServiceTest extends TestCase
 
         $checker = new ApworldVersionChecker(new MockHttpClient(), new NullLogger(), 'ghp_test_token');
 
-        $repository = $this->createStub(GameRepositoryInterface::class);
+        $repository = self::createStub(GameRepositoryInterface::class);
         $repository->method('findAllSortedByName')->willReturn([$noHash, $alreadyDeployed, $direct]);
 
         $service = new BackfillApworldDeployedVersionService($checker, $repository, new NullLogger());
@@ -134,7 +134,7 @@ final class BackfillApworldDeployedVersionServiceTest extends TestCase
             'ghp_test_token',
         );
 
-        $repository = $this->createStub(GameRepositoryInterface::class);
+        $repository = self::createStub(GameRepositoryInterface::class);
         $repository->method('findAllSortedByName')->willReturn([$game]);
 
         $service = new BackfillApworldDeployedVersionService($checker, $repository, new NullLogger());

@@ -183,7 +183,7 @@ final class AdminAchievementServiceTest extends TestCase
     private function imageUrls(): AchievementImageUrlResolver
     {
         // The unit tests use no custom image, so the resolver short-circuits and never touches storage.
-        return new AchievementImageUrlResolver($this->createStub(MinioStorageInterface::class), 'media', 3600);
+        return new AchievementImageUrlResolver(self::createStub(MinioStorageInterface::class), 'media', 3600);
     }
 
     /**
