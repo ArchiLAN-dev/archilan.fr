@@ -30,10 +30,14 @@ return RectorConfig::configure()
         __DIR__.'/tests',
     ])
     ->withSkip([
-        // The DDD validator's forbidden-import lists are SCAN PATTERNS, not class references.
-        // As single-quoted strings their source text carries doubled backslashes and cannot
-        // self-match; rewritten to ::class references the file contains the literal FQCN
-        // sequence and the validator flags itself (discovered on the first 33.13 apply).
+        // The DDD validator's forbidden-import lists are SCAN PATTERNS - string DATA, not class
+        // references. This skip survives the tokenizer refactor (story 33.23), and the original
+        // reason for it was wrong: it is not that a lexical scan cannot tell code from prose (it
+        // can now - PhpSource blanks comments and fills string literals). It is that `::class` IS
+        // code. Rewriting these constants to ::class would put the very FQCN sequences the
+        // validator hunts for into its own executable source, and the import rule - which must
+        // keep catching a fully-qualified usage that has no `use` statement - would flag itself.
+        // A file whose job is to NAME forbidden classes has to hold them as data.
         StringClassNameToClassConstantRector::class,
     ])
     ->withPhpSets(php84: true);

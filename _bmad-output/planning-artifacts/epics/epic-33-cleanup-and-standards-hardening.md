@@ -290,6 +290,22 @@ Grouped into (a) new quality tooling, (b) sized code-quality debt already enumer
   `--dry-run`, group-by-repo download-once, rate-limit early-stop. Reuses `ApworldVersionChecker` + the
   `check-apworld-updates` command/service shape.
 
+**(f) Post-retrospective (added 2026-07-14, from the epic-33 retro action A3)**
+
+- **33.23 - Tokenizer-based validator rules (api/). [M, Should]**
+  `DddArchitectureValidator`'s content checks are raw `str_contains`/`preg_match` over `file_get_contents`
+  (12 raw reads, 18 raw pattern matches across 986 lines): a rule cannot tell code from a comment or a
+  string, so **it matches its own documentation**. Four stories each paid for this - 33.13 (Rector rewrote
+  the scan patterns to `::class` and the validator flagged itself), 33.15 (the clock rule flagged its own
+  doc-comment), 33.16 (only the first setter per file reported), 33.17 (8 review patches, all lexical
+  gaps, *despite* applying 33.16's lessons from day one). Both 33.16 and 33.17 deferred the fix into
+  "its own story" - **which was never written.** Move the 9 PHP content-scanning rules to `token_get_all()`
+  (stdlib, zero dependency: it distinguishes comments/doc-comments/strings from code, which is the whole
+  recorded finding class). The 6 path/config rules are untouched. AC: a test proving a fixture whose
+  comments and strings contain every scanned pattern yields ZERO violations (it fails today); all 52
+  validator tests green unchanged; the self-match workarounds deleted, not kept.
+  *Story: `implementation-artifacts/33-23-validator-tokenizer.md` (ready-for-dev).*
+
 ## Sequencing
 
 1. **33.1** first - a trustworthy, isolated, one-command gate makes every subsequent story safe to verify.
