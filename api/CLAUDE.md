@@ -9,18 +9,19 @@ composer gates   # runs the four gates below - identical to CI (same composer sc
 What it runs, in order:
 
 ```bash
-vendor/bin/phpstan analyse src tests   # level max - 0 errors
+vendor/bin/phpstan analyse src tests   # level max + strict-rules - 0 errors
 vendor/bin/php-cs-fixer check          # @Symfony ruleset, full dist config (src + tests) - 0 violations
 php bin/console app:architecture:ddd   # exit 0 - no layer violations
+vendor/bin/rector process --dry-run    # exit 0 - no pending mechanical modernisation
 php bin/phpunit                        # all suites green - 0 notices/deprecations/warnings
 ```
 
-Run all four (`composer gates`) before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations. Note the cs-fixer gate covers **src and tests** - passing `src` as a path argument narrows it and lets test-file violations through that CI will reject.
+Run all five (`composer gates`) before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations. Note the cs-fixer gate covers **src and tests** - passing `src` as a path argument narrows it and lets test-file violations through that CI will reject.
 
-Advisory (not part of `composer gates` yet): `composer rector` runs the Rector dry-run (story 33.13,
-conservative PHP-level sets; **migrations** skipped - the Sessions freeze was lifted in 33.20); CI runs
-it non-blocking. Keep it clean - it flips to a hard gate once the baseline proves stable. After applying
-Rector diffs, always run cs-fixer before committing (Rector output is not @Symfony-styled).
+**Rector is a HARD gate** since story A5 (conservative PHP-level sets; **migrations** skipped - the
+Sessions freeze was lifted in 33.20). It was advisory from 33.13 until the baseline proved it stays
+clean between stories, which 33.14 and 33.20 finished making true. After applying Rector diffs, always
+run cs-fixer before committing (Rector output is not @Symfony-styled).
 
 **Zero PHPUnit notices is a validation prerequisite.** `phpunit.xml.dist` sets `failOnNotice`,
 `failOnDeprecation` and `failOnWarning` to `true`, so any notice/deprecation/warning makes

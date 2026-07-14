@@ -306,6 +306,16 @@ Grouped into (a) new quality tooling, (b) sized code-quality debt already enumer
   validator tests green unchanged; the self-match workarounds deleted, not kept.
   *Story: `implementation-artifacts/33-23-validator-tokenizer.md` (ready-for-dev).*
 
+- **33.24 - Infection: explain the 141 timeouts, set a defensible MSI floor (api/). [M, Should]**
+  Created by retro action **A5**. Three of the four advisory CI checks were flipped to hard gates on 2026-07-14
+  (Rector - clean since 33.14/33.20 and now a 5th leg of `composer gates`; `composer audit` - no advisories;
+  `pnpm audit` - js-yaml bumped, postcss/ws pinned via overrides, nothing ignored). **Infection could not be**,
+  and that is the story: its 33.12 baseline is MSI 72% with **141 unexplained timeouts** (30s each), and a floor
+  built on a number nobody trusts is theatre. A timeout is neither a killed nor a survived mutant - it is a
+  measurement failure. Explain them, fix the measurement if it is broken, then either flip the gate or write down
+  why not. **No third option** - an advisory gate with an unowned "we will flip it later" is exactly what A5 ended.
+  *Story: `implementation-artifacts/33-24-infection-timeouts-and-msi-floor.md` (ready-for-dev).*
+
 ## Sequencing
 
 1. **33.1** first - a trustworthy, isolated, one-command gate makes every subsequent story safe to verify.

@@ -29,9 +29,10 @@ What each runs (for reference):
 
 ```
 # composer gates
-vendor/bin/phpstan analyse src tests    → 0 errors
+vendor/bin/phpstan analyse src tests    → 0 errors (level max + strict-rules)
 vendor/bin/php-cs-fixer check           → 0 violations (full dist config: src + tests)
 php bin/console app:architecture:ddd    → exit 0
+vendor/bin/rector process --dry-run     → exit 0 (hard gate since A5; advisory from 33.13)
 php bin/phpunit                         → all tests green, 0 notices/deprecations/warnings
 
 # pnpm gates

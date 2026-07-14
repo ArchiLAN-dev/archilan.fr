@@ -108,6 +108,7 @@
             "@phpstan",
             "@cs-fixer",
             "@arch",
+            "@rector",
             "@test"
         ]
     },
