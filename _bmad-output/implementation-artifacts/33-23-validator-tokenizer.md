@@ -1,6 +1,6 @@
 # Story 33.23: Tokenizer-Based Validator Rules - Kill the Raw-Lexical-Scan Debt (api/)
 
-Status: ready-for-dev
+Status: ready-for-review
 
 ## Story
 
@@ -109,16 +109,16 @@ rule re-lays.
 
 ## Tasks / Subtasks
 
-- [ ] **T1 - `PhpSource` facade + its own unit tests (AC1).** Build it first, test it in isolation
+- [x] **T1 - `PhpSource` facade + its own unit tests (AC1).** Build it first, test it in isolation
       against fixtures that put every scanned pattern inside comments/strings. This is the load-bearing
       brick - if it is right, the 9 rules are mechanical.
-- [ ] **T2 - AC3's self-match test, written BEFORE the rules move (AC3).** It must **fail** against the
+- [x] **T2 - AC3's self-match test, written BEFORE the rules move (AC3).** It must **fail** against the
       current validator. A test that only passes after the change proves nothing about the change.
-- [ ] **T3 - Migrate the 9 rules (AC2, AC4).** One rule per commit, 52 tests green after each. phpstan
+- [x] **T3 - Migrate the 9 rules (AC2, AC4).** One rule per commit, 52 tests green after each. phpstan
       (max + strict) is the oracle for the facade's types.
-- [ ] **T4 - Delete the workarounds (AC5).** Fragment-assembled literals, "cannot self-match" comments,
+- [x] **T4 - Delete the workarounds (AC5).** Fragment-assembled literals, "cannot self-match" comments,
       and the Rector skip if it proves unnecessary.
-- [ ] **T5 - Full battery + record the triage (AC4, AC6).** Any new violation on the real tree gets a
+- [x] **T5 - Full battery + record the triage (AC4, AC6).** Any new violation on the real tree gets a
       line in the Dev Record explaining whether it is a real defect the old scan missed.
 
 ## Dev Notes
@@ -171,4 +171,99 @@ matchable literals until the tokenizer lands - and after it lands, they are harm
 
 | Date | Change |
 |------|--------|
-| 2026-07-14 | Story created from epic-33 retro action A3 - the refactor both 33.16 and 33.17 deferred into "its own story", which was never written. Grounded in a re-measure: 986 lines, 16 rules, 12 raw reads / 18 raw pattern matches; 9 PHP content-scanning rules in scope, 6 path/config rules untouched. Locked `token_get_all()` over `nikic/php-parser` (zero dependency, and it covers the entire recorded finding class). Status: ready-for-dev. |
+| 2026-07-14 | Story created from epic-33 retro action A3 - the refactor both 33.16 and 33.17 deferred into "its own story", which was never written. Grounded in a re-measure: 986 lines, 16 rules, 12 raw reads / 18 raw pattern matches; 9 PHP content-scanning rules in scope, 6 path/config rules untouched. Locked `token_get_all()` over `nikic/php-parser` (zero dependency, and it covers the entire recorded finding class). Status: ready-for-review. |
+
+---
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Opus 4.8 (1M context)
+
+### The design changed twice under contact - and the existing tests are why
+
+**Start:** blank comments AND string literals, leave the rules' regexes untouched, let them scan the
+blanked text. The bug was never the pattern - it was the haystack.
+
+Right for 7 of the 9 rules. **Wrong for two**, in ways only the 52 existing tests exposed:
+
+1. **The clock rule.** `new \DateTime('now')` **is** a wall-clock read - the rule catches it on purpose
+   and lets `new \DateTime($iso)` through. Blanking `'now'` collapsed it to `new \DateTime(    )`, which
+   also made every *argumented* construction look zero-arg. Two bugs at once: a false positive on the
+   real tree (`HelloAssoPaymentLookup`) and a false negative on the explicit-`'now'` form.
+2. **The AC-M1 gating rule.** Its violation **is** a literal value - `isGranted('ROLE_MEMBER')`. Blanking
+   the role blinded the rule to the only thing it exists to catch.
+
+**The lesson: rules do not all want the same view of a file.** Most match a code *shape*. Two match a
+literal *value*. So `PhpSource` grew three views instead of one:
+
+- `codeText()` - comments blanked, string-literal contents **filled, not emptied**. Filling keeps
+  `new X('now')` looking argumented while making the prose inside a string unmatchable. **7 rules.**
+- `codeWithLiterals()` - comments blanked, strings intact. For a rule that needs literal values but not
+  structure.
+- **Real token walks** (`firstStringArguments()`, `newExpressions()`) - for the two rules whose verdict
+  turns on a literal value. This is the honest answer: a string that merely *contains*
+  `isGranted('ROLE_MEMBER')` is a single token, never a call sequence. Those rules are now immune to
+  prose, to string literals and to their own source **by construction** - not by a comment promising they
+  are.
+
+### AC5: one workaround deleted, one kept - and its stated reason was wrong
+
+**Deleted:** the fragment-assembled `'ROLE_'.'MEMBER'` and the *"the bare role string in this method
+cannot self-match: the pattern requires the full checker-call shape, which never appears here
+contiguously"* comment (33.17's invention, which cs-fixer then fought by folding the concatenation back).
+The role is a plain `GATED_ROLE` constant now. The token walk makes the guard pointless.
+
+**Kept: the `StringClassNameToClassConstantRector` skip** - and the original rationale for it was **wrong**.
+It is not that a lexical scan cannot tell code from prose (it can now). It is that **`::class` IS code**:
+rewriting the validator's forbidden-import constants to `::class` would put the very FQCN sequences it
+hunts for into its own *executable* source, and the import rule - which must keep catching a
+fully-qualified usage that has no `use` statement - would flag itself. **A file whose job is to NAME
+forbidden classes has to hold them as data.** Verified by removing the skip and running `composer rector`:
+it still wants to rewrite line 47. The comment in `rector.php` now says this instead of the old half-truth.
+
+### AC4: behaviour-identical, and actually checked
+
+The 52 existing validator tests pass **unchanged** - and they earned their keep: they are what caught both
+regressions above. The one new violation the tokenizer surfaced on the real tree (`HelloAssoPaymentLookup`)
+was a **false positive of my own making**, not a defect the old scan had missed; it disappeared once
+`codeText()` filled rather than blanked. No real-tree violation was auto-fixed, and none needed to be.
+
+### Deviation from AC1, recorded
+
+AC1 listed a rich facade (`imports()`, `classDeclarations()`, `publicMethodNames()`, `returnTypes()`).
+**Not built.** The rules' existing regexes are correct once the haystack is clean, so those methods would
+have had zero callers. Building unused API to satisfy the letter of an AC is waste. What the rules actually
+needed - two views plus two token walks - is what exists.
+
+### Also fixed, incidentally
+
+`PhpSource::fromFile()` guards `is_file()` first: `file_get_contents()` on a missing path raises a PHP
+warning, and `phpunit.xml.dist` sets `failOnWarning` - so an unguarded read would have turned the gate red
+on a race.
+
+### File List
+
+**New:** `api/src/Shared/Application/Support/PhpSource.php` ·
+`api/tests/Unit/Shared/PhpSourceTest.php` (9 tests) ·
+`api/tests/Unit/Shared/ValidatorIgnoresCommentsAndStringsTest.php` - the AC3 test, which **fails against
+the pre-refactor validator**. That is the point: a test that only passes after the change proves nothing
+about the change.
+
+**Modified:** `api/src/Shared/Application/Support/DddArchitectureValidator.php` (11 raw reads -> `PhpSource`;
+gating and clock rules -> token walks; `GATED_ROLE` constant; workaround comments deleted) ·
+`api/rector.php` (skip kept, rationale corrected).
+
+**Untouched, as scoped:** the 6 path/config rules, and the `services.yaml` read (YAML is not PHP).
+
+### Gates
+
+`composer gates` green: phpstan (max + strict-rules) 0 · cs-fixer 0 · `app:architecture:ddd` OK ·
+**1529 tests / 10 502 assertions**. `composer rector` clean.
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| 2026-07-14 | Story created from epic-33 retro action A3, then implemented. The single-view design broke two rules whose verdict turns on a literal value (clock: the explicit 'now'; AC-M1: the role) - caught by the 52 existing tests, which is exactly why they were declared the contract. Resolved with three views plus two real token walks. The AC-M1 fragment-assembly hack is deleted; the Rector skip stays, with its rationale corrected. Status: ready-for-review. |

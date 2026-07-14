@@ -33,6 +33,12 @@ final readonly class DddArchitectureValidator
         'Community',
     ];
 
+    /**
+     * The role that must never gate access (AC-M1). Held as a plain constant: the rule that uses
+     * it walks tokens, so a bare literal here cannot self-match - no fragment assembly needed.
+     */
+    private const string GATED_ROLE = 'ROLE_MEMBER';
+
     /** @var list<string> */
     private const array LAYERS = ['Domain', 'Application', 'Infrastructure', 'Presentation'];
 
@@ -303,11 +309,12 @@ final readonly class DddArchitectureValidator
             }
 
             foreach ($this->phpFiles($domainDir) as $file) {
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     $violations[] = 'Unable to read domain file: src/'.$this->relativePath($srcDir, $file);
                     continue;
                 }
+                $contents = $source->codeText();
 
                 $relativePath = $this->relativePath($srcDir, $file);
                 foreach (self::ALLOWED_DOMAIN_SYMFONY_IMPORTS[$relativePath] ?? [] as $allowedImport) {
@@ -353,10 +360,11 @@ final readonly class DddArchitectureValidator
                 }
 
                 foreach ($this->phpFiles($kindDir) as $file) {
-                    $contents = file_get_contents($file);
-                    if (!is_string($contents)) {
+                    $source = PhpSource::fromFile($file);
+                    if (null === $source) {
                         continue;
                     }
+                    $contents = $source->codeText();
 
                     if (preg_match_all('/^[ \t]*((?:(?:abstract|final|readonly)[ \t]+)*)class[ \t]+\w+/m', $contents, $matches, PREG_SET_ORDER) > 0) {
                         foreach ($matches as $match) {
@@ -404,10 +412,11 @@ final readonly class DddArchitectureValidator
                     continue;
                 }
 
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 if (preg_match_all('/^[ \t]*((?:(?:abstract|final|readonly)[ \t]+)*)class[ \t]+\w+/m', $contents, $matches, PREG_SET_ORDER) > 0) {
                     foreach ($matches as $match) {
@@ -451,10 +460,11 @@ final readonly class DddArchitectureValidator
                     continue;
                 }
 
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 $entityNames = [];
                 if (preg_match_all('/^use\s+App\\\\\w+\\\\Domain\\\\Entity\\\\(?:\w+\\\\)*(\w+)(?:\s+as\s+(\w+))?\s*;/m', $contents, $imports, PREG_SET_ORDER) > 0) {
@@ -512,13 +522,19 @@ final readonly class DddArchitectureValidator
 
     /**
      * ROLE_MEMBER is stale-prone (it survives membership expiry) and must never gate access
-     * (api/CLAUDE.md AC-M1, story 33.17). This rule forbids the gating call forms (positional or
-     * attribute-named argument) combining the grant checkers below with that role. The bare role
-     * string in this method cannot self-match: the pattern requires the full checker-call shape,
-     * which never appears here contiguously. Display/filter/assignment reads of the role
-     * (AC-M3: user directory, Discord sync, role mapping) use in_array and are NOT matched;
-     * variable/constant-form gating and security expressions in YAML are beyond a lexical scan
-     * (accepted limitation, same class as the deferred tokenizer work).
+     * (api/CLAUDE.md AC-M1, story 33.17).
+     *
+     * This is the one rule whose violation IS a literal value rather than a code shape, so it
+     * cannot use a text scan: it walks tokens and asks "is ROLE_MEMBER the first string argument
+     * of a grant checker?". A *string* that merely contains the text `isGranted('ROLE_MEMBER')`
+     * is a single token, never a call sequence - so the rule is immune to prose, to string
+     * literals, and to its own source **by construction**. That is what let story 33.23 delete the
+     * fragment-assembled `'ROLE_'.'MEMBER'` guard 33.17 had to invent.
+     *
+     * Display/filter/assignment reads of the role (AC-M3: user directory, Discord sync) pass the
+     * role to in_array, not to a checker, and are correctly NOT matched. Gating through a variable
+     * or a constant, and security expressions in YAML, remain out of reach - that needs type
+     * resolution, not tokens.
      *
      * @return list<string>
      */
@@ -526,24 +542,23 @@ final readonly class DddArchitectureValidator
     {
         $violations = [];
         $checkers = ['denyAccessUnlessGranted', 'isGranted', 'IsGranted'];
-        $role = 'ROLE_MEMBER';
-        $pattern = sprintf('/(?:%s)\s*\(\s*(?:attribute\s*:\s*)?[\'"]%s[\'"]/', implode('|', $checkers), $role);
 
         foreach ($this->phpFiles($srcDir) as $file) {
-            $contents = file_get_contents($file);
-            if (!is_string($contents)) {
+            $source = PhpSource::fromFile($file);
+            if (null === $source) {
                 continue;
             }
 
-            if (preg_match_all($pattern, $contents, $matches) > 0) {
-                foreach ($matches[0] as $match) {
-                    $violations[] = sprintf(
-                        'Access must never be gated on the stale %s role ("%s") - use ApiAccessGuard::requireAuthenticatedMember() or the IS_MEMBER voter (api/CLAUDE.md AC-M1): src/%s',
-                        $role,
-                        preg_replace('/\s+/', ' ', $match) ?? $match,
-                        $this->relativePath($srcDir, $file),
-                    );
+            foreach ($source->firstStringArguments($checkers) as $argument) {
+                if (self::GATED_ROLE !== $argument) {
+                    continue;
                 }
+
+                $violations[] = sprintf(
+                    'Access must never be gated on the stale %s role - use ApiAccessGuard::requireAuthenticatedMember() or the IS_MEMBER voter (api/CLAUDE.md AC-M1): src/%s',
+                    self::GATED_ROLE,
+                    $this->relativePath($srcDir, $file),
+                );
             }
         }
 
@@ -569,10 +584,11 @@ final readonly class DddArchitectureValidator
             }
 
             foreach ($this->phpFiles($domainDir) as $file) {
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 if (preg_match_all('/public\s+(?:(?:static|final|abstract)\s+)*function\s+&?\s*set[A-Z]\w*/', $contents, $matches) > 0) {
                     foreach ($matches[0] as $match) {
@@ -608,10 +624,11 @@ final readonly class DddArchitectureValidator
             }
 
             foreach ($this->phpFiles($contextDir) as $file) {
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 $relativePath = $this->relativePath($srcDir, $file);
 
@@ -706,10 +723,11 @@ final readonly class DddArchitectureValidator
             }
 
             foreach ($this->phpFiles($applicationDir) as $file) {
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 $relativePath = $this->relativePath($srcDir, $file);
 
@@ -747,17 +765,24 @@ final readonly class DddArchitectureValidator
                     }
                 }
 
-                foreach (self::FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS as $class) {
-                    // Zero-arg or explicit 'now' only - argumented constructions parse a specific instant.
-                    $pattern = '/new\s+\\\\?'.preg_quote($class, '/').'\s*\(\s*(?:\'now\'|"now")?\s*\)/';
-
-                    if (1 === preg_match($pattern, $contents)) {
-                        $violations[] = sprintf(
-                            'Application layer must not construct %s() to read the wall clock - inject Psr\Clock\ClockInterface and call $this->clock->now(): src/%s',
-                            $class,
-                            $relativePath,
-                        );
+                // The second rule whose verdict turns on a literal VALUE, not a code shape: a
+                // zero-arg construction and an explicit 'now' both read the wall clock, while any
+                // other argument parses a specific instant and is allowed. A text scan cannot tell
+                // those apart without also matching the form quoted inside a string - so this walks
+                // tokens, and is immune to prose and to its own scan patterns by construction.
+                $reported = [];
+                foreach ($source->newExpressions(self::FORBIDDEN_APPLICATION_CLOCK_CONSTRUCTS) as $construction) {
+                    $readsWallClock = 0 === $construction['arguments'] || 'now' === $construction['firstString'];
+                    if (!$readsWallClock || isset($reported[$construction['class']])) {
+                        continue;
                     }
+
+                    $reported[$construction['class']] = true;
+                    $violations[] = sprintf(
+                        'Application layer must not construct %s() to read the wall clock - inject Psr\Clock\ClockInterface and call $this->clock->now(): src/%s',
+                        $construction['class'],
+                        $relativePath,
+                    );
                 }
             }
         }
@@ -858,10 +883,11 @@ final readonly class DddArchitectureValidator
             }
 
             foreach ($this->phpFiles($applicationDir) as $file) {
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 $relativePath = $this->relativePath($srcDir, $file);
 
@@ -890,10 +916,11 @@ final readonly class DddArchitectureValidator
             }
 
             foreach ($this->phpFiles($presentationDir) as $file) {
-                $contents = file_get_contents($file);
-                if (!is_string($contents)) {
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
                     continue;
                 }
+                $contents = $source->codeText();
 
                 $relativePath = $this->relativePath($srcDir, $file);
 
@@ -946,8 +973,9 @@ final readonly class DddArchitectureValidator
         }
 
         foreach ($this->phpFiles($domainDir) as $file) {
-            $contents = file_get_contents($file);
-            if (is_string($contents) && str_contains($contents, '#[ORM\\Entity')) {
+            // The ORM attribute is code; a doc-comment that merely mentions it is not.
+            $source = PhpSource::fromFile($file);
+            if (null !== $source && str_contains($source->codeText(), '#[ORM\\Entity')) {
                 return true;
             }
         }
