@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { env } from "@/lib/env";
+import { inter, spaceGrotesk } from "./fonts";
 import { JsonLd } from "@/components/json-ld";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 
@@ -48,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="h-full antialiased">
+    <html lang="fr" className={`h-full antialiased ${inter.variable} ${spaceGrotesk.variable}`}>
       <body className="min-h-full">
         <JsonLd data={organizationJsonLd()} />
         <JsonLd data={websiteJsonLd()} />
