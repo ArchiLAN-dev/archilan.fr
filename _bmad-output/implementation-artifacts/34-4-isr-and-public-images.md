@@ -1,6 +1,6 @@
 # Story 34.4: ISR strategy & stable public image URLs (frontend/ + api/)
 
-Status: in-progress (backend delivered; frontend ISR = follow-up PR)
+Status: done (backend PR 323 merged; frontend ISR this PR)
 
 Delivered in two PRs for reviewability: **PR 1 = backend infra** (public bucket, resolver, upload
 routing, compose bootstrap, safe fallback - `composer gates`); **PR 2 = frontend ISR** (fetchers
@@ -105,21 +105,21 @@ URL (breaks CDN + OG stability) and is a mild security smell.
         blanket bucket copy (which would expose avatars): `mc cp --recursive local/media/events/
         local/media-public/events/` + same for `posts/`. Reversible (no delete from `media`). Documented in
         the ops handoff - no PHP command, no DB enumeration, no new repository surface.
-- [ ] Task 5: ISR + optimisation (AC: 2, 4) [frontend]
-  - [ ] Public fetchers used by the ISR pages: `cache: "no-store"` -> `next: { revalidate: <N> }`
+- [x] Task 5: ISR + optimisation (AC: 2, 4) [frontend]
+  - [x] Public fetchers used by the ISR pages: `cache: "no-store"` -> `next: { revalidate: <N> }`
         (`getPublicEvents`, `getPublicEvent`, `getPublicPosts`, `getPublicPostBySlugFromApi`,
         `getAllPublicGames`, `getPublicGame`). Keep `no-store` where a caller genuinely needs live data.
-  - [ ] Pages: replace `export const dynamic = "force-dynamic"` with `export const revalidate = <N>` on home,
+  - [x] Pages: replace `export const dynamic = "force-dynamic"` with `export const revalidate = <N>` on home,
         `/evenements`, `/actualites`, `/jeux`, `evenements/[eventSlug]`, `actualites/[postSlug]`,
         `jeux/[slug]`. Document the interval choice.
-  - [ ] Remove `unoptimized` on public cover images (`evenements/[eventSlug]`, `actualites/[postSlug]`,
+  - [x] Remove `unoptimized` on public cover images (`evenements/[eventSlug]`, `actualites/[postSlug]`,
         `event-card`, `post-card`) now that URLs are stable. Realtime widgets untouched.
-  - [ ] Adjust/extend tests (fetcher cache option; page still renders).
-- [ ] Task 6: verify + ship (AC: 3, 5)
-  - [ ] `pnpm gates` + `composer gates` green. Document the ops handoff (deploy compose; set
+  - [x] Adjust/extend tests (fetcher cache option; page still renders).
+- [x] Task 6: verify + ship (AC: 3, 5)
+  - [x] `pnpm gates` + `composer gates` green. Document the ops handoff (deploy compose; set
         `MINIO_PUBLIC_MEDIA_BASE_URL`; run `app:media:migrate-public`; record TTFB) and the AC3 numbers once
         the base URL is live (or mark AC3 pending the ops step).
-  - [ ] Branch `feature/epic-34-story-4-isr-public-images` from `develop`, PR to `develop` (Gitflow).
+  - [x] Branch `feature/epic-34-story-4-isr-public-images` from `develop`, PR to `develop` (Gitflow).
 
 ## Dev Notes
 
@@ -218,8 +218,36 @@ claude-opus-4-8 (1M context)
 
 ### Completion Notes List (PR 2 - frontend ISR)
 
-- _Pending (follow-up PR): fetchers `no-store`->`revalidate`, pages `force-dynamic`->`revalidate`, drop
-  `unoptimized` on public covers, `pnpm gates`._
+- 6 server fetchers switched `cache: "no-store"` -> `next: { revalidate: 300 }`: `getPublicEvents`,
+  `getPublicEvent`, `getPublicPosts`, `getPublicPostBySlugFromApi`, `getAllPublicGames`, `getPublicGame`.
+  `getPublicGames` (the interactive /jeux search) stays `no-store` - it must reflect live queries.
+- 7 pages switched `export const dynamic = "force-dynamic"` -> `export const revalidate = 300`: home,
+  `/evenements`, `/actualites`, `/jeux`, and the event/post/game detail pages. `/aide/archipelago` kept
+  `force-dynamic` (its tutorial images are still presigned - out of scope, per Dev Notes). The event
+  detail page's obsolete "presigned URLs expire" comment (the original force-dynamic reason) was replaced.
+- `unoptimized` dropped on the 5 public cover/gallery `<Image>`s (event cover + gallery, post cover,
+  event-card, post-card) - stable URLs are Next-optimisable. `remotePatterns`/AVIF stay 34.5's job.
+- Interval = **300s (5 min)**: fresh enough for an association's editorial cadence, cache-friendly, and
+  below the 3600s presign TTL so even the presign-fallback URLs never expire between regenerations.
+- Realtime correctness preserved: the seat counter and Twitch live badge are client components that fetch
+  their own fresh data, so the cached server shell never carries a stale authoritative seat count.
+- `pnpm gates` green (typecheck 0, lint 0 errors, jest 194/194, build clean). Build classifies
+  `/evenements` and `/actualites` as `○ (Static)` with a **5m revalidate**; dev smoke: `/`, `/evenements`,
+  `/actualites`, `/jeux` all return 200.
+
+### Status of AC3 (before/after TTFB)
+
+Pending the ops handoff (needs the public bucket + `MINIO_PUBLIC_MEDIA_BASE_URL` live on a deployed
+environment). Record home + event-detail TTFB before/after here once the CDN base URL is configured.
+
+### File List (PR 2 - frontend)
+
+- `frontend/src/features/events/public-events-api.ts`, `frontend/src/features/content/public-posts-api.ts`,
+  `frontend/src/features/games/public-games-api.ts` (fetchers -> revalidate)
+- `frontend/src/app/(public)/page.tsx`, `.../evenements/page.tsx`, `.../actualites/page.tsx`,
+  `.../jeux/page.tsx`, `.../evenements/[eventSlug]/page.tsx`, `.../actualites/[postSlug]/page.tsx`,
+  `.../jeux/[slug]/page.tsx` (force-dynamic -> revalidate)
+- `frontend/src/features/events/event-card.tsx`, `frontend/src/features/content/post-card.tsx` (drop unoptimized)
 
 ### File List (PR 1 - backend)
 
@@ -243,3 +271,4 @@ claude-opus-4-8 (1M context)
 |------|--------|
 | 2026-07-15 | Story created from epic 34 (gaps 6/9). Product-owner decision: dedicated public MinIO bucket (over API proxy / long-lived presign). Grounded in the MinIO storage interface, bucket config, the exact presigned-vs-stable image sources (games already stable; only event/post uploaded media need moving), the compose bucket bootstrap, and the frontend `no-store` fetchers. Status: ready-for-dev. |
 | 2026-07-15 | PR 1 (backend infra) implemented: `PublicMediaUrlResolver`, uploads -> public bucket, catalogs -> resolver with presign fallback, bucket-agnostic gallery parser, compose bootstrap + env docs. `composer gates` green (1533 tests). Frontend ISR split to PR 2. Status: in-progress. |
+| 2026-07-15 | PR 2 (frontend ISR) implemented: 6 fetchers `no-store`->`revalidate:300`, 7 pages `force-dynamic`->`revalidate:300`, dropped `unoptimized` on 5 public covers. `pnpm gates` green (194 tests); build shows `/evenements`,`/actualites` static+5m. AC3 TTFB pending ops handoff. Status: done. |

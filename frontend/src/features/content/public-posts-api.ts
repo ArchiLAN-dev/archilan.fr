@@ -21,7 +21,8 @@ function isPublicPostType(v: unknown): v is PublicPostType {
 
 export async function getPublicPosts(): Promise<PublicPost[]> {
   try {
-    const response = await apiFetch(`${env.apiBaseUrl}/posts`, { cache: "no-store" });
+    // ISR: cache for 5 min so the actualités listing can be statically served (story 34.4).
+    const response = await apiFetch(`${env.apiBaseUrl}/posts`, { next: { revalidate: 300 } });
 
     if (!response.ok) {
       return [];
@@ -41,7 +42,7 @@ export async function getPublicPosts(): Promise<PublicPost[]> {
 export async function getPublicPostBySlugFromApi(slug: string): Promise<PublicPost | null> {
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/posts/${encodeURIComponent(slug)}`, {
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
 
     if (!response.ok) {

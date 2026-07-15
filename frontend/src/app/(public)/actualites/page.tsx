@@ -3,7 +3,7 @@ import { PostCard } from "@/features/content/post-card";
 import { PostsEmptyState } from "@/features/content/posts-empty-state";
 import { getPublicPosts } from "@/features/content/public-posts-api";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 export const metadata = buildPageMetadata({
   title: "Actualités",

@@ -28,8 +28,9 @@ type PublicEventPayload = {
 
 export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past: PublicEvent[] }> {
   try {
+    // ISR: cache for 5 min so listing/home pages can be statically served (story 34.4).
     const response = await apiFetch(`${env.apiBaseUrl}/events`, {
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
 
     if (!response.ok) {
@@ -55,7 +56,7 @@ export async function getPublicEvents(): Promise<{ upcoming: PublicEvent[]; past
 export async function getPublicEvent(eventId: string): Promise<PublicEvent | null> {
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/events/${eventId}`, {
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
 
     if (!response.ok) {

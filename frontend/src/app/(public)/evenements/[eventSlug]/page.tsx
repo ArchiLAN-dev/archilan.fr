@@ -76,9 +76,9 @@ const schemaAttendanceModeMap: Record<EventAttendanceMode, string> = {
   mixed: "https://schema.org/MixedEventAttendanceMode",
 };
 
-// Rendered per request so the MinIO presigned image URLs (short TTL) are always
-// fresh. Static generation baked them at build time and they expired ~1h later.
-export const dynamic = "force-dynamic";
+// ISR: the cover/gallery now resolve to stable public-bucket URLs (story 34.4), so the page
+// can be cached. The seat counter is a client component and stays live. Revalidate every 5 min.
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: EventDetailPageProps): Promise<Metadata> {
   const { eventSlug } = await params;
@@ -299,7 +299,6 @@ function EventHeroImage({ event }: { event: PublicEvent }) {
             priority
             sizes="100vw"
             src={event.coverImageUrl}
-            unoptimized={event.coverImageUrl.startsWith("http://") || event.coverImageUrl.startsWith("https://")}
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,color-mix(in_oklab,var(--color-surface)_85%,var(--color-accent)),var(--color-background))]">
@@ -339,7 +338,6 @@ function EventPhotoGallery({ event }: { event: PublicEvent }) {
               fill
               sizes="(max-width: 640px) 50vw, 33vw"
               src={url}
-              unoptimized={url.startsWith("http://") || url.startsWith("https://")}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/25 to-transparent" />
           </div>

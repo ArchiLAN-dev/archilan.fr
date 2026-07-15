@@ -19,7 +19,9 @@ export const metadata = buildPageMetadata({
   path: "/",
 });
 
-export const dynamic = "force-dynamic";
+// ISR: static shell revalidated every 5 min (story 34.4). Realtime widgets on this page
+// (Twitch live badge, community stats) are client components and fetch their own fresh data.
+export const revalidate = 300;
 
 type Feature = { title: string; description: string; href?: string; Icon: LucideIcon };
 

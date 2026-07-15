@@ -5,7 +5,7 @@ import { getAllPublicGames } from "@/features/games/public-games-api";
 import { GameRequestSection } from "@/features/games/game-request-section";
 import { GameContributionForm } from "@/features/games/game-contribution-form";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 export const metadata = buildPageMetadata({
   title: "Jeux",

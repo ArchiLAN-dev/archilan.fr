@@ -19,7 +19,7 @@ const schemaTypeByPostType: Record<PublicPostType, "NewsArticle" | "Article"> = 
   recap: "Article",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { postSlug } = await params;
@@ -156,7 +156,6 @@ function PostHeroImage({ post }: { post: PublicPost }) {
           priority
           sizes="100vw"
           src={post.coverImageUrl ?? ""}
-          unoptimized={post.coverImageUrl?.startsWith("http://") || post.coverImageUrl?.startsWith("https://")}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/75 via-background/10 to-transparent" />
       </div>

@@ -8,7 +8,7 @@ import { getArchipelagoClient } from "@/features/games/archipelago-client-api";
 import { GameDetail } from "@/features/games/game-detail";
 import { getPublicGame } from "@/features/games/public-games-api";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 type GameDetailPageProps = {
   params: Promise<{ slug: string }>;

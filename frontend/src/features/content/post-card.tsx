@@ -55,7 +55,6 @@ function PostCover({ post }: { post: PublicPost }) {
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
           src={post.coverImageUrl}
-          unoptimized={post.coverImageUrl.startsWith("http://") || post.coverImageUrl.startsWith("https://")}
         />
       ) : (
         <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,color-mix(in_oklab,var(--color-surface)_88%,var(--color-accent)),var(--color-background))]">

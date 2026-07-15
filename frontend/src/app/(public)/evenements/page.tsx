@@ -2,7 +2,7 @@ import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { buildPageMetadata } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 export const metadata = buildPageMetadata({
   title: "Événements",
