@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { getAccountMembership } from "@/features/payments/membership-api";
+import { slugify } from "@/features/weekly-runs/slugify";
 import { MembershipNotice } from "./weekly-runs-client-page";
 import {
   downloadPatch,
@@ -25,15 +26,6 @@ import { YamlOptionsView, parseGameOptions } from "@/components/yaml/yaml-option
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function formatTime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
