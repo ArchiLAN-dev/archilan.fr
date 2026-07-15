@@ -139,8 +139,8 @@ export default async function Home() {
               </span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              ArchiLAN organise des événements autour d&apos;Archipelago, un mode
-              coopératif qui connecte plusieurs jeux en une seule aventure.
+              ArchiLAN organise des événements Archipelago multiworld en France : un
+              randomizer coopératif qui connecte plusieurs jeux en une seule aventure.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link

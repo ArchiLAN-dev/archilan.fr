@@ -20,11 +20,11 @@ export default async function EventsPage() {
           Événements ArchiLAN
         </p>
         <h1 className="font-heading text-4xl font-bold leading-tight md:text-5xl">
-          Rejoins une session Archipelago.
+          Événements et LAN Archipelago en France
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-          Parcours les prochaines sessions ouvertes, les événements réservés aux
-          membres, et les récaps publics des multiworlds passés.
+          Nos LAN et soirées multiworld coopératives : parcours les prochaines sessions
+          ouvertes, les événements réservés aux membres, et les récaps des multiworlds passés.
         </p>
       </section>
 

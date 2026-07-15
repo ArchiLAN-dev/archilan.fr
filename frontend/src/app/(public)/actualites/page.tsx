@@ -21,11 +21,11 @@ export default async function NewsPage() {
           Actualités ArchiLAN
         </p>
         <h1 className="font-heading text-4xl font-bold leading-tight md:text-5xl">
-          Suivre la communauté entre deux sessions.
+          Actualités de la communauté Archipelago
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
           Annonces, récaps d&apos;événements et nouvelles de l&apos;association pour garder le fil
-          de l&apos;activité Archipelago.
+          de l&apos;activité randomizer multiworld d&apos;ArchiLAN.
         </p>
       </section>
 
