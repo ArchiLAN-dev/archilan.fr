@@ -1,13 +1,11 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import { WeeklyRunsClientPage } from "@/features/weekly-runs/weekly-runs-client-page";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Runs hebdomadaires",
   description: "Participe au run Archipelago de la semaine et suis le classement en temps réel.",
-  openGraph: {
-    title: "Runs hebdomadaires - ArchiLAN",
-  },
-};
+  path: "/runs-hebdo",
+});
 
 export default function RunsHebdoPage() {
   return (

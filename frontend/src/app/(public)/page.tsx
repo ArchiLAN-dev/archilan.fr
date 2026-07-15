@@ -8,6 +8,16 @@ import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
 import { CommunityStatsWidget } from "@/features/community/community-stats-widget";
 import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
+import { buildPageMetadata } from "@/lib/seo";
+
+// Keyword skeleton (Archipelago-in-France cluster); final copy is 34.6's scope.
+export const metadata = buildPageMetadata({
+  absoluteTitle: true,
+  title: "ArchiLAN - Événements Archipelago multiworld en France",
+  description:
+    "ArchiLAN organise des événements Archipelago en France : LAN parties coopératives, runs hebdomadaires multiworld randomizer et une communauté gaming francophone.",
+  path: "/",
+});
 
 export const dynamic = "force-dynamic";
 

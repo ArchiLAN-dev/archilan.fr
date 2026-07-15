@@ -1,18 +1,13 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { fetchLeaderboard } from "@/features/community/community-api";
 import { LeaderboardClient } from "@/features/community/leaderboard-client";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Classements communautaires",
   description: "Découvrez les meilleurs joueurs ArchiLAN par objectifs, checks, et vitesse de complétion.",
-  openGraph: {
-    title: "Classements communautaires | ArchiLAN",
-    description: "Découvrez les meilleurs joueurs ArchiLAN par objectifs, checks, et vitesse de complétion.",
-    type: "website",
-    locale: "fr_FR",
-  },
-};
+  path: "/classements",
+});
 
 export default async function ClassementsPage() {
   // eslint-disable-next-line react-hooks/purity

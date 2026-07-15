@@ -1,12 +1,14 @@
 import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
+import { buildPageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Événements",
   description: "Événements Archipelago publics organisés par ArchiLAN.",
-};
+  path: "/evenements",
+});
 
 export default async function EventsPage() {
   const { past, upcoming } = await getPublicEvents();

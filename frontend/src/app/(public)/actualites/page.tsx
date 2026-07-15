@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import { PostCard } from "@/features/content/post-card";
 import { PostsEmptyState } from "@/features/content/posts-empty-state";
 import { getPublicPosts } from "@/features/content/public-posts-api";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Actualités",
   description: "Actualités, annonces et récaps publics de la communauté ArchiLAN.",
-};
+  path: "/actualites",
+});
 
 export default async function NewsPage() {
   const posts = await getPublicPosts();

@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Mentions légales",
   description:
     "Mentions légales de l'association ArchiLAN - identité de l'éditeur, hébergement et propriété intellectuelle.",
-  robots: { index: true, follow: true },
-};
+  path: "/mentions-legales",
+});
 
 export default function MentionsLegalesPage() {
   return (
