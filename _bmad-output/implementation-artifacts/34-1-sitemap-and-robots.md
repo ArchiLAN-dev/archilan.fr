@@ -1,6 +1,6 @@
 # Story 34.1: Sitemap & Robots (frontend/)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -53,46 +53,46 @@ crawler actually visits** (see the event id/slug note in Dev Notes).
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: `src/app/robots.ts` (AC: 2, 3)
-  - [ ] `MetadataRoute.Robots` with `rules: { userAgent: "*", allow: "/", disallow: [...] }`,
+- [x] Task 1: `src/app/robots.ts` (AC: 2, 3)
+  - [x] `MetadataRoute.Robots` with `rules: { userAgent: "*", allow: "/", disallow: [...] }`,
         `sitemap: new URL("/sitemap.xml", env.appUrl).toString()`.
-  - [ ] Disallow list: `/admin/`, `/o/`, `/compte/`, `/connexion`, `/inscription`,
+  - [x] Disallow list: `/admin/`, `/o/`, `/compte/`, `/connexion`, `/inscription`,
         `/mot-de-passe-oublie`, `/reinitialisation-mot-de-passe`, `/confirmation-email`, `/runs/`,
         `/evenements/*/inscription` (wildcard - Google supports `*`).
         Do NOT disallow `/joueurs/`, `/streams/`, `/evenements/*/resultats` (meta noindex handles them).
         Note: a bare `Disallow: /inscription` only matches the root-level auth page, not
         `/evenements/*/inscription` (prefix matching from root) - hence the separate wildcard rule.
-- [ ] Task 2: `src/app/sitemap.ts` (AC: 1, 3, 4)
-  - [ ] `async` default export returning `MetadataRoute.Sitemap`.
-  - [ ] Static entries list (the 14 routes of AC1).
-  - [ ] Events: `getPublicEvents()` from `src/features/events/public-events-api.ts` - concat
+- [x] Task 2: `src/app/sitemap.ts` (AC: 1, 3, 4)
+  - [x] `async` default export returning `MetadataRoute.Sitemap`.
+  - [x] Static entries list (the 14 routes of AC1).
+  - [x] Events: `getPublicEvents()` from `src/features/events/public-events-api.ts` - concat
         `upcoming` + `past`, URL `/evenements/${event.id}`. Omit `lastModified` (no real update
         timestamp on events - see Dev Notes, "lastModified honesty").
-  - [ ] Posts: `getPublicPosts()` from `src/features/content/public-posts-api.ts` - URL
+  - [x] Posts: `getPublicPosts()` from `src/features/content/public-posts-api.ts` - URL
         `/actualites/${post.slug}`, `lastModified: post.publishedAtIso`.
-  - [ ] Games: `getAllPublicGames()` from `src/features/games/public-games-api.ts` (the non-paginated
+  - [x] Games: `getAllPublicGames()` from `src/features/games/public-games-api.ts` (the non-paginated
         catalog call, NOT `getPublicGames`) - URL `/jeux/${game.slug}`, no `lastModified`.
-  - [ ] Weekly runs: `fetchCurrentWeeklyRuns()` from `src/features/weekly-runs/weekly-runs-api.ts` -
+  - [x] Weekly runs: `fetchCurrentWeeklyRuns()` from `src/features/weekly-runs/weekly-runs-api.ts` -
         URL `/runs-hebdo/jeu/${slugify(run.gameName)}` using the shared slugify (Task 3). Dedupe slugs.
-  - [ ] Fetch the four sources concurrently (`Promise.all`) - they are independent.
-- [ ] Task 3: extract `slugify` (AC: 1)
-  - [ ] Move the local `slugify` from `src/features/weekly-runs/weekly-run-game-client.tsx` (NFD
+  - [x] Fetch the four sources concurrently (`Promise.all`) - they are independent.
+- [x] Task 3: extract `slugify` (AC: 1)
+  - [x] Move the local `slugify` from `src/features/weekly-runs/weekly-run-game-client.tsx` (NFD
         normalize, lowercase, non-alnum to `-`) into a shared module (e.g.
         `src/features/weekly-runs/slugify.ts` or `src/lib/slugify.ts`), export it, and reuse it in BOTH
         the client page and the sitemap so the sitemap slug can never drift from the page slug.
-- [ ] Task 4: tests (AC: 5)
-  - [ ] `src/app/sitemap.test.ts` + `src/app/robots.test.ts`, co-located, MSW handlers on
+- [x] Task 4: tests (AC: 5)
+  - [x] `src/app/sitemap.test.ts` + `src/app/robots.test.ts`, co-located, MSW handlers on
         `TEST_API_BASE_URL` for `GET /events`, `GET /posts`, `GET /games` (MSW matches on path -
         the `?all=1` query is irrelevant to the handler), `GET /weekly-runs/current`
         (see Dev Notes - MSW pattern).
-  - [ ] Sitemap: static routes present; event/post/game/weekly entries present with expected URLs;
+  - [x] Sitemap: static routes present; event/post/game/weekly entries present with expected URLs;
         `lastModified` on posts; no excluded prefix appears in any URL (assert against the AC1
         exclusion list); API failure (`HttpResponse.error()`) still yields the static entries.
-  - [ ] Robots: disallow list exact, `/joueurs/` absent from disallow, sitemap URL absolute.
-- [ ] Task 5: verify + ship (AC: 6)
-  - [ ] `pnpm gates` green; dev-server smoke of `/sitemap.xml` and `/robots.txt` (valid XML, expected
+  - [x] Robots: disallow list exact, `/joueurs/` absent from disallow, sitemap URL absolute.
+- [x] Task 5: verify + ship (AC: 6)
+  - [x] `pnpm gates` green; dev-server smoke of `/sitemap.xml` and `/robots.txt` (valid XML, expected
         directives), result noted in Dev Agent Record.
-  - [ ] Branch `feature/epic-34-story-1-sitemap-robots` from `develop`, PR to `develop` (Gitflow).
+  - [x] Branch `feature/epic-34-story-1-sitemap-robots` from `develop`, PR to `develop` (Gitflow).
 
 ## Dev Notes
 
@@ -206,14 +206,41 @@ stale slugs).
 
 ### Agent Model Used
 
+claude-opus-4-8 (1M context)
+
 ### Debug Log References
+
+- Dev-server smoke (API not running, so dynamic sections degraded to empty - proves AC4 live):
+  - `GET /robots.txt` -> valid text: `User-Agent: *`, `Allow: /`, the 10 `Disallow` rules, and
+    `Sitemap: http://localhost:3000/sitemap.xml`.
+  - `GET /sitemap.xml` -> valid XML `<urlset>`, 14 `<url>` entries (all static routes), **0** forbidden
+    URLs (`grep -cE '/admin|/compte|/connexion|/inscription'` = 0), 1 `Sitemap` line.
 
 ### Completion Notes List
 
+- Implemented per spec, no deviations from the story's own Dev Notes decisions:
+  - `lastModified` set on posts only (`publishedAtIso`), omitted on events/games (no honest timestamp).
+  - Events keyed by `id` (`/evenements/{id}`); canonical slug question deferred to 34.2.
+  - robots.txt disallows only crawl-worthless zones; `/joueurs`, `/streams`, `/evenements/*/resultats`
+    left crawlable so their meta noindex is honored.
+- Task 3: extracted `slugify` to `src/features/weekly-runs/slugify.ts`, reused in both
+  `weekly-run-game-client.tsx` and `sitemap.ts` so the sitemap slug can never drift from the page slug.
+- `pnpm gates` green (typecheck, lint, jest, build). 9 new tests (sitemap 6, robots 3). The pre-existing
+  `react-hooks/exhaustive-deps` warning in `admin-content-dashboard.tsx` is untouched by this story
+  (not one of the changed files) and `pnpm lint` exits 0.
+
 ### File List
+
+- `frontend/src/app/sitemap.ts` (new)
+- `frontend/src/app/robots.ts` (new)
+- `frontend/src/app/sitemap.test.ts` (new)
+- `frontend/src/app/robots.test.ts` (new)
+- `frontend/src/features/weekly-runs/slugify.ts` (new)
+- `frontend/src/features/weekly-runs/weekly-run-game-client.tsx` (edit: use extracted slugify)
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-07-08 | Story created from epic 34 (first story). Context grounded in a code-level exploration: exact fetcher contracts, Next 16.2.10 metadata-route shapes, MSW test pattern, robots-vs-noindex subtlety, event id/slug tension deferred to 34.2, lastModified restricted to real dates. Status: ready-for-dev. |
+| 2026-07-15 | Implemented: `sitemap.ts`, `robots.ts`, extracted shared `slugify`, co-located MSW tests. `pnpm gates` green + dev-server smoke. Status: done. |
