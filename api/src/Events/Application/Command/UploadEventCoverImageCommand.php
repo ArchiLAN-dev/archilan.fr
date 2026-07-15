@@ -6,6 +6,7 @@ namespace App\Events\Application\Command;
 
 use App\Events\Application\Service\AdminEventDrafts;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 
@@ -16,7 +17,7 @@ final readonly class UploadEventCoverImageCommand
         private MinioStorageInterface $minioStorage,
         private AdminEventDrafts $adminEventDrafts,
         private ClockInterface $clock,
-        private string $minioMediaBucket,
+        private PublicMediaUrlResolver $publicMedia,
     ) {
     }
 
@@ -31,7 +32,7 @@ final readonly class UploadEventCoverImageCommand
         }
 
         try {
-            $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
+            $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
         } catch (\Throwable) {
             return ['outcome' => 'storage_error', 'data' => null];
         }

@@ -44,7 +44,7 @@ final class AdminEventCoverImageTest extends FunctionalTestCase
         unlink($tmpFile);
 
         $expectedKey = sprintf('events/%s/cover.jpg', $eventId);
-        self::assertTrue($this->minioStorage->exists('media', $expectedKey), 'Cover image should be stored in MinIO');
+        self::assertTrue($this->minioStorage->exists('media-public', $expectedKey), 'Cover image should be stored in the public MinIO bucket');
 
         $event = $this->entityManager->find(Event::class, $eventId);
         self::assertInstanceOf(Event::class, $event);

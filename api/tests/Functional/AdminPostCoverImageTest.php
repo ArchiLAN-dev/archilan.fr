@@ -44,7 +44,7 @@ final class AdminPostCoverImageTest extends FunctionalTestCase
         unlink($tmpFile);
 
         $expectedKey = sprintf('posts/%s/cover.jpg', $postId);
-        self::assertTrue($this->minioStorage->exists('media', $expectedKey), 'Cover image should be stored in MinIO');
+        self::assertTrue($this->minioStorage->exists('media-public', $expectedKey), 'Cover image should be stored in the public MinIO bucket');
 
         $post = $this->entityManager->find(Post::class, $postId);
         self::assertInstanceOf(Post::class, $post);

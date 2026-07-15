@@ -7,6 +7,7 @@ namespace App\Content\Application\Command;
 use App\Content\Application\Service\AdminPostCatalog;
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 
@@ -17,7 +18,7 @@ final readonly class UploadPostCoverImageCommand
         private MinioStorageInterface $minioStorage,
         private AdminPostCatalog $adminPostCatalog,
         private ClockInterface $clock,
-        private string $minioMediaBucket,
+        private PublicMediaUrlResolver $publicMedia,
     ) {
     }
 
@@ -33,7 +34,7 @@ final readonly class UploadPostCoverImageCommand
         }
 
         try {
-            $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
+            $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
         } catch (\Throwable) {
             return ['outcome' => 'storage_error', 'data' => null];
         }

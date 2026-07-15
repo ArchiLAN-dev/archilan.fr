@@ -8,7 +8,7 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Payments\Application\Support\HelloAssoConfig;
 use App\Registrations\Application\Query\RegistrationCounter;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
 use Psr\Clock\ClockInterface;
 
 final readonly class PublicEventCatalog
@@ -17,10 +17,8 @@ final readonly class PublicEventCatalog
         private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private HelloAssoConfig $helloAssoConfig,
-        private MinioStorageInterface $minioStorage,
+        private PublicMediaUrlResolver $publicMedia,
         private ClockInterface $clock,
-        private string $minioMediaBucket,
-        private int $minioPresignTtl,
     ) {
     }
 
@@ -89,7 +87,7 @@ final readonly class PublicEventCatalog
     {
         $key = $event->getCoverImageKey();
         if (null !== $key) {
-            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+            return $this->publicMedia->resolve($key);
         }
 
         return $event->getCoverImageUrl();
@@ -103,7 +101,7 @@ final readonly class PublicEventCatalog
         $result = [];
         foreach ($event->getPhotoGallery() as $item) {
             if ('upload' === $item['source']) {
-                $result[] = $this->minioStorage->presignedUrl($this->minioMediaBucket, $item['key'] ?? '', $this->minioPresignTtl);
+                $result[] = $this->publicMedia->resolve($item['key'] ?? '');
             } else {
                 $result[] = $item['url'] ?? '';
             }

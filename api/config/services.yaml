@@ -10,6 +10,7 @@ parameters:
     default_minio_apworlds_bucket: 'apworlds'
     default_minio_saves_bucket: 'archipelago-saves'
     default_minio_media_bucket: 'media'
+    default_minio_public_media_bucket: 'media-public'
     default_minio_sessions_bucket: 'sessions'
     default_minio_presign_ttl: 3600
     default_minio_endpoint: 'http://localhost:9000'
@@ -42,6 +43,8 @@ services:
             string $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             string $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
+            string $minioPublicMediaBucket: '%env(default:default_minio_public_media_bucket:MINIO_BUCKET_MEDIA_PUBLIC)%'
+            string $publicMediaBaseUrl: '%env(default:default_empty_string:MINIO_PUBLIC_MEDIA_BASE_URL)%'
             string $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
             int $escalationThreshold: '%env(default:default_moderation_escalation_threshold:int:MODERATION_ESCALATION_THRESHOLD)%'
