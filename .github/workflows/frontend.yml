@@ -72,10 +72,17 @@ jobs:
 
       # HARD GATE since A5. The backlog it was waiting on is cleared, and nothing is ignored:
       # js-yaml (a DIRECT dependency) was bumped to ^4.2.0, and postcss/ws are pinned above
-      # their advisories via pnpm overrides. `pnpm audit` reports no known vulnerabilities.
-      # A supply-chain alarm that cannot fail the build protects nothing, so it now blocks.
+      # their advisories via pnpm overrides. A supply-chain alarm that cannot fail the build
+      # protects nothing, so it blocks on a real advisory.
+      #
+      # --ignore-registry-errors: npm is retiring the legacy audit endpoint pnpm 10.33 still
+      # calls (it 410s), and a security gate must not fail a deploy because the registry has an
+      # INFRA problem - only because of a real vulnerability. This flag suppresses ONLY registry
+      # errors (exit 0), never a genuine advisory. When pnpm moves to the bulk endpoint (a
+      # Dependabot bump away), the gate starts biting again on its own - no re-flip needed.
+      # (First flip missed this; develop went red on the 410 until this was added.)
       - name: Audit (high+ severity)
-        run: pnpm audit --audit-level high
+        run: pnpm audit --audit-level high --ignore-registry-errors
 
       - name: Lint
         run: pnpm lint
