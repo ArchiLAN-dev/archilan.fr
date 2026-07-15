@@ -153,6 +153,12 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
       />
 
       <article className="mx-auto w-full max-w-7xl grid gap-12">
+        <Link
+          className="inline-flex w-fit items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+          href="/evenements"
+        >
+          &larr; Tous les événements
+        </Link>
         <header className="grid gap-6 border-b border-border pb-10">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -288,12 +294,11 @@ function EventCheckoutUnavailable({ eventId }: { eventId: string }) {
 
 function EventHeroImage({ event }: { event: PublicEvent }) {
   return (
-    <section aria-label="Image de couverture de l'événement" className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
+    <section className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
       <div className="relative aspect-[21/9] min-h-56 bg-surface">
         {event.coverImageUrl ? (
           <Image
-            alt=""
-            aria-hidden="true"
+            alt={`Événement Archipelago ArchiLAN : ${event.title}`}
             className="object-cover"
             fill
             priority

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, Clock } from "lucide-react";
 import { env } from "@/lib/env";
@@ -119,6 +120,13 @@ export default async function PostPage({ params }: PostPageProps) {
           )}
         </div>
 
+        <Link
+          className="inline-flex w-fit items-center border-t border-border pt-6 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          href="/actualites"
+        >
+          &larr; Toutes les actualités
+        </Link>
+
       </article>
     </>
   );
@@ -146,11 +154,10 @@ function getPostStructuredData(post: PublicPost, canonicalUrl: string) {
 
 function PostHeroImage({ post }: { post: PublicPost }) {
   return (
-    <section aria-label="Image de couverture de l'article" className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
+    <section className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
       <div className="relative aspect-[21/9] min-h-56 bg-surface">
         <Image
-          alt=""
-          aria-hidden="true"
+          alt={`Illustration de l'article : ${post.title}`}
           className="object-cover"
           fill
           priority
