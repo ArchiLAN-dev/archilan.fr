@@ -6,6 +6,10 @@ function requireString(name: string, raw: string | undefined): string {
   return raw.trim();
 }
 
+function optionalString(raw: string | undefined): string {
+  return (raw ?? "").trim();
+}
+
 function requireUrl(name: string, raw: string | undefined, defaultValue: string): string {
   const value = (raw ?? defaultValue).trim().replace(/\/$/, "");
 
@@ -48,4 +52,7 @@ export const env = {
     process.env.NEXT_PUBLIC_ARCHILAN_DISCORD_URL,
     "https://discord.gg/bVGmDcv2dE",
   ),
+  // Google Search Console HTML-tag verification token. Empty by default (no tag rendered);
+  // set it to verify via the meta-tag method without a code change.
+  gscVerification: optionalString(process.env.NEXT_PUBLIC_GSC_VERIFICATION),
 } as const;

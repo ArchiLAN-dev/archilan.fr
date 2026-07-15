@@ -1,0 +1,46 @@
+name: Lighthouse (advisory)
+
+# Advisory only: manual dispatch, never a required check, and every assertion is warn-level.
+# It measures the home page's shell (no API in CI, so events degrade gracefully to empty).
+# The event-detail page + full mobile before/after run on a deployed environment - see
+# docs/seo-measurement.md.
+on:
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: '10'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN: test-channel
+
+      # continue-on-error keeps this strictly advisory: it surfaces the report link and scores
+      # but can never fail the workflow (which is not a required check anyway).
+      - name: Run Lighthouse CI
+        continue-on-error: true
+        run: pnpm dlx @lhci/cli@0.15.x autorun
+        env:
+          NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN: test-channel

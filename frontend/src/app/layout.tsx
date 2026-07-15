@@ -41,6 +41,8 @@ export const metadata: Metadata = {
     description:
       "ArchiLAN organise des événements Archipelago en France - LAN parties coopératives, multiworld randomizer, communauté gaming.",
   },
+  // Google Search Console meta-tag verification, only when the token env is set.
+  ...(env.gscVerification ? { verification: { google: env.gscVerification } } : {}),
 };
 
 export default function RootLayout({
