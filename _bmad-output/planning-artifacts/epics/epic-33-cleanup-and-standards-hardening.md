@@ -306,7 +306,14 @@ Grouped into (a) new quality tooling, (b) sized code-quality debt already enumer
   validator tests green unchanged; the self-match workarounds deleted, not kept.
   *Story: `implementation-artifacts/33-23-validator-tokenizer.md` (ready-for-dev).*
 
-- **33.24 - Infection: explain the 141 timeouts, set a defensible MSI floor (api/). [M, Should]**
+- **33.24 - Infection: explain the timeouts, set a floor - or retire it (api/). [M, Should] [DONE: retired]**
+  Verdict: **retired**. Investigation (pcov container, story record) found Infection measures nothing on this
+  codebase - with PHPUnit 13.1 (33.9) it hangs the per-mutant process, so 523/523 mutants time out and the MSI
+  is fabricated entirely from timeouts (a timeout counts as "detected"). Not fixable here (upstream PHPUnit-13
+  gap), not flippable (the number is fiction). CI step, config, dev dep and script removed; the unit/functional
+  testsuite split it introduced is kept on its own merit. Re-adopt via a fresh story when Infection supports
+  PHPUnit 13.
+  ~~Original:~~ explain the 141 timeouts, set a defensible MSI floor. [M, Should]
   Created by retro action **A5**. Three of the four advisory CI checks were flipped to hard gates on 2026-07-14
   (Rector - clean since 33.14/33.20 and now a 5th leg of `composer gates`; `composer audit` - no advisories;
   `pnpm audit` - js-yaml bumped, postcss/ws pinned via overrides, nothing ignored). **Infection could not be**,

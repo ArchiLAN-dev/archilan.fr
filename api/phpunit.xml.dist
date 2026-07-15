@@ -17,8 +17,10 @@
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 
-    <!-- Split so mutation testing (Infection, story 33.12) can target the fast, DB-free unit suite.
-         Running with no testsuite arg runs both = the whole suite, exactly as before (no overlap). -->
+    <!-- unit = fast, DB-free; functional = WebTestCase + DB. Introduced by 33.12 (for Infection,
+         retired in 33.24) but kept on its own merit: the "unit" testsuite gives a quick DB-free
+         run, and the split is independent of any tool. No testsuite arg runs both = the whole
+         suite, exactly as before (no overlap). -->
     <testsuites>
         <testsuite name="unit">
             <directory>tests/Unit</directory>
