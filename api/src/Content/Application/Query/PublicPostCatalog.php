@@ -6,15 +6,13 @@ namespace App\Content\Application\Query;
 
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
 
 final readonly class PublicPostCatalog
 {
     public function __construct(
         private PostRepositoryInterface $postRepository,
-        private MinioStorageInterface $minioStorage,
-        private string $minioMediaBucket,
-        private int $minioPresignTtl,
+        private PublicMediaUrlResolver $publicMedia,
     ) {
     }
 
@@ -64,7 +62,7 @@ final readonly class PublicPostCatalog
     {
         $key = $post->getCoverImageKey();
         if (null !== $key) {
-            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+            return $this->publicMedia->resolve($key);
         }
 
         return $post->getCoverImageUrl();

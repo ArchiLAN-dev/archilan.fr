@@ -6,7 +6,7 @@ namespace App\Content\Application\Service;
 
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 final readonly class AdminPostCatalog
@@ -15,9 +15,7 @@ final readonly class AdminPostCatalog
 
     public function __construct(
         private PostRepositoryInterface $postRepository,
-        private MinioStorageInterface $minioStorage,
-        private string $minioMediaBucket,
-        private int $minioPresignTtl,
+        private PublicMediaUrlResolver $publicMedia,
     ) {
     }
 
@@ -177,7 +175,7 @@ final readonly class AdminPostCatalog
     {
         $key = $post->getCoverImageKey();
         if (null !== $key) {
-            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+            return $this->publicMedia->resolve($key);
         }
 
         return $post->getCoverImageUrl();

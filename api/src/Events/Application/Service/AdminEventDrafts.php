@@ -9,7 +9,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Events\Presentation\Controller\AdminEventGalleryController;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Registrations\Application\Query\RegistrationCounter;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -19,10 +19,8 @@ final readonly class AdminEventDrafts
         private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
         private LoggerInterface $logger,
-        private MinioStorageInterface $minioStorage,
+        private PublicMediaUrlResolver $publicMedia,
         private ClockInterface $clock,
-        private string $minioMediaBucket,
-        private int $minioPresignTtl,
     ) {
     }
 
@@ -386,7 +384,7 @@ final readonly class AdminEventDrafts
     {
         $key = $event->getCoverImageKey();
         if (null !== $key) {
-            return $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl);
+            return $this->publicMedia->resolve($key);
         }
 
         return $event->getCoverImageUrl();
@@ -400,7 +398,7 @@ final readonly class AdminEventDrafts
         $result = [];
         foreach ($event->getPhotoGallery() as $item) {
             if ('upload' === $item['source']) {
-                $result[] = $this->minioStorage->presignedUrl($this->minioMediaBucket, $item['key'] ?? '', $this->minioPresignTtl);
+                $result[] = $this->publicMedia->resolve($item['key'] ?? '');
             } else {
                 $result[] = $item['url'] ?? '';
             }
@@ -442,8 +440,9 @@ final readonly class AdminEventDrafts
      * the URL is not one of our managed gallery objects.
      *
      * Matches the stable key layout produced by AdminEventGalleryController
-     * (events/{eventId}/gallery/{file}) on the URL path only, ignoring the
-     * presign query string and host.
+     * (events/{eventId}/gallery/{file}) at the end of the URL path, ignoring the
+     * presign query string, the host, and whichever prefix precedes it (the media
+     * or media-public bucket, or a CDN base with no bucket segment at all).
      */
     private function extractMediaObjectKey(string $url): ?string
     {
@@ -452,18 +451,11 @@ final readonly class AdminEventDrafts
             return null;
         }
 
-        $prefix = '/'.$this->minioMediaBucket.'/';
-        if (!str_starts_with($path, $prefix)) {
+        if (1 !== preg_match('#(events/[^/]+/gallery/[^/]+)$#', $path, $matches)) {
             return null;
         }
 
-        $key = rawurldecode(substr($path, strlen($prefix)));
-
-        if (1 !== preg_match('#^events/[^/]+/gallery/[^/]+$#', $key)) {
-            return null;
-        }
-
-        return $key;
+        return rawurldecode($matches[1]);
     }
 
     /**

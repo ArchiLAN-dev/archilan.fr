@@ -56,7 +56,7 @@ final class AdminEventGalleryTest extends FunctionalTestCase
         $item = $event->getPhotoGallery()[0];
         self::assertSame('upload', $item['source']);
         self::assertStringStartsWith(sprintf('events/%s/gallery/', $eventId), $item['key'] ?? '');
-        self::assertTrue($this->minioStorage->exists('media', $item['key'] ?? ''));
+        self::assertTrue($this->minioStorage->exists('media-public', $item['key'] ?? ''));
     }
 
     public function testUploadInvalidMimeReturns422(): void
