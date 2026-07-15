@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Conditions Générales de Vente",
   description:
     "Conditions générales de vente applicables aux achats et cotisations ArchiLAN.",
-  robots: { index: true, follow: true },
-};
+  path: "/cgv",
+});
 
 export default function CgvPage() {
   return (

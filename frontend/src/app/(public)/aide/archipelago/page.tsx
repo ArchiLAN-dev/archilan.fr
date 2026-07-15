@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import { Download, ExternalLink } from "lucide-react";
 
 import { getArchipelagoClient } from "@/features/games/archipelago-client-api";
@@ -7,14 +7,11 @@ import { InstallStepsView } from "@/features/games/install-steps-view";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Installer Archipelago",
   description: "Le guide pour installer le client Archipelago et préparer ta première partie multiworld.",
-  openGraph: {
-    title: "Installer Archipelago | ArchiLAN",
-    description: "Le guide pour installer le client Archipelago et préparer ta première partie multiworld.",
-  },
-};
+  path: "/aide/archipelago",
+});
 
 export default async function ArchipelagoGuidePage() {
   const [steps, client] = await Promise.all([getArchipelagoGuide(), getArchipelagoClient()]);

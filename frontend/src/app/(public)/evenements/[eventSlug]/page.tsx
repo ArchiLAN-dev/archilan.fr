@@ -89,7 +89,9 @@ export async function generateMetadata({ params }: EventDetailPageProps): Promis
     };
   }
 
-  const canonicalPath = `/evenements/${event.id}`;
+  // Canonical uses the visited route param (locked decision: slug is the canonical
+  // identity, never a DB id). PublicEvent has no separate slug field, so eventSlug IS it.
+  const canonicalPath = `/evenements/${eventSlug}`;
   const description = event.description;
 
   return {
@@ -134,7 +136,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
     if (!status.cta || status.cta.href === "inscription") return undefined;
     return { ...status.cta, href: status.cta.href };
   })();
-  const canonicalUrl = new URL(`/evenements/${event.id}`, env.appUrl).toString();
+  const canonicalUrl = new URL(`/evenements/${eventSlug}`, env.appUrl).toString();
   const structuredData = getEventStructuredData(event, canonicalUrl);
 
   return (

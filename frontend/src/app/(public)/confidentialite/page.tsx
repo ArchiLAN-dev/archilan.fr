@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Politique de confidentialité",
   description:
     "Politique de confidentialité et traitement des données personnelles - ArchiLAN.",
-  robots: { index: true, follow: true },
-};
+  path: "/confidentialite",
+});
 
 export default function ConfidentialitePage() {
   return (

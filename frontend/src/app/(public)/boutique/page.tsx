@@ -1,14 +1,15 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { getShopCheckoutUrl } from "@/features/payments/shop-api";
 import { ShopCheckout } from "@/features/payments/shop-checkout";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Boutique",
   description:
     "Commande des articles ArchiLAN via HelloAsso - sweats, stickers, et autres produits officiels.",
-};
+  path: "/boutique",
+});
 
 export default async function BoutiquePage() {
   const checkoutEmbedUrl = await getShopCheckoutUrl();

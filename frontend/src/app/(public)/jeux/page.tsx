@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
 import { GamesCatalog } from "@/features/games/games-catalog";
 import { getAllPublicGames } from "@/features/games/public-games-api";
@@ -7,13 +7,11 @@ import { GameContributionForm } from "@/features/games/game-contribution-form";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Jeux",
   description: "Bibliothèque de jeux Archipelago supportés par ArchiLAN.",
-  openGraph: {
-    title: "Jeux",
-  },
-};
+  path: "/jeux",
+});
 
 export default async function GamesPage() {
   const games = await getAllPublicGames();

@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Conditions Générales d'Utilisation",
   description:
     "Conditions générales d'utilisation du site et des services ArchiLAN.",
-  robots: { index: true, follow: true },
-};
+  path: "/cgu",
+});
 
 export default function CguPage() {
   return (

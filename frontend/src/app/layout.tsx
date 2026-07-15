@@ -30,6 +30,14 @@ export const metadata: Metadata = {
       },
     ],
   },
+  // Pages that never declare their own `twitter` inherit these defaults (metadata
+  // merges shallowly per field); pages built via buildPageMetadata override them.
+  twitter: {
+    card: "summary_large_image",
+    title: "ArchiLAN - LAN Randomizer Multiworld",
+    description:
+      "ArchiLAN organise des événements Archipelago en France - LAN parties coopératives, multiworld randomizer, communauté gaming.",
+  },
 };
 
 export default function RootLayout({
