@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, MapPin, RefreshCw, Trophy, Users } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { externalLinks } from "@/lib/external-links";
 import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/events/event-types";
 import { getPublicEvent } from "@/features/events/public-events-api";
@@ -141,14 +143,13 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
 
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-            .replace(/</g, "\\u003c")
-            .replace(/>/g, "\\u003e")
-            .replace(/&/g, "\\u0026"),
-        }}
-        type="application/ld+json"
+      <JsonLd data={structuredData} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Accueil", path: "/" },
+          { name: "Événements", path: "/evenements" },
+          { name: event.title, path: `/evenements/${eventSlug}` },
+        ])}
       />
 
       <article className="mx-auto w-full max-w-7xl grid gap-12">
@@ -409,6 +410,20 @@ function getEventStructuredData(event: PublicEvent, canonicalUrl: string) {
       name: "ArchiLAN",
       url: env.appUrl,
     },
+    // Ticketing applies iff a HelloAsso checkout is attached. The public payload has no
+    // price, so the Offer carries url + availability only (no fabricated price).
+    ...(event.checkoutEmbedUrl
+      ? {
+          offers: {
+            "@type": "Offer",
+            url: canonicalUrl,
+            availability:
+              event.capacity && event.capacity.remaining <= 0
+                ? "https://schema.org/SoldOut"
+                : "https://schema.org/InStock",
+          },
+        }
+      : {}),
     ...(event.coverImageUrl ? { image: event.coverImageUrl } : {}),
   };
 }

@@ -3,6 +3,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { CalendarDays, Clock } from "lucide-react";
 import { env } from "@/lib/env";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, publisherRef } from "@/lib/structured-data";
 import type { PublicPost, PublicPostType } from "@/features/content/content-types";
 import { getPostTypeLabel } from "@/features/content/mock-posts";
 import { getPublicPostBySlugFromApi } from "@/features/content/public-posts-api";
@@ -70,14 +72,13 @@ export default async function PostPage({ params }: PostPageProps) {
 
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-            .replace(/</g, "\\u003c")
-            .replace(/>/g, "\\u003e")
-            .replace(/&/g, "\\u0026"),
-        }}
-        type="application/ld+json"
+      <JsonLd data={structuredData} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Accueil", path: "/" },
+          { name: "Actualités", path: "/actualites" },
+          { name: post.title, path: `/actualites/${post.slug}` },
+        ])}
       />
 
       <article className="mx-auto grid max-w-3xl gap-8">
@@ -131,11 +132,14 @@ function getPostStructuredData(post: PublicPost, canonicalUrl: string) {
     description: post.excerpt,
     url: canonicalUrl,
     datePublished: post.publishedAtIso,
+    // No public updatedAt exists; an unmodified article's dateModified == its publish date.
+    dateModified: post.publishedAtIso,
     author: {
       "@type": "Organization",
       name: "ArchiLAN",
       url: env.appUrl,
     },
+    publisher: publisherRef(),
     ...(post.coverImageUrl ? { image: post.coverImageUrl } : {}),
   };
 }
