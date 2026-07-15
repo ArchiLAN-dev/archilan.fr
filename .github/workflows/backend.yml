@@ -128,27 +128,17 @@ jobs:
         run: |
           php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
-      # ADVISORY, and honestly so. This step cannot fail: --min-msi=0, `|| true` AND
-      # continue-on-error. It reports; it does not gate.
-      #
-      # It stays that way ON PURPOSE, and NOT "until the floor is tuned" - that promise sat here
-      # unowned since 33.12 and was going to sit here forever (epic-33 retro, action A5). The real
-      # blocker is concrete and unresolved: the 33.12 baseline was MSI 72% with **141 timeouts**
-      # (30s each), and nobody knows whether those are legitimately-surviving mutants or an
-      # Infection/pcov configuration problem. Raising --min-msi on top of 141 unexplained timeouts
-      # would gate the build on a number nobody trusts.
-      #
-      # Condition to flip, written down so it can actually be met: story 33.24 investigates the
-      # timeouts and sets a defensible floor. Until that story lands, this is a report, and the
-      # comment says so.
-      - name: Mutation testing (advisory - reports, does not gate)
-        continue-on-error: true
-        run: |
-          git fetch --no-tags --depth=1 origin develop || true
-          php -d pcov.enabled=1 vendor/bin/infection \
-            --git-diff-lines --git-diff-base=origin/develop \
-            --threads=max --no-progress --no-interaction \
-            --min-msi=0 --min-covered-msi=0 --logger-github || true
+      # Mutation testing (Infection) was RETIRED in story 33.24. Investigation found it measured
+      # nothing on this codebase: with PHPUnit 13.1 (migrated in 33.9), Infection 0.34 - documented
+      # against PHPUnit 10/11 - hangs the per-mutant test process, so EVERY mutant times out
+      # (523/523 on the Community context; persists at 1 thread, a 120s timeout, and
+      # --only-covering-test-cases). Infection counts a timeout as "detected", so the MSI it printed
+      # (33.12's 72%, 100% on re-measure) was fabricated entirely from timeouts - not one mutant was
+      # killed by a test. An advisory step that reports a fictional number and burns CI minutes is
+      # the exact "reports into a void" A5 set out to end, so it is gone: config, dev dependency and
+      # this step. Re-adopt with a fresh story when Infection ships PHPUnit 13 support (the
+      # unit/functional testsuite split it introduced is independent and stays). Full evidence:
+      # implementation-artifacts/33-24-infection-timeouts-and-msi-floor.md.
 
       # HARD GATE since A5, and now also a leg of `composer gates` (local/CI parity, story 33.1).
       # It was advisory from 33.13 until the baseline proved it stays clean between stories -
