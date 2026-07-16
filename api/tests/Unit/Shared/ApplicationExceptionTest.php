@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Shared;
 
 use App\Shared\Application\Exception\ApplicationFailure;
 use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Exception\ValidationException;
@@ -36,6 +37,15 @@ final class ApplicationExceptionTest extends TestCase
     {
         self::assertSame(409, new ConflictException('Doublon.')->statusCode());
         self::assertSame('conflict', new ConflictException('Doublon.')->errorCode());
+    }
+
+    public function testForbiddenMapsTo403(): void
+    {
+        $e = new ForbiddenException('Accès refusé.');
+
+        self::assertInstanceOf(ApplicationFailure::class, $e);
+        self::assertSame(403, $e->statusCode());
+        self::assertSame('forbidden', $e->errorCode());
     }
 
     public function testValidationMapsTo422AndCarriesTheFieldMap(): void

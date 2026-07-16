@@ -12,6 +12,10 @@ use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Command\ForceEndSessionCommand;
 use App\Sessions\Domain\Exception\SessionNotFoundException;
 use App\Sessions\Domain\Exception\SessionNotRunningException;
+use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\ForbiddenException;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -27,32 +31,36 @@ final readonly class PersonalRunLifecycle
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
+     * @return array{runId: string, status: string}
+     *
+     * @throws NotFoundException   when the run does not exist
+     * @throws ForbiddenException  when the caller does not own the run
+     * @throws ValidationException when the run cannot be started in its current state
      */
     public function start(string $runId, string $callerId): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return $this->result(found: false);
+            throw new NotFoundException('Run introuvable.');
         }
 
         if (!$run->isOwnedBy($callerId)) {
-            return $this->result(found: true, authorized: false);
+            throw new ForbiddenException('Accès refusé.');
         }
 
         if (in_array($run->getStatus(), Run::ACTIVE_STATUSES, true)) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_already_active');
+            throw new ValidationException('Démarrage impossible dans l\'état actuel.', [], 'run_already_active');
         }
 
         $startableStatuses = [Run::STATUS_DRAFT, Run::STATUS_IDLE];
         if (!in_array($run->getStatus(), $startableStatuses, true)) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_not_startable');
+            throw new ValidationException('Démarrage impossible dans l\'état actuel.', [], 'run_not_startable');
         }
 
         $participants = $this->participants->findByRunId($run->getId());
         $anyHasSlots = array_any($participants, fn ($participant) => $participant->hasSlots());
         if (!$anyHasSlots) {
-            return $this->result(found: true, blocked: true, blockReason: 'games_required');
+            throw new ValidationException('Démarrage impossible dans l\'état actuel.', [], 'games_required');
         }
 
         $run->start($this->clock->now());
@@ -60,25 +68,29 @@ final readonly class PersonalRunLifecycle
 
         $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId()));
 
-        return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
+        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
+     * @return array{runId: string, status: string}
+     *
+     * @throws NotFoundException   when the run does not exist
+     * @throws ForbiddenException  when the caller does not own the run
+     * @throws ValidationException when the run is not active
      */
     public function stop(string $runId, string $callerId): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return $this->result(found: false);
+            throw new NotFoundException('Run introuvable.');
         }
 
         if (!$run->isOwnedBy($callerId)) {
-            return $this->result(found: true, authorized: false);
+            throw new ForbiddenException('Accès refusé.');
         }
 
         if (Run::STATUS_ACTIVE !== $run->getStatus()) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+            throw new ValidationException('Arrêt impossible dans l\'état actuel.', [], 'run_not_active');
         }
 
         $run->stop($this->clock->now());
@@ -86,47 +98,53 @@ final readonly class PersonalRunLifecycle
 
         $this->messageBus->dispatch(new StopPersonalRunJob($run->getId()));
 
-        return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
+        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
+     * @return array{runId: string, status: string}
+     *
+     * @throws NotFoundException   when the run does not exist
+     * @throws ValidationException when the run is not in the starting state
      */
     public function markRunning(string $runId, string $host, int $port): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return $this->result(found: false);
+            throw new NotFoundException('Run introuvable.');
         }
 
         if (Run::STATUS_STARTING !== $run->getStatus()) {
-            return $this->result(found: true, blocked: true, blockReason: 'invalid_run_status');
+            throw new ValidationException('Transition de run invalide.', [], 'invalid_run_status');
         }
 
         $run->markRunning($host, $port, $this->clock->now());
         $this->runs->flush();
 
-        return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
+        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
     }
 
     /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
+     * @return array{runId: string, status: string}
+     *
+     * @throws NotFoundException   when the run does not exist
+     * @throws ValidationException when the run is not in the stopping state
      */
     public function markStopped(string $runId): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return $this->result(found: false);
+            throw new NotFoundException('Run introuvable.');
         }
 
         if (Run::STATUS_STOPPING !== $run->getStatus()) {
-            return $this->result(found: true, blocked: true, blockReason: 'invalid_run_status');
+            throw new ValidationException('Transition de run invalide.', [], 'invalid_run_status');
         }
 
         $run->markStopped($this->clock->now());
         $this->runs->flush();
 
-        return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
+        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
     }
 
     /**
@@ -134,26 +152,30 @@ final readonly class PersonalRunLifecycle
      * finished, stop the runner, dispatch the archive job that snapshots the bridge's real goal/check
      * state). Reuses the force-end mechanism rather than duplicating it.
      *
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
+     * @return array{runId: string, status: string}
+     *
+     * @throws NotFoundException  when the run does not exist
+     * @throws ForbiddenException when the caller does not own the run
+     * @throws ConflictException  when the run cannot be finished in its current state
      */
     public function finish(string $runId, string $callerId): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return $this->result(found: false);
+            throw new NotFoundException('Run introuvable.');
         }
 
         if (!$run->isOwnedBy($callerId)) {
-            return $this->result(found: true, authorized: false);
+            throw new ForbiddenException('Accès refusé.');
         }
 
         if (Run::STATUS_ACTIVE !== $run->getStatus()) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+            throw new ConflictException('Impossible de terminer la run dans son état actuel.', 'run_not_active');
         }
 
         $sessionId = $run->getSessionId();
         if (null === $sessionId) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+            throw new ConflictException('Impossible de terminer la run dans son état actuel.', 'run_not_active');
         }
 
         // Finalize the session first so a session that is no longer running blocks the finish (and we
@@ -161,33 +183,12 @@ final readonly class PersonalRunLifecycle
         try {
             $this->forceEndSession->execute($sessionId, $callerId);
         } catch (SessionNotFoundException|SessionNotRunningException) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_not_active');
+            throw new ConflictException('Impossible de terminer la run dans son état actuel.', 'run_not_active');
         }
 
         $run->complete($this->clock->now());
         $this->runs->flush();
 
-        return $this->result(found: true, runId: $run->getId(), status: $run->getStatus());
-    }
-
-    /**
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, runId: string|null, status: string|null}
-     */
-    private function result(
-        bool $found = false,
-        bool $authorized = true,
-        bool $blocked = false,
-        ?string $blockReason = null,
-        ?string $runId = null,
-        ?string $status = null,
-    ): array {
-        return [
-            'found' => $found,
-            'authorized' => $authorized,
-            'blocked' => $blocked,
-            'blockReason' => $blockReason,
-            'runId' => $runId,
-            'status' => $status,
-        ];
+        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
     }
 }
