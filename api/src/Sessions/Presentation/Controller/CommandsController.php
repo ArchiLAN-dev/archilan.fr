@@ -35,19 +35,9 @@ final readonly class CommandsController
             return $this->apiAccessGuard->errorResponse('invalid_command', 'La commande est requise.', 422);
         }
 
-        $result = $this->sendBridgeCommand->execute($id, $command, $user->getId());
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
-        }
-
-        if ('session_not_running' === $result['error']) {
-            return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
-        }
-
-        if ('bridge_unavailable' === $result['error']) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
-        }
+        // Failures (session missing, not running, bridge down) are thrown as typed ApplicationFailures
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $this->sendBridgeCommand->execute($id, $command, $user->getId());
 
         return new JsonResponse(['data' => ['ok' => true]]);
     }

@@ -10,6 +10,9 @@ use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -26,24 +29,26 @@ final readonly class SendBridgeCommand
     }
 
     /**
-     * @return array{found: bool, error: string|null}
+     * @throws NotFoundException           when the session does not exist
+     * @throws ConflictException           when the session is not running
+     * @throws ServiceUnavailableException when the bridge cannot be reached
      */
-    public function execute(string $sessionId, string $command, string $actorId): array
+    public function execute(string $sessionId, string $command, string $actorId): void
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {
-            return ['found' => false, 'error' => null];
+            throw new NotFoundException('Session introuvable.');
         }
 
         if (Session::STATUS_RUNNING !== $session->getStatus()) {
-            return ['found' => true, 'error' => 'session_not_running'];
+            throw new ConflictException('La session n\'est pas en cours.', 'session_not_running');
         }
 
         $host = $this->bridgeHttpHost;
         $bridgePort = $session->getBridgePort();
 
         if (null === $bridgePort) {
-            return ['found' => true, 'error' => 'bridge_unavailable'];
+            throw new ServiceUnavailableException('Bridge non disponible.', 'bridge_unavailable');
         }
 
         $adminPassword = $session->getAdminPassword();
@@ -60,10 +65,12 @@ final readonly class SendBridgeCommand
             );
             $bridgeStatus = $bridgeResponse->getStatusCode();
             if ($bridgeStatus < 200 || $bridgeStatus >= 300) {
-                return ['found' => true, 'error' => 'bridge_unavailable'];
+                throw new ServiceUnavailableException('Bridge non disponible.', 'bridge_unavailable');
             }
+        } catch (ServiceUnavailableException $e) {
+            throw $e;
         } catch (\Throwable) {
-            return ['found' => true, 'error' => 'bridge_unavailable'];
+            throw new ServiceUnavailableException('Bridge non disponible.', 'bridge_unavailable');
         }
 
         $log = new RunAuditLog(
@@ -79,8 +86,6 @@ final readonly class SendBridgeCommand
         $this->maybeMarkSlotReleased($sessionId, $command);
 
         $this->auditLogs->flush();
-
-        return ['found' => true, 'error' => null];
     }
 
     private function maybeMarkSlotReleased(string $sessionId, string $command): void

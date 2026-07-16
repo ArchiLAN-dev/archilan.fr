@@ -28,15 +28,13 @@ final readonly class ApplicationFailureListener
             return;
         }
 
+        // `details` is always present (as []) to match ApiAccessGuard::errorResponse, the dominant error
+        // envelope - so converting an errorResponse call site to a thrown failure is byte-identical.
         $error = [
             'code' => $failure->errorCode(),
             'message' => $failure->clientMessage(),
+            'details' => $failure->details(),
         ];
-
-        $details = $failure->details();
-        if ([] !== $details) {
-            $error['details'] = $details;
-        }
 
         $event->setResponse(new JsonResponse(['error' => $error], $failure->statusCode()));
     }
