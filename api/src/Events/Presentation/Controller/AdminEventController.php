@@ -289,19 +289,9 @@ final readonly class AdminEventController
             return $admin;
         }
 
-        $result = $this->triggerHelloAssoSync->triggerForEvent($eventId);
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
-        }
-
-        if (!$result['hasFormSlug']) {
-            return $this->apiAccessGuard->errorResponse('no_form_configured', 'Aucun formulaire HelloAsso configuré pour cet événement.', 422);
-        }
-
-        if (null !== $result['configurationError']) {
-            return $this->apiAccessGuard->errorResponse('helloasso_not_configured', $result['configurationError'], 503);
-        }
+        // Failures (event missing, no form, HelloAsso not configured) are thrown as typed
+        // ApplicationFailures and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $this->triggerHelloAssoSync->triggerForEvent($eventId);
 
         return new JsonResponse(['data' => null, 'meta' => ['message' => 'Synchronisation déclenchée.']], 202);
     }

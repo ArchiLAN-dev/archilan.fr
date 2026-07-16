@@ -24,7 +24,7 @@ final class ApplicationFailureListenerTest extends TestCase
         self::assertNotNull($response);
         self::assertSame(404, $response->getStatusCode());
         self::assertSame(
-            ['error' => ['code' => 'not_found', 'message' => 'Article introuvable.']],
+            ['error' => ['code' => 'not_found', 'message' => 'Article introuvable.', 'details' => []]],
             $this->decode($response->getContent()),
         );
     }
