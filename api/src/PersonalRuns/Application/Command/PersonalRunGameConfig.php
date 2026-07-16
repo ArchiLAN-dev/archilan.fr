@@ -9,6 +9,9 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Shared\Application\Exception\ForbiddenException;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 
 final readonly class PersonalRunGameConfig
@@ -23,47 +26,45 @@ final readonly class PersonalRunGameConfig
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, errorCode: string|null, errors: array<string, list<string>>}
+     * @throws NotFoundException   when the run does not exist
+     * @throws ForbiddenException  when the caller does not own the run
+     * @throws ValidationException when the run is locked or the game list is invalid
      */
-    public function configure(string $runId, string $callerId, array $input): array
+    public function configure(string $runId, string $callerId, array $input): void
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return $this->result(found: false);
+            throw new NotFoundException('Run introuvable.');
         }
 
         if (!$run->isOwnedBy($callerId)) {
-            return $this->result(found: true, authorized: false);
+            throw new ForbiddenException('Accès refusé.');
         }
 
         // Once the run leaves draft the multiworld is generated/fixed (idle/active/... all included):
         // changing the game list would be a no-op since resume replays the existing session.
         if ($run->isLockedForEditing()) {
-            return $this->result(found: true, blocked: true, blockReason: 'run_generated');
+            throw new ValidationException('Modification impossible dans l\'état actuel.', [], 'run_generated');
         }
 
         $parseResult = $this->parseGames($input);
         if ([] !== $parseResult['errors']) {
-            return $this->result(found: true, errorCode: 'game_id_required', errors: $parseResult['errors']);
+            throw new ValidationException('Configuration de jeux invalide.', $parseResult['errors'], 'game_id_required');
         }
 
         $games = $parseResult['games'];
 
         if ([] === $games) {
-            return $this->result(found: true, errorCode: 'games_required', errors: [
-                'games' => ['Au moins un jeu est requis.'],
-            ]);
+            throw new ValidationException('Configuration de jeux invalide.', ['games' => ['Au moins un jeu est requis.']], 'games_required');
         }
 
         $errors = $this->validateGameIds($games);
         if ([] !== $errors) {
-            return $this->result(found: true, errorCode: 'unknown_game', errors: $errors);
+            throw new ValidationException('Configuration de jeux invalide.', $errors, 'unknown_game');
         }
 
         $run->configureGames($games, $this->clock->now());
         $this->runs->flush();
-
-        return $this->result(found: true);
     }
 
     /**
@@ -116,28 +117,5 @@ final readonly class PersonalRunGameConfig
         }
 
         return $errors->toArray();
-    }
-
-    /**
-     * @param array<string, list<string>> $errors
-     *
-     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, errorCode: string|null, errors: array<string, list<string>>}
-     */
-    private function result(
-        bool $found = false,
-        bool $authorized = true,
-        bool $blocked = false,
-        ?string $blockReason = null,
-        ?string $errorCode = null,
-        array $errors = [],
-    ): array {
-        return [
-            'found' => $found,
-            'authorized' => $authorized,
-            'blocked' => $blocked,
-            'blockReason' => $blockReason,
-            'errorCode' => $errorCode,
-            'errors' => $errors,
-        ];
     }
 }

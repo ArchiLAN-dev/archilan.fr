@@ -35,19 +35,9 @@ final readonly class PersonalRunCallbackController
             return $this->apiAccessGuard->errorResponse('invalid_payload', 'connectionHost et connectionPort sont requis.', 422);
         }
 
+        // Failures (missing run, invalid transition) are thrown as typed ApplicationFailures and mapped
+        // to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->lifecycle->markRunning($runId, $host, $port);
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
-        }
-
-        if ($result['blocked']) {
-            return $this->apiAccessGuard->errorResponse(
-                $result['blockReason'] ?? 'invalid_run_status',
-                'Transition de run invalide.',
-                422,
-            );
-        }
 
         return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
     }
@@ -60,18 +50,6 @@ final readonly class PersonalRunCallbackController
         }
 
         $result = $this->lifecycle->markStopped($runId);
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
-        }
-
-        if ($result['blocked']) {
-            return $this->apiAccessGuard->errorResponse(
-                $result['blockReason'] ?? 'invalid_run_status',
-                'Transition de run invalide.',
-                422,
-            );
-        }
 
         return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
     }

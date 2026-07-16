@@ -142,21 +142,9 @@ final readonly class PersonalRunController
             return $user;
         }
 
+        // Failures (missing, not owner, wrong state) are thrown as typed ApplicationFailures and mapped
+        // to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->lifecycle->start($runId, $user->getId());
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
-        }
-
-        if (!$result['authorized']) {
-            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
-        }
-
-        if ($result['blocked']) {
-            $code = $result['blockReason'] ?? 'run_already_active';
-
-            return $this->apiAccessGuard->errorResponse($code, 'Démarrage impossible dans l\'état actuel.', 422);
-        }
 
         return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]], 202);
     }
@@ -171,20 +159,6 @@ final readonly class PersonalRunController
 
         $result = $this->lifecycle->stop($runId, $user->getId());
 
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
-        }
-
-        if (!$result['authorized']) {
-            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
-        }
-
-        if ($result['blocked']) {
-            $code = $result['blockReason'] ?? 'run_not_active';
-
-            return $this->apiAccessGuard->errorResponse($code, 'Arrêt impossible dans l\'état actuel.', 422);
-        }
-
         return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]], 202);
     }
 
@@ -198,20 +172,6 @@ final readonly class PersonalRunController
 
         $result = $this->lifecycle->finish($runId, $user->getId());
 
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
-        }
-
-        if (!$result['authorized']) {
-            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
-        }
-
-        if ($result['blocked']) {
-            $code = $result['blockReason'] ?? 'run_not_active';
-
-            return $this->apiAccessGuard->errorResponse($code, 'Impossible de terminer la run dans son état actuel.', 409);
-        }
-
         return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
     }
 
@@ -223,27 +183,7 @@ final readonly class PersonalRunController
             return $user;
         }
 
-        $result = $this->gameConfig->configure($runId, $user->getId(), $this->jsonPayload($request));
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
-        }
-
-        if (!$result['authorized']) {
-            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
-        }
-
-        if ($result['blocked']) {
-            $code = $result['blockReason'] ?? 'run_active';
-
-            return $this->apiAccessGuard->errorResponse($code, 'Modification impossible dans l\'état actuel.', 422);
-        }
-
-        if ([] !== $result['errors']) {
-            $code = $result['errorCode'] ?? 'validation_failed';
-
-            return $this->apiAccessGuard->errorResponse($code, 'Configuration de jeux invalide.', 422, $result['errors']);
-        }
+        $this->gameConfig->configure($runId, $user->getId(), $this->jsonPayload($request));
 
         return new JsonResponse(null, 204);
     }
