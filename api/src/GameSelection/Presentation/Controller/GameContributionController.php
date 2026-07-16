@@ -36,17 +36,11 @@ final readonly class GameContributionController
         $steps = is_array($payload['steps'] ?? null) ? $payload['steps'] : [];
         $message = is_string($payload['message'] ?? null) ? $payload['message'] : null;
 
-        $result = $this->submit->submit($user->getId(), $gameSlug, $proposedGameName, $steps, $message);
+        // Failures (game missing/unavailable, invalid submission) are thrown as typed ApplicationFailures
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $id = $this->submit->submit($user->getId(), $gameSlug, $proposedGameName, $steps, $message);
 
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
-        }
-
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'La contribution contient des erreurs.', 422, $result['errors']);
-        }
-
-        return new JsonResponse(['data' => ['id' => $result['id'] ?? null], 'meta' => ['message' => 'Contribution envoyée.']], 201);
+        return new JsonResponse(['data' => ['id' => $id], 'meta' => ['message' => 'Contribution envoyée.']], 201);
     }
 
     #[Route('/api/v1/game-contributions/me', name: 'api_game_contributions_mine', methods: ['GET'])]

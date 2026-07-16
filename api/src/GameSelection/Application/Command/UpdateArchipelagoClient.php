@@ -7,6 +7,7 @@ namespace App\GameSelection\Application\Command;
 use App\GameSelection\Domain\Entity\ArchipelagoClientInfo;
 use App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 
 final readonly class UpdateArchipelagoClient
@@ -21,9 +22,9 @@ final readonly class UpdateArchipelagoClient
     }
 
     /**
-     * @return array{errors: array<string, list<string>>}
+     * @throws ValidationException when the version or download URL is invalid
      */
-    public function update(string $version, string $downloadUrl): array
+    public function update(string $version, string $downloadUrl): void
     {
         $version = trim($version);
         $downloadUrl = trim($downloadUrl);
@@ -41,7 +42,7 @@ final readonly class UpdateArchipelagoClient
         }
 
         if ([] !== $errors->toArray()) {
-            return ['errors' => $errors->toArray()];
+            throw new ValidationException('Le client Archipelago contient des erreurs.', $errors->toArray());
         }
 
         $now = $this->clock->now();
@@ -52,8 +53,6 @@ final readonly class UpdateArchipelagoClient
             $info->update($version, $downloadUrl, $now);
         }
         $this->repository->save($info);
-
-        return ['errors' => []];
     }
 
     private static function isHttpUrl(string $url): bool
