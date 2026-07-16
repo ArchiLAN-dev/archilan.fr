@@ -1,7 +1,8 @@
-# Epic 35 - Strict CQRS Write Path (idea, not planned)
+# Epic 35 - Strict CQRS Write Path
 
-Status: idea (recorded 2026-07-11, decision from story 33.17's AC-A3 reconciliation)
-Date: 2026-07-11
+Status: planned (2026-07-16) - Stage 1 in progress. Stages 1-2 pursued on code-quality grounds;
+Stage 3 stays deferred until a real driver (read-model scaling / eventual consistency / event sourcing).
+Date: 2026-07-11 (recorded), 2026-07-16 (planned)
 
 ## Origin
 
@@ -38,3 +39,20 @@ stages:
 - AC-A3 (as amended by 33.17) and the no-entity-return validator rule stay authoritative during any
   intermediate state; the validator rule set tightens further as stages land (e.g. stage 2 enables a
   "command returns void or a record, never array" rule).
+
+## Stage 1 story breakdown (typed failures, per context)
+
+One shared foundation, then convert contexts one at a time (each its own PR, gates green at every step).
+Contexts ordered smallest-first (by count of command methods returning outcome arrays, measured 2026-07-16):
+
+- **35.1 - Foundation + Content.** `Shared\Application\Exception` typed-failure hierarchy (an
+  `ApplicationFailure` interface + base + `NotFound`/`Validation`/`Conflict`/`ServiceUnavailable`) and a
+  central kernel exception listener (`Shared\Infrastructure\Http`) mapping any `ApplicationFailure` to the
+  `{ error: { code, message, details? } }` envelope. Convert the Content context (`UploadPostCoverImageCommand`)
+  as the first real proof; its controller drops the outcome branching.
+- **35.2 - Payments + Sessions** (`TriggerHelloAssoSync`, 1 Sessions command).
+- **35.3 - PersonalRuns** (2) · **35.4 - Events** (3) · **35.5 - GameSelection** (4) ·
+  **35.6 - Registrations** (6) · **35.7 - Identity** (8). Community's existing
+  `CannotKudosOwnContentException` folds into the interface when Community is converted.
+
+Stage 2 (typed result records) and the tightened validator rule follow once Stage 1 covers every context.

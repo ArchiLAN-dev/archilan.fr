@@ -79,22 +79,10 @@ final readonly class AdminPostCoverImageController
         $key = sprintf('posts/%s/cover.%s', $postId, $ext);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
-        $result = $this->uploadPostCoverImageCommand->execute($postId, $key, $contents);
+        // Failures (post missing, storage down) are thrown as typed ApplicationFailures and mapped to
+        // HTTP by ApplicationFailureListener (epic 35, Stage 1).
+        $data = $this->uploadPostCoverImageCommand->execute($postId, $key, $contents);
 
-        if ('not_found' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Article introuvable.']],
-                404,
-            );
-        }
-
-        if ('storage_error' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
-                503,
-            );
-        }
-
-        return new JsonResponse(['data' => $result['data']]);
+        return new JsonResponse(['data' => $data]);
     }
 }
