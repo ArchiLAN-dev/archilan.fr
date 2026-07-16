@@ -7,6 +7,9 @@ namespace App\Registrations\Application\Command;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -26,34 +29,37 @@ final readonly class AdminRegistrationModification
      *
      * @param array<string, mixed> $input
      *
-     * @return array{outcome: 'updated', slots: list<array{slotId: string, slotOrder: int, gameId: string}>}
-     *                                                                                                       |array{outcome: 'not_found'}
-     *                                                                                                       |array{outcome: 'inactive'}
-     *                                                                                                       |array{outcome: 'error', errors: array<string, list<string>>}
+     * @throws NotFoundException   when the registration does not exist for this event
+     * @throws ConflictException   when the registration is no longer modifiable
+     * @throws ValidationException when the slot list is invalid
      */
-    public function update(string $eventId, string $registrationId, array $input): array
+    public function update(string $eventId, string $registrationId, string $adminId, array $input): void
     {
         $registration = $this->registrationRepository->findById($registrationId);
         $event = $this->eventRepository->findById($eventId);
 
-        if (null === $registration || null === $event) {
-            return ['outcome' => 'not_found'];
-        }
+        if (null === $registration || null === $event || $registration->getEventId() !== $eventId) {
+            $this->auditLog($eventId, $registrationId, $adminId, 'not_found');
 
-        if ($registration->getEventId() !== $eventId) {
-            return ['outcome' => 'not_found'];
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         if (!$registration->isReserved()) {
-            return ['outcome' => 'inactive'];
+            $this->auditLog($eventId, $registrationId, $adminId, 'inactive');
+
+            throw new ConflictException('L\'inscription n\'est plus modifiable.', 'inactive_registration');
         }
 
         if (!$event->isGameSelectionEnabled()) {
-            return ['outcome' => 'error', 'errors' => ['gameSelection' => ['La sélection de jeux n\'est pas activée pour cet événement.']]];
+            $this->auditLog($eventId, $registrationId, $adminId, 'error');
+
+            throw new ValidationException('La modification contient des erreurs.', ['gameSelection' => ['La sélection de jeux n\'est pas activée pour cet événement.']], 'invalid_registration_update');
         }
 
         if (!array_key_exists('slots', $input)) {
-            return ['outcome' => 'error', 'errors' => ['registration' => ['Aucun champ modifiable fourni.']]];
+            $this->auditLog($eventId, $registrationId, $adminId, 'error');
+
+            throw new ValidationException('La modification contient des erreurs.', ['registration' => ['Aucun champ modifiable fourni.']], 'invalid_registration_update');
         }
 
         $slotsInput = $this->parseSlotsInput($input['slots'] ?? null);
@@ -61,7 +67,9 @@ final readonly class AdminRegistrationModification
         $errors = $this->validateGameIds($gameIds, $event);
 
         if ([] !== $errors) {
-            return ['outcome' => 'error', 'errors' => $errors];
+            $this->auditLog($eventId, $registrationId, $adminId, 'error');
+
+            throw new ValidationException('La modification contient des erreurs.', $errors, 'invalid_registration_update');
         }
 
         $now = $this->clock->now();
@@ -72,8 +80,18 @@ final readonly class AdminRegistrationModification
         $this->registrationRepository->flush();
 
         $this->logger->info('registration.admin_updated', ['registrationId' => $registrationId, 'eventId' => $eventId]);
+        $this->auditLog($eventId, $registrationId, $adminId, 'updated');
+    }
 
-        return ['outcome' => 'updated', 'slots' => $registration->getGameSlots()];
+    private function auditLog(string $eventId, string $registrationId, string $adminId, string $outcome): void
+    {
+        $this->logger->info('admin.registrations.update', [
+            'eventId' => $eventId,
+            'registrationId' => $registrationId,
+            'adminId' => $adminId,
+            'outcome' => $outcome,
+            'occurredAt' => $this->clock->now()->format(\DateTimeInterface::ATOM),
+        ]);
     }
 
     /**
