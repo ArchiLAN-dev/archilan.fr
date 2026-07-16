@@ -121,28 +121,9 @@ final readonly class AdminRegistrationController
             }
         }
 
-        $result = $this->adminRegistrationModification->update($eventId, $registrationId, $input);
-        $occurredAt = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
-
-        $this->logger->info('admin.registrations.update', [
-            'eventId' => $eventId,
-            'registrationId' => $registrationId,
-            'adminId' => $user->getId(),
-            'outcome' => $result['outcome'],
-            'occurredAt' => $occurredAt,
-        ]);
-
-        if ('not_found' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
-        }
-
-        if ('inactive' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('inactive_registration', 'L\'inscription n\'est plus modifiable.', 409);
-        }
-
-        if ('error' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('invalid_registration_update', 'La modification contient des erreurs.', 422, $result['errors']);
-        }
+        // Failures (missing, inactive, invalid) are thrown as typed ApplicationFailures and mapped to HTTP
+        // by ApplicationFailureListener (epic 35). The per-outcome audit log now lives in the command.
+        $this->adminRegistrationModification->update($eventId, $registrationId, $user->getId(), $input);
 
         $detail = $this->adminRegistrationInspector->inspect($eventId, $registrationId);
 
@@ -158,24 +139,9 @@ final readonly class AdminRegistrationController
             return $user;
         }
 
-        $result = $this->adminRegistrationCancellation->cancel($eventId, $registrationId);
-        $occurredAt = new \DateTimeImmutable()->format(\DateTimeInterface::ATOM);
-
-        $this->logger->info('admin.registrations.cancel', [
-            'eventId' => $eventId,
-            'registrationId' => $registrationId,
-            'adminId' => $user->getId(),
-            'outcome' => $result['outcome'],
-            'occurredAt' => $occurredAt,
-        ]);
-
-        if ('not_found' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
-        }
-
-        if ('already_cancelled' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('already_cancelled', 'L\'inscription est déjà annulée.', 409);
-        }
+        // Failures (missing, already cancelled) are thrown as typed ApplicationFailures and mapped to HTTP
+        // by ApplicationFailureListener (epic 35). The per-outcome audit log now lives in the command.
+        $this->adminRegistrationCancellation->cancel($eventId, $registrationId, $user->getId());
 
         return new JsonResponse(['outcome' => 'cancelled']);
     }
