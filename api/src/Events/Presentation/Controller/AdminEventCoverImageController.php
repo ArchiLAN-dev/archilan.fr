@@ -79,22 +79,10 @@ final readonly class AdminEventCoverImageController
         $key = sprintf('events/%s/cover.%s', $eventId, $ext);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
-        $result = $this->uploadEventCoverImageCommand->execute($eventId, $key, $contents);
+        // Failures (event missing, storage down) are thrown as typed ApplicationFailures and mapped to
+        // HTTP by ApplicationFailureListener (epic 35).
+        $data = $this->uploadEventCoverImageCommand->execute($eventId, $key, $contents);
 
-        if ('not_found' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Événement introuvable.']],
-                404,
-            );
-        }
-
-        if ('storage_error' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
-                503,
-            );
-        }
-
-        return new JsonResponse(['data' => $result['data']]);
+        return new JsonResponse(['data' => $data]);
     }
 }

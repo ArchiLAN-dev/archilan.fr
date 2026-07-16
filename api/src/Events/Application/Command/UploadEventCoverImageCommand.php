@@ -6,6 +6,8 @@ namespace App\Events\Application\Command;
 
 use App\Events\Application\Service\AdminEventDrafts;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
@@ -22,24 +24,27 @@ final readonly class UploadEventCoverImageCommand
     }
 
     /**
-     * @return array{outcome: 'not_found'|'storage_error'|'ok', data: array<string, mixed>|null}
+     * @return array<string, mixed>|null the admin event payload
+     *
+     * @throws NotFoundException           when the event does not exist
+     * @throws ServiceUnavailableException when the object storage upload fails
      */
-    public function execute(string $eventId, string $key, string $contents): array
+    public function execute(string $eventId, string $key, string $contents): ?array
     {
         $event = $this->eventRepository->findById($eventId);
         if (null === $event) {
-            return ['outcome' => 'not_found', 'data' => null];
+            throw new NotFoundException('Événement introuvable.');
         }
 
         try {
             $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
         } catch (\Throwable) {
-            return ['outcome' => 'storage_error', 'data' => null];
+            throw new ServiceUnavailableException('Le stockage est indisponible.', 'storage_unavailable');
         }
 
         $event->attachCoverImage($key, $this->clock->now());
         $this->eventRepository->save($event);
 
-        return ['outcome' => 'ok', 'data' => $this->adminEventDrafts->get($eventId)];
+        return $this->adminEventDrafts->get($eventId);
     }
 }

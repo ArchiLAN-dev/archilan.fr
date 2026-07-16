@@ -66,30 +66,11 @@ final readonly class AdminEventGalleryController
         $key = sprintf('events/%s/gallery/%s.%s', $eventId, $uuid, $ext);
         $contents = (string) file_get_contents((string) $file->getRealPath());
 
-        $result = $this->manageEventGalleryCommand->upload($eventId, $key, $contents);
+        // Failures (event missing, gallery full, storage down) are thrown as typed ApplicationFailures
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $data = $this->manageEventGalleryCommand->upload($eventId, $key, $contents);
 
-        if ('not_found' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'Événement introuvable.']],
-                404,
-            );
-        }
-
-        if ('gallery_full' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'gallery_full', 'message' => 'La galerie est pleine (max 12 photos).']],
-                422,
-            );
-        }
-
-        if ('storage_error' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'storage_unavailable', 'message' => 'Le stockage est indisponible.']],
-                503,
-            );
-        }
-
-        return new JsonResponse(['data' => $result['data']]);
+        return new JsonResponse(['data' => $data]);
     }
 
     #[Route('/api/v1/admin/events/{eventId}/gallery/{index}', methods: ['DELETE'], requirements: ['index' => '\d+'])]
@@ -100,14 +81,7 @@ final readonly class AdminEventGalleryController
             return $guard;
         }
 
-        $result = $this->manageEventGalleryCommand->delete($eventId, $index);
-
-        if ('not_found' === $result['outcome'] || 'invalid_index' === $result['outcome']) {
-            return new JsonResponse(
-                ['error' => ['code' => 'not_found', 'message' => 'invalid_index' === $result['outcome'] ? 'Index de galerie invalide.' : 'Événement introuvable.']],
-                404,
-            );
-        }
+        $this->manageEventGalleryCommand->delete($eventId, $index);
 
         return new Response(null, 204);
     }

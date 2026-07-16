@@ -6,6 +6,9 @@ namespace App\Events\Application\Command;
 
 use App\Events\Application\Service\AdminEventDrafts;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ServiceUnavailableException;
+use App\Shared\Application\Exception\ValidationException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
@@ -22,47 +25,49 @@ final readonly class ManageEventGalleryCommand
     }
 
     /**
-     * @return array{outcome: 'not_found'|'gallery_full'|'storage_error'|'ok', data: array<string, mixed>|null}
+     * @return array<string, mixed>|null the admin event payload
+     *
+     * @throws NotFoundException           when the event does not exist
+     * @throws ValidationException         when the gallery is already full
+     * @throws ServiceUnavailableException when the object storage upload fails
      */
-    public function upload(string $eventId, string $key, string $contents): array
+    public function upload(string $eventId, string $key, string $contents): ?array
     {
         $event = $this->eventRepository->findById($eventId);
         if (null === $event) {
-            return ['outcome' => 'not_found', 'data' => null];
+            throw new NotFoundException('Événement introuvable.');
         }
 
         if ($event->getPhotoGalleryCount() >= self::MAX_GALLERY_SIZE) {
-            return ['outcome' => 'gallery_full', 'data' => null];
+            throw new ValidationException('La galerie est pleine (max 12 photos).', [], 'gallery_full');
         }
 
         try {
             $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
         } catch (\Throwable) {
-            return ['outcome' => 'storage_error', 'data' => null];
+            throw new ServiceUnavailableException('Le stockage est indisponible.', 'storage_unavailable');
         }
 
         $event->appendGalleryUpload($key);
         $this->eventRepository->save($event);
 
-        return ['outcome' => 'ok', 'data' => $this->adminEventDrafts->get($eventId)];
+        return $this->adminEventDrafts->get($eventId);
     }
 
     /**
-     * @return array{outcome: 'not_found'|'invalid_index'|'ok'}
+     * @throws NotFoundException when the event does not exist or the gallery index is invalid
      */
-    public function delete(string $eventId, int $index): array
+    public function delete(string $eventId, int $index): void
     {
         $event = $this->eventRepository->findById($eventId);
         if (null === $event) {
-            return ['outcome' => 'not_found'];
+            throw new NotFoundException('Événement introuvable.');
         }
 
         if (!$event->removeGalleryItem($index)) {
-            return ['outcome' => 'invalid_index'];
+            throw new NotFoundException('Index de galerie invalide.');
         }
 
         $this->eventRepository->save($event);
-
-        return ['outcome' => 'ok'];
     }
 }
