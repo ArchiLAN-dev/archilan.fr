@@ -323,15 +323,9 @@ final readonly class AdminEventController
             return $admin;
         }
 
-        $result = $this->adminEventRecap->attach($eventId, $this->jsonPayload($request));
-
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
-        }
-
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'Les données de récap sont invalides.', 422, $result['errors']);
-        }
+        // Failures (event missing, invalid recap data) are thrown as typed ApplicationFailures and mapped
+        // to HTTP by ApplicationFailureListener (epic 35).
+        $this->adminEventRecap->attach($eventId, $this->jsonPayload($request));
 
         return new JsonResponse(['data' => null, 'meta' => ['message' => 'Récap attaché.']]);
     }

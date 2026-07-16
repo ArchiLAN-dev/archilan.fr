@@ -7,6 +7,8 @@ namespace App\Events\Application\Command;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -22,34 +24,33 @@ final readonly class AdminEventRecap
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{found: bool, errors: array<string, list<string>>}
+     * @throws NotFoundException   when the event does not exist
+     * @throws ValidationException when the recap data is invalid
      */
-    public function attach(string $eventId, array $input): array
+    public function attach(string $eventId, array $input): void
     {
         $event = $this->eventRepository->findById($eventId);
 
         if (!$event instanceof Event) {
-            return ['found' => false, 'errors' => []];
+            throw new NotFoundException('Événement introuvable.');
         }
 
         $parsed = $this->parse($input);
         $errors = $this->validate($parsed);
 
         if ([] !== $errors) {
-            return ['found' => true, 'errors' => $errors];
+            throw new ValidationException('Les données de récap sont invalides.', $errors);
         }
 
         try {
             $event->attachRecap($parsed['vodUrl'], $parsed['recapPostSlug'], $this->clock->now());
         } catch (\DomainException) {
-            return ['found' => true, 'errors' => ['status' => ["Le récap ne peut être attaché qu'à un événement terminé."]]];
+            throw new ValidationException('Les données de récap sont invalides.', ['status' => ["Le récap ne peut être attaché qu'à un événement terminé."]]);
         }
 
         $this->eventRepository->save($event);
 
         $this->logger->info('event.recap_attached', ['eventId' => $eventId]);
-
-        return ['found' => true, 'errors' => []];
     }
 
     /**
