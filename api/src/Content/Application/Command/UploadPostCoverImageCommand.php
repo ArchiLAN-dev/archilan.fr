@@ -7,6 +7,8 @@ namespace App\Content\Application\Command;
 use App\Content\Application\Service\AdminPostCatalog;
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
@@ -23,25 +25,28 @@ final readonly class UploadPostCoverImageCommand
     }
 
     /**
-     * @return array{outcome: 'not_found'|'storage_error'|'ok', data: array<string, mixed>|null}
+     * @return array<string, mixed>|null the admin post payload
+     *
+     * @throws NotFoundException           when the post does not exist
+     * @throws ServiceUnavailableException when the object storage upload fails
      */
-    public function execute(string $postId, string $key, string $contents): array
+    public function execute(string $postId, string $key, string $contents): ?array
     {
         $post = $this->postRepository->findById($postId);
 
         if (!$post instanceof Post) {
-            return ['outcome' => 'not_found', 'data' => null];
+            throw new NotFoundException('Article introuvable.');
         }
 
         try {
             $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
         } catch (\Throwable) {
-            return ['outcome' => 'storage_error', 'data' => null];
+            throw new ServiceUnavailableException('Le stockage est indisponible.', 'storage_unavailable');
         }
 
         $post->attachCoverImage($key, $this->clock->now());
         $this->postRepository->save($post);
 
-        return ['outcome' => 'ok', 'data' => $this->adminPostCatalog->get($postId)];
+        return $this->adminPostCatalog->get($postId);
     }
 }
