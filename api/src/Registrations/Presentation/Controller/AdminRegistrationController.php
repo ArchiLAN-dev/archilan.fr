@@ -199,24 +199,18 @@ final readonly class AdminRegistrationController
             return $this->apiAccessGuard->errorResponse('validation_error', 'Le sujet et le corps du message sont requis.', 422);
         }
 
-        $result = $this->sendMessageToRegistrant->send($eventId, $registrationId, $user->getId(), $subject, $body);
-
-        if ('not_found' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
-        }
-
-        if ('send_failed' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('message_send_failed', 'L\'envoi du message a échoué.', 502);
-        }
+        // Failures (registration missing, mailer refused) are thrown as typed ApplicationFailures and
+        // mapped to HTTP by ApplicationFailureListener (epic 35).
+        $sentAt = $this->sendMessageToRegistrant->send($eventId, $registrationId, $user->getId(), $subject, $body);
 
         $this->logger->info('admin.registrations.message_sent', [
             'eventId' => $eventId,
             'registrationId' => $registrationId,
             'adminId' => $user->getId(),
             'subject' => $subject,
-            'sentAt' => $result['sentAt'],
+            'sentAt' => $sentAt,
         ]);
 
-        return new JsonResponse(['data' => ['outcome' => $result['outcome'], 'sentAt' => $result['sentAt']]]);
+        return new JsonResponse(['data' => ['outcome' => 'sent', 'sentAt' => $sentAt]]);
     }
 }

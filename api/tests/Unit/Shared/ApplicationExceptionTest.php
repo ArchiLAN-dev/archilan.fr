@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Shared;
 
 use App\Shared\Application\Exception\ApplicationFailure;
+use App\Shared\Application\Exception\BadGatewayException;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
@@ -46,6 +47,15 @@ final class ApplicationExceptionTest extends TestCase
         self::assertInstanceOf(ApplicationFailure::class, $e);
         self::assertSame(403, $e->statusCode());
         self::assertSame('forbidden', $e->errorCode());
+    }
+
+    public function testBadGatewayMapsTo502(): void
+    {
+        $e = new BadGatewayException("L'envoi a échoué.", 'message_send_failed');
+
+        self::assertInstanceOf(ApplicationFailure::class, $e);
+        self::assertSame(502, $e->statusCode());
+        self::assertSame('message_send_failed', $e->errorCode());
     }
 
     public function testValidationMapsTo422AndCarriesTheFieldMap(): void

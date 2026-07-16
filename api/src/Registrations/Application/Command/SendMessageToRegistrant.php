@@ -10,6 +10,8 @@ use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\RegistrationAdminMessage;
 use App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Application\Exception\BadGatewayException;
+use App\Shared\Application\Exception\NotFoundException;
 use Psr\Clock\ClockInterface;
 
 final readonly class SendMessageToRegistrant
@@ -24,24 +26,27 @@ final readonly class SendMessageToRegistrant
     }
 
     /**
-     * @return array{outcome: 'not_found'}|array{outcome: 'send_failed'}|array{outcome: 'sent', sentAt: string}
+     * @return string the send timestamp (ATOM)
+     *
+     * @throws NotFoundException   when the registration (for this event/participant) does not exist
+     * @throws BadGatewayException when the mailer refuses to send
      */
-    public function send(string $eventId, string $registrationId, string $adminId, string $subject, string $body): array
+    public function send(string $eventId, string $registrationId, string $adminId, string $subject, string $body): string
     {
         $registration = $this->registrationRepository->findById($registrationId);
 
         if (null === $registration) {
-            return ['outcome' => 'not_found'];
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         if ($registration->getEventId() !== $eventId) {
-            return ['outcome' => 'not_found'];
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         $participant = $this->userRepository->findById($registration->getUserId());
 
         if (null === $participant) {
-            return ['outcome' => 'not_found'];
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         $sent = $this->mailer->send(new AdminDirectMessageEmail(
@@ -52,12 +57,12 @@ final readonly class SendMessageToRegistrant
         ));
 
         if (!$sent) {
-            return ['outcome' => 'send_failed'];
+            throw new BadGatewayException('L\'envoi du message a échoué.', 'message_send_failed');
         }
 
         $sentAt = $this->clock->now();
         $this->adminMessageRepository->save(RegistrationAdminMessage::record($eventId, $registrationId, $adminId, $subject, $sentAt));
 
-        return ['outcome' => 'sent', 'sentAt' => $sentAt->format(\DateTimeInterface::ATOM)];
+        return $sentAt->format(\DateTimeInterface::ATOM);
     }
 }

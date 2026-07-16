@@ -11,6 +11,8 @@ use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -33,32 +35,31 @@ final readonly class RegistrationSubmission
      * Returns null if the registration does not exist, does not belong to the given user,
      * or is not in reserved status.
      *
-     * @return array{outcome: 'confirmed', registrationId: string, eventTitle: string, selectedGameIds: list<string>}|array{outcome: 'error', code: string, message: string}|null
+     * @return array{registrationId: string, eventTitle: string, selectedGameIds: list<string>}
+     *
+     * @throws NotFoundException   when the registration is missing or not the caller's reserved one
+     * @throws ValidationException when the game selection is incomplete
      */
-    public function submit(string $registrationId, string $userId): ?array
+    public function submit(string $registrationId, string $userId): array
     {
         $registration = $this->registrationRepository->findById($registrationId);
 
         if (null === $registration) {
-            return null;
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         if ($registration->getUserId() !== $userId || !$registration->isReserved()) {
-            return null;
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         $event = $this->eventRepository->findById($registration->getEventId());
 
         if (null === $event) {
-            return null;
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         if ($event->isGameSelectionEnabled()) {
-            $gameValidationError = $this->validateGameSelection($registration);
-
-            if (null !== $gameValidationError) {
-                return $gameValidationError;
-            }
+            $this->validateGameSelection($registration);
         }
 
         $alreadyConfirmed = null !== $registration->getSubmittedAt();
@@ -84,7 +85,6 @@ final readonly class RegistrationSubmission
         }
 
         return [
-            'outcome' => 'confirmed',
             'registrationId' => $registration->getId(),
             'eventTitle' => $event->getTitle(),
             'selectedGameIds' => $registration->getSelectedGameIds(),
@@ -92,21 +92,13 @@ final readonly class RegistrationSubmission
     }
 
     /**
-     * @return array{outcome: 'error', code: string, message: string}|null
+     * @throws ValidationException when the registration has no game slots
      */
-    private function validateGameSelection(Registration $registration): ?array
+    private function validateGameSelection(Registration $registration): void
     {
-        $slots = $registration->getGameSlots();
-
-        if ([] === $slots) {
-            return [
-                'outcome' => 'error',
-                'code' => 'games_required',
-                'message' => 'Tu dois selectionner au moins un jeu avant de confirmer.',
-            ];
+        if ([] === $registration->getGameSlots()) {
+            throw new ValidationException('Tu dois selectionner au moins un jeu avant de confirmer.', [], 'games_required');
         }
-
-        return null;
     }
 
     /**
