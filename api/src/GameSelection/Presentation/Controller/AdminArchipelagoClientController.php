@@ -33,11 +33,9 @@ final readonly class AdminArchipelagoClientController
         $version = is_string($payload['version'] ?? null) ? $payload['version'] : '';
         $downloadUrl = is_string($payload['downloadUrl'] ?? null) ? $payload['downloadUrl'] : '';
 
-        $result = $this->command->update($version, $downloadUrl);
-
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le client Archipelago contient des erreurs.', 422, $result['errors']);
-        }
+        // Validation failures are thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
+        $this->command->update($version, $downloadUrl);
 
         return new JsonResponse(['data' => $this->query->get(), 'meta' => ['message' => 'Client Archipelago mis à jour.']]);
     }

@@ -10,6 +10,9 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Entity\GameTutorialContribution;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface;
+use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -35,28 +38,30 @@ final readonly class ModerateGameTutorialContribution
     /**
      * @param array<mixed>|null $overrideSteps moderator-edited steps to apply instead of the submitted ones
      *
-     * @return array{found: bool, conflict?: bool, errors: array<string, list<string>>}
+     * @throws NotFoundException   when the contribution does not exist
+     * @throws ConflictException   when the contribution has already been moderated
+     * @throws ValidationException when the (overridden) steps are invalid
      */
-    public function approve(string $id, string $reviewerId, ?array $overrideSteps): array
+    public function approve(string $id, string $reviewerId, ?array $overrideSteps): void
     {
         $contribution = $this->contributions->findById($id);
         if (null === $contribution) {
-            return ['found' => false, 'errors' => []];
+            throw new NotFoundException('Contribution introuvable.');
         }
         if (GameTutorialContribution::STATUS_PENDING !== $contribution->getStatus()) {
-            return ['found' => true, 'conflict' => true, 'errors' => []];
+            throw new ConflictException('Cette contribution a déjà été modérée.', 'already_moderated');
         }
 
         $result = $this->normalizer->normalize($overrideSteps ?? $contribution->getSteps());
         if ([] !== $result['errors']) {
-            return ['found' => true, 'errors' => ['steps' => $result['errors']]];
+            throw new ValidationException('La modération a échoué.', ['steps' => $result['errors']]);
         }
 
         try {
             $contribution->approve($reviewerId, $this->clock->now());
         } catch (\DomainException) {
             // Lost a concurrent moderation race: the aggregate invariant rejects a non-pending transition.
-            return ['found' => true, 'conflict' => true, 'errors' => []];
+            throw new ConflictException('Cette contribution a déjà été modérée.', 'already_moderated');
         }
 
         $gameId = $contribution->getGameId();
@@ -71,37 +76,35 @@ final readonly class ModerateGameTutorialContribution
         $this->contributions->save($contribution);
 
         $this->notifyAuthor($contribution, 'approved', null);
-
-        return ['found' => true, 'errors' => []];
     }
 
     /**
-     * @return array{found: bool, conflict?: bool, errors: array<string, list<string>>}
+     * @throws NotFoundException   when the contribution does not exist
+     * @throws ConflictException   when the contribution has already been moderated
+     * @throws ValidationException when the rejection reason is missing
      */
-    public function reject(string $id, string $reviewerId, string $reason): array
+    public function reject(string $id, string $reviewerId, string $reason): void
     {
         $contribution = $this->contributions->findById($id);
         if (null === $contribution) {
-            return ['found' => false, 'errors' => []];
+            throw new NotFoundException('Contribution introuvable.');
         }
         if (GameTutorialContribution::STATUS_PENDING !== $contribution->getStatus()) {
-            return ['found' => true, 'conflict' => true, 'errors' => []];
+            throw new ConflictException('Cette contribution a déjà été modérée.', 'already_moderated');
         }
         if ('' === trim($reason)) {
-            return ['found' => true, 'errors' => ['reason' => ['La raison du refus est requise.']]];
+            throw new ValidationException('La modération a échoué.', ['reason' => ['La raison du refus est requise.']]);
         }
 
         try {
             $contribution->reject($reviewerId, $reason, $this->clock->now());
         } catch (\DomainException) {
-            return ['found' => true, 'conflict' => true, 'errors' => []];
+            throw new ConflictException('Cette contribution a déjà été modérée.', 'already_moderated');
         }
 
         $this->contributions->save($contribution);
 
         $this->notifyAuthor($contribution, 'rejected', trim($reason));
-
-        return ['found' => true, 'errors' => []];
     }
 
     private function notifyAuthor(GameTutorialContribution $contribution, string $status, ?string $reason): void

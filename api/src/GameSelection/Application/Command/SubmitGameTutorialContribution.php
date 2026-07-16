@@ -10,6 +10,8 @@ use App\GameSelection\Domain\Entity\GameTutorialContribution;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -32,9 +34,12 @@ final readonly class SubmitGameTutorialContribution
     /**
      * @param array<mixed> $rawSteps
      *
-     * @return array{found: bool, id?: string, errors: array<string, list<string>>}
+     * @return string the new contribution id
+     *
+     * @throws NotFoundException   when the target game does not exist or is unavailable
+     * @throws ValidationException when the submission is invalid
      */
-    public function submit(string $authorId, ?string $gameSlug, ?string $proposedGameName, array $rawSteps, ?string $message): array
+    public function submit(string $authorId, ?string $gameSlug, ?string $proposedGameName, array $rawSteps, ?string $message): string
     {
         $gameSlug = null !== $gameSlug ? trim($gameSlug) : '';
         $proposedGameName = null !== $proposedGameName ? trim($proposedGameName) : '';
@@ -46,23 +51,23 @@ final readonly class SubmitGameTutorialContribution
         if ($hasSlug === $hasName) {
             $errors->add('target', 'Indique soit un jeu existant, soit un nom de jeu non listé (exactement un).');
 
-            return ['found' => true, 'errors' => $errors->toArray()];
+            throw new ValidationException('La contribution contient des erreurs.', $errors->toArray());
         }
 
         if ($hasName && mb_strlen($proposedGameName) > self::MAX_PROPOSED_NAME) {
             $errors->add('proposedGameName', sprintf('Le nom ne doit pas dépasser %d caractères.', self::MAX_PROPOSED_NAME));
 
-            return ['found' => true, 'errors' => $errors->toArray()];
+            throw new ValidationException('La contribution contient des erreurs.', $errors->toArray());
         }
 
         $stepResult = $this->normalizer->normalize($rawSteps);
         if ([] !== $stepResult['errors']) {
-            return ['found' => true, 'errors' => ['steps' => $stepResult['errors']]];
+            throw new ValidationException('La contribution contient des erreurs.', ['steps' => $stepResult['errors']]);
         }
         if ([] === $stepResult['steps']) {
             $errors->add('steps', 'Ajoute au moins une étape.');
 
-            return ['found' => true, 'errors' => $errors->toArray()];
+            throw new ValidationException('La contribution contient des erreurs.', $errors->toArray());
         }
 
         $now = $this->clock->now();
@@ -71,13 +76,13 @@ final readonly class SubmitGameTutorialContribution
         if ($hasSlug) {
             $game = $this->games->findBySlug($gameSlug);
             if (!$game instanceof Game || !in_array($game->getAvailability(), [Game::AVAILABILITY_AVAILABLE, Game::AVAILABILITY_EXPERIMENTAL], true)) {
-                return ['found' => false, 'errors' => []];
+                throw new NotFoundException('Jeu introuvable.');
             }
 
             if ($this->contributions->countPendingForGame($authorId, $game->getId()) > 0) {
                 $errors->add('target', 'Tu as déjà une proposition en attente pour ce jeu.');
 
-                return ['found' => true, 'errors' => $errors->toArray()];
+                throw new ValidationException('La contribution contient des erreurs.', $errors->toArray());
             }
 
             $contribution = GameTutorialContribution::submitForGame($id, $authorId, $game->getId(), $stepResult['steps'], $message, $now);
@@ -85,7 +90,7 @@ final readonly class SubmitGameTutorialContribution
             if ($this->contributions->countPendingForProposedName($authorId, $proposedGameName) > 0) {
                 $errors->add('target', 'Tu as déjà une proposition en attente pour ce jeu.');
 
-                return ['found' => true, 'errors' => $errors->toArray()];
+                throw new ValidationException('La contribution contient des erreurs.', $errors->toArray());
             }
 
             $contribution = GameTutorialContribution::submitForProposedName($id, $authorId, $proposedGameName, $stepResult['steps'], $message, $now);
@@ -93,6 +98,6 @@ final readonly class SubmitGameTutorialContribution
 
         $this->contributions->save($contribution);
 
-        return ['found' => true, 'id' => $id, 'errors' => []];
+        return $id;
     }
 }

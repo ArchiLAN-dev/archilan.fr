@@ -32,11 +32,9 @@ final readonly class AdminArchipelagoGuideController
         $payload = is_array($payload) ? $payload : [];
         $steps = is_array($payload['steps'] ?? null) ? $payload['steps'] : [];
 
-        $result = $this->command->update($steps);
-
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le guide contient des erreurs.', 422, $result['errors']);
-        }
+        // Validation failures are thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
+        $this->command->update($steps);
 
         return new JsonResponse(['data' => ['steps' => $this->query->steps()], 'meta' => ['message' => 'Guide enregistré.']]);
     }

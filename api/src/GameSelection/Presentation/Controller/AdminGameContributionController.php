@@ -61,7 +61,11 @@ final readonly class AdminGameContributionController
         $payload = is_array($payload) ? $payload : [];
         $overrideSteps = is_array($payload['steps'] ?? null) ? $payload['steps'] : null;
 
-        return $this->respond($this->moderate->approve($id, $admin->getId(), $overrideSteps), 'Contribution appliquée.');
+        // Failures (missing, already moderated, invalid steps) are thrown as typed ApplicationFailures
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $this->moderate->approve($id, $admin->getId(), $overrideSteps);
+
+        return new JsonResponse(['meta' => ['message' => 'Contribution appliquée.']]);
     }
 
     #[Route('/api/v1/admin/game-contributions/{id}/reject', name: 'api_admin_game_contributions_reject', methods: ['POST'])]
@@ -76,24 +80,8 @@ final readonly class AdminGameContributionController
         $payload = is_array($payload) ? $payload : [];
         $reason = is_string($payload['reason'] ?? null) ? $payload['reason'] : '';
 
-        return $this->respond($this->moderate->reject($id, $admin->getId(), $reason), 'Contribution refusée.');
-    }
+        $this->moderate->reject($id, $admin->getId(), $reason);
 
-    /**
-     * @param array{found: bool, conflict?: bool, errors: array<string, list<string>>} $result
-     */
-    private function respond(array $result, string $message): JsonResponse
-    {
-        if (!$result['found']) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Contribution introuvable.', 404);
-        }
-        if (true === ($result['conflict'] ?? false)) {
-            return $this->apiAccessGuard->errorResponse('already_moderated', 'Cette contribution a déjà été modérée.', 409);
-        }
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'La modération a échoué.', 422, $result['errors']);
-        }
-
-        return new JsonResponse(['meta' => ['message' => $message]]);
+        return new JsonResponse(['meta' => ['message' => 'Contribution refusée.']]);
     }
 }
