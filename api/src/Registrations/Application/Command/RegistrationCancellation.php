@@ -9,6 +9,8 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -28,32 +30,29 @@ final readonly class RegistrationCancellation
      * Cancels a registration on behalf of the registrant. Returns null if the registration
      * does not exist, does not belong to the given user, or is not in reserved status.
      *
-     * @return array{outcome: 'cancelled'}|array{outcome: 'error', code: string, message: string}|null
+     * @throws NotFoundException   when the registration does not exist or is not the caller's reserved one
+     * @throws ValidationException when cancellation is no longer allowed
      */
-    public function cancel(string $registrationId, string $userId): ?array
+    public function cancel(string $registrationId, string $userId): void
     {
         $registration = $this->registrationRepository->findById($registrationId);
 
         if (null === $registration) {
-            return null;
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         if ($registration->getUserId() !== $userId || !$registration->isReserved()) {
-            return null;
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         $event = $this->eventRepository->findById($registration->getEventId());
 
         if (null === $event) {
-            return null;
+            throw new NotFoundException('Inscription introuvable.');
         }
 
         if (in_array($event->getStatus(), [Event::STATUS_IN_PROGRESS, Event::STATUS_COMPLETED], true)) {
-            return [
-                'outcome' => 'error',
-                'code' => 'cancellation_not_allowed',
-                'message' => 'L\'annulation n\'est plus possible une fois l\'événement commencé.',
-            ];
+            throw new ValidationException('L\'annulation n\'est plus possible une fois l\'événement commencé.', [], 'cancellation_not_allowed');
         }
 
         $now = $this->clock->now();
@@ -64,7 +63,5 @@ final readonly class RegistrationCancellation
 
         $remaining = max(0, $event->getCapacity() - $this->registrationCounter->countConfirmed($event->getId()));
         $this->realtimePublisher->seatCounter($event->getId(), $remaining);
-
-        return ['outcome' => 'cancelled'];
     }
 }

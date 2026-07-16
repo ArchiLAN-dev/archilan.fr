@@ -52,7 +52,10 @@ Contexts ordered smallest-first (by count of command methods returning outcome a
   as the first real proof; its controller drops the outcome branching.
 - **35.2 - Payments + Sessions** (`TriggerHelloAssoSync`, 1 Sessions command).
 - **35.3 - PersonalRuns** (2) · **35.4 - Events** (3) · **35.5 - GameSelection** (4) ·
-  **35.6 - Registrations** (6) · **35.7 - Identity** (8). Community's existing
-  `CannotKudosOwnContentException` folds into the interface when Community is converted.
+  **35.6 - Registrations, public + message** (4 of 6: reserve/submit/cancel/message; adds `BadGatewayException`
+  502) · **35.6b - Registrations admin** (`AdminRegistrationCancellation`, `AdminRegistrationModification` -
+  deferred: their controllers audit-log *every* outcome, so conversion needs the logging moved into the
+  command first) · **35.7 - Identity** (8). Community's existing `CannotKudosOwnContentException` folds into
+  the interface when Community is converted.
 
 Stage 2 (typed result records) and the tightened validator rule follow once Stage 1 covers every context.

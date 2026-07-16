@@ -59,32 +59,10 @@ final readonly class RegistrationController
             return $user;
         }
 
+        // Failure outcomes (email not verified, event missing, not eligible, capacity full) are thrown as
+        // typed ApplicationFailures and mapped to HTTP by ApplicationFailureListener (epic 35). The two
+        // remaining outcomes are both successes with distinct statuses (already_registered 200, reserved 201).
         $result = $this->reserveRegistration->reserve($eventId, $user->getId());
-
-        if (null === $result) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Événement introuvable.', 404);
-        }
-
-        if ('email_not_verified' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse(
-                'email_not_verified',
-                'Tu dois confirmer ton adresse email avant de t\'inscrire à un événement.',
-                403,
-            );
-        }
-
-        if ('not_eligible' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse(
-                'not_eligible',
-                "L'inscription n'est pas disponible pour cet événement.",
-                422,
-                ['registration' => [$result['reason']]],
-            );
-        }
-
-        if ('capacity_full' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('capacity_full', 'Cet événement est complet.', 409);
-        }
 
         if ('already_registered' === $result['outcome']) {
             return new JsonResponse([
@@ -177,15 +155,9 @@ final readonly class RegistrationController
             return $user;
         }
 
-        $result = $this->registrationCancellation->cancel($registrationId, $user->getId());
-
-        if (null === $result) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
-        }
-
-        if ('error' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse($result['code'], $result['message'], 422);
-        }
+        // Failures (missing/not-owned, cancellation not allowed) are thrown as typed ApplicationFailures
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $this->registrationCancellation->cancel($registrationId, $user->getId());
 
         return new JsonResponse(['data' => ['outcome' => 'cancelled'], 'meta' => []]);
     }
@@ -199,15 +171,9 @@ final readonly class RegistrationController
             return $user;
         }
 
+        // Failures (missing/not-reserved, incomplete game selection) are thrown as typed ApplicationFailures
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->registrationSubmission->submit($registrationId, $user->getId());
-
-        if (null === $result) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Inscription introuvable.', 404);
-        }
-
-        if ('error' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse($result['code'], $result['message'], 422);
-        }
 
         return new JsonResponse([
             'data' => [

@@ -13,6 +13,11 @@ use App\Realtime\Application\Service\RealtimePublisher;
 use App\Registrations\Application\Query\RegistrationCounter;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Shared\Application\Exception\ApplicationFailure;
+use App\Shared\Application\Exception\ConflictException;
+use App\Shared\Application\Exception\ForbiddenException;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -35,14 +40,21 @@ final readonly class ReserveRegistration
      * Reserves a seat on an event for the given authenticated user.
      * Returns null if the event does not exist or is not publicly visible.
      *
-     * @return array{outcome: 'email_not_verified'}|array{outcome: 'not_eligible', reason: string}|array{outcome: 'capacity_full'}|array{outcome: 'reserved', registrationId: string}|array{outcome: 'already_registered', registrationId: string}|null
+     * `reserved` (201) and `already_registered` (200) are both success outcomes; the four failure paths throw.
+     *
+     * @return array{outcome: 'reserved'|'already_registered', registrationId: string}
+     *
+     * @throws ForbiddenException  when the caller's email is not verified
+     * @throws NotFoundException   when the event does not exist or is not public
+     * @throws ValidationException when the caller is not eligible to register
+     * @throws ConflictException   when the event is at capacity
      */
-    public function reserve(string $eventId, string $userId): ?array
+    public function reserve(string $eventId, string $userId): array
     {
         $user = $this->userRepository->findById($userId);
 
         if (!$user instanceof User || !$user->isEmailVerified()) {
-            return ['outcome' => 'email_not_verified'];
+            throw new ForbiddenException('Tu dois confirmer ton adresse email avant de t\'inscrire à un événement.', 'email_not_verified');
         }
 
         $this->registrationRepository->beginTransaction();
@@ -57,13 +69,13 @@ final readonly class ReserveRegistration
             if (!$lockedEvent instanceof Event) {
                 $this->registrationRepository->rollBack();
 
-                return null;
+                throw new NotFoundException('Événement introuvable.');
             }
 
             if (!$lockedEvent->isVisiblePublicly()) {
                 $this->registrationRepository->commit();
 
-                return null;
+                throw new NotFoundException('Événement introuvable.');
             }
 
             $now = $this->clock->now();
@@ -72,7 +84,7 @@ final readonly class ReserveRegistration
             if (null !== $ineligibleReason) {
                 $this->registrationRepository->commit();
 
-                return ['outcome' => 'not_eligible', 'reason' => $ineligibleReason];
+                throw new ValidationException("L'inscription n'est pas disponible pour cet événement.", ['registration' => [$ineligibleReason]], 'not_eligible');
             }
 
             $existing = $this->registrationRepository->findByEventAndUser($lockedEvent->getId(), $userId);
@@ -88,7 +100,7 @@ final readonly class ReserveRegistration
             if ($confirmedCount >= $lockedEvent->getCapacity()) {
                 $this->registrationRepository->commit();
 
-                return ['outcome' => 'capacity_full'];
+                throw new ConflictException('Cet événement est complet.', 'capacity_full');
             }
 
             $registration = new Registration(
@@ -102,6 +114,9 @@ final readonly class ReserveRegistration
             $this->registrationRepository->persist($registration);
             $this->registrationRepository->flush();
             $this->registrationRepository->commit();
+        } catch (ApplicationFailure $e) {
+            // Business failures manage their own commit/rollback before throwing; do not roll back again.
+            throw $e;
         } catch (\Throwable $e) {
             $this->registrationRepository->rollBack();
             throw $e;
