@@ -8,6 +8,7 @@ use App\Identity\Application\Support\SlugGenerator;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Shared\Application\Exception\ValidationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -27,7 +28,9 @@ final readonly class RegisterUser
     }
 
     /**
-     * @return array{user?: User, errors: array<string, list<string>>}
+     * @return array{user: User}
+     *
+     * @throws ValidationException when the registration form is invalid
      */
     public function register(string $email, string $password, bool $acceptedCgu, string $displayName = ''): array
     {
@@ -39,7 +42,7 @@ final readonly class RegisterUser
         }
 
         if ([] !== $errors) {
-            return ['errors' => $errors];
+            throw new ValidationException('Le formulaire contient des erreurs.', $errors);
         }
 
         $now = $this->clock->now();
@@ -60,14 +63,14 @@ final readonly class RegisterUser
         try {
             $this->userRepository->save($user);
         } catch (UniqueConstraintViolationException) {
-            return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];
+            throw new ValidationException('Le formulaire contient des erreurs.', ['email' => ['Un compte existe déjà avec cette adresse email.']]);
         }
 
         $this->logger->info('user.registered', ['userId' => $user->getId()]);
 
         $this->sendEmailConfirmation->sendFor($user->getId(), $user->getEmail(), $user->getDisplayName(), $now);
 
-        return ['user' => $user, 'errors' => []];
+        return ['user' => $user];
     }
 
     public static function canonicalizeEmail(string $email): string

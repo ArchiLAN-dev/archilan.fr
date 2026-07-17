@@ -99,7 +99,7 @@ final class EmailConfirmationTest extends FunctionalTestCase
         $register = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $register);
         $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertInstanceOf(User::class, $result['user'] ?? null);
+        self::assertInstanceOf(User::class, $result['user']);
 
         $user = $result['user'];
         $this->loginAs($user);
@@ -124,7 +124,7 @@ final class EmailConfirmationTest extends FunctionalTestCase
         $register = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $register);
         $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertInstanceOf(User::class, $result['user'] ?? null);
+        self::assertInstanceOf(User::class, $result['user']);
 
         $user = $result['user'];
         $this->loginAs($user);

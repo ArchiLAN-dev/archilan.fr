@@ -30,8 +30,7 @@ final class RefreshTokenRepositoryTest extends FunctionalTestCase
         $registerUser = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $registerUser);
         $result = $registerUser->register('test@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertSame([], $result['errors']);
-        $user = $result['user'] ?? null;
+        $user = $result['user'];
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();
     }
