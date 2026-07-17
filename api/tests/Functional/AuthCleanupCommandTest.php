@@ -29,7 +29,7 @@ final class AuthCleanupCommandTest extends FunctionalTestCase
         $register = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $register);
         $result = $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
-        $user = $result['user'] ?? null;
+        $user = $result['user'];
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();
     }

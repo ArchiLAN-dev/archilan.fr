@@ -44,7 +44,6 @@ final class ProfileTest extends FunctionalTestCase
         $registerUser = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $registerUser);
         $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertSame([], $result['errors']);
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
             'email' => 'jean@example.org',

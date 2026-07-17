@@ -37,19 +37,8 @@ final readonly class RegisterUserController
             $displayName,
         );
 
-        if ([] !== $result['errors']) {
-            return $this->errorResponse(
-                'validation_failed',
-                'Le formulaire contient des erreurs.',
-                $result['errors'],
-                422,
-            );
-        }
-
-        if (!isset($result['user'])) {
-            throw new \LogicException('Registration succeeded without a user.');
-        }
-
+        // Validation failures are thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
         $user = $result['user'];
 
         return new JsonResponse([

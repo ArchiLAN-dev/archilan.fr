@@ -73,7 +73,7 @@ final class AccountModerationTest extends FunctionalTestCase
     {
         $register = self::getContainer()->get(RegisterUser::class);
         self::assertInstanceOf(RegisterUser::class, $register);
-        self::assertSame([], $register->register('bad@example.org', 'correct horse battery staple', true, 'Bad')['errors']);
+        $register->register('bad@example.org', 'correct horse battery staple', true, 'Bad');
 
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['emailCanonical' => 'bad@example.org']);
         self::assertInstanceOf(User::class, $user);
