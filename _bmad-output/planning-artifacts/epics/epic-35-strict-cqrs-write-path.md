@@ -1,9 +1,10 @@
 # Epic 35 - Strict CQRS Write Path
 
-Status: Stage 1 complete (2026-07-17). Every command service that returned a failure discriminant now
-throws a typed `ApplicationFailure` mapped centrally by `ApplicationFailureListener`. Stage 2 (typed result
-records) next, on code-quality grounds; Stage 3 stays deferred until a real driver (read-model scaling /
-eventual consistency / event sourcing).
+Status: Stage 2 in progress (started 2026-07-17). Stage 1 complete (2026-07-17): every command service that
+returned a failure discriminant now throws a typed `ApplicationFailure` mapped centrally by
+`ApplicationFailureListener`. Stage 2 (typed result records) is now being delivered in full, on the explicit
+"le plus clean possible" directive (Jean, 2026-07-17). Stage 3 (command/query split) stays deferred - see the
+Stage 2 breakdown for why it is *not* the cleaner end-state for this codebase.
 Date: 2026-07-11 (recorded), 2026-07-16 (planned)
 
 ## Origin
@@ -72,4 +73,44 @@ Contexts ordered smallest-first (by count of command methods returning outcome a
 `ApplicationFailure`. Remaining outcome-arrays are legitimate success/routing discriminants (reserve's
 reserved/already_registered, the Discord OAuth callbacks), not failures.
 
-Stage 2 (typed result records) and the tightened validator rule follow once Stage 1 covers every context.
+## Stage 2 story breakdown (typed result records, per context)
+
+**Decision (Jean, 2026-07-17, "le plus clean possible, peu importe l'impact/temps"):** deliver Stage 2 in
+full - **every command method returns `void` or a `final readonly` result record, never a raw `array`** - and
+add the validator rule that gates it. But **NOT** the Stage 3 command/query split, because for this codebase
+that is *more* machinery, not cleaner:
+
+- the command already holds the data it just wrote; a separate read-query re-reads it (a redundant round-trip,
+  "read your writes") purely for doctrinal separation;
+- it would force the controller to make **two** Application calls (command + query), violating AC-P4 ("at most
+  one Application service call per action") unless a facade is introduced everywhere - more indirection.
+- Stage 3's only real payoff is decoupling read/write *models* to scale or event-source them independently;
+  with no such driver, it is ceremony. Jean's original deferral stands and is *reinforced* by the clean-first
+  lens: the cleanest reachable end-state is fully-typed records + one Application call, not void-command + query.
+
+So a Stage 2 result record carries exactly what the caller renders: an id/status/slug ack for the simple ones,
+a `final readonly` DTO for the ones that produce a read payload (preferring a shared DTO reused by the matching
+query where one exists). No `array{...}` phpdoc shapes survive at the Application/Presentation boundary.
+
+**Colocation:** a command's result record lives in `Application/Command/` with the command (taxonomy rule).
+
+Contexts ordered to establish the record convention first, then roll out (each its own PR, gates green):
+
+- **35.8 - Foundation/pilot: PersonalRuns.** `PersonalRunLifecycle` (5 methods) returns a `RunLifecycleResult`
+  record instead of `array{runId, status}`; both controllers read `->runId`/`->status`. Establishes the
+  colocated-record convention. HTTP bodies byte-identical.
+- **35.9 - Registrations** (`ReserveRegistration` outcome+id -> record with a status enum; `RegistrationSubmission`).
+- **35.10 - Identity acks** (`ChangeUserSlug` -> `{slug}` record).
+- **35.11 - Identity read-payloads** (`AdminChangeUserRole`, `AdminCreateAdminAccount`, `CreatePrivacyRightsRequest`,
+  `RegisterUser` `{user: User}`) -> `final readonly` DTOs (shared with the matching read query where one exists).
+- **35.12 - Identity Discord routing** (`LinkDiscordToAccount`, `HandleDiscordAuthCallback`) -> record carrying a
+  routing **enum** outcome instead of a string discriminant (still drives the `RedirectResponse`, now typed).
+- **35.13 - Uploads** (`UploadPostCoverImageCommand`, `UploadEventCoverImageCommand`, `ManageEventGalleryCommand`,
+  `UploadTutorialImageCommand`) -> upload-result records (url + admin payload).
+- **35.14 - Events/SessionConfig/WeeklyRuns/Community** (`VerifyPrivateEventAccess`, `AdminUpdateSessionConfig`,
+  `AdminCreate/UpdateWeeklyTemplate`, `LaunchWeeklyEntry`, `OptInToWeeklyRun`, `UpdateCommunityProfile`).
+- **35.15 - Sessions + CLI reports** (`ForceEndSessionCommand`; the CatalogSync/GameSelection `Backfill*` /
+  `SeedGameTutorials` / `CheckApworldUpdatesService` report arrays -> report records, for full consistency).
+- **35.16 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void` or a
+  `final readonly` record, never an `array`", update `api/CLAUDE.md` AC-A3 + the `StandardsDocsMatchToolingTest`.
+  Ships last, once no command returns an array.

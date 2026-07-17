@@ -39,7 +39,7 @@ final readonly class PersonalRunCallbackController
         // to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->lifecycle->markRunning($runId, $host, $port);
 
-        return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
+        return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]]);
     }
 
     #[Route('/api/v1/runs/{runId}/stopped', name: 'api_runs_callback_stopped', methods: ['POST'])]
@@ -51,7 +51,7 @@ final readonly class PersonalRunCallbackController
 
         $result = $this->lifecycle->markStopped($runId);
 
-        return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
+        return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]]);
     }
 
     private function isAuthorized(Request $request): bool

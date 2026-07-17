@@ -146,7 +146,7 @@ final readonly class PersonalRunController
         // to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->lifecycle->start($runId, $user->getId());
 
-        return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]], 202);
+        return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]], 202);
     }
 
     #[Route('/api/v1/runs/{runId}/stop', name: 'api_runs_stop', methods: ['POST'])]
@@ -159,7 +159,7 @@ final readonly class PersonalRunController
 
         $result = $this->lifecycle->stop($runId, $user->getId());
 
-        return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]], 202);
+        return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]], 202);
     }
 
     #[Route('/api/v1/runs/{runId}/finish', name: 'api_runs_finish', methods: ['POST'])]
@@ -172,7 +172,7 @@ final readonly class PersonalRunController
 
         $result = $this->lifecycle->finish($runId, $user->getId());
 
-        return new JsonResponse(['data' => ['runId' => $result['runId'], 'status' => $result['status']]]);
+        return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]]);
     }
 
     #[Route('/api/v1/runs/{runId}/games', name: 'api_runs_configure_games', methods: ['PATCH'])]

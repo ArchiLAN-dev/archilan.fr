@@ -31,13 +31,11 @@ final readonly class PersonalRunLifecycle
     }
 
     /**
-     * @return array{runId: string, status: string}
-     *
      * @throws NotFoundException   when the run does not exist
      * @throws ForbiddenException  when the caller does not own the run
      * @throws ValidationException when the run cannot be started in its current state
      */
-    public function start(string $runId, string $callerId): array
+    public function start(string $runId, string $callerId): RunLifecycleResult
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -68,17 +66,15 @@ final readonly class PersonalRunLifecycle
 
         $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId()));
 
-        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
+        return new RunLifecycleResult($run->getId(), $run->getStatus());
     }
 
     /**
-     * @return array{runId: string, status: string}
-     *
      * @throws NotFoundException   when the run does not exist
      * @throws ForbiddenException  when the caller does not own the run
      * @throws ValidationException when the run is not active
      */
-    public function stop(string $runId, string $callerId): array
+    public function stop(string $runId, string $callerId): RunLifecycleResult
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -98,16 +94,14 @@ final readonly class PersonalRunLifecycle
 
         $this->messageBus->dispatch(new StopPersonalRunJob($run->getId()));
 
-        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
+        return new RunLifecycleResult($run->getId(), $run->getStatus());
     }
 
     /**
-     * @return array{runId: string, status: string}
-     *
      * @throws NotFoundException   when the run does not exist
      * @throws ValidationException when the run is not in the starting state
      */
-    public function markRunning(string $runId, string $host, int $port): array
+    public function markRunning(string $runId, string $host, int $port): RunLifecycleResult
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -121,16 +115,14 @@ final readonly class PersonalRunLifecycle
         $run->markRunning($host, $port, $this->clock->now());
         $this->runs->flush();
 
-        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
+        return new RunLifecycleResult($run->getId(), $run->getStatus());
     }
 
     /**
-     * @return array{runId: string, status: string}
-     *
      * @throws NotFoundException   when the run does not exist
      * @throws ValidationException when the run is not in the stopping state
      */
-    public function markStopped(string $runId): array
+    public function markStopped(string $runId): RunLifecycleResult
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -144,7 +136,7 @@ final readonly class PersonalRunLifecycle
         $run->markStopped($this->clock->now());
         $this->runs->flush();
 
-        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
+        return new RunLifecycleResult($run->getId(), $run->getStatus());
     }
 
     /**
@@ -152,13 +144,11 @@ final readonly class PersonalRunLifecycle
      * finished, stop the runner, dispatch the archive job that snapshots the bridge's real goal/check
      * state). Reuses the force-end mechanism rather than duplicating it.
      *
-     * @return array{runId: string, status: string}
-     *
      * @throws NotFoundException  when the run does not exist
      * @throws ForbiddenException when the caller does not own the run
      * @throws ConflictException  when the run cannot be finished in its current state
      */
-    public function finish(string $runId, string $callerId): array
+    public function finish(string $runId, string $callerId): RunLifecycleResult
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -189,6 +179,6 @@ final readonly class PersonalRunLifecycle
         $run->complete($this->clock->now());
         $this->runs->flush();
 
-        return ['runId' => $run->getId(), 'status' => $run->getStatus()];
+        return new RunLifecycleResult($run->getId(), $run->getStatus());
     }
 }
