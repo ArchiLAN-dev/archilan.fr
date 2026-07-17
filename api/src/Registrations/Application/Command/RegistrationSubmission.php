@@ -32,15 +32,11 @@ final readonly class RegistrationSubmission
 
     /**
      * Validates and confirms a registration after the registrant has reviewed their selection.
-     * Returns null if the registration does not exist, does not belong to the given user,
-     * or is not in reserved status.
-     *
-     * @return array{registrationId: string, eventTitle: string, selectedGameIds: list<string>}
      *
      * @throws NotFoundException   when the registration is missing or not the caller's reserved one
      * @throws ValidationException when the game selection is incomplete
      */
-    public function submit(string $registrationId, string $userId): array
+    public function submit(string $registrationId, string $userId): SubmissionResult
     {
         $registration = $this->registrationRepository->findById($registrationId);
 
@@ -84,11 +80,11 @@ final readonly class RegistrationSubmission
             ));
         }
 
-        return [
-            'registrationId' => $registration->getId(),
-            'eventTitle' => $event->getTitle(),
-            'selectedGameIds' => $registration->getSelectedGameIds(),
-        ];
+        return new SubmissionResult(
+            $registration->getId(),
+            $event->getTitle(),
+            $registration->getSelectedGameIds(),
+        );
     }
 
     /**
