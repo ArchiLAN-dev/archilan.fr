@@ -31,21 +31,15 @@ final readonly class AdminUserRoleController
         }
 
         $payload = $this->jsonPayload($request);
-        $result = $this->adminChangeUserRole->change(
+
+        // Validation failures are thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
+        $user = $this->adminChangeUserRole->change(
             $admin,
             $userId,
             is_string($payload['role'] ?? null) ? $payload['role'] : '',
             true === ($payload['confirmed'] ?? false),
         );
-
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le changement de rôle est invalide.', 422, $result['errors']);
-        }
-
-        $user = $result['user'] ?? null;
-        if (null === $user) {
-            return $this->apiAccessGuard->errorResponse('role_change_failed', 'Le changement de rôle a échoué.', 500);
-        }
 
         return new JsonResponse(['data' => $user, 'meta' => []]);
     }

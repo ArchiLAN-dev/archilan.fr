@@ -10,6 +10,7 @@ use App\Identity\Domain\Entity\AdminCreationAudit;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\AdminCreationAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Shared\Application\Exception\ValidationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -29,20 +30,22 @@ final readonly class AdminCreateAdminAccount
     }
 
     /**
-     * @return array{user?: array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null}, errors: array<string, list<string>>}
+     * @return array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null} the created admin payload
+     *
+     * @throws ValidationException when the form is invalid
      */
     public function create(User $creator, string $email, string $password, string $displayName = ''): array
     {
         $errors = $this->validate($email, $password, $displayName);
 
         if ([] !== $errors) {
-            return ['errors' => $errors];
+            throw new ValidationException('Le formulaire contient des erreurs.', $errors);
         }
 
         $emailCanonical = mb_strtolower(trim($email));
 
         if ($this->emailExists($emailCanonical)) {
-            return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];
+            throw new ValidationException('Le formulaire contient des erreurs.', ['email' => ['Un compte existe déjà avec cette adresse email.']]);
         }
 
         $now = $this->clock->now();
@@ -76,12 +79,12 @@ final readonly class AdminCreateAdminAccount
         try {
             $this->auditRepository->saveAdminWithAudit($admin, AdminCreationAudit::record($admin->getId(), $creator->getId(), $now));
         } catch (UniqueConstraintViolationException) {
-            return ['errors' => ['email' => ['Un compte existe déjà avec cette adresse email.']]];
+            throw new ValidationException('Le formulaire contient des erreurs.', ['email' => ['Un compte existe déjà avec cette adresse email.']]);
         }
 
         $this->logger->info('admin.account_created', ['adminId' => $admin->getId(), 'creatorId' => $creator->getId()]);
 
-        return ['user' => $this->userPayload($admin), 'errors' => []];
+        return $this->userPayload($admin);
     }
 
     private function emailExists(string $emailCanonical): bool

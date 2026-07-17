@@ -37,17 +37,10 @@ final readonly class PrivacyRightsRequestController
             is_string($payload['details'] ?? null) ? $payload['details'] : null,
         );
 
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'La demande RGPD contient des erreurs.', 422, $result['errors']);
-        }
-
-        $createdRequest = $result['request'] ?? null;
-        if (null === $createdRequest) {
-            return $this->apiAccessGuard->errorResponse('privacy_request_failed', 'La demande RGPD a échoué.', 500);
-        }
-
+        // Validation failures are thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
         return new JsonResponse([
-            'data' => $createdRequest,
+            'data' => $result,
             'meta' => [
                 'message' => 'Demande RGPD transmise pour traitement manuel.',
                 'contactFollowUp' => 'Un membre habilité devra vérifier et traiter la demande hors automatisation.',

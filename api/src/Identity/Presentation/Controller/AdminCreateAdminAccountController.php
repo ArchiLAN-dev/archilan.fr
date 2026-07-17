@@ -38,16 +38,9 @@ final readonly class AdminCreateAdminAccountController
             is_string($payload['displayName'] ?? null) ? $payload['displayName'] : '',
         );
 
-        if ([] !== $result['errors']) {
-            return $this->apiAccessGuard->errorResponse('validation_failed', 'Le formulaire contient des erreurs.', 422, $result['errors']);
-        }
-
-        $user = $result['user'] ?? null;
-        if (null === $user) {
-            return $this->apiAccessGuard->errorResponse('admin_creation_failed', 'La création du compte admin a échoué.', 500);
-        }
-
-        return new JsonResponse(['data' => $user, 'meta' => ['message' => 'Compte admin créé.']], 201);
+        // Validation failures are thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
+        return new JsonResponse(['data' => $result, 'meta' => ['message' => 'Compte admin créé.']], 201);
     }
 
     /**
