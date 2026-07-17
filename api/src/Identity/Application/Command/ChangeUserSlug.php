@@ -7,6 +7,7 @@ namespace App\Identity\Application\Command;
 use App\Identity\Application\Support\SlugGenerator;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Shared\Application\Exception\ValidationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -42,24 +43,26 @@ final readonly class ChangeUserSlug
     }
 
     /**
-     * @return array{outcome: 'ok'|'error', error?: string, slug?: string, nextAllowedAt?: string}
+     * @return array{slug: string} the new slug
+     *
+     * @throws ValidationException when the slug is unavailable, reserved, unchanged, cooling down, or invalid
      */
     public function change(string $userId, string $requested): array
     {
         $user = $this->userRepository->findById($userId);
         if (!$user instanceof User) {
-            return ['outcome' => 'error', 'error' => 'not_found'];
+            $this->failSlug('not_found');
         }
 
         $slug = self::sanitize($requested);
         if (null === $slug) {
-            return ['outcome' => 'error', 'error' => 'slug_invalid'];
+            $this->failSlug('slug_invalid');
         }
         if (in_array($slug, self::RESERVED, true)) {
-            return ['outcome' => 'error', 'error' => 'slug_reserved_word'];
+            $this->failSlug('slug_reserved_word');
         }
         if ($slug === $user->getSlug()) {
-            return ['outcome' => 'error', 'error' => 'slug_unchanged'];
+            $this->failSlug('slug_unchanged');
         }
 
         $now = $this->clock->now();
@@ -70,20 +73,17 @@ final readonly class ChangeUserSlug
         if (!$isReclaim) {
             $changedAt = $user->getSlugChangedAt();
             if (null !== $changedAt && $changedAt > $cutoff) {
-                return [
-                    'outcome' => 'error',
-                    'error' => 'slug_cooldown',
-                    'nextAllowedAt' => $changedAt->add(new \DateInterval(sprintf('P%dD', self::COOLDOWN_DAYS)))->format(\DateTimeInterface::ATOM),
-                ];
+                $nextAllowedAt = $changedAt->add(new \DateInterval(sprintf('P%dD', self::COOLDOWN_DAYS)))->format(\DateTimeInterface::ATOM);
+                $this->failSlug('slug_cooldown', ['nextAllowedAt' => [$nextAllowedAt]]);
             }
         }
 
         if ($this->userRepository->existsBySlug($slug)) {
-            return ['outcome' => 'error', 'error' => 'slug_taken'];
+            $this->failSlug('slug_taken');
         }
         // Reserved by another user who released it within the window (former owner excluded → reclaim ok).
         if ($this->userRepository->isSlugReserved($slug, $cutoff, $userId)) {
-            return ['outcome' => 'error', 'error' => 'slug_reserved'];
+            $this->failSlug('slug_reserved');
         }
 
         $user->changeSlug($slug, $now);
@@ -91,12 +91,31 @@ final readonly class ChangeUserSlug
         try {
             $this->userRepository->flush();
         } catch (UniqueConstraintViolationException) {
-            return ['outcome' => 'error', 'error' => 'slug_taken'];
+            $this->failSlug('slug_taken');
         }
 
         $this->logger->info('user.slug_changed', ['userId' => $userId, 'slug' => $slug]);
 
-        return ['outcome' => 'ok', 'slug' => $slug];
+        return ['slug' => $slug];
+    }
+
+    /**
+     * @param array<string, mixed> $details
+     *
+     * @throws ValidationException always (maps the slug error code to its 422 message)
+     */
+    private function failSlug(string $code, array $details = []): never
+    {
+        $message = match ($code) {
+            'slug_taken' => 'Cette URL est déjà utilisée.',
+            'slug_reserved' => 'Cette URL a été libérée récemment et reste réservée 30 jours.',
+            'slug_reserved_word' => 'Cette URL est réservée.',
+            'slug_cooldown' => 'Tu as déjà changé d\'URL récemment (1 changement tous les 30 jours).',
+            'slug_unchanged' => 'C\'est déjà ton URL actuelle.',
+            default => 'URL invalide : 3 à 30 caractères, minuscules, chiffres et tirets.',
+        };
+
+        throw new ValidationException($message, $details, $code);
     }
 
     /**

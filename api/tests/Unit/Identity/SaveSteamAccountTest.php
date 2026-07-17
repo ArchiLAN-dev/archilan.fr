@@ -7,6 +7,8 @@ namespace App\Tests\Unit\Identity;
 use App\Identity\Application\Command\SaveSteamAccount;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Shared\Application\Exception\NotFoundException;
+use App\Shared\Application\Exception\ValidationException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -22,9 +24,8 @@ final class SaveSteamAccountTest extends TestCase
 
         $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
-        $result = $service->save($user->getId(), '76561197960287930');
+        $service->save($user->getId(), '76561197960287930');
 
-        self::assertSame('saved', $result['outcome']);
         self::assertSame('76561197960287930', $user->getSteamProfile());
     }
 
@@ -38,8 +39,9 @@ final class SaveSteamAccountTest extends TestCase
 
         $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
-        self::assertSame('invalid_input', $service->save($user->getId(), 'bad profile !!')['outcome']);
-        self::assertNull($user->getSteamProfile());
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Profil Steam non reconnu.');
+        $service->save($user->getId(), 'bad profile !!');
     }
 
     public function testReturnsNotFoundWhenUserMissing(): void
@@ -50,7 +52,8 @@ final class SaveSteamAccountTest extends TestCase
 
         $service = new SaveSteamAccount($repo, self::createStub(LoggerInterface::class));
 
-        self::assertSame('not_found', $service->save('missing', '76561197960287930')['outcome']);
+        $this->expectException(NotFoundException::class);
+        $service->save('missing', '76561197960287930');
     }
 
     public function testRemoveClearsTheProfile(): void

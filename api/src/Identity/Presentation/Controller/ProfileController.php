@@ -51,28 +51,11 @@ final readonly class ProfileController
             return $this->apiAccessGuard->errorResponse('validation_error', 'Le slug est requis.', 422);
         }
 
+        // Slug failures are thrown as a ValidationException (carrying the code + message + nextAllowedAt)
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->changeUserSlug->change($user->getId(), $body['slug']);
 
-        if ('ok' !== $result['outcome']) {
-            $code = $result['error'] ?? 'slug_invalid';
-            $details = isset($result['nextAllowedAt']) ? ['nextAllowedAt' => [$result['nextAllowedAt']]] : [];
-
-            return $this->apiAccessGuard->errorResponse($code, self::slugErrorMessage($code), 422, $details);
-        }
-
-        return new JsonResponse(['data' => ['slug' => $result['slug'] ?? null]]);
-    }
-
-    private static function slugErrorMessage(string $code): string
-    {
-        return match ($code) {
-            'slug_taken' => 'Cette URL est déjà utilisée.',
-            'slug_reserved' => 'Cette URL a été libérée récemment et reste réservée 30 jours.',
-            'slug_reserved_word' => 'Cette URL est réservée.',
-            'slug_cooldown' => 'Tu as déjà changé d\'URL récemment (1 changement tous les 30 jours).',
-            'slug_unchanged' => 'C\'est déjà ton URL actuelle.',
-            default => 'URL invalide : 3 à 30 caractères, minuscules, chiffres et tirets.',
-        };
+        return new JsonResponse(['data' => ['slug' => $result['slug']]]);
     }
 
     /**

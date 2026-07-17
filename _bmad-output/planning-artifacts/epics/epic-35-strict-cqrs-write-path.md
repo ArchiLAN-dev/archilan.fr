@@ -1,7 +1,9 @@
 # Epic 35 - Strict CQRS Write Path
 
-Status: planned (2026-07-16) - Stage 1 in progress. Stages 1-2 pursued on code-quality grounds;
-Stage 3 stays deferred until a real driver (read-model scaling / eventual consistency / event sourcing).
+Status: Stage 1 complete (2026-07-17). Every command service that returned a failure discriminant now
+throws a typed `ApplicationFailure` mapped centrally by `ApplicationFailureListener`. Stage 2 (typed result
+records) next, on code-quality grounds; Stage 3 stays deferred until a real driver (read-model scaling /
+eventual consistency / event sourcing).
 Date: 2026-07-11 (recorded), 2026-07-16 (planned)
 
 ## Origin
@@ -58,9 +60,16 @@ Contexts ordered smallest-first (by count of command methods returning outcome a
   command first) · **35.7 - Identity, validation-shaped admin/privacy** (3 of 8: `AdminChangeUserRole`,
   `AdminCreateAdminAccount`, `CreatePrivacyRightsRequest`) · **35.7b - Identity RegisterUser** (deferred:
   `register()` is the pervasive test user-creation helper returning `{user: User}`; converting ripples into
-  ~12 test files - do it as its own PR) · **35.7c - Identity discriminant** (`ChangeUserSlug`,
-  `LinkDiscordToAccount`, `HandleDiscordAuthCallback`, `SaveSteamAccount` - each has a per-command nuance:
-  slug rate-limit + code->message mapping, discord 502, a dual-success, steam not_found). Community's existing
-  `CannotKudosOwnContentException` folds into the interface when Community is converted.
+  ~12 test files - do it as its own PR) · **35.7c - Identity discriminant** (`ChangeUserSlug`
+  - all slug errors -> 422, code->message map moved into the command via a `failSlug()` helper; `SaveSteamAccount`
+  - invalid_input -> 422, not_found -> 404). **`LinkDiscordToAccount` + `HandleDiscordAuthCallback` are NOT
+  converted**: they are OAuth *callback* commands whose outcome drives a `RedirectResponse` to the frontend
+  (`?discord_error=...`), not an HTTP error code - their outcome discriminant is routing, not a typed failure,
+  so it stays. Community's existing `CannotKudosOwnContentException` folds into the interface when Community is
+  converted (a future need, not required for Stage 1).
+
+**Stage 1 done.** Every command that mapped a failure discriminant to an HTTP error status now throws a typed
+`ApplicationFailure`. Remaining outcome-arrays are legitimate success/routing discriminants (reserve's
+reserved/already_registered, the Discord OAuth callbacks), not failures.
 
 Stage 2 (typed result records) and the tightened validator rule follow once Stage 1 covers every context.

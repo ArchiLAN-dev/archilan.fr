@@ -38,11 +38,9 @@ final readonly class SteamAccountController
             return $this->apiAccessGuard->errorResponse('steam_invalid_input', 'Profil Steam requis.', 422);
         }
 
-        $result = $this->saveSteamAccount->save($user->getId(), $steamProfile);
-
-        if ('invalid_input' === $result['outcome']) {
-            return $this->apiAccessGuard->errorResponse('steam_invalid_input', 'Profil Steam non reconnu.', 422);
-        }
+        // An unrecognised profile is thrown as a ValidationException and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
+        $this->saveSteamAccount->save($user->getId(), $steamProfile);
 
         return new JsonResponse(['data' => ['steamProfile' => $steamProfile]]);
     }
