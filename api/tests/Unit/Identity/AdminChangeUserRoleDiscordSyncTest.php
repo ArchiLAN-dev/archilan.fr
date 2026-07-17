@@ -39,8 +39,6 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
             });
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-
-        self::assertSame([], $result['errors']);
         self::assertSame(['flush', 'dispatch'], $events);
     }
 
@@ -65,8 +63,6 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
             });
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'user', true);
-
-        self::assertSame([], $result['errors']);
         self::assertSame(['flush', 'dispatch'], $events);
     }
 
@@ -96,11 +92,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $bus->expects(self::never())->method('dispatch');
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-
-        self::assertSame([], $result['errors']);
-        $userPayload = $result['user'] ?? null;
-        self::assertIsArray($userPayload);
-        self::assertSame('member', $userPayload['role']);
+        self::assertSame('member', $result['role']);
         self::assertSame([], $events);
     }
 
@@ -115,11 +107,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-
-        self::assertSame([], $result['errors']);
-        $userPayload = $result['user'] ?? null;
-        self::assertIsArray($userPayload);
-        self::assertSame('member', $userPayload['role']);
+        self::assertSame('member', $result['role']);
         self::assertSame(['flush'], $events);
     }
 

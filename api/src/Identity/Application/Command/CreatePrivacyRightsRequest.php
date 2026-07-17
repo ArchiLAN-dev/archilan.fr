@@ -8,6 +8,7 @@ use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\PrivacyRightsRequest;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\PrivacyRightsRequestRepositoryInterface;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -21,14 +22,16 @@ final readonly class CreatePrivacyRightsRequest
     }
 
     /**
-     * @return array{request?: array{id: string, rightType: string, status: string, handlingMode: string, submittedAt: string}, errors: array<string, list<string>>}
+     * @return array{id: string, rightType: string, status: string, handlingMode: string, submittedAt: string} the created request payload
+     *
+     * @throws ValidationException when the request is invalid
      */
     public function create(User $user, string $rightType, ?string $details): array
     {
         $errors = $this->validate($rightType, $details);
 
         if ([] !== $errors) {
-            return ['errors' => $errors];
+            throw new ValidationException('La demande RGPD contient des erreurs.', $errors);
         }
 
         // No per-user rate limit: multiple requests for the same right type are allowed
@@ -45,7 +48,7 @@ final readonly class CreatePrivacyRightsRequest
 
         $this->logger->info('privacy.request_created', ['userId' => $user->getId(), 'rightType' => $rightType, 'requestId' => $request->getId()]);
 
-        return ['request' => $this->payload($request), 'errors' => []];
+        return $this->payload($request);
     }
 
     /**

@@ -55,7 +55,12 @@ Contexts ordered smallest-first (by count of command methods returning outcome a
   **35.6 - Registrations, public + message** (4 of 6: reserve/submit/cancel/message; adds `BadGatewayException`
   502) · **35.6b - Registrations admin** (`AdminRegistrationCancellation`, `AdminRegistrationModification` -
   deferred: their controllers audit-log *every* outcome, so conversion needs the logging moved into the
-  command first) · **35.7 - Identity** (8). Community's existing `CannotKudosOwnContentException` folds into
-  the interface when Community is converted.
+  command first) · **35.7 - Identity, validation-shaped admin/privacy** (3 of 8: `AdminChangeUserRole`,
+  `AdminCreateAdminAccount`, `CreatePrivacyRightsRequest`) · **35.7b - Identity RegisterUser** (deferred:
+  `register()` is the pervasive test user-creation helper returning `{user: User}`; converting ripples into
+  ~12 test files - do it as its own PR) · **35.7c - Identity discriminant** (`ChangeUserSlug`,
+  `LinkDiscordToAccount`, `HandleDiscordAuthCallback`, `SaveSteamAccount` - each has a per-command nuance:
+  slug rate-limit + code->message mapping, discord 502, a dual-success, steam not_found). Community's existing
+  `CannotKudosOwnContentException` folds into the interface when Community is converted.
 
 Stage 2 (typed result records) and the tightened validator rule follow once Stage 1 covers every context.

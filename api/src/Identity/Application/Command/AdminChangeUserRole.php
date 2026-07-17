@@ -10,6 +10,7 @@ use App\Identity\Domain\Entity\RoleChangeAudit;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -26,7 +27,9 @@ final readonly class AdminChangeUserRole
     }
 
     /**
-     * @return array{user?: array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null}, errors: array<string, list<string>>}
+     * @return array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null} the updated user payload
+     *
+     * @throws ValidationException when the role change is invalid
      */
     public function change(User $admin, string $targetUserId, string $targetRole, bool $confirmed): array
     {
@@ -47,26 +50,26 @@ final readonly class AdminChangeUserRole
         }
 
         if ([] !== $errors->toArray()) {
-            return ['errors' => $errors->toArray()];
+            throw new ValidationException('Le changement de rôle est invalide.', $errors->toArray());
         }
 
         // PHPStan type-narrowing: $target and $normalizedRole are non-null here because
         // any null would have added errors above, causing an early return.
         if (!$target instanceof User || null === $normalizedRole) {
-            return ['errors' => $errors->toArray()];
+            throw new ValidationException('Le changement de rôle est invalide.', $errors->toArray());
         }
 
         if ($target->isDeleted()) {
-            return ['errors' => ['user' => ['Ce compte est supprimé et ne peut plus être modifié.']]];
+            throw new ValidationException('Le changement de rôle est invalide.', ['user' => ['Ce compte est supprimé et ne peut plus être modifié.']]);
         }
 
         if ($target->getId() === $admin->getId() || in_array('ROLE_ADMIN', $target->getRoles(), true)) {
-            return ['errors' => ['role' => ['Les rôles admin ne sont pas modifiables dans cette action.']]];
+            throw new ValidationException('Le changement de rôle est invalide.', ['role' => ['Les rôles admin ne sont pas modifiables dans cette action.']]);
         }
 
         $previousRole = $this->primaryRole($target);
         if ($previousRole === $normalizedRole) {
-            return ['user' => $this->userPayload($target), 'errors' => []];
+            return $this->userPayload($target);
         }
 
         $now = $this->clock->now();
@@ -98,7 +101,7 @@ final readonly class AdminChangeUserRole
             ));
         }
 
-        return ['user' => $this->userPayload($target), 'errors' => []];
+        return $this->userPayload($target);
     }
 
     private function dispatchDiscordSync(SyncDiscordRoleMessage $message): void
