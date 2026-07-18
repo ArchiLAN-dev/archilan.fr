@@ -24,6 +24,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\ValueObject\SessionView;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
 use Psr\Clock\ClockInterface;
@@ -268,7 +269,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return ['found' => true];
     }
 
-    /** @return array{found: bool, session?: array<string, mixed>} */
+    /** @return array{found: bool, session?: SessionView} */
     public function forceReset(string $sessionId): array
     {
         $session = $this->sessions->findById($sessionId);

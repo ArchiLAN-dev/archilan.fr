@@ -11,6 +11,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\ValueObject\SessionView;
 
 final readonly class PlayerSessionConnection
 {
@@ -30,7 +31,7 @@ final readonly class PlayerSessionConnection
      *   - the registration exists and belongs to the given user
      *   - the registration is confirmed (reserved + submittedAt set)
      *
-     * @return array{session: array<string, mixed>|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string}>}|null
+     * @return array{session: SessionView|null, slots: list<array{slotName: string, slotOrder: int, gameId: string, gameName: string}>}|null
      */
     public function getConnection(string $registrationId, string $userId): ?array
     {
