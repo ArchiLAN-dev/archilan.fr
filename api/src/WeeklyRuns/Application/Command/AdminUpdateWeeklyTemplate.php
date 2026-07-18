@@ -20,10 +20,8 @@ final readonly class AdminUpdateWeeklyTemplate
 
     /**
      * @param array{name?: string|null, yamlConfig?: string, maxAttempts?: int|null, isActive?: bool} $changes
-     *
-     * @return array<string, mixed>|null null when not found
      */
-    public function execute(string $templateId, array $changes): ?array
+    public function execute(string $templateId, array $changes): ?WeeklyTemplateResult
     {
         $template = $this->templates->findById($templateId);
         if (null === $template) {
@@ -37,14 +35,14 @@ final readonly class AdminUpdateWeeklyTemplate
         $game = $this->games->findById($template->getGameId());
         $gameName = $game instanceof Game ? $game->getName() : '';
 
-        return [
-            'id' => $template->getId(),
-            'name' => $template->getName(),
-            'gameId' => $template->getGameId(),
-            'gameName' => $gameName,
-            'yamlConfig' => $template->getYamlConfig(),
-            'maxAttempts' => $template->getMaxAttempts(),
-            'isActive' => $template->isActive(),
-        ];
+        return new WeeklyTemplateResult(
+            $template->getId(),
+            $template->getName(),
+            $template->getGameId(),
+            $gameName,
+            $template->getYamlConfig(),
+            $template->getMaxAttempts(),
+            $template->isActive(),
+        );
     }
 }

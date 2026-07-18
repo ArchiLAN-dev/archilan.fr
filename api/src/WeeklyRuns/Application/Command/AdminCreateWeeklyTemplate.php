@@ -19,10 +19,7 @@ final readonly class AdminCreateWeeklyTemplate
     ) {
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function execute(string $gameId, string $yamlConfig, ?string $name, ?int $maxAttempts): array
+    public function execute(string $gameId, string $yamlConfig, ?string $name, ?int $maxAttempts): WeeklyTemplateResult
     {
         $game = $this->games->findById($gameId);
         if (!$game instanceof Game) {
@@ -49,14 +46,14 @@ final readonly class AdminCreateWeeklyTemplate
 
         $this->templates->save($template);
 
-        return [
-            'id' => $template->getId(),
-            'name' => $template->getName(),
-            'gameId' => $template->getGameId(),
-            'gameName' => $gameName,
-            'yamlConfig' => $template->getYamlConfig(),
-            'maxAttempts' => $template->getMaxAttempts(),
-            'isActive' => $template->isActive(),
-        ];
+        return new WeeklyTemplateResult(
+            $template->getId(),
+            $template->getName(),
+            $template->getGameId(),
+            $gameName,
+            $template->getYamlConfig(),
+            $template->getMaxAttempts(),
+            $template->isActive(),
+        );
     }
 }

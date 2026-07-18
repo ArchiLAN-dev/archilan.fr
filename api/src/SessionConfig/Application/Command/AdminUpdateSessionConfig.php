@@ -17,20 +17,15 @@ final readonly class AdminUpdateSessionConfig
 
     /**
      * Validates the payload through the domain value objects (throws \DomainException on
-     * any invalid field) and persists it. Returns the saved profile's canonical array.
+     * any invalid field) and persists it. Returns the saved profile's canonical view.
      *
      * @param array<string, mixed> $config
-     *
-     * @return array<string, mixed>
      */
-    public function execute(SessionType $type, array $config): array
+    public function execute(SessionType $type, array $config): SessionConfigResult
     {
         $sessionConfig = SessionConfig::fromArray($config);
         $this->profiles->save($type, $sessionConfig);
 
-        return [
-            'type' => $type->value,
-            'config' => $sessionConfig->toArray(),
-        ];
+        return new SessionConfigResult($type->value, $sessionConfig->toArray());
     }
 }

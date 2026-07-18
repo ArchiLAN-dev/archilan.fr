@@ -32,10 +32,7 @@ final readonly class LaunchWeeklyEntry
     ) {
     }
 
-    /**
-     * @return array{entryId: string, externalSessionId: string, connectionInfo: array{host: string, port: int, password: string|null}}
-     */
-    public function execute(string $weeklyRunId, string $entryId, string $userId): array
+    public function execute(string $weeklyRunId, string $entryId, string $userId): LaunchedEntry
     {
         $run = $this->runs->findById($weeklyRunId);
         if (!$run instanceof WeeklyRun) {
@@ -123,10 +120,10 @@ final readonly class LaunchWeeklyEntry
             throw $e;
         }
 
-        return [
-            'entryId' => $entryId,
-            'externalSessionId' => $result['externalSessionId'],
-            'connectionInfo' => $result['connectionInfo'],
-        ];
+        return new LaunchedEntry(
+            $entryId,
+            $result['externalSessionId'],
+            $result['connectionInfo'],
+        );
     }
 }
