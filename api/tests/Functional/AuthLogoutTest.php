@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Application\Support\RefreshTokenFactory;
 use App\Identity\Domain\Entity\User;
@@ -28,10 +27,7 @@ final class AuthLogoutTest extends FunctionalTestCase
         $this->factory = new RefreshTokenFactory();
         $this->repository = new DoctrineRefreshTokenRepository($this->em, $this->em->getConnection());
 
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $result = $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
-        $user = $result['user'];
+        $user = $this->registerUser('user@example.org');
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();
     }

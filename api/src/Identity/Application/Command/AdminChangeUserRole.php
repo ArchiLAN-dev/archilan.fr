@@ -27,11 +27,9 @@ final readonly class AdminChangeUserRole
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null} the updated user payload
-     *
      * @throws ValidationException when the role change is invalid
      */
-    public function change(User $admin, string $targetUserId, string $targetRole, bool $confirmed): array
+    public function change(User $admin, string $targetUserId, string $targetRole, bool $confirmed): AdminUserView
     {
         $errors = new ValidationErrors();
 
@@ -127,22 +125,19 @@ final readonly class AdminChangeUserRole
         };
     }
 
-    /**
-     * @return array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null}
-     */
-    private function userPayload(User $user): array
+    private function userPayload(User $user): AdminUserView
     {
-        return [
-            'id' => $user->getId(),
-            'email' => $user->getEmail(),
-            'displayName' => $user->getDisplayName(),
-            'role' => $this->primaryRole($user),
-            'roles' => $user->getRoles(),
-            'status' => $user->isDeleted() ? 'deleted' : 'active',
-            'createdAt' => $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-            'deletedAt' => $user->getDeletedAt()?->format(\DateTimeInterface::ATOM),
-        ];
+        return new AdminUserView(
+            $user->getId(),
+            $user->getEmail(),
+            $user->getDisplayName(),
+            $this->primaryRole($user),
+            $user->getRoles(),
+            $user->isDeleted() ? 'deleted' : 'active',
+            $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            $user->getDeletedAt()?->format(\DateTimeInterface::ATOM),
+        );
     }
 
     private function primaryRole(User $user): string

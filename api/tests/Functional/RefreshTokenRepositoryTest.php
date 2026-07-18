@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Application\Support\RefreshTokenFactory;
 use App\Identity\Domain\Entity\RefreshToken;
 use App\Identity\Domain\Entity\User;
@@ -27,10 +26,7 @@ final class RefreshTokenRepositoryTest extends FunctionalTestCase
 
         $this->factory = new RefreshTokenFactory();
 
-        $registerUser = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $registerUser);
-        $result = $registerUser->register('test@example.org', 'correct horse battery staple', true, 'Jean');
-        $user = $result['user'];
+        $user = $this->registerUser('test@example.org');
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();
     }

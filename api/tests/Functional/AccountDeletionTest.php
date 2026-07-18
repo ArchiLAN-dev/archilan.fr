@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Domain\Entity\DeletionAudit;
 use App\Identity\Domain\Entity\User;
@@ -85,9 +84,7 @@ final class AccountDeletionTest extends FunctionalTestCase
 
     private function createAndLoginUser(): void
     {
-        $registerUser = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $registerUser);
-        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
+        $this->registerUser('jean@example.org');
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
             'email' => 'jean@example.org',

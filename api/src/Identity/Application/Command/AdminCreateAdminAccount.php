@@ -30,11 +30,9 @@ final readonly class AdminCreateAdminAccount
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null} the created admin payload
-     *
      * @throws ValidationException when the form is invalid
      */
-    public function create(User $creator, string $email, string $password, string $displayName = ''): array
+    public function create(User $creator, string $email, string $password, string $displayName = ''): AdminUserView
     {
         $errors = $this->validate($email, $password, $displayName);
 
@@ -116,21 +114,18 @@ final readonly class AdminCreateAdminAccount
         return $errors->toArray();
     }
 
-    /**
-     * @return array{id: string, email: string, displayName: string|null, role: string, roles: list<string>, status: string, createdAt: string, updatedAt: string, deletedAt: string|null}
-     */
-    private function userPayload(User $user): array
+    private function userPayload(User $user): AdminUserView
     {
-        return [
-            'id' => $user->getId(),
-            'email' => $user->getEmail(),
-            'displayName' => $user->getDisplayName(),
-            'role' => 'admin',
-            'roles' => $user->getRoles(),
-            'status' => $user->isDeleted() ? 'deleted' : 'active',
-            'createdAt' => $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-            'deletedAt' => $user->getDeletedAt()?->format(\DateTimeInterface::ATOM),
-        ];
+        return new AdminUserView(
+            $user->getId(),
+            $user->getEmail(),
+            $user->getDisplayName(),
+            'admin',
+            $user->getRoles(),
+            $user->isDeleted() ? 'deleted' : 'active',
+            $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+            $user->getDeletedAt()?->format(\DateTimeInterface::ATOM),
+        );
     }
 }

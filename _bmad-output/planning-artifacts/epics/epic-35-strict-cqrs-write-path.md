@@ -102,7 +102,9 @@ Contexts ordered to establish the record convention first, then roll out (each i
 - **35.9 - Registrations** (`ReserveRegistration` outcome+id -> record with a status enum; `RegistrationSubmission`). Done (PR #340).
 - **35.10 - Identity acks** (`ChangeUserSlug` -> `SlugChangeResult` record). Done.
 - **35.11 - Identity read-payloads** (`AdminChangeUserRole`, `AdminCreateAdminAccount`, `CreatePrivacyRightsRequest`,
-  `RegisterUser` `{user: User}`) -> `final readonly` DTOs (shared with the matching read query where one exists).
+  `RegisterUser` `{user: User}`) -> `final readonly` records (`AdminUserView` shared by the two admin commands,
+  `PrivacyRightsResult`, `RegisteredUser` {id,email,roles} killing the raw-entity leak). `RegisterUser` fixture
+  usage decoupled via a `FunctionalTestCase::registerUser()` helper (~10 tests). Done.
 - **35.12 - Identity Discord routing** (`LinkDiscordToAccount`, `HandleDiscordAuthCallback`) -> record carrying a
   routing **enum** outcome instead of a string discriminant (still drives the `RedirectResponse`, now typed).
 - **35.13 - Uploads** (`UploadPostCoverImageCommand`, `UploadEventCoverImageCommand`, `ManageEventGalleryCommand`,

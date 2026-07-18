@@ -28,11 +28,9 @@ final readonly class RegisterUser
     }
 
     /**
-     * @return array{user: User}
-     *
      * @throws ValidationException when the registration form is invalid
      */
-    public function register(string $email, string $password, bool $acceptedCgu, string $displayName = ''): array
+    public function register(string $email, string $password, bool $acceptedCgu, string $displayName = ''): RegisteredUser
     {
         $errors = $this->validate($email, $password, $acceptedCgu, $displayName);
         $emailCanonical = self::canonicalizeEmail($email);
@@ -70,7 +68,7 @@ final readonly class RegisterUser
 
         $this->sendEmailConfirmation->sendFor($user->getId(), $user->getEmail(), $user->getDisplayName(), $now);
 
-        return ['user' => $user];
+        return new RegisteredUser($user->getId(), $user->getEmail(), $user->getRoles());
     }
 
     public static function canonicalizeEmail(string $email): string

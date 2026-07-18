@@ -92,7 +92,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $bus->expects(self::never())->method('dispatch');
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-        self::assertSame('member', $result['role']);
+        self::assertSame('member', $result->role);
         self::assertSame([], $events);
     }
 
@@ -107,7 +107,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-        self::assertSame('member', $result['role']);
+        self::assertSame('member', $result->role);
         self::assertSame(['flush'], $events);
     }
 

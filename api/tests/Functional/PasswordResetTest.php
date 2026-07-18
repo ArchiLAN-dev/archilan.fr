@@ -6,7 +6,6 @@ namespace App\Tests\Functional;
 
 use App\Communications\Application\Message\EmailConfirmationMessage;
 use App\Communications\Application\Message\PasswordResetMessage;
-use App\Identity\Application\Command\RegisterUser;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class PasswordResetTest extends FunctionalTestCase
@@ -15,9 +14,7 @@ final class PasswordResetTest extends FunctionalTestCase
     {
         parent::setUp();
 
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
+        $this->registerUser('user@example.org');
 
         // Reset transport - setUp dispatched an EmailConfirmationMessage; each test starts clean.
         $this->asyncTransport()->reset();

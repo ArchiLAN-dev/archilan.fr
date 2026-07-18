@@ -34,14 +34,14 @@ final readonly class AdminUserRoleController
 
         // Validation failures are thrown as a ValidationException and mapped to HTTP by
         // ApplicationFailureListener (epic 35).
-        $user = $this->adminChangeUserRole->change(
+        $result = $this->adminChangeUserRole->change(
             $admin,
             $userId,
             is_string($payload['role'] ?? null) ? $payload['role'] : '',
             true === ($payload['confirmed'] ?? false),
         );
 
-        return new JsonResponse(['data' => $user, 'meta' => []]);
+        return new JsonResponse(['data' => $result, 'meta' => []]);
     }
 
     /**

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Communications\Application\Message\EmailConfirmationMessage;
-use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Domain\Entity\User;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
@@ -18,9 +17,7 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     public function testRegisterDispatchesConfirmationMessage(): void
     {
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $register->register('newuser@example.org', 'correct horse battery staple', true, 'Jean');
+        $this->registerUser('newuser@example.org');
 
         $sent = $this->asyncTransport()->getSent();
         self::assertCount(1, $sent);
@@ -96,12 +93,7 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     public function testMePayloadHasNullEmailVerifiedAtForUnconfirmedUser(): void
     {
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertInstanceOf(User::class, $result['user']);
-
-        $user = $result['user'];
+        $user = $this->registerUser('unconfirmed@example.org');
         $this->loginAs($user);
 
         $this->client->request('GET', '/api/v1/auth/me');
@@ -121,12 +113,7 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     public function testResendConfirmationReturns204ForAuthenticatedUser(): void
     {
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $result = $register->register('unconfirmed@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertInstanceOf(User::class, $result['user']);
-
-        $user = $result['user'];
+        $user = $this->registerUser('unconfirmed@example.org');
         $this->loginAs($user);
         $this->asyncTransport()->reset();
 
@@ -156,9 +143,7 @@ final class EmailConfirmationTest extends FunctionalTestCase
 
     private function registerAndExtractToken(): string
     {
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $register->register('newuser@example.org', 'correct horse battery staple', true, 'Jean');
+        $this->registerUser('newuser@example.org');
 
         $sent = $this->asyncTransport()->getSent();
         $lastKey = array_key_last($sent);
