@@ -49,10 +49,9 @@ final readonly class CommunityProfileController
             return $user;
         }
 
-        $result = $this->updateProfile->update($user->getId(), $this->jsonPayload($request));
-        if (null !== $result['errorCode']) {
-            return $this->apiAccessGuard->errorResponse($result['errorCode'], 'Profil invalide.', 422, $result['errors']);
-        }
+        // Invalid input is thrown as a ValidationException (422, field map in details) and mapped to HTTP by
+        // ApplicationFailureListener (epic 35).
+        $this->updateProfile->update($user->getId(), $this->jsonPayload($request));
 
         return new JsonResponse(['data' => [
             'slug' => $user->getSlug(),
