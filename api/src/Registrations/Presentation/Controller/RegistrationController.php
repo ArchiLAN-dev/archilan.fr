@@ -6,6 +6,7 @@ namespace App\Registrations\Presentation\Controller;
 
 use App\Registrations\Application\Command\RegistrationCancellation;
 use App\Registrations\Application\Command\RegistrationSubmission;
+use App\Registrations\Application\Command\ReservationOutcome;
 use App\Registrations\Application\Command\ReserveRegistration;
 use App\Registrations\Application\Query\MyRegistrationQuery;
 use App\Registrations\Application\Service\RegistrationGameSelection;
@@ -64,15 +65,15 @@ final readonly class RegistrationController
         // remaining outcomes are both successes with distinct statuses (already_registered 200, reserved 201).
         $result = $this->reserveRegistration->reserve($eventId, $user->getId());
 
-        if ('already_registered' === $result['outcome']) {
+        if (ReservationOutcome::AlreadyRegistered === $result->outcome) {
             return new JsonResponse([
-                'data' => ['outcome' => 'already_registered', 'registrationId' => $result['registrationId']],
+                'data' => ['outcome' => 'already_registered', 'registrationId' => $result->registrationId],
                 'meta' => [],
             ]);
         }
 
         return new JsonResponse([
-            'data' => ['outcome' => 'reserved', 'registrationId' => $result['registrationId']],
+            'data' => ['outcome' => 'reserved', 'registrationId' => $result->registrationId],
             'meta' => ['message' => 'Place réservée.'],
         ], 201);
     }
@@ -177,9 +178,9 @@ final readonly class RegistrationController
 
         return new JsonResponse([
             'data' => [
-                'registrationId' => $result['registrationId'],
-                'eventTitle' => $result['eventTitle'],
-                'selectedGameIds' => $result['selectedGameIds'],
+                'registrationId' => $result->registrationId,
+                'eventTitle' => $result->eventTitle,
+                'selectedGameIds' => $result->selectedGameIds,
             ],
             'meta' => ['message' => 'Inscription confirmée. À très bientôt !'],
         ]);

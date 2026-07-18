@@ -38,18 +38,15 @@ final readonly class ReserveRegistration
 
     /**
      * Reserves a seat on an event for the given authenticated user.
-     * Returns null if the event does not exist or is not publicly visible.
      *
      * `reserved` (201) and `already_registered` (200) are both success outcomes; the four failure paths throw.
-     *
-     * @return array{outcome: 'reserved'|'already_registered', registrationId: string}
      *
      * @throws ForbiddenException  when the caller's email is not verified
      * @throws NotFoundException   when the event does not exist or is not public
      * @throws ValidationException when the caller is not eligible to register
      * @throws ConflictException   when the event is at capacity
      */
-    public function reserve(string $eventId, string $userId): array
+    public function reserve(string $eventId, string $userId): ReservationResult
     {
         $user = $this->userRepository->findById($userId);
 
@@ -92,7 +89,7 @@ final readonly class ReserveRegistration
             if ($existing instanceof Registration && Registration::STATUS_CANCELLED !== $existing->getStatus()) {
                 $this->registrationRepository->commit();
 
-                return ['outcome' => 'already_registered', 'registrationId' => $existing->getId()];
+                return new ReservationResult(ReservationOutcome::AlreadyRegistered, $existing->getId());
             }
 
             $confirmedCount = $this->registrationCounter->countConfirmed($lockedEvent->getId());
@@ -130,7 +127,7 @@ final readonly class ReserveRegistration
         $this->realtimePublisher->seatCounter($lockedEvent->getId(), $remaining);
         $this->realtimePublisher->adminRegistrationCreated($lockedEvent->getId(), $registrationId, $this->clock->now());
 
-        return ['outcome' => 'reserved', 'registrationId' => $registrationId];
+        return new ReservationResult(ReservationOutcome::Reserved, $registrationId);
     }
 
     private function dispatchCapacityNotificationIfNeeded(Event $event, int $confirmedCount, \DateTimeImmutable $now): void
