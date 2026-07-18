@@ -105,8 +105,9 @@ Contexts ordered to establish the record convention first, then roll out (each i
   `RegisterUser` `{user: User}`) -> `final readonly` records (`AdminUserView` shared by the two admin commands,
   `PrivacyRightsResult`, `RegisteredUser` {id,email,roles} killing the raw-entity leak). `RegisterUser` fixture
   usage decoupled via a `FunctionalTestCase::registerUser()` helper (~10 tests). Done.
-- **35.12 - Identity Discord routing** (`LinkDiscordToAccount`, `HandleDiscordAuthCallback`) -> record carrying a
-  routing **enum** outcome instead of a string discriminant (still drives the `RedirectResponse`, now typed).
+- **35.12 - Identity Discord routing** (`LinkDiscordToAccount`, `HandleDiscordAuthCallback`) -> routing **enum**
+  outcome (`link()` returns a bare `DiscordLinkOutcome`; `handle()` returns a `DiscordAuthResult` record wrapping
+  `DiscordAuthOutcome` + `?userId`, killing the raw-`User` leak). Still drives the `RedirectResponse`, now typed. Done.
 - **35.13 - Uploads** (`UploadPostCoverImageCommand`, `UploadEventCoverImageCommand`, `ManageEventGalleryCommand`,
   `UploadTutorialImageCommand`) -> upload-result records (url + admin payload).
 - **35.14 - Events/SessionConfig/WeeklyRuns/Community** (`VerifyPrivateEventAccess`, `AdminUpdateSessionConfig`,

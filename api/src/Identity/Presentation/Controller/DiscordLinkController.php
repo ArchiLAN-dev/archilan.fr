@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
+use App\Identity\Application\Command\DiscordLinkOutcome;
 use App\Identity\Application\Command\LinkDiscordToAccount;
 use App\Identity\Application\Command\UnlinkDiscordFromAccount;
 use App\Identity\Application\Port\DiscordOAuthClientInterface;
@@ -66,9 +67,9 @@ final readonly class DiscordLinkController
 
         $result = $this->linkDiscord->link($userId, $code);
 
-        return match ($result['outcome']) {
-            'linked' => new RedirectResponse($this->siteUrl.'/compte/securite?discord_linked=1'),
-            'discord_already_used' => new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=already_used'),
+        return match ($result) {
+            DiscordLinkOutcome::Linked => new RedirectResponse($this->siteUrl.'/compte/securite?discord_linked=1'),
+            DiscordLinkOutcome::DiscordAlreadyUsed => new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=already_used'),
             default => new RedirectResponse($this->siteUrl.'/compte/securite?discord_link_error=generic'),
         };
     }

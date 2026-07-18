@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
+use App\Identity\Application\Command\DiscordLinkOutcome;
 use App\Identity\Application\Command\LinkDiscordToAccount;
 use App\Identity\Application\Command\UnlinkDiscordFromAccount;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
@@ -37,7 +38,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
         $result = $this->makeLinkService($oauth, $userRepo, $bus)->link(self::USER_ID, 'oauth-code');
 
-        self::assertSame(['outcome' => 'linked'], $result);
+        self::assertSame(DiscordLinkOutcome::Linked, $result);
     }
 
     public function testRelinkDispatchesRemoveAllForPreviousDiscordIdAndSyncForNewOne(): void
@@ -68,7 +69,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
         $result = $this->makeLinkService($oauth, $userRepo, $bus)->link(self::USER_ID, 'oauth-code');
 
-        self::assertSame(['outcome' => 'linked'], $result);
+        self::assertSame(DiscordLinkOutcome::Linked, $result);
     }
 
     public function testLinkStillReturnsLinkedWhenDiscordSyncDispatchFails(): void
@@ -82,7 +83,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
         $result = $this->makeLinkService($oauth, $userRepo, $bus)->link(self::USER_ID, 'oauth-code');
 
-        self::assertSame(['outcome' => 'linked'], $result);
+        self::assertSame(DiscordLinkOutcome::Linked, $result);
     }
 
     public function testUnlinkDispatchesRemoveAllWithCapturedDiscordId(): void

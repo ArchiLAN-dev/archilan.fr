@@ -24,22 +24,18 @@ final readonly class HandleDiscordAuthCallback
     ) {
     }
 
-    /**
-     * @return array{outcome: 'logged_in'|'registered', user: User}
-     *                                                              |array{outcome: 'email_conflict'|'no_verified_email'|'discord_error'}
-     */
-    public function handle(string $code): array
+    public function handle(string $code): DiscordAuthResult
     {
         try {
             $tokenData = $this->discordClient->exchangeCode($code, $this->discordRedirectUriAuth);
             $accessToken = is_string($tokenData['access_token'] ?? null) ? $tokenData['access_token'] : '';
             if ('' === $accessToken) {
-                return ['outcome' => 'discord_error'];
+                return new DiscordAuthResult(DiscordAuthOutcome::DiscordError, null);
             }
 
             $discordUser = $this->discordClient->fetchUser($accessToken);
         } catch (\Throwable) {
-            return ['outcome' => 'discord_error'];
+            return new DiscordAuthResult(DiscordAuthOutcome::DiscordError, null);
         }
 
         $discordId = is_string($discordUser['id'] ?? null) ? $discordUser['id'] : '';
@@ -48,20 +44,20 @@ final readonly class HandleDiscordAuthCallback
         $verified = true === ($discordUser['verified'] ?? null);
 
         if ('' === $discordId || '' === $email || !$verified) {
-            return ['outcome' => 'no_verified_email'];
+            return new DiscordAuthResult(DiscordAuthOutcome::NoVerifiedEmail, null);
         }
 
         $user = $this->userRepository->findByDiscordId($discordId);
         if ($user instanceof User) {
             $this->logger->info('discord.login', ['userId' => $user->getId()]);
 
-            return ['outcome' => 'logged_in', 'user' => $user];
+            return new DiscordAuthResult(DiscordAuthOutcome::LoggedIn, $user->getId());
         }
 
         $emailCanonical = mb_strtolower(trim($email));
         $existingByEmail = $this->userRepository->findByEmailCanonical($emailCanonical);
         if ($existingByEmail instanceof User) {
-            return ['outcome' => 'email_conflict'];
+            return new DiscordAuthResult(DiscordAuthOutcome::EmailConflict, null);
         }
 
         $now = $this->clock->now();
@@ -75,11 +71,11 @@ final readonly class HandleDiscordAuthCallback
         try {
             $this->userRepository->save($newUser);
         } catch (UniqueConstraintViolationException) {
-            return ['outcome' => 'email_conflict'];
+            return new DiscordAuthResult(DiscordAuthOutcome::EmailConflict, null);
         }
 
         $this->logger->info('discord.registered', ['userId' => $newUser->getId()]);
 
-        return ['outcome' => 'registered', 'user' => $newUser];
+        return new DiscordAuthResult(DiscordAuthOutcome::Registered, $newUser->getId());
     }
 }
