@@ -1,9 +1,9 @@
 # Epic 35 - Strict CQRS Write Path
 
-Status: **Stage 2 complete (2026-07-18)** - every `Application/Command/` method returns `void`, a `final
-readonly` record, or an enum, never a raw `array`, now gated by `DddArchitectureValidator::validateCommandArrayReturns`
-(35.20). One documented allowlist entry (`AdminEditMembership`, a read-model delegation) remains, tracked as
-follow-up 35.21. Stage 1 complete (2026-07-17): every command service that returned a failure discriminant
+Status: **Stage 2 fully closed (2026-07-18)** - every `Application/Command/` method returns `void`, a `final
+readonly` record, or an enum, never a raw `array`, gated by `DddArchitectureValidator::validateCommandArrayReturns`
+(35.20) with **no allowlist / no escape hatch** (the one exemption was removed by 35.21, which typed the
+Membership admin read-model). Stage 1 complete (2026-07-17): every command service that returned a failure discriminant
 throws a typed `ApplicationFailure` mapped centrally by `ApplicationFailureListener`. Delivered on the explicit
 "le plus clean possible" directive (Jean, 2026-07-17). Stage 3 (command/query split) stays deferred - see the
 Stage 2 breakdown for why it is *not* the cleaner end-state for this codebase.
@@ -156,8 +156,11 @@ Contexts ordered to establish the record convention first, then roll out (each i
   converted `RecordSlotGoal`/`RecordWeeklyGoal` (shared `WeeklyGoalResult`) and `AdminCreateMembership`
   (`MembershipCreated`); exempted `AdminEditMembership` (delegates to the Membership admin read-model) via the
   allowlist -> **35.21**. Done. **Epic 35 Stage 2 complete: every command returns void/record/enum, gated.**
-- **35.21 - Membership admin read-model** (follow-up surfaced by 35.20's rule). `AdminEditMembership` returns
-  `AdminMembershipListQuery::findById` (a DBAL 10-field row with joined user/profile columns). Type that query's
-  read shape (search/findById/findLatestByUserId -> a shared `MembershipView` record) so `AdminEditMembership`
-  drops the `COMMAND_ARRAY_RETURN_EXEMPT` allowlist entry - same pattern as 35.14/35.15 (Content/Events admin
-  read-models).
+- **35.21 - Membership admin read-model** (follow-up surfaced by 35.20's rule). Added `MembershipView` (10
+  DBAL columns) + a `fromRow` narrowing factory; `AdminMembershipListQuery`/interface/`DbalAdminMembershipListQuery`
+  return it (`search` -> `{data: list<MembershipView>, meta}`, findById/findLatestByUserId -> `?MembershipView`);
+  `AdminEditMembership::edit` -> `?MembershipView`. Both admin controllers serialize byte-identically (no edit).
+  **`COMMAND_ARRAY_RETURN_EXEMPT` const + check deleted** (emptied allowlist -> GONE comment, codebase
+  convention) and AC-A3's citation of it dropped so `StandardsDocsMatchToolingTest` stays green -
+  `validateCommandArrayReturns` now has **no escape hatch**. Done. **Epic 35 Stage 2 fully closed: every command
+  returns void/record/enum, gated, no allowlist.**

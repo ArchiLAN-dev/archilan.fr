@@ -11,25 +11,19 @@ final readonly class AdminMembershipListQuery
     }
 
     /**
-     * @return array{data: list<array<string, mixed>>, meta: array{page: int, limit: int, total: int}}
+     * @return array{data: list<MembershipView>, meta: array{page: int, limit: int, total: int}}
      */
     public function search(int $page, int $limit, ?string $status, ?string $search, ?string $userId = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         return $this->query->search($page, $limit, $status, $search, $userId, $dateFrom, $dateTo);
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function findById(string $membershipId): ?array
+    public function findById(string $membershipId): ?MembershipView
     {
         return $this->query->findById($membershipId);
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function findLatestByUserId(string $userId): ?array
+    public function findLatestByUserId(string $userId): ?MembershipView
     {
         return $this->query->findLatestByUserId($userId);
     }

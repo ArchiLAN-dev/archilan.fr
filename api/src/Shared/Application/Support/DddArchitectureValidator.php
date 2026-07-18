@@ -142,17 +142,10 @@ final readonly class DddArchitectureValidator
         'Identity/Application/Service/CurrentUserProvider.php',
     ];
 
-    /**
-     * Command methods still allowed to return an array (epic 35 Stage 2 validator rule,
-     * {@see validateCommandArrayReturns()}). The one entry delegates its return to the Membership admin
-     * read-model (`AdminMembershipListQuery::findById`, a DBAL `array<string, mixed>` row with joined
-     * user/profile columns); typing it is the Membership admin read-model story (epic 35, 35.21), not this rule.
-     *
-     * @var list<string>
-     */
-    private const array COMMAND_ARRAY_RETURN_EXEMPT = [
-        'Membership/Application/Command/AdminEditMembership.php',
-    ];
+    // COMMAND_ARRAY_RETURN_EXEMPT (epic 35, story 35.20) is GONE. Its only entry was AdminEditMembership,
+    // which delegated its return to the Membership admin read-model; story 35.21 typed that read-model
+    // (AdminMembershipListQuery -> MembershipView), so the command returns the record and the allowlist
+    // emptied. validateCommandArrayReturns() now holds for every command with no escape hatch.
 
     // AGGREGATE_SETTER_EXEMPT_CONTEXTS (story 33.16) is GONE. Its only entry was the frozen
     // Sessions context; 33.20 replaced its 9 public setters with 6 named business methods,
@@ -555,9 +548,6 @@ final readonly class DddArchitectureValidator
 
             foreach ($this->phpFiles($commandDir) as $file) {
                 $relativePath = $this->relativePath($srcDir, $file);
-                if (in_array($relativePath, self::COMMAND_ARRAY_RETURN_EXEMPT, true)) {
-                    continue;
-                }
 
                 $source = PhpSource::fromFile($file);
                 if (null === $source) {
