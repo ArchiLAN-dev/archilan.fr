@@ -25,26 +25,23 @@ final readonly class LinkDiscordToAccount
     ) {
     }
 
-    /**
-     * @return array{outcome: 'linked'|'discord_already_used'|'no_verified_email'|'discord_error'}
-     */
-    public function link(string $userId, string $code): array
+    public function link(string $userId, string $code): DiscordLinkOutcome
     {
         $user = $this->userRepository->findById($userId);
         if (!$user instanceof User) {
-            return ['outcome' => 'discord_error'];
+            return DiscordLinkOutcome::DiscordError;
         }
 
         try {
             $tokenData = $this->discordClient->exchangeCode($code, $this->discordRedirectUriLink);
             $accessToken = is_string($tokenData['access_token'] ?? null) ? $tokenData['access_token'] : '';
             if ('' === $accessToken) {
-                return ['outcome' => 'discord_error'];
+                return DiscordLinkOutcome::DiscordError;
             }
 
             $discordUser = $this->discordClient->fetchUser($accessToken);
         } catch (\Throwable) {
-            return ['outcome' => 'discord_error'];
+            return DiscordLinkOutcome::DiscordError;
         }
 
         $discordId = is_string($discordUser['id'] ?? null) ? $discordUser['id'] : '';
@@ -52,7 +49,7 @@ final readonly class LinkDiscordToAccount
         $verified = true === ($discordUser['verified'] ?? null);
 
         if ('' === $discordId || !$verified) {
-            return ['outcome' => 'no_verified_email'];
+            return DiscordLinkOutcome::NoVerifiedEmail;
         }
 
         $now = $this->clock->now();
@@ -62,7 +59,7 @@ final readonly class LinkDiscordToAccount
         try {
             $this->userRepository->save($user);
         } catch (UniqueConstraintViolationException) {
-            return ['outcome' => 'discord_already_used'];
+            return DiscordLinkOutcome::DiscordAlreadyUsed;
         }
 
         $this->logger->info('discord.linked', ['userId' => $user->getId()]);
@@ -82,7 +79,7 @@ final readonly class LinkDiscordToAccount
             $user->getRoles(),
         ));
 
-        return ['outcome' => 'linked'];
+        return DiscordLinkOutcome::Linked;
     }
 
     private function dispatchDiscordSync(SyncDiscordRoleMessage $message): void

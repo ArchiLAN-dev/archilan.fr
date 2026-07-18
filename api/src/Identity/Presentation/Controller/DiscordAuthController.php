@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Controller;
 
+use App\Identity\Application\Command\DiscordAuthOutcome;
 use App\Identity\Application\Command\HandleDiscordAuthCallback;
 use App\Identity\Application\Port\DiscordOAuthClientInterface;
 use App\Identity\Application\Support\AuthSessionSigner;
@@ -54,18 +55,19 @@ final readonly class DiscordAuthController
 
         $result = $this->handleCallback->handle($code);
 
-        if ('email_conflict' === $result['outcome']) {
+        if (DiscordAuthOutcome::EmailConflict === $result->outcome) {
             return new RedirectResponse($this->siteUrl.'/connexion?discord_error=email_conflict');
         }
 
-        if ('logged_in' !== $result['outcome'] && 'registered' !== $result['outcome']) {
+        // Only logged_in / registered carry a user id; every other outcome authenticates no one.
+        $userId = $result->userId;
+        if (null === $userId) {
             return new RedirectResponse($this->siteUrl.'/connexion?discord_error=generic');
         }
 
-        $user = $result['user'];
         $now = new \DateTimeImmutable();
         ['rawToken' => $rawToken, 'entity' => $refreshToken] = $this->refreshTokenFactory->issue(
-            $user->getId(),
+            $userId,
             $now,
             $request->headers->get('User-Agent'),
             true,
@@ -73,7 +75,7 @@ final readonly class DiscordAuthController
         $this->refreshTokenRepository->save($refreshToken);
 
         $response = new RedirectResponse($this->siteUrl.'/compte');
-        $response->headers->setCookie($this->sessionCookie($this->authSessionSigner->sign($user->getId())));
+        $response->headers->setCookie($this->sessionCookie($this->authSessionSigner->sign($userId)));
         $response->headers->setCookie($this->refreshCookie($rawToken));
 
         return $response;
