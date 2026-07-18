@@ -98,9 +98,9 @@ Contexts ordered to establish the record convention first, then roll out (each i
 
 - **35.8 - Foundation/pilot: PersonalRuns.** `PersonalRunLifecycle` (5 methods) returns a `RunLifecycleResult`
   record instead of `array{runId, status}`; both controllers read `->runId`/`->status`. Establishes the
-  colocated-record convention. HTTP bodies byte-identical.
-- **35.9 - Registrations** (`ReserveRegistration` outcome+id -> record with a status enum; `RegistrationSubmission`).
-- **35.10 - Identity acks** (`ChangeUserSlug` -> `{slug}` record).
+  colocated-record convention. HTTP bodies byte-identical. Done (PR #339).
+- **35.9 - Registrations** (`ReserveRegistration` outcome+id -> record with a status enum; `RegistrationSubmission`). Done (PR #340).
+- **35.10 - Identity acks** (`ChangeUserSlug` -> `SlugChangeResult` record). Done.
 - **35.11 - Identity read-payloads** (`AdminChangeUserRole`, `AdminCreateAdminAccount`, `CreatePrivacyRightsRequest`,
   `RegisterUser` `{user: User}`) -> `final readonly` DTOs (shared with the matching read query where one exists).
 - **35.12 - Identity Discord routing** (`LinkDiscordToAccount`, `HandleDiscordAuthCallback`) -> record carrying a
