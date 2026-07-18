@@ -77,11 +77,11 @@ final class AdminCreateMembershipTest extends TestCase
         );
         $result = $service->create('user-id', new \DateTimeImmutable('2026-01-01'), new \DateTimeImmutable('2027-01-01'), 'note');
 
-        self::assertSame('active', $result['status']);
-        self::assertSame('user-id', $result['userId']);
-        self::assertSame('admin', $result['source']);
-        self::assertSame('note', $result['adminNote']);
-        self::assertStringStartsWith('2026-01-01', $result['startedAt']);
-        self::assertStringStartsWith('2027-01-01', $result['expiresAt']);
+        self::assertSame('active', $result->status);
+        self::assertSame('user-id', $result->userId);
+        self::assertSame('admin', $result->source);
+        self::assertSame('note', $result->adminNote);
+        self::assertStringStartsWith('2026-01-01', $result->startedAt);
+        self::assertStringStartsWith('2027-01-01', $result->expiresAt);
     }
 }

@@ -26,14 +26,14 @@ final readonly class RecordWeeklyGoal
     }
 
     /**
-     * @return array{entryId: string}|null null when sessionId not found (caller returns 200)
+     * @return WeeklyGoalResult|null null when sessionId not found (caller returns 200)
      */
     public function execute(
         string $externalSessionId,
         int $checksTotal,
         int $itemsTotal,
         \DateTimeImmutable $goalReachedAt,
-    ): ?array {
+    ): ?WeeklyGoalResult {
         $entry = $this->entries->findByExternalSessionId($externalSessionId);
 
         if (!$entry instanceof WeeklyEntry) {
@@ -45,7 +45,7 @@ final readonly class RecordWeeklyGoal
         }
 
         if (null !== $entry->getGoalReachedAt()) {
-            return ['entryId' => $entry->getId()];
+            return new WeeklyGoalResult($entry->getId());
         }
 
         $run = $this->runs->findById($entry->getWeeklyRunId());
@@ -92,6 +92,6 @@ final readonly class RecordWeeklyGoal
             ]);
         }
 
-        return ['entryId' => $entry->getId()];
+        return new WeeklyGoalResult($entry->getId());
     }
 }

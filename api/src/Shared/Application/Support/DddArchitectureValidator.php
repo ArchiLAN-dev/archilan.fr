@@ -142,6 +142,18 @@ final readonly class DddArchitectureValidator
         'Identity/Application/Service/CurrentUserProvider.php',
     ];
 
+    /**
+     * Command methods still allowed to return an array (epic 35 Stage 2 validator rule,
+     * {@see validateCommandArrayReturns()}). The one entry delegates its return to the Membership admin
+     * read-model (`AdminMembershipListQuery::findById`, a DBAL `array<string, mixed>` row with joined
+     * user/profile columns); typing it is the Membership admin read-model story (epic 35, 35.21), not this rule.
+     *
+     * @var list<string>
+     */
+    private const array COMMAND_ARRAY_RETURN_EXEMPT = [
+        'Membership/Application/Command/AdminEditMembership.php',
+    ];
+
     // AGGREGATE_SETTER_EXEMPT_CONTEXTS (story 33.16) is GONE. Its only entry was the frozen
     // Sessions context; 33.20 replaced its 9 public setters with 6 named business methods,
     // which left the exemption branch as dead code. AC-D5 now holds for every aggregate in
@@ -196,6 +208,7 @@ final readonly class DddArchitectureValidator
             ...$this->validateDomainFinality($srcDir),
             ...$this->validateApplicationFinality($srcDir),
             ...$this->validateApplicationEntityReturns($srcDir),
+            ...$this->validateCommandArrayReturns($srcDir),
             ...$this->validateDomainAggregateSetters($srcDir),
             ...$this->validateCrossContextLayerImports($srcDir),
             ...$this->validateInterfacePlacement($srcDir),
@@ -509,6 +522,77 @@ final readonly class DddArchitectureValidator
                             $violations[] = sprintf(
                                 'Application methods must not return Domain entities ("%s") - return a DTO, record or array instead (api/CLAUDE.md AC-A3): src/%s',
                                 $return[0],
+                                $relativePath,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Command services return `void` or a typed result (a `final readonly` record or an enum), never a raw
+     * `array` (api/CLAUDE.md AC-A3, epic 35 Stage 2). Lexical check on `{Context}/Application/Command/`: the
+     * same offset-attributed declaration scan as {@see validateApplicationEntityReturns()} finds every public
+     * method's native return type; a bare `array` (or `?array`) return is a violation. The colocated result
+     * records and outcome enums have no array-returning public method, so they never trip; private helpers may
+     * still marshal arrays inside a command.
+     *
+     * @return list<string>
+     */
+    private function validateCommandArrayReturns(string $srcDir): array
+    {
+        $violations = [];
+
+        foreach (self::CONTEXTS as $context) {
+            $commandDir = "{$srcDir}/{$context}/Application/Command";
+            if (!is_dir($commandDir)) {
+                continue;
+            }
+
+            foreach ($this->phpFiles($commandDir) as $file) {
+                $relativePath = $this->relativePath($srcDir, $file);
+                if (in_array($relativePath, self::COMMAND_ARRAY_RETURN_EXEMPT, true)) {
+                    continue;
+                }
+
+                $source = PhpSource::fromFile($file);
+                if (null === $source) {
+                    continue;
+                }
+                $contents = $source->codeText();
+
+                $declarations = [];
+                if (preg_match_all('/(?:(?:static|final|abstract)\s+)*(?:(private|protected|public)\s+)?(?:(?:static|final|abstract)\s+)*function\s+&?\s*\w+\s*\(/', $contents, $decls, PREG_OFFSET_CAPTURE | PREG_SET_ORDER) > 0) {
+                    foreach ($decls as $decl) {
+                        $declarations[$decl[0][1]] = '' !== ($decl[1][0] ?? '') ? $decl[1][0] : 'public';
+                    }
+                }
+
+                if (0 === preg_match_all('/\):\s*([?\w|\\\\]+)/', $contents, $returns, PREG_OFFSET_CAPTURE)) {
+                    continue;
+                }
+
+                foreach ($returns[1] as $return) {
+                    $visibility = 'public';
+                    foreach ($declarations as $offset => $declVisibility) {
+                        if ($offset > $return[1]) {
+                            break;
+                        }
+                        $visibility = $declVisibility;
+                    }
+
+                    if ('public' !== $visibility) {
+                        continue;
+                    }
+
+                    foreach (explode('|', ltrim($return[0], '?')) as $token) {
+                        if ('array' === ltrim($token, '?')) {
+                            $violations[] = sprintf(
+                                'Command services must return void or a typed result (a final readonly record or an enum), never a raw array (api/CLAUDE.md AC-A3, epic 35): src/%s',
                                 $relativePath,
                             );
                         }

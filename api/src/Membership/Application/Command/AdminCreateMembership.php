@@ -25,15 +25,12 @@ final readonly class AdminCreateMembership
     ) {
     }
 
-    /**
-     * @return array{id: string, userId: string, status: string, startedAt: string, expiresAt: string, source: string, adminNote: string|null}
-     */
     public function create(
         string $userId,
         \DateTimeImmutable $startedAt,
         \DateTimeImmutable $expiresAt,
         ?string $adminNote,
-    ): array {
+    ): MembershipCreated {
         $now = $this->clock->now();
 
         $existing = $this->memberships->findActiveByUserId($userId);
@@ -53,15 +50,15 @@ final readonly class AdminCreateMembership
         $this->dispatchEmailNotification(new MembershipActivatedNotificationMessage($userId, $expiresAt));
         $this->dispatchDolibarrSync(new SyncMemberToDolibarrMessage($membership->getId()));
 
-        return [
-            'id' => $membership->getId(),
-            'userId' => $userId,
-            'status' => 'active',
-            'startedAt' => $startedAt->format(\DateTimeInterface::ATOM),
-            'expiresAt' => $expiresAt->format(\DateTimeInterface::ATOM),
-            'source' => 'admin',
-            'adminNote' => $adminNote,
-        ];
+        return new MembershipCreated(
+            $membership->getId(),
+            $userId,
+            'active',
+            $startedAt->format(\DateTimeInterface::ATOM),
+            $expiresAt->format(\DateTimeInterface::ATOM),
+            'admin',
+            $adminNote,
+        );
     }
 
     private function dispatchDiscordSync(SyncDiscordRoleMessage $message): void

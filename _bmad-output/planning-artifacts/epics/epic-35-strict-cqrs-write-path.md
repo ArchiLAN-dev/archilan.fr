@@ -1,8 +1,10 @@
 # Epic 35 - Strict CQRS Write Path
 
-Status: Stage 2 in progress (started 2026-07-17). Stage 1 complete (2026-07-17): every command service that
-returned a failure discriminant now throws a typed `ApplicationFailure` mapped centrally by
-`ApplicationFailureListener`. Stage 2 (typed result records) is now being delivered in full, on the explicit
+Status: **Stage 2 complete (2026-07-18)** - every `Application/Command/` method returns `void`, a `final
+readonly` record, or an enum, never a raw `array`, now gated by `DddArchitectureValidator::validateCommandArrayReturns`
+(35.20). One documented allowlist entry (`AdminEditMembership`, a read-model delegation) remains, tracked as
+follow-up 35.21. Stage 1 complete (2026-07-17): every command service that returned a failure discriminant
+throws a typed `ApplicationFailure` mapped centrally by `ApplicationFailureListener`. Delivered on the explicit
 "le plus clean possible" directive (Jean, 2026-07-17). Stage 3 (command/query split) stays deferred - see the
 Stage 2 breakdown for why it is *not* the cleaner end-state for this codebase.
 Date: 2026-07-11 (recorded), 2026-07-16 (planned)
@@ -146,6 +148,16 @@ Contexts ordered to establish the record convention first, then roll out (each i
   `SessionResultsQuery`, `SessionOrchestrator::listSessions`, `PlayerPatchController`) are typed at once. phpstan
   drove the consumer sweep; HTTP bodies byte-identical. Done. **No `Application/Command/` method returns an array
   now** -> the validator rule below is unblocked.
-- **35.20 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void`, a
-  `final readonly` record, or an enum, never an `array`", update `api/CLAUDE.md` AC-A3 + the
-  `StandardsDocsMatchToolingTest`. Ships last, once no command returns an array (i.e. after 35.19).
+- **35.20 - Validator rule.** Added `DddArchitectureValidator::validateCommandArrayReturns` (mirrors the
+  entity-return scan): public methods in `{Context}/Application/Command/` must not return `array`/`?array`.
+  Rewrote `api/CLAUDE.md` AC-A3 (void/record/enum, never array) citing the new method +
+  `COMMAND_ARRAY_RETURN_EXEMPT` + `validateApplicationEntityReturns`; `StandardsDocsMatchToolingTest` stays
+  green. **The rule surfaced four commands the per-context sweeps missed** (multi-line `): array` signatures):
+  converted `RecordSlotGoal`/`RecordWeeklyGoal` (shared `WeeklyGoalResult`) and `AdminCreateMembership`
+  (`MembershipCreated`); exempted `AdminEditMembership` (delegates to the Membership admin read-model) via the
+  allowlist -> **35.21**. Done. **Epic 35 Stage 2 complete: every command returns void/record/enum, gated.**
+- **35.21 - Membership admin read-model** (follow-up surfaced by 35.20's rule). `AdminEditMembership` returns
+  `AdminMembershipListQuery::findById` (a DBAL 10-field row with joined user/profile columns). Type that query's
+  read shape (search/findById/findLatestByUserId -> a shared `MembershipView` record) so `AdminEditMembership`
+  drops the `COMMAND_ARRAY_RETURN_EXEMPT` allowlist entry - same pattern as 35.14/35.15 (Content/Events admin
+  read-models).
