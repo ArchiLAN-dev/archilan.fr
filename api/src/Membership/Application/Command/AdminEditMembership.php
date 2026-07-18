@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Membership\Application\Command;
 
 use App\Membership\Application\Query\AdminMembershipListQuery;
+use App\Membership\Application\Query\MembershipView;
 use App\Membership\Domain\Entity\Membership;
 use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use Psr\Clock\ClockInterface;
@@ -19,14 +20,14 @@ final readonly class AdminEditMembership
     }
 
     /**
-     * @return array<string, mixed>|null null when membership not found
+     * @return MembershipView|null null when membership not found
      */
     public function edit(
         string $membershipId,
         \DateTimeImmutable $startedAt,
         ?\DateTimeImmutable $expiresAt,
         ?string $adminNote,
-    ): ?array {
+    ): ?MembershipView {
         $membership = $this->memberships->findById($membershipId);
         if (!$membership instanceof Membership) {
             return null;

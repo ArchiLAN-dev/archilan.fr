@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Membership\Infrastructure\Dbal;
 
 use App\Membership\Application\Query\AdminMembershipListQueryInterface;
+use App\Membership\Application\Query\MembershipView;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 
@@ -17,7 +18,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
     }
 
     /**
-     * @return array{data: list<array<string, mixed>>, meta: array{page: int, limit: int, total: int}}
+     * @return array{data: list<MembershipView>, meta: array{page: int, limit: int, total: int}}
      */
     public function search(int $page, int $limit, ?string $status, ?string $search, ?string $userId = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
@@ -67,15 +68,12 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
         $total = is_numeric($totalRaw) ? (int) $totalRaw : 0;
 
         return [
-            'data' => $rows,
+            'data' => array_map(MembershipView::fromRow(...), $rows),
             'meta' => ['page' => $page, 'limit' => $limit, 'total' => $total],
         ];
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function findById(string $membershipId): ?array
+    public function findById(string $membershipId): ?MembershipView
     {
         $userTable = $this->connection->quoteSingleIdentifier('user');
         $now = new \DateTimeImmutable()->format('Y-m-d H:i:s');
@@ -103,13 +101,10 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
             ->executeQuery()
             ->fetchAssociative();
 
-        return false !== $row ? $row : null;
+        return false !== $row ? MembershipView::fromRow($row) : null;
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function findLatestByUserId(string $userId): ?array
+    public function findLatestByUserId(string $userId): ?MembershipView
     {
         $userTable = $this->connection->quoteSingleIdentifier('user');
         $now = new \DateTimeImmutable()->format('Y-m-d H:i:s');
@@ -138,7 +133,7 @@ final readonly class DbalAdminMembershipListQuery implements AdminMembershipList
             ->executeQuery()
             ->fetchAssociative();
 
-        return false !== $row ? $row : null;
+        return false !== $row ? MembershipView::fromRow($row) : null;
     }
 
     private function applyStatusFilter(QueryBuilder $qb, ?string $status, string $now): void
