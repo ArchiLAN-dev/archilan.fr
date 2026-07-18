@@ -43,11 +43,9 @@ final readonly class ChangeUserSlug
     }
 
     /**
-     * @return array{slug: string} the new slug
-     *
      * @throws ValidationException when the slug is unavailable, reserved, unchanged, cooling down, or invalid
      */
-    public function change(string $userId, string $requested): array
+    public function change(string $userId, string $requested): SlugChangeResult
     {
         $user = $this->userRepository->findById($userId);
         if (!$user instanceof User) {
@@ -96,7 +94,7 @@ final readonly class ChangeUserSlug
 
         $this->logger->info('user.slug_changed', ['userId' => $userId, 'slug' => $slug]);
 
-        return ['slug' => $slug];
+        return new SlugChangeResult($slug);
     }
 
     /**

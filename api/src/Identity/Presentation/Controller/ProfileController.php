@@ -55,7 +55,7 @@ final readonly class ProfileController
         // and mapped to HTTP by ApplicationFailureListener (epic 35).
         $result = $this->changeUserSlug->change($user->getId(), $body['slug']);
 
-        return new JsonResponse(['data' => ['slug' => $result['slug']]]);
+        return new JsonResponse(['data' => ['slug' => $result->slug]]);
     }
 
     /**
