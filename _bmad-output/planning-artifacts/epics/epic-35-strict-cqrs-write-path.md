@@ -108,12 +108,24 @@ Contexts ordered to establish the record convention first, then roll out (each i
 - **35.12 - Identity Discord routing** (`LinkDiscordToAccount`, `HandleDiscordAuthCallback`) -> routing **enum**
   outcome (`link()` returns a bare `DiscordLinkOutcome`; `handle()` returns a `DiscordAuthResult` record wrapping
   `DiscordAuthOutcome` + `?userId`, killing the raw-`User` leak). Still drives the `RedirectResponse`, now typed. Done.
-- **35.13 - Uploads** (`UploadPostCoverImageCommand`, `UploadEventCoverImageCommand`, `ManageEventGalleryCommand`,
-  `UploadTutorialImageCommand`) -> upload-result records (url + admin payload).
-- **35.14 - Events/SessionConfig/WeeklyRuns/Community** (`VerifyPrivateEventAccess`, `AdminUpdateSessionConfig`,
-  `AdminCreate/UpdateWeeklyTemplate`, `LaunchWeeklyEntry`, `OptInToWeeklyRun`, `UpdateCommunityProfile`).
-- **35.15 - Sessions + CLI reports** (`ForceEndSessionCommand`; the CatalogSync/GameSelection `Backfill*` /
+- **35.13 - Self-contained upload** (`UploadTutorialImageCommand` -> `TutorialImageUpload` {key, url} record). Done.
+  **Scope split (Jean, 2026-07-18):** the other three uploads (`UploadPostCoverImageCommand`,
+  `UploadEventCoverImageCommand`, `ManageEventGalleryCommand`) do **not** return a self-contained shape - they
+  delegate their return to the admin read-model facades (`AdminPostCatalog::get`, `AdminEventDrafts::get`), big
+  untyped `array<string,mixed>` admin payloads shared with `list/get/create/update/...`. Typing them cleanly =
+  typing those whole admin read-models (a shared `AdminPostView`/`AdminEventView` DTO reused by every method +
+  the admin controller). That work belongs to the context read-model stories below, where the upload command
+  returns the same shared DTO for free - not a separate "uploads" story.
+- **35.14 - Content admin read-model** (`AdminPostCatalog` list/get/create/update/publish/unpublish -> shared
+  `AdminPostView` DTO + `UploadPostCoverImageCommand` returns it; `AdminPostController` serializes it).
+- **35.15 - Events admin read-model** (`AdminEventDrafts` list/get/create/update/transition/configurePrivateAccess
+  -> shared `AdminEventView` DTO + `UploadEventCoverImageCommand`/`ManageEventGalleryCommand` return it;
+  `AdminEventController` serializes it).
+- **35.16 - Events/SessionConfig/WeeklyRuns/Community remainder** (`VerifyPrivateEventAccess`,
+  `AdminUpdateSessionConfig`, `AdminCreate/UpdateWeeklyTemplate`, `LaunchWeeklyEntry`, `OptInToWeeklyRun`,
+  `UpdateCommunityProfile`).
+- **35.17 - Sessions + CLI reports** (`ForceEndSessionCommand`; the CatalogSync/GameSelection `Backfill*` /
   `SeedGameTutorials` / `CheckApworldUpdatesService` report arrays -> report records, for full consistency).
-- **35.16 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void` or a
-  `final readonly` record, never an `array`", update `api/CLAUDE.md` AC-A3 + the `StandardsDocsMatchToolingTest`.
-  Ships last, once no command returns an array.
+- **35.18 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void`, a
+  `final readonly` record, or an enum, never an `array`", update `api/CLAUDE.md` AC-A3 + the
+  `StandardsDocsMatchToolingTest`. Ships last, once no command returns an array.
