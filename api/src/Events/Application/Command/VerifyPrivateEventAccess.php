@@ -25,10 +25,8 @@ final readonly class VerifyPrivateEventAccess
     /**
      * Verifies a private event access password for an authenticated user.
      * Returns null if the event does not exist or is not publicly visible.
-     *
-     * @return array{granted: bool}|null
      */
-    public function verify(string $eventId, mixed $password, string $userId): ?array
+    public function verify(string $eventId, mixed $password, string $userId): ?PrivateAccessResult
     {
         $event = $this->eventRepository->findById($eventId);
         if (null === $event) {
@@ -40,7 +38,7 @@ final readonly class VerifyPrivateEventAccess
         }
 
         if (!$event->hasPrivateAccessPassword()) {
-            return ['granted' => false];
+            return new PrivateAccessResult(false);
         }
 
         $confirmedCount = $this->registrationCounter->countConfirmed($event->getId());
@@ -58,7 +56,7 @@ final readonly class VerifyPrivateEventAccess
 
         $this->logger->info('event.private_access_attempt', ['eventId' => $eventId, 'userId' => $userId, 'granted' => $granted]);
 
-        return ['granted' => $granted];
+        return new PrivateAccessResult($granted);
     }
 
     private function canUnlockPrivateRegistration(\App\Events\Domain\Entity\Event $event, int $confirmedCount, \DateTimeImmutable $now): bool

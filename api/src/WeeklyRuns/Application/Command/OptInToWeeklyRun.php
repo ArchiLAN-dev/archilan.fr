@@ -23,10 +23,7 @@ final readonly class OptInToWeeklyRun
     ) {
     }
 
-    /**
-     * @return array{id: string, weeklyRunId: string, userId: string, attemptNumber: int}
-     */
-    public function execute(string $weeklyRunId, string $userId): array
+    public function execute(string $weeklyRunId, string $userId): WeeklyOptInResult
     {
         $run = $this->runs->findById($weeklyRunId);
         if (!$run instanceof WeeklyRun) {
@@ -65,11 +62,11 @@ final readonly class OptInToWeeklyRun
             throw new \DomainException('entry_conflict');
         }
 
-        return [
-            'id' => $entry->getId(),
-            'weeklyRunId' => $entry->getWeeklyRunId(),
-            'userId' => $entry->getUserId(),
-            'attemptNumber' => $entry->getAttemptNumber(),
-        ];
+        return new WeeklyOptInResult(
+            $entry->getId(),
+            $entry->getWeeklyRunId(),
+            $entry->getUserId(),
+            $entry->getAttemptNumber(),
+        );
     }
 }

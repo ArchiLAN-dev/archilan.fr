@@ -130,9 +130,9 @@ final class LaunchWeeklyEntryTest extends TestCase
 
         $result = $this->makeHandler($runs, $entries, $gateway, null, $sessions)->execute('run-1', 'entry-1', 'user-1');
 
-        self::assertSame('entry-1', $result['entryId']);
-        self::assertSame('sess-1', $result['externalSessionId']);
-        self::assertSame('runner.test', $result['connectionInfo']['host']);
+        self::assertSame('entry-1', $result->entryId);
+        self::assertSame('sess-1', $result->externalSessionId);
+        self::assertSame('runner.test', $result->connectionInfo['host']);
         self::assertSame('entry-1', $capturedArgs['entryId']);
         self::assertSame('apworld-hash-123', $capturedArgs['apworldHash']);
         // The run's stored output key is what gets reused for launch-from-file.
