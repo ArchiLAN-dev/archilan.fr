@@ -139,11 +139,13 @@ Contexts ordered to establish the record convention first, then roll out (each i
   `BackfillApworldDeployedVersionService` -> `ApworldDeployedVersionBackfillReport`, the three game
   `Backfill*` -> shared `GameBackfillReport`). Console + `AdminCatalogSyncController` + backfill unit tests read
   the records; output byte-identical. `BackfillActivity` excluded (returns `int`). Done.
-- **35.19 - `ForceEndSessionCommand` + Session read-model** (split from 35.18: it returns the shared **domain**
-  `Session::payload()` view - also used by `SessionLifecycleManager`, `PlayerSessionConnection`,
-  `SessionResultsQuery`. Typing it is a Session read-model chantier, complicated by `Session::payload()` being a
-  Domain method that cannot return an Application record. Needs its own approach - decide record home
-  (Domain ValueObject vs an Application mapper) - and lands before the validator rule).
+- **35.19 - `ForceEndSessionCommand` + Session read-model** (split from 35.18). Resolved via a **Domain
+  ValueObject** `Sessions/Domain/ValueObject/SessionView` (24 fields): `Session::payload()` returns it (a Domain
+  method returning a Domain VO - the only DDD-legal way, since it cannot return an Application record), so
+  `ForceEndSessionCommand` + the whole shared read surface (`SessionLifecycleManager`, `PlayerSessionConnection`,
+  `SessionResultsQuery`, `SessionOrchestrator::listSessions`, `PlayerPatchController`) are typed at once. phpstan
+  drove the consumer sweep; HTTP bodies byte-identical. Done. **No `Application/Command/` method returns an array
+  now** -> the validator rule below is unblocked.
 - **35.20 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void`, a
   `final readonly` record, or an enum, never an `array`", update `api/CLAUDE.md` AC-A3 + the
   `StandardsDocsMatchToolingTest`. Ships last, once no command returns an array (i.e. after 35.19).

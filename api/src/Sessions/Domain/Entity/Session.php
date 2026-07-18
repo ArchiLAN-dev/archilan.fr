@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Domain\Entity;
 
+use App\Sessions\Domain\ValueObject\SessionView;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -561,34 +562,33 @@ final class Session
         return $this->validationErrors;
     }
 
-    /** @return array<string, mixed> */
-    public function payload(): array
+    public function payload(): SessionView
     {
-        return [
-            'id' => $this->id,
-            'eventId' => $this->eventId,
-            'status' => $this->status,
-            'host' => $this->host,
-            'port' => $this->port,
-            'password' => $this->password,
-            'serverPassword' => $this->serverPassword,
-            'bridgePort' => $this->bridgePort,
-            'runnerId' => $this->runnerId,
-            'createdAt' => $this->createdAt->format(\DateTimeInterface::ATOM),
-            'startedAt' => $this->startedAt?->format(\DateTimeInterface::ATOM),
-            'stoppedAt' => $this->stoppedAt?->format(\DateTimeInterface::ATOM),
-            'notifiedAt' => $this->notifiedAt?->format(\DateTimeInterface::ATOM),
-            'lastHeartbeatAt' => $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
-            'lastActivityAt' => $this->lastActivityAt?->format(\DateTimeInterface::ATOM),
-            'lastSaveKey' => $this->lastSaveKey,
-            'pausedWithoutSave' => $this->pausedWithoutSave,
-            'restartFailed' => $this->restartFailed,
-            'validationErrors' => $this->validationErrors,
-            'finishedAt' => $this->finishedAt?->format(\DateTimeInterface::ATOM),
-            'lastLogs' => $this->lastLogs,
-            'archivedSavePath' => $this->archivedSavePath,
-            'archivedSpoilerPath' => $this->archivedSpoilerPath,
-            'adminPassword' => $this->adminPassword,
-        ];
+        return new SessionView(
+            $this->id,
+            $this->eventId,
+            $this->status,
+            $this->host,
+            $this->port,
+            $this->password,
+            $this->serverPassword,
+            $this->bridgePort,
+            $this->runnerId,
+            $this->createdAt->format(\DateTimeInterface::ATOM),
+            $this->startedAt?->format(\DateTimeInterface::ATOM),
+            $this->stoppedAt?->format(\DateTimeInterface::ATOM),
+            $this->notifiedAt?->format(\DateTimeInterface::ATOM),
+            $this->lastHeartbeatAt?->format(\DateTimeInterface::ATOM),
+            $this->lastActivityAt?->format(\DateTimeInterface::ATOM),
+            $this->lastSaveKey,
+            $this->pausedWithoutSave,
+            $this->restartFailed,
+            $this->validationErrors,
+            $this->finishedAt?->format(\DateTimeInterface::ATOM),
+            $this->lastLogs,
+            $this->archivedSavePath,
+            $this->archivedSpoilerPath,
+            $this->adminPassword,
+        );
     }
 }

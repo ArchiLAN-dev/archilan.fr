@@ -56,8 +56,8 @@ final readonly class SessionResultsQuery
             'session' => [
                 'id' => $session->getId(),
                 'status' => $session->getStatus(),
-                'startedAt' => $session->payload()['startedAt'],
-                'finishedAt' => $session->payload()['finishedAt'],
+                'startedAt' => $session->payload()->startedAt,
+                'finishedAt' => $session->payload()->finishedAt,
             ],
             'slots' => $this->buildSlotRows($slotsList),
         ];

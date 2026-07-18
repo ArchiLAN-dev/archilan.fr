@@ -40,7 +40,7 @@ final readonly class PlayerPatchController
         }
 
         $session = $connection['session'] ?? null;
-        if (null === $session || !\in_array($session['status'] ?? '', self::ALLOWED_STATUSES, true)) {
+        if (null === $session || !\in_array($session->status, self::ALLOWED_STATUSES, true)) {
             return new JsonResponse(['data' => ['files' => []]]);
         }
 
@@ -49,11 +49,7 @@ final readonly class PlayerPatchController
             $connection['slots'],
         );
 
-        $sessionId = $session['id'];
-        if (!is_string($sessionId)) {
-            return new JsonResponse(['data' => ['files' => []]]);
-        }
-        $files = $this->findPatchFiles($sessionId, $slotNames);
+        $files = $this->findPatchFiles($session->id, $slotNames);
 
         return new JsonResponse(['data' => ['files' => $files]]);
     }
@@ -76,7 +72,7 @@ final readonly class PlayerPatchController
             return $this->apiAccessGuard->errorResponse('not_found', 'Aucune session active.', 404);
         }
 
-        if (!\in_array($session['status'] ?? '', self::ALLOWED_STATUSES, true)) {
+        if (!\in_array($session->status, self::ALLOWED_STATUSES, true)) {
             return $this->apiAccessGuard->errorResponse('forbidden', "La session n'est pas encore lancée.", 403);
         }
 
@@ -98,11 +94,7 @@ final readonly class PlayerPatchController
         }
 
         // Resolve path and prevent traversal
-        $sessionId = $session['id'];
-        if (!is_string($sessionId)) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-        }
-        $outputDir = realpath($this->workspaceDir.'/'.$sessionId.'/output');
+        $outputDir = realpath($this->workspaceDir.'/'.$session->id.'/output');
         if (false === $outputDir) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
         }

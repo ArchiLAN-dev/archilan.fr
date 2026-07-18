@@ -12,6 +12,7 @@ use App\Sessions\Domain\Exception\SessionNotFoundException;
 use App\Sessions\Domain\Exception\SessionNotRunningException;
 use App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\ValueObject\SessionView;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -27,12 +28,10 @@ final readonly class ForceEndSessionCommand
     }
 
     /**
-     * @return array<string, mixed>
-     *
      * @throws SessionNotFoundException
      * @throws SessionNotRunningException
      */
-    public function execute(string $sessionId, string $actorId): array
+    public function execute(string $sessionId, string $actorId): SessionView
     {
         $session = $this->sessions->findById($sessionId);
         if (!$session instanceof Session) {

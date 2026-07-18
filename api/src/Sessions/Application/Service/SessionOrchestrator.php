@@ -21,6 +21,7 @@ use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\ValueObject\SessionView;
 use App\Shared\Application\Support\SlotYamlNameReader;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -67,7 +68,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return list<SessionView>
      */
     public function listSessions(string $eventId): array
     {
