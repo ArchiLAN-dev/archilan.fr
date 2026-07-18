@@ -39,13 +39,11 @@ final readonly class RegisterUserController
 
         // Validation failures are thrown as a ValidationException and mapped to HTTP by
         // ApplicationFailureListener (epic 35).
-        $user = $result['user'];
-
         return new JsonResponse([
             'data' => [
-                'id' => $user->getId(),
-                'email' => $user->getEmail(),
-                'roles' => $user->getRoles(),
+                'id' => $result->id,
+                'email' => $result->email,
+                'roles' => $result->roles,
             ],
             'meta' => [
                 'message' => 'Compte créé.',

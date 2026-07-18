@@ -7,7 +7,6 @@ namespace App\Tests\Functional;
 use App\Community\Domain\Entity\ContentReport;
 use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Entity\Notification;
-use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Domain\Entity\User;
 
 final class AccountModerationTest extends FunctionalTestCase
@@ -71,9 +70,7 @@ final class AccountModerationTest extends FunctionalTestCase
 
     public function testBanBlocksLoginWithDistinctMessage(): void
     {
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $register->register('bad@example.org', 'correct horse battery staple', true, 'Bad');
+        $this->registerUser('bad@example.org', displayName: 'Bad');
 
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['emailCanonical' => 'bad@example.org']);
         self::assertInstanceOf(User::class, $user);

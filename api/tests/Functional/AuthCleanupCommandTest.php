@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\Command\RegisterUser;
 use App\Identity\Domain\Entity\RefreshToken;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository;
@@ -26,10 +25,7 @@ final class AuthCleanupCommandTest extends FunctionalTestCase
 
         $this->repository = new DoctrineRefreshTokenRepository($this->em, $this->em->getConnection());
 
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $result = $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
-        $user = $result['user'];
+        $user = $this->registerUser('user@example.org');
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();
     }

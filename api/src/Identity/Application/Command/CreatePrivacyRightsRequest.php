@@ -22,11 +22,9 @@ final readonly class CreatePrivacyRightsRequest
     }
 
     /**
-     * @return array{id: string, rightType: string, status: string, handlingMode: string, submittedAt: string} the created request payload
-     *
      * @throws ValidationException when the request is invalid
      */
-    public function create(User $user, string $rightType, ?string $details): array
+    public function create(User $user, string $rightType, ?string $details): PrivacyRightsResult
     {
         $errors = $this->validate($rightType, $details);
 
@@ -69,17 +67,14 @@ final readonly class CreatePrivacyRightsRequest
         return $errors->toArray();
     }
 
-    /**
-     * @return array{id: string, rightType: string, status: string, handlingMode: string, submittedAt: string}
-     */
-    private function payload(PrivacyRightsRequest $request): array
+    private function payload(PrivacyRightsRequest $request): PrivacyRightsResult
     {
-        return [
-            'id' => $request->getId(),
-            'rightType' => $request->getRightType(),
-            'status' => $request->getStatus(),
-            'handlingMode' => $request->getHandlingMode(),
-            'submittedAt' => $request->getSubmittedAt()->format(\DateTimeInterface::ATOM),
-        ];
+        return new PrivacyRightsResult(
+            $request->getId(),
+            $request->getRightType(),
+            $request->getStatus(),
+            $request->getHandlingMode(),
+            $request->getSubmittedAt()->format(\DateTimeInterface::ATOM),
+        );
     }
 }
