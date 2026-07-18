@@ -8,6 +8,7 @@ use App\Events\Domain\Entity\Event;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\WeeklyRuns\Application\Command\RecordWeeklyGoal;
+use App\WeeklyRuns\Application\Command\WeeklyGoalResult;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -33,7 +34,7 @@ final readonly class RecordSlotGoal
     }
 
     /**
-     * @return array{entryId: string}|null the weekly result when the session is a weekly entry, else null
+     * @return WeeklyGoalResult|null the weekly result when the session is a weekly entry, else null
      */
     public function execute(
         string $sessionId,
@@ -41,7 +42,7 @@ final readonly class RecordSlotGoal
         int $checksTotal,
         int $itemsTotal,
         \DateTimeImmutable $goalReachedAt,
-    ): ?array {
+    ): ?WeeklyGoalResult {
         $weekly = $this->recordWeeklyGoal->execute($sessionId, $checksTotal, $itemsTotal, $goalReachedAt);
         if (null !== $weekly) {
             return $weekly;
