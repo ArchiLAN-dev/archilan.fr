@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Content\Application\Service;
 
+use App\Content\Application\Query\AdminPostView;
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
@@ -20,7 +21,7 @@ final readonly class AdminPostCatalog
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return list<AdminPostView>
      */
     public function list(): array
     {
@@ -29,10 +30,7 @@ final readonly class AdminPostCatalog
         return array_map($this->payload(...), $posts);
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function get(string $id): ?array
+    public function get(string $id): ?AdminPostView
     {
         $post = $this->postRepository->findById($id);
 
@@ -149,26 +147,23 @@ final readonly class AdminPostCatalog
         return ['found' => true];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function payload(Post $post): array
+    private function payload(Post $post): AdminPostView
     {
-        return [
-            'id' => $post->getId(),
-            'slug' => $post->getSlug(),
-            'title' => $post->getTitle(),
-            'type' => $post->getType(),
-            'status' => $post->getStatus(),
-            'excerpt' => $post->getExcerpt(),
-            'body' => $post->getBody(),
-            'readingTime' => $post->getReadingTime(),
-            'coverImageUrl' => $this->resolveCoverImageUrl($post),
-            'coverImageKey' => $post->getCoverImageKey(),
-            'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM),
-            'createdAt' => $post->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $post->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        ];
+        return new AdminPostView(
+            $post->getId(),
+            $post->getSlug(),
+            $post->getTitle(),
+            $post->getType(),
+            $post->getStatus(),
+            $post->getExcerpt(),
+            $post->getBody(),
+            $post->getReadingTime(),
+            $this->resolveCoverImageUrl($post),
+            $post->getCoverImageKey(),
+            $post->getPublishedAt()?->format(\DateTimeInterface::ATOM),
+            $post->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            $post->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+        );
     }
 
     private function resolveCoverImageUrl(Post $post): ?string
