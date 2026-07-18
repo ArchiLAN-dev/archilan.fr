@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Service;
 
+use App\Events\Application\Query\AdminEventView;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Events\Presentation\Controller\AdminEventGalleryController;
@@ -25,7 +26,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @return list<array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}>
+     * @return list<AdminEventView>
      */
     public function list(): array
     {
@@ -34,10 +35,7 @@ final readonly class AdminEventDrafts
         return array_map($this->payload(...), $events);
     }
 
-    /**
-     * @return array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}|null
-     */
-    public function get(string $eventId): ?array
+    public function get(string $eventId): ?AdminEventView
     {
         $event = $this->eventRepository->findById($eventId);
 
@@ -51,7 +49,7 @@ final readonly class AdminEventDrafts
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{event?: array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}, errors: array<string, list<string>>}
+     * @return array{event?: AdminEventView, errors: array<string, list<string>>}
      */
     public function create(array $input): array
     {
@@ -93,7 +91,7 @@ final readonly class AdminEventDrafts
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{found: bool, event?: array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}, errors: array<string, list<string>>}
+     * @return array{found: bool, event?: AdminEventView, errors: array<string, list<string>>}
      */
     public function update(string $eventId, array $input): array
     {
@@ -144,7 +142,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @return array{found: bool, event?: array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}, errors: array<string, list<string>>}
+     * @return array{found: bool, event?: AdminEventView, errors: array<string, list<string>>}
      */
     public function transition(string $eventId, mixed $status): array
     {
@@ -172,7 +170,7 @@ final readonly class AdminEventDrafts
     }
 
     /**
-     * @return array{found: bool, event?: array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}, errors: array<string, list<string>>}
+     * @return array{found: bool, event?: AdminEventView, errors: array<string, list<string>>}
      */
     public function configurePrivateAccess(string $eventId, mixed $password): array
     {
@@ -344,40 +342,37 @@ final readonly class AdminEventDrafts
         }
     }
 
-    /**
-     * @return array{id: string, title: string, description: string, status: string, startsAt: string, endsAt: string, venue: string, capacity: int, confirmedRegistrations: int, isAtCapacity: bool, registrationOpensAt: string, registrationClosesAt: string, isPublic: bool, visibility: string, hasPrivateAccessPassword: bool, gameSelectionEnabled: bool, vodUrl: string|null, recapPostSlug: string|null, hasRecap: bool, helloassoFormSlug: string|null, createdAt: string, updatedAt: string}
-     */
-    private function payload(Event $event): array
+    private function payload(Event $event): AdminEventView
     {
         $confirmedCount = $this->registrationCounter->countConfirmed($event->getId());
 
-        return [
-            'id' => $event->getId(),
-            'title' => $event->getTitle(),
-            'description' => $event->getDescription(),
-            'status' => $event->getStatus(),
-            'startsAt' => $event->getStartsAt()->format(\DateTimeInterface::ATOM),
-            'endsAt' => $event->getEndsAt()->format(\DateTimeInterface::ATOM),
-            'venue' => $event->getVenue(),
-            'capacity' => $event->getCapacity(),
-            'confirmedRegistrations' => $confirmedCount,
-            'isAtCapacity' => $event->isAtCapacity($confirmedCount),
-            'registrationOpensAt' => $event->getRegistrationOpensAt()->format(\DateTimeInterface::ATOM),
-            'registrationClosesAt' => $event->getRegistrationClosesAt()->format(\DateTimeInterface::ATOM),
-            'isPublic' => $event->isPublic(),
-            'visibility' => $event->isPublic() ? 'public' : 'private',
-            'hasPrivateAccessPassword' => $event->hasPrivateAccessPassword(),
-            'gameSelectionEnabled' => $event->isGameSelectionEnabled(),
-            'vodUrl' => $event->getVodUrl(),
-            'recapPostSlug' => $event->getRecapPostSlug(),
-            'hasRecap' => $event->hasRecap(),
-            'helloassoFormSlug' => $event->getHelloassoFormSlug(),
-            'coverImageUrl' => $this->resolveCoverImageUrl($event),
-            'coverImageKey' => $event->getCoverImageKey(),
-            'photoGallery' => $this->resolvePhotoGallery($event),
-            'createdAt' => $event->getCreatedAt()->format(\DateTimeInterface::ATOM),
-            'updatedAt' => $event->getUpdatedAt()->format(\DateTimeInterface::ATOM),
-        ];
+        return new AdminEventView(
+            $event->getId(),
+            $event->getTitle(),
+            $event->getDescription(),
+            $event->getStatus(),
+            $event->getStartsAt()->format(\DateTimeInterface::ATOM),
+            $event->getEndsAt()->format(\DateTimeInterface::ATOM),
+            $event->getVenue(),
+            $event->getCapacity(),
+            $confirmedCount,
+            $event->isAtCapacity($confirmedCount),
+            $event->getRegistrationOpensAt()->format(\DateTimeInterface::ATOM),
+            $event->getRegistrationClosesAt()->format(\DateTimeInterface::ATOM),
+            $event->isPublic(),
+            $event->isPublic() ? 'public' : 'private',
+            $event->hasPrivateAccessPassword(),
+            $event->isGameSelectionEnabled(),
+            $event->getVodUrl(),
+            $event->getRecapPostSlug(),
+            $event->hasRecap(),
+            $event->getHelloassoFormSlug(),
+            $this->resolveCoverImageUrl($event),
+            $event->getCoverImageKey(),
+            $this->resolvePhotoGallery($event),
+            $event->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            $event->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+        );
     }
 
     private function resolveCoverImageUrl(Event $event): ?string

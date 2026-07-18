@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Events\Application\Command;
 
+use App\Events\Application\Query\AdminEventView;
 use App\Events\Application\Service\AdminEventDrafts;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Shared\Application\Exception\NotFoundException;
@@ -25,13 +26,11 @@ final readonly class ManageEventGalleryCommand
     }
 
     /**
-     * @return array<string, mixed>|null the admin event payload
-     *
      * @throws NotFoundException           when the event does not exist
      * @throws ValidationException         when the gallery is already full
      * @throws ServiceUnavailableException when the object storage upload fails
      */
-    public function upload(string $eventId, string $key, string $contents): ?array
+    public function upload(string $eventId, string $key, string $contents): ?AdminEventView
     {
         $event = $this->eventRepository->findById($eventId);
         if (null === $event) {
