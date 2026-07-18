@@ -18,10 +18,7 @@ final readonly class CheckApworldUpdatesService
     ) {
     }
 
-    /**
-     * @return array{checked: int, rateLimitHit: bool}
-     */
-    public function checkAll(): array
+    public function checkAll(): ApworldUpdateCheckReport
     {
         $allGames = $this->gameRepository->findAllSortedByName();
         $games = array_values(array_filter(
@@ -53,6 +50,6 @@ final readonly class CheckApworldUpdatesService
 
         $this->gameRepository->flush();
 
-        return ['checked' => $checked, 'rateLimitHit' => $rateLimitHit];
+        return new ApworldUpdateCheckReport($checked, $rateLimitHit);
     }
 }

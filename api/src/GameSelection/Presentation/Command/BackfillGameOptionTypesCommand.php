@@ -25,8 +25,8 @@ final class BackfillGameOptionTypesCommand extends Command
 
         $output->writeln(sprintf(
             'Option types backfill: %d apworld game(s) processed, %d updated.',
-            $result['processed'],
-            $result['updated'],
+            $result->processed,
+            $result->updated,
         ));
 
         return Command::SUCCESS;

@@ -68,11 +68,11 @@ final class BackfillApworldDeployedVersionServiceTest extends TestCase
 
         self::assertSame('3.1.0', $matching->getApworldDeployedVersion());
         self::assertNull($unmatching->getApworldDeployedVersion());
-        self::assertSame(1, $result['matched']);
-        self::assertSame(1, $result['unmatched']);
-        self::assertSame(2, $result['total']);
-        self::assertSame(['Unmatching'], $result['unmatchedGames']);
-        self::assertFalse($result['rateLimitHit']);
+        self::assertSame(1, $result->matched);
+        self::assertSame(1, $result->unmatched);
+        self::assertSame(2, $result->total);
+        self::assertSame(['Unmatching'], $result->unmatchedGames);
+        self::assertFalse($result->rateLimitHit);
     }
 
     public function testDryRunPersistsNothing(): void
@@ -93,7 +93,7 @@ final class BackfillApworldDeployedVersionServiceTest extends TestCase
         $result = $service->backfill(true);
 
         self::assertNull($matching->getApworldDeployedVersion());
-        self::assertSame(1, $result['matched']);
+        self::assertSame(1, $result->matched);
     }
 
     public function testGamesWithoutHashOrAlreadyDeployedAreSkipped(): void
@@ -119,7 +119,7 @@ final class BackfillApworldDeployedVersionServiceTest extends TestCase
         $service = new BackfillApworldDeployedVersionService($checker, $repository, new NullLogger());
         $result = $service->backfill(false);
 
-        self::assertSame(0, $result['total']);
+        self::assertSame(0, $result->total);
         self::assertSame('9.9.9', $alreadyDeployed->getApworldDeployedVersion());
     }
 
@@ -140,8 +140,8 @@ final class BackfillApworldDeployedVersionServiceTest extends TestCase
         $service = new BackfillApworldDeployedVersionService($checker, $repository, new NullLogger());
         $result = $service->backfill(false);
 
-        self::assertTrue($result['rateLimitHit']);
+        self::assertTrue($result->rateLimitHit);
         self::assertNull($game->getApworldDeployedVersion());
-        self::assertSame(0, $result['matched']);
+        self::assertSame(0, $result->matched);
     }
 }

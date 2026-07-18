@@ -22,10 +22,7 @@ final readonly class SeedGameTutorials
     ) {
     }
 
-    /**
-     * @return array{processed: int, seeded: int}
-     */
-    public function run(bool $force): array
+    public function run(bool $force): TutorialSeedReport
     {
         $processed = 0;
         $seeded = 0;
@@ -52,6 +49,6 @@ final readonly class SeedGameTutorials
             ++$seeded;
         }
 
-        return ['processed' => $processed, 'seeded' => $seeded];
+        return new TutorialSeedReport($processed, $seeded);
     }
 }

@@ -31,8 +31,8 @@ final class SeedGameTutorialsCommand extends Command
 
         $output->writeln(sprintf(
             'Tutorials seed: %d game(s) processed, %d seeded.',
-            $result['processed'],
-            $result['seeded'],
+            $result->processed,
+            $result->seeded,
         ));
 
         return Command::SUCCESS;

@@ -25,8 +25,8 @@ final class BackfillGamePlatformsCommand extends Command
 
         $output->writeln(sprintf(
             'Platforms backfill: %d game(s) processed, %d updated.',
-            $result['processed'],
-            $result['updated'],
+            $result->processed,
+            $result->updated,
         ));
 
         return Command::SUCCESS;

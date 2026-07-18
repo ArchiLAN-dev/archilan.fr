@@ -34,8 +34,8 @@ final readonly class AdminCatalogSyncController
 
         return new JsonResponse([
             'data' => [
-                'checked' => $result['checked'],
-                'rateLimitHit' => $result['rateLimitHit'],
+                'checked' => $result->checked,
+                'rateLimitHit' => $result->rateLimitHit,
             ],
             'meta' => [],
         ]);
