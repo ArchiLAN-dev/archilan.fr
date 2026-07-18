@@ -134,8 +134,16 @@ Contexts ordered to establish the record convention first, then roll out (each i
   validation-outcome discriminant, not a result payload -> Stage-1-style conversion: throws `ValidationException`
   ('Profil invalide.', default `validation_failed`/422), returns `void`, controller drops its `errorCode`
   branching; 422 body byte-identical via `ApplicationFailureListener`). Done.
-- **35.18 - Sessions + CLI reports** (`ForceEndSessionCommand`; the CatalogSync/GameSelection `Backfill*` /
-  `SeedGameTutorials` / `CheckApworldUpdatesService` report arrays -> report records, for full consistency).
-- **35.19 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void`, a
+- **35.18 - CLI report records** (CatalogSync/GameSelection maintenance commands: `SeedGameTutorials` ->
+  `TutorialSeedReport`, `CheckApworldUpdatesService` -> `ApworldUpdateCheckReport`,
+  `BackfillApworldDeployedVersionService` -> `ApworldDeployedVersionBackfillReport`, the three game
+  `Backfill*` -> shared `GameBackfillReport`). Console + `AdminCatalogSyncController` + backfill unit tests read
+  the records; output byte-identical. `BackfillActivity` excluded (returns `int`). Done.
+- **35.19 - `ForceEndSessionCommand` + Session read-model** (split from 35.18: it returns the shared **domain**
+  `Session::payload()` view - also used by `SessionLifecycleManager`, `PlayerSessionConnection`,
+  `SessionResultsQuery`. Typing it is a Session read-model chantier, complicated by `Session::payload()` being a
+  Domain method that cannot return an Application record. Needs its own approach - decide record home
+  (Domain ValueObject vs an Application mapper) - and lands before the validator rule).
+- **35.20 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void`, a
   `final readonly` record, or an enum, never an `array`", update `api/CLAUDE.md` AC-A3 + the
-  `StandardsDocsMatchToolingTest`. Ships last, once no command returns an array.
+  `StandardsDocsMatchToolingTest`. Ships last, once no command returns an array (i.e. after 35.19).

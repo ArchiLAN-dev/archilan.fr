@@ -22,10 +22,7 @@ final readonly class BackfillGameOptionTypes
     ) {
     }
 
-    /**
-     * @return array{processed: int, updated: int}
-     */
-    public function run(): array
+    public function run(): GameBackfillReport
     {
         $processed = 0;
         $updated = 0;
@@ -48,6 +45,6 @@ final readonly class BackfillGameOptionTypes
             ++$updated;
         }
 
-        return ['processed' => $processed, 'updated' => $updated];
+        return new GameBackfillReport($processed, $updated);
     }
 }

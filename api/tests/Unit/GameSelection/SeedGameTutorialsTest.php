@@ -27,7 +27,8 @@ final class SeedGameTutorialsTest extends TestCase
 
         $result = $this->service($repo)->run(false);
 
-        self::assertSame(['processed' => 1, 'seeded' => 1], $result);
+        self::assertSame(1, $result->processed);
+        self::assertSame(1, $result->seeded);
         self::assertNotSame([], $fresh->getInstallSteps());
         self::assertSame('kept', $authored->getInstallSteps()[0]['title']);
     }
@@ -44,7 +45,8 @@ final class SeedGameTutorialsTest extends TestCase
 
         $result = $this->service($repo)->run(true);
 
-        self::assertSame(['processed' => 2, 'seeded' => 2], $result);
+        self::assertSame(2, $result->processed);
+        self::assertSame(2, $result->seeded);
     }
 
     private function service(GameRepositoryInterface $repo): SeedGameTutorials

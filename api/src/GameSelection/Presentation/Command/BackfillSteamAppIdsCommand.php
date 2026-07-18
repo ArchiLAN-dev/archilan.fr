@@ -25,8 +25,8 @@ final class BackfillSteamAppIdsCommand extends Command
 
         $output->writeln(sprintf(
             'Steam appid backfill: %d game(s) processed, %d updated.',
-            $result['processed'],
-            $result['updated'],
+            $result->processed,
+            $result->updated,
         ));
 
         return Command::SUCCESS;

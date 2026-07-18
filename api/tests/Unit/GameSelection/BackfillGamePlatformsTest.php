@@ -34,8 +34,8 @@ final class BackfillGamePlatformsTest extends TestCase
 
         $result = $service->run();
 
-        self::assertSame(1, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(1, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertSame([['id' => 19, 'name' => 'Super Nintendo Entertainment System']], $toResolve->getPlatforms());
     }
 
@@ -57,8 +57,8 @@ final class BackfillGamePlatformsTest extends TestCase
 
         $result = $service->run();
 
-        self::assertSame(1, $result['processed']);
-        self::assertSame(0, $result['updated']);
+        self::assertSame(1, $result->processed);
+        self::assertSame(0, $result->updated);
         self::assertNull($failing->getPlatforms());
     }
 

@@ -38,18 +38,18 @@ final class BackfillApworldDeployedVersionCommand extends Command
 
         $result = $this->service->backfill($dryRun);
 
-        foreach ($result['unmatchedGames'] as $name) {
+        foreach ($result->unmatchedGames as $name) {
             $output->writeln(sprintf('  unmatched: %s', $name));
         }
 
         $output->writeln(sprintf(
             'APWorld deployed version backfill: %d matched, %d unmatched, %d total.',
-            $result['matched'],
-            $result['unmatched'],
-            $result['total'],
+            $result->matched,
+            $result->unmatched,
+            $result->total,
         ));
 
-        if ($result['rateLimitHit']) {
+        if ($result->rateLimitHit) {
             $output->writeln('GitHub rate limit reached, batch stopped early.');
         }
 

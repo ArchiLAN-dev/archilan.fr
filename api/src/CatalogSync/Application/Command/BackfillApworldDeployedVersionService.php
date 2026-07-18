@@ -29,10 +29,7 @@ final readonly class BackfillApworldDeployedVersionService
     ) {
     }
 
-    /**
-     * @return array{matched: int, unmatched: int, total: int, unmatchedGames: list<string>, rateLimitHit: bool}
-     */
-    public function backfill(bool $dryRun): array
+    public function backfill(bool $dryRun): ApworldDeployedVersionBackfillReport
     {
         $targets = array_values(array_filter(
             $this->gameRepository->findAllSortedByName(),
@@ -97,12 +94,12 @@ final readonly class BackfillApworldDeployedVersionService
             $this->gameRepository->flush();
         }
 
-        return [
-            'matched' => $matched,
-            'unmatched' => $unmatched,
-            'total' => \count($targets),
-            'unmatchedGames' => $unmatchedGames,
-            'rateLimitHit' => $rateLimitHit,
-        ];
+        return new ApworldDeployedVersionBackfillReport(
+            $matched,
+            $unmatched,
+            \count($targets),
+            $unmatchedGames,
+            $rateLimitHit,
+        );
     }
 }

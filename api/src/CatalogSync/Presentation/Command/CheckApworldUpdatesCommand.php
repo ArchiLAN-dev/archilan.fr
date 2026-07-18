@@ -23,9 +23,9 @@ final class CheckApworldUpdatesCommand extends Command
     {
         $result = $this->service->checkAll();
 
-        $output->writeln(sprintf('Checked %d APWorld(s).', $result['checked']));
+        $output->writeln(sprintf('Checked %d APWorld(s).', $result->checked));
 
-        if ($result['rateLimitHit']) {
+        if ($result->rateLimitHit) {
             $output->writeln('GitHub rate limit reached, batch stopped early.');
         }
 

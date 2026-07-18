@@ -44,8 +44,8 @@ final class BackfillSteamAppIdsTest extends TestCase
 
         $result = $service->run();
 
-        self::assertSame(2, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(2, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertSame(367520, $withIgdbNoSteam->getSteamAppId());
         self::assertSame(999, $alreadyResolved->getSteamAppId());
     }
@@ -75,8 +75,8 @@ final class BackfillSteamAppIdsTest extends TestCase
 
         $result = $service->run();
 
-        self::assertSame(2, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(2, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertNull($failing->getSteamAppId());
         self::assertSame(367520, $succeeding->getSteamAppId());
     }

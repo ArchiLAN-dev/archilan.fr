@@ -36,8 +36,8 @@ final class BackfillGameOptionTypesTest extends TestCase
 
         $result = new BackfillGameOptionTypes($repo, $runner, new NullLogger())->run();
 
-        self::assertSame(1, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(1, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertCount(1, $saved);
         self::assertSame(['song_difficulty_min' => ['min' => 1, 'max' => 11, 'default' => 4]], $withApworld->getOptionTypes());
         self::assertNull($noApworld->getOptionTypes());
