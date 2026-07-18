@@ -120,9 +120,11 @@ Contexts ordered to establish the record convention first, then roll out (each i
   read-view record; existing `*View` are array-returning facades) + `UploadPostCoverImageCommand` returns it;
   both admin controllers serialize it, byte-identical, no controller edit). Write-outcome facade methods
   (`create/update/publish/unpublish`) stay `{found, errors}` per AC-A3 (Service, not Command). Done.
-- **35.15 - Events admin read-model** (`AdminEventDrafts` list/get/create/update/transition/configurePrivateAccess
-  -> shared `AdminEventView` DTO + `UploadEventCoverImageCommand`/`ManageEventGalleryCommand` return it;
-  `AdminEventController` serializes it).
+- **35.15 - Events admin read-model** (`AdminEventDrafts` list/get -> shared `AdminEventView` **record** (25
+  fields; also the `event?` embedded in the create/update/transition/configurePrivateAccess outcome envelopes) +
+  `UploadEventCoverImageCommand`/`ManageEventGalleryCommand` return it; all three admin controllers serialize it,
+  byte-identical, no controller edit. Write-outcome envelopes (`{found, errors}`) stay per AC-A3. Fixed the
+  long-stale 22-key `@return` docblocks (real payload = 25 fields). Done.
 - **35.16 - Events/SessionConfig/WeeklyRuns/Community remainder** (`VerifyPrivateEventAccess`,
   `AdminUpdateSessionConfig`, `AdminCreate/UpdateWeeklyTemplate`, `LaunchWeeklyEntry`, `OptInToWeeklyRun`,
   `UpdateCommunityProfile`).
