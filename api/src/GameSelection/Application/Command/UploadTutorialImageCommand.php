@@ -21,16 +21,13 @@ final readonly class UploadTutorialImageCommand
     ) {
     }
 
-    /**
-     * @return array{key: string, url: string}
-     */
-    public function execute(string $key, string $contents): array
+    public function execute(string $key, string $contents): TutorialImageUpload
     {
         $this->minioStorage->upload($this->minioMediaBucket, $key, $contents);
 
-        return [
-            'key' => $key,
-            'url' => $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl),
-        ];
+        return new TutorialImageUpload(
+            $key,
+            $this->minioStorage->presignedUrl($this->minioMediaBucket, $key, $this->minioPresignTtl),
+        );
     }
 }
