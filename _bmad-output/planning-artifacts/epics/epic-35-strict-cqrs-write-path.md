@@ -131,8 +131,9 @@ Contexts ordered to establish the record convention first, then roll out (each i
   Six inline-shape commands across Events/SessionConfig/WeeklyRuns, all colocated records, controllers
   pass-through byte-identical, no controller edit. Done.
 - **35.17 - Community `UpdateCommunityProfile`** (split from 35.16: its `{errorCode, errors}` is a
-  validation-outcome discriminant, not a result payload -> Stage-1-style conversion: throw `ValidationException`,
-  return `void`, drop the controller's `errorCode` branching).
+  validation-outcome discriminant, not a result payload -> Stage-1-style conversion: throws `ValidationException`
+  ('Profil invalide.', default `validation_failed`/422), returns `void`, controller drops its `errorCode`
+  branching; 422 body byte-identical via `ApplicationFailureListener`). Done.
 - **35.18 - Sessions + CLI reports** (`ForceEndSessionCommand`; the CatalogSync/GameSelection `Backfill*` /
   `SeedGameTutorials` / `CheckApworldUpdatesService` report arrays -> report records, for full consistency).
 - **35.19 - Validator rule.** Add the `DddArchitectureValidator` gate "a command service returns `void`, a

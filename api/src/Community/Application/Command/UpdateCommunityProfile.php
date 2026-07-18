@@ -12,11 +12,12 @@ use App\Community\Domain\ValueObject\BannerPreset;
 use App\Community\Domain\ValueObject\ShowcaseWidget;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
 
 /**
  * Owner edit of their own community profile customization (story 30.3). Upserts the profile row and
- * applies validated customization. Returns a validation result; never throws on bad input.
+ * applies validated customization. Throws a typed ValidationException on bad input (epic 35).
  */
 final readonly class UpdateCommunityProfile
 {
@@ -33,9 +34,9 @@ final readonly class UpdateCommunityProfile
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{errorCode: string|null, errors: array<string, list<string>>}
+     * @throws ValidationException when the customization payload is invalid
      */
-    public function update(string $userId, array $input): array
+    public function update(string $userId, array $input): void
     {
         $errors = new ValidationErrors();
 
@@ -65,7 +66,7 @@ final readonly class UpdateCommunityProfile
 
         $errorsArray = $errors->toArray();
         if ([] !== $errorsArray) {
-            return ['errorCode' => 'validation_failed', 'errors' => $errorsArray];
+            throw new ValidationException('Profil invalide.', $errorsArray);
         }
 
         $now = $this->clock->now();
@@ -77,8 +78,6 @@ final readonly class UpdateCommunityProfile
 
         $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $avatarFrame, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         $this->profiles->flush();
-
-        return ['errorCode' => null, 'errors' => []];
     }
 
     /**
