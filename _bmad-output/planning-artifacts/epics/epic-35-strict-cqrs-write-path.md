@@ -116,8 +116,10 @@ Contexts ordered to establish the record convention first, then roll out (each i
   typing those whole admin read-models (a shared `AdminPostView`/`AdminEventView` DTO reused by every method +
   the admin controller). That work belongs to the context read-model stories below, where the upload command
   returns the same shared DTO for free - not a separate "uploads" story.
-- **35.14 - Content admin read-model** (`AdminPostCatalog` list/get/create/update/publish/unpublish -> shared
-  `AdminPostView` DTO + `UploadPostCoverImageCommand` returns it; `AdminPostController` serializes it).
+- **35.14 - Content admin read-model** (`AdminPostCatalog` list/get -> shared `AdminPostView` **record** (first
+  read-view record; existing `*View` are array-returning facades) + `UploadPostCoverImageCommand` returns it;
+  both admin controllers serialize it, byte-identical, no controller edit). Write-outcome facade methods
+  (`create/update/publish/unpublish`) stay `{found, errors}` per AC-A3 (Service, not Command). Done.
 - **35.15 - Events admin read-model** (`AdminEventDrafts` list/get/create/update/transition/configurePrivateAccess
   -> shared `AdminEventView` DTO + `UploadEventCoverImageCommand`/`ManageEventGalleryCommand` return it;
   `AdminEventController` serializes it).

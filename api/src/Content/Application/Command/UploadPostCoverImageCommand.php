@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Content\Application\Command;
 
+use App\Content\Application\Query\AdminPostView;
 use App\Content\Application\Service\AdminPostCatalog;
 use App\Content\Domain\Entity\Post;
 use App\Content\Domain\Repository\PostRepositoryInterface;
@@ -25,12 +26,10 @@ final readonly class UploadPostCoverImageCommand
     }
 
     /**
-     * @return array<string, mixed>|null the admin post payload
-     *
      * @throws NotFoundException           when the post does not exist
      * @throws ServiceUnavailableException when the object storage upload fails
      */
-    public function execute(string $postId, string $key, string $contents): ?array
+    public function execute(string $postId, string $key, string $contents): ?AdminPostView
     {
         $post = $this->postRepository->findById($postId);
 
