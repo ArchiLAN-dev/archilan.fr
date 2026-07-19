@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Presentation\Controller;
 
+use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\WeeklyRuns\Application\Query\WeeklyEntryPatchQuery;
@@ -14,7 +15,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class WeeklyEntryPatchController
 {
@@ -23,8 +23,7 @@ final readonly class WeeklyEntryPatchController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private WeeklyEntryPatchQuery $patchQuery,
-        private HttpClientInterface $httpClient,
-        private string $bridgeHttpHost,
+        private SessionOutputArtifactReaderInterface $reader,
     ) {
     }
 
@@ -41,8 +40,12 @@ final readonly class WeeklyEntryPatchController
             return new JsonResponse(['data' => ['files' => []]]);
         }
 
-        if ('bridge' === $context['type']) {
-            $files = $this->listFromBridge($context['bridgePort']);
+        if ('durable' === $context['type']) {
+            $files = array_values(array_filter(
+                $this->reader->listEntries($context['outputKey']),
+                self::isDownloadablePatch(...),
+            ));
+            sort($files);
 
             return new JsonResponse(['data' => ['files' => $files]]);
         }
@@ -73,8 +76,22 @@ final readonly class WeeklyEntryPatchController
             return $this->apiAccessGuard->errorResponse('not_found', 'Entrée introuvable.', 404);
         }
 
-        if ('bridge' === $context['type']) {
-            return $this->downloadFromBridge($context['bridgePort'], $filename);
+        if ('durable' === $context['type']) {
+            $artifact = $this->reader->extractEntry($context['outputKey'], $filename);
+            if (null === $artifact) {
+                return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
+            }
+
+            $contents = $artifact->contents;
+            $safeFilename = basename($artifact->filename);
+
+            $streamed = new StreamedResponse(static function () use ($contents): void {
+                echo $contents;
+            });
+            $streamed->headers->set('Content-Type', 'application/octet-stream');
+            $streamed->headers->set('Content-Disposition', 'attachment; filename="'.$safeFilename.'"');
+
+            return $streamed;
         }
 
         if (null !== $context['slotName'] && pathinfo($filename, \PATHINFO_FILENAME) !== $context['slotName']) {
@@ -102,56 +119,18 @@ final readonly class WeeklyEntryPatchController
     }
 
     /**
-     * @return list<string>
+     * A downloadable weekly patch is any output-archive entry that is not the shared multidata
+     * (.archipelago) nor a spoiler. A weekly run is a single shared seed, so every entrant of the run
+     * is entitled to its patch(es); only the multidata and spoiler are withheld. Mirrors the local
+     * branch's findPatchFiles exclusions.
      */
-    private function listFromBridge(int $bridgePort): array
+    public static function isDownloadablePatch(string $filename): bool
     {
-        try {
-            $response = $this->httpClient->request(
-                'GET',
-                "http://{$this->bridgeHttpHost}:{$bridgePort}/output",
-                ['timeout' => 5],
-            );
-            if (200 !== $response->getStatusCode()) {
-                return [];
-            }
-            /** @var array{files?: list<string>} $body */
-            $body = $response->toArray();
-
-            return $body['files'] ?? [];
-        } catch (\Throwable) {
-            return [];
+        if ('archipelago' === strtolower(pathinfo($filename, \PATHINFO_EXTENSION))) {
+            return false;
         }
-    }
 
-    private function downloadFromBridge(int $bridgePort, string $filename): Response
-    {
-        try {
-            $bridgeResponse = $this->httpClient->request(
-                'GET',
-                "http://{$this->bridgeHttpHost}:{$bridgePort}/output/".rawurlencode($filename),
-                ['timeout' => 30],
-            );
-            if (200 !== $bridgeResponse->getStatusCode()) {
-                return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-            }
-
-            $content = $bridgeResponse->getContent();
-            $safeFilename = basename($filename);
-
-            $streamed = new StreamedResponse(static function () use ($content): void {
-                echo $content;
-            });
-            $streamed->headers->set('Content-Type', 'application/octet-stream');
-            $streamed->headers->set(
-                'Content-Disposition',
-                'attachment; filename="'.$safeFilename.'"',
-            );
-
-            return $streamed;
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Fichier introuvable.', 404);
-        }
+        return !str_contains(strtolower($filename), '_spoiler');
     }
 
     /**
