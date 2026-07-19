@@ -178,17 +178,21 @@ function PlayerCard({ row, rank }: { row: DirectoryRow; rank: number | null }) {
       {rank !== null ? (
         <span className="w-6 shrink-0 text-center font-heading text-sm font-bold text-muted-foreground">{rank}</span>
       ) : null}
-      <span className="relative inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text">
-        {showImg ? (
-          // eslint-disable-next-line @next/next/no-img-element -- avatar URLs are external (Discord/Steam CDN), not statically known
-          <img alt="" className="size-full object-cover" onError={() => setImgFailed(true)} src={row.avatarUrl ?? ""} />
-        ) : (
-          name.slice(0, 1).toUpperCase()
-        )}
+      {/* Positioning context only (no clip) so the "En jeu" badge can overflow the avatar circle.
+          The avatar itself is clipped by the inner span; the badge is a sibling outside that clip. */}
+      <span className="relative inline-flex size-10 shrink-0">
+        <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text">
+          {showImg ? (
+            // eslint-disable-next-line @next/next/no-img-element -- avatar URLs are external (Discord/Steam CDN), not statically known
+            <img alt="" className="size-full object-cover" onError={() => setImgFailed(true)} src={row.avatarUrl ?? ""} />
+          ) : (
+            name.slice(0, 1).toUpperCase()
+          )}
+        </span>
         {row.playing ? (
           <span
             aria-label="En jeu"
-            className="absolute -bottom-0.5 -right-0.5 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"
+            className="absolute -bottom-0.5 -right-0.5 z-10 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"
             title="En jeu"
           />
         ) : null}
