@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Domain\ProfileComment;
+use App\Community\Domain\Entity\ProfileComment;
 use PHPUnit\Framework\TestCase;
 
 final class ProfileCommentTest extends TestCase

@@ -1,0 +1,286 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\PersonalRuns\Domain\Entity;
+
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
+final class Run
+{
+    public const string STATUS_DRAFT = 'draft';
+    public const string STATUS_STARTING = 'starting';
+    public const string STATUS_ACTIVE = 'active';
+    public const string STATUS_STOPPING = 'stopping';
+    public const string STATUS_IDLE = 'idle';
+    public const string STATUS_RESTARTING = 'restarting';
+    public const string STATUS_COMPLETED = 'completed';
+    public const string STATUS_CANCELLED = 'cancelled';
+
+    /** Statuses that block deletion or modification */
+    public const array ACTIVE_STATUSES = [self::STATUS_STARTING, self::STATUS_ACTIVE, self::STATUS_STOPPING];
+
+    /**
+     * Statuses indicating the run has been launched at least once - i.e. the games in it were
+     * actually played. Used to surface "recently played" games (story 28.8). Excludes `draft`
+     * (never launched) and `cancelled`/`starting` (no gameplay yet).
+     */
+    public const array LAUNCHED_STATUSES = [
+        self::STATUS_ACTIVE,
+        self::STATUS_STOPPING,
+        self::STATUS_IDLE,
+        self::STATUS_RESTARTING,
+        self::STATUS_COMPLETED,
+    ];
+
+    /**
+     * Statuts transitoires où une run peut rester bloquée si la session liée se coince ou si un webhook
+     * de cycle de vie se perd. Réconciliés par le backstop planifié (story 17.14).
+     */
+    public const array STUCK_STATUSES = [self::STATUS_STARTING, self::STATUS_STOPPING, self::STATUS_RESTARTING];
+
+    /** Seuils (secondes) sur updatedAt au-delà desquels la run transitoire est considérée bloquée. */
+    public const array STUCK_THRESHOLDS = [
+        self::STATUS_STARTING => 1800,    // 30 min - couvre une génération complète
+        self::STATUS_STOPPING => 300,     // 5 min - l'arrêt est rapide
+        self::STATUS_RESTARTING => 300,   // 5 min - la relance est rapide
+    ];
+
+    public function __construct(
+        #[ORM\Id]
+        #[ORM\Column(type: 'string', length: 32)]
+        private string $id,
+        #[ORM\Column(name: 'owner_id', type: 'string', length: 32)]
+        private string $ownerId,
+        #[ORM\Column(type: 'string', length: 120)]
+        private string $title,
+        #[ORM\Column(type: 'string', length: 20)]
+        private string $status,
+        #[ORM\Column(name: 'invite_token', type: 'string', length: 64, unique: true)]
+        private string $inviteToken,
+        /** @var list<array{gameId: string}>|null */
+        #[ORM\Column(name: 'game_selection_config', type: Types::JSON, nullable: true)]
+        private ?array $gameSelectionConfig,
+        #[ORM\Column(name: 'created_at', type: 'datetimetz_immutable')]
+        private \DateTimeImmutable $createdAt,
+        #[ORM\Column(name: 'updated_at', type: 'datetimetz_immutable')]
+        private \DateTimeImmutable $updatedAt,
+        #[ORM\Column(name: 'connection_host', type: 'string', length: 255, nullable: true)]
+        private ?string $connectionHost = null,
+        #[ORM\Column(name: 'connection_port', type: 'integer', nullable: true)]
+        private ?int $connectionPort = null,
+        #[ORM\Column(name: 'connection_password', type: 'string', length: 120, nullable: true)]
+        private ?string $connectionPassword = null,
+        #[ORM\Column(name: 'session_id', type: 'string', length: 32, nullable: true)]
+        private ?string $sessionId = null,
+    ) {
+    }
+
+    public static function create(string $ownerId, string $title, \DateTimeImmutable $now): self
+    {
+        return new self(
+            bin2hex(random_bytes(16)),
+            $ownerId,
+            trim($title),
+            self::STATUS_DRAFT,
+            bin2hex(random_bytes(32)),
+            null,
+            $now,
+            $now,
+        );
+    }
+
+    public function isOwnedBy(string $userId): bool
+    {
+        return $this->ownerId === $userId;
+    }
+
+    /**
+     * @param list<array{gameId: string}> $config
+     */
+    public function configureGames(array $config, \DateTimeImmutable $now): void
+    {
+        $this->gameSelectionConfig = $config;
+        $this->updatedAt = $now;
+    }
+
+    public function regenerateInviteToken(\DateTimeImmutable $now): void
+    {
+        $this->inviteToken = bin2hex(random_bytes(32));
+        $this->updatedAt = $now;
+    }
+
+    public function cancel(\DateTimeImmutable $now): void
+    {
+        $nonCancellable = [self::STATUS_ACTIVE, self::STATUS_STOPPING];
+        if (in_array($this->status, $nonCancellable, true)) {
+            throw new \DomainException('Cannot cancel an active run.');
+        }
+
+        $this->status = self::STATUS_CANCELLED;
+        $this->updatedAt = $now;
+    }
+
+    public function unarchive(\DateTimeImmutable $now): void
+    {
+        if (self::STATUS_CANCELLED !== $this->status) {
+            throw new \DomainException('Only cancelled runs can be unarchived.');
+        }
+
+        $this->status = null !== $this->sessionId ? self::STATUS_IDLE : self::STATUS_DRAFT;
+        $this->updatedAt = $now;
+    }
+
+    public function start(\DateTimeImmutable $now): void
+    {
+        $this->connectionPassword = bin2hex(random_bytes(8));
+        $this->status = self::STATUS_STARTING;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * Owner-driven terminal finish (story 17.15): an active run is wrapped up so its session can be
+     * archived and its goal-reached state counted in stats. Only an active run can be completed.
+     */
+    public function complete(\DateTimeImmutable $now): void
+    {
+        if (self::STATUS_ACTIVE !== $this->status) {
+            throw new \DomainException('Only an active run can be completed.');
+        }
+
+        $this->connectionHost = null;
+        $this->connectionPort = null;
+        $this->connectionPassword = null;
+        $this->status = self::STATUS_COMPLETED;
+        $this->updatedAt = $now;
+    }
+
+    public function attachSession(string $sessionId): void
+    {
+        $this->sessionId = $sessionId;
+    }
+
+    public function markRunning(string $host, int $port, \DateTimeImmutable $now, ?string $password = null): void
+    {
+        $this->connectionHost = $host;
+        $this->connectionPort = $port;
+        if (null !== $password) {
+            $this->connectionPassword = $password;
+        }
+        $this->status = self::STATUS_ACTIVE;
+        $this->updatedAt = $now;
+    }
+
+    public function stop(\DateTimeImmutable $now): void
+    {
+        $this->status = self::STATUS_STOPPING;
+        $this->updatedAt = $now;
+    }
+
+    public function markStopped(\DateTimeImmutable $now): void
+    {
+        $this->connectionHost = null;
+        $this->connectionPort = null;
+        $this->connectionPassword = null;
+        $this->status = self::STATUS_IDLE;
+        $this->updatedAt = $now;
+    }
+
+    public function markRestarting(\DateTimeImmutable $now): void
+    {
+        $this->status = self::STATUS_RESTARTING;
+        $this->updatedAt = $now;
+    }
+
+    public function resetAfterValidationFailure(\DateTimeImmutable $now): void
+    {
+        $this->status = self::STATUS_DRAFT;
+        $this->connectionPassword = null;
+        $this->updatedAt = $now;
+    }
+
+    /** True si la run est dans un statut transitoire depuis plus longtemps que son seuil. */
+    public function isStuck(\DateTimeImmutable $now): bool
+    {
+        $threshold = self::STUCK_THRESHOLDS[$this->status] ?? null;
+        if (null === $threshold) {
+            return false;
+        }
+
+        return ($now->getTimestamp() - $this->updatedAt->getTimestamp()) > $threshold;
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    public function getOwnerId(): string
+    {
+        return $this->ownerId;
+    }
+
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    /**
+     * True once the run has left `draft`: the multiworld has been (or is being) generated and is now
+     * fixed - resume always replays the saved game - so participant game selection, slot YAML and the
+     * owner's game config can no longer be changed. A paused (`idle`) run is included: editing it would
+     * be a no-op since the existing session is what resumes.
+     */
+    public function isLockedForEditing(): bool
+    {
+        return self::STATUS_DRAFT !== $this->status;
+    }
+
+    public function getInviteToken(): string
+    {
+        return $this->inviteToken;
+    }
+
+    /** @return list<array{gameId: string}>|null */
+    public function getGameSelectionConfig(): ?array
+    {
+        return $this->gameSelectionConfig;
+    }
+
+    public function getCreatedAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function getUpdatedAt(): \DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function getConnectionHost(): ?string
+    {
+        return $this->connectionHost;
+    }
+
+    public function getConnectionPort(): ?int
+    {
+        return $this->connectionPort;
+    }
+
+    public function getConnectionPassword(): ?string
+    {
+        return $this->connectionPassword;
+    }
+
+    public function getSessionId(): ?string
+    {
+        return $this->sessionId;
+    }
+}

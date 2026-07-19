@@ -338,7 +338,7 @@ export function GoalCelebration({
                             }} />
 
                             {/* Inner dark surface - radius = frame_radius(16px) - padding(2px) = 14px */}
-                            <div className="relative bg-[#05030c] px-8 pb-10 pt-8 text-center backdrop-blur-xl" style={{ borderRadius: 14 }}>
+                            <div className="relative rounded-[14px] bg-[#05030c] px-8 pb-10 pt-8 text-center backdrop-blur-xl">
                             {/* Scanlines */}
                             <div
                                 aria-hidden="true"

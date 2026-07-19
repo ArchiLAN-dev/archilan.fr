@@ -3,13 +3,25 @@
 ## Quality gates (non-negotiable)
 
 ```bash
-vendor/bin/phpstan analyse src tests   # level max - 0 errors
-vendor/bin/php-cs-fixer check src      # @Symfony ruleset - 0 violations
-php bin/phpunit                        # all suites green - 0 notices/deprecations/warnings
-php bin/console app:architecture:ddd   # exit 0 - no layer violations
+composer gates   # runs the four gates below - identical to CI (same composer scripts)
 ```
 
-Run all four before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations.
+What it runs, in order:
+
+```bash
+vendor/bin/phpstan analyse src tests   # level max + strict-rules - 0 errors
+vendor/bin/php-cs-fixer check          # @Symfony ruleset, full dist config (src + tests) - 0 violations
+php bin/console app:architecture:ddd   # exit 0 - no layer violations
+vendor/bin/rector process --dry-run    # exit 0 - no pending mechanical modernisation
+php bin/phpunit                        # all suites green - 0 notices/deprecations/warnings
+```
+
+Run all five (`composer gates`) before marking any task complete. Fix failures immediately; never skip with `--no-verify` or suppression annotations. Note the cs-fixer gate covers **src and tests** - passing `src` as a path argument narrows it and lets test-file violations through that CI will reject.
+
+**Rector is a HARD gate** since story A5 (conservative PHP-level sets; **migrations** skipped - the
+Sessions freeze was lifted in 33.20). It was advisory from 33.13 until the baseline proved it stays
+clean between stories, which 33.14 and 33.20 finished making true. After applying Rector diffs, always
+run cs-fixer before committing (Rector output is not @Symfony-styled).
 
 **Zero PHPUnit notices is a validation prerequisite.** `phpunit.xml.dist` sets `failOnNotice`,
 `failOnDeprecation` and `failOnWarning` to `true`, so any notice/deprecation/warning makes
@@ -24,13 +36,32 @@ Run all four before marking any task complete. Fix failures immediately; never s
 
 ---
 
+## This file is gated
+
+`tests/Unit/Shared/StandardsDocsMatchToolingTest.php` runs in `composer gates` and **fails the build**
+when this document drifts from the tooling it describes. It checks what is mechanically checkable:
+
+- every validator symbol cited here (`DddArchitectureValidator::` + a name) **exists** on the class;
+- the "authoritative" context list below **equals** `DddArchitectureValidator::CONTEXTS`;
+- the "What it runs, in order" block above lists **exactly** the legs `composer gates` really runs.
+
+Write the first bullet's pattern without a matchable placeholder: a rule that scans raw text will
+match its own documentation (the trap stories 33.13/33.15/33.17 each fell into).
+
+Epic 33 existed to stop the docs lying about the tooling, and still ended with this file citing a
+constant story 33.20 had deleted - because a doc has nothing that fails when it goes stale. Now it does
+(epic-33 retro, action A1). The prose claims it cannot check (which kind belongs in which sub-folder)
+stay reviewer-enforced: **when this file and the code disagree, the code wins and this file moves.**
+
+---
+
 ## DDD layer rules
 
 ### Bounded contexts
 
-Every PHP class lives under `src/{Context}/{Layer}/`. Known contexts:
+Every PHP class lives under `src/{Context}/{Layer}/`. Known contexts (authoritative list: `DddArchitectureValidator::CONTEXTS`):
 
-`Identity` · `Events` · `Registrations` · `GameSelection` · `Content` · `Payments` · `Realtime` · `Communications` · `Sessions` · `PersonalRuns` · `CatalogSync` · `Streaming` · `Shared`
+`Identity` · `Events` · `Registrations` · `GameSelection` · `Content` · `Payments` · `Realtime` · `Communications` · `Legal` · `Sessions` · `PersonalRuns` · `CatalogSync` · `Streaming` · `Membership` · `WeeklyRuns` · `SessionConfig` · `Community` · `Shared`
 
 Adding a new context requires: (1) create the four layer directories, (2) add to `DddArchitectureValidator::CONTEXTS`, (3) add Domain exclusion to `services.yaml`, (4) add Doctrine mapping if the domain contains entities.
 
@@ -47,7 +78,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 
 **AC-A1:** Application services are `final` - no extension, no inheritance hierarchies.  
 **AC-A2:** Application services MUST NOT inject `EntityManagerInterface` or `Connection`. All entity operations go through **repository interfaces** defined in Domain (`{Entity}RepositoryInterface`). All DTO/read queries go through **query interfaces** defined in Application (`{Name}QueryInterface`). Infrastructure classes implement these interfaces using DBAL QueryBuilder (for queries) or Doctrine ORM (for repositories).  
-**AC-A3:** Command services (writes) return `void`. Query services (reads) return typed DTOs or PHP arrays. Never return raw Doctrine entities from a query.  
+**AC-A3:** Command services (writes, `Application/Command/`) return `void`, a `final readonly` result record, or an enum - **never a raw `array`**, with no escape hatch (epic 35 Stage 2, enforced on public methods by `DddArchitectureValidator::validateCommandArrayReturns`; a command's result record/outcome enum is colocated in `Application/Command/`). Mixed read+write **service** facades (`Application/Service/`) may still return the `['found' => ..., 'errors' => ..., 'data' => ...]` outcome contract consumed by controllers. Query services (reads) return typed DTOs or PHP arrays. **No public Application method ever returns a raw Doctrine entity** - enforced by `DddArchitectureValidator::validateApplicationEntityReturns` (story 33.17; the auth resolvers handing `User` to Symfony security are the named allowlist). Epic 35 kept Stage 3 (commands return `void`, responses built by a separate query) deferred - the fully-typed record + one Application call is the intended end-state, not void-command + query.  
 **AC-A4:** A command service performs exactly one unit of work. Side effects after the DB commit (emails via Messenger, Mercure publishes) are dispatched asynchronously - never inline before `flush()`.  
 **AC-A5:** No `new` on infrastructure dependencies inside Application. Always inject the interface (`RunnerGatewayInterface`, `MinioStorageInterface`, etc.).  
 **AC-A6:** No HTTP responses, no `Request`, no `Response` in Application classes.
@@ -68,14 +99,59 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 
 ---
 
-## CQRS naming
+## CQRS naming and layer sub-folder taxonomy
 
 | Type | Naming | Returns | Lives in |
 |---|---|---|---|
-| Command service | `VerbNoun` (`RegisterUser`, `PublishEvent`) | `void` | `Application/` |
-| Query service | `NounContext` (`PlayerProfileQuery`, `LeaderboardQuery`) | typed DTO / array | `Application/` |
+| Command service | `VerbNoun` (`RegisterUser`, `PublishEvent`) | `void` | `Application/Command/` |
+| Query service | `NounContext` (`PlayerProfileQuery`, `LeaderboardQuery`) | typed DTO / array | `Application/Query/` |
+| Read DTO / `{Name}QueryInterface` | - | - | `Application/Query/` (a DTO lives with its query) |
 | Message (async) | `VerbNounJob` or `VerbNounMessage` | - | `Application/Message/` |
 | Message handler | same name + `Handler` suffix | `void` | `Application/Handler/` |
+| Application exception | `*Exception` | - | `Application/Exception/` |
+| Domain exception | `*Exception` | - | `Domain/Exception/` |
+| Orchestration service / mixed read+write facade | `NounService` / facade | mixed | `Application/Service/` |
+
+**Colocation rule:** a query's input filters and result records live in `Application/Query/`
+with the query; a command's result record lives in `Application/Command/` with the command.
+Ports abstracting a command (`ActivateMembershipInterface`...) follow the flat-port rule below,
+not their implementation.
+
+**`Application/Service/`** holds the concrete application services that are neither a pure
+command nor a pure query: mixed read+write facades (`FriendshipService`, `AdminGameLibrary`,
+`AdminEventDrafts`...), and orchestration/facade services (mailer, media upload, publisher,
+auth/config resolvers). This keeps only ports, cross-cutting helpers, config holders and DTOs
+directly under `Application/`. There is no validator rule for `Service/` (a service has no
+name suffix a text check can key on) - it is a documented convention, not a gated one.
+
+**No flat files (story 33.11): every class sits in a kind sub-folder of its layer.**
+
+| Layer | Sub-folders |
+|---|---|
+| `Domain/` | `Entity/` (`#[ORM\Entity]`), `ValueObject/` (final readonly, no ORM), `Enum/`, `Repository/` (`*RepositoryInterface`), `Service/` (pure domain logic), `Exception/` |
+| `Application/` | `Command/ Query/ Service/ Message/ Handler/ Exception/ Email/` + `Port/` (infra-facing interfaces, gateways, `Notifier`) + `Support/` (helpers, factories, crypto, resolvers, normalizers, builders, providers, config holders, free DTOs) |
+| `Infrastructure/` | `Doctrine/` (`Doctrine*Repository`), `Dbal/` (`Dbal*Query`), `Http/` (clients + `ApiAccessGuard`), `Console/`, `Double/` (`Null*`/`Stub*`/`Spy*`, `when@test`), `Exception/` (infra exceptions), `Adapter/` (remaining port impls: gateways, providers, triggers, resolvers, generators, voter, storage) |
+| `Presentation/` | `Controller/` (all controllers; `Controller/Admin/` where an admin split exists), `Command/` (console), `Support/` (controller traits), `Request/` (request/webhook DTOs) |
+
+Doctrine mapping targets `Domain/Entity/` (prefix `App\{Context}\Domain\Entity`).
+
+**Every context is migrated (story 33.20 was the last - Sessions). There is no per-context escape
+hatch: `UNMIGRATED_TAXONOMY_CONTEXTS` no longer exists.**
+
+**What the validator actually gates** (do not over-trust this table - the rest is reviewer-enforced
+convention):
+
+| Gated by `app:architecture:ddd` | NOT gated (convention only) |
+|---|---|
+| no `.php` directly in a layer folder (catch-all) | `*Controller` → `Presentation/Controller/` |
+| `*QueryInterface` → `Application/Query/` | `Doctrine*` → `Infrastructure/Doctrine/` |
+| `*Exception` → `{Domain,Application}/Exception/` | `Dbal*` → `Infrastructure/Dbal/` |
+| Doctrine mapping prefix → `Domain\Entity` | `Null*`/`Stub*`/`Spy*` → `Infrastructure/Double/` |
+| | `*RepositoryInterface` → `Domain/Repository/` (only the *layer* is gated) |
+
+**Carve-out:** the 4 `Community\Domain` classes imported by merged migrations
+(`DefaultAchievementDefinitions`, `AchievementMetricCatalog`, `AchievementOperator`,
+`AchievementRuleGroup`) keep their current FQCN - merged migrations are immutable.
 
 ---
 
@@ -92,9 +168,13 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 ## CS Fixer rules (@Symfony preset)
 
 - String comparisons: Yoda style - `null === $x`, `'' !== $slug`, `true === $flag`.
-- `declare(strict_types=1)` at the top of every file.
+- PHPUnit method names in camelCase (`php_unit_method_casing`) - see AC-T5.
 - No trailing whitespace, Unix line endings.
 - Single blank line between methods; no extra blank line before closing brace.
+
+Project convention, NOT enforced by the preset (the risky `declare_strict_types` fixer is not enabled):
+
+- `declare(strict_types=1)` at the top of every file. Add it to every new file; cs-fixer will not do it for you.
 
 ---
 
@@ -106,7 +186,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T2:** Construct domain entities directly (no factory mocks needed - they're plain PHP).  
 **AC-T3:** Application services are unit-tested by injecting interface mocks (`$this->createMock(RunnerGatewayInterface::class)`).  
 **AC-T4:** One test class per domain class. File: `tests/Unit/{Context}/{ClassName}Test.php`.  
-**AC-T5:** Test method names: `test{scenario}_{expectedOutcome}` - e.g. `testMarkAsReleased_setsFlag`, `testMarkAsReleased_isNoOpWhenGoalAlreadyReached`.
+**AC-T5:** Test method names: camelCase, `test{Scenario}{ExpectedOutcome}` - e.g. `testMarkAsReleasedSetsFlag`, `testMarkAsReleasedIsNoOpWhenGoalAlreadyReached`. Underscores are rejected by `php_unit_method_casing` (camel_case, part of the enforced @Symfony cs-fixer preset) - a snake_case name passes nothing locally or in CI.
 
 ### Functional tests
 
@@ -116,7 +196,7 @@ Adding a new context requires: (1) create the four layer directories, (2) add to
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
 
-**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). For parallel agents, isolate it per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh` (see root `CLAUDE.md` → "Sessions parallèles").
+**Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). Parallel agents **must** isolate per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh`. Full flow and rationale (why a shared DB causes the `relation "..." does not exist` mass-failures): root `CLAUDE.md` → "Sessions parallèles", the single authoritative description. For a one-off isolated run in the main tree (no worktree), use `api/scripts/test-isolated.sh [name]` - it exports `TEST_TOKEN` for its process only and runs the full suite against `archilan_test_<name>`.
 
 ### What NOT to test
 

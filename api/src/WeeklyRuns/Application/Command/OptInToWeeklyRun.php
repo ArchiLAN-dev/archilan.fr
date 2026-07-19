@@ -1,0 +1,72 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\WeeklyRuns\Application\Command;
+
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
+use App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Symfony\Component\Clock\ClockInterface;
+
+final readonly class OptInToWeeklyRun
+{
+    public function __construct(
+        private WeeklyRunRepositoryInterface $runs,
+        private WeeklyTemplateRepositoryInterface $templates,
+        private WeeklyEntryRepositoryInterface $entries,
+        private ClockInterface $clock,
+    ) {
+    }
+
+    public function execute(string $weeklyRunId, string $userId): WeeklyOptInResult
+    {
+        $run = $this->runs->findById($weeklyRunId);
+        if (!$run instanceof WeeklyRun) {
+            throw new \DomainException('run_not_found');
+        }
+
+        if (WeeklyRun::STATUS_ACTIVE !== $run->getStatus()) {
+            throw new \DomainException('run_not_active');
+        }
+
+        $template = $this->templates->findById($run->getTemplateId());
+        if (!$template instanceof WeeklyTemplate) {
+            throw new \DomainException('run_not_found');
+        }
+
+        $existingCount = $this->entries->countByRunAndUser($weeklyRunId, $userId);
+
+        $maxAttempts = $template->getMaxAttempts();
+        if (null !== $maxAttempts && $existingCount >= $maxAttempts) {
+            throw new \DomainException('max_attempts_reached');
+        }
+
+        $now = $this->clock->now()->setTimezone(new \DateTimeZone('UTC'));
+        $entry = new WeeklyEntry(
+            id: bin2hex(random_bytes(8)),
+            weeklyRunId: $weeklyRunId,
+            userId: $userId,
+            attemptNumber: $existingCount + 1,
+            createdAt: $now,
+            updatedAt: $now,
+        );
+
+        try {
+            $this->entries->save($entry);
+        } catch (UniqueConstraintViolationException) {
+            throw new \DomainException('entry_conflict');
+        }
+
+        return new WeeklyOptInResult(
+            $entry->getId(),
+            $entry->getWeeklyRunId(),
+            $entry->getUserId(),
+            $entry->getAttemptNumber(),
+        );
+    }
+}

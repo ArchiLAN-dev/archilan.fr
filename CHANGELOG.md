@@ -5,6 +5,57 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.8.0] - 2026-07-19
+
+Version majeure de consolidation : référencement (SEO) complet des pages publiques,
+page publique de récap de session, et un vaste durcissement de l'architecture backend
+(chemin d'écriture strict CQRS, règles DDD gatées, migrations de runtime). Aucun
+changement de comportement visible côté utilisateur sur les fonctionnalités existantes ;
+l'essentiel est interne (typage, standards, outillage) ou orienté visibilité.
+
+### Ajouté
+
+- **Référencement (SEO) des pages publiques (epic 34)** : `sitemap.xml` et `robots.txt`,
+  couverture des métadonnées et hygiène des URL canoniques, données structurées JSON-LD,
+  régénération incrémentale (ISR) sur les pages publiques avec optimisation des images,
+  passe de performance web et d'hygiène de crawl, passe éditoriale et mots-clés, plus
+  l'outillage de mesure.
+- **Bucket média public dédié (story 34.4)** : des URL d'images stables pour les visuels
+  publics (événements, articles), indépendantes des URL présignées à durée de vie courte.
+- **Page publique de récap de session (epic 32)** : projection de récap, graphe des
+  échanges entre joueurs et superlatifs, exposés sur une page publique.
+
+### Modifié
+
+- **Chemin d'écriture strict CQRS (epic 35)** : les échecs de commande lèvent désormais
+  des exceptions applicatives typées mappées centralement en réponses HTTP (Stage 1), et
+  toute méthode de commande renvoie `void`, un enregistrement `final readonly` ou un enum,
+  jamais un tableau brut (Stage 2), invariant vérifié par le validateur d'architecture.
+  Corps HTTP inchangés.
+- **Standards et architecture DDD (epic 33)** : validateur d'architecture étendu (finalité,
+  pas de setters publics sur les agrégats, pas d'entité Doctrine renvoyée par l'Application,
+  gating `ROLE_MEMBER`), taxonomie de sous-dossiers appliquée à tous les contextes, injection
+  de `ClockInterface` (fin des lectures d'horloge en Application), adoption de Rector et de
+  `phpstan-strict-rules`, extensions `phpstan-symfony`/`phpstan-doctrine`, et passes de
+  bonnes pratiques Symfony 7 et React 19 / Next 15.
+- **Migration de la couche données du frontend vers TanStack Query** et **couche SSE typée**
+  (gardes partagées, hooks conscients des gardes).
+- **Migrations de runtime** : PHP 8.5, Node 26, TypeScript 6.
+- **Documentation-outillage rendue gatée** : les standards documentés ne peuvent plus dériver
+  du code réellement appliqué (test de cohérence).
+
+### Corrigé
+
+- **CI** : le gate `pnpm audit` ne casse plus sur l'ancien point d'accès npm retiré ; checks
+  obligatoires rendus compatibles avec le filtrage par chemin.
+- **Streaming** : durée de vie (TTL) des pannes et démontage des embeds corrigés (dette
+  story 7.7).
+
+### Supprimé
+
+- **Infection (mutation testing)** retiré : il ne mesure rien d'exploitable sur PHPUnit 13.
+- Code mort et surface de dépréciation fermés lors des passes de bonnes pratiques.
+
 ## [0.7.1] - 2026-07-02
 
 Correctif : le nom de slot personnalisé du joueur est désormais respecté de bout en

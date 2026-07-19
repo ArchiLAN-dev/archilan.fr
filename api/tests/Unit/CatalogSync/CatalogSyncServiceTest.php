@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\CatalogSync;
 
-use App\CatalogSync\Application\CatalogSyncService;
+use App\CatalogSync\Application\Service\CatalogSyncService;
+use App\GameSelection\Domain\Entity\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class CatalogSyncServiceTest extends TestCase
 {
-    private const MAIN_CSV = <<<CSV
+    private const string MAIN_CSV = <<<CSV
         Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes
         Hollow Knight,Stable,,Github Releases,No,Fast platformer
         Celeste,Stable,PR #123,,No,
@@ -28,7 +30,7 @@ final class CatalogSyncServiceTest extends TestCase
         Minecraft,Stable,,,No,
         CSV;
 
-    private const BUNDLED_CSV = <<<CSV
+    private const string BUNDLED_CSV = <<<CSV
         Name
         Clique the Game
         A Link to the Past
@@ -95,7 +97,7 @@ final class CatalogSyncServiceTest extends TestCase
             ->method('warning')
             ->with(self::stringContains('api_key_missing'));
 
-        $service = new CatalogSyncService($http, new ArrayAdapter(), $logger, 'sheet-id', '');
+        $service = new CatalogSyncService($http, new ArrayAdapter(), $logger, new MockClock(), 'sheet-id', '');
         $service->fetchSheet();
     }
 
@@ -280,6 +282,6 @@ final class CatalogSyncServiceTest extends TestCase
 
     private function makeService(MockHttpClient $http, string $googleApiKey): CatalogSyncService
     {
-        return new CatalogSyncService($http, new ArrayAdapter(), new NullLogger(), 'fake-spreadsheet-id', $googleApiKey);
+        return new CatalogSyncService($http, new ArrayAdapter(), new NullLogger(), new MockClock(), 'fake-spreadsheet-id', $googleApiKey);
     }
 }

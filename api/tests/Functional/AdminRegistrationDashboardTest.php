@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Events\Domain\EventPrivateAccessLog;
-use App\Payments\Domain\HelloAssoOrder;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\Events\Domain\Entity\EventPrivateAccessLog;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Registrations\Domain\Entity\Registration;
 
 final class AdminRegistrationDashboardTest extends FunctionalTestCase
 {
@@ -258,7 +258,7 @@ final class AdminRegistrationDashboardTest extends FunctionalTestCase
             gameSelectionConfig: $gameSelectionConfig,
         );
         if (null !== $helloassoFormSlug) {
-            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+            $event->linkHelloassoForm($helloassoFormSlug, $now);
             $this->entityManager->flush();
         }
 

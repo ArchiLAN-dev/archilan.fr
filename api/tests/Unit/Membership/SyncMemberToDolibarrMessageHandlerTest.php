@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\Membership\Application\DolibarrClientInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Handler\SyncMemberToDolibarrMessageHandler;
 use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
-use App\Membership\Domain\Membership;
-use App\Membership\Domain\MembershipRepositoryInterface;
+use App\Membership\Application\Port\DolibarrClientInterface;
+use App\Membership\Domain\Entity\Membership;
+use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -21,15 +21,12 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
         $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T10:00:00+00:00'), 'admin', null, null, $now);
 
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('jean@example.org');
-        $user->method('getDisplayName')->willReturn('Jean');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -44,7 +41,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
             $memberships,
             $users,
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('membership-id-1'));
@@ -52,7 +49,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
     public function testHandleReturnsEarlyWhenMembershipNotFound(): void
     {
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn(null);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -60,9 +57,9 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
 
         $handler = new SyncMemberToDolibarrMessageHandler(
             $memberships,
-            $this->createStub(UserRepositoryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('missing-id'));
@@ -73,15 +70,12 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $now = new \DateTimeImmutable('2025-01-01T00:00:00+00:00');
         $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2027-05-16T10:00:00+00:00'), 'admin', null, null, $now);
 
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('jean@example.org');
-        $user->method('getDisplayName')->willReturn('Jean');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -92,7 +86,7 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
             $memberships,
             $users,
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $this->expectException(\RuntimeException::class);
@@ -107,15 +101,12 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
         $membership = Membership::create('user-1', $now, new \DateTimeImmutable('2026-01-01T00:00:00+00:00'), 'admin', null, null, $now);
         $membership->expire(new \DateTimeImmutable('2026-01-02T00:00:00+00:00'));
 
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('jean@example.org');
-        $user->method('getDisplayName')->willReturn('Jean');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
-        $memberships = $this->createStub(MembershipRepositoryInterface::class);
+        $memberships = self::createStub(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $dolibarr = $this->createMock(DolibarrClientInterface::class);
@@ -130,9 +121,16 @@ final class SyncMemberToDolibarrMessageHandlerTest extends TestCase
             $memberships,
             $users,
             $dolibarr,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         $handler(new SyncMemberToDolibarrMessage('membership-id-2'));
+    }
+
+    private static function user(): User
+    {
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+
+        return new User('user-1', 'jean@example.org', 'jean@example.org', 'Jean', 'hash', ['ROLE_USER'], $now, $now, $now);
     }
 }

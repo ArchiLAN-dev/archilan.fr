@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Application\RegisterUser;
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\User;
-use App\Identity\Infrastructure\DoctrineRefreshTokenRepository;
+use App\Identity\Application\Support\RefreshTokenFactory;
+use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class RefreshTokenRepositoryTest extends FunctionalTestCase
@@ -27,11 +26,7 @@ final class RefreshTokenRepositoryTest extends FunctionalTestCase
 
         $this->factory = new RefreshTokenFactory();
 
-        $registerUser = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $registerUser);
-        $result = $registerUser->register('test@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertSame([], $result['errors']);
-        $user = $result['user'] ?? null;
+        $user = $this->registerUser('test@example.org');
         self::assertInstanceOf(User::class, $user);
         $this->userId = $user->getId();
     }

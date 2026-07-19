@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Domain\Run;
+use App\PersonalRuns\Domain\Entity\Run;
 use PHPUnit\Framework\TestCase;
 
 final class RunCompleteTest extends TestCase
@@ -13,7 +13,7 @@ final class RunCompleteTest extends TestCase
     {
         $now = new \DateTimeImmutable('2026-06-20T10:00:00+00:00');
         $run = Run::create('owner-1', 'My run', $now);
-        $run->setSessionId('sess-1');
+        $run->attachSession('sess-1');
         $run->start($now);
         $run->markRunning('runner.example.com', 38281, $now, 'deadbeef12345678');
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Domain\SteamProfileReference;
+use App\GameSelection\Domain\ValueObject\SteamProfileReference;
 use PHPUnit\Framework\TestCase;
 
 final class SteamProfileReferenceTest extends TestCase

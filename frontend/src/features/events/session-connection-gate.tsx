@@ -1,42 +1,32 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react";
 
-import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
+import { isSessionStatusFrame, type SessionStatusFrame } from "@/features/realtime/realtime-api";
+import {
+  fetchAuthProbe,
+  fetchRegistrationPatches,
+  fetchSessionConnection,
+  parseSession,
+  type ConnectionData,
+  type SessionConnectionResult,
+  type SessionPayload,
+  type SessionSlotInfo,
+} from "./events-api";
 import { EventFeed } from "./event-feed";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SessionPayload = {
-  id: string;
-  status: string;
-  host: string | null;
-  port: number | null;
-  password: string | null;
-};
-
-type SlotInfo = {
-  slotName: string;
-  slotOrder: number;
-  gameId: string;
-  gameName: string;
-};
-
-type ConnectionData = {
-  session: SessionPayload | null;
-  slots: SlotInfo[];
-};
-
-type GateState =
-  | { kind: "loading" }
-  | { kind: "data"; data: ConnectionData }
-  | { kind: "not_found" }
-  | { kind: "error"; message: string };
+// "error" results are thrown inside the queryFn so a failed refetch (SSE fallback poll,
+// WaitingCard countdown) keeps the last good connection data instead of blanking the page.
+type SessionConnectionQueryData = Exclude<SessionConnectionResult, { kind: "error" }>;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -50,67 +40,69 @@ export function SessionConnectionGate({
   params: Promise<{ eventSlug: string; registrationId: string }>;
 }) {
   const { eventSlug, registrationId } = use(params);
-  const [gateState, setGateState] = useState<GateState>({ kind: "loading" });
+  const queryClient = useQueryClient();
 
-  const fetchConnection = useCallback(async () => {
-    const res = await apiFetch(
-      `${env.apiBaseUrl}/registrations/${registrationId}/session-connection`,
-    );
-
-    if (res.status === 404) {
-      setGateState({ kind: "not_found" });
-      return;
-    }
-
-    if (!res.ok) {
-      setGateState({ kind: "error", message: "Impossible de charger les informations de connexion." });
-      return;
-    }
-
-    const payload: unknown = await res.json();
-    const data = parseConnectionData(payload);
-
-    if (!data) {
-      setGateState({ kind: "error", message: "Réponse API invalide." });
-      return;
-    }
-
-    setGateState((prev) => {
-      if (prev.kind === "data" && JSON.stringify(prev.data) === JSON.stringify(data)) {
-        return prev;
-      }
-      return { kind: "data", data };
-    });
-  }, [registrationId]);
+  // Fresh session probe on every gate entry (staleTime 0), like the pre-TanStack effect.
+  const authQuery = useQuery({
+    queryKey: ["registration-auth-probe"],
+    queryFn: fetchAuthProbe,
+    staleTime: 0,
+    retry: false,
+  });
 
   useEffect(() => {
-    let cancelled = false;
+    if (authQuery.data === "unauthenticated") {
+      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/session`;
+    }
+  }, [authQuery.data, eventSlug, registrationId]);
 
-    async function run() {
-      const profileRes = await apiFetch(`${env.apiBaseUrl}/account/profile`);
+  const connectionQuery = useQuery({
+    queryKey: ["session-connection", registrationId],
+    queryFn: async (): Promise<SessionConnectionQueryData> => {
+      const result = await fetchSessionConnection(registrationId);
+      if (result.kind === "error") throw new Error(result.message);
+      return result;
+    },
+    enabled: authQuery.data === "authenticated",
+    staleTime: REALTIME_STALE_TIME,
+    retry: false,
+  });
 
-      if (cancelled) return;
+  // The pre-TanStack fetchConnection deduplicated identical payloads via JSON.stringify to
+  // avoid rerenders; TanStack's structural sharing gives the same guarantee for free.
+  const { refetch } = connectionQuery;
+  const refetchConnection = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
-      if (profileRes.status === 401 || profileRes.status === 403) {
-        window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/session`;
-        return;
-      }
+  // The API is unreachable (auth probe network failure) - same terminal error as before.
+  if (authQuery.data === null) {
+    return (
+      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+        <p className="text-sm text-muted-foreground">Impossible de contacter l&apos;API.</p>
+      </div>
+    );
+  }
 
-      await fetchConnection();
+  const gateResult = connectionQuery.data;
+
+  if (gateResult === undefined) {
+    if (connectionQuery.isError) {
+      const message =
+        connectionQuery.error instanceof Error
+          ? connectionQuery.error.message
+          : "Impossible de contacter l'API.";
+      return (
+        <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+          <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+          <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
+      );
     }
 
-    void run().catch(() => {
-      if (!cancelled) {
-        setGateState({ kind: "error", message: "Impossible de contacter l'API." });
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [registrationId, eventSlug, fetchConnection]);
-
-  if (gateState.kind === "loading") {
     return (
       <div className="grid gap-4 rounded-lg border border-border bg-surface p-6">
         <span className="sr-only">Chargement des informations de connexion…</span>
@@ -127,7 +119,7 @@ export function SessionConnectionGate({
     );
   }
 
-  if (gateState.kind === "not_found") {
+  if (gateResult.kind === "not_found") {
     return (
       <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
         <XCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
@@ -139,25 +131,22 @@ export function SessionConnectionGate({
     );
   }
 
-  if (gateState.kind === "error") {
-    return (
-      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
-        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
-        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
-        <p className="text-sm text-muted-foreground">{gateState.message}</p>
-      </div>
-    );
-  }
-
-  const { data } = gateState;
+  const { data } = gateResult;
 
   return (
     <ConnectionView
       data={data}
-      onRefetch={fetchConnection}
+      onRefetch={refetchConnection}
       registrationId={registrationId}
       onSessionUpdate={(session) => {
-        setGateState({ kind: "data", data: { ...data, session } });
+        // SSE frames patch the session into the cached connection data in place.
+        queryClient.setQueryData<SessionConnectionQueryData>(
+          ["session-connection", registrationId],
+          (prev) =>
+            prev?.kind === "success"
+              ? { kind: "success", data: { ...prev.data, session } }
+              : prev,
+        );
       }}
     />
   );
@@ -184,27 +173,21 @@ function ConnectionView({
   const mercureUrl = isLive && env.mercurePublicUrl ? env.mercurePublicUrl : null;
 
   const onMessage = useCallback(
-    (incoming: unknown) => {
+    (incoming: SessionFrame) => {
       const session = parseSession(incoming);
       if (session) onSessionUpdate(session);
     },
     [onSessionUpdate],
   );
 
-  const fallbackPoll = useCallback(async () => {
-    const res = await apiFetch(
-      `${env.apiBaseUrl}/registrations/${registrationId}/session-connection`,
-    );
-    if (res.ok) {
-      const payload: unknown = await res.json();
-      const d = parseConnectionData(payload);
-      if (d?.session) onSessionUpdate(d.session);
-    }
-  }, [registrationId, onSessionUpdate]);
+  // When SSE is unavailable, the fallback poll refetches the connection query instead of
+  // patching the session by hand: the cache stays the single source of truth.
+  const fallbackPoll = onRefetch;
 
-  useSSE<unknown>(
+  useSSE<SessionFrame>(
     topicUrl,
     isLive ? mercureUrl : null,
+    isSessionFrame,
     onMessage,
     isLive ? fallbackPoll : undefined,
   );
@@ -476,7 +459,7 @@ function ConnectionField({ label, value }: { label: string; value: string }) {
 
 // ─── Slot card ────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot }: { slot: SlotInfo }) {
+function SlotCard({ slot }: { slot: SessionSlotInfo }) {
   return (
     <div className="flex items-center justify-between gap-3 card-glow rounded-lg border border-border px-4 py-3">
       <div className="min-w-0">
@@ -491,16 +474,16 @@ function SlotCard({ slot }: { slot: SlotInfo }) {
 // ─── PatchFilesSection ────────────────────────────────────────────────────────
 
 function PatchFilesSection({ registrationId }: { registrationId: string }) {
-  const [files, setFiles] = useState<string[] | null>(null);
+  const { data } = useQuery({
+    queryKey: ["registration-patches", registrationId],
+    queryFn: () => fetchRegistrationPatches(registrationId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    void apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/patches`)
-      .then((r) => r.ok ? r.json() as Promise<{ data: { files: string[] } }> : null)
-      .then((j) => { setFiles(j?.data?.files ?? []); })
-      .catch(() => { setFiles([]); });
-  }, [registrationId]);
+  const files = data ?? [];
 
-  if (files === null || files.length === 0) return null;
+  if (files.length === 0) return null;
 
   return (
     <section className="grid gap-3">
@@ -528,49 +511,11 @@ function PatchFilesSection({ registrationId }: { registrationId: string }) {
   );
 }
 
-// ─── Parsers ─────────────────────────────────────────────────────────────────
+// ─── SSE frame guard ─────────────────────────────────────────────────────────
 
-function parseSession(x: unknown): SessionPayload | null {
-  if (!x || typeof x !== "object") return null;
-  const s = x as Record<string, unknown>;
-  if (typeof s.id !== "string" || typeof s.status !== "string") return null;
-  return {
-    id: s.id,
-    status: s.status,
-    host: typeof s.host === "string" ? s.host : null,
-    port: typeof s.port === "number" ? s.port : null,
-    password: typeof s.password === "string" ? s.password : null,
-  };
-}
+// A `/sessions/{id}` Mercure frame carrying at least the two required discriminants. The shared
+// guard checks exactly what parseSession requires (story 33.19), so guarded frames always parse;
+// the optional connection fields are still normalized by parseSession.
+type SessionFrame = SessionStatusFrame;
 
-function parseSlot(x: unknown): SlotInfo | null {
-  if (!x || typeof x !== "object") return null;
-  const s = x as Record<string, unknown>;
-  if (
-    typeof s.slotName !== "string" ||
-    typeof s.slotOrder !== "number" ||
-    typeof s.gameId !== "string" ||
-    typeof s.gameName !== "string"
-  ) {
-    return null;
-  }
-  return { slotName: s.slotName, slotOrder: s.slotOrder, gameId: s.gameId, gameName: s.gameName };
-}
-
-function parseConnectionData(payload: unknown): ConnectionData | null {
-  if (!payload || typeof payload !== "object") return null;
-  const root = (payload as { data?: unknown }).data;
-  if (!root || typeof root !== "object") return null;
-  const d = root as Record<string, unknown>;
-
-  const session = d.session != null ? parseSession(d.session) : null;
-
-  if (!Array.isArray(d.slots)) return null;
-
-  const slots: SlotInfo[] = (d.slots as unknown[]).flatMap((s) => {
-    const parsed = parseSlot(s);
-    return parsed ? [parsed] : [];
-  });
-
-  return { session, slots };
-}
+const isSessionFrame = isSessionStatusFrame;

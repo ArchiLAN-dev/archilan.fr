@@ -54,6 +54,10 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
             {game.name}
           </h1>
 
+          <p className="text-sm font-medium text-accent-text">
+            {game.name} sur Archipelago - randomizer multiworld
+          </p>
+
           {game.description ? (
             <p className="text-lg leading-8 text-muted-foreground">{game.description}</p>
           ) : null}

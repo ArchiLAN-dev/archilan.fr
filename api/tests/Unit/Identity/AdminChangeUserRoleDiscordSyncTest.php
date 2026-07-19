@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\AdminChangeUserRole;
+use App\Identity\Application\Command\AdminChangeUserRole;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Domain\RoleChangeAudit;
-use App\Identity\Domain\RoleChangeAuditRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\RoleChangeAudit;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -25,14 +26,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())
+        $bus->expects(self::once())
             ->method('dispatch')
-            ->with($this->callback(static function (object $message): bool {
-                return $message instanceof SyncDiscordRoleMessage
-                    && 'discord-snowflake-123' === $message->discordUserId
-                    && false === $message->removeAll
-                    && \in_array('ROLE_MEMBER', $message->archilanRoles, true);
-            }))
+            ->with(self::callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+                && 'discord-snowflake-123' === $message->discordUserId
+                && false === $message->removeAll
+                && \in_array('ROLE_MEMBER', $message->archilanRoles, true)))
             ->willReturnCallback(static function (object $message) use (&$events): Envelope {
                 $events[] = 'dispatch';
 
@@ -40,8 +39,6 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
             });
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-
-        self::assertSame([], $result['errors']);
         self::assertSame(['flush', 'dispatch'], $events);
     }
 
@@ -53,14 +50,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())
+        $bus->expects(self::once())
             ->method('dispatch')
-            ->with($this->callback(static function (object $message): bool {
-                return $message instanceof SyncDiscordRoleMessage
-                    && 'discord-snowflake-123' === $message->discordUserId
-                    && false === $message->removeAll
-                    && ['ROLE_USER'] === $message->archilanRoles;
-            }))
+            ->with(self::callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+                && 'discord-snowflake-123' === $message->discordUserId
+                && false === $message->removeAll
+                && ['ROLE_USER'] === $message->archilanRoles))
             ->willReturnCallback(static function (object $message) use (&$events): Envelope {
                 $events[] = 'dispatch';
 
@@ -68,8 +63,6 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
             });
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'user', true);
-
-        self::assertSame([], $result['errors']);
         self::assertSame(['flush', 'dispatch'], $events);
     }
 
@@ -81,7 +74,7 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->never())->method('dispatch');
+        $bus->expects(self::never())->method('dispatch');
 
         $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
 
@@ -96,14 +89,10 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->never())->method('dispatch');
+        $bus->expects(self::never())->method('dispatch');
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-
-        self::assertSame([], $result['errors']);
-        $userPayload = $result['user'] ?? null;
-        self::assertIsArray($userPayload);
-        self::assertSame('member', $userPayload['role']);
+        self::assertSame('member', $result->role);
         self::assertSame([], $events);
     }
 
@@ -115,14 +104,10 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
         [$userRepo, $auditRepo] = $this->makeRepositories($target, $events);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
+        $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
         $result = $this->makeService($userRepo, $auditRepo, $bus)->change($admin, $target->getId(), 'member', true);
-
-        self::assertSame([], $result['errors']);
-        $userPayload = $result['user'] ?? null;
-        self::assertIsArray($userPayload);
-        self::assertSame('member', $userPayload['role']);
+        self::assertSame('member', $result->role);
         self::assertSame(['flush'], $events);
     }
 
@@ -172,12 +157,12 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
      */
     private function makeRepositories(User $target, array &$events): array
     {
-        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo = self::createStub(UserRepositoryInterface::class);
         $userRepo->method('findById')->willReturnCallback(
             static fn (string $id): ?User => $id === $target->getId() ? $target : null,
         );
 
-        $auditRepo = $this->createStub(RoleChangeAuditRepositoryInterface::class);
+        $auditRepo = self::createStub(RoleChangeAuditRepositoryInterface::class);
         $auditRepo->method('saveAuditAndFlushUser')->willReturnCallback(
             static function (RoleChangeAudit $audit) use (&$events): void {
                 $events[] = 'flush';
@@ -189,6 +174,6 @@ final class AdminChangeUserRoleDiscordSyncTest extends TestCase
 
     private function makeService(UserRepositoryInterface $userRepo, RoleChangeAuditRepositoryInterface $auditRepo, MessageBusInterface $bus): AdminChangeUserRole
     {
-        return new AdminChangeUserRole($userRepo, $auditRepo, new NullLogger(), $bus);
+        return new AdminChangeUserRole($userRepo, $auditRepo, new NullLogger(), $bus, new MockClock());
     }
 }

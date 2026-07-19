@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\GameCatalogSync;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class AdminGameTutorialTest extends FunctionalTestCase
 {
-    private const EMPTY_CSV = "Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes\n";
+    private const string EMPTY_CSV = "Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes\n";
 
     public function testAdminSavesTutorialSteps(): void
     {

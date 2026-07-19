@@ -1,4 +1,4 @@
-FROM php:8.4-cli-alpine
+FROM php:8.5-cli-alpine
 
 # Increase upload limits for large .apworld files
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
@@ -7,7 +7,6 @@ RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
 RUN apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS rabbitmq-c-dev postgresql-dev icu-dev \
     && docker-php-ext-install pdo_pgsql intl \
-    && docker-php-ext-enable opcache \
     && pecl install amqp \
     && docker-php-ext-enable amqp \
     && apk del .build-deps \

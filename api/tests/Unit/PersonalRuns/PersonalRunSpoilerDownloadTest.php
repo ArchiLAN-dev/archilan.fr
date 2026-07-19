@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunSpoilerDownload;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\SessionSpoilerArtifactReaderInterface;
-use App\Sessions\Application\SpoilerArtifact;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\PersonalRuns\Application\Query\PersonalRunSpoilerDownload;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Port\SpoilerArtifact;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunSpoilerDownloadTest extends TestCase
 {
-    private const RUN_ID = 'run-0000000000000000000000000001';
-    private const SESSION_ID = 'sess-000000000000000000000000001';
-    private const OWNER_ID = 'owner-00000000000000000000000001';
-    private const OTHER_ID = 'other-00000000000000000000000001';
+    private const string RUN_ID = 'run-0000000000000000000000000001';
+    private const string SESSION_ID = 'sess-000000000000000000000000001';
+    private const string OWNER_ID = 'owner-00000000000000000000000001';
+    private const string OTHER_ID = 'other-00000000000000000000000001';
 
     public function testReturnsNotFoundWhenRunMissing(): void
     {
@@ -101,10 +101,10 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
 
     private function service(?Run $run, ?Session $session, SessionSpoilerArtifactReaderInterface $reader): PersonalRunSpoilerDownload
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
         return new PersonalRunSpoilerDownload($runs, $sessions, $reader);
@@ -113,7 +113,7 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
     private function launchedRun(): Run
     {
         $run = Run::create(self::OWNER_ID, 'My run', new \DateTimeImmutable());
-        $run->setSessionId(self::SESSION_ID);
+        $run->attachSession(self::SESSION_ID);
 
         return $run;
     }
@@ -122,7 +122,7 @@ final class PersonalRunSpoilerDownloadTest extends TestCase
     {
         $session = Session::create(self::SESSION_ID, self::RUN_ID, new \DateTimeImmutable());
         if (null !== $generatedOutputKey) {
-            $session->setGeneratedOutputKey($generatedOutputKey);
+            $session->markGenerated($generatedOutputKey);
         }
 
         return $session;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
+use App\Events\Domain\Entity\Event;
 
 final class HelloAssoSyncTest extends FunctionalTestCase
 {
@@ -79,7 +79,7 @@ final class HelloAssoSyncTest extends FunctionalTestCase
             published: true,
         );
         if (null !== $helloassoFormSlug) {
-            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+            $event->linkHelloassoForm($helloassoFormSlug, $now);
             $this->entityManager->flush();
         }
 

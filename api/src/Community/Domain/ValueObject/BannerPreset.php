@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Community\Domain\ValueObject;
+
+/**
+ * Curated banner presets (no image upload this epic). The frontend maps each key to a gradient/treatment.
+ */
+final readonly class BannerPreset
+{
+    public const string DEFAULT = 'default';
+
+    public const array ALL = [
+        self::DEFAULT,
+        'sunset',
+        'forest',
+        'arcade',
+        'midnight',
+        'aurora',
+        'ocean',
+        'neon',
+        'retrowave',
+        'pastel',
+    ];
+
+    public static function isValid(string $value): bool
+    {
+        return in_array($value, self::ALL, true);
+    }
+}

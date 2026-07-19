@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Registrations\Domain\RegistrationAdminMessage;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Domain\Entity\RegistrationAdminMessage;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 
 final class AdminRegistrationMessageTest extends FunctionalTestCase
@@ -39,12 +39,12 @@ final class AdminRegistrationMessageTest extends FunctionalTestCase
         self::assertSame('sent', $data['outcome']);
         self::assertIsString($data['sentAt']);
 
-        $this->assertEmailCount(1);
-        $email = $this->getMailerMessage();
+        self::assertEmailCount(1);
+        $email = self::getMailerMessage();
         self::assertNotNull($email);
-        $this->assertEmailAddressContains($email, 'to', 'participant@example.org');
-        $this->assertEmailSubjectContains($email, 'Information importante');
-        $this->assertEmailTextBodyContains($email, 'Veuillez vérifier vos options de jeu.');
+        self::assertEmailAddressContains($email, 'to', 'participant@example.org');
+        self::assertEmailSubjectContains($email, 'Information importante');
+        self::assertEmailTextBodyContains($email, 'Veuillez vérifier vos options de jeu.');
         $history = $this->entityManager->getRepository(RegistrationAdminMessage::class)->findOneBy([
             'registrationId' => $registration->getId(),
         ]);

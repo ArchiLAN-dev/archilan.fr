@@ -31,10 +31,10 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Filter paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -47,10 +47,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
-    # NB: a PHP 8.3 matrix leg was attempted but the lockfile requires 8.4
-    # (doctrine/doctrine-bundle 3.2.2 needs php ^8.4), so 8.3 can't even install.
-    # The project effectively requires 8.4; composer.json's "^8.3" is aspirational
-    # and should be bumped to "^8.4" to match the lock (separate follow-up).
+    # NB: single PHP leg on purpose - CI runs the version the prod image ships
+    # (php:8.5-cli-alpine since story 33.9 M3); composer.json requires ^8.4,
+    # which 8.5 satisfies.
     defaults:
       run:
         working-directory: api
@@ -72,12 +71,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: ctype, iconv, pdo_pgsql, pgsql, amqp
           coverage: pcov
           tools: composer:v2
@@ -93,7 +92,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('api/composer.lock') }}
@@ -102,12 +101,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
-      # warn-only for now: pre-existing advisories (e.g. symfony/yaml low CVE) are
-      # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
-      # once the backlog is green - story 0.7 AC3.
+      # HARD GATE since A5. The backlog it was waiting on (the symfony/yaml low CVE and
+      # friends) is cleared - `composer audit` reports no advisories. A supply-chain alarm
+      # that cannot fail the build protects nothing, so it now blocks. If a new advisory
+      # lands on a dependency, this goes red until it is triaged - that is the job.
       - name: Composer audit (known vulnerabilities)
         run: composer audit
-        continue-on-error: true
 
       - name: PHPStan
         run: composer phpstan
@@ -129,8 +128,26 @@ jobs:
         run: |
           php -r '$x=simplexml_load_file("coverage.xml");$m=$x->project->metrics;$s=(int)$m["statements"];$c=(int)$m["coveredstatements"];$p=$s?100.0*$c/$s:0.0;$min=(float)getenv("MIN");printf("Line coverage: %.2f%% (floor %.0f%%)\n",$p,$min);if($p+1e-9<$min){fwrite(STDERR,sprintf("Coverage %.2f%% is below the %.0f%% floor\n",$p,$min));exit(1);}'
 
+      # Mutation testing (Infection) was RETIRED in story 33.24. Investigation found it measured
+      # nothing on this codebase: with PHPUnit 13.1 (migrated in 33.9), Infection 0.34 - documented
+      # against PHPUnit 10/11 - hangs the per-mutant test process, so EVERY mutant times out
+      # (523/523 on the Community context; persists at 1 thread, a 120s timeout, and
+      # --only-covering-test-cases). Infection counts a timeout as "detected", so the MSI it printed
+      # (33.12's 72%, 100% on re-measure) was fabricated entirely from timeouts - not one mutant was
+      # killed by a test. An advisory step that reports a fictional number and burns CI minutes is
+      # the exact "reports into a void" A5 set out to end, so it is gone: config, dev dependency and
+      # this step. Re-adopt with a fresh story when Infection ships PHPUnit 13 support (the
+      # unit/functional testsuite split it introduced is independent and stays). Full evidence:
+      # implementation-artifacts/33-24-infection-timeouts-and-msi-floor.md.
+
+      # HARD GATE since A5, and now also a leg of `composer gates` (local/CI parity, story 33.1).
+      # It was advisory from 33.13 until the baseline proved it stays clean between stories -
+      # 33.14 and 33.20 finished making that true, and it has been clean since.
+      - name: Rector (dry-run)
+        run: composer rector
+
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: api/coverage-html/

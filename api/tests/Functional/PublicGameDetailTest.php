@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
+use App\GameSelection\Domain\Entity\Game;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class PublicGameDetailTest extends FunctionalTestCase
 {
-    private const EMPTY_CSV = "Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes\n";
+    private const string EMPTY_CSV = "Name,Stability,PR Status,Links & Downloads,18+ / Unrated,Notes\n";
 
     public function testReturnsDetailPayloadWithSheetMetadataAndOptions(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->updateCatalogueMetadata(catalogSheetName: 'Hollow Knight', sourceUrl: 'https://github.com/owner/hollow-knight');
-        $game->setOptionTypes(['goal' => ['min' => 0, 'max' => 3, 'default' => 1]]);
+        $game->recordOptionTypes(['goal' => ['min' => 0, 'max' => 3, 'default' => 1]]);
         $this->entityManager->flush();
 
         $this->configureSheetMock(
@@ -71,7 +71,7 @@ final class PublicGameDetailTest extends FunctionalTestCase
     public function testExposesInstallSteps(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->setInstallSteps([
+        $game->updateInstallSteps([
             ['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'desc', 'links' => [
                 ['label' => 'Releases', 'url' => 'https://example.org/r'],
             ]],
@@ -99,7 +99,7 @@ final class PublicGameDetailTest extends FunctionalTestCase
     public function testExposesStepImageAndVideo(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->setInstallSteps([
+        $game->updateInstallSteps([
             ['type' => 'note', 'title' => 'Avec média', 'description' => '', 'links' => [], 'imageUrl' => 'https://example.org/shot.png', 'videoUrl' => 'https://youtu.be/abcdefghijk'],
         ]);
         $this->entityManager->flush();
@@ -121,7 +121,7 @@ final class PublicGameDetailTest extends FunctionalTestCase
     public function testStepImageKeyIsPresignedAtRead(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->setInstallSteps([
+        $game->updateInstallSteps([
             ['type' => 'note', 'title' => 'Image uploadée', 'description' => '', 'links' => [], 'imageKey' => 'tutorials/abc123.png'],
         ]);
         $this->entityManager->flush();
@@ -145,7 +145,7 @@ final class PublicGameDetailTest extends FunctionalTestCase
     public function testInstallStepsWithUnknownTypeAreDropped(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->setInstallSteps([
+        $game->updateInstallSteps([
             ['type' => 'bogus', 'title' => 'Mauvaise étape', 'description' => '', 'links' => []],
             ['type' => 'connect', 'title' => 'Se connecter', 'description' => '', 'links' => []],
         ]);

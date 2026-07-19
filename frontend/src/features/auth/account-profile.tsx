@@ -85,7 +85,7 @@ export function DiscordSection({ discordUsername, linkFeedback }: DiscordSection
         <div className="flex flex-wrap items-center gap-4">
           <p className="text-sm text-foreground">
             Lié en tant que{" "}
-            <span className="font-semibold text-[#5865F2]">{linkedUsername}</span>
+            <span className="font-semibold text-discord">{linkedUsername}</span>
           </p>
           <button
             className="inline-flex min-h-9 items-center justify-center rounded border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:border-danger hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
@@ -99,7 +99,7 @@ export function DiscordSection({ discordUsername, linkFeedback }: DiscordSection
       ) : (
         <div>
           <a
-            className="inline-flex min-h-9 items-center justify-center gap-2 rounded bg-[#5865F2] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#4752C4]"
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded bg-discord px-4 text-sm font-semibold text-white transition-colors hover:bg-discord-hover"
             href={`${env.apiBaseUrl}/account/discord/link`}
           >
             <FaDiscord aria-hidden="true" size={16} />

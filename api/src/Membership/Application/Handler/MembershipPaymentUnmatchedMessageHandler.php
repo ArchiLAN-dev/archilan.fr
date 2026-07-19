@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Membership\Application\Handler;
 
-use App\Communications\Application\ArchilanMailer;
 use App\Communications\Application\Email\MembershipPaymentUnmatchedEmail;
+use App\Communications\Application\Service\ArchilanMailer;
 use App\Membership\Application\Message\MembershipPaymentUnmatchedMessage;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

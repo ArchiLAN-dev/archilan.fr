@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\Message\CleanupEmailConfirmationTokensHandler;
+use App\Identity\Application\Handler\CleanupEmailConfirmationTokensHandler;
+use App\Identity\Application\Handler\CleanupPasswordResetTokensHandler;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
-use App\Identity\Application\Message\CleanupPasswordResetTokensHandler;
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
-use App\Identity\Domain\EmailConfirmationTokenRepositoryInterface;
-use App\Identity\Domain\PasswordResetTokenRepositoryInterface;
+use App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface;
+use App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 
 final class CleanupTokenHandlersTest extends TestCase
 {
@@ -24,7 +25,7 @@ final class CleanupTokenHandlersTest extends TestCase
                 self::isInstanceOf(\DateTimeImmutable::class),
                 self::callback(function (\DateTimeImmutable $consumedBefore): bool {
                     // ~7 days in the past
-                    $days = (new \DateTimeImmutable())->diff($consumedBefore)->days;
+                    $days = new \DateTimeImmutable()->diff($consumedBefore)->days;
 
                     return $consumedBefore < new \DateTimeImmutable() && 6 <= $days && $days <= 8;
                 }),
@@ -36,7 +37,7 @@ final class CleanupTokenHandlersTest extends TestCase
             ->method('info')
             ->with('auth.cleanup_email_confirmation_tokens', ['deleted' => 3]);
 
-        (new CleanupEmailConfirmationTokensHandler($repo, $logger, 7))(new CleanupEmailConfirmationTokensMessage());
+        (new CleanupEmailConfirmationTokensHandler($repo, $logger, new MockClock(), 7))(new CleanupEmailConfirmationTokensMessage());
     }
 
     public function testPasswordResetHandlerAppliesGraceAndLogs(): void
@@ -51,6 +52,6 @@ final class CleanupTokenHandlersTest extends TestCase
             ->method('info')
             ->with('auth.cleanup_password_reset_tokens', ['deleted' => 5]);
 
-        (new CleanupPasswordResetTokensHandler($repo, $logger, 7))(new CleanupPasswordResetTokensMessage());
+        (new CleanupPasswordResetTokensHandler($repo, $logger, new MockClock(), 7))(new CleanupPasswordResetTokensMessage());
     }
 }

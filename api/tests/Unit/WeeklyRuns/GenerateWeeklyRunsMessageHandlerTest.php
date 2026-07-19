@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\WeeklyRuns\Application\Handler\GenerateWeeklyRunsMessageHandler;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
-use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
@@ -71,13 +71,13 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         /** @var WeeklyRun|null $saved */
         $saved = null;
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('existsByTemplateAndWeek')->willReturn(false);
         $runs->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
             $saved = $run;
         });
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator = self::createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate'); // void dispatch
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator)
@@ -98,13 +98,13 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         /** @var WeeklyRun|null $saved */
         $saved = null;
 
-        $runs = $this->createStub(WeeklyRunRepositoryInterface::class);
+        $runs = self::createStub(WeeklyRunRepositoryInterface::class);
         $runs->method('existsByTemplateAndWeek')->willReturn(false);
         $runs->method('save')->willReturnCallback(static function (WeeklyRun $run) use (&$saved): void {
             $saved = $run;
         });
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator = self::createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate'); // void dispatch
 
         $this->makeHandler($runs, $this->makeTemplateRepo(['template-1']), $this->makeGame(), $generator, $boundaryDate)
@@ -141,7 +141,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             $saved = $run;
         });
 
-        $generator = $this->createStub(WeeklyRunGeneratorInterface::class);
+        $generator = self::createStub(WeeklyRunGeneratorInterface::class);
         $generator->method('generate')->willThrowException(new \RuntimeException('orchestrator unreachable'));
 
         // A failed dispatch is logged, not thrown: it leaves the run not-launchable
@@ -164,7 +164,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
             $templateIds,
         );
 
-        $repo = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+        $repo = self::createStub(WeeklyTemplateRepositoryInterface::class);
         $repo->method('findAllActive')->willReturn($templates);
 
         return $repo;
@@ -172,8 +172,9 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
 
     private function makeGame(): Game
     {
-        $game = $this->createStub(Game::class);
-        $game->method('getApworldStorageKey')->willReturn('apworlds/archipelago.apworld');
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+        $game = Game::create('Archipelago', 'archipelago', 'Description.', null, 'Alt', 'Credit', Game::AVAILABILITY_AVAILABLE, $now);
+        $game->configureApworld('apworlds/archipelago.apworld', 'apworld-hash-123', 'Archipelago', '', $now);
 
         return $game;
     }
@@ -185,7 +186,7 @@ final class GenerateWeeklyRunsMessageHandlerTest extends TestCase
         WeeklyRunGeneratorInterface $generator,
         ?\DateTimeImmutable $now = null,
     ): GenerateWeeklyRunsMessageHandler {
-        $games = $this->createStub(GameRepositoryInterface::class);
+        $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
 
         return new GenerateWeeklyRunsMessageHandler(

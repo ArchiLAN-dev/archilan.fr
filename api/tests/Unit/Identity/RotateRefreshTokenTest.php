@@ -4,21 +4,22 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\AuthenticateUser;
-use App\Identity\Application\RefreshTokenFactory;
-use App\Identity\Application\RotateRefreshToken;
-use App\Identity\Domain\RefreshToken;
-use App\Identity\Domain\RefreshTokenRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Application\Command\RotateRefreshToken;
+use App\Identity\Application\Service\AuthenticateUser;
+use App\Identity\Application\Support\RefreshTokenFactory;
+use App\Identity\Domain\Entity\RefreshToken;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class RotateRefreshTokenTest extends TestCase
 {
-    private const FAMILY = 'fam00000000000000000000000000001';
+    private const string FAMILY = 'fam00000000000000000000000000001';
 
     public function testNormalRotationKeepsFamilyAndMarksParent(): void
     {
@@ -110,7 +111,7 @@ final class RotateRefreshTokenTest extends TestCase
 
     public function testUnknownTokenIsInvalid(): void
     {
-        $repo = $this->createStub(RefreshTokenRepositoryInterface::class);
+        $repo = self::createStub(RefreshTokenRepositoryInterface::class);
         $repo->method('findByTokenHash')->willReturn(null);
 
         self::assertSame('invalid', $this->rotator($repo)->rotate('raw', $this->now(), 'UA', $this->req())->outcome);
@@ -123,12 +124,12 @@ final class RotateRefreshTokenTest extends TestCase
 
     private function rotator(RefreshTokenRepositoryInterface $repo): RotateRefreshToken
     {
-        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo = self::createStub(UserRepositoryInterface::class);
         $userRepo->method('findById')->willReturn($this->user());
 
-        $auth = new AuthenticateUser($userRepo, $this->createStub(UserPasswordHasherInterface::class));
+        $auth = new AuthenticateUser($userRepo, self::createStub(UserPasswordHasherInterface::class), new MockClock());
 
-        return new RotateRefreshToken($repo, new RefreshTokenFactory(), $auth, $this->createStub(LoggerInterface::class));
+        return new RotateRefreshToken($repo, new RefreshTokenFactory(), $auth, self::createStub(LoggerInterface::class));
     }
 
     private function user(): User

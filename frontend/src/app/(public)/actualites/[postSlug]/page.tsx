@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CalendarDays, Clock } from "lucide-react";
 import { env } from "@/lib/env";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, publisherRef } from "@/lib/structured-data";
 import type { PublicPost, PublicPostType } from "@/features/content/content-types";
 import { getPostTypeLabel } from "@/features/content/mock-posts";
 import { getPublicPostBySlugFromApi } from "@/features/content/public-posts-api";
@@ -17,7 +20,7 @@ const schemaTypeByPostType: Record<PublicPostType, "NewsArticle" | "Article"> = 
   recap: "Article",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
   const { postSlug } = await params;
@@ -70,14 +73,13 @@ export default async function PostPage({ params }: PostPageProps) {
 
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-            .replace(/</g, "\\u003c")
-            .replace(/>/g, "\\u003e")
-            .replace(/&/g, "\\u0026"),
-        }}
-        type="application/ld+json"
+      <JsonLd data={structuredData} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Accueil", path: "/" },
+          { name: "Actualités", path: "/actualites" },
+          { name: post.title, path: `/actualites/${post.slug}` },
+        ])}
       />
 
       <article className="mx-auto grid max-w-3xl gap-8">
@@ -118,6 +120,13 @@ export default async function PostPage({ params }: PostPageProps) {
           )}
         </div>
 
+        <Link
+          className="inline-flex w-fit items-center border-t border-border pt-6 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          href="/actualites"
+        >
+          &larr; Toutes les actualités
+        </Link>
+
       </article>
     </>
   );
@@ -131,28 +140,29 @@ function getPostStructuredData(post: PublicPost, canonicalUrl: string) {
     description: post.excerpt,
     url: canonicalUrl,
     datePublished: post.publishedAtIso,
+    // No public updatedAt exists; an unmodified article's dateModified == its publish date.
+    dateModified: post.publishedAtIso,
     author: {
       "@type": "Organization",
       name: "ArchiLAN",
       url: env.appUrl,
     },
+    publisher: publisherRef(),
     ...(post.coverImageUrl ? { image: post.coverImageUrl } : {}),
   };
 }
 
 function PostHeroImage({ post }: { post: PublicPost }) {
   return (
-    <section aria-label="Image de couverture de l'article" className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
+    <section className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
       <div className="relative aspect-[21/9] min-h-56 bg-surface">
         <Image
-          alt=""
-          aria-hidden="true"
+          alt={`Illustration de l'article : ${post.title}`}
           className="object-cover"
           fill
           priority
           sizes="100vw"
           src={post.coverImageUrl ?? ""}
-          unoptimized={post.coverImageUrl?.startsWith("http://") || post.coverImageUrl?.startsWith("https://")}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background/75 via-background/10 to-transparent" />
       </div>

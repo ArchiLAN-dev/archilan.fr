@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\ContentReport;
-use App\Community\Domain\ModerationAction;
-use App\Community\Domain\Notification;
-use App\Identity\Application\RegisterUser;
-use App\Identity\Domain\User;
+use App\Community\Domain\Entity\ContentReport;
+use App\Community\Domain\Entity\ModerationAction;
+use App\Community\Domain\Entity\Notification;
+use App\Identity\Domain\Entity\User;
 
 final class AccountModerationTest extends FunctionalTestCase
 {
@@ -47,7 +46,7 @@ final class AccountModerationTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         $this->loginAs($admin);
-        $until = (new \DateTimeImmutable('+7 days'))->format(\DateTimeInterface::ATOM);
+        $until = new \DateTimeImmutable('+7 days')->format(\DateTimeInterface::ATOM);
         $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$bob->getId().'/suspend', [
             'reason' => 'Contenu explicite',
             'until' => $until,
@@ -71,9 +70,7 @@ final class AccountModerationTest extends FunctionalTestCase
 
     public function testBanBlocksLoginWithDistinctMessage(): void
     {
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        self::assertSame([], $register->register('bad@example.org', 'correct horse battery staple', true, 'Bad')['errors']);
+        $this->registerUser('bad@example.org', displayName: 'Bad');
 
         $user = $this->entityManager->getRepository(User::class)->findOneBy(['emailCanonical' => 'bad@example.org']);
         self::assertInstanceOf(User::class, $user);
@@ -138,7 +135,7 @@ final class AccountModerationTest extends FunctionalTestCase
         // Past date.
         $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$bob->getId().'/suspend', [
             'reason' => 'x',
-            'until' => (new \DateTimeImmutable('-1 day'))->format(\DateTimeInterface::ATOM),
+            'until' => new \DateTimeImmutable('-1 day')->format(\DateTimeInterface::ATOM),
         ]);
         self::assertResponseStatusCodeSame(422);
 
@@ -161,7 +158,7 @@ final class AccountModerationTest extends FunctionalTestCase
         // And you can't moderate yourself.
         $this->client->jsonRequest('POST', '/api/v1/admin/community/accounts/'.$admin->getId().'/suspend', [
             'reason' => 'x',
-            'until' => (new \DateTimeImmutable('+1 day'))->format(\DateTimeInterface::ATOM),
+            'until' => new \DateTimeImmutable('+1 day')->format(\DateTimeInterface::ATOM),
         ]);
         self::assertResponseStatusCodeSame(403);
     }

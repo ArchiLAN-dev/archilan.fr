@@ -59,6 +59,8 @@ services:
             mc mb --ignore-existing local/apworlds;
             mc mb --ignore-existing local/sessions;
             mc mb --ignore-existing local/media;
+            mc mb --ignore-existing local/media-public;
+            mc anonymous set download local/media-public;
             "
 
     mercure:

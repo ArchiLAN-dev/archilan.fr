@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Handler;
 
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -27,7 +28,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class ReconcileStuckRunsHandler
 {
-    private const RESOLVED_SESSION_STATUSES = [
+    private const array RESOLVED_SESSION_STATUSES = [
         Session::STATUS_IDLE,
         Session::STATUS_STOPPED,
         Session::STATUS_CRASHED,
@@ -39,12 +40,13 @@ final readonly class ReconcileStuckRunsHandler
         private RunRepositoryInterface $runs,
         private SessionRepositoryInterface $sessions,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
     public function __invoke(ReconcileStuckRunsMessage $message): void
     {
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
 
         $candidates = $this->runs->findByStatuses(Run::STUCK_STATUSES);
 

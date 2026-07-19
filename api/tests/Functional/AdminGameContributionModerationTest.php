@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameTutorialContribution;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameTutorialContribution;
 
 final class AdminGameContributionModerationTest extends FunctionalTestCase
 {
     /** @var list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> */
-    private const PROPOSED = [['type' => 'apworld', 'title' => 'Nouvelle étape', 'description' => 'd', 'links' => []]];
+    private const array PROPOSED = [['type' => 'apworld', 'title' => 'Nouvelle étape', 'description' => 'd', 'links' => []]];
 
     public function testApproveAppliesStepsToGameAndMarksApproved(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->setInstallSteps([['type' => 'note', 'title' => 'Ancienne', 'description' => '', 'links' => []]]);
+        $game->updateInstallSteps([['type' => 'note', 'title' => 'Ancienne', 'description' => '', 'links' => []]]);
         $contribution = GameTutorialContribution::submitForGame(
             bin2hex(random_bytes(16)),
             $this->createUser('author@example.org', ['ROLE_USER'])->getId(),

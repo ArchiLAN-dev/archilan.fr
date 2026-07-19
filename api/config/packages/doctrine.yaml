@@ -17,68 +17,68 @@ doctrine:
             Identity:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Identity/Domain'
-                prefix: 'App\Identity\Domain'
+                dir: '%kernel.project_dir%/src/Identity/Domain/Entity'
+                prefix: 'App\Identity\Domain\Entity'
                 alias: Identity
             Events:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Events/Domain'
-                prefix: 'App\Events\Domain'
+                dir: '%kernel.project_dir%/src/Events/Domain/Entity'
+                prefix: 'App\Events\Domain\Entity'
                 alias: Events
             GameSelection:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/GameSelection/Domain'
-                prefix: 'App\GameSelection\Domain'
+                dir: '%kernel.project_dir%/src/GameSelection/Domain/Entity'
+                prefix: 'App\GameSelection\Domain\Entity'
                 alias: GameSelection
             Registrations:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Registrations/Domain'
-                prefix: 'App\Registrations\Domain'
+                dir: '%kernel.project_dir%/src/Registrations/Domain/Entity'
+                prefix: 'App\Registrations\Domain\Entity'
                 alias: Registrations
             Payments:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Payments/Domain'
-                prefix: 'App\Payments\Domain'
+                dir: '%kernel.project_dir%/src/Payments/Domain/Entity'
+                prefix: 'App\Payments\Domain\Entity'
                 alias: Payments
             Sessions:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Sessions/Domain'
-                prefix: 'App\Sessions\Domain'
+                dir: '%kernel.project_dir%/src/Sessions/Domain/Entity'
+                prefix: 'App\Sessions\Domain\Entity'
                 alias: Sessions
             Content:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Content/Domain'
-                prefix: 'App\Content\Domain'
+                dir: '%kernel.project_dir%/src/Content/Domain/Entity'
+                prefix: 'App\Content\Domain\Entity'
                 alias: Content
             PersonalRuns:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/PersonalRuns/Domain'
-                prefix: 'App\PersonalRuns\Domain'
+                dir: '%kernel.project_dir%/src/PersonalRuns/Domain/Entity'
+                prefix: 'App\PersonalRuns\Domain\Entity'
                 alias: PersonalRuns
             Membership:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Membership/Domain'
-                prefix: 'App\Membership\Domain'
+                dir: '%kernel.project_dir%/src/Membership/Domain/Entity'
+                prefix: 'App\Membership\Domain\Entity'
                 alias: Membership
             WeeklyRuns:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/WeeklyRuns/Domain'
-                prefix: 'App\WeeklyRuns\Domain'
+                dir: '%kernel.project_dir%/src/WeeklyRuns/Domain/Entity'
+                prefix: 'App\WeeklyRuns\Domain\Entity'
                 alias: WeeklyRuns
             SessionConfig:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/SessionConfig/Domain'
-                prefix: 'App\SessionConfig\Domain'
+                dir: '%kernel.project_dir%/src/SessionConfig/Domain/Entity'
+                prefix: 'App\SessionConfig\Domain\Entity'
                 alias: SessionConfig
             Streaming:
                 type: attribute
@@ -89,8 +89,8 @@ doctrine:
             Community:
                 type: attribute
                 is_bundle: false
-                dir: '%kernel.project_dir%/src/Community/Domain'
-                prefix: 'App\Community\Domain'
+                dir: '%kernel.project_dir%/src/Community/Domain/Entity'
+                prefix: 'App\Community\Domain\Entity'
                 alias: Community
 
 when@test:

@@ -66,8 +66,10 @@ export function ReachableOverlay({
       const source = new EventSource(url.toString());
       es = source;
       source.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const names = parseReachableNames(JSON.parse(event.data as string));
+          const names = parseReachableNames(JSON.parse(frame));
           if (names) setChecks(names);
         } catch {
           /* ignore malformed frames */

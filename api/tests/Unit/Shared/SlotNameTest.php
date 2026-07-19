@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Shared;
 
-use App\Shared\Domain\SlotName;
+use App\Shared\Domain\ValueObject\SlotName;
 use PHPUnit\Framework\TestCase;
 
 final class SlotNameTest extends TestCase

@@ -59,9 +59,11 @@
         "allow-plugins": {
             "php-http/discovery": true,
             "symfony/flex": true,
-            "symfony/runtime": true
+            "symfony/runtime": true,
+            "phpstan/extension-installer": true
         },
         "bump-after-update": true,
+        "process-timeout": 600,
         "sort-packages": true
     },
     "autoload": {
@@ -98,7 +100,15 @@
         "test": "php bin/phpunit",
         "phpstan": "php vendor/bin/phpstan analyse src tests",
         "cs-fixer": "php vendor/bin/php-cs-fixer fix --dry-run --diff",
-        "arch": "php bin/console app:architecture:ddd"
+        "arch": "php bin/console app:architecture:ddd",
+        "rector": "php vendor/bin/rector process --dry-run",
+        "gates": [
+            "@phpstan",
+            "@cs-fixer",
+            "@arch",
+            "@rector",
+            "@test"
+        ]
     },
     "conflict": {
         "symfony/symfony": "*"
@@ -111,8 +121,13 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.95.2",
+        "phpstan/extension-installer": "^1.4.3",
         "phpstan/phpstan": "^2.1.54",
+        "phpstan/phpstan-doctrine": "^2.0.25",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0.20",
         "phpunit/phpunit": "^13.1.10",
+        "rector/rector": "^2.4",
         "symfony/browser-kit": "7.4.*",
         "symfony/css-selector": "7.4.*"
     }

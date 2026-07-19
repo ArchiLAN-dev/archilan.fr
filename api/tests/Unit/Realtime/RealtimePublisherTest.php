@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Realtime;
 
-use App\Realtime\Application\RealtimePublisher;
+use App\Realtime\Application\Service\RealtimePublisher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
@@ -16,14 +16,14 @@ final class RealtimePublisherTest extends TestCase
     {
         $publishedUpdate = null;
         $hub = $this->createMock(HubInterface::class);
-        $hub->expects($this->once())->method('publish')
+        $hub->expects(self::once())->method('publish')
             ->willReturnCallback(static function (Update $update) use (&$publishedUpdate): string {
                 $publishedUpdate = $update;
 
                 return '';
             });
 
-        $publisher = new RealtimePublisher($hub, $this->createStub(LoggerInterface::class));
+        $publisher = new RealtimePublisher($hub, self::createStub(LoggerInterface::class));
         $publisher->seatCounter('event-123', 17);
 
         self::assertInstanceOf(Update::class, $publishedUpdate);
@@ -36,14 +36,14 @@ final class RealtimePublisherTest extends TestCase
     {
         $publishedUpdate = null;
         $hub = $this->createMock(HubInterface::class);
-        $hub->expects($this->once())->method('publish')
+        $hub->expects(self::once())->method('publish')
             ->willReturnCallback(static function (Update $update) use (&$publishedUpdate): string {
                 $publishedUpdate = $update;
 
                 return '';
             });
 
-        $publisher = new RealtimePublisher($hub, $this->createStub(LoggerInterface::class));
+        $publisher = new RealtimePublisher($hub, self::createStub(LoggerInterface::class));
         $publisher->adminRegistrationCreated('event-123', 'registration-456', new \DateTimeImmutable('2026-05-02T12:00:00+00:00'));
 
         self::assertInstanceOf(Update::class, $publishedUpdate);
@@ -61,11 +61,11 @@ final class RealtimePublisherTest extends TestCase
 
     public function testPublishFailureIsLoggedAndDoesNotBubble(): void
     {
-        $hub = $this->createStub(HubInterface::class);
+        $hub = self::createStub(HubInterface::class);
         $hub->method('publish')->willThrowException(new \RuntimeException('hub unavailable'));
 
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('error')
+        $logger->expects(self::once())->method('error')
             ->with('realtime.seat_counter_publish_failed', self::arrayHasKey('error'));
 
         $publisher = new RealtimePublisher($hub, $logger);

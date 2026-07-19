@@ -1,13 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-
-type TwitchStatusData = {
-    live: boolean;
-    viewerCount: number | null;
-};
+import { createContext, useContext } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { SESSION_STALE_TIME } from "@/lib/query-client";
+import { fetchTwitchLiveStatus } from "./streaming-api";
 
 export type TwitchStatus = {
     live: boolean;
@@ -26,52 +22,25 @@ const TwitchStatusContext = createContext<TwitchStatus>({
 });
 
 export function TwitchStatusProvider({ children }: { children: React.ReactNode }) {
-    const [data, setData] = useState<TwitchStatusData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
-    const abortRef = useRef<AbortController | null>(null);
-
-    useEffect(() => {
-        let mounted = true;
-
-        async function pollStatus(): Promise<void> {
-            abortRef.current?.abort();
-            const controller = new AbortController();
-            abortRef.current = controller;
-
-            try {
-                const res = await apiFetch(`${env.apiBaseUrl}/live/status`, { signal: controller.signal });
-                if (!mounted) return;
-                if (!res.ok) throw new Error("not ok");
-                const payload = (await res.json()) as unknown;
-                const status = (payload as { data?: TwitchStatusData }).data;
-                if (status && typeof status.live === "boolean") {
-                    setData(status);
-                    setError(false);
-                }
-            } catch (e) {
-                if ((e as Error).name === "AbortError") return;
-                if (mounted) setError(true);
-            } finally {
-                if (mounted) setLoading(false);
-            }
-        }
-
-        void pollStatus();
-        const timer = setInterval(() => void pollStatus(), POLL_INTERVAL_MS);
-
-        return () => {
-            mounted = false;
-            abortRef.current?.abort();
-            clearInterval(timer);
-        };
-    }, []);
+    // Poll the channel status. The queryFn throws on failure (instead of returning null)
+    // so TanStack keeps the last known data across a failed refetch and flags isError -
+    // same "stale status + error flag" behaviour as the previous manual poller.
+    const { data, isPending, isError } = useQuery({
+        queryKey: ["twitch-live-status"],
+        queryFn: async ({ signal }) => {
+            const status = await fetchTwitchLiveStatus(signal);
+            if (status === null) throw new Error("twitch-live-status-unavailable");
+            return status;
+        },
+        staleTime: SESSION_STALE_TIME, // 60 s - matches the poll cadence
+        refetchInterval: POLL_INTERVAL_MS,
+    });
 
     const value: TwitchStatus = {
         live: data?.live ?? false,
         viewerCount: data?.viewerCount ?? null,
-        loading,
-        error,
+        loading: isPending,
+        error: isError,
     };
 
     return (

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Sessions\Infrastructure\NullRunnerGateway;
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\GameSelection\Domain\Entity\Game;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminApworldMinioTest extends FunctionalTestCase
@@ -108,7 +108,7 @@ final class AdminApworldMinioTest extends FunctionalTestCase
 
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->configureApworld($minioKey, $sha256, 'Hollow Knight', "game: Hollow Knight\n", new \DateTimeImmutable());
-        $game->setApworldMinioKey($minioKey);
+        $game->recordApworldMinioUpload($minioKey);
         $this->entityManager->flush();
 
         $admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']);

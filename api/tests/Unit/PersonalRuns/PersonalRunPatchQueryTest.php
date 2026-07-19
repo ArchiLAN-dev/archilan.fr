@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunPatchQuery;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
+use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunPatchQueryTest extends TestCase
 {
-    private const RUN_ID = 'run-0000000000000000000000000001';
-    private const SESSION_ID = 'sess-000000000000000000000000001';
-    private const USER_ID = 'user-000000000000000000000000001';
+    private const string RUN_ID = 'run-0000000000000000000000000001';
+    private const string SESSION_ID = 'sess-000000000000000000000000001';
+    private const string USER_ID = 'user-000000000000000000000000001';
 
     public function testReturnsNullWhenRunMissing(): void
     {
@@ -93,13 +93,13 @@ final class PersonalRunPatchQueryTest extends TestCase
      */
     private function query(?Run $run, ?Session $session, array $slots, ?array $allSlots = null): PersonalRunPatchQuery
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        $slotRepo = $this->createStub(SessionSlotRepositoryInterface::class);
+        $slotRepo = self::createStub(SessionSlotRepositoryInterface::class);
         $slotRepo->method('findByRegistrationAndSession')->willReturn($slots);
         $slotRepo->method('findBySessionId')->willReturn($allSlots ?? $slots);
 
@@ -109,7 +109,7 @@ final class PersonalRunPatchQueryTest extends TestCase
     private function launchedRun(): Run
     {
         $run = Run::create('owner-x', 'My run', new \DateTimeImmutable());
-        $run->setSessionId(self::SESSION_ID);
+        $run->attachSession(self::SESSION_ID);
 
         return $run;
     }
@@ -118,7 +118,7 @@ final class PersonalRunPatchQueryTest extends TestCase
     {
         $session = Session::create(self::SESSION_ID, self::RUN_ID, new \DateTimeImmutable());
         if (null !== $generatedOutputKey) {
-            $session->setGeneratedOutputKey($generatedOutputKey);
+            $session->markGenerated($generatedOutputKey);
         }
 
         return $session;

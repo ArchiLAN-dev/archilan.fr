@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Identity;
 
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Infrastructure\DbalDiscordResyncAllUsers;
+use App\Identity\Infrastructure\Dbal\DbalDiscordResyncAllUsers;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\TestCase;
@@ -21,7 +21,7 @@ final class DiscordResyncAllUsersTest extends TestCase
         $this->insertUser($connection, 'user-a', 'discord-a', ['ROLE_USER']);
         $this->insertUser($connection, 'user-b', null, ['ROLE_USER']);
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->never())->method('dispatch');
+        $bus->expects(self::never())->method('dispatch');
 
         $count = $this->service($connection, $bus)->run(dryRun: true);
 

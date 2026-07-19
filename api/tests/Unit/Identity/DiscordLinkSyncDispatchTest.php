@@ -4,20 +4,22 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\LinkDiscordToAccount;
+use App\Identity\Application\Command\DiscordLinkOutcome;
+use App\Identity\Application\Command\LinkDiscordToAccount;
+use App\Identity\Application\Command\UnlinkDiscordFromAccount;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Application\UnlinkDiscordFromAccount;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\Identity\Infrastructure\DiscordOAuthClientInterface;
+use App\Identity\Application\Port\DiscordOAuthClientInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final class DiscordLinkSyncDispatchTest extends TestCase
 {
-    private const USER_ID = 'user-123';
+    private const string USER_ID = 'user-123';
 
     public function testLinkDispatchesSyncAfterSuccessfulSave(): void
     {
@@ -26,9 +28,9 @@ final class DiscordLinkSyncDispatchTest extends TestCase
         $userRepo = $this->makeUserRepo($user);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())
+        $bus->expects(self::once())
             ->method('dispatch')
-            ->with($this->callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+            ->with(self::callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
                 && self::USER_ID === $message->userId
                 && 'discord-new' === $message->discordUserId
                 && false === $message->removeAll))
@@ -36,7 +38,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
         $result = $this->makeLinkService($oauth, $userRepo, $bus)->link(self::USER_ID, 'oauth-code');
 
-        self::assertSame(['outcome' => 'linked'], $result);
+        self::assertSame(DiscordLinkOutcome::Linked, $result);
     }
 
     public function testRelinkDispatchesRemoveAllForPreviousDiscordIdAndSyncForNewOne(): void
@@ -48,7 +50,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
         $bus = $this->createMock(MessageBusInterface::class);
         $call = 0;
-        $bus->expects($this->exactly(2))
+        $bus->expects(self::exactly(2))
             ->method('dispatch')
             ->willReturnCallback(function (object $message) use (&$call): Envelope {
                 ++$call;
@@ -67,7 +69,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
         $result = $this->makeLinkService($oauth, $userRepo, $bus)->link(self::USER_ID, 'oauth-code');
 
-        self::assertSame(['outcome' => 'linked'], $result);
+        self::assertSame(DiscordLinkOutcome::Linked, $result);
     }
 
     public function testLinkStillReturnsLinkedWhenDiscordSyncDispatchFails(): void
@@ -77,11 +79,11 @@ final class DiscordLinkSyncDispatchTest extends TestCase
         $userRepo = $this->makeUserRepo($user);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
+        $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
         $result = $this->makeLinkService($oauth, $userRepo, $bus)->link(self::USER_ID, 'oauth-code');
 
-        self::assertSame(['outcome' => 'linked'], $result);
+        self::assertSame(DiscordLinkOutcome::Linked, $result);
     }
 
     public function testUnlinkDispatchesRemoveAllWithCapturedDiscordId(): void
@@ -91,9 +93,9 @@ final class DiscordLinkSyncDispatchTest extends TestCase
         $userRepo = $this->makeUserRepo($user);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())
+        $bus->expects(self::once())
             ->method('dispatch')
-            ->with($this->callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
+            ->with(self::callback(static fn (object $message): bool => $message instanceof SyncDiscordRoleMessage
                 && self::USER_ID === $message->userId
                 && 'discord-old' === $message->discordUserId
                 && true === $message->removeAll))
@@ -111,7 +113,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
         $userRepo = $this->makeUserRepo($user);
 
         $bus = $this->createMock(MessageBusInterface::class);
-        $bus->expects($this->once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
+        $bus->expects(self::once())->method('dispatch')->willThrowException(new \RuntimeException('transport down'));
 
         $this->makeUnlinkService($userRepo, $bus)->unlink(self::USER_ID);
 
@@ -135,7 +137,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
     private function createConfiguredOAuthClient(string $discordId, string $discordUsername): DiscordOAuthClientInterface
     {
-        $oauth = $this->createStub(DiscordOAuthClientInterface::class);
+        $oauth = self::createStub(DiscordOAuthClientInterface::class);
         $oauth->method('exchangeCode')->willReturn(['access_token' => 'access-token']);
         $oauth->method('fetchUser')->willReturn([
             'id' => $discordId,
@@ -148,7 +150,7 @@ final class DiscordLinkSyncDispatchTest extends TestCase
 
     private function makeUserRepo(User $user): UserRepositoryInterface
     {
-        $repo = $this->createStub(UserRepositoryInterface::class);
+        $repo = self::createStub(UserRepositoryInterface::class);
         $repo->method('findById')->willReturnCallback(
             static fn (string $id): ?User => $id === $user->getId() ? $user : null,
         );
@@ -161,11 +163,11 @@ final class DiscordLinkSyncDispatchTest extends TestCase
         UserRepositoryInterface $userRepo,
         MessageBusInterface $bus,
     ): LinkDiscordToAccount {
-        return new LinkDiscordToAccount($oauth, $userRepo, new NullLogger(), $bus, 'https://app.test/discord/link');
+        return new LinkDiscordToAccount($oauth, $userRepo, new NullLogger(), $bus, new MockClock(), 'https://app.test/discord/link');
     }
 
     private function makeUnlinkService(UserRepositoryInterface $userRepo, MessageBusInterface $bus): UnlinkDiscordFromAccount
     {
-        return new UnlinkDiscordFromAccount($userRepo, new NullLogger(), $bus);
+        return new UnlinkDiscordFromAccount($userRepo, new NullLogger(), $bus, new MockClock());
     }
 }

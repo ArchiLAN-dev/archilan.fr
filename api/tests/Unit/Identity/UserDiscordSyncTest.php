@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use PHPUnit\Framework\TestCase;
 
 final class UserDiscordSyncTest extends TestCase
@@ -26,8 +26,8 @@ final class UserDiscordSyncTest extends TestCase
 
         $user->markDiscordSyncSuccess($at);
 
-        $this->assertSame($at, $user->getDiscordRoleSyncedAt());
-        $this->assertNull($user->getDiscordSyncError());
+        self::assertSame($at, $user->getDiscordRoleSyncedAt());
+        self::assertNull($user->getDiscordSyncError());
     }
 
     public function testMarkDiscordSyncSuccessOverwritesPreviousError(): void
@@ -38,8 +38,8 @@ final class UserDiscordSyncTest extends TestCase
 
         $user->markDiscordSyncSuccess($at);
 
-        $this->assertSame($at, $user->getDiscordRoleSyncedAt());
-        $this->assertNull($user->getDiscordSyncError());
+        self::assertSame($at, $user->getDiscordRoleSyncedAt());
+        self::assertNull($user->getDiscordSyncError());
     }
 
     public function testMarkDiscordSyncFailureSetsErrorAndLeavesTimestampUnchanged(): void
@@ -51,9 +51,9 @@ final class UserDiscordSyncTest extends TestCase
 
         $user->markDiscordSyncFailure('Discord API unreachable', $failureAt);
 
-        $this->assertSame('Discord API unreachable', $user->getDiscordSyncError());
-        $this->assertSame($successAt, $user->getDiscordRoleSyncedAt());
-        $this->assertSame($failureAt, $user->getUpdatedAt());
+        self::assertSame('Discord API unreachable', $user->getDiscordSyncError());
+        self::assertSame($successAt, $user->getDiscordRoleSyncedAt());
+        self::assertSame($failureAt, $user->getUpdatedAt());
     }
 
     public function testMarkDiscordSyncFailureWithNoPreexistingSyncedAtLeavesItNull(): void
@@ -62,7 +62,7 @@ final class UserDiscordSyncTest extends TestCase
 
         $user->markDiscordSyncFailure('Connection refused', new \DateTimeImmutable());
 
-        $this->assertSame('Connection refused', $user->getDiscordSyncError());
-        $this->assertNull($user->getDiscordRoleSyncedAt());
+        self::assertSame('Connection refused', $user->getDiscordSyncError());
+        self::assertNull($user->getDiscordRoleSyncedAt());
     }
 }

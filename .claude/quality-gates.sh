@@ -2,6 +2,13 @@
 # Quality gates runner - archilan.fr monorepo
 # Called by the Claude Code Stop hook. Detects which directories have
 # uncommitted changes and only runs the relevant gates.
+#
+# NOTE (story 33.1): this hook is a FAST SUBSET tuned for the Stop hook
+# (frontend build/jest are skipped to keep it quick). The authoritative,
+# CI-identical gate set is one command per side:
+#   api:      composer gates   (phpstan + cs-fixer src+tests + arch + phpunit)
+#   frontend: pnpm gates       (typecheck + lint + jest + build)
+# Run those before opening a PR; CI invokes the same underlying scripts.
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$REPO_ROOT" ]; then
@@ -58,8 +65,14 @@ has_change() { printf '%s\n' "$changed" | grep -qx "$1"; }
 if has_change "api"; then
     D="$REPO_ROOT/api"
     gate "PHPStan"   "$D" vendor/bin/phpstan analyse src tests --no-progress
-    gate "CS Fixer"  "$D" vendor/bin/php-cs-fixer check src
-    gate "PHPUnit"   "$D" php bin/phpunit --no-coverage
+    # Full dist config (src + tests) - passing "src" here let test-file
+    # violations through locally while CI (composer cs-fixer) rejected them.
+    gate "CS Fixer"  "$D" vendor/bin/php-cs-fixer check
+    # Isolated DB (archilan_test_stophook): the Stop hook fires whenever a
+    # session ends, possibly WHILE a foreground/background phpunit is running.
+    # Two suites on one DB destroy each other's schema (rebuilt per test), so
+    # the hook must never share archilan_test with anything else.
+    gate "PHPUnit"   "$D" bash -c 'export TEST_TOKEN=_stophook; php bin/console doctrine:database:create --env=test --if-not-exists --quiet && php bin/phpunit --no-coverage'
     gate "DDD arch"  "$D" php bin/console app:architecture:ddd
 fi
 

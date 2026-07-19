@@ -4,37 +4,37 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\SessionConfig;
 
-use App\SessionConfig\Application\SessionConfigResolver;
-use App\SessionConfig\Domain\ReleaseCollectMode;
-use App\SessionConfig\Domain\SessionConfig;
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\SessionConfig\Application\Service\SessionConfigResolver;
+use App\SessionConfig\Domain\Enum\ReleaseCollectMode;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfig;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use PHPUnit\Framework\TestCase;
 
 final class SessionConfigResolverTest extends TestCase
 {
     public function testResolveReturnsProfileWhenNoSessionId(): void
     {
-        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles = self::createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Weekly));
         $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
         $overrides->expects(self::never())->method('find');
 
-        $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Weekly);
+        $resolved = new SessionConfigResolver($profiles, $overrides)->resolve(SessionType::Weekly);
 
         self::assertSame(ReleaseCollectMode::Disabled, $resolved->server->releaseMode);
     }
 
     public function testResolveMergesOverrideWhenPresent(): void
     {
-        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles = self::createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Weekly));
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
         $overrides->method('find')->willReturn(new SessionConfigOverride(releaseMode: ReleaseCollectMode::Goal));
 
-        $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Weekly, 'sess-1');
+        $resolved = new SessionConfigResolver($profiles, $overrides)->resolve(SessionType::Weekly, 'sess-1');
 
         self::assertSame(ReleaseCollectMode::Goal, $resolved->server->releaseMode);
         // Untouched field still from the profile:
@@ -43,12 +43,12 @@ final class SessionConfigResolverTest extends TestCase
 
     public function testResolveIgnoresEmptyOverride(): void
     {
-        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles = self::createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Private));
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
         $overrides->method('find')->willReturn(new SessionConfigOverride());
 
-        $resolved = (new SessionConfigResolver($profiles, $overrides))->resolve(SessionType::Private, 'sess-2');
+        $resolved = new SessionConfigResolver($profiles, $overrides)->resolve(SessionType::Private, 'sess-2');
 
         self::assertSame(ReleaseCollectMode::Goal, $resolved->server->releaseMode);
     }

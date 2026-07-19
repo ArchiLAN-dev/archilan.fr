@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\PersonalRuns\Application\Handler;
 
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 

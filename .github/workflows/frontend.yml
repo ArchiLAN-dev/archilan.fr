@@ -31,10 +31,10 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Filter paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -53,29 +53,36 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: '10'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '26'
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # warn-only for now: pre-existing high advisories (e.g. Next.js < 16.2.5) are
-      # being cleared via Dependabot PRs. Flip to a hard gate (drop continue-on-error)
-      # once the backlog is green - story 0.7 AC3.
+      # HARD GATE since A5. The backlog it was waiting on is cleared, and nothing is ignored:
+      # js-yaml (a DIRECT dependency) was bumped to ^4.2.0, and postcss/ws are pinned above
+      # their advisories via pnpm overrides. A supply-chain alarm that cannot fail the build
+      # protects nothing, so it blocks on a real advisory.
+      #
+      # --ignore-registry-errors: npm is retiring the legacy audit endpoint pnpm 10.33 still
+      # calls (it 410s), and a security gate must not fail a deploy because the registry has an
+      # INFRA problem - only because of a real vulnerability. This flag suppresses ONLY registry
+      # errors (exit 0), never a genuine advisory. When pnpm moves to the bulk endpoint (a
+      # Dependabot bump away), the gate starts biting again on its own - no re-flip needed.
+      # (First flip missed this; develop went red on the 410 until this was added.)
       - name: Audit (high+ severity)
-        run: pnpm audit --audit-level high
-        continue-on-error: true
+        run: pnpm audit --audit-level high --ignore-registry-errors
 
       - name: Lint
         run: pnpm lint
@@ -99,7 +106,7 @@ jobs:
           NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN: test-channel
 
       - name: Upload bundle analysis
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bundle-analysis
           path: frontend/.next/analyze/

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\RegisterUser;
-
 final class ProfileTest extends FunctionalTestCase
 {
     protected function setUp(): void
@@ -41,10 +39,7 @@ final class ProfileTest extends FunctionalTestCase
 
     private function createAndLoginUser(): void
     {
-        $registerUser = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $registerUser);
-        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertSame([], $result['errors']);
+        $this->registerUser('jean@example.org');
 
         $this->client->jsonRequest('POST', '/api/v1/auth/login', [
             'email' => 'jean@example.org',

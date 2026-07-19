@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Handler\MembershipActivatedNotificationMessageHandler;
 use App\Membership\Application\Message\MembershipActivatedNotificationMessage;
 use PHPUnit\Framework\TestCase;
@@ -17,12 +17,9 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
 {
     public function testInvokeSendsEmailWhenUserFound(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('Test User');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -53,7 +50,7 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
 
     public function testInvokeLogsAndRethrowsWhenUserNotFound(): void
     {
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn(null);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -77,12 +74,9 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
 
     public function testInvokeLogsAndRethrowsOnSmtpFailure(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('Test User');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user();
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -106,12 +100,9 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
 
     public function testInvokeWorksWithEmptyDisplayName(): void
     {
-        $user = $this->createStub(User::class);
-        $user->method('getEmail')->willReturn('test@example.com');
-        $user->method('getDisplayName')->willReturn('');
-        $user->method('getDeletedAt')->willReturn(null);
+        $user = self::user('');
 
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findById')->willReturn($user);
 
         $mailer = $this->createMock(MailerInterface::class);
@@ -120,11 +111,18 @@ final class MembershipActivatedNotificationMessageHandlerTest extends TestCase
         $handler = new MembershipActivatedNotificationMessageHandler(
             $users,
             $mailer,
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
             'noreply@archilan.fr',
             'https://archilan.fr',
         );
 
         $handler(new MembershipActivatedNotificationMessage('user-1', new \DateTimeImmutable('2027-05-16')));
+    }
+
+    private static function user(string $displayName = 'Test User'): User
+    {
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+
+        return new User('user-1', 'test@example.com', 'test@example.com', $displayName, 'hash', ['ROLE_USER'], $now, $now, $now);
     }
 }

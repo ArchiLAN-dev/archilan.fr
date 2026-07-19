@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Identity;
 
-use App\Identity\Application\DiscordBotClientInterface;
+use App\Identity\Application\Handler\SyncDiscordRoleMessageHandler;
 use App\Identity\Application\Message\SyncDiscordRoleMessage;
-use App\Identity\Application\Message\SyncDiscordRoleMessageHandler;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\Membership\Application\ActiveMembershipQueryInterface;
+use App\Identity\Application\Port\DiscordBotClientInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class SyncDiscordRoleMessageHandlerTest extends TestCase
 {
-    private const GUILD_ID = 'guild-123';
-    private const DISCORD_USER_ID = 'discord-456';
-    private const USER_ID = 'uuid-789';
-    private const ROLE_ADMIN = 'role-admin';
-    private const ROLE_MEMBER = 'role-member';
+    private const string GUILD_ID = 'guild-123';
+    private const string DISCORD_USER_ID = 'discord-456';
+    private const string USER_ID = 'uuid-789';
+    private const string ROLE_ADMIN = 'role-admin';
+    private const string ROLE_MEMBER = 'role-member';
 
     private function makeHandler(
         DiscordBotClientInterface $client,
@@ -28,10 +29,10 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         string $roleIdAdmin = self::ROLE_ADMIN,
         string $roleIdMember = self::ROLE_MEMBER,
     ): SyncDiscordRoleMessageHandler {
-        $userRepo = $this->createStub(UserRepositoryInterface::class);
+        $userRepo = self::createStub(UserRepositoryInterface::class);
         $userRepo->method('findById')->willReturn($user);
 
-        $membershipQuery = $this->createStub(ActiveMembershipQueryInterface::class);
+        $membershipQuery = self::createStub(ActiveMembershipQueryInterface::class);
         $membershipQuery->method('hasActiveMembership')->willReturn($hasActiveMembership);
 
         return new SyncDiscordRoleMessageHandler(
@@ -39,6 +40,7 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
             $userRepo,
             $membershipQuery,
             new NullLogger(),
+            new MockClock(),
             self::GUILD_ID,
             $roleIdAdmin,
             $roleIdMember,
@@ -49,10 +51,10 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
     {
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->never())->method('assignRole');
-        $client->expects($this->exactly(2))
+        $client->expects(self::never())->method('assignRole');
+        $client->expects(self::exactly(2))
             ->method('removeRole')
-            ->with(self::GUILD_ID, self::DISCORD_USER_ID, $this->anything());
+            ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::anything());
 
         $handler = $this->makeHandler($client);
         ($handler)(new SyncDiscordRoleMessage(self::USER_ID, self::DISCORD_USER_ID, [], removeAll: true));
@@ -63,11 +65,11 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $user = $this->makeLinkedUser(['ROLE_MEMBER']);
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('assignRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_MEMBER);
 
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('removeRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_ADMIN);
 
@@ -80,11 +82,11 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $user = $this->makeLinkedUser(['ROLE_USER']);
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('assignRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_MEMBER);
 
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('removeRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_ADMIN);
 
@@ -97,11 +99,11 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $user = $this->makeLinkedUser(['ROLE_ADMIN']);
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('assignRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_ADMIN);
 
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('removeRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_MEMBER);
 
@@ -114,14 +116,14 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $user = $this->makeLinkedUser(['ROLE_ADMIN', 'ROLE_MEMBER']);
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->exactly(2))
+        $client->expects(self::exactly(2))
             ->method('assignRole')
-            ->with(self::GUILD_ID, self::DISCORD_USER_ID, $this->logicalOr(
-                $this->equalTo(self::ROLE_ADMIN),
-                $this->equalTo(self::ROLE_MEMBER),
+            ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::logicalOr(
+                self::equalTo(self::ROLE_ADMIN),
+                self::equalTo(self::ROLE_MEMBER),
             ));
 
-        $client->expects($this->never())->method('removeRole');
+        $client->expects(self::never())->method('removeRole');
 
         $handler = $this->makeHandler($client, $user);
         ($handler)(new SyncDiscordRoleMessage(self::USER_ID, self::DISCORD_USER_ID, ['ROLE_ADMIN', 'ROLE_MEMBER']));
@@ -132,12 +134,12 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $user = $this->makeLinkedUser(['ROLE_USER']);
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->never())->method('assignRole');
-        $client->expects($this->exactly(2))
+        $client->expects(self::never())->method('assignRole');
+        $client->expects(self::exactly(2))
             ->method('removeRole')
-            ->with(self::GUILD_ID, self::DISCORD_USER_ID, $this->logicalOr(
-                $this->equalTo(self::ROLE_ADMIN),
-                $this->equalTo(self::ROLE_MEMBER),
+            ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::logicalOr(
+                self::equalTo(self::ROLE_ADMIN),
+                self::equalTo(self::ROLE_MEMBER),
             ));
 
         $handler = $this->makeHandler($client, $user);
@@ -149,8 +151,8 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $user = $this->makeLinkedUser(['ROLE_MEMBER'], 'new-discord-id');
         $client = $this->createMock(DiscordBotClientInterface::class);
 
-        $client->expects($this->never())->method('assignRole');
-        $client->expects($this->never())->method('removeRole');
+        $client->expects(self::never())->method('assignRole');
+        $client->expects(self::never())->method('removeRole');
 
         $handler = $this->makeHandler($client, $user);
         ($handler)(new SyncDiscordRoleMessage(self::USER_ID, self::DISCORD_USER_ID, ['ROLE_ADMIN']));
@@ -161,7 +163,7 @@ final class SyncDiscordRoleMessageHandlerTest extends TestCase
         $client = $this->createMock(DiscordBotClientInterface::class);
 
         // roleIdAdmin is empty → only ROLE_MEMBER is processed (removed)
-        $client->expects($this->once())
+        $client->expects(self::once())
             ->method('removeRole')
             ->with(self::GUILD_ID, self::DISCORD_USER_ID, self::ROLE_MEMBER);
 

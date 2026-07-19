@@ -60,4 +60,4 @@ Ces packages ont leurs propres quality gates (PHPStan level 9, tests unitaires),
 | `orchestrateur-client/` | level 9 | - | PHPUnit ^11 |
 
 Avant tout commit sur un package, les gates de CE package doivent être verts.
-Les gates de `api/` (`vendor/bin/phpstan analyse src tests`, `php-cs-fixer`, `phpunit`) ne s'appliquent pas aux packages.
+Les gates de `api/` (`composer gates` : phpstan, cs-fixer, arch DDD, phpunit) ne s'appliquent pas aux packages.

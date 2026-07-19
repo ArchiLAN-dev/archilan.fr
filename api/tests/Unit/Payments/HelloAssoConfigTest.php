@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Payments;
 
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Support\HelloAssoConfig;
 use PHPUnit\Framework\TestCase;
 
 final class HelloAssoConfigTest extends TestCase
@@ -83,8 +83,8 @@ final class HelloAssoConfigTest extends TestCase
 
     public function testIsSandboxReflectsConfiguration(): void
     {
-        self::assertTrue((new HelloAssoConfig('id', 's', 'org', true))->isSandbox());
-        self::assertFalse((new HelloAssoConfig('id', 's', 'org', false))->isSandbox());
+        self::assertTrue(new HelloAssoConfig('id', 's', 'org', true)->isSandbox());
+        self::assertFalse(new HelloAssoConfig('id', 's', 'org', false)->isSandbox());
     }
 
     public function testBuildEmbedUrlReturnsSandboxUrl(): void

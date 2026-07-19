@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Realtime\Infrastructure\SpyHub;
-use App\WeeklyRuns\Domain\WeeklyEntry;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Realtime\Infrastructure\Double\SpyHub;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class WeeklyGoalCallbackTest extends FunctionalTestCase
 {
-    private const GOOD_SECRET = 'test-runner-secret';
-    private const SESSION_ID = 'session-goal-test';
-    private const SLOT_ID = 2;
+    private const string GOOD_SECRET = 'test-runner-secret';
+    private const string SESSION_ID = 'session-goal-test';
+    private const int SLOT_ID = 2;
 
     protected function setUp(): void
     {

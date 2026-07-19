@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\BackfillSteamAppIds;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
-use App\GameSelection\Infrastructure\IgdbSearchException;
+use App\GameSelection\Application\Command\BackfillSteamAppIds;
+use App\GameSelection\Application\Port\IgdbHttpClientInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Infrastructure\Exception\IgdbSearchException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -31,7 +31,7 @@ final class BackfillSteamAppIdsTest extends TestCase
         ]);
         $games->expects(self::once())->method('save')->with($withIgdbNoSteam);
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchSteamAppId')->willReturnCallback(
             static fn (int $id): ?int => match ($id) {
                 1234 => 367520,
@@ -40,12 +40,12 @@ final class BackfillSteamAppIdsTest extends TestCase
             },
         );
 
-        $service = new BackfillSteamAppIds($games, $igdb, $this->createStub(LoggerInterface::class));
+        $service = new BackfillSteamAppIds($games, $igdb, self::createStub(LoggerInterface::class));
 
         $result = $service->run();
 
-        self::assertSame(2, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(2, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertSame(367520, $withIgdbNoSteam->getSteamAppId());
         self::assertSame(999, $alreadyResolved->getSteamAppId());
     }
@@ -59,7 +59,7 @@ final class BackfillSteamAppIdsTest extends TestCase
         $games->method('findAllSortedByName')->willReturn([$failing, $succeeding]);
         $games->expects(self::once())->method('save')->with($succeeding);
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchSteamAppId')->willReturnCallback(
             static fn (int $id): ?int => match ($id) {
                 3333 => throw new IgdbSearchException('boom'),
@@ -75,8 +75,8 @@ final class BackfillSteamAppIdsTest extends TestCase
 
         $result = $service->run();
 
-        self::assertSame(2, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(2, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertNull($failing->getSteamAppId());
         self::assertSame(367520, $succeeding->getSteamAppId());
     }
@@ -88,7 +88,7 @@ final class BackfillSteamAppIdsTest extends TestCase
 
         if (null !== $igdbId || null !== $steamAppId) {
             $sync = new GameCatalogSync($game, igdbId: $igdbId, steamAppId: $steamAppId);
-            $game->setCatalogSync($sync);
+            $game->attachCatalogSync($sync);
         }
 
         return $game;

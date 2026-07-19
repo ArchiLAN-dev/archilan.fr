@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Application\EventCapacityReachedMessage;
-use App\Events\Domain\Event;
+use App\Events\Application\Message\EventCapacityReachedMessage;
+use App\Events\Domain\Entity\Event;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class CapacityNotificationTest extends FunctionalTestCase

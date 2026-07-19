@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, CalendarDays, ExternalLink, ImageIcon, MapPin, RefreshCw, Trophy, Users } from "lucide-react";
 import { AdminEditLink } from "@/components/admin-edit-link";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { externalLinks } from "@/lib/external-links";
 import type { EventAttendanceMode, EventStatus, PublicEvent } from "@/features/events/event-types";
 import { getPublicEvent } from "@/features/events/public-events-api";
@@ -74,9 +76,9 @@ const schemaAttendanceModeMap: Record<EventAttendanceMode, string> = {
   mixed: "https://schema.org/MixedEventAttendanceMode",
 };
 
-// Rendered per request so the MinIO presigned image URLs (short TTL) are always
-// fresh. Static generation baked them at build time and they expired ~1h later.
-export const dynamic = "force-dynamic";
+// ISR: the cover/gallery now resolve to stable public-bucket URLs (story 34.4), so the page
+// can be cached. The seat counter is a client component and stays live. Revalidate every 5 min.
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: EventDetailPageProps): Promise<Metadata> {
   const { eventSlug } = await params;
@@ -89,7 +91,9 @@ export async function generateMetadata({ params }: EventDetailPageProps): Promis
     };
   }
 
-  const canonicalPath = `/evenements/${event.id}`;
+  // Canonical uses the visited route param (locked decision: slug is the canonical
+  // identity, never a DB id). PublicEvent has no separate slug field, so eventSlug IS it.
+  const canonicalPath = `/evenements/${eventSlug}`;
   const description = event.description;
 
   return {
@@ -134,22 +138,27 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
     if (!status.cta || status.cta.href === "inscription") return undefined;
     return { ...status.cta, href: status.cta.href };
   })();
-  const canonicalUrl = new URL(`/evenements/${event.id}`, env.appUrl).toString();
+  const canonicalUrl = new URL(`/evenements/${eventSlug}`, env.appUrl).toString();
   const structuredData = getEventStructuredData(event, canonicalUrl);
 
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData)
-            .replace(/</g, "\\u003c")
-            .replace(/>/g, "\\u003e")
-            .replace(/&/g, "\\u0026"),
-        }}
-        type="application/ld+json"
+      <JsonLd data={structuredData} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Accueil", path: "/" },
+          { name: "Événements", path: "/evenements" },
+          { name: event.title, path: `/evenements/${eventSlug}` },
+        ])}
       />
 
       <article className="mx-auto w-full max-w-7xl grid gap-12">
+        <Link
+          className="inline-flex w-fit items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+          href="/evenements"
+        >
+          &larr; Tous les événements
+        </Link>
         <header className="grid gap-6 border-b border-border pb-10">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -285,18 +294,16 @@ function EventCheckoutUnavailable({ eventId }: { eventId: string }) {
 
 function EventHeroImage({ event }: { event: PublicEvent }) {
   return (
-    <section aria-label="Image de couverture de l'événement" className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
+    <section className="relative -mx-6 overflow-hidden md:-mx-12 lg:-mx-20">
       <div className="relative aspect-[21/9] min-h-56 bg-surface">
         {event.coverImageUrl ? (
           <Image
-            alt=""
-            aria-hidden="true"
+            alt={`Événement Archipelago ArchiLAN : ${event.title}`}
             className="object-cover"
             fill
             priority
             sizes="100vw"
             src={event.coverImageUrl}
-            unoptimized={event.coverImageUrl.startsWith("http://") || event.coverImageUrl.startsWith("https://")}
           />
         ) : (
           <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,color-mix(in_oklab,var(--color-surface)_85%,var(--color-accent)),var(--color-background))]">
@@ -336,7 +343,6 @@ function EventPhotoGallery({ event }: { event: PublicEvent }) {
               fill
               sizes="(max-width: 640px) 50vw, 33vw"
               src={url}
-              unoptimized={url.startsWith("http://") || url.startsWith("https://")}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/25 to-transparent" />
           </div>
@@ -407,6 +413,20 @@ function getEventStructuredData(event: PublicEvent, canonicalUrl: string) {
       name: "ArchiLAN",
       url: env.appUrl,
     },
+    // Ticketing applies iff a HelloAsso checkout is attached. The public payload has no
+    // price, so the Offer carries url + availability only (no fabricated price).
+    ...(event.checkoutEmbedUrl
+      ? {
+          offers: {
+            "@type": "Offer",
+            url: canonicalUrl,
+            availability:
+              event.capacity && event.capacity.remaining <= 0
+                ? "https://schema.org/SoldOut"
+                : "https://schema.org/InStock",
+          },
+        }
+      : {}),
     ...(event.coverImageUrl ? { image: event.coverImageUrl } : {}),
   };
 }

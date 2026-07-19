@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\CommunityProfile;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
-use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\Community\Domain\Entity\CommunityProfile;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 
 final class CommunityLeaderboardTest extends FunctionalTestCase
 {
@@ -33,16 +33,16 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertNotNull($startedAt);
 
         $slot1 = SessionSlot::create(bin2hex(random_bytes(16)), $s1->getId(), $reg->getId(), $game->getId(), 'A', 0);
-        $slot1->setGoalReachedAt($startedAt->modify('+60 seconds'));
-        $slot1->setChecksDone(50);
+        $slot1->recordGoal($startedAt->modify('+60 seconds'));
+        $slot1->recordProgress(50, 0);
         $this->entityManager->persist($slot1);
 
         $slot2 = SessionSlot::create(bin2hex(random_bytes(16)), $s1->getId(), $reg->getId(), $game->getId(), 'A2', 1);
-        $slot2->setChecksDone(30);
+        $slot2->recordProgress(30, 0);
         $this->entityManager->persist($slot2);
 
         $slot3 = SessionSlot::create(bin2hex(random_bytes(16)), $s1->getId(), $reg->getId(), $game->getId(), 'A3', 2);
-        $slot3->setChecksDone(20);
+        $slot3->recordProgress(20, 0);
         $slot3->markAsReleased(); // invalidated
         $this->entityManager->persist($slot3);
 
@@ -131,18 +131,18 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         // Alice: 3 goals
         for ($i = 0; $i < 3; ++$i) {
             $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'Alice'.$i, $i);
-            $slot->setGoalReachedAt($startedAt->modify('+'.($i + 1).' minutes'));
+            $slot->recordGoal($startedAt->modify('+'.($i + 1).' minutes'));
             $this->entityManager->persist($slot);
         }
         // Bob: 3 goals (tie with Alice)
         for ($i = 0; $i < 3; ++$i) {
             $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'Bob'.$i, $i + 10);
-            $slot->setGoalReachedAt($startedAt->modify('+'.($i + 1).' minutes'));
+            $slot->recordGoal($startedAt->modify('+'.($i + 1).' minutes'));
             $this->entityManager->persist($slot);
         }
         // Carol: 1 goal
         $slotC = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regC->getId(), $game->getId(), 'Carol', 20);
-        $slotC->setGoalReachedAt($startedAt->modify('+1 minutes'));
+        $slotC->recordGoal($startedAt->modify('+1 minutes'));
         $this->entityManager->persist($slotC);
 
         $this->entityManager->flush();
@@ -199,17 +199,17 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
 
         // Alice: 100 checks valid + 20 checks invalidated
         $slotA1 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'A1', 0);
-        $slotA1->setChecksDone(100);
+        $slotA1->recordProgress(100, 0);
         $this->entityManager->persist($slotA1);
 
         $slotA2 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'A2', 1);
-        $slotA2->setChecksDone(20);
+        $slotA2->recordProgress(20, 0);
         $slotA2->markAsReleased();
         $this->entityManager->persist($slotA2);
 
         // Bob: 150 checks
         $slotB = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'B', 2);
-        $slotB->setChecksDone(150);
+        $slotB->recordProgress(150, 0);
         $this->entityManager->persist($slotB);
 
         $this->entityManager->flush();
@@ -256,21 +256,21 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
 
         // Alice: best speed = 60s (has a slower slot at 120s too)
         $slotA1 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'A1', 0);
-        $slotA1->setGoalReachedAt($startedAt->modify('+60 seconds'));
+        $slotA1->recordGoal($startedAt->modify('+60 seconds'));
         $this->entityManager->persist($slotA1);
 
         $slotA2 = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'A2', 1);
-        $slotA2->setGoalReachedAt($startedAt->modify('+120 seconds'));
+        $slotA2->recordGoal($startedAt->modify('+120 seconds'));
         $this->entityManager->persist($slotA2);
 
         // Bob: best speed = 30s (fastest overall)
         $slotB = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'B', 2);
-        $slotB->setGoalReachedAt($startedAt->modify('+30 seconds'));
+        $slotB->recordGoal($startedAt->modify('+30 seconds'));
         $this->entityManager->persist($slotB);
 
         // Carol: no goal → excluded from speed leaderboard
         $slotC = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regC->getId(), $game->getId(), 'C', 3);
-        $slotC->setChecksDone(10);
+        $slotC->recordProgress(10, 0);
         $this->entityManager->persist($slotC);
 
         $this->entityManager->flush();
@@ -334,11 +334,11 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         // Alice: 2 goals (ranks first), Bob: 1 goal.
         for ($i = 0; $i < 2; ++$i) {
             $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regA->getId(), $game->getId(), 'A'.$i, $i);
-            $slot->setGoalReachedAt($startedAt->modify('+'.($i + 1).' minutes'));
+            $slot->recordGoal($startedAt->modify('+'.($i + 1).' minutes'));
             $this->entityManager->persist($slot);
         }
         $slotB = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $regB->getId(), $game->getId(), 'B', 5);
-        $slotB->setGoalReachedAt($startedAt->modify('+1 minutes'));
+        $slotB->recordGoal($startedAt->modify('+1 minutes'));
         $this->entityManager->persist($slotB);
 
         $this->entityManager->flush();
@@ -385,7 +385,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertNotNull($startedAt1);
         for ($i = 0; $i < 2; ++$i) {
             $slot = SessionSlot::create(bin2hex(random_bytes(16)), $s1->getId(), $regA1->getId(), $game->getId(), 'A'.$i, $i);
-            $slot->setGoalReachedAt($startedAt1->modify('+'.($i + 1).' minutes'));
+            $slot->recordGoal($startedAt1->modify('+'.($i + 1).' minutes'));
             $this->entityManager->persist($slot);
         }
 
@@ -395,7 +395,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         self::assertNotNull($startedAt2);
         for ($i = 0; $i < 5; ++$i) {
             $slot = SessionSlot::create(bin2hex(random_bytes(16)), $s2->getId(), $regB2->getId(), $game->getId(), 'B'.$i, $i);
-            $slot->setGoalReachedAt($startedAt2->modify('+'.($i + 1).' minutes'));
+            $slot->recordGoal($startedAt2->modify('+'.($i + 1).' minutes'));
             $this->entityManager->persist($slot);
         }
 
@@ -435,7 +435,7 @@ final class CommunityLeaderboardTest extends FunctionalTestCase
         $startedAt = $session->getStartedAt();
         self::assertNotNull($startedAt);
         $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $reg->getId(), $game->getId(), 'A', 0);
-        $slot->setGoalReachedAt($startedAt->modify('+60 seconds'));
+        $slot->recordGoal($startedAt->modify('+60 seconds'));
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 

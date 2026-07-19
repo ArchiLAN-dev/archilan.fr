@@ -79,14 +79,14 @@ export function TwitchPersistentPlayer() {
 
     // Retour sur la home → reset position mini
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the dragged mini position when the home placeholder (re)appears; keyed on an external DOM node, so it cannot be derived during render
         if (placeholder) setMiniPos(null);
     }, [placeholder]);
 
     // --- Synchronisation de la position inline sur le placeholder ---
     useLayoutEffect(() => {
         if (!placeholder) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the DOM-measured rect before paint when the placeholder unmounts; the value comes from getBoundingClientRect, not from render inputs
             setInlineRect(null);
             return;
         }
@@ -277,8 +277,8 @@ export function TwitchPersistentPlayer() {
 
                 {/* Barre de titre (mini uniquement) */}
                 <div
-                    className="flex select-none items-center justify-between bg-surface px-3"
-                    style={{ display: isMini ? "flex" : "none", height: HEADER_H, cursor: "grab" }}
+                    className="flex cursor-grab select-none items-center justify-between bg-surface px-3"
+                    style={{ display: isMini ? "flex" : "none", height: HEADER_H }}
                     onMouseDown={startDrag}
                 >
                     <div className="flex items-center gap-2">

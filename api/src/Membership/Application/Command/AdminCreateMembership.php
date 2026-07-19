@@ -1,0 +1,99 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Membership\Application\Command;
+
+use App\Identity\Application\Message\SyncDiscordRoleMessage;
+use App\Membership\Application\Message\MembershipActivatedNotificationMessage;
+use App\Membership\Application\Message\SyncMemberToDolibarrMessage;
+use App\Membership\Application\Port\UserRoleGatewayInterface;
+use App\Membership\Domain\Entity\Membership;
+use App\Membership\Domain\Repository\MembershipRepositoryInterface;
+use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+
+final readonly class AdminCreateMembership
+{
+    public function __construct(
+        private MembershipRepositoryInterface $memberships,
+        private UserRoleGatewayInterface $userRoleGateway,
+        private MessageBusInterface $bus,
+        private LoggerInterface $logger,
+        private ClockInterface $clock,
+    ) {
+    }
+
+    public function create(
+        string $userId,
+        \DateTimeImmutable $startedAt,
+        \DateTimeImmutable $expiresAt,
+        ?string $adminNote,
+    ): MembershipCreated {
+        $now = $this->clock->now();
+
+        $existing = $this->memberships->findActiveByUserId($userId);
+        if ($existing instanceof Membership) {
+            $existing->expire($now);
+            $this->memberships->flush();
+        }
+
+        $membership = Membership::create($userId, $startedAt, $expiresAt, 'admin', null, $adminNote, $now);
+        $this->memberships->save($membership);
+
+        $discordInfo = $this->userRoleGateway->getUserDiscordInfo($userId);
+        if (null !== $discordInfo['discordId']) {
+            $this->dispatchDiscordSync(new SyncDiscordRoleMessage($userId, $discordInfo['discordId'], $discordInfo['roles']));
+        }
+
+        $this->dispatchEmailNotification(new MembershipActivatedNotificationMessage($userId, $expiresAt));
+        $this->dispatchDolibarrSync(new SyncMemberToDolibarrMessage($membership->getId()));
+
+        return new MembershipCreated(
+            $membership->getId(),
+            $userId,
+            'active',
+            $startedAt->format(\DateTimeInterface::ATOM),
+            $expiresAt->format(\DateTimeInterface::ATOM),
+            'admin',
+            $adminNote,
+        );
+    }
+
+    private function dispatchDiscordSync(SyncDiscordRoleMessage $message): void
+    {
+        try {
+            $this->bus->dispatch($message);
+        } catch (\Throwable $e) {
+            $this->logger->error('membership.discord_sync_dispatch_failed', [
+                'userId' => $message->userId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function dispatchEmailNotification(MembershipActivatedNotificationMessage $message): void
+    {
+        try {
+            $this->bus->dispatch($message);
+        } catch (\Throwable $e) {
+            $this->logger->error('membership.activation_notification_dispatch_failed', [
+                'userId' => $message->userId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function dispatchDolibarrSync(SyncMemberToDolibarrMessage $message): void
+    {
+        try {
+            $this->bus->dispatch($message);
+        } catch (\Throwable $e) {
+            $this->logger->error('membership.dolibarr_sync_dispatch_failed', [
+                'membershipId' => $message->membershipId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+}

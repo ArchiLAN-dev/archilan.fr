@@ -21,16 +21,16 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
 import { FanfarePicker } from "@/features/reachability/fanfare-picker";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
-import { HINT_STATUS_NAMES } from "@/features/reachability/types";
-import { fetchCurrentWeeklyRuns, relaunchWeeklyEntry } from "./weekly-runs-api";
-
-type SlotInfo = { index: string; name: string };
+import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
+import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
+import { fetchCurrentWeeklyRuns, fetchWeeklyEntryPlayerSlots, relaunchWeeklyEntry } from "./weekly-runs-api";
 
 type PageState =
   | { kind: "idle" }
@@ -97,9 +97,8 @@ export function WeeklyRunSlotPage({
     }
   }, [authLoading, user, weeklyRunId, router]);
 
-  const entryBaseUrl = entryId
-    ? `${env.apiBaseUrl}/weekly-runs/${weeklyRunId}/entries/${entryId}`
-    : null;
+  const entryPath = entryId ? `/weekly-runs/${weeklyRunId}/entries/${entryId}` : null;
+  const entryBaseUrl = entryPath ? `${env.apiBaseUrl}${entryPath}` : null;
 
   // ─── Tabs ──────────────────────────────────────────────────────────────────
 
@@ -126,27 +125,23 @@ export function WeeklyRunSlotPage({
 
   // ─── State ─────────────────────────────────────────────────────────────────
 
-  const [slots, setSlots] = useState<SlotInfo[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const slotIndex = selectedSlot ?? null;
 
-  // Fetch available player slots (exclude Bridge/spectator slots)
-  useEffect(() => {
-    if (!entryBaseUrl) return;
-    apiFetch(`${entryBaseUrl}/players`)
-      .then((r) => r.json())
-      .then((json: { data?: { slots?: Record<string, { slot_name: string; type?: string }> } }) => {
-        const playerSlots = Object.entries(json.data?.slots ?? {})
-          .filter(([, s]) => s.type !== "spectator" && s.type !== "group" && s.slot_name !== "Bridge")
-          .map(([index, s]) => ({ index, name: s.slot_name }))
-          .sort((a, b) => Number(a.index) - Number(b.index));
-        setSlots(playerSlots);
-        if (playerSlots.length > 0 && selectedSlot === null) {
-          setSelectedSlot(playerSlots[0].index);
-        }
-      })
-      .catch(() => undefined);
-  }, [entryBaseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Available player slots for the switcher (Bridge/spectator slots excluded API-side).
+  // The first slot seeds the default selection until the user explicitly picks one.
+  const { data: slots = [] } = useQuery({
+    queryKey: ["weekly-run-players", entryId],
+    queryFn: async () => {
+      if (!entryId) return [];
+      const playerSlots = await fetchWeeklyEntryPlayerSlots(weeklyRunId, entryId);
+      // Throw on failure so TanStack keeps the previously fetched roster instead of clearing it.
+      if (playerSlots === null) throw new Error("weekly-run-players-unavailable");
+      return playerSlots;
+    },
+    enabled: entryId !== null,
+    staleTime: DEFAULT_STALE_TIME,
+  });
+  const slotIndex = selectedSlot ?? slots[0]?.index ?? null;
 
   const [state, setState] = useState<PageState>({ kind: "idle" });
   const [refreshing, setRefreshing] = useState(false);
@@ -161,7 +156,7 @@ export function WeeklyRunSlotPage({
 
   const goalShownRef = useRef(false);
   const stateRef = useRef(state);
-  // eslint-disable-next-line react-hooks/refs
+  // eslint-disable-next-line react-hooks/refs -- mirror the latest state into a ref so long-lived SSE callbacks read fresh values without re-subscribing; the render-time write is idempotent
   stateRef.current = state;
   const refreshingRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
@@ -231,7 +226,7 @@ export function WeeklyRunSlotPage({
   // ─── SSE: reachability ────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!entryBaseUrl || !slotIndex) return;
+    if (!entryPath || !slotIndex) return;
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -246,9 +241,11 @@ export function WeeklyRunSlotPage({
       es.onopen = () => { if (!cancelled) setLiveConnected(true); };
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const data = JSON.parse(event.data as string) as ReachabilityData;
-          if (!data.counts) return;
+          const data: unknown = JSON.parse(frame);
+          if (!isReachabilityData(data)) return;
 
           if (prevItemsRef.current.size === 0) {
             prevItemsRef.current = new Map(data.items_received.map((i) => [i.id, i.count]));
@@ -290,14 +287,9 @@ export function WeeklyRunSlotPage({
     }
 
     async function init(): Promise<void> {
-      const tokenRes = await apiFetch(
-        `${entryBaseUrl}/slots/${slotIndex}/reachable-token`,
-      );
-      if (!tokenRes.ok || cancelled) return;
-      const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
-      const { token, hubUrl, topic } = tokenJson.data;
-      if (!hubUrl || cancelled) return;
-      connect(token, hubUrl, topic);
+      const sub = await fetchSubscribeToken(`${entryPath}/slots/${slotIndex}/reachable-token`);
+      if (!sub || !sub.hubUrl || cancelled) return;
+      connect(sub.token, sub.hubUrl, sub.topic);
     }
 
     void init().catch(() => undefined);
@@ -308,12 +300,12 @@ export function WeeklyRunSlotPage({
       esRef.current = null;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [entryBaseUrl, slotIndex]);
+  }, [entryPath, slotIndex]);
 
   // ─── SSE: hints ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!entryBaseUrl || !slotIndex) return;
+    if (!entryPath || !slotIndex) return;
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -326,11 +318,19 @@ export function WeeklyRunSlotPage({
       hintsEsRef.current = es;
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const data = JSON.parse(event.data as string) as Partial<HintsData>;
-          if ("hints" in data) {
-            setHints((prev) => (prev ? { ...prev, ...data } as HintsData : data as HintsData));
-          }
+          const data: unknown = JSON.parse(frame);
+          if (!isHintsUpdate(data)) return;
+          setHints((prev) => ({
+            slot: 0,
+            hintsUsed: 0,
+            hintPointsAvailable: 0,
+            hintCost: 0,
+            ...prev,
+            ...data,
+          }));
         } catch { /* ignore */ }
       };
 
@@ -344,14 +344,9 @@ export function WeeklyRunSlotPage({
     }
 
     async function initHints(): Promise<void> {
-      const tokenRes = await apiFetch(
-        `${entryBaseUrl}/slots/${slotIndex}/hints-token`,
-      );
-      if (!tokenRes.ok || cancelled) return;
-      const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
-      const { token, hubUrl, topic } = tokenJson.data;
-      if (!hubUrl || cancelled) return;
-      connectHints(token, hubUrl, topic);
+      const sub = await fetchSubscribeToken(`${entryPath}/slots/${slotIndex}/hints-token`);
+      if (!sub || !sub.hubUrl || cancelled) return;
+      connectHints(sub.token, sub.hubUrl, sub.topic);
     }
 
     void initHints().catch(() => undefined);
@@ -362,12 +357,12 @@ export function WeeklyRunSlotPage({
       hintsEsRef.current = null;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [entryBaseUrl, slotIndex]);
+  }, [entryPath, slotIndex]);
 
   // ─── SSE: players state (goal detection) ─────────────────────────────────
 
   useEffect(() => {
-    if (!entryBaseUrl) return;
+    if (!entryBaseUrl || !entryPath) return;
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -381,8 +376,11 @@ export function WeeklyRunSlotPage({
       const es = new EventSource(url.toString());
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
         try {
-          const data = JSON.parse(event.data as string) as { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> };
+          const data: unknown = JSON.parse(frame);
+          if (!isPlayersState(data)) return;
           const slot = data.slots?.[slotKey];
           if (slot?.client_status === 30 && slot.goal_reached_at) {
             setGoalReachedBySSE(true);
@@ -416,19 +414,20 @@ export function WeeklyRunSlotPage({
     async function initPlayers(): Promise<void> {
       const stateRes = await apiFetch(`${entryBaseUrl}/players`).catch(() => null);
       if (stateRes?.ok && !cancelled) {
-        const stateJson = (await stateRes.json()) as { data: { slots?: Record<string, { client_status?: number; goal_reached_at?: string | null }> } };
-        const slot = stateJson.data.slots?.[slotKey];
+        const statePayload: unknown = await stateRes.json();
+        const stateData: unknown =
+          typeof statePayload === "object" && statePayload !== null && "data" in statePayload
+            ? statePayload.data
+            : null;
+        const slot = isPlayersState(stateData) ? stateData.slots?.[slotKey] : undefined;
         if (slot?.client_status === 30 && slot.goal_reached_at) {
           setGoalReachedBySSE(true);
         }
       }
 
-      const tokenRes = await apiFetch(`${entryBaseUrl}/players-token`);
-      if (!tokenRes.ok || cancelled) return;
-      const tokenJson = (await tokenRes.json()) as { data: { token: string; hubUrl: string; topic: string } };
-      const { token, hubUrl, topic } = tokenJson.data;
-      if (!hubUrl || cancelled) return;
-      connectPlayers(token, hubUrl, topic);
+      const sub = await fetchSubscribeToken(`${entryPath}/players-token`);
+      if (!sub || !sub.hubUrl || cancelled) return;
+      connectPlayers(sub.token, sub.hubUrl, sub.topic);
     }
 
     void initPlayers().catch(() => undefined);

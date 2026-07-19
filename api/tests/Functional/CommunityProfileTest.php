@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Application\RefreshCommunityAvatars;
-use App\Community\Domain\CommunityProfile;
-use App\Membership\Domain\Membership;
+use App\Community\Application\Command\RefreshCommunityAvatars;
+use App\Community\Domain\Entity\CommunityProfile;
+use App\Membership\Domain\Entity\Membership;
 
 final class CommunityProfileTest extends FunctionalTestCase
 {

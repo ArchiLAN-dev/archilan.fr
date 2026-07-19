@@ -13,13 +13,13 @@ final class TwitchStatusTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/api/v1/live/status');
 
-        $this->assertResponseIsSuccessful();
+        self::assertResponseIsSuccessful();
 
         /** @var array{data: array{live: bool, viewerCount: int|null}} $body */
         $body = json_decode((string) $client->getResponse()->getContent(), true);
 
-        $this->assertFalse($body['data']['live']);
-        $this->assertNull($body['data']['viewerCount']);
+        self::assertFalse($body['data']['live']);
+        self::assertNull($body['data']['viewerCount']);
     }
 
     public function testLiveStatusIsPublicAndRequiresNoAuthentication(): void
@@ -27,6 +27,6 @@ final class TwitchStatusTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/api/v1/live/status');
 
-        $this->assertResponseStatusCodeSame(200);
+        self::assertResponseStatusCodeSame(200);
     }
 }

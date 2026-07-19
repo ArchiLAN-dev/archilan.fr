@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection\Infrastructure;
 
-use App\GameSelection\Infrastructure\SteamApiException;
-use App\GameSelection\Infrastructure\SteamWebApiClient;
+use App\GameSelection\Application\Exception\SteamApiException;
+use App\GameSelection\Infrastructure\Http\SteamWebApiClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;

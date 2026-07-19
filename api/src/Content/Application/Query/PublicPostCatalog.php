@@ -1,0 +1,70 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Content\Application\Query;
+
+use App\Content\Domain\Entity\Post;
+use App\Content\Domain\Repository\PostRepositoryInterface;
+use App\Shared\Application\Support\PublicMediaUrlResolver;
+
+final readonly class PublicPostCatalog
+{
+    public function __construct(
+        private PostRepositoryInterface $postRepository,
+        private PublicMediaUrlResolver $publicMedia,
+    ) {
+    }
+
+    /**
+     * @return list<array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}>
+     */
+    public function list(): array
+    {
+        $posts = $this->postRepository->findByStatus(Post::STATUS_PUBLISHED);
+
+        return array_map($this->payload(...), $posts);
+    }
+
+    /**
+     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}|null
+     */
+    public function get(string $slug): ?array
+    {
+        $post = $this->postRepository->findBySlugAndStatus($slug, Post::STATUS_PUBLISHED);
+
+        if (!$post instanceof Post) {
+            return null;
+        }
+
+        return $this->payload($post);
+    }
+
+    /**
+     * @return array{slug: string, title: string, type: string, status: string, excerpt: string, body: list<string>, readingTime: string, publishedAt: string, coverImageUrl: string|null}
+     */
+    private function payload(Post $post): array
+    {
+        return [
+            'slug' => $post->getSlug(),
+            'title' => $post->getTitle(),
+            'type' => $post->getType(),
+            'status' => $post->getStatus(),
+            'excerpt' => $post->getExcerpt(),
+            'body' => $post->getBody(),
+            'readingTime' => $post->getReadingTime(),
+            'publishedAt' => $post->getPublishedAt()?->format(\DateTimeInterface::ATOM) ?? '',
+            'coverImageUrl' => $this->resolveCoverImageUrl($post),
+        ];
+    }
+
+    private function resolveCoverImageUrl(Post $post): ?string
+    {
+        $key = $post->getCoverImageKey();
+        if (null !== $key) {
+            return $this->publicMedia->resolve($key);
+        }
+
+        return $post->getCoverImageUrl();
+    }
+}

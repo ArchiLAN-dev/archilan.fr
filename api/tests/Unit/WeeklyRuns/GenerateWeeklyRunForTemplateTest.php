@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\WeeklyRuns\Application\GenerateWeeklyRunForTemplate;
-use App\WeeklyRuns\Application\WeeklyRunGeneratorInterface;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
-use App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\WeeklyRuns\Application\Command\GenerateWeeklyRunForTemplate;
+use App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
+use App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface;
+use App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
@@ -20,7 +20,7 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
 {
     use SessionConfigDefaultsTrait;
 
-    private const NOW = '2026-05-18T00:00:00';
+    private const string NOW = '2026-05-18T00:00:00';
 
     public function testGenerateCreatesRunAndDispatchesWhenNoneExists(): void
     {
@@ -119,8 +119,9 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
 
     private function makeGame(): Game
     {
-        $game = $this->createStub(Game::class);
-        $game->method('getApworldStorageKey')->willReturn('apworlds/archipelago.apworld');
+        $now = new \DateTimeImmutable('2026-01-01T00:00:00Z');
+        $game = Game::create('Archipelago', 'archipelago', 'Description.', null, 'Alt', 'Credit', Game::AVAILABILITY_AVAILABLE, $now);
+        $game->configureApworld('apworlds/archipelago.apworld', 'apworld-hash-123', 'Archipelago', '', $now);
 
         return $game;
     }
@@ -131,10 +132,10 @@ final class GenerateWeeklyRunForTemplateTest extends TestCase
         ?Game $game,
         WeeklyRunGeneratorInterface $generator,
     ): GenerateWeeklyRunForTemplate {
-        $templates = $this->createStub(WeeklyTemplateRepositoryInterface::class);
+        $templates = self::createStub(WeeklyTemplateRepositoryInterface::class);
         $templates->method('findById')->willReturn($template);
 
-        $games = $this->createStub(GameRepositoryInterface::class);
+        $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
 
         return new GenerateWeeklyRunForTemplate(

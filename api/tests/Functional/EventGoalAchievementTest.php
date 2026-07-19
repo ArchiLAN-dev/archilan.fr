@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Application\EventParticipationQueryInterface;
-use App\Community\Application\RecomputeAchievements;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
+use App\Community\Application\Command\RecomputeAchievements;
+use App\Community\Application\Query\EventParticipationQueryInterface;
 use App\Community\Domain\AchievementMetricCatalog;
 use App\Community\Domain\AchievementOperator;
 use App\Community\Domain\AchievementRuleGroup;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class EventGoalAchievementTest extends FunctionalTestCase
 {
@@ -76,8 +76,8 @@ final class EventGoalAchievementTest extends FunctionalTestCase
 
         $session = $this->makeFinishedSession($eventId);
         $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $registration->getId(), $game->getId(), 'A', 0);
-        $slot->setGoalReachedAt($this->now()->modify('+1 hour'));
-        $slot->setChecksDone(50);
+        $slot->recordGoal($this->now()->modify('+1 hour'));
+        $slot->recordProgress(50, 0);
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
     }

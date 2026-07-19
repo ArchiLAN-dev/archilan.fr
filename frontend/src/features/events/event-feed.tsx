@@ -3,25 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Gift, Info, Lightbulb, MapPin, MessageSquare, WifiOff } from "lucide-react";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
+import type { FeedEvent } from "@/features/overlay/overlay-api";
+import { isFeedEvent } from "@/features/overlay/overlay-api";
+import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-type FeedActor = { slot: number; name: string; game: string };
-type FeedRef = { id: number; name: string };
-
-type FeedEvent = {
-  type: string;
-  text: string;
-  color?: string;
-  timestamp: string;
-  // Item events only (story 29.4): structured origin, present when resolved. Fall back to `text`.
-  item?: FeedRef;
-  location?: FeedRef;
-  sender?: FeedActor;
-  receiver?: FeedActor;
-};
 
 type FeedMessage = FeedEvent & { _key: string };
 
@@ -114,28 +100,32 @@ export function EventFeed({ runId }: { runId: string }) {
       };
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
+        let parsed: unknown;
         try {
-          const data = JSON.parse(event.data as string) as FeedEvent;
-          const msg: FeedMessage = {
-            ...data,
-            _key: `${Date.now()}-${Math.random()}`,
-          };
-          setState((prev) => {
-            if (prev.kind === "loading") {
-              return { kind: "active", messages: [msg], connected: true };
-            }
-            if (prev.kind !== "active") return prev;
-            return {
-              ...prev,
-              messages: [msg, ...prev.messages].slice(0, 100),
-              connected: true,
-            };
-          });
-          if (isScrolledDown.current) {
-            setNewCount((n) => n + 1);
-          }
+          parsed = JSON.parse(frame);
         } catch {
-          /* ignore malformed */
+          return; /* malformed frame - ignored */
+        }
+        if (!isFeedEvent(parsed)) return; /* unexpected shape - dropped, never cast */
+        const msg: FeedMessage = {
+          ...parsed,
+          _key: `${Date.now()}-${Math.random()}`,
+        };
+        setState((prev) => {
+          if (prev.kind === "loading") {
+            return { kind: "active", messages: [msg], connected: true };
+          }
+          if (prev.kind !== "active") return prev;
+          return {
+            ...prev,
+            messages: [msg, ...prev.messages].slice(0, 100),
+            connected: true,
+          };
+        });
+        if (isScrolledDown.current) {
+          setNewCount((n) => n + 1);
         }
       };
 
@@ -156,28 +146,14 @@ export function EventFeed({ runId }: { runId: string }) {
     }
 
     async function init(): Promise<void> {
-      const res = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${runId}/feed-token`,
-      );
+      const payload = await fetchSubscribeToken(`/sessions/${runId}/feed-token`);
 
-      if (cancelled) return;
-
-      if (!res.ok) {
-        setState({ kind: "unavailable" });
+      if (cancelled || !payload || !payload.hubUrl) {
+        if (!cancelled) setState({ kind: "unavailable" });
         return;
       }
 
-      const json = (await res.json()) as {
-        data: { token: string; hubUrl: string; topic: string };
-      };
-      const { token, hubUrl, topic } = json.data;
-
-      if (cancelled || !hubUrl) {
-        setState({ kind: "unavailable" });
-        return;
-      }
-
-      connect(token, hubUrl, topic);
+      connect(payload.token, payload.hubUrl, payload.topic);
     }
 
     void init().catch(() => {

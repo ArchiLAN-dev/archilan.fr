@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\SessionConfig;
 
-use App\SessionConfig\Domain\ReleaseCollectMode;
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfigOverrideStore;
+use App\SessionConfig\Domain\Entity\SessionConfigOverrideStore;
+use App\SessionConfig\Domain\Enum\ReleaseCollectMode;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use PHPUnit\Framework\TestCase;
 
 final class SessionConfigOverrideStoreTest extends TestCase

@@ -4,27 +4,27 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\PersonalRuns\Application\PersonalRunConfigOverride;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\SessionConfig\Application\ClearSessionConfigOverride;
-use App\SessionConfig\Application\SessionConfigOverrideQuery;
-use App\SessionConfig\Application\SetSessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfig;
-use App\SessionConfig\Domain\SessionConfigOverride;
-use App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface;
-use App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface;
-use App\SessionConfig\Domain\SessionType;
+use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
+use App\SessionConfig\Application\Command\SetSessionConfigOverride;
+use App\SessionConfig\Application\Query\SessionConfigOverrideQuery;
+use App\SessionConfig\Domain\Enum\SessionType;
+use App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface;
+use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
+use App\SessionConfig\Domain\ValueObject\SessionConfig;
+use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use PHPUnit\Framework\TestCase;
 
 final class PersonalRunConfigOverrideTest extends TestCase
 {
     private function service(?Run $run, SessionConfigOverrideRepositoryInterface $overrides): PersonalRunConfigOverride
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $profiles = $this->createStub(SessionConfigProfileRepositoryInterface::class);
+        $profiles = self::createStub(SessionConfigProfileRepositoryInterface::class);
         $profiles->method('get')->willReturn(SessionConfig::defaultsFor(SessionType::Private));
 
         return new PersonalRunConfigOverride(
@@ -63,7 +63,7 @@ final class PersonalRunConfigOverrideTest extends TestCase
 
     public function testMissingRunIsNotFound(): void
     {
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
 
         $result = $this->service(null, $overrides)->get('missing', 'owner-1');
 
@@ -100,7 +100,7 @@ final class PersonalRunConfigOverrideTest extends TestCase
     public function testOwnerSetInvalidThrows(): void
     {
         $run = Run::create('owner-1', 'My run', new \DateTimeImmutable());
-        $overrides = $this->createStub(SessionConfigOverrideRepositoryInterface::class);
+        $overrides = self::createStub(SessionConfigOverrideRepositoryInterface::class);
 
         $this->expectException(\DomainException::class);
         $this->service($run, $overrides)->set($run->getId(), 'owner-1', ['spoiler' => 9]);

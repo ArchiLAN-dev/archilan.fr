@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\CatalogSync;
 
-use App\CatalogSync\Application\CatalogSyncService;
-use App\CatalogSync\Domain\CatalogEntry;
-use App\GameSelection\Domain\Game;
+use App\CatalogSync\Application\Service\CatalogSyncService;
+use App\CatalogSync\Domain\ValueObject\CatalogEntry;
+use App\GameSelection\Domain\Entity\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 
 final class CatalogDiffTest extends TestCase
@@ -70,6 +71,7 @@ final class CatalogDiffTest extends TestCase
             new MockHttpClient([]),
             new ArrayAdapter(),
             new NullLogger(),
+            new MockClock(),
             'sheet-id',
             '',
         );

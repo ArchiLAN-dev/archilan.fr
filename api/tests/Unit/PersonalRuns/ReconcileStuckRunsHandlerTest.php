@@ -6,17 +6,18 @@ namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Handler\ReconcileStuckRunsHandler;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class ReconcileStuckRunsHandlerTest extends TestCase
 {
     // Older than the longest stuck threshold (STARTING = 30 min) so every transitional run counts.
-    private const OLD = '-40 minutes';
+    private const string OLD = '-40 minutes';
 
     public function testStuckStoppingWithResolvedSessionGoesIdle(): void
     {
@@ -80,20 +81,20 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
 
     private function handle(Run $run, ?Session $session): void
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByStatuses')->willReturn([$run]);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
-        (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger()))(new ReconcileStuckRunsMessage());
+        (new ReconcileStuckRunsHandler($runs, $sessions, new NullLogger(), new MockClock()))(new ReconcileStuckRunsMessage());
     }
 
     private function makeStuckRun(string $status): Run
     {
         $old = new \DateTimeImmutable(self::OLD);
         $run = Run::create('owner-1', 'Stuck', $old);
-        $run->setSessionId('sess-1');
+        $run->attachSession('sess-1');
 
         $run->start($old); // → starting
         if (Run::STATUS_STARTING === $status) {

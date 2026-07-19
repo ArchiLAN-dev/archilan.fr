@@ -8,8 +8,20 @@ import { LiveStreamHeading } from "@/features/streaming/live-stream-heading";
 import { CommunityStatsWidget } from "@/features/community/community-stats-widget";
 import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+// Keyword skeleton (Archipelago-in-France cluster); final copy is 34.6's scope.
+export const metadata = buildPageMetadata({
+  absoluteTitle: true,
+  title: "ArchiLAN - Événements Archipelago multiworld en France",
+  description:
+    "ArchiLAN organise des événements Archipelago en France : LAN parties coopératives, runs hebdomadaires multiworld randomizer et une communauté gaming francophone.",
+  path: "/",
+});
+
+// ISR: static shell revalidated every 5 min (story 34.4). Realtime widgets on this page
+// (Twitch live badge, community stats) are client components and fetch their own fresh data.
+export const revalidate = 300;
 
 type Feature = { title: string; description: string; href?: string; Icon: LucideIcon };
 
@@ -127,8 +139,8 @@ export default async function Home() {
               </span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              ArchiLAN organise des événements autour d&apos;Archipelago, un mode
-              coopératif qui connecte plusieurs jeux en une seule aventure.
+              ArchiLAN organise des événements Archipelago multiworld en France : un
+              randomizer coopératif qui connecte plusieurs jeux en une seule aventure.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link

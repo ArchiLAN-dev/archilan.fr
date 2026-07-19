@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Application\Handler;
 
+use App\Community\Application\Command\RecomputeAchievements;
 use App\Community\Application\Message\RecomputeAchievementsForUserMessage;
-use App\Community\Application\RecomputeAchievements;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]

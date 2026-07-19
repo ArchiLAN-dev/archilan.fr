@@ -3,10 +3,13 @@
 import { ArrowLeft, ExternalLink, Info, Loader2, Search } from "lucide-react";
 import Link from "next/link";
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { searchIgdbGames } from "./admin-igdb-api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -397,7 +400,7 @@ function SheetLinksSection({ links }: { links: { label: string; url: string | nu
       <ul className="flex flex-wrap gap-3">
         {links.map((link, i) =>
           link.url ? (
-            <li key={i}>
+            <li key={`${link.label}-${i}`}>
               <a
                 className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-sm text-accent-text hover:underline"
                 href={link.url}
@@ -409,7 +412,7 @@ function SheetLinksSection({ links }: { links: { label: string; url: string | nu
               </a>
             </li>
           ) : (
-            <li key={i}>
+            <li key={`${link.label}-${i}`}>
               <span className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-sm text-muted-foreground/50">
                 {link.label}
               </span>
@@ -425,8 +428,6 @@ function SheetLinksSection({ links }: { links: { label: string; url: string | nu
 
 const IGDB_PAGE_SIZE = 6;
 
-type CandidateStatus = "loading" | "done" | "error";
-
 function IgdbCandidatesSection({
   initialQuery,
   selectedIgdbId,
@@ -441,33 +442,21 @@ function IgdbCandidatesSection({
   const [inputValue, setInputValue] = useState(initialQuery);
   const [activeQuery, setActiveQuery] = useState(initialQuery);
   const [page, setPage] = useState(0);
-  const [candidates, setCandidates] = useState<IgdbCandidate[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [status, setStatus] = useState<CandidateStatus>("loading");
 
-  useEffect(() => {
-    let cancelled = false;
-    async function fetch() {
-      setStatus("loading");
-      try {
-        const offset = page * IGDB_PAGE_SIZE;
-        const res = await apiFetch(
-          `${env.apiBaseUrl}/admin/igdb/search?q=${encodeURIComponent(activeQuery)}&offset=${offset}`,
-        );
-        if (cancelled) return;
-        if (!res.ok) { setStatus("error"); return; }
-        const body: unknown = await res.json();
-        if (!isIgdbSearchPayload(body)) { setStatus("error"); return; }
-        setCandidates(body.data);
-        setHasMore(body.meta.hasMore);
-        setStatus("done");
-      } catch {
-        if (!cancelled) setStatus("error");
-      }
-    }
-    void fetch();
-    return () => { cancelled = true; };
-  }, [activeQuery, page]);
+  // searchIgdbGames returns null on any failure (never throws), so `data === null` is the error
+  // state and - like the old effect - there is no retry. keepPreviousData keeps the previous
+  // page/query results on screen while the next one loads.
+  const searchQuery = useQuery({
+    queryKey: ["admin-igdb-search", activeQuery, page * IGDB_PAGE_SIZE],
+    queryFn: ({ signal }) => searchIgdbGames(activeQuery, page * IGDB_PAGE_SIZE, signal),
+    enabled: activeQuery.trim().length > 0,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+  const candidates = searchQuery.data?.results ?? [];
+  const hasMore = searchQuery.data?.hasMore ?? false;
+  const loading = searchQuery.isPending || searchQuery.isFetching;
 
   function triggerSearch() {
     const trimmed = inputValue.trim();
@@ -496,19 +485,19 @@ function IgdbCandidatesSection({
         </div>
         <button
           className="inline-flex min-h-10 items-center gap-1.5 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={status === "loading"}
+          disabled={loading}
           type="button"
           onClick={triggerSearch}
         >
-          {status === "loading" ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
+          {loading ? <Loader2 aria-hidden="true" className="size-4 animate-spin" /> : null}
           Rechercher
         </button>
       </div>
 
       {/* Results */}
-      {status === "loading" ? (
+      {searchQuery.isPending ? (
         <p className="text-sm text-muted-foreground">Recherche en cours…</p>
-      ) : status === "error" ? (
+      ) : searchQuery.data === null ? (
         <p className="text-sm text-danger">Erreur lors de la recherche IGDB.</p>
       ) : candidates.length === 0 ? (
         <p className="text-sm text-muted-foreground">Aucun résultat pour « {activeQuery} ».</p>
@@ -577,13 +566,6 @@ function IgdbCandidatesSection({
       )}
     </FormSection>
   );
-}
-
-function isIgdbSearchPayload(v: unknown): v is { data: IgdbCandidate[]; meta: { hasMore: boolean } } {
-  if (typeof v !== "object" || v === null || !("data" in v) || !("meta" in v)) return false;
-  if (!Array.isArray((v as { data: unknown }).data)) return false;
-  const meta = (v as { meta: unknown }).meta;
-  return typeof meta === "object" && meta !== null && "hasMore" in meta && typeof (meta as { hasMore: unknown }).hasMore === "boolean";
 }
 
 // ── Shared UI primitives ───────────────────────────────────────────────────────

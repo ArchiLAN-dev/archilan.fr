@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Sessions;
 
-use App\Sessions\Application\RecordSessionGeneratedOutput;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Sessions\Application\Command\RecordSessionGeneratedOutput;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class RecordSessionGeneratedOutputTest extends TestCase
@@ -20,7 +20,7 @@ final class RecordSessionGeneratedOutputTest extends TestCase
         $repo->expects(self::once())->method('persist')->with($session);
         $repo->expects(self::once())->method('flush');
 
-        (new RecordSessionGeneratedOutput($repo))->execute('sess-1', 'sess-1/output/archive.zip');
+        new RecordSessionGeneratedOutput($repo)->execute('sess-1', 'sess-1/output/archive.zip');
 
         self::assertSame('sess-1/output/archive.zip', $session->getGeneratedOutputKey());
     }
@@ -32,7 +32,7 @@ final class RecordSessionGeneratedOutputTest extends TestCase
         $repo->expects(self::never())->method('persist');
         $repo->expects(self::never())->method('flush');
 
-        (new RecordSessionGeneratedOutput($repo))->execute('sess-1', '');
+        new RecordSessionGeneratedOutput($repo)->execute('sess-1', '');
     }
 
     public function testNoOpWhenSessionMissing(): void
@@ -42,6 +42,6 @@ final class RecordSessionGeneratedOutputTest extends TestCase
         $repo->expects(self::never())->method('persist');
         $repo->expects(self::never())->method('flush');
 
-        (new RecordSessionGeneratedOutput($repo))->execute('sess-1', 'sess-1/output/archive.zip');
+        new RecordSessionGeneratedOutput($repo)->execute('sess-1', 'sess-1/output/archive.zip');
     }
 }

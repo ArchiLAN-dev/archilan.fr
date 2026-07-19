@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\Community\Application\CommunityUserDirectoryQueryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
-use App\PersonalRuns\Application\PersonalRunDrafts;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Service\PersonalRunDrafts;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class PersonalRunDraftsListMineTest extends TestCase
 {
@@ -19,10 +20,11 @@ final class PersonalRunDraftsListMineTest extends TestCase
     {
         return new PersonalRunDrafts(
             $runs,
-            $this->createStub(RunParticipantRepositoryInterface::class),
-            $this->createStub(UserRepositoryInterface::class),
-            $this->createStub(SessionRepositoryInterface::class),
-            $this->createStub(CommunityUserDirectoryQueryInterface::class),
+            self::createStub(RunParticipantRepositoryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
+            self::createStub(SessionRepositoryInterface::class),
+            self::createStub(CommunityUserDirectoryQueryInterface::class),
+            new MockClock(),
             'https://archilan.test',
         );
     }
@@ -33,7 +35,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
         $ownedRun = Run::create('user-1', 'Ma partie', $now);
         $joinedRun = Run::create('owner-2', 'Partie de Bob', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByOwnerId')->willReturn([$ownedRun]);
         $runs->method('findJoinedByUserId')->willReturn([$joinedRun]);
 
@@ -50,7 +52,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
         $now = new \DateTimeImmutable('2026-06-12T10:00:00+00:00');
         $ownedRun = Run::create('user-1', 'Ma partie', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByOwnerId')->willReturn([$ownedRun]);
         $runs->method('findJoinedByUserId')->willReturn([]);
 
@@ -65,7 +67,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
         $now = new \DateTimeImmutable('2026-06-12T10:00:00+00:00');
         $joinedRun = Run::create('owner-2', 'Partie de Bob', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findByOwnerId')->willReturn([]);
         $runs->method('findJoinedByUserId')->willReturn([$joinedRun]);
 

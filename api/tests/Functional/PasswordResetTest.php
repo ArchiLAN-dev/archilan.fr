@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Communications\Application\PasswordResetMessage;
-use App\Identity\Application\RegisterUser;
+use App\Communications\Application\Message\EmailConfirmationMessage;
+use App\Communications\Application\Message\PasswordResetMessage;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class PasswordResetTest extends FunctionalTestCase
@@ -14,9 +14,7 @@ final class PasswordResetTest extends FunctionalTestCase
     {
         parent::setUp();
 
-        $register = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $register);
-        $register->register('user@example.org', 'correct horse battery staple', true, 'Jean');
+        $this->registerUser('user@example.org');
 
         // Reset transport - setUp dispatched an EmailConfirmationMessage; each test starts clean.
         $this->asyncTransport()->reset();
@@ -139,7 +137,11 @@ final class PasswordResetTest extends FunctionalTestCase
     private function extractRawToken(): string
     {
         $sent = $this->asyncTransport()->getSent();
-        $message = $sent[array_key_last($sent)]->getMessage();
+        $lastKey = array_key_last($sent);
+        if (null === $lastKey) {
+            self::fail('No message was dispatched to the async transport.');
+        }
+        $message = $sent[$lastKey]->getMessage();
         self::assertInstanceOf(PasswordResetMessage::class, $message);
 
         return $message->rawToken;

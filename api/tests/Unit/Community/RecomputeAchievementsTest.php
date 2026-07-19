@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Application\MetricBagBuilder;
-use App\Community\Application\Notifier;
-use App\Community\Application\RecomputeAchievements;
-use App\Community\Application\StatsMetricProvider;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementDefinitionRepositoryInterface;
-use App\Community\Domain\AchievementGrant;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
+use App\Community\Application\Command\RecomputeAchievements;
+use App\Community\Application\Support\MetricBagBuilder;
+use App\Community\Application\Support\Notifier;
+use App\Community\Application\Support\StatsMetricProvider;
 use App\Community\Domain\DefaultAchievementDefinitions;
-use App\Identity\Application\PlayerHistoryQueryInterface;
-use App\Identity\Application\PlayerStatsQueryInterface;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class RecomputeAchievementsTest extends TestCase
 {
@@ -67,17 +68,17 @@ final class RecomputeAchievementsTest extends TestCase
 
     public function testInactiveDefinitionsAreNeverGranted(): void
     {
-        $stats = $this->createStub(PlayerStatsQueryInterface::class);
+        $stats = self::createStub(PlayerStatsQueryInterface::class);
         $stats->method('computeForUser')->willReturn([
             'runs_participated' => 50, 'goal_completions' => 0, 'total_checks_done' => 0, 'total_items_received' => 0,
         ]);
-        $history = $this->createStub(PlayerHistoryQueryInterface::class);
+        $history = self::createStub(PlayerHistoryQueryInterface::class);
         $history->method('fetchForUser')->willReturn([]);
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($stats, $history)]);
         $definitions = $this->definitionsRepo(deactivate: ['veteran']);
         $grants = $this->inMemoryGrantRepo();
-        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier());
+        $service = new RecomputeAchievements($definitions, $grants, $builder, $this->nullNotifier(), new MockClock());
 
         $service->recomputeForUser('u3');
 
@@ -92,14 +93,14 @@ final class RecomputeAchievementsTest extends TestCase
      */
     private function serviceFor(array $stats, array $history, AchievementGrantRepositoryInterface $grants): RecomputeAchievements
     {
-        $statsStub = $this->createStub(PlayerStatsQueryInterface::class);
+        $statsStub = self::createStub(PlayerStatsQueryInterface::class);
         $statsStub->method('computeForUser')->willReturn($stats);
-        $historyStub = $this->createStub(PlayerHistoryQueryInterface::class);
+        $historyStub = self::createStub(PlayerHistoryQueryInterface::class);
         $historyStub->method('fetchForUser')->willReturn($history);
 
         $builder = new MetricBagBuilder([new StatsMetricProvider($statsStub, $historyStub)]);
 
-        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier());
+        return new RecomputeAchievements($this->definitionsRepo(), $grants, $builder, $this->nullNotifier(), new MockClock());
     }
 
     /**
@@ -113,7 +114,7 @@ final class RecomputeAchievementsTest extends TestCase
         foreach (DefaultAchievementDefinitions::all() as $raw) {
             $def = AchievementDefinition::create($raw['key'], $raw['name'], $raw['description'], $raw['rule'], $position, $now);
             if (\in_array($raw['key'], $deactivate, true)) {
-                $def->setActive(false, $now);
+                $def->deactivate($now);
             }
             $defs[] = $def;
             ++$position;
@@ -148,13 +149,7 @@ final class RecomputeAchievementsTest extends TestCase
 
             public function existsByKey(string $key): bool
             {
-                foreach ($this->defs as $d) {
-                    if ($d->getKey() === $key) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return array_any($this->defs, fn ($d) => $d->getKey() === $key);
             }
 
             public function maxPosition(): int

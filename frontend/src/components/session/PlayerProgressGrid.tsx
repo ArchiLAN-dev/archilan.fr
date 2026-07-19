@@ -6,20 +6,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import type { PlayersSlot } from "@/features/overlay/overlay-api";
+import { isPlayersState } from "@/features/overlay/overlay-api";
+import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SlotData = {
-  slot_name: string;
-  checks_done: number;
-  checks_total: number;
-  items_received: number;
-  client_status: number;
-  goal_reached_at: string | null;
-  reachable_now: number | null;
-};
-
-type SlotsMap = Record<string, SlotData>;
+type SlotsMap = Record<string, PlayersSlot>;
 
 type GridState =
   | { kind: "loading" }
@@ -50,11 +43,11 @@ const STATUS_CLASSES: Record<number, string> = {
 // service.go) - a TextOnly spectator, not a real player. Hide it from the grid.
 const BRIDGE_SLOT_NAME = "Bridge";
 
-function sortedEntries(slots: SlotsMap): [string, SlotData][] {
+function sortedEntries(slots: SlotsMap): [string, PlayersSlot][] {
   return Object.entries(slots)
     .filter(([, slot]) => slot.slot_name !== BRIDGE_SLOT_NAME)
     .sort(([, a], [, b]) => {
-    const bucket = (s: SlotData) => (s.client_status === 30 ? 0 : s.client_status === 20 ? 1 : 2);
+    const bucket = (s: PlayersSlot) => (s.client_status === 30 ? 0 : s.client_status === 20 ? 1 : 2);
     const ba = bucket(a);
     const bb = bucket(b);
     if (ba !== bb) return ba - bb;
@@ -111,17 +104,20 @@ export function PlayerProgressGrid({
       };
 
       es.onmessage = (event) => {
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
+        let parsed: unknown;
         try {
-          const data = JSON.parse(event.data as string) as { slots?: SlotsMap };
-          if (data.slots) {
-            setState((prev) =>
-              prev.kind === "active"
-                ? { ...prev, slots: data.slots as SlotsMap, connected: true }
-                : prev,
-            );
-          }
+          parsed = JSON.parse(frame);
         } catch {
-          /* ignore malformed */
+          return; /* malformed frame - ignored */
+        }
+        if (!isPlayersState(parsed)) return; /* unexpected shape - dropped, never cast */
+        const slots = parsed.slots;
+        if (slots) {
+          setState((prev) =>
+            prev.kind === "active" ? { ...prev, slots, connected: true } : prev,
+          );
         }
       };
 
@@ -137,20 +133,14 @@ export function PlayerProgressGrid({
           // have expired (the old code looped forever on a stale token). apiFetch also
           // recovers an expired access token here. Fall back to the old token on failure.
           void (async () => {
-            try {
-              const res = await apiFetch(`${env.apiBaseUrl}/sessions/${runId}/players-token`);
-              if (cancelled) return;
-              if (res.ok) {
-                const json = (await res.json()) as {
-                  data: { token: string; hubUrl: string; topic: string };
-                };
-                connect(json.data.token, json.data.hubUrl, json.data.topic);
-                return;
-              }
-            } catch {
-              /* fall through to retry with the existing token */
+            const payload = await fetchSubscribeToken(`/sessions/${runId}/players-token`);
+            if (cancelled) return;
+            if (payload) {
+              connect(payload.token, payload.hubUrl, payload.topic);
+              return;
             }
-            if (!cancelled) connect(token, hubUrl, topic);
+            // Fall back to the existing token when re-minting fails.
+            connect(token, hubUrl, topic);
           })();
         }, 5_000);
       };
@@ -166,34 +156,24 @@ export function PlayerProgressGrid({
 
       let initialSlots: SlotsMap = {};
       if (stateRes.ok) {
-        const json = (await stateRes.json()) as { data?: { slots?: SlotsMap } };
-        initialSlots = json.data?.slots ?? {};
+        const json: unknown = await stateRes.json();
+        if (typeof json === "object" && json !== null && "data" in json && isPlayersState(json.data)) {
+          initialSlots = json.data.slots ?? {};
+        }
       }
 
       // 2. Fetch subscriber token
-      const tokenRes = await apiFetch(
-        `${env.apiBaseUrl}/sessions/${runId}/players-token`,
-      );
+      const payload = await fetchSubscribeToken(`/sessions/${runId}/players-token`);
 
       if (cancelled) return;
 
-      if (!tokenRes.ok) {
-        setState({ kind: "unavailable" });
-        return;
-      }
-
-      const tokenJson = (await tokenRes.json()) as {
-        data: { token: string; hubUrl: string; topic: string };
-      };
-      const { token, hubUrl, topic } = tokenJson.data;
-
-      if (cancelled || !hubUrl) {
+      if (!payload || !payload.hubUrl) {
         setState({ kind: "unavailable" });
         return;
       }
 
       setState({ kind: "active", slots: initialSlots, connected: false });
-      connect(token, hubUrl, topic);
+      connect(payload.token, payload.hubUrl, payload.topic);
     }
 
     void init().catch(() => {
@@ -309,12 +289,11 @@ export function PlayerProgressGrid({
 
 // ─── SlotCard ────────────────────────────────────────────────────────────────
 
-function SlotCard({ slot, href }: { slot: SlotData; href?: string }) {
+function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
   const isGoal = slot.client_status === 30;
   const isPlaying = slot.client_status === 20;
   const isBK =
     !isGoal &&
-    slot.reachable_now !== null &&
     slot.reachable_now === 0 &&
     slot.checks_done < slot.checks_total;
   const statusLabel = STATUS_LABELS[slot.client_status] ?? String(slot.client_status);

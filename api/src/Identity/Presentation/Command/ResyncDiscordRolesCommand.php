@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Presentation\Command;
 
-use App\Identity\Application\DiscordResyncAllUsersInterface;
+use App\Identity\Application\Port\DiscordResyncAllUsersInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;

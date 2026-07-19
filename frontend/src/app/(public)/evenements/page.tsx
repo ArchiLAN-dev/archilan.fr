@@ -1,12 +1,14 @@
 import { EventCard, EventsEmptyState } from "@/features/events/event-card";
 import { getPublicEvents } from "@/features/events/public-events-api";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Événements",
   description: "Événements Archipelago publics organisés par ArchiLAN.",
-};
+  path: "/evenements",
+});
 
 export default async function EventsPage() {
   const { past, upcoming } = await getPublicEvents();
@@ -18,11 +20,11 @@ export default async function EventsPage() {
           Événements ArchiLAN
         </p>
         <h1 className="font-heading text-4xl font-bold leading-tight md:text-5xl">
-          Rejoins une session Archipelago.
+          Événements et LAN Archipelago en France
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-          Parcours les prochaines sessions ouvertes, les événements réservés aux
-          membres, et les récaps publics des multiworlds passés.
+          Nos LAN et soirées multiworld coopératives : parcours les prochaines sessions
+          ouvertes, les événements réservés aux membres, et les récaps des multiworlds passés.
         </p>
       </section>
 

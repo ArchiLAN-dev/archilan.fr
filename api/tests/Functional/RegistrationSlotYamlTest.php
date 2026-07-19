@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\Registrations\Domain\Entity\Registration;
 
 final class RegistrationSlotYamlTest extends FunctionalTestCase
 {
@@ -137,7 +137,7 @@ final class RegistrationSlotYamlTest extends FunctionalTestCase
 
         $slotId = $reg->getGameSlots()[0]['slotId'];
         $playerYaml = "name: Custom\ngame: Hollow Knight\n";
-        $reg->setSlotPlayerYaml($slotId, $playerYaml, 'test-hash', new \DateTimeImmutable());
+        $reg->submitSlotPlayerYaml($slotId, $playerYaml, 'test-hash', new \DateTimeImmutable());
         $this->entityManager->flush();
 
         $this->loginAs($owner);

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\Run;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\Sessions\Application\Message\ResumeRunJob;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class SessionRestartTest extends FunctionalTestCase

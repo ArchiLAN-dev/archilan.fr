@@ -11,16 +11,16 @@ namespace App\Community\Domain;
  */
 final class AchievementMetricCatalog
 {
-    public const FACT_RUNS = 'runs';
-    public const FACT_GOALS = 'goals';
-    public const FACT_CHECKS = 'checks';
-    public const FACT_ITEMS = 'items';
-    public const FACT_DISTINCT_GAMES = 'distinctGames';
-    public const FACT_EVENTS_WITH_GOAL = 'eventsWithGoal';
+    public const string FACT_RUNS = 'runs';
+    public const string FACT_GOALS = 'goals';
+    public const string FACT_CHECKS = 'checks';
+    public const string FACT_ITEMS = 'items';
+    public const string FACT_DISTINCT_GAMES = 'distinctGames';
+    public const string FACT_EVENTS_WITH_GOAL = 'eventsWithGoal';
 
     // A specific-event fact: `event_goal:{eventId}` = 1 when the player reached a goal in that event.
     // The id part is opaque to the rule engine; the admin layer checks it is a real event (story 30.32).
-    public const EVENT_GOAL_PREFIX = 'event_goal:';
+    public const string EVENT_GOAL_PREFIX = 'event_goal:';
 
     /**
      * @return array<string, string> fact key => human label

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\BackfillGamePlatforms;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
-use App\GameSelection\Infrastructure\IgdbSearchException;
+use App\GameSelection\Application\Command\BackfillGamePlatforms;
+use App\GameSelection\Application\Port\IgdbHttpClientInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Infrastructure\Exception\IgdbSearchException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -25,17 +25,17 @@ final class BackfillGamePlatformsTest extends TestCase
         $games->method('findAllSortedByName')->willReturn([$toResolve, $alreadyResolved, $withoutIgdb]);
         $games->expects(self::once())->method('save')->with($toResolve);
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchPlatforms')->willReturnCallback(
             static fn (int $id): array => 1234 === $id ? [['id' => 19, 'name' => 'Super Nintendo Entertainment System']] : self::fail('unexpected '.$id),
         );
 
-        $service = new BackfillGamePlatforms($games, $igdb, $this->createStub(LoggerInterface::class));
+        $service = new BackfillGamePlatforms($games, $igdb, self::createStub(LoggerInterface::class));
 
         $result = $service->run();
 
-        self::assertSame(1, $result['processed']);
-        self::assertSame(1, $result['updated']);
+        self::assertSame(1, $result->processed);
+        self::assertSame(1, $result->updated);
         self::assertSame([['id' => 19, 'name' => 'Super Nintendo Entertainment System']], $toResolve->getPlatforms());
     }
 
@@ -47,7 +47,7 @@ final class BackfillGamePlatformsTest extends TestCase
         $games->method('findAllSortedByName')->willReturn([$failing]);
         $games->expects(self::never())->method('save');
 
-        $igdb = $this->createStub(IgdbHttpClientInterface::class);
+        $igdb = self::createStub(IgdbHttpClientInterface::class);
         $igdb->method('fetchPlatforms')->willThrowException(new IgdbSearchException('boom'));
 
         $logger = $this->createMock(LoggerInterface::class);
@@ -57,8 +57,8 @@ final class BackfillGamePlatformsTest extends TestCase
 
         $result = $service->run();
 
-        self::assertSame(1, $result['processed']);
-        self::assertSame(0, $result['updated']);
+        self::assertSame(1, $result->processed);
+        self::assertSame(0, $result->updated);
         self::assertNull($failing->getPlatforms());
     }
 
@@ -72,7 +72,7 @@ final class BackfillGamePlatformsTest extends TestCase
 
         if (null !== $igdbId || null !== $platforms) {
             $sync = new GameCatalogSync($game, igdbId: $igdbId, platforms: $platforms);
-            $game->setCatalogSync($sync);
+            $game->attachCatalogSync($sync);
         }
 
         return $game;

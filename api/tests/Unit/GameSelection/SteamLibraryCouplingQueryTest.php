@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\SteamCatalogQueryInterface;
-use App\GameSelection\Application\SteamLibraryCouplingQuery;
-use App\GameSelection\Infrastructure\SteamApiException;
-use App\GameSelection\Infrastructure\SteamWebApiClientInterface;
+use App\GameSelection\Application\Exception\SteamApiException;
+use App\GameSelection\Application\Port\SteamWebApiClientInterface;
+use App\GameSelection\Application\Query\SteamCatalogQueryInterface;
+use App\GameSelection\Application\Query\SteamLibraryCouplingQuery;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 final class SteamLibraryCouplingQueryTest extends TestCase
 {
-    private const STEAM_ID = '76561197960287930';
+    private const string STEAM_ID = '76561197960287930';
 
     public function testOkIntersectsOwnedAppIdsWithCatalog(): void
     {
-        $steam = $this->createStub(SteamWebApiClientInterface::class);
+        $steam = self::createStub(SteamWebApiClientInterface::class);
         $steam->method('fetchOwnedAppIds')->willReturn(['visibility' => 'public', 'appIds' => [10, 20]]);
 
-        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10, 30), $this->createStub(LoggerInterface::class));
+        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10, 30), self::createStub(LoggerInterface::class));
 
         $result = $query->couple(self::STEAM_ID);
 
@@ -34,9 +34,9 @@ final class SteamLibraryCouplingQueryTest extends TestCase
     public function testInvalidInputForUnparseableProfile(): void
     {
         $query = new SteamLibraryCouplingQuery(
-            $this->createStub(SteamWebApiClientInterface::class),
+            self::createStub(SteamWebApiClientInterface::class),
             $this->catalogWith(10),
-            $this->createStub(LoggerInterface::class),
+            self::createStub(LoggerInterface::class),
         );
 
         self::assertSame('invalid_input', $query->couple('not a profile !!')['outcome']);
@@ -44,20 +44,20 @@ final class SteamLibraryCouplingQueryTest extends TestCase
 
     public function testInvalidInputWhenVanityDoesNotResolve(): void
     {
-        $steam = $this->createStub(SteamWebApiClientInterface::class);
+        $steam = self::createStub(SteamWebApiClientInterface::class);
         $steam->method('resolveVanityUrl')->willReturn(null);
 
-        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10), $this->createStub(LoggerInterface::class));
+        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10), self::createStub(LoggerInterface::class));
 
         self::assertSame('invalid_input', $query->couple('ghost')['outcome']);
     }
 
     public function testPrivateProfileYieldsNoMatches(): void
     {
-        $steam = $this->createStub(SteamWebApiClientInterface::class);
+        $steam = self::createStub(SteamWebApiClientInterface::class);
         $steam->method('fetchOwnedAppIds')->willReturn(['visibility' => 'private', 'appIds' => []]);
 
-        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10), $this->createStub(LoggerInterface::class));
+        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10), self::createStub(LoggerInterface::class));
 
         $result = $query->couple(self::STEAM_ID);
 
@@ -67,10 +67,10 @@ final class SteamLibraryCouplingQueryTest extends TestCase
 
     public function testSteamErrorWhenClientThrows(): void
     {
-        $steam = $this->createStub(SteamWebApiClientInterface::class);
+        $steam = self::createStub(SteamWebApiClientInterface::class);
         $steam->method('fetchOwnedAppIds')->willThrowException(new SteamApiException('boom'));
 
-        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10), $this->createStub(LoggerInterface::class));
+        $query = new SteamLibraryCouplingQuery($steam, $this->catalogWith(10), self::createStub(LoggerInterface::class));
 
         self::assertSame('steam_error', $query->couple(self::STEAM_ID)['outcome']);
     }
@@ -89,7 +89,7 @@ final class SteamLibraryCouplingQueryTest extends TestCase
             $steamAppIds,
         );
 
-        $catalog = $this->createStub(SteamCatalogQueryInterface::class);
+        $catalog = self::createStub(SteamCatalogQueryInterface::class);
         $catalog->method('allWithSteamAppId')->willReturn(array_values($games));
 
         return $catalog;

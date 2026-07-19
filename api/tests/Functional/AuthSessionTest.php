@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Application\AuthSessionSigner;
-use App\Identity\Application\RegisterUser;
-use App\Identity\Presentation\AuthController;
+use App\Identity\Application\Support\AuthSessionSigner;
+use App\Identity\Presentation\Controller\AuthController;
 
 final class AuthSessionTest extends FunctionalTestCase
 {
@@ -209,10 +208,7 @@ final class AuthSessionTest extends FunctionalTestCase
 
     private function createStandardUser(): void
     {
-        $registerUser = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $registerUser);
-        $result = $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean');
-        self::assertSame([], $result['errors']);
+        $this->registerUser('jean@example.org');
     }
 
     private function login(): void

@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Community\Domain\ValueObject;
+
+/**
+ * Who may see a profile's customization / social surface. The core profile (identity + aggregate stats)
+ * is always public; this gates the rest (epic 30 §G).
+ */
+final readonly class Audience
+{
+    public const string PUBLIC = 'public';
+    public const string MEMBERS = 'members';
+    public const string FRIENDS = 'friends';
+
+    public const array ALL = [self::PUBLIC, self::MEMBERS, self::FRIENDS];
+
+    public static function isValid(string $value): bool
+    {
+        return in_array($value, self::ALL, true);
+    }
+}

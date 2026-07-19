@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Identity\Application\Handler;
+
+use App\Identity\Application\Message\CleanupRefreshTokensMessage;
+use App\Identity\Domain\Repository\RefreshTokenRepositoryInterface;
+use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+#[AsMessageHandler]
+final readonly class CleanupRefreshTokensHandler
+{
+    public function __construct(
+        private RefreshTokenRepositoryInterface $repository,
+        private LoggerInterface $logger,
+        private ClockInterface $clock,
+    ) {
+    }
+
+    public function __invoke(CleanupRefreshTokensMessage $message): void
+    {
+        $deleted = $this->repository->deleteStale($this->clock->now());
+
+        $this->logger->info('auth.cleanup_refresh_tokens', ['deleted' => $deleted]);
+    }
+}

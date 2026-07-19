@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Membership\Application\Handler;
 
-use App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface;
+use App\Membership\Application\Port\ProcessHelloAssoMembershipPaymentInterface;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

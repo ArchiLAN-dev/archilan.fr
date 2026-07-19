@@ -17,9 +17,17 @@
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 
+    <!-- unit = fast, DB-free; functional = WebTestCase + DB. Introduced by 33.12 (for Infection,
+         retired in 33.24) but kept on its own merit: the "unit" testsuite gives a quick DB-free
+         run, and the split is independent of any tool. No testsuite arg runs both = the whole
+         suite, exactly as before (no overlap). -->
     <testsuites>
-        <testsuite name="Project Test Suite">
-            <directory>tests</directory>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>tests/Functional</directory>
+            <file>tests/KernelTest.php</file>
         </testsuite>
     </testsuites>
 

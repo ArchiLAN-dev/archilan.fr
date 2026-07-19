@@ -3,25 +3,15 @@
 import type { FormEvent } from "react";
 import { useEffect, useId, useState } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchAdminPost, type AdminPostDetail as AdminPost } from "./admin-posts-api";
 import { RichTextEditor } from "./rich-text-editor";
 
 type PostType = "news" | "recap" | "announcement";
-
-type AdminPost = {
-  id: string;
-  slug: string;
-  title: string;
-  type: PostType;
-  status: "draft" | "published";
-  excerpt: string;
-  body: string[];
-  readingTime: string;
-  coverImageUrl: string | null;
-  coverImageKey: string | null;
-};
 
 type FieldErrors = Partial<Record<
   "slug" | "title" | "type" | "excerpt" | "body" | "readingTime",
@@ -56,7 +46,7 @@ const EMPTY_FORM: FormValues = {
 
 export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postId?: string }) {
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
-  const [loading, setLoading] = useState(mode === "edit");
+  const [hydratedPostId, setHydratedPostId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [genericError, setGenericError] = useState<string | null>(null);
@@ -66,52 +56,46 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
   const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
   const [uploadedCoverUrl, setUploadedCoverUrl] = useState<string | null>(null);
 
+  // Edit-mode only: fetchAdminPost never throws (failures are encoded in the result kind), so
+  // the query never errors and - like the old effect - never retries.
+  const postQuery = useQuery({
+    queryKey: ["admin-post", postId],
+    queryFn: () => fetchAdminPost(postId!),
+    enabled: mode === "edit" && Boolean(postId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const postResult = postQuery.data;
+
+  // One-shot seed of the form from the fetched post, keyed on the post identity so background
+  // refetches never clobber in-progress edits. An unexpected 2xx payload (post: null) leaves the
+  // form empty without an error, exactly like the old effect.
   useEffect(() => {
-    if (mode !== "edit" || !postId) return;
-
-    const controller = new AbortController();
-
-    async function fetchPost() {
-      try {
-        const response = await apiFetch(`${env.apiBaseUrl}/admin/posts/${postId}`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          setGenericError("Article introuvable ou accès refusé.");
-          return;
-        }
-
-        const payload: unknown = await response.json();
-        const post = isPostPayload(payload) ? payload.data : null;
-
-        if (post) {
-          setValues({
-            slug: post.slug,
-            title: post.title,
-            type: post.type,
-            excerpt: post.excerpt,
-            body: bodyToEditorHtml(post.body),
-            readingTime: post.readingTime,
-            coverImageUrl: post.coverImageKey ? "" : (post.coverImageUrl ?? ""),
-          });
-          if (post.coverImageKey) {
-            setCoverMode("upload");
-            setUploadedCoverUrl(post.coverImageUrl ?? null);
-          }
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setGenericError("Impossible de charger l'article.");
-      } finally {
-        setLoading(false);
+    if (mode !== "edit" || !postId || postResult === undefined || hydratedPostId === postId) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- sanctioned one-shot seed-into-form hydration (guarded by hydratedPostId); the edited draft is local UI state (AC-ST2), not query state */
+    if (postResult.kind === "error") {
+      setGenericError(postResult.message);
+    } else if (postResult.post !== null) {
+      const post = postResult.post;
+      setValues({
+        slug: post.slug,
+        title: post.title,
+        type: post.type,
+        excerpt: post.excerpt,
+        body: bodyToEditorHtml(post.body),
+        readingTime: post.readingTime,
+        coverImageUrl: post.coverImageKey ? "" : (post.coverImageUrl ?? ""),
+      });
+      if (post.coverImageKey) {
+        setCoverMode("upload");
+        setUploadedCoverUrl(post.coverImageUrl ?? null);
       }
     }
+    setHydratedPostId(postId);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [mode, postId, postResult, hydratedPostId]);
 
-    void fetchPost();
-
-    return () => controller.abort();
-  }, [mode, postId]);
+  const loading = mode === "edit" && hydratedPostId !== postId;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -452,12 +436,6 @@ function bodyToEditorHtml(body: string[]): string {
   if (body[0].trimStart().startsWith("<")) return body[0];
   // Otherwise convert plain-text paragraphs to HTML.
   return body.map((p) => `<p>${p}</p>`).join("");
-}
-
-function isPostPayload(payload: unknown): payload is { data: AdminPost } {
-  if (!payload || typeof payload !== "object" || !("data" in payload)) return false;
-  const data = (payload as { data: unknown }).data;
-  return Boolean(data && typeof data === "object" && "id" in data && "slug" in data);
 }
 
 function extractFieldErrors(payload: unknown): FieldErrors {

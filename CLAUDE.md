@@ -15,20 +15,38 @@ Both files are loaded automatically by the agent runtime. Do not skip them.
 
 ## Quality gates - must all pass before any task is marked complete
 
-```
-# API
-vendor/bin/phpstan analyse src tests    → 0 errors
-vendor/bin/php-cs-fixer check src       → 0 violations
-php bin/phpunit                         → all tests green, 0 notices/deprecations/warnings
-php bin/console app:architecture:ddd    → exit 0
+One command per side, identical to CI (CI invokes the same underlying scripts):
 
-# Frontend
+```
+# API (from api/)
+composer gates
+
+# Frontend (from frontend/)
+pnpm gates
+```
+
+What each runs (for reference):
+
+```
+# composer gates
+vendor/bin/phpstan analyse src tests    → 0 errors (level max + strict-rules)
+vendor/bin/php-cs-fixer check           → 0 violations (full dist config: src + tests)
+php bin/console app:architecture:ddd    → exit 0
+vendor/bin/rector process --dry-run     → exit 0 (hard gate since A5; advisory from 33.13)
+php bin/phpunit                         → all tests green, 0 notices/deprecations/warnings
+
+# pnpm gates
 pnpm typecheck    → 0 errors
 pnpm lint         → 0 errors / 0 warnings
+pnpm test         → jest green
 pnpm build        → clean build
 ```
 
 Failing any gate is a **blocker**. Do not mark tasks complete, do not move to the next story.
+
+To run the api suite on an isolated Postgres database (avoids the shared-DB schema race
+when anything else touches `archilan_test`): `api/scripts/test-isolated.sh` - see
+"Sessions parallèles" below.
 
 ---
 
@@ -112,9 +130,18 @@ Plusieurs agents/sessions peuvent travailler en parallèle sur ce poste. Par dé
 
 Le script crée `../archilan-<name>` (working tree + branche isolés) et une base de test Postgres dédiée (`archilan_test_<name>`) via le hook `TEST_TOKEN` de Doctrine. Postgres, Docker, MinIO et les serveurs dev restent **partagés**.
 
+**Pourquoi c'est obligatoire (pas juste conseillé) :** `FunctionalTestCase::setUp` reconstruit
+tout le schéma (`DROP SCHEMA public CASCADE`) à chaque test. Deux processus phpunit qui
+partagent `archilan_test` se détruisent mutuellement le schéma en plein run - c'est la cause
+racine des mass-failures locales `relation "..." does not exist`. L'isolation se fait par
+**nom de base**, pas par le code.
+
 - Avant tout `git checkout` dans un tree partagé : **commit ou stash *nommé* d'abord**.
 - Fin de session : `git worktree remove ../archilan-<name>`.
 - Options du script (`--base`, `--no-frontend`, `--help`) : voir son en-tête.
+- Run isolé ponctuel **sans worktree** (single tree) : `api/scripts/test-isolated.sh [name]` -
+  exporte `TEST_TOKEN` pour le process seulement (n'écrit pas `.env.test.local`) et lance la
+  suite complète sur `archilan_test_<name>`.
 
 ---
 

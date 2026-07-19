@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\Events\Domain\Entity\Event;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminEventGalleryTest extends FunctionalTestCase
@@ -56,7 +56,7 @@ final class AdminEventGalleryTest extends FunctionalTestCase
         $item = $event->getPhotoGallery()[0];
         self::assertSame('upload', $item['source']);
         self::assertStringStartsWith(sprintf('events/%s/gallery/', $eventId), $item['key'] ?? '');
-        self::assertTrue($this->minioStorage->exists('media', $item['key'] ?? ''));
+        self::assertTrue($this->minioStorage->exists('media-public', $item['key'] ?? ''));
     }
 
     public function testUploadInvalidMimeReturns422(): void
@@ -287,6 +287,7 @@ final class AdminEventGalleryTest extends FunctionalTestCase
     /**
      * @return array<string, mixed>
      */
+    #[\Override]
     protected function decodedJsonResponse(): array
     {
         $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);

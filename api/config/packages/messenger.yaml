@@ -31,12 +31,12 @@ framework:
         failure_transport: async_failed
 
         routing:
-            'App\Communications\Application\RegistrationConfirmationMessage': async
-            'App\Communications\Application\PasswordResetMessage': async
-            'App\Communications\Application\EmailConfirmationMessage': async
-            'App\Communications\Application\SessionRunningMessage': async
-            'App\Events\Application\EventCapacityReachedMessage': async
-            'App\Payments\Application\SyncHelloAssoFormMessage': async
+            'App\Communications\Application\Message\RegistrationConfirmationMessage': async
+            'App\Communications\Application\Message\PasswordResetMessage': async
+            'App\Communications\Application\Message\EmailConfirmationMessage': async
+            'App\Communications\Application\Message\SessionRunningMessage': async
+            'App\Events\Application\Message\EventCapacityReachedMessage': async
+            'App\Payments\Application\Message\SyncHelloAssoFormMessage': async
             'App\Sessions\Application\Message\FetchLogsJob': run_server
             'App\Sessions\Application\Message\ArchiveRunJob': run_server
             'App\PersonalRuns\Application\Message\LaunchPersonalRunJob': run_server
@@ -56,8 +56,9 @@ framework:
             'App\Membership\Application\Message\SyncMemberToDolibarrMessage': async
             'App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask': async
             'App\Sessions\Application\Message\ResumeRunJob': run_server
-            'App\Communications\Application\SessionPausedWithoutSaveMessage': async
-            'App\Communications\Application\SessionRestartFailedMessage': async
+            'App\Communications\Application\Message\SessionPausedWithoutSaveMessage': async
+            'App\Communications\Application\Message\SessionRestartFailedMessage': async
+            'App\Sessions\Application\Message\BuildSessionRecapJob': async
 
 when@test:
     framework:

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameCatalogSync;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Entity\GameCatalogSync;
 
 final class AdminGameLibraryTest extends FunctionalTestCase
 {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Domain\Entity\Registration;
 
 final class AdminRegistrationExportTest extends FunctionalTestCase
 {
@@ -97,7 +97,7 @@ final class AdminRegistrationExportTest extends FunctionalTestCase
         $event = $this->makeEvent('Spring Sync 2027', gameSelectionConfig: [['gameId' => $game->getId()]]);
         $registration = $this->makeRegistration($event->getId(), $participant->getId(), Registration::STATUS_RESERVED, [$game->getId()]);
         $slotId = $registration->getGameSlots()[0]['slotId'];
-        $registration->setSlotPlayerYaml($slotId, "name: Alice\ngame: Zelda OoT", 'abc123', new \DateTimeImmutable('2026-05-01T10:00:00+00:00'));
+        $registration->submitSlotPlayerYaml($slotId, "name: Alice\ngame: Zelda OoT", 'abc123', new \DateTimeImmutable('2026-05-01T10:00:00+00:00'));
         $this->entityManager->flush();
         $this->loginAs($admin);
 
@@ -143,8 +143,8 @@ final class AdminRegistrationExportTest extends FunctionalTestCase
         $event = $this->makeEvent('Spring Sync 2027', gameSelectionConfig: [['gameId' => $game->getId()]]);
         $registration = $this->makeRegistration($event->getId(), $participant->getId(), Registration::STATUS_RESERVED, [$game->getId(), $game->getId()]);
         $slots = $registration->getGameSlots();
-        $registration->setSlotPlayerYaml($slots[0]['slotId'], 'name: Alice1', 'hash1', new \DateTimeImmutable('2026-05-01T10:00:00+00:00'));
-        $registration->setSlotPlayerYaml($slots[1]['slotId'], 'name: Alice2', 'hash2', new \DateTimeImmutable('2026-05-01T10:00:00+00:00'));
+        $registration->submitSlotPlayerYaml($slots[0]['slotId'], 'name: Alice1', 'hash1', new \DateTimeImmutable('2026-05-01T10:00:00+00:00'));
+        $registration->submitSlotPlayerYaml($slots[1]['slotId'], 'name: Alice2', 'hash2', new \DateTimeImmutable('2026-05-01T10:00:00+00:00'));
         $this->entityManager->flush();
         $this->loginAs($admin);
 

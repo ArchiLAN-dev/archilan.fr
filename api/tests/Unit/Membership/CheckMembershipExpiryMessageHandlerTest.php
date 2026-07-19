@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Membership;
 
 use App\Membership\Application\Handler\CheckMembershipExpiryMessageHandler;
-use App\Membership\Application\MembershipExpiryCheckQueryInterface;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Membership\Application\Message\ExpireMembershipMessage;
 use App\Membership\Application\Message\MembershipReminderMessage;
-use App\Membership\Domain\Membership;
-use App\Membership\Domain\MembershipRepositoryInterface;
+use App\Membership\Application\Query\MembershipExpiryCheckQueryInterface;
+use App\Membership\Domain\Entity\Membership;
+use App\Membership\Domain\Repository\MembershipRepositoryInterface;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
@@ -23,14 +24,15 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
         $bus->expects(self::exactly(2))->method('dispatch')->willReturn(new Envelope(new \stdClass()))
             ->with(self::callback(static fn (object $msg): bool => $msg instanceof ExpireMembershipMessage));
 
-        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck = self::createStub(MembershipExpiryCheckQueryInterface::class);
         $expiryCheck->method('findExpiredActiveIds')->willReturn(['id-1', 'id-2']);
         $expiryCheck->method('findPendingReminderIds')->willReturn([]);
 
         $handler = new CheckMembershipExpiryMessageHandler(
             $expiryCheck,
-            $this->createStub(MembershipRepositoryInterface::class),
+            self::createStub(MembershipRepositoryInterface::class),
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());
@@ -50,12 +52,10 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
 
         $callOrder = [];
 
-        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck = self::createStub(MembershipExpiryCheckQueryInterface::class);
         $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
         $expiryCheck->method('findPendingReminderIds')
-            ->willReturnCallback(static function (\DateTimeImmutable $now, int $daysLeft): array {
-                return 30 === $daysLeft ? ['id-30'] : [];
-            });
+            ->willReturnCallback(static fn (\DateTimeImmutable $now, int $daysLeft): array => 30 === $daysLeft ? ['id-30'] : []);
 
         $memberships = $this->createMock(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
@@ -76,6 +76,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $memberships,
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());
@@ -97,12 +98,10 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
 
         $callOrder = [];
 
-        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck = self::createStub(MembershipExpiryCheckQueryInterface::class);
         $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
         $expiryCheck->method('findPendingReminderIds')
-            ->willReturnCallback(static function (\DateTimeImmutable $now, int $daysLeft): array {
-                return 7 === $daysLeft ? ['id-7'] : [];
-            });
+            ->willReturnCallback(static fn (\DateTimeImmutable $now, int $daysLeft): array => 7 === $daysLeft ? ['id-7'] : []);
 
         $memberships = $this->createMock(MembershipRepositoryInterface::class);
         $memberships->method('findById')->willReturn($membership);
@@ -123,6 +122,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $memberships,
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());
@@ -135,7 +135,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
         $bus = $this->createMock(MessageBusInterface::class);
         $bus->expects(self::never())->method('dispatch');
 
-        $expiryCheck = $this->createStub(MembershipExpiryCheckQueryInterface::class);
+        $expiryCheck = self::createStub(MembershipExpiryCheckQueryInterface::class);
         $expiryCheck->method('findExpiredActiveIds')->willReturn([]);
         $expiryCheck->method('findPendingReminderIds')->willReturn([]);
 
@@ -146,6 +146,7 @@ final class CheckMembershipExpiryMessageHandlerTest extends TestCase
             $expiryCheck,
             $memberships,
             $bus,
+            new MockClock(),
         );
 
         $handler(new CheckMembershipExpiryMessage());

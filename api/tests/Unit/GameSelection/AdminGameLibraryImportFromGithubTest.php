@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
-use App\GameSelection\Application\AdminGameLibrary;
-use App\GameSelection\Application\AdminGameListQueryInterface;
-use App\GameSelection\Application\GameCatalogLinksProviderInterface;
-use App\GameSelection\Application\GamePlatformResolver;
-use App\GameSelection\Application\GameTutorialSeeder;
-use App\GameSelection\Application\GameUsageCounterInterface;
-use App\GameSelection\Application\InstallStepsNormalizer;
-use App\GameSelection\Application\InstallStepsReader;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\GameSelection\Infrastructure\IgdbHttpClientInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
-use App\Shared\Infrastructure\MinioStorageInterface;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
+use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
+use App\GameSelection\Application\Port\GameUsageCounterInterface;
+use App\GameSelection\Application\Port\IgdbHttpClientInterface;
+use App\GameSelection\Application\Query\AdminGameListQueryInterface;
+use App\GameSelection\Application\Service\AdminGameLibrary;
+use App\GameSelection\Application\Support\GamePlatformResolver;
+use App\GameSelection\Application\Support\GameTutorialSeeder;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
+use App\GameSelection\Application\Support\InstallStepsReader;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -93,10 +94,10 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
 
     private function makeLibrary(Game $game): AdminGameLibrary
     {
-        $repository = $this->createStub(GameRepositoryInterface::class);
+        $repository = self::createStub(GameRepositoryInterface::class);
         $repository->method('findById')->willReturn($game);
 
-        $runner = $this->createStub(RunnerGatewayInterface::class);
+        $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('uploadApworld')->willReturn([
             'storageKey' => 'storage-key',
             'hash' => 'deadbeef',
@@ -105,10 +106,10 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
             'optionTypes' => [],
         ]);
 
-        $minio = $this->createStub(MinioStorageInterface::class);
+        $minio = self::createStub(MinioStorageInterface::class);
         $minio->method('exists')->willReturn(false);
 
-        $usage = $this->createStub(GameUsageCounterInterface::class);
+        $usage = self::createStub(GameUsageCounterInterface::class);
         $usage->method('count')->willReturn(0);
 
         $checker = new ApworldVersionChecker(
@@ -121,16 +122,17 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
 
         return new AdminGameLibrary(
             $repository,
-            $this->createStub(AdminGameListQueryInterface::class),
+            self::createStub(AdminGameListQueryInterface::class),
             new NullLogger(),
             $runner,
             $minio,
+            new MockClock(),
             'apworlds',
             $checker,
             $usage,
-            new GamePlatformResolver($this->createStub(IgdbHttpClientInterface::class), new NullLogger()),
+            new GamePlatformResolver(self::createStub(IgdbHttpClientInterface::class), new NullLogger()),
             $normalizer,
-            new GameTutorialSeeder($this->createStub(GameCatalogLinksProviderInterface::class), $normalizer),
+            new GameTutorialSeeder(self::createStub(GameCatalogLinksProviderInterface::class), $normalizer),
             new InstallStepsReader($minio, 'media', 3600),
         );
     }

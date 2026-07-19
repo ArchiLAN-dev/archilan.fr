@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\CatalogSync;
 
-use App\CatalogSync\Application\ApworldVersionChecker;
-use App\CatalogSync\Application\ApworldVersionInfo;
-use App\CatalogSync\Application\GithubRateLimitException;
-use App\GameSelection\Domain\Game;
+use App\CatalogSync\Application\Exception\GithubRateLimitException;
+use App\CatalogSync\Application\Service\ApworldVersionChecker;
+use App\CatalogSync\Application\Support\ApworldVersionInfo;
+use App\GameSelection\Domain\Entity\Game;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
@@ -171,6 +171,61 @@ final class ApworldVersionCheckerTest extends TestCase
         self::assertNotNull($assets);
         self::assertCount(1, $assets);
         self::assertNull($assets[0]['tag']);
+    }
+
+    public function testMapApworldAssetHashesByTagCoversEveryRelease(): void
+    {
+        $game = $this->makeGame('https://github.com/nicholasb/hollow-knight');
+
+        $newBytes = 'HK-APWORLD-BYTES-v2';
+        $oldBytes = 'HK-APWORLD-BYTES-v1';
+
+        $releasesPage = new MockResponse(
+            (string) json_encode([
+                [
+                    'tag_name' => 'v2.0.0',
+                    'name' => 'Release 2',
+                    'draft' => false,
+                    'assets' => [
+                        ['name' => 'hollow-knight.apworld', 'browser_download_url' => 'https://example.com/hk-2.apworld'],
+                        ['name' => 'source.tar.gz', 'browser_download_url' => 'https://example.com/src.tar.gz'],
+                    ],
+                ],
+                [
+                    'tag_name' => '1.0.0',
+                    'name' => 'Release 1',
+                    'draft' => false,
+                    'assets' => [
+                        ['name' => 'hollow-knight.apworld', 'browser_download_url' => 'https://example.com/hk-1.apworld'],
+                    ],
+                ],
+            ]),
+            ['response_headers' => ['x-ratelimit-remaining' => ['50']]],
+        );
+
+        $mock = new MockHttpClient([
+            $releasesPage,
+            new MockResponse($newBytes),
+            new MockResponse($oldBytes),
+        ]);
+
+        $checker = new ApworldVersionChecker($mock, new NullLogger(), 'ghp_test_token');
+        $map = $checker->mapApworldAssetHashesByTag($game);
+
+        // The OLD release is mapped too: the scan does not stop at the latest, which is the
+        // whole point of matching a possibly-outdated deployed apworld by content.
+        self::assertCount(2, $map);
+        self::assertSame('2.0.0', $map[hash('sha256', $newBytes)]);
+        self::assertSame('1.0.0', $map[hash('sha256', $oldBytes)]);
+    }
+
+    public function testMapApworldAssetHashesByTagIsEmptyForDirectUrl(): void
+    {
+        $game = $this->makeGame('https://example.com/worlds/foo.apworld');
+
+        $checker = new ApworldVersionChecker(new MockHttpClient(), new NullLogger(), 'ghp_test_token');
+
+        self::assertSame([], $checker->mapApworldAssetHashesByTag($game));
     }
 }
 

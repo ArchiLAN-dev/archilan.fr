@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 
 final class CommunityPresenceTest extends FunctionalTestCase
 {

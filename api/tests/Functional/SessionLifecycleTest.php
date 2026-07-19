@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Communications\Application\SessionRunningMessage;
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
-use App\PersonalRuns\Domain\Run;
-use App\Realtime\Infrastructure\SpyHub;
-use App\Sessions\Domain\Session;
+use App\Communications\Application\Message\SessionRunningMessage;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Realtime\Infrastructure\Double\SpyHub;
+use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class SessionLifecycleTest extends FunctionalTestCase
@@ -430,7 +430,7 @@ final class SessionLifecycleTest extends FunctionalTestCase
         $registration->replaceSlots([
             ['slotId' => 'slot-1', 'gameId' => $game->getId()],
         ], new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
-        $registration->setSlotPlayerYaml('slot-1', "name: PlayerName\ngame: Hollow Knight\n", 'test-hash', new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
+        $registration->submitSlotPlayerYaml('slot-1', "name: PlayerName\ngame: Hollow Knight\n", 'test-hash', new \DateTimeImmutable('2026-05-02T10:00:00+00:00'));
         $this->entityManager->flush();
 
         $this->client->jsonRequest('GET', '/api/v1/admin/events/evt-001/sessions/builder');

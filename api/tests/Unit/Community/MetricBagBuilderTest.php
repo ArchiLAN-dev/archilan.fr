@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Application\AchievementMetricProviderInterface;
-use App\Community\Application\MetricBagBuilder;
+use App\Community\Application\Port\AchievementMetricProviderInterface;
+use App\Community\Application\Support\MetricBagBuilder;
 use PHPUnit\Framework\TestCase;
 
 final class MetricBagBuilderTest extends TestCase
@@ -27,7 +27,7 @@ final class MetricBagBuilderTest extends TestCase
 
     public function testNoProvidersYieldsEmptyBag(): void
     {
-        $bag = (new MetricBagBuilder([]))->build('u1');
+        $bag = new MetricBagBuilder([])->build('u1');
 
         self::assertSame(0, $bag->get('runs'));
     }
@@ -37,7 +37,7 @@ final class MetricBagBuilderTest extends TestCase
      */
     private function provider(array $facts): AchievementMetricProviderInterface
     {
-        return new class($facts) implements AchievementMetricProviderInterface {
+        return new readonly class($facts) implements AchievementMetricProviderInterface {
             /** @param array<string, int> $facts */
             public function __construct(private array $facts)
             {

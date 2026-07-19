@@ -1,19 +1,17 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 
 import { GamesCatalog } from "@/features/games/games-catalog";
 import { getAllPublicGames } from "@/features/games/public-games-api";
 import { GameRequestSection } from "@/features/games/game-request-section";
 import { GameContributionForm } from "@/features/games/game-contribution-form";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Jeux",
   description: "Bibliothèque de jeux Archipelago supportés par ArchiLAN.",
-  openGraph: {
-    title: "Jeux",
-  },
-};
+  path: "/jeux",
+});
 
 export default async function GamesPage() {
   const games = await getAllPublicGames();
@@ -25,11 +23,11 @@ export default async function GamesPage() {
           Bibliothèque ArchiLAN
         </p>
         <h1 className="font-heading text-4xl font-bold leading-tight md:text-5xl">
-          Les jeux de la communauté.
+          Jeux compatibles Archipelago
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-          Tous les jeux supportés dans nos événements Archipelago. Chacun a été intégré et testé par
-          l&apos;équipe ArchiLAN.
+          Le catalogue des jeux multiworld supportés dans nos événements et runs randomizer. Chacun a
+          été intégré et testé par l&apos;équipe ArchiLAN.
         </p>
       </section>
 

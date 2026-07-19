@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\GameCatalogLinksProviderInterface;
-use App\GameSelection\Application\GameTutorialSeeder;
-use App\GameSelection\Application\InstallStepsNormalizer;
-use App\GameSelection\Application\SeedGameTutorials;
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
+use App\GameSelection\Application\Command\SeedGameTutorials;
+use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
+use App\GameSelection\Application\Support\GameTutorialSeeder;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -19,7 +19,7 @@ final class SeedGameTutorialsTest extends TestCase
     {
         $fresh = $this->makeGame('fresh');
         $authored = $this->makeGame('authored');
-        $authored->setInstallSteps([['type' => 'note', 'title' => 'kept', 'description' => '', 'links' => []]]);
+        $authored->updateInstallSteps([['type' => 'note', 'title' => 'kept', 'description' => '', 'links' => []]]);
 
         $repo = $this->createMock(GameRepositoryInterface::class);
         $repo->method('findAllSortedByName')->willReturn([$fresh, $authored]);
@@ -27,7 +27,8 @@ final class SeedGameTutorialsTest extends TestCase
 
         $result = $this->service($repo)->run(false);
 
-        self::assertSame(['processed' => 1, 'seeded' => 1], $result);
+        self::assertSame(1, $result->processed);
+        self::assertSame(1, $result->seeded);
         self::assertNotSame([], $fresh->getInstallSteps());
         self::assertSame('kept', $authored->getInstallSteps()[0]['title']);
     }
@@ -36,7 +37,7 @@ final class SeedGameTutorialsTest extends TestCase
     {
         $a = $this->makeGame('a');
         $b = $this->makeGame('b');
-        $b->setInstallSteps([['type' => 'note', 'title' => 'old', 'description' => '', 'links' => []]]);
+        $b->updateInstallSteps([['type' => 'note', 'title' => 'old', 'description' => '', 'links' => []]]);
 
         $repo = $this->createMock(GameRepositoryInterface::class);
         $repo->method('findAllSortedByName')->willReturn([$a, $b]);
@@ -44,12 +45,13 @@ final class SeedGameTutorialsTest extends TestCase
 
         $result = $this->service($repo)->run(true);
 
-        self::assertSame(['processed' => 2, 'seeded' => 2], $result);
+        self::assertSame(2, $result->processed);
+        self::assertSame(2, $result->seeded);
     }
 
     private function service(GameRepositoryInterface $repo): SeedGameTutorials
     {
-        $provider = $this->createStub(GameCatalogLinksProviderInterface::class);
+        $provider = self::createStub(GameCatalogLinksProviderInterface::class);
         $provider->method('linksFor')->willReturn([]);
         $seeder = new GameTutorialSeeder($provider, new InstallStepsNormalizer());
 

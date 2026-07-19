@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Membership\Application\ExpireMembershipInterface;
 use App\Membership\Application\Handler\ExpireMembershipMessageHandler;
 use App\Membership\Application\Message\ExpireMembershipMessage;
+use App\Membership\Application\Port\ExpireMembershipInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ExpireMembershipMessageHandlerTest extends TestCase

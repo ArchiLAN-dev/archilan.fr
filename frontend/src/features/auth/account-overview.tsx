@@ -2,12 +2,12 @@
 
 import { type LucideIcon, Activity, CalendarCheck, ChevronRight, Star, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchFriends } from "@/features/community/community-friends-api";
 import { getAccountMembership, type AccountMembership } from "@/features/payments/membership-api";
+import { fetchAccountRegistrations } from "./auth-api";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -23,31 +23,31 @@ function membershipLine(m: AccountMembership | null): string {
 }
 
 export function AccountOverview() {
-  const [membership, setMembership] = useState<AccountMembership | null>(null);
-  const [registrations, setRegistrations] = useState<number | null>(null);
-  const [pendingFriends, setPendingFriends] = useState<number | null>(null);
-  const [friends, setFriends] = useState<number | null>(null);
+  // Best-effort counters: every fetcher resolves to null on error (never throws), so retry stays off
+  // and a failed card simply keeps its "…" placeholder like before.
+  const { data: membershipData } = useQuery({
+    queryKey: ["account-membership"],
+    queryFn: getAccountMembership,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const { data: friendsData } = useQuery({
+    queryKey: ["community-friends"],
+    queryFn: fetchFriends,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const { data: registrationsData } = useQuery({
+    queryKey: ["account-registrations"],
+    queryFn: fetchAccountRegistrations,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const [m, f] = await Promise.all([getAccountMembership(), fetchFriends()]);
-      if (cancelled) return;
-      setMembership(m);
-      if (f) {
-        setPendingFriends(f.incoming.length);
-        setFriends(f.friends.length);
-      }
-      try {
-        const res = await apiFetch(`${env.apiBaseUrl}/account/registrations`);
-        const json = (await res.json()) as { data?: unknown };
-        if (!cancelled && Array.isArray(json.data)) setRegistrations(json.data.length);
-      } catch {
-        /* non-critical */
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const membership: AccountMembership | null = membershipData ?? null;
+  const friends = friendsData ? friendsData.friends.length : null;
+  const pendingFriends = friendsData ? friendsData.incoming.length : null;
+  const registrations = registrationsData ? registrationsData.length : null;
 
   return (
     <div className="grid gap-4">

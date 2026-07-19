@@ -54,7 +54,8 @@ export type PublicGameDetail = PublicGame & {
 
 export async function getAllPublicGames(): Promise<PublicGame[]> {
   try {
-    const response = await fetch(`${env.apiBaseUrl}/games?all=1`, { cache: "no-store" });
+    // ISR: cache for 5 min so the /jeux catalog can be statically served (story 34.4).
+    const response = await fetch(`${env.apiBaseUrl}/games?all=1`, { next: { revalidate: 300 } });
     if (!response.ok) return [];
 
     const payload: unknown = await response.json();
@@ -118,7 +119,7 @@ function isGamePagePayload(
 export async function getPublicGame(slug: string): Promise<PublicGameDetail | null> {
   try {
     const response = await fetch(`${env.apiBaseUrl}/games/${encodeURIComponent(slug)}`, {
-      cache: "no-store",
+      next: { revalidate: 300 },
     });
     if (!response.ok) return null;
 

@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Payments\Application\HelloAssoConfig;
+use App\Payments\Application\Handler\SyncHelloAssoFormHandler;
 use App\Payments\Application\Message\HelloAssoOrderPaidMessage;
-use App\Payments\Application\SyncHelloAssoFormHandler;
-use App\Payments\Application\SyncHelloAssoFormMessage;
-use App\Payments\Domain\HelloAssoOrder;
-use App\Payments\Domain\HelloAssoSyncLog;
-use App\Payments\Infrastructure\DoctrineHelloAssoOrderRepository;
-use App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository;
-use App\Payments\Infrastructure\HelloAssoHttpClient;
+use App\Payments\Application\Message\SyncHelloAssoFormMessage;
+use App\Payments\Application\Support\HelloAssoConfig;
+use App\Payments\Domain\Entity\HelloAssoOrder;
+use App\Payments\Domain\Entity\HelloAssoSyncLog;
+use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository;
+use App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository;
+use App\Payments\Infrastructure\Http\HelloAssoHttpClient;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Envelope;
@@ -188,7 +189,7 @@ final class HelloAssoSyncHandlerTest extends FunctionalTestCase
             {
                 return new Envelope($message, $stamps);
             }
-        }, new NullLogger());
+        }, new NullLogger(), new MockClock());
     }
 
     private function itemsResponse(int $orderId, ?string $payerEmail, ?string $paidAt): MockResponse

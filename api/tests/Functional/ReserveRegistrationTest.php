@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Registrations\Application\ReserveRegistration;
-use App\Registrations\Domain\Registration;
+use App\Events\Domain\Entity\Event;
+use App\Registrations\Application\Command\ReserveRegistration;
+use App\Registrations\Domain\Entity\Registration;
+use App\Shared\Application\Exception\ConflictException;
 
 final class ReserveRegistrationTest extends FunctionalTestCase
 {
@@ -153,9 +154,12 @@ final class ReserveRegistrationTest extends FunctionalTestCase
         $reserveRegistration = self::getContainer()->get(ReserveRegistration::class);
         self::assertInstanceOf(ReserveRegistration::class, $reserveRegistration);
 
-        $result = $reserveRegistration->reserve($event->getId(), $user->getId());
-
-        self::assertSame(['outcome' => 'capacity_full'], $result);
+        try {
+            $reserveRegistration->reserve($event->getId(), $user->getId());
+            self::fail('Expected a capacity_full ConflictException.');
+        } catch (ConflictException $e) {
+            self::assertSame('capacity_full', $e->errorCode());
+        }
 
         $this->entityManager->clear();
         $registrations = $this->entityManager->getRepository(Registration::class)->findAll();

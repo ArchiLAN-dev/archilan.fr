@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -21,7 +22,9 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
+import { fetchPersonalRun, type PersonalRunResult } from "./personal-runs-api";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
@@ -425,7 +428,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [state, setState] = useState<PageState>({ kind: "loading" });
+  const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
   const [actioning, setActioning] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
@@ -439,70 +442,54 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   // Active tab lives in the URL (?tab=) so a reload (or a shared link) keeps the same tab open.
   const tabParam = searchParams.get("tab");
   const tab: RunTab = isRunTab(tabParam) ? tabParam : "overview";
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevStatusRef = useRef<string | null>(null);
   const restartRequestedRef = useRef(false);
 
-  const fetchRun = useCallback(async () => {
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}`);
-      if (res.status === 404 || res.status === 403) {
-        setState({ kind: "not_found" });
-        return;
-      }
-      if (!res.ok) {
-        setState({ kind: "error", message: "Une erreur est survenue lors du chargement." });
-        return;
-      }
-      const payload = (await res.json()) as { data: PersonalRun };
-      const newRun = payload.data;
-
-      if ((prevStatusRef.current === "restarting" || restartRequestedRef.current) && newRun.status === "active") {
-        restartRequestedRef.current = false;
-        setSuccessToast("Partie reprise avec succès");
-        setTimeout(() => { setSuccessToast(null); }, 4000);
-      }
-      prevStatusRef.current = newRun.status;
-
-      setState({ kind: "ready", run: newRun });
-    } catch {
-      setState({ kind: "error", message: "Impossible de joindre le serveur." });
-    }
-  }, [runId]);
+  // fetchPersonalRun never throws (404/403, server errors and network failures are encoded in the
+  // result's `kind`), so the query never errors and - like the old effect - never retries.
+  // Adaptive polling: fast (3s) during transitional states; slow (30s) while active so a container
+  // that stops itself (idle / auto_shutdown) is reflected without a manual refresh; off otherwise.
+  const runQuery = useQuery({
+    queryKey: ["personal-run", runId],
+    queryFn: () => fetchPersonalRun(runId),
+    enabled: !authLoading && user !== null,
+    staleTime: REALTIME_STALE_TIME,
+    retry: false,
+    refetchInterval: (query) => {
+      const result = query.state.data;
+      if (result?.kind !== "ready") return false;
+      if ((POLLING_STATUSES as readonly string[]).includes(result.run.status)) return 3_000;
+      return result.run.status === "active" ? 30_000 : false;
+    },
+  });
+  const runResult = runQuery.data;
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.push(`/connexion?returnTo=/runs/${runId}`);
-      return;
     }
-    const timeout = setTimeout(() => {
-      void fetchRun();
-    }, 0);
+  }, [authLoading, user, router, runId]);
 
-    return () => clearTimeout(timeout);
-  }, [authLoading, user, router, runId, fetchRun]);
-
-  // Polling: fast (3s) during transitional states; slow (30s) while active so a container that
-  // stops itself (idle / auto_shutdown) is reflected without a manual refresh.
+  // Restart-success toast, derived from the status TRANSITION between two query results
+  // (restarting -> active, or an explicit restart request resolving to active).
   useEffect(() => {
-    if (state.kind !== "ready") return;
-
-    const status = state.run.status;
-    const transitional = (POLLING_STATUSES as readonly string[]).includes(status);
-    const intervalMs = transitional ? 3_000 : status === "active" ? 30_000 : null;
-
-    if (intervalMs !== null) {
-      intervalRef.current = setInterval(() => { void fetchRun(); }, intervalMs);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (runResult?.kind !== "ready") return;
+    const status = runResult.run.status;
+    if ((prevStatusRef.current === "restarting" || restartRequestedRef.current) && status === "active") {
+      restartRequestedRef.current = false;
+      setSuccessToast("Partie reprise avec succès");
+      setTimeout(() => { setSuccessToast(null); }, 4000);
     }
+    prevStatusRef.current = status;
+  }, [runResult]);
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [state, fetchRun]);
+  async function refreshRun() {
+    await queryClient.invalidateQueries({ queryKey: ["personal-run", runId] });
+    // The list page groups runs by status: mark its cache stale too so navigating back reflects the
+    // change immediately (the old page refetched the list on every mount).
+    void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
+  }
 
   async function handleStart() {
     setActioning(true);
@@ -514,7 +501,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible de démarrer la partie.");
         return;
       }
-      await fetchRun();
+      await refreshRun();
     } catch {
       setActionError("Erreur réseau.");
     } finally {
@@ -533,7 +520,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible d'arrêter la partie.");
         return;
       }
-      await fetchRun();
+      await refreshRun();
     } catch {
       setActionError("Erreur réseau.");
     } finally {
@@ -552,7 +539,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible de terminer la partie.");
         return;
       }
-      await fetchRun();
+      await refreshRun();
     } catch {
       setActionError("Erreur réseau.");
     } finally {
@@ -569,7 +556,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible de désarchiver la partie.");
         return;
       }
-      await fetchRun();
+      await refreshRun();
     } catch {
       setActionError("Erreur réseau.");
     } finally {
@@ -587,6 +574,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible d'archiver la partie.");
         return;
       }
+      void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
       router.push("/runs");
     } catch {
       setActionError("Erreur réseau.");
@@ -605,6 +593,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible de supprimer la partie.");
         return;
       }
+      void queryClient.invalidateQueries({ queryKey: ["personal-runs", "mine"] });
       router.push("/runs");
     } catch {
       setActionError("Erreur réseau.");
@@ -625,7 +614,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible de reprendre la partie.");
         return;
       }
-      await fetchRun();
+      await refreshRun();
     } catch {
       restartRequestedRef.current = false;
       setActionError("Erreur réseau.");
@@ -647,7 +636,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         setActionError(payload.error?.message ?? "Impossible de débloquer la partie.");
         return;
       }
-      await fetchRun();
+      await refreshRun();
     } catch {
       setActionError("Erreur réseau.");
     } finally {
@@ -655,7 +644,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     }
   }
 
-  if (authLoading || state.kind === "loading") {
+  // Same state machine as before the TanStack conversion: loading while auth or the query resolves,
+  // then the query result maps 1:1 onto the not_found / error / ready kinds.
+  const state: PageState =
+    authLoading || runQuery.isPending
+      ? { kind: "loading" }
+      : runResult ?? { kind: "error", message: "Impossible de joindre le serveur." };
+
+  if (state.kind === "loading") {
     return (
       <div className="mx-auto max-w-2xl">
         <div className="grid gap-4">
@@ -704,7 +700,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         <div className="mt-8 flex flex-col items-center gap-3">
           <button
             className="inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-            onClick={() => { void fetchRun(); }}
+            onClick={() => { void runQuery.refetch(); }}
             type="button"
           >
             <RefreshCw aria-hidden className="size-4" />
@@ -818,10 +814,15 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               <InviteLinkPanel
                 inviteToken={run.inviteToken}
                 onTokenRegenerated={(newToken) => {
-                  setState({
-                    kind: "ready",
-                    run: { ...run, inviteToken: newToken },
-                  });
+                  // Write the regenerated token straight into the cache (same in-place update as the
+                  // old setState) - no refetch needed.
+                  queryClient.setQueryData<PersonalRunResult>(
+                    ["personal-run", runId],
+                    (prev) =>
+                      prev?.kind === "ready"
+                        ? { kind: "ready", run: { ...prev.run, inviteToken: newToken } }
+                        : prev,
+                  );
                 }}
                 runId={run.id}
               />

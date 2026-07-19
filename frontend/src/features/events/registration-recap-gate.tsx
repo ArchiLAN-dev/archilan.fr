@@ -2,44 +2,26 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle, Settings, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import {
+  fetchAuthProbe,
+  fetchRegistrationRecap,
+  type RecapGame,
+  type RecapSlot,
+  type RegistrationRecapResult,
+} from "./events-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type RecapSlot = {
-  slotId: string;
-  slotOrder: number;
-  gameId: string;
-  gameName: string;
-  playerYaml: string | null;
-  apworldHash: string | null;
-};
-
-type RecapGame = {
-  id: string;
-  isApworldReady: boolean;
-  defaultYaml: string | null;
-};
-
-type RecapData = {
-  registrationId: string;
-  eventTitle: string;
-  gameSelectionEnabled: boolean;
-  registrationOpen: boolean;
-  slots: RecapSlot[];
-  gameMap: Map<string, RecapGame>;
-};
-
-type GateState =
-  | { kind: "loading" }
-  | { kind: "data"; data: RecapData }
-  | { kind: "not_found" }
-  | { kind: "error"; message: string };
+// "error" results are thrown inside the queryFn so a failed background refetch keeps the
+// last good data instead of blanking the page.
+type RecapQueryData = Exclude<RegistrationRecapResult, { kind: "error" }>;
 
 type SubmitState =
   | { kind: "idle" }
@@ -55,60 +37,40 @@ export function RegistrationRecapGate({
   params: Promise<{ eventSlug: string; registrationId: string }>;
 }) {
   const { eventSlug, registrationId } = use(params);
-  const [gateState, setGateState] = useState<GateState>({ kind: "loading" });
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
 
+  // Fresh session probe on every gate entry (staleTime 0), like the pre-TanStack effect.
+  const authQuery = useQuery({
+    queryKey: ["registration-auth-probe"],
+    queryFn: fetchAuthProbe,
+    staleTime: 0,
+    retry: false,
+  });
+
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const profileRes = await apiFetch(`${env.apiBaseUrl}/account/profile`);
-
-      if (cancelled) return;
-
-      if (profileRes.status === 401 || profileRes.status === 403) {
-        window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/recap`;
-        return;
-      }
-
-      const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/game-selection`);
-
-      if (cancelled) return;
-
-      if (res.status === 404) {
-        setGateState({ kind: "not_found" });
-        return;
-      }
-
-      if (!res.ok) {
-        setGateState({ kind: "error", message: "Impossible de charger le récapitulatif." });
-        return;
-      }
-
-      const payload: unknown = await res.json();
-      const data = parseRecapData(payload);
-
-      if (!data) {
-        setGateState({ kind: "error", message: "Réponse API invalide." });
-        return;
-      }
-
-      setGateState({ kind: "data", data });
+    if (authQuery.data === "unauthenticated") {
+      window.location.href = `/connexion?returnTo=/evenements/${eventSlug}/inscription/${registrationId}/recap`;
     }
+  }, [authQuery.data, eventSlug, registrationId]);
 
-    void run().catch(() => {
-      if (!cancelled) {
-        setGateState({ kind: "error", message: "Impossible de contacter l'API." });
-      }
-    });
+  const recapQuery = useQuery({
+    queryKey: ["registration-recap", registrationId],
+    queryFn: async (): Promise<RecapQueryData> => {
+      const result = await fetchRegistrationRecap(registrationId);
+      if (result.kind === "error") throw new Error(result.message);
+      return result;
+    },
+    enabled: authQuery.data === "authenticated",
+    // Funnel steps write to each other's data (selection save, yaml edits): refetch on
+    // every mount like the pre-TanStack effect did.
+    staleTime: 0,
+    retry: false,
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [registrationId, eventSlug]);
+  const recapData = recapQuery.data?.kind === "success" ? recapQuery.data.data : null;
 
   async function handleSubmit() {
-    if (gateState.kind !== "data") return;
+    if (recapData === null) return;
     setSubmitState({ kind: "submitting" });
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/submit`, {
@@ -132,15 +94,42 @@ export function RegistrationRecapGate({
       const body = (await res.json()) as { data?: { eventTitle?: string } };
       setSubmitState({
         kind: "confirmed",
-        eventTitle: body.data?.eventTitle ?? gateState.data.eventTitle,
-        slots: gateState.data.slots,
+        eventTitle: body.data?.eventTitle ?? recapData.eventTitle,
+        slots: recapData.slots,
       });
     } catch {
       setSubmitState({ kind: "error", message: "Impossible de contacter l'API." });
     }
   }
 
-  if (gateState.kind === "loading") {
+  // The API is unreachable (auth probe network failure) - same terminal error as before.
+  if (authQuery.data === null) {
+    return (
+      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+        <p className="text-sm text-muted-foreground">Impossible de contacter l&apos;API.</p>
+      </div>
+    );
+  }
+
+  const gateResult = recapQuery.data;
+
+  if (gateResult === undefined) {
+    if (recapQuery.isError) {
+      const message =
+        recapQuery.error instanceof Error
+          ? recapQuery.error.message
+          : "Impossible de contacter l'API.";
+      return (
+        <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
+          <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
+          <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
+          <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
+      );
+    }
+
     return (
       <div aria-hidden="true" className="grid gap-8">
         {/* stepper */}
@@ -176,7 +165,7 @@ export function RegistrationRecapGate({
     );
   }
 
-  if (gateState.kind === "not_found") {
+  if (gateResult.kind === "not_found") {
     return (
       <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
         <XCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
@@ -191,16 +180,6 @@ export function RegistrationRecapGate({
     );
   }
 
-  if (gateState.kind === "error") {
-    return (
-      <div className="grid gap-4 card-glow rounded-lg border border-border p-8 text-center">
-        <AlertCircle aria-hidden="true" className="mx-auto size-8 text-danger" />
-        <p className="font-heading text-xl font-semibold text-foreground">Erreur</p>
-        <p className="text-sm text-muted-foreground">{gateState.message}</p>
-      </div>
-    );
-  }
-
   if (submitState.kind === "confirmed") {
     return (
       <ConfirmationScreen
@@ -211,7 +190,7 @@ export function RegistrationRecapGate({
     );
   }
 
-  const { data } = gateState;
+  const { data } = gateResult;
 
   // Build slot labels (handle duplicates)
   const slotCountPerGame: Record<string, number> = {};
@@ -403,76 +382,4 @@ function ConfirmationScreen({
       </Link>
     </div>
   );
-}
-
-// ─── Parsers ──────────────────────────────────────────────────────────────────
-
-function parseRecapSlot(x: unknown): RecapSlot | null {
-  if (!x || typeof x !== "object") return null;
-  const s = x as Record<string, unknown>;
-  if (
-    typeof s.slotId !== "string" ||
-    typeof s.slotOrder !== "number" ||
-    typeof s.gameId !== "string" ||
-    typeof s.gameName !== "string"
-  ) {
-    return null;
-  }
-  return {
-    slotId: s.slotId,
-    slotOrder: s.slotOrder,
-    gameId: s.gameId,
-    gameName: s.gameName,
-    playerYaml: typeof s.playerYaml === "string" ? s.playerYaml : null,
-    apworldHash: typeof s.apworldHash === "string" ? s.apworldHash : null,
-  };
-}
-
-function parseRecapGame(x: unknown): RecapGame | null {
-  if (!x || typeof x !== "object") return null;
-  const g = x as Record<string, unknown>;
-  if (typeof g.id !== "string") return null;
-  return {
-    id: g.id,
-    isApworldReady: g.isApworldReady === true,
-    defaultYaml: typeof g.defaultYaml === "string" ? g.defaultYaml : null,
-  };
-}
-
-function parseRecapData(payload: unknown): RecapData | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = (payload as { data?: unknown }).data;
-  if (!data || typeof data !== "object") return null;
-  const d = data as Record<string, unknown>;
-
-  if (
-    typeof d.registrationId !== "string" ||
-    typeof d.eventTitle !== "string" ||
-    typeof d.gameSelectionEnabled !== "boolean" ||
-    !Array.isArray(d.slots)
-  ) {
-    return null;
-  }
-
-  const slots = (d.slots as unknown[]).flatMap((s) => {
-    const parsed = parseRecapSlot(s);
-    return parsed ? [parsed] : [];
-  });
-
-  const gameMap = new Map<string, RecapGame>();
-  if (Array.isArray(d.availableGames)) {
-    for (const g of d.availableGames) {
-      const game = parseRecapGame(g);
-      if (game) gameMap.set(game.id, game);
-    }
-  }
-
-  return {
-    registrationId: d.registrationId,
-    eventTitle: d.eventTitle,
-    gameSelectionEnabled: d.gameSelectionEnabled,
-    registrationOpen: typeof d.registrationOpen === "boolean" ? d.registrationOpen : true,
-    slots,
-    gameMap,
-  };
 }

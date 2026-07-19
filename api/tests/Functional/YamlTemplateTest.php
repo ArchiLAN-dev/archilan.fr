@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Application\RegisterUser;
-use App\PersonalRuns\Domain\YamlTemplate;
+use App\GameSelection\Domain\Entity\Game;
+use App\PersonalRuns\Domain\Entity\YamlTemplate;
 
 final class YamlTemplateTest extends FunctionalTestCase
 {
@@ -144,9 +143,7 @@ final class YamlTemplateTest extends FunctionalTestCase
 
     public function testAccountErasureRemovesTemplates(): void
     {
-        $registerUser = self::getContainer()->get(RegisterUser::class);
-        self::assertInstanceOf(RegisterUser::class, $registerUser);
-        self::assertSame([], $registerUser->register('jean@example.org', 'correct horse battery staple', true, 'Jean')['errors']);
+        $this->registerUser('jean@example.org');
 
         $game = $this->createApworldReadyGame('Zelda', 'zelda');
 

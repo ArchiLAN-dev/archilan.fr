@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\GameSelection\Application\InstallStepsNormalizer;
+use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use PHPUnit\Framework\TestCase;
 
 final class InstallStepsNormalizerTest extends TestCase

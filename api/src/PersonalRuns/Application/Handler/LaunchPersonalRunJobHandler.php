@@ -4,20 +4,21 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Handler;
 
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\PersonalRunAdvancerInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
-use App\Sessions\Application\SlotNameGenerator;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Shared\Application\SlotYamlNameReader;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Support\SlotNameGenerator;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Shared\Application\Support\SlotYamlNameReader;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -35,6 +36,7 @@ final readonly class LaunchPersonalRunJobHandler
         private RunnerGatewayInterface $runnerGateway,
         private PersonalRunAdvancerInterface $personalRunAdvancer,
         private LoggerInterface $logger,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -73,14 +75,14 @@ final readonly class LaunchPersonalRunJobHandler
         $gameIds = array_values(array_unique(array_column($slotsForSession, 'gameId')));
 
         $users = $this->users->findByIds($userIds);
-        /** @var array<string, \App\Identity\Domain\User> $usersById */
+        /** @var array<string, \App\Identity\Domain\Entity\User> $usersById */
         $usersById = [];
         foreach ($users as $user) {
             $usersById[$user->getId()] = $user;
         }
 
         $foundGames = $this->games->findByIds($gameIds);
-        /** @var array<string, \App\GameSelection\Domain\Game> $gamesById */
+        /** @var array<string, \App\GameSelection\Domain\Entity\Game> $gamesById */
         $gamesById = [];
         foreach ($foundGames as $game) {
             $gamesById[$game->getId()] = $game;
@@ -99,7 +101,7 @@ final readonly class LaunchPersonalRunJobHandler
 
         $slotNames = $this->slotNameGenerator->generate($generatorInput);
 
-        $now = new \DateTimeImmutable();
+        $now = $this->clock->now();
         $sessionId = bin2hex(random_bytes(16));
         $session = Session::create($sessionId, $run->getId(), $now);
         $this->sessions->persist($session);
@@ -137,7 +139,7 @@ final readonly class LaunchPersonalRunJobHandler
         }
 
         $session->transition(Session::STATUS_VALIDATING, $now);
-        $run->setSessionId($sessionId);
+        $run->attachSession($sessionId);
 
         $this->sessions->flush();
 

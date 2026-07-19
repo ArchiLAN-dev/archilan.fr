@@ -22,7 +22,7 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
       const raw = window.localStorage.getItem(lsKey);
       const parsed: unknown = raw === null ? [] : JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage hydration on mount (client-only source, cannot be read during render)
         setDone(new Set(parsed.filter((t): t is string => typeof t === "string")));
       }
     } catch {
@@ -50,7 +50,7 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
       {steps.map((step, index) => {
         const checked = done.has(step.title);
         return (
-          <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={index}>
+          <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={step.title}>
             <div className="flex items-start gap-2">
               {lsKey !== null ? (
                 <input

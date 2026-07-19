@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Domain\Friendship;
+use App\Community\Domain\Entity\Friendship;
 use PHPUnit\Framework\TestCase;
 
 final class FriendshipTest extends TestCase

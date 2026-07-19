@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Payments\Application\HelloAssoConfig;
+use App\Events\Domain\Entity\Event;
+use App\Payments\Application\Support\HelloAssoConfig;
 
 final class HelloAssoCheckoutTest extends FunctionalTestCase
 {
@@ -197,7 +197,7 @@ final class HelloAssoCheckoutTest extends FunctionalTestCase
         );
         $this->transitionEventTo($event, $status, $now);
         if (null !== $helloassoFormSlug) {
-            $event->setHelloassoFormSlug($helloassoFormSlug, $now);
+            $event->linkHelloassoForm($helloassoFormSlug, $now);
         }
         $this->entityManager->flush();
 

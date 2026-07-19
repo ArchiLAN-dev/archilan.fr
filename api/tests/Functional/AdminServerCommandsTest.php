@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Identity\Domain\User;
+use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Message\FetchLogsJob;
-use App\Sessions\Domain\RunAuditLog;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
+use App\Sessions\Domain\Entity\RunAuditLog;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -190,7 +190,7 @@ final class AdminServerCommandsTest extends FunctionalTestCase
         $this->loginAs($admin);
 
         $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), 'reg-002', 'game-001', 'Bob', 0);
-        $slot->setGoalReachedAt(new \DateTimeImmutable());
+        $slot->recordGoal(new \DateTimeImmutable());
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 

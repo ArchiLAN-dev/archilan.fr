@@ -4,35 +4,36 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
-use App\GameSelection\Domain\Game;
-use App\GameSelection\Domain\GameRepositoryInterface;
-use App\Identity\Domain\User;
-use App\Identity\Domain\UserRepositoryInterface;
+use App\GameSelection\Domain\Entity\Game;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Handler\LaunchPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
-use App\PersonalRuns\Domain\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\PersonalRunAdvancerInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
-use App\Sessions\Application\SlotNameGenerator;
-use App\Sessions\Domain\SessionRepositoryInterface;
-use App\Sessions\Domain\SessionSlotRepositoryInterface;
-use App\Sessions\Infrastructure\NullRunnerGateway;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Support\SlotNameGenerator;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\MockClock;
 
 final class LaunchPersonalRunJobHandlerTest extends TestCase
 {
     public function testPersonalRunNotFoundLogsErrorAndReturns(): void
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn(null);
 
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('error')
-            ->with('personal_run.launch.not_found', $this->arrayHasKey('runId'));
+        $logger->expects(self::once())->method('error')
+            ->with('personal_run.launch.not_found', self::arrayHasKey('runId'));
 
         $this->makeHandler(runs: $runs, logger: $logger)(new LaunchPersonalRunJob('run-missing'));
     }
@@ -42,15 +43,15 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $participants = $this->createStub(RunParticipantRepositoryInterface::class);
+        $participants = self::createStub(RunParticipantRepositoryInterface::class);
         $participants->method('findByRunId')->willReturn([]);
 
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('error')
-            ->with('personal_run.launch.no_slots', $this->arrayHasKey('runId'));
+        $logger->expects(self::once())->method('error')
+            ->with('personal_run.launch.no_slots', self::arrayHasKey('runId'));
 
         $this->makeHandler(runs: $runs, participants: $participants, logger: $logger)(new LaunchPersonalRunJob($run->getId()));
     }
@@ -73,13 +74,13 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             'apworldHash' => 'deadbeef',
         ]]);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
-        $participants = $this->createStub(RunParticipantRepositoryInterface::class);
+        $participants = self::createStub(RunParticipantRepositoryInterface::class);
         $participants->method('findByRunId')->willReturn([$participant]);
-        $users = $this->createStub(UserRepositoryInterface::class);
+        $users = self::createStub(UserRepositoryInterface::class);
         $users->method('findByIds')->willReturn([$user]);
-        $games = $this->createStub(GameRepositoryInterface::class);
+        $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findByIds')->willReturn([$game]);
 
         $handler = new LaunchPersonalRunJobHandler(
@@ -87,12 +88,13 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             $participants,
             $users,
             $games,
-            $this->createStub(SessionRepositoryInterface::class),
-            $this->createStub(SessionSlotRepositoryInterface::class),
+            self::createStub(SessionRepositoryInterface::class),
+            self::createStub(SessionSlotRepositoryInterface::class),
             new SlotNameGenerator(),
             new NullRunnerGateway(),
-            $this->createStub(PersonalRunAdvancerInterface::class),
-            $this->createStub(LoggerInterface::class),
+            self::createStub(PersonalRunAdvancerInterface::class),
+            self::createStub(LoggerInterface::class),
+            new MockClock(),
         );
 
         $handler(new LaunchPersonalRunJob($run->getId()));
@@ -108,16 +110,17 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
         ?LoggerInterface $logger = null,
     ): LaunchPersonalRunJobHandler {
         return new LaunchPersonalRunJobHandler(
-            $runs ?? $this->createStub(RunRepositoryInterface::class),
-            $participants ?? $this->createStub(RunParticipantRepositoryInterface::class),
-            $this->createStub(UserRepositoryInterface::class),
-            $this->createStub(GameRepositoryInterface::class),
-            $this->createStub(SessionRepositoryInterface::class),
-            $this->createStub(SessionSlotRepositoryInterface::class),
+            $runs ?? self::createStub(RunRepositoryInterface::class),
+            $participants ?? self::createStub(RunParticipantRepositoryInterface::class),
+            self::createStub(UserRepositoryInterface::class),
+            self::createStub(GameRepositoryInterface::class),
+            self::createStub(SessionRepositoryInterface::class),
+            self::createStub(SessionSlotRepositoryInterface::class),
             new SlotNameGenerator(),
-            $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
-            $this->createStub(PersonalRunAdvancerInterface::class),
-            $logger ?? $this->createStub(LoggerInterface::class),
+            $runnerGateway ?? self::createStub(RunnerGatewayInterface::class),
+            self::createStub(PersonalRunAdvancerInterface::class),
+            $logger ?? self::createStub(LoggerInterface::class),
+            new MockClock(),
         );
     }
 }

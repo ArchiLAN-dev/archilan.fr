@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\AchievementGrant;
-use App\Community\Domain\ActivityEntry;
-use App\Community\Domain\Friendship;
-use App\WeeklyRuns\Domain\WeeklyEntry;
+use App\Community\Domain\Entity\AchievementGrant;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Community\Domain\Entity\Friendship;
+use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 
 final class CommunityDirectoryTest extends FunctionalTestCase
 {

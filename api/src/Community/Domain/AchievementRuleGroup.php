@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Community\Domain;
 
+use App\Community\Domain\Service\AchievementRule;
+use App\Community\Domain\ValueObject\MetricBag;
+
 /**
  * A boolean group combining child rules (story 30.16): ALL (AND), ANY (OR) or NONE (NOR). Nestable.
  */
 final readonly class AchievementRuleGroup implements AchievementRule
 {
-    public const OP_ALL = 'all';
-    public const OP_ANY = 'any';
-    public const OP_NONE = 'none';
+    public const string OP_ALL = 'all';
+    public const string OP_ANY = 'any';
+    public const string OP_NONE = 'none';
 
-    public const OPS = [self::OP_ALL, self::OP_ANY, self::OP_NONE];
+    public const array OPS = [self::OP_ALL, self::OP_ANY, self::OP_NONE];
 
     /**
      * @param list<AchievementRule> $rules
@@ -49,23 +52,11 @@ final readonly class AchievementRuleGroup implements AchievementRule
 
     private function allMatch(MetricBag $bag): bool
     {
-        foreach ($this->rules as $rule) {
-            if (!$rule->matches($bag)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($this->rules, fn ($rule) => $rule->matches($bag));
     }
 
     private function anyMatch(MetricBag $bag): bool
     {
-        foreach ($this->rules as $rule) {
-            if ($rule->matches($bag)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($this->rules, fn ($rule) => $rule->matches($bag));
     }
 }

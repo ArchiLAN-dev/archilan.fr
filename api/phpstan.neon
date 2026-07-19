@@ -5,9 +5,22 @@ parameters:
         - tests
     excludePaths:
         - tests/bootstrap.php
-    # TODO (DDD stories): add phpstan-doctrine and phpstan-symfony extensions when
-    # the first entities and injected services are implemented to avoid false positives
-    # at level max. Install with:
-    #   composer require --dev phpstan/extension-installer
-    #   composer require --dev phpstan/phpstan-doctrine
-    #   composer require --dev phpstan/phpstan-symfony
+    # phpstan-doctrine and phpstan-symfony are auto-registered via phpstan/extension-installer
+    # (story 33.6). They run without containerXmlPath / objectManagerLoader on purpose: those
+    # bindings need a booted kernel or a warmed cache, which CI's fresh checkout does not have.
+    #
+    # phpstan-strict-rules is auto-registered the same way (story 33.14). One family is off:
+    strictRules:
+        # The short ternary is a deliberate, load-bearing idiom here, not looseness - 98 sites,
+        # every one of them intentional. Two representative examples:
+        #   $ranked[$b] <=> $ranked[$a] ?: strcmp($a, $b)   the canonical spaceship tie-break
+        #   $this->getCellText($cell) ?: null               "empty cell -> null"
+        # Rewriting them would either DOUBLE-EVALUATE the left operand (getCellText() is a method
+        # call - calling it twice is a real regression) or need 98 hand-written semantic rewrites
+        # with temp variables, for no gain. The family is systematically wrong for this codebase,
+        # so it is disabled as a family rather than papered over with 98 ignoreErrors entries.
+        #
+        # Residual, accepted knowingly: `?:` coerces "0"/0/""/[] to falsy. A site that really meant
+        # "null-coalesce" should use `??`. That is a code-review concern, not something a mechanical
+        # rewrite fixes - and this story does not auto-change runtime semantics (AC3).
+        disallowedShortTernary: false

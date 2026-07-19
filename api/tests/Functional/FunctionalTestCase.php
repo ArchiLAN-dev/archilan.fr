@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Domain\AchievementDefinition;
 use App\Community\Domain\DefaultAchievementDefinitions;
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
-use App\Identity\Application\AuthSessionSigner;
-use App\Identity\Domain\User;
-use App\Registrations\Domain\Registration;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Application\Command\RegisterUser;
+use App\Identity\Application\Support\AuthSessionSigner;
+use App\Identity\Domain\Entity\User;
+use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Registrations\Domain\Entity\Registration;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -115,6 +117,30 @@ abstract class FunctionalTestCase extends WebTestCase
         );
         $this->entityManager->persist($user);
         $this->entityManager->flush();
+
+        return $user;
+    }
+
+    /**
+     * Registers a user through the real {@see RegisterUser} command (exercising password hashing, slug
+     * generation and the confirmation-email dispatch) and returns the persisted entity, re-fetched by id.
+     * Prefer this over reaching into the command result for a fixture handle - the command returns a typed
+     * {@see \App\Identity\Application\Command\RegisteredUser}, not the entity.
+     */
+    protected function registerUser(
+        string $email,
+        string $password = 'correct horse battery staple',
+        bool $acceptedCgu = true,
+        string $displayName = 'Jean',
+    ): User {
+        $register = self::getContainer()->get(RegisterUser::class);
+        self::assertInstanceOf(RegisterUser::class, $register);
+        $result = $register->register($email, $password, $acceptedCgu, $displayName);
+
+        $users = self::getContainer()->get(UserRepositoryInterface::class);
+        self::assertInstanceOf(UserRepositoryInterface::class, $users);
+        $user = $users->findById($result->id);
+        self::assertInstanceOf(User::class, $user);
 
         return $user;
     }

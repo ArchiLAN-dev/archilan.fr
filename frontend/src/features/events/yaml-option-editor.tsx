@@ -997,6 +997,10 @@ function ListField({
 }) {
   return (
     <div className="grid gap-2">
+      {/* Index keys are the least-bad option here: items are plain strings in the parsed YAML
+          model (adding local ids would require changing the model's parse/serialize round-trip),
+          they can duplicate, and content-based keys would remount the input on every keystroke.
+          The inputs are fully controlled, so values stay correct across removal. */}
       {option.items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
           <input

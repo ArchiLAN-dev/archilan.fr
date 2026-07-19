@@ -10,6 +10,7 @@ parameters:
     default_minio_apworlds_bucket: 'apworlds'
     default_minio_saves_bucket: 'archipelago-saves'
     default_minio_media_bucket: 'media'
+    default_minio_public_media_bucket: 'media-public'
     default_minio_sessions_bucket: 'sessions'
     default_minio_presign_ttl: 3600
     default_minio_endpoint: 'http://localhost:9000'
@@ -42,6 +43,8 @@ services:
             string $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             string $minioSavesBucket: '%env(default:default_minio_saves_bucket:MINIO_BUCKET_SAVES)%'
             string $minioMediaBucket: '%env(default:default_minio_media_bucket:MINIO_BUCKET_MEDIA)%'
+            string $minioPublicMediaBucket: '%env(default:default_minio_public_media_bucket:MINIO_BUCKET_MEDIA_PUBLIC)%'
+            string $publicMediaBaseUrl: '%env(default:default_empty_string:MINIO_PUBLIC_MEDIA_BASE_URL)%'
             string $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
             int $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
             int $escalationThreshold: '%env(default:default_moderation_escalation_threshold:int:MODERATION_ESCALATION_THRESHOLD)%'
@@ -78,23 +81,23 @@ services:
             - '../src/SessionConfig/Domain/'
             - '../src/Community/Domain/'
 
-    App\SessionConfig\Domain\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigProfileRepository'
-    App\SessionConfig\Domain\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\DoctrineSessionConfigOverrideRepository'
+    App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigProfileRepository'
+    App\SessionConfig\Domain\Repository\SessionConfigOverrideRepositoryInterface: '@App\SessionConfig\Infrastructure\Doctrine\DoctrineSessionConfigOverrideRepository'
 
-    App\WeeklyRuns\Domain\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyRunRepository'
-    App\WeeklyRuns\Domain\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyTemplateRepository'
-    App\WeeklyRuns\Domain\WeeklyEntryRepositoryInterface: '@App\WeeklyRuns\Infrastructure\DoctrineWeeklyEntryRepository'
-    App\WeeklyRuns\Application\CurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalCurrentWeeklyRunsQuery'
-    App\WeeklyRuns\Application\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminCurrentWeeklyRunsQuery'
-    App\WeeklyRuns\Application\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalWeeklyRunLeaderboardQuery'
-    App\WeeklyRuns\Application\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyTemplateListQuery'
-    App\WeeklyRuns\Application\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunGameListQuery'
-    App\WeeklyRuns\Application\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminTemplateRunsQuery'
-    App\WeeklyRuns\Application\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\DbalAdminWeeklyRunOutputQuery'
+    App\WeeklyRuns\Domain\Repository\WeeklyRunRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyRunRepository'
+    App\WeeklyRuns\Domain\Repository\WeeklyTemplateRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyTemplateRepository'
+    App\WeeklyRuns\Domain\Repository\WeeklyEntryRepositoryInterface: '@App\WeeklyRuns\Infrastructure\Doctrine\DoctrineWeeklyEntryRepository'
+    App\WeeklyRuns\Application\Query\CurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\Query\AdminCurrentWeeklyRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminCurrentWeeklyRunsQuery'
+    App\WeeklyRuns\Application\Query\WeeklyRunLeaderboardQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalWeeklyRunLeaderboardQuery'
+    App\WeeklyRuns\Application\Query\AdminWeeklyTemplateListQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminWeeklyTemplateListQuery'
+    App\WeeklyRuns\Application\Query\AdminWeeklyRunGameListQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminWeeklyRunGameListQuery'
+    App\WeeklyRuns\Application\Query\AdminTemplateRunsQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminTemplateRunsQuery'
+    App\WeeklyRuns\Application\Query\AdminWeeklyRunOutputQueryInterface: '@App\WeeklyRuns\Infrastructure\Dbal\DbalAdminWeeklyRunOutputQuery'
 
-    App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway'
+    App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunnerGateway'
 
-    App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunnerGateway:
+    App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunnerGateway:
         arguments:
             $client: '@archilan.orchestrateur_client'
             $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
@@ -102,21 +105,21 @@ services:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\WeeklyRuns\Application\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator'
+    App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface: '@App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunGenerator'
 
-    App\Sessions\Application\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader'
+    App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader'
 
-    App\Sessions\Infrastructure\MinioZipSpoilerArtifactReader:
+    App\Sessions\Infrastructure\Adapter\MinioZipSpoilerArtifactReader:
         arguments:
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\Sessions\Application\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\MinioZipOutputArtifactReader'
+    App\Sessions\Application\Port\SessionOutputArtifactReaderInterface: '@App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader'
 
-    App\Sessions\Infrastructure\MinioZipOutputArtifactReader:
+    App\Sessions\Infrastructure\Adapter\MinioZipOutputArtifactReader:
         arguments:
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\WeeklyRuns\Infrastructure\OrchestratorWeeklyRunGenerator:
+    App\WeeklyRuns\Infrastructure\Adapter\OrchestratorWeeklyRunGenerator:
         arguments:
             $client: '@archilan.orchestrateur_client'
             $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
@@ -124,25 +127,25 @@ services:
             $minioApworldsBucket: '%env(default:default_minio_apworlds_bucket:MINIO_BUCKET_APWORLDS)%'
             $minioPresignTtl: '%env(default:default_minio_presign_ttl:int:MINIO_PRESIGN_TTL_SECONDS)%'
 
-    App\Membership\Application\DolibarrClientInterface: '@App\Membership\Infrastructure\DolibarrClient'
+    App\Membership\Application\Port\DolibarrClientInterface: '@App\Membership\Infrastructure\Http\DolibarrClient'
 
-    App\Membership\Infrastructure\DolibarrClient:
+    App\Membership\Infrastructure\Http\DolibarrClient:
         arguments:
             $dolibarrApiUrl: '%env(default:default_empty_string:DOLIBARR_API_URL)%'
             $dolibarrApiKey: '%env(default:default_empty_string:DOLIBARR_API_KEY)%'
 
-    App\Sessions\Application\RunnerGatewayInterface: '@App\Sessions\Infrastructure\RunnerGateway'
+    App\Sessions\Application\Port\RunnerGatewayInterface: '@App\Sessions\Infrastructure\Http\RunnerGateway'
 
-    App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\S3MinioStorage'
+    App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Adapter\S3MinioStorage'
 
-    App\Shared\Infrastructure\S3MinioStorage:
+    App\Shared\Infrastructure\Adapter\S3MinioStorage:
         arguments:
             $endpoint: '%env(default:default_minio_endpoint:MINIO_ENDPOINT)%'
             $accessKey: '%env(default:default_minio_access_key:MINIO_ACCESS_KEY)%'
             $secretKey: '%env(default:default_minio_secret_key:MINIO_SECRET_KEY)%'
             $presignEndpoint: '%env(default:default_empty_string:MINIO_PRESIGN_ENDPOINT)%'
 
-    App\Sessions\Infrastructure\RunnerGateway:
+    App\Sessions\Infrastructure\Http\RunnerGateway:
         arguments:
             $client: '@archilan.orchestrateur_client'
 
@@ -164,47 +167,49 @@ services:
             $apiKey: '%env(ORCHESTRATEUR_API_KEY)%'
             $httpClient: '@http_client'
 
-    App\Sessions\Infrastructure\RunnerCallbackClient:
+    App\Sessions\Application\Port\RunnerCallbackClientInterface: '@App\Sessions\Infrastructure\Http\RunnerCallbackClient'
+
+    App\Sessions\Infrastructure\Http\RunnerCallbackClient:
         arguments:
             $centralApiUrl: '%env(CENTRAL_API_URL)%'
             $centralApiSecret: '%env(CENTRAL_API_SECRET)%'
             $runnerId: '%env(RUNNER_ID)%'
 
-    App\Sessions\Application\SessionOrchestrator:
+    App\Sessions\Application\Service\SessionOrchestrator:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
-    App\Sessions\Application\SessionLifecycleManager:
+    App\Sessions\Application\Service\SessionLifecycleManager:
         arguments:
             $runnerPublicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
-    App\Sessions\Presentation\OrchestratorWebhookController:
+    App\Sessions\Presentation\Controller\OrchestratorWebhookController:
         arguments:
             $orchestrateurWebhookSecret: '%env(ORCHESTRATEUR_WEBHOOK_SECRET)%'
 
-    App\Sessions\Presentation\SessionOrchestrationController:
+    App\Sessions\Presentation\Controller\SessionOrchestrationController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
 
-    App\Sessions\Presentation\PlayerPatchController:
+    App\Sessions\Presentation\Controller\PlayerPatchController:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
 
-    App\WeeklyRuns\Application\WeeklyEntryPatchQuery:
+    App\WeeklyRuns\Application\Query\WeeklyEntryPatchQuery:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
-    App\Sessions\Application\TraefikConfigBuilder:
+    App\Sessions\Application\Support\TraefikConfigBuilder:
         arguments:
             $wsDomain: '%env(WS_DOMAIN)%'
 
-    App\Sessions\Presentation\TraefikConfigController:
+    App\Sessions\Presentation\Controller\TraefikConfigController:
         arguments:
             $traefikToken: '%env(TRAEFIK_TOKEN)%'
 
-    App\Shared\Infrastructure\DockerSocketClient:
+    App\Shared\Infrastructure\Http\DockerSocketClient:
         arguments:
             $dockerHost: '%env(DOCKER_HOST)%'
         autowire: false
@@ -219,173 +224,175 @@ services:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
             $archiveDir: '%env(ARCHIVE_DIR)%'
 
-    App\Identity\Infrastructure\DiscordOAuthClientInterface: '@App\Identity\Infrastructure\DiscordOAuthClient'
+    App\Identity\Application\Port\DiscordOAuthClientInterface: '@App\Identity\Infrastructure\Http\DiscordOAuthClient'
 
-    App\Identity\Infrastructure\DiscordOAuthClient:
+    App\Identity\Infrastructure\Http\DiscordOAuthClient:
         arguments:
             $clientId: '%env(DISCORD_CLIENT_ID)%'
             $clientSecret: '%env(DISCORD_CLIENT_SECRET)%'
 
-    App\Identity\Application\DiscordBotClientInterface: '@App\Identity\Infrastructure\DiscordBotClient'
+    App\Identity\Application\Port\DiscordBotClientInterface: '@App\Identity\Infrastructure\Http\DiscordBotClient'
 
-    App\Identity\Infrastructure\DiscordBotClient:
+    App\Identity\Infrastructure\Http\DiscordBotClient:
         arguments:
             $botToken: '%env(DISCORD_BOT_TOKEN)%'
 
-    App\Identity\Application\Message\SyncDiscordRoleMessageHandler:
+    App\Identity\Application\Handler\SyncDiscordRoleMessageHandler:
         arguments:
             $guildId: '%env(DISCORD_GUILD_ID)%'
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\DbalDiscordBotStatusQuery'
-    App\Identity\Application\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\DbalUserDirectoryQuery'
-    App\Identity\Application\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\DbalDiscordResyncAllUsers'
-    App\Identity\Application\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\DbalDiscordUsersQuery'
-    App\Identity\Application\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\DbalPlayerStatsQuery'
-    App\Identity\Application\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\DbalPlayerHistoryQuery'
+    App\Identity\Application\Query\DiscordBotStatusQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordBotStatusQuery'
+    App\Identity\Application\Query\UserDirectoryQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalUserDirectoryQuery'
+    App\Identity\Application\Port\DiscordResyncAllUsersInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordResyncAllUsers'
+    App\Identity\Application\Query\DiscordUsersQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalDiscordUsersQuery'
+    App\Identity\Application\Query\PlayerStatsQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalPlayerStatsQuery'
+    App\Identity\Application\Query\PlayerHistoryQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalPlayerHistoryQuery'
 
-    App\Identity\Infrastructure\DbalDiscordBotStatusQuery:
+    App\Identity\Infrastructure\Dbal\DbalDiscordBotStatusQuery:
         arguments:
             $clientId: '%env(DISCORD_CLIENT_ID)%'
             $guildId: '%env(DISCORD_GUILD_ID)%'
             $roleIdAdmin: '%env(DISCORD_ROLE_ID_ADMIN)%'
             $roleIdMember: '%env(DISCORD_ROLE_ID_MEMBER)%'
 
-    App\Identity\Application\HandleDiscordAuthCallback:
+    App\Identity\Application\Command\HandleDiscordAuthCallback:
         arguments:
             $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
 
-    App\Identity\Application\LinkDiscordToAccount:
+    App\Identity\Application\Command\LinkDiscordToAccount:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
-    App\Identity\Presentation\DiscordAuthController:
+    App\Identity\Presentation\Controller\DiscordAuthController:
         arguments:
             $discordRedirectUriAuth: '%env(DISCORD_REDIRECT_URI_AUTH)%'
 
-    App\Identity\Presentation\DiscordLinkController:
+    App\Identity\Presentation\Controller\DiscordLinkController:
         arguments:
             $discordRedirectUriLink: '%env(DISCORD_REDIRECT_URI_LINK)%'
 
-    App\Membership\Domain\MembershipRepositoryInterface: '@App\Membership\Infrastructure\DoctrineMembershipRepository'
-    App\Membership\Application\AccountMembershipQueryInterface: '@App\Membership\Infrastructure\DbalAccountMembershipQuery'
-    App\Membership\Application\ActiveMembershipQueryInterface: '@App\Membership\Infrastructure\DbalActiveMembershipQuery'
-    App\Membership\Application\AdminMembershipListQueryInterface: '@App\Membership\Infrastructure\DbalAdminMembershipListQuery'
-    App\Membership\Application\AdminUnmatchedHelloAssoOrdersQueryInterface: '@App\Membership\Infrastructure\DbalAdminUnmatchedHelloAssoOrdersQuery'
-    App\Membership\Application\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\DbalMembershipAllIdsQuery'
-    App\Membership\Application\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\DbalMembershipExpiryCheckQuery'
+    App\Membership\Domain\Repository\MembershipRepositoryInterface: '@App\Membership\Infrastructure\Doctrine\DoctrineMembershipRepository'
+    App\Membership\Application\Query\AccountMembershipQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalAccountMembershipQuery'
+    App\Membership\Application\Query\ActiveMembershipQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalActiveMembershipQuery'
+    App\Membership\Application\Query\AdminMembershipListQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalAdminMembershipListQuery'
+    App\Membership\Application\Query\AdminUnmatchedHelloAssoOrdersQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalAdminUnmatchedHelloAssoOrdersQuery'
+    App\Membership\Application\Query\MembershipAllIdsQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalMembershipAllIdsQuery'
+    App\Membership\Application\Query\MembershipExpiryCheckQueryInterface: '@App\Membership\Infrastructure\Dbal\DbalMembershipExpiryCheckQuery'
 
-    App\Membership\Application\UserRoleGatewayInterface: '@App\Membership\Infrastructure\UserRoleGateway'
+    App\Membership\Application\Port\UserRoleGatewayInterface: '@App\Membership\Infrastructure\Adapter\UserRoleGateway'
 
-    App\Membership\Application\ActivateMembershipInterface: '@App\Membership\Application\ActivateMembership'
+    App\Membership\Application\Port\ActivateMembershipInterface: '@App\Membership\Application\Command\ActivateMembership'
 
-    App\Membership\Application\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\ProcessHelloAssoMembershipPayment'
+    App\Membership\Application\Port\ProcessHelloAssoMembershipPaymentInterface: '@App\Membership\Application\Command\ProcessHelloAssoMembershipPayment'
 
-    App\Membership\Application\ExpireMembershipInterface: '@App\Membership\Application\ExpireMembership'
+    App\Membership\Application\Port\ExpireMembershipInterface: '@App\Membership\Application\Command\ExpireMembership'
 
-    App\PersonalRuns\Domain\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunRepository'
-    App\PersonalRuns\Domain\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineRunParticipantRepository'
-    App\PersonalRuns\Domain\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\DoctrineYamlTemplateRepository'
+    App\PersonalRuns\Domain\Repository\RunRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunRepository'
+    App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineRunParticipantRepository'
+    App\PersonalRuns\Domain\Repository\YamlTemplateRepositoryInterface: '@App\PersonalRuns\Infrastructure\Doctrine\DoctrineYamlTemplateRepository'
 
-    App\Community\Domain\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\DoctrineCommunityProfileRepository'
-    App\Community\Application\CommunityProfileQueryInterface: '@App\Community\Infrastructure\DbalCommunityProfileQuery'
-    App\Community\Application\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserContactsQuery'
-    App\Community\Application\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserIdsQuery'
-    App\Community\Application\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityUserDirectoryQuery'
-    App\Identity\Application\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\DbalMemberDisplayNameQuery'
-    App\Community\Application\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\DbalCommunityPresenceQuery'
-    App\Community\Application\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\DbalCommunityDirectoryQuery'
-    App\Community\Application\AdminReportsQueryInterface: '@App\Community\Infrastructure\DbalAdminReportsQuery'
-    App\Community\Application\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\DbalAccountReportScoreQuery'
-    App\Community\Application\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\DbalCommunityAdminIdsQuery'
-    App\Sessions\Application\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\MessengerAchievementRecomputeTrigger'
-    App\Community\Domain\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementGrantRepository'
-    App\Community\Domain\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\DoctrineAchievementDefinitionRepository'
-    App\Community\Domain\FriendshipRepositoryInterface: '@App\Community\Infrastructure\DoctrineFriendshipRepository'
-    App\Community\Domain\BlockRepositoryInterface: '@App\Community\Infrastructure\DoctrineBlockRepository'
-    App\Community\Domain\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\DoctrineActivityEntryRepository'
-    App\Community\Domain\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\DoctrineProfileCommentRepository'
-    App\Community\Domain\ContentReportRepositoryInterface: '@App\Community\Infrastructure\DoctrineContentReportRepository'
-    App\Community\Domain\ModerationActionRepositoryInterface: '@App\Community\Infrastructure\DoctrineModerationActionRepository'
-    App\Community\Application\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\IdentityMemberModerationGateway'
-    App\Community\Domain\KudosRepositoryInterface: '@App\Community\Infrastructure\DoctrineKudosRepository'
-    App\Community\Domain\NotificationRepositoryInterface: '@App\Community\Infrastructure\DoctrineNotificationRepository'
-    App\Community\Application\Notifier: '@App\Community\Application\NotificationService'
-    App\Community\Application\AvatarResolverInterface: '@App\Community\Infrastructure\DiscordAvatarResolver'
+    App\Community\Domain\Repository\CommunityProfileRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineCommunityProfileRepository'
+    App\Community\Application\Query\CommunityProfileQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityProfileQuery'
+    App\Community\Application\Query\CommunityUserContactsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserContactsQuery'
+    App\Community\Application\Query\CommunityUserIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserIdsQuery'
+    App\Community\Application\Query\CommunityUserDirectoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityUserDirectoryQuery'
+    App\Identity\Application\Query\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\Dbal\DbalMemberDisplayNameQuery'
+    App\Community\Application\Query\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityPresenceQuery'
+    App\Community\Application\Query\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityDirectoryQuery'
+    App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
+    App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
+    App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'
+    App\Sessions\Application\Port\AchievementRecomputeTriggerInterface: '@App\Community\Infrastructure\Adapter\MessengerAchievementRecomputeTrigger'
+    App\Community\Domain\Repository\AchievementGrantRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementGrantRepository'
+    App\Community\Domain\Repository\AchievementDefinitionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineAchievementDefinitionRepository'
+    App\Community\Domain\Repository\FriendshipRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineFriendshipRepository'
+    App\Community\Domain\Repository\BlockRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineBlockRepository'
+    App\Community\Domain\Repository\ActivityEntryRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineActivityEntryRepository'
+    App\Community\Domain\Repository\ProfileCommentRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineProfileCommentRepository'
+    App\Community\Domain\Repository\ContentReportRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineContentReportRepository'
+    App\Community\Domain\Repository\ModerationActionRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationActionRepository'
+    App\Community\Application\Port\MemberModerationGatewayInterface: '@App\Identity\Infrastructure\Adapter\IdentityMemberModerationGateway'
+    App\Community\Domain\Repository\KudosRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineKudosRepository'
+    App\Community\Domain\Repository\NotificationRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineNotificationRepository'
+    App\Community\Application\Support\Notifier: '@App\Community\Application\Service\NotificationService'
+    App\Community\Application\Port\AvatarResolverInterface: '@App\Community\Infrastructure\Adapter\DiscordAvatarResolver'
 
-    App\Community\Infrastructure\DiscordAvatarResolver:
+    App\Community\Infrastructure\Adapter\DiscordAvatarResolver:
         arguments:
             $discordBotToken: '%env(default:default_empty_string:DISCORD_BOT_TOKEN)%'
-    App\PersonalRuns\Application\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\DbalRecentlyPlayedGamesQuery'
+    App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface: '@App\PersonalRuns\Infrastructure\Dbal\DbalRecentlyPlayedGamesQuery'
 
-    App\Sessions\Domain\SessionRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionRepository'
-    App\Sessions\Domain\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineSessionSlotRepository'
-    App\Sessions\Domain\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\DoctrineRunAuditLogRepository'
-    App\Sessions\Application\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\DbalCommunityStatsQuery'
-    App\Sessions\Application\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\DbalLeaderboardQuery'
-    App\Sessions\Application\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\DbalPlayerConnectionQuery'
-    App\Sessions\Application\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\DbalActiveRegistrationQuery'
+    App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
+    App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+    App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineRunAuditLogRepository'
+    App\Sessions\Domain\Repository\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRecapRepository'
+    App\Sessions\Application\Query\CommunityStatsQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalCommunityStatsQuery'
+    App\Sessions\Application\Query\LeaderboardQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalLeaderboardQuery'
+    App\Sessions\Application\Query\PlayerConnectionQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalPlayerConnectionQuery'
+    App\Sessions\Application\Query\ActiveRegistrationQueryInterface: '@App\Sessions\Infrastructure\Dbal\DbalActiveRegistrationQuery'
 
-    App\Streaming\Infrastructure\TwitchApiClientInterface: '@App\Streaming\Infrastructure\TwitchApiClient'
-    App\Streaming\Application\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\DbalParticipantTwitchLinksQuery'
+    App\Streaming\Application\Port\TwitchApiClientInterface: '@App\Streaming\Infrastructure\Http\TwitchApiClient'
+    App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface: '@App\Streaming\Infrastructure\Dbal\DbalParticipantTwitchLinksQuery'
 
-    App\Streaming\Infrastructure\TwitchApiClient:
+    App\Streaming\Infrastructure\Http\TwitchApiClient:
         arguments:
             $clientId: '%env(TWITCH_CLIENT_ID)%'
             $clientSecret: '%env(TWITCH_CLIENT_SECRET)%'
             $channelLogin: '%env(TWITCH_CHANNEL_LOGIN)%'
 
-    App\GameSelection\Infrastructure\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\IgdbHttpClient'
-    App\GameSelection\Infrastructure\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\SteamWebApiClient'
-    App\GameSelection\Application\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalSteamCatalogQuery'
-    App\GameSelection\Application\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\CatalogSyncGameLinksProvider'
+    App\GameSelection\Application\Port\IgdbHttpClientInterface: '@App\GameSelection\Infrastructure\Http\IgdbHttpClient'
+    App\GameSelection\Application\Port\SteamWebApiClientInterface: '@App\GameSelection\Infrastructure\Http\SteamWebApiClient'
+    App\GameSelection\Application\Query\SteamCatalogQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalSteamCatalogQuery'
+    App\GameSelection\Application\Port\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\Adapter\CatalogSyncGameLinksProvider'
 
-    App\GameSelection\Domain\GameRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRepository'
-    App\GameSelection\Domain\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoClientInfoRepository'
-    App\GameSelection\Domain\ArchipelagoGuideRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineArchipelagoGuideRepository'
-    App\GameSelection\Domain\GameTutorialContributionRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameTutorialContributionRepository'
-    App\GameSelection\Application\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalMyGameTutorialContributionsQuery'
-    App\GameSelection\Application\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameContributionsQuery'
-    App\GameSelection\Domain\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineGameRequestRepository'
-    App\GameSelection\Domain\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\DoctrineIgnoredCatalogEntryRepository'
-    App\GameSelection\Application\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\DbalGameCatalogQuery'
-    App\GameSelection\Application\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\DbalGameRequestListQuery'
-    App\GameSelection\Application\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\DbalAdminGameListQuery'
-    App\GameSelection\Application\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\DbalGameUsageCounter'
+    App\GameSelection\Domain\Repository\GameRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameRepository'
+    App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineArchipelagoClientInfoRepository'
+    App\GameSelection\Domain\Repository\ArchipelagoGuideRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineArchipelagoGuideRepository'
+    App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameTutorialContributionRepository'
+    App\GameSelection\Application\Query\MyGameTutorialContributionsQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalMyGameTutorialContributionsQuery'
+    App\GameSelection\Application\Query\AdminGameContributionsQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalAdminGameContributionsQuery'
+    App\GameSelection\Domain\Repository\GameRequestRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameRequestRepository'
+    App\GameSelection\Domain\Repository\IgnoredCatalogEntryRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineIgnoredCatalogEntryRepository'
+    App\GameSelection\Application\Query\GameCatalogQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameCatalogQuery'
+    App\GameSelection\Application\Query\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameRequestListQuery'
+    App\GameSelection\Application\Query\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalAdminGameListQuery'
+    App\GameSelection\Application\Port\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameUsageCounter'
 
-    App\CatalogSync\Application\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\DbalImportedCatalogNamesQuery'
+    App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\Dbal\DbalImportedCatalogNamesQuery'
 
-    App\Content\Domain\PostRepositoryInterface: '@App\Content\Infrastructure\DoctrinePostRepository'
+    App\Content\Domain\Repository\PostRepositoryInterface: '@App\Content\Infrastructure\Doctrine\DoctrinePostRepository'
 
-    App\Events\Domain\EventRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventRepository'
-    App\Events\Domain\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\DoctrineEventPrivateAccessLogRepository'
-    App\Events\Application\DashboardStatsQueryInterface: '@App\Events\Infrastructure\DbalDashboardStatsQuery'
+    App\Events\Domain\Repository\EventRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventRepository'
+    App\Events\Domain\Repository\EventPrivateAccessLogRepositoryInterface: '@App\Events\Infrastructure\Doctrine\DoctrineEventPrivateAccessLogRepository'
+    App\Events\Application\Query\DashboardStatsQueryInterface: '@App\Events\Infrastructure\Dbal\DbalDashboardStatsQuery'
 
-    App\Identity\Domain\UserRepositoryInterface: '@App\Identity\Infrastructure\DoctrineUserRepository'
-    App\Identity\Domain\EmailConfirmationTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineEmailConfirmationTokenRepository'
-    App\Identity\Domain\PasswordResetTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrinePasswordResetTokenRepository'
-    App\Identity\Domain\RefreshTokenRepositoryInterface: '@App\Identity\Infrastructure\DoctrineRefreshTokenRepository'
-    App\Identity\Domain\PrivacyRightsRequestRepositoryInterface: '@App\Identity\Infrastructure\DoctrinePrivacyRightsRequestRepository'
-    App\Identity\Domain\AdminCreationAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineAdminCreationAuditRepository'
-    App\Identity\Domain\DeletionAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineDeletionAuditRepository'
-    App\Identity\Domain\RoleChangeAuditRepositoryInterface: '@App\Identity\Infrastructure\DoctrineRoleChangeAuditRepository'
+    App\Identity\Domain\Repository\UserRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineUserRepository'
+    App\Identity\Domain\Repository\EmailConfirmationTokenRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineEmailConfirmationTokenRepository'
+    App\Identity\Domain\Repository\PasswordResetTokenRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrinePasswordResetTokenRepository'
+    App\Identity\Domain\Repository\RefreshTokenRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineRefreshTokenRepository'
+    App\Identity\Domain\Repository\PrivacyRightsRequestRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrinePrivacyRightsRequestRepository'
+    App\Identity\Domain\Repository\AdminCreationAuditRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineAdminCreationAuditRepository'
+    App\Identity\Domain\Repository\DeletionAuditRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineDeletionAuditRepository'
+    App\Identity\Domain\Repository\RoleChangeAuditRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineRoleChangeAuditRepository'
 
-    App\Payments\Domain\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\DoctrineHelloAssoOrderRepository'
-    App\Payments\Domain\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\DoctrineHelloAssoSyncLogRepository'
+    App\Payments\Domain\Repository\HelloAssoOrderRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoOrderRepository'
+    App\Payments\Domain\Repository\HelloAssoSyncLogRepositoryInterface: '@App\Payments\Infrastructure\Doctrine\DoctrineHelloAssoSyncLogRepository'
+    App\Payments\Application\Port\HelloAssoClientInterface: '@App\Payments\Infrastructure\Http\HelloAssoHttpClient'
 
-    App\Registrations\Domain\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationRepository'
-    App\Registrations\Domain\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\DoctrineRegistrationAdminMessageRepository'
-    App\Registrations\Application\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\DbalRegistrationCounterQuery'
-    App\Registrations\Application\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\DbalAccountRegistrationsQuery'
-    App\Registrations\Application\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\DbalPrivateAccessGrantedQuery'
+    App\Registrations\Domain\Repository\RegistrationRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationRepository'
+    App\Registrations\Domain\Repository\RegistrationAdminMessageRepositoryInterface: '@App\Registrations\Infrastructure\Doctrine\DoctrineRegistrationAdminMessageRepository'
+    App\Registrations\Application\Query\RegistrationCounterQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalRegistrationCounterQuery'
+    App\Registrations\Application\Query\AccountRegistrationsQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalAccountRegistrationsQuery'
+    App\Registrations\Application\Query\PrivateAccessGrantedQueryInterface: '@App\Registrations\Infrastructure\Dbal\DbalPrivateAccessGrantedQuery'
 
-    App\GameSelection\Infrastructure\IgdbHttpClient:
+    App\GameSelection\Infrastructure\Http\IgdbHttpClient:
         arguments:
             $clientId: '%env(TWITCH_CLIENT_ID)%'
             $clientSecret: '%env(TWITCH_CLIENT_SECRET)%'
 
-    App\GameSelection\Infrastructure\SteamWebApiClient:
+    App\GameSelection\Infrastructure\Http\SteamWebApiClient:
         arguments:
             $apiKey: '%env(STEAM_WEB_API_KEY)%'
 
@@ -409,52 +416,52 @@ when@dev:
 
 when@test:
     services:
-        App\Realtime\Infrastructure\SpyHub:
+        App\Realtime\Infrastructure\Double\SpyHub:
             public: true
 
-        Symfony\Component\Mercure\HubInterface: '@App\Realtime\Infrastructure\SpyHub'
+        Symfony\Component\Mercure\HubInterface: '@App\Realtime\Infrastructure\Double\SpyHub'
 
         Symfony\Component\HttpClient\MockHttpClient:
             public: true
 
         Symfony\Contracts\HttpClient\HttpClientInterface: '@Symfony\Component\HttpClient\MockHttpClient'
 
-        App\Sessions\Application\RunnerGatewayInterface:
-            class: App\Sessions\Infrastructure\NullRunnerGateway
+        App\Sessions\Application\Port\RunnerGatewayInterface:
+            class: App\Sessions\Infrastructure\Double\NullRunnerGateway
 
-        App\Shared\Infrastructure\MinioStorageInterface: '@App\Shared\Infrastructure\NullMinioStorage'
+        App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'
 
-        App\Shared\Infrastructure\NullMinioStorage:
+        App\Shared\Infrastructure\Double\NullMinioStorage:
             public: true
 
-        App\Streaming\Infrastructure\TwitchApiClientInterface:
-            class: App\Streaming\Infrastructure\NullTwitchApiClient
+        App\Streaming\Application\Port\TwitchApiClientInterface:
+            class: App\Streaming\Infrastructure\Double\NullTwitchApiClient
 
-        App\GameSelection\Infrastructure\IgdbHttpClientInterface:
-            class: App\GameSelection\Infrastructure\StubIgdbHttpClient
+        App\GameSelection\Application\Port\IgdbHttpClientInterface:
+            class: App\GameSelection\Infrastructure\Double\StubIgdbHttpClient
 
-        App\GameSelection\Infrastructure\StubIgdbHttpClient:
+        App\GameSelection\Infrastructure\Double\StubIgdbHttpClient:
             public: true
 
-        App\GameSelection\Infrastructure\SteamWebApiClientInterface:
-            class: App\GameSelection\Infrastructure\StubSteamWebApiClient
+        App\GameSelection\Application\Port\SteamWebApiClientInterface:
+            class: App\GameSelection\Infrastructure\Double\StubSteamWebApiClient
 
-        App\GameSelection\Infrastructure\StubSteamWebApiClient:
+        App\GameSelection\Infrastructure\Double\StubSteamWebApiClient:
             public: true
 
-        App\WeeklyRuns\Application\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway'
+        App\WeeklyRuns\Application\Port\WeeklyRunnerGatewayInterface: '@App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway'
 
-        App\WeeklyRuns\Infrastructure\SpyWeeklyRunnerGateway:
+        App\WeeklyRuns\Infrastructure\Double\SpyWeeklyRunnerGateway:
             public: true
 
-        App\WeeklyRuns\Application\WeeklyRunGeneratorInterface:
-            class: App\WeeklyRuns\Infrastructure\NullWeeklyRunGenerator
+        App\WeeklyRuns\Application\Port\WeeklyRunGeneratorInterface:
+            class: App\WeeklyRuns\Infrastructure\Double\NullWeeklyRunGenerator
 
-        App\Identity\Application\DiscordBotClientInterface:
-            class: App\Identity\Infrastructure\NullDiscordBotClient
+        App\Identity\Application\Port\DiscordBotClientInterface:
+            class: App\Identity\Infrastructure\Double\NullDiscordBotClient
 
-        App\Membership\Application\DolibarrClientInterface:
-            class: App\Membership\Infrastructure\NullDolibarrClient
+        App\Membership\Application\Port\DolibarrClientInterface:
+            class: App\Membership\Infrastructure\Double\NullDolibarrClient
 
-        App\Community\Application\AvatarResolverInterface:
-            class: App\Community\Infrastructure\StubAvatarResolver
+        App\Community\Application\Port\AvatarResolverInterface:
+            class: App\Community\Infrastructure\Double\StubAvatarResolver

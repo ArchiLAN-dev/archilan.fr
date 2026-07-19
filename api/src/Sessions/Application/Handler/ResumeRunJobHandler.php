@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\ResumeRunJob;
-use App\Sessions\Application\RunnerGatewayInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Shared\Application\Handler\LogsHandlerErrors;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;

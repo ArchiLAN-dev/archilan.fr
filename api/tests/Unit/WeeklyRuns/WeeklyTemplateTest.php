@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\WeeklyRuns;
 
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 use PHPUnit\Framework\TestCase;
 
 final class WeeklyTemplateTest extends TestCase

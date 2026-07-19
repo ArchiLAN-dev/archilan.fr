@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\Shared\Infrastructure\NullMinioStorage;
+use App\Events\Domain\Entity\Event;
+use App\Shared\Infrastructure\Double\NullMinioStorage;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 final class AdminEventCoverImageTest extends FunctionalTestCase
@@ -44,7 +44,7 @@ final class AdminEventCoverImageTest extends FunctionalTestCase
         unlink($tmpFile);
 
         $expectedKey = sprintf('events/%s/cover.jpg', $eventId);
-        self::assertTrue($this->minioStorage->exists('media', $expectedKey), 'Cover image should be stored in MinIO');
+        self::assertTrue($this->minioStorage->exists('media-public', $expectedKey), 'Cover image should be stored in the public MinIO bucket');
 
         $event = $this->entityManager->find(Event::class, $eventId);
         self::assertInstanceOf(Event::class, $event);
@@ -181,6 +181,7 @@ final class AdminEventCoverImageTest extends FunctionalTestCase
     /**
      * @return array<string, mixed>
      */
+    #[\Override]
     protected function decodedJsonResponse(): array
     {
         $decoded = json_decode($this->client->getResponse()->getContent() ?: '', true, flags: JSON_THROW_ON_ERROR);

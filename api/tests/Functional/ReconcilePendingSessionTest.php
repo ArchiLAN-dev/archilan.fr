@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\PersonalRuns\Domain\Run;
-use App\Sessions\Application\SessionLifecycleManager;
-use App\Sessions\Domain\Session;
-use App\Sessions\Infrastructure\NullRunnerGateway;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Sessions\Application\Service\SessionLifecycleManager;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 
 /**
  * Story 17.14: the guard-rail that force-resolves a session stuck in a transitional ("pending")

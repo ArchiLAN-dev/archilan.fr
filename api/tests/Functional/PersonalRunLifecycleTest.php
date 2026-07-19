@@ -6,10 +6,10 @@ namespace App\Tests\Functional;
 
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunParticipant;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Sessions\Application\Message\ArchiveRunJob;
-use App\Sessions\Domain\Session;
+use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class PersonalRunLifecycleTest extends FunctionalTestCase
@@ -385,8 +385,8 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
     {
         $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
         $run = Run::create($ownerId, 'Test Run', $now);
-        $run->setSessionId($sessionId);
-        (new \ReflectionProperty(Run::class, 'status'))->setValue($run, Run::STATUS_ACTIVE);
+        $run->attachSession($sessionId);
+        new \ReflectionProperty(Run::class, 'status')->setValue($run, Run::STATUS_ACTIVE);
 
         $this->entityManager->persist($run);
         $this->entityManager->flush();

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Community\Application\RecomputeAchievements;
-use App\Community\Domain\AchievementDefinition;
-use App\Community\Domain\AchievementGrantRepositoryInterface;
-use App\Identity\Domain\User;
+use App\Community\Application\Command\RecomputeAchievements;
+use App\Community\Domain\Entity\AchievementDefinition;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Identity\Domain\Entity\User;
 
 final class AdminAchievementGrantTest extends FunctionalTestCase
 {

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\PersonalRuns\Domain\Run;
-use App\Sessions\Domain\Session;
-use App\WeeklyRuns\Domain\WeeklyRun;
-use App\WeeklyRuns\Domain\WeeklyTemplate;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\Sessions\Domain\Entity\Session;
+use App\WeeklyRuns\Domain\Entity\WeeklyRun;
+use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
 
 final class OrchestratorWebhookTest extends FunctionalTestCase
 {
-    private const WEBHOOK_SECRET = 'test-orchestrateur-secret';
-    private const WEBHOOK_URL = '/api/v1/internal/orchestrateur/webhook';
+    private const string WEBHOOK_SECRET = 'test-orchestrateur-secret';
+    private const string WEBHOOK_URL = '/api/v1/internal/orchestrateur/webhook';
 
     protected function setUp(): void
     {
@@ -91,7 +91,7 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Ma partie', $now);
         $run->start($now);
-        $run->setSessionId($session->getId());
+        $run->attachSession($session->getId());
         $this->entityManager->persist($run);
         $this->entityManager->flush();
 

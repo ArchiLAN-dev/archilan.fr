@@ -1,0 +1,93 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Identity\Presentation\Controller;
+
+use App\Identity\Application\Command\ChangeUserSlug;
+use App\Identity\Domain\Entity\User;
+use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\RequiresAuthTrait;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Attribute\Route;
+
+final readonly class ProfileController
+{
+    use RequiresAuthTrait;
+
+    public function __construct(
+        private ApiAccessGuard $apiAccessGuard,
+        private ChangeUserSlug $changeUserSlug,
+    ) {
+    }
+
+    #[Route('/api/v1/account/profile', name: 'api_identity_profile_show', methods: ['GET'])]
+    public function show(Request $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        return new JsonResponse([
+            'data' => $this->profilePayload($user),
+            'meta' => [],
+        ]);
+    }
+
+    #[Route('/api/v1/account/slug', name: 'api_identity_slug_update', methods: ['PUT'])]
+    public function updateSlug(Request $request): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $body = json_decode($request->getContent(), true);
+        if (!is_array($body) || !is_string($body['slug'] ?? null)) {
+            return $this->apiAccessGuard->errorResponse('validation_error', 'Le slug est requis.', 422);
+        }
+
+        // Slug failures are thrown as a ValidationException (carrying the code + message + nextAllowedAt)
+        // and mapped to HTTP by ApplicationFailureListener (epic 35).
+        $result = $this->changeUserSlug->change($user->getId(), $body['slug']);
+
+        return new JsonResponse(['data' => ['slug' => $result->slug]]);
+    }
+
+    /**
+     * @return array{id: string, email: string, displayName: string, slug: string|null, nextSlugChangeAllowedAt: string|null, discordUsername: string|null, steamProfile: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
+     */
+    private function profilePayload(User $user): array
+    {
+        return [
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'displayName' => $user->getDisplayName(),
+            'slug' => $user->getSlug(),
+            'nextSlugChangeAllowedAt' => $this->nextSlugChangeAllowedAt($user),
+            'discordUsername' => $user->getDiscordUsername(),
+            'steamProfile' => $user->getSteamProfile(),
+            'roles' => $user->getRoles(),
+            'emailVerifiedAt' => $user->getEmailVerifiedAt()?->format(\DateTimeInterface::ATOM),
+            'createdAt' => $user->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            'updatedAt' => $user->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+        ];
+    }
+
+    /** When the user may next move to a NEW slug (null = now); reclaiming the previous slug is always allowed. */
+    private function nextSlugChangeAllowedAt(User $user): ?string
+    {
+        $changedAt = $user->getSlugChangedAt();
+        if (null === $changedAt) {
+            return null;
+        }
+
+        $next = $changedAt->add(new \DateInterval(sprintf('P%dD', ChangeUserSlug::COOLDOWN_DAYS)));
+
+        return $next > new \DateTimeImmutable() ? $next->format(\DateTimeInterface::ATOM) : null;
+    }
+}

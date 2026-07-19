@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { env } from "@/lib/env";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { getArchipelagoClient } from "@/features/games/archipelago-client-api";
 import { GameDetail } from "@/features/games/game-detail";
 import { getPublicGame } from "@/features/games/public-games-api";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300; // ISR (story 34.4)
 
 type GameDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -55,5 +57,16 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
 
   const client = await getArchipelagoClient();
 
-  return <GameDetail client={client} game={game} />;
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Accueil", path: "/" },
+          { name: "Jeux", path: "/jeux" },
+          { name: game.name, path: `/jeux/${game.slug}` },
+        ])}
+      />
+      <GameDetail client={client} game={game} />
+    </>
+  );
 }

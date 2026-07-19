@@ -1,17 +1,15 @@
-import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { getMembershipCheckoutUrl } from "@/features/payments/membership-api";
 import { MembershipCheckout } from "@/features/payments/membership-checkout";
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: "Adhésion",
   description:
     "Rejoins l'association ArchiLAN en payant ta cotisation annuelle via HelloAsso.",
-  openGraph: {
-    title: "Adhésion - ArchiLAN",
-  },
-};
+  path: "/adhesion",
+});
 
 export default async function AdhesionPage() {
   const checkoutEmbedUrl = await getMembershipCheckoutUrl();

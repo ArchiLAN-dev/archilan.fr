@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
-use App\Registrations\Domain\Registration;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionSlot;
-use App\Sessions\Infrastructure\NullRunnerGateway;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
+use App\Registrations\Domain\Entity\Registration;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 
 final class RunnerValidatePipelineTest extends FunctionalTestCase
 {
@@ -213,7 +213,7 @@ final class RunnerValidatePipelineTest extends FunctionalTestCase
         $now = new \DateTimeImmutable('2026-05-05T10:00:00+00:00');
         $reg = $this->createRegistration($eventId, $userId);
         $reg->replaceSlots([['slotId' => $slotId, 'gameId' => $gameId]], $now);
-        $reg->setSlotPlayerYaml($slotId, $playerYaml, 'test-hash', $now);
+        $reg->submitSlotPlayerYaml($slotId, $playerYaml, 'test-hash', $now);
         $this->entityManager->flush();
 
         return $reg;

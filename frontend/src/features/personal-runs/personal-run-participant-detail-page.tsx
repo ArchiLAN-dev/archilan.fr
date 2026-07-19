@@ -3,23 +3,17 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { AlertCircle, ArrowLeft, ExternalLink, FileText, Gamepad2, ShieldCheck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/apiFetch";
-import { env } from "@/lib/env";
-import type { ParticipantGameSlot, ParticipantIdentity, ParticipantLevel, ParticipantStats } from "./types";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { fetchParticipantGameSelection } from "./personal-runs-api";
+import type { ParticipantGameSlot, ParticipantLevel, ParticipantStats } from "./types";
 import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
   experimental: { label: "Expérimental", className: "border-warning/50 bg-warning/10 text-warning" },
 };
-
-type PageState =
-  | { kind: "loading" }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "error"; message: string }
-  | { kind: "ready"; participant: ParticipantIdentity; slots: ParticipantGameSlot[] };
 
 function Avatar({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
@@ -87,48 +81,26 @@ export function PersonalRunParticipantDetailPage({
   params: Promise<{ runId: string; participantId: string }>;
 }) {
   const { runId, participantId } = use(params);
-  const [pageState, setPageState] = useState<PageState>({ kind: "loading" });
   const [openSlot, setOpenSlot] = useState<ParticipantGameSlot | null>(null);
 
+  // fetchParticipantGameSelection never throws - the tri-state access encoding (401 -> unauthorized,
+  // 403 -> forbidden, 404 -> not_found) plus errors all live in the result's `kind`, so the query
+  // never errors and - like the old effect - never retries.
+  const detailQuery = useQuery({
+    queryKey: ["personal-run-participant", runId, participantId],
+    queryFn: () => fetchParticipantGameSelection(runId, participantId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const result = detailQuery.data;
+  const resultKind = result?.kind;
+
+  // 401: full-page login redirect, exactly as the old effect did.
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const res = await apiFetch(
-        `${env.apiBaseUrl}/runs/${runId}/participants/${participantId}/game-selection`,
-      );
-      if (cancelled) return;
-
-      if (res.status === 401) {
-        window.location.href = `/connexion?returnTo=/runs/${runId}/participants/${participantId}`;
-        return;
-      }
-      if (res.status === 403) {
-        setPageState({ kind: "forbidden" });
-        return;
-      }
-      if (res.status === 404) {
-        setPageState({ kind: "not_found" });
-        return;
-      }
-      if (!res.ok) {
-        setPageState({ kind: "error", message: "Impossible de charger la configuration du joueur." });
-        return;
-      }
-
-      const payload = (await res.json()) as {
-        data: { participant: ParticipantIdentity; slots: ParticipantGameSlot[] };
-      };
-      if (cancelled) return;
-      setPageState({ kind: "ready", participant: payload.data.participant, slots: payload.data.slots });
+    if (resultKind === "unauthorized") {
+      window.location.href = `/connexion?returnTo=/runs/${runId}/participants/${participantId}`;
     }
-
-    void run().catch(() => {
-      if (!cancelled) setPageState({ kind: "error", message: "Impossible de contacter l'API." });
-    });
-
-    return () => { cancelled = true; };
-  }, [runId, participantId]);
+  }, [resultKind, runId, participantId]);
 
   const backLink = (
     <Link
@@ -140,7 +112,8 @@ export function PersonalRunParticipantDetailPage({
     </Link>
   );
 
-  if (pageState.kind === "loading") {
+  // Loading covers the pending query and the 401 case (the redirect above is taking over).
+  if (detailQuery.isPending || result === undefined || result.kind === "unauthorized") {
     return (
       <div aria-hidden="true" className="mx-auto grid max-w-3xl gap-6">
         <div className="h-4 w-40 animate-pulse rounded bg-surface" />
@@ -154,13 +127,13 @@ export function PersonalRunParticipantDetailPage({
     );
   }
 
-  if (pageState.kind === "not_found" || pageState.kind === "forbidden" || pageState.kind === "error") {
+  if (result.kind === "not_found" || result.kind === "forbidden" || result.kind === "error") {
     const message =
-      pageState.kind === "not_found"
+      result.kind === "not_found"
         ? "Ce participant n'existe pas ou ne fait pas partie de cette partie."
-        : pageState.kind === "forbidden"
+        : result.kind === "forbidden"
           ? "Tu dois participer à cette partie pour voir la configuration des joueurs."
-          : pageState.message;
+          : result.message;
 
     return (
       <div className="mx-auto grid max-w-3xl gap-6">
@@ -168,7 +141,7 @@ export function PersonalRunParticipantDetailPage({
         <div className="grid gap-4 rounded-lg border border-border p-8 text-center">
           <AlertCircle aria-hidden className="mx-auto size-8 text-[color:var(--color-danger)]" />
           <p className="font-heading text-xl font-semibold text-foreground">
-            {pageState.kind === "not_found" ? "Participant introuvable" : "Accès refusé"}
+            {result.kind === "not_found" ? "Participant introuvable" : "Accès refusé"}
           </p>
           <p className="text-sm text-muted-foreground">{message}</p>
         </div>
@@ -176,7 +149,7 @@ export function PersonalRunParticipantDetailPage({
     );
   }
 
-  const { participant, slots } = pageState;
+  const { participant, slots } = result;
   const name = participant.displayName ?? "Joueur";
 
   return (

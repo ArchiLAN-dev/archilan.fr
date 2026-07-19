@@ -2,50 +2,24 @@
 
 import { CheckCircle2, Download, Lock, Radio, Shield, ShieldAlert, Users, XCircle } from "lucide-react";
 import Link from "next/link";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import {
+  fetchAdminRegistrations,
+  type AdminRegistration,
+  type AdminRegistrationsResult,
+  type PaymentSummary,
+  type RegistrationStatusFilter,
+} from "./admin-registration-api";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Page state ──────────────────────────────────────────────────────────────
 
-type Participant = {
-  userId: string;
-  displayName: string | null;
-  email: string;
-};
+type DashboardState = { kind: "loading" } | AdminRegistrationsResult;
 
-type SelectedGame = {
-  gameId: string;
-  gameName: string;
-};
-
-type PaymentSummary = {
-  status: string;
-  amountCents: number;
-  syncedAt: string;
-  isStale: boolean;
-};
-
-type AdminRegistration = {
-  registrationId: string;
-  status: "reserved" | "cancelled";
-  usedPrivateAccess: boolean;
-  createdAt: string;
-  submittedAt: string | null;
-  participant: Participant;
-  selectedGames: SelectedGame[];
-  gameSelectionComplete: boolean;
-  payment: PaymentSummary | null;
-};
-
-type StatusFilter = "all" | "reserved" | "cancelled";
-
-type DashboardState =
-  | { kind: "loading" }
-  | { kind: "ready"; registrations: AdminRegistration[]; total: number }
-  | { kind: "not_found" }
-  | { kind: "denied"; message: string }
-  | { kind: "error"; message: string };
+const LOADING_STATE: DashboardState = { kind: "loading" };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -56,76 +30,41 @@ const HIGHLIGHT_DURATION_MS = 3_000;
 
 export function AdminRegistrationDashboard({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params);
-  const [state, setState] = useState<DashboardState>({ kind: "loading" });
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<RegistrationStatusFilter>("all");
   const [exporting, setExporting] = useState(false);
   const [liveConnected, setLiveConnected] = useState(false);
   const [isPollingFallback, setIsPollingFallback] = useState(false);
-  const [lastLoadedAt, setLastLoadedAt] = useState<Date | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [highlightedRegistrationIds, setHighlightedRegistrationIds] = useState<Set<string>>(() => new Set());
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const url = new URL(`${env.apiBaseUrl}/admin/events/${eventId}/registrations`);
-      if (statusFilter !== "all") {
-        url.searchParams.set("status", statusFilter);
-      }
+  // fetchAdminRegistrations never throws (denied/not-found/server errors and network failures are
+  // encoded in the result's `kind`), so the query never errors and never retries. Refreshes are
+  // driven by the Mercure stream below (invalidate on message) or its 30 s polling fallback.
+  const { data, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ["admin-registrations", eventId, statusFilter],
+    queryFn: ({ signal }) => fetchAdminRegistrations(eventId, statusFilter, signal),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const state: DashboardState = data ?? LOADING_STATE;
 
-      const response = await fetch(url.toString(), { credentials: "include", signal });
-
-      if (signal?.aborted) return;
-
-      if (response.status === 401 || response.status === 403) {
-        setState({ kind: "denied", message: "Accès réservé aux admins ArchiLAN." });
-        return;
-      }
-
-      if (response.status === 404) {
-        setState({ kind: "not_found" });
-        return;
-      }
-
-      if (!response.ok) {
-        setState({ kind: "error", message: "Impossible de charger les inscriptions." });
-        return;
-      }
-
-      const payload: unknown = await response.json();
-
-      if (!isPayload(payload)) {
-        setState({ kind: "error", message: "Réponse API invalide." });
-        return;
-      }
-
-      setState({ kind: "ready", registrations: payload.data, total: payload.meta.total });
-      setLastLoadedAt(new Date());
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setState({ kind: "error", message: "Impossible de contacter l'API." });
-    }
-  }, [eventId, statusFilter]);
-
+  // Re-evaluate stale status whenever a load completes or every 30 s.
+  // `dataUpdatedAt` advances each time a fetch resolves (the queryFn never throws), which mirrors
+  // the pre-TanStack `lastLoadedAt` timestamp.
   useEffect(() => {
-    const controller = new AbortController();
-    void Promise.resolve().then(() => load(controller.signal));
-    return () => { controller.abort(); };
-  }, [load]);
-
-  // Re-evaluate stale status whenever a load succeeds or every 30 s
-  useEffect(() => {
-    if (!lastLoadedAt) return;
+    if (dataUpdatedAt === 0) return;
     const resetTimer = setTimeout(() => { setIsStale(false); }, 0);
     const timer = setInterval(() => {
-      setIsStale(Date.now() - lastLoadedAt.getTime() > STALE_THRESHOLD_MS);
+      setIsStale(Date.now() - dataUpdatedAt > STALE_THRESHOLD_MS);
     }, 30_000);
     return () => {
       clearTimeout(resetTimer);
       clearInterval(timer);
     };
-  }, [lastLoadedAt]);
+  }, [dataUpdatedAt]);
 
   useEffect(() => {
     if (!env.mercurePublicUrl) return;
@@ -133,6 +72,10 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
     let cancelled = false;
     const topic = `https://archilan.fr/events/${eventId}/registrations`;
     let es: EventSource | null = null;
+
+    function refreshList() {
+      void queryClient.invalidateQueries({ queryKey: ["admin-registrations", eventId] });
+    }
 
     function onMessage(event: MessageEvent<string>) {
       const item = parseRegistrationFeedItem(event.data);
@@ -146,7 +89,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
           });
         }, HIGHLIGHT_DURATION_MS);
       }
-      void load();
+      refreshList();
     }
 
     function onOpen() {
@@ -164,7 +107,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
 
     function onError() {
       if (pollingTimerRef.current === null) {
-        pollingTimerRef.current = setInterval(() => { void load(); }, POLLING_INTERVAL_MS);
+        pollingTimerRef.current = setInterval(() => { refreshList(); }, POLLING_INTERVAL_MS);
       }
       setIsPollingFallback(true);
       // Defer the disconnected badge by the grace period to avoid flashing on transient blips
@@ -189,7 +132,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
           return;
         }
 
-        const url = new URL(env.mercurePublicUrl as string);
+        const url = new URL(env.mercurePublicUrl);
         url.searchParams.set("topic", topic);
 
         es = new EventSource(url.toString(), { withCredentials: true });
@@ -222,7 +165,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
       setLiveConnected(false);
       setIsPollingFallback(false);
     };
-  }, [eventId, load]);
+  }, [eventId, queryClient]);
 
   async function exportRegistrations(includeCancelled: boolean) {
     setExporting(true);
@@ -277,7 +220,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
               Données peut-être obsolètes
               <button
                 className="underline hover:no-underline"
-                onClick={() => { void load(); }}
+                onClick={() => { void refetch(); }}
                 type="button"
               >
                 Actualiser
@@ -299,7 +242,7 @@ export function AdminRegistrationDashboard({ params }: { params: Promise<{ event
           <select
             className="min-h-9 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
             id="status-filter"
-            onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); }}
+            onChange={(e) => { setStatusFilter(e.target.value as RegistrationStatusFilter); }}
             value={statusFilter}
           >
             <option value="all">Tous</option>
@@ -548,17 +491,6 @@ function normalizePaymentStatus(status: string) {
   }
 
   return { label: "Inconnu", className: "border-border bg-background text-muted-foreground" };
-}
-
-function isPayload(payload: unknown): payload is { data: AdminRegistration[]; meta: { total: number } } {
-  return Boolean(
-    payload &&
-      typeof payload === "object" &&
-      "data" in payload &&
-      Array.isArray((payload as { data: unknown }).data) &&
-      "meta" in payload &&
-      typeof (payload as { meta: unknown }).meta === "object",
-  );
 }
 
 type RegistrationFeedItem = {

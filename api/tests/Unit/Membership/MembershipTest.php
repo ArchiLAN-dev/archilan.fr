@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Membership;
 
-use App\Membership\Domain\Membership;
+use App\Membership\Domain\Entity\Membership;
 use PHPUnit\Framework\TestCase;
 
 final class MembershipTest extends TestCase
 {
-    private const START = '2026-01-01';
-    private const EXPIRES = '2027-01-01';
+    private const string START = '2026-01-01';
+    private const string EXPIRES = '2027-01-01';
 
     public function testCreateStartsActiveWithGivenDates(): void
     {

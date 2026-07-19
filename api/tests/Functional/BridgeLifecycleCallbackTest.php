@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Communications\Application\SessionRestartFailedMessage;
-use App\Sessions\Domain\Session;
+use App\Communications\Application\Message\SessionRestartFailedMessage;
+use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**

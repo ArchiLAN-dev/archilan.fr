@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
-use App\Community\Application\BackfillActivity;
-use App\Community\Application\CommunityUserIdsQueryInterface;
-use App\Community\Application\RecordActivity;
-use App\Community\Domain\ActivityEntry;
-use App\Community\Domain\ActivityEntryRepositoryInterface;
-use App\Identity\Application\PlayerHistoryQueryInterface;
+use App\Community\Application\Command\BackfillActivity;
+use App\Community\Application\Command\RecordActivity;
+use App\Community\Application\Query\CommunityUserIdsQueryInterface;
+use App\Community\Domain\Entity\ActivityEntry;
+use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
+use App\Identity\Application\Query\PlayerHistoryQueryInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ActivityFeedTest extends TestCase
@@ -28,10 +28,10 @@ final class ActivityFeedTest extends TestCase
 
     public function testBackfillMaterialisesFinishedRunsAndIsIdempotent(): void
     {
-        $userIds = $this->createStub(CommunityUserIdsQueryInterface::class);
+        $userIds = self::createStub(CommunityUserIdsQueryInterface::class);
         $userIds->method('allUserIds')->willReturn(['u1']);
 
-        $history = $this->createStub(PlayerHistoryQueryInterface::class);
+        $history = self::createStub(PlayerHistoryQueryInterface::class);
         $history->method('fetchForUser')->willReturn([
             ['session_id' => 'sess1', 'event_name' => 'LAN', 'finished_at' => '2026-06-01T10:00:00+00:00', 'game' => 'Zelda'],
             ['session_id' => 'sess1', 'event_name' => 'LAN', 'finished_at' => '2026-06-01T10:00:00+00:00', 'game' => 'Metroid'],
@@ -54,13 +54,7 @@ final class ActivityFeedTest extends TestCase
 
             public function exists(string $actorId, string $type, string $subjectRef): bool
             {
-                foreach ($this->stored as $entry) {
-                    if ($entry->getActorId() === $actorId && $entry->getType() === $type && $entry->getSubjectRef() === $subjectRef) {
-                        return true;
-                    }
-                }
-
-                return false;
+                return array_any($this->stored, fn ($entry) => $entry->getActorId() === $actorId && $entry->getType() === $type && $entry->getSubjectRef() === $subjectRef);
             }
 
             public function ownerOf(string $entryId): ?string

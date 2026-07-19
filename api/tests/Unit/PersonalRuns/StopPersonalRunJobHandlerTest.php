@@ -6,11 +6,11 @@ namespace App\Tests\Unit\PersonalRuns;
 
 use App\PersonalRuns\Application\Handler\StopPersonalRunJobHandler;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
-use App\PersonalRuns\Domain\Run;
-use App\PersonalRuns\Domain\RunRepositoryInterface;
-use App\Sessions\Application\RunnerGatewayInterface;
-use App\Sessions\Domain\Session;
-use App\Sessions\Domain\SessionRepositoryInterface;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
@@ -18,15 +18,15 @@ final class StopPersonalRunJobHandlerTest extends TestCase
 {
     public function testPersonalRunNotFoundLogsErrorAndReturns(): void
     {
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn(null);
 
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('error')
-            ->with('personal_run.stop.not_found', $this->arrayHasKey('runId'));
+        $logger->expects(self::once())->method('error')
+            ->with('personal_run.stop.not_found', self::arrayHasKey('runId'));
 
         $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
-        $runnerGateway->expects($this->never())->method('stopSession');
+        $runnerGateway->expects(self::never())->method('stopSession');
 
         $this->makeHandler(runs: $runs, runnerGateway: $runnerGateway, logger: $logger)(new StopPersonalRunJob('run-missing'));
     }
@@ -36,15 +36,15 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('warning')
-            ->with('personal_run.stop.no_session', $this->arrayHasKey('runId'));
+        $logger->expects(self::once())->method('warning')
+            ->with('personal_run.stop.no_session', self::arrayHasKey('runId'));
 
         $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
-        $runnerGateway->expects($this->never())->method('stopSession');
+        $runnerGateway->expects(self::never())->method('stopSession');
 
         $this->makeHandler(runs: $runs, runnerGateway: $runnerGateway, logger: $logger)(new StopPersonalRunJob($run->getId()));
     }
@@ -53,23 +53,23 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     {
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
-        $run->setSessionId('sess-missing');
+        $run->attachSession('sess-missing');
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn(null);
 
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($this->once())->method('warning')
-            ->with('personal_run.stop.session_not_found', $this->logicalAnd(
-                $this->arrayHasKey('runId'),
-                $this->arrayHasKey('sessionId'),
+        $logger->expects(self::once())->method('warning')
+            ->with('personal_run.stop.session_not_found', self::logicalAnd(
+                self::arrayHasKey('runId'),
+                self::arrayHasKey('sessionId'),
             ));
 
         $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
-        $runnerGateway->expects($this->never())->method('stopSession');
+        $runnerGateway->expects(self::never())->method('stopSession');
 
         $this->makeHandler(runs: $runs, sessions: $sessions, runnerGateway: $runnerGateway, logger: $logger)(new StopPersonalRunJob($run->getId()));
     }
@@ -78,18 +78,18 @@ final class StopPersonalRunJobHandlerTest extends TestCase
     {
         $now = new \DateTimeImmutable();
         $run = Run::create('owner-1', 'Test Run', $now);
-        $run->setSessionId('sess-1');
+        $run->attachSession('sess-1');
 
         $session = Session::create('sess-1', 'event-1', $now);
 
-        $runs = $this->createStub(RunRepositoryInterface::class);
+        $runs = self::createStub(RunRepositoryInterface::class);
         $runs->method('findById')->willReturn($run);
 
-        $sessions = $this->createStub(SessionRepositoryInterface::class);
+        $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
 
         $runnerGateway = $this->createMock(RunnerGatewayInterface::class);
-        $runnerGateway->expects($this->once())->method('stopSession')->with('sess-1');
+        $runnerGateway->expects(self::once())->method('stopSession')->with('sess-1');
 
         $this->makeHandler(runs: $runs, sessions: $sessions, runnerGateway: $runnerGateway)(new StopPersonalRunJob($run->getId()));
     }
@@ -101,10 +101,10 @@ final class StopPersonalRunJobHandlerTest extends TestCase
         ?LoggerInterface $logger = null,
     ): StopPersonalRunJobHandler {
         return new StopPersonalRunJobHandler(
-            $runs ?? $this->createStub(RunRepositoryInterface::class),
-            $sessions ?? $this->createStub(SessionRepositoryInterface::class),
-            $runnerGateway ?? $this->createStub(RunnerGatewayInterface::class),
-            $logger ?? $this->createStub(LoggerInterface::class),
+            $runs ?? self::createStub(RunRepositoryInterface::class),
+            $sessions ?? self::createStub(SessionRepositoryInterface::class),
+            $runnerGateway ?? self::createStub(RunnerGatewayInterface::class),
+            $logger ?? self::createStub(LoggerInterface::class),
         );
     }
 }

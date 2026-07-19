@@ -15,7 +15,14 @@ const eslintConfig = defineConfig([
   ]),
   {
     // AC-TS3: ban `as` type assertions at API parse sites and in the guard helpers.
-    files: ["src/features/**/*-api.ts", "src/lib/type-guards.ts"],
+    files: [
+      "src/features/**/*-api.ts",
+      "src/lib/type-guards.ts",
+      "src/hooks/use-sse.ts",
+      "src/features/overlay/use-overlay-stream.ts",
+      "src/features/realtime/**",
+      "src/features/reachability/types.ts",
+    ],
     rules: {
       "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "never" }],
     },

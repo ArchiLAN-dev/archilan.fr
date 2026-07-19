@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
-use App\Events\Domain\Event;
-use App\GameSelection\Domain\Game;
-use App\Identity\Domain\User;
+use App\Events\Domain\Entity\Event;
+use App\GameSelection\Domain\Entity\Game;
+use App\Identity\Domain\Entity\User;
 
 final class RbacEnforcementTest extends FunctionalTestCase
 {

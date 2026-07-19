@@ -25,66 +25,41 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { isFeedEvent } from "@/features/overlay/overlay-api";
+import { fetchSubscribeToken, isSessionStatusFrame } from "@/features/realtime/realtime-api";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { CollapsibleConfigPanel } from "@/components/collapsible-config-panel";
+import {
+  fetchAdminEventSessions,
+  fetchAdminEventTitle,
+  fetchAdminSessionDetail,
+  fetchContainerLogs,
+  fetchContainerState,
+  type AdminSessionDetailResult,
+  type ContainerState,
+  type Session,
+  type SessionSlot,
+  type SessionStatus,
+} from "./admin-sessions-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SessionStatus =
-  | "draft"
-  | "validating"
-  | "ready"
-  | "generating"
-  | "generated"
-  | "launching"
-  | "running"
-  | "idle"
-  | "restarting"
-  | "stopped"
-  | "failed"
-  | "crashed"
-  | "finished";
-
-type ValidationError = {
-  slotName: string;
-  errors: string[];
-};
-
-type Session = {
-  id: string;
-  eventId: string;
-  status: SessionStatus;
-  host: string | null;
-  port: number | null;
-  password: string | null;
-  serverPassword?: string | null;
-  createdAt: string;
-  startedAt: string | null;
-  stoppedAt: string | null;
-  lastActivityAt?: string | null;
-  pausedWithoutSave?: boolean;
-  error?: string | null;
-  lastLogs?: string | null;
-  validationErrors?: ValidationError[] | null;
-};
-
-type SessionSlot = {
-  id: string;
-  sessionId: string;
-  registrationId: string;
-  gameId: string;
-  slotName: string;
-  slotOrder: number;
-  slotId: string | null;
-};
+// Guard for `/sessions/{id}` Mercure frames (story 33.19): structural check delegated to the
+// shared session-frame guard; the refinement to the full Session shape is a documented trust
+// decision - the api is the single publisher of this topic and publishes the complete payload.
+function isSessionPayload(v: unknown): v is Session {
+  return isSessionStatusFrame(v);
+}
 
 type BuilderOption = {
   key: string;
@@ -121,12 +96,12 @@ type WizardSlot = {
 
 // ─── Page state ──────────────────────────────────────────────────────────────
 
-type PageState =
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "sessions"; sessions: Session[] }
-  | { kind: "wizard_builder"; sessions: Session[]; registrations: BuilderRegistration[] | null; builderLoading: boolean; slots: WizardSlot[] }
-  | { kind: "creating"; sessions: Session[]; slots: WizardSlot[] };
+// Local UI state of the "new session" wizard; the sessions list itself lives in TanStack Query.
+type WizardState = {
+  registrations: BuilderRegistration[] | null;
+  builderLoading: boolean;
+  slots: WizardSlot[];
+};
 
 // ─── Slot name generation (port of SlotNameGenerator.php) ───────────────────
 
@@ -197,70 +172,50 @@ function generateSlotsFromRegistrations(registrations: BuilderRegistration[]): W
 export function AdminSessionPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = use(params);
   const router = useRouter();
-  const [state, setState] = useState<PageState>({ kind: "loading" });
-  const [eventTitle, setEventTitle] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [wizard, setWizard] = useState<WizardState | null>(null);
   const [restartingId, setRestartingId] = useState<string | null>(null);
 
-  const loadSessions = useCallback(async () => {
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/sessions`);
-      if (res.status === 401 || res.status === 403) {
-        setState({ kind: "error", message: "Accès réservé aux admins ArchiLAN." });
-        return null;
-      }
-      if (!res.ok) {
-        setState({ kind: "error", message: "Impossible de charger les sessions." });
-        return null;
-      }
-      const json = (await res.json()) as { data: Session[] };
-      return json.data;
-    } catch {
-      setState({ kind: "error", message: "Impossible de contacter l'API." });
-      return null;
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    void (async () => {
-      const [sessions] = await Promise.all([
-        loadSessions(),
-        apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}`)
-          .then((r) => r.ok ? r.json() as Promise<{ data: { title: string } }> : null)
-          .then((j) => { if (j?.data?.title) setEventTitle(j.data.title); })
-          .catch(() => { /* title stays null */ }),
-      ]);
-      if (sessions !== null) {
-        setState({ kind: "sessions", sessions });
-      }
-    })();
-  }, [loadSessions, eventId]);
+  // queryFn throws on failure (denied / HTTP error / network) so a background refetch that fails
+  // keeps the last known list on screen; the error panel only shows when nothing was ever loaded.
+  const sessionsQuery = useQuery({
+    queryKey: ["admin-event-sessions", eventId],
+    queryFn: async () => {
+      const result = await fetchAdminEventSessions(eventId);
+      if (result.kind === "error") throw new Error(result.message);
+      return result.sessions;
+    },
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const eventTitleQuery = useQuery({
+    queryKey: ["admin-event-title", eventId],
+    queryFn: () => fetchAdminEventTitle(eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const eventTitle = eventTitleQuery.data ?? null;
+  const sessions = sessionsQuery.data;
 
   async function startWizard() {
-    const sessions = "sessions" in state ? state.sessions : [];
-    setState({ kind: "wizard_builder", sessions, registrations: null, builderLoading: true, slots: [] });
+    setWizard({ registrations: null, builderLoading: true, slots: [] });
 
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/sessions/builder`);
       if (!res.ok) {
-        setState({ kind: "sessions", sessions });
+        setWizard(null);
         return;
       }
       const json = (await res.json()) as { data: { registrations: BuilderRegistration[] } };
       const registrations = json.data.registrations;
       const slots = generateSlotsFromRegistrations(registrations);
-      setState((prev) =>
-        prev.kind === "wizard_builder"
-          ? { ...prev, registrations, builderLoading: false, slots }
-          : prev,
-      );
+      setWizard((prev) => (prev !== null ? { registrations, builderLoading: false, slots } : prev));
     } catch {
-      setState({ kind: "sessions", sessions });
+      setWizard(null);
     }
   }
 
   async function createSession(slots: WizardSlot[], autoChain?: "generate-and-launch") {
-    const sessions = "sessions" in state ? state.sessions : [];
-
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}/sessions`, {
         method: "POST",
@@ -275,7 +230,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
         }),
       });
       if (!res.ok) {
-        setState({ kind: "sessions", sessions });
+        setWizard(null);
         return;
       }
       const json = (await res.json()) as { data: Session };
@@ -283,7 +238,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
       const url = `/admin/evenements/${eventId}/session/${newSession.id}${autoChain ? "?autoStart=1" : ""}`;
       router.push(url);
     } catch {
-      setState({ kind: "sessions", sessions });
+      setWizard(null);
     }
   }
 
@@ -292,10 +247,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
     try {
       const res = await apiFetch(`${env.apiBaseUrl}/sessions/${sessionId}/restart`, { method: "POST" });
       if (res.ok) {
-        const reloaded = await loadSessions();
-        if (reloaded !== null) {
-          setState({ kind: "sessions", sessions: reloaded });
-        }
+        await queryClient.invalidateQueries({ queryKey: ["admin-event-sessions", eventId] });
       }
     } catch {
       /* ignore - session card stays as-is */
@@ -304,7 +256,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
     }
   }
 
-  if (state.kind === "loading") {
+  if (sessionsQuery.isPending) {
     return (
       <PageShell eventId={eventId} eventTitle={eventTitle}>
         <SessionDetailSkeleton label="Chargement de la session..." />
@@ -312,31 +264,17 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
     );
   }
 
-  if (state.kind === "error") {
-    return (
-      <PageShell eventId={eventId} eventTitle={eventTitle}>
-        <div className="grid justify-items-center gap-3 border border-border bg-surface p-8 text-center">
-          <XCircle aria-hidden="true" className="size-8 text-danger" />
-          <p className="text-sm text-muted-foreground">{state.message}</p>
-        </div>
-      </PageShell>
-    );
-  }
-
-  if (state.kind === "wizard_builder") {
+  if (wizard !== null) {
     return (
       <PageShell eventId={eventId} eventTitle={eventTitle}>
         <WizardBuilder
-          builderLoading={state.builderLoading}
+          builderLoading={wizard.builderLoading}
           eventId={eventId}
-          registrations={state.registrations}
-          slots={state.slots}
-          onBack={() => {
-            const sessions = "sessions" in state ? state.sessions : [];
-            setState({ kind: "sessions", sessions });
-          }}
+          registrations={wizard.registrations}
+          slots={wizard.slots}
+          onBack={() => { setWizard(null); }}
           onSlotsChange={(slots) =>
-            setState((prev) => (prev.kind === "wizard_builder" ? { ...prev, slots } : prev))
+            setWizard((prev) => (prev !== null ? { ...prev, slots } : prev))
           }
           onCreate={(slots) => createSession(slots)}
           onCreateAndGenerate={(slots) => createSession(slots, "generate-and-launch")}
@@ -345,17 +283,24 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
     );
   }
 
-  if (state.kind === "creating") {
+  if (sessions === undefined) {
     return (
       <PageShell eventId={eventId} eventTitle={eventTitle}>
-        <SessionDetailSkeleton label="Création de la session..." />
+        <div className="grid justify-items-center gap-3 border border-border bg-surface p-8 text-center">
+          <XCircle aria-hidden="true" className="size-8 text-danger" />
+          <p className="text-sm text-muted-foreground">
+            {sessionsQuery.error instanceof Error
+              ? sessionsQuery.error.message
+              : "Impossible de charger les sessions."}
+          </p>
+        </div>
       </PageShell>
     );
   }
 
   // sessions list
-  const idleSessions = state.sessions.filter((s) => s.status === "idle");
-  const otherSessions = state.sessions.filter((s) => s.status !== "idle");
+  const idleSessions = sessions.filter((s) => s.status === "idle");
+  const otherSessions = sessions.filter((s) => s.status !== "idle");
 
   return (
     <PageShell eventId={eventId} eventTitle={eventTitle}>
@@ -371,7 +316,7 @@ export function AdminSessionPage({ params }: { params: Promise<{ eventId: string
         </button>
       </div>
 
-      {state.sessions.length === 0 ? (
+      {sessions.length === 0 ? (
         <div className="grid justify-items-center gap-3 border border-border bg-surface p-8 text-center">
           <Server aria-hidden="true" className="size-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Aucune session pour cet événement.</p>
@@ -486,46 +431,56 @@ export function AdminSessionDetailPage({
 }) {
   const { eventId, sessionId } = use(params);
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const autoStart = searchParams.get("autoStart") === "1" ? "generate-and-launch" as const : null;
 
-  const [session, setSession] = useState<Session | null>(null);
-  const [slots, setSlots] = useState<SessionSlot[]>([]);
-  const [eventTitle, setEventTitle] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // queryFn throws on failure ("Session introuvable." / network) so a failed background refetch
+  // keeps the currently displayed session; the error panel only shows when nothing was ever loaded.
+  const detailQuery = useQuery({
+    queryKey: ["admin-session-detail", sessionId],
+    queryFn: async () => {
+      const result = await fetchAdminSessionDetail(sessionId);
+      if (result.kind === "error") throw new Error(result.message);
+      return result;
+    },
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const eventTitleQuery = useQuery({
+    queryKey: ["admin-event-title", eventId],
+    queryFn: () => fetchAdminEventTitle(eventId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const eventTitle = eventTitleQuery.data ?? null;
+  const detail = detailQuery.data;
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [detailRes, eventRes] = await Promise.all([
-          apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}`),
-          apiFetch(`${env.apiBaseUrl}/admin/events/${eventId}`),
-        ]);
-        if (!detailRes.ok) { setError("Session introuvable."); return; }
-        const detail = (await detailRes.json()) as { data: { session: Session; slots: SessionSlot[] } };
-        setSession(detail.data.session);
-        setSlots(detail.data.slots);
-        if (eventRes.ok) {
-          const ev = (await eventRes.json()) as { data: { title: string } };
-          setEventTitle(ev.data.title ?? null);
-        }
-      } catch {
-        setError("Impossible de contacter l'API.");
-      }
-    })();
-  }, [eventId, sessionId]);
+  // SSE frames, the SSE fallback poll and action responses push the fresh session straight into
+  // the cached detail, which stays the single source of truth for this page.
+  const handleSessionUpdate = useCallback(
+    (session: Session) => {
+      queryClient.setQueryData<AdminSessionDetailResult>(
+        ["admin-session-detail", sessionId],
+        (prev) => (prev !== undefined && prev.kind === "ready" ? { ...prev, session } : prev),
+      );
+    },
+    [queryClient, sessionId],
+  );
 
-  if (error) {
+  if (detail === undefined && detailQuery.isError) {
     return (
       <PageShell eventId={eventId} eventTitle={eventTitle} sessionId={sessionId}>
         <div className="grid justify-items-center gap-3 border border-border bg-surface p-8 text-center">
           <XCircle aria-hidden="true" className="size-8 text-danger" />
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground">
+            {detailQuery.error instanceof Error ? detailQuery.error.message : "Session introuvable."}
+          </p>
         </div>
       </PageShell>
     );
   }
 
-  if (!session) {
+  if (detail === undefined || detail.kind !== "ready") {
     return (
       <PageShell eventId={eventId} eventTitle={eventTitle} sessionId={sessionId}>
         <SessionDetailSkeleton label="Chargement de la session..." />
@@ -538,9 +493,9 @@ export function AdminSessionDetailPage({
       <SessionDetail
         autoStart={autoStart}
         eventId={eventId}
-        onSessionUpdate={setSession}
-        session={session}
-        slots={slots}
+        onSessionUpdate={handleSessionUpdate}
+        session={detail.session}
+        slots={detail.slots}
       />
       <OverlayLinksPanel sessionId={sessionId} />
       <CollapsibleConfigPanel title="Configuration avancée (override de la session)">
@@ -876,7 +831,7 @@ function SessionDetail({
     if (["running", "stopped", "finished", "failed", "crashed"].includes(session.status)) {
       clearPendingChainSoon();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runChainedAction/clearPendingChainSoon are recreated each render but only close over stable setters; the chain must fire on status/chain/pending transitions only
   }, [session.status, pendingChain, actionPending]);
 
   const handleSSEMessage = useCallback((data: Session) => {
@@ -897,6 +852,7 @@ function SessionDetail({
   useSSE<Session>(
     `/sessions/${session.id}`,
     env.mercurePublicUrl || null,
+    isSessionPayload,
     handleSSEMessage,
     fallbackPoll,
   );
@@ -1539,14 +1495,21 @@ function AdminTerminal({
       es.onopen = () => { setConnected(true); };
 
       es.onmessage = (event) => {
+        // Any frame - even one the guard will drop - proves the stream is alive (pre-33.19 parity).
+        setConnected(true);
+        const frame: unknown = event.data;
+        if (typeof frame !== "string") return;
+        let parsed: unknown;
         try {
-          const data = JSON.parse(event.data as string) as { type: string; text: string; timestamp: string };
-          setConnected(true);
-          setLines((prev) => [
-            ...prev,
-            { kind: "feed" as const, type: data.type, text: data.text, timestamp: data.timestamp, _key: `${Date.now()}-${Math.random()}` },
-          ].slice(-300));
-        } catch { /* ignore */ }
+          parsed = JSON.parse(frame);
+        } catch {
+          return; /* malformed frame - ignored */
+        }
+        if (!isFeedEvent(parsed)) return; /* unexpected shape - dropped, never cast */
+        setLines((prev) => [
+          ...prev,
+          { kind: "feed" as const, type: parsed.type, text: parsed.text ?? "", timestamp: parsed.timestamp, _key: `${Date.now()}-${Math.random()}` },
+        ].slice(-300));
       };
 
       es.onerror = () => {
@@ -1560,14 +1523,11 @@ function AdminTerminal({
     }
 
     async function init(): Promise<void> {
-      const res = await apiFetch(`${env.apiBaseUrl}/sessions/${runId}/feed-token`);
+      const payload = await fetchSubscribeToken(`/sessions/${runId}/feed-token`);
       if (cancelled) return;
-      if (!res.ok) { setFeedReady(true); return; }
-      const json = (await res.json()) as { data: { token: string; hubUrl: string; topic: string } };
-      const { token, hubUrl, topic } = json.data;
-      if (cancelled || !hubUrl) { setFeedReady(true); return; }
+      if (!payload || !payload.hubUrl) { setFeedReady(true); return; }
       setFeedReady(true);
-      connect(token, hubUrl, topic);
+      connect(payload.token, payload.hubUrl, payload.topic);
     }
 
     void init().catch(() => { if (!cancelled) setFeedReady(true); });
@@ -1804,18 +1764,6 @@ const CONTAINER_ACTIONS = [
 
 type ContainerActionResult = { action: string; success: boolean; output: string };
 
-type ContainerState = {
-  found: boolean;
-  status: string;
-  running: boolean;
-  paused: boolean;
-  restarting: boolean;
-  exit_code: number | null;
-  error: string;
-  started_at: string | null;
-  finished_at: string | null;
-};
-
 const CONTAINER_STATUS_STYLE: Record<string, { dot: string; badge: string; label: string }> = {
   running:    { dot: "bg-success animate-pulse", badge: "border-success/30 bg-success/10 text-success",                               label: "En cours" },
   paused:     { dot: "bg-[var(--color-accent-warm)]", badge: "border-[var(--color-accent-warm)]/30 bg-[var(--color-accent-warm)]/10 text-[var(--color-accent-warm)]", label: "En pause" },
@@ -1885,31 +1833,46 @@ function ContainerStateCard({ state, loading }: { state: ContainerState | null; 
 }
 
 function LogPanel({ sessionId, active }: { sessionId: string; active: boolean }) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(true);
-  const [logs, setLogs] = useState<string>("");
-  const [loadingLogs, setLoadingLogs] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [actionOutput, setActionOutput] = useState<ContainerActionResult | null>(null);
-  const [containerState, setContainerState] = useState<ContainerState | null>(null);
-  const [loadingState, setLoadingState] = useState(false);
   const [loadingCreate, setLoadingCreate] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
 
-  async function fetchLogs() {
-    setLoadingLogs(true);
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/logs`);
-      if (res.ok) {
-        const json = (await res.json()) as { data: { logs: string } };
-        setLogs(json.data.logs);
-      }
-    } catch {
-      /* keep current logs */
-    } finally {
-      setLoadingLogs(false);
-    }
+  // 5 s container-state poll; the queryFn throws on failure so the last known state stays
+  // displayed instead of being cleared.
+  const containerQuery = useQuery({
+    queryKey: ["admin-session-container", sessionId],
+    queryFn: async () => {
+      const state = await fetchContainerState(sessionId);
+      if (state === null) throw new Error("container-state-unavailable");
+      return state;
+    },
+    staleTime: REALTIME_STALE_TIME,
+    retry: false,
+    refetchInterval: 5_000,
+  });
+  const containerState = containerQuery.data ?? null;
+
+  // 10 s log poll while the log card is open (enabled also stops the interval when closed);
+  // same throw-on-failure so the last fetched logs stay visible.
+  const logsQuery = useQuery({
+    queryKey: ["admin-session-logs", sessionId],
+    queryFn: async () => {
+      const logs = await fetchContainerLogs(sessionId);
+      if (logs === null) throw new Error("container-logs-unavailable");
+      return logs;
+    },
+    enabled: open,
+    staleTime: REALTIME_STALE_TIME,
+    retry: false,
+    refetchInterval: 10_000,
+  });
+  const logs = logsQuery.data ?? "";
+
+  function refreshContainerState() {
+    void queryClient.invalidateQueries({ queryKey: ["admin-session-container", sessionId] });
   }
 
   async function createContainer() {
@@ -1927,20 +1890,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
       setActionOutput({ action: "create", success: false, output: "Erreur réseau." });
     } finally {
       setLoadingCreate(false);
-      void fetchState();
-    }
-  }
-
-  async function fetchState() {
-    setLoadingState(true);
-    try {
-      const res = await apiFetch(`${env.apiBaseUrl}/admin/sessions/${sessionId}/container`);
-      if (res.ok) {
-        const json = (await res.json()) as { data: ContainerState };
-        setContainerState(json.data);
-      }
-    } catch { /* keep current */ } finally {
-      setLoadingState(false);
+      refreshContainerState();
     }
   }
 
@@ -1957,13 +1907,13 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
       const json = (await res.json()) as { data: ContainerActionResult };
       setActionOutput(json.data);
       if (action === "logs" && json.data.output) {
-        setLogs(json.data.output);
+        queryClient.setQueryData(["admin-session-logs", sessionId], json.data.output);
       }
     } catch {
       setActionOutput({ action, success: false, output: "Erreur réseau." });
     } finally {
       setLoadingAction(null);
-      void fetchState();
+      refreshContainerState();
     }
   }
 
@@ -1971,41 +1921,10 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
     if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight;
   }, [logs]);
 
-  useEffect(() => {
-    void fetchState();
-    stateIntervalRef.current = setInterval(() => { void fetchState(); }, 5_000);
-    return () => {
-      if (stateIntervalRef.current) clearInterval(stateIntervalRef.current);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
-  useEffect(() => {
-    if (open) {
-      queueMicrotask(() => {
-        void fetchLogs();
-      });
-      intervalRef.current = setInterval(() => { void fetchLogs(); }, 10_000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, sessionId]);
-
   return (
     <div className="grid gap-4">
       {/* ── État du container ── */}
-      <ContainerStateCard loading={loadingState} state={containerState} />
+      <ContainerStateCard loading={containerQuery.isPending} state={containerState} />
 
       {/* ── Actions container ── */}
       <div className="flex flex-wrap items-center gap-2">
@@ -2086,7 +2005,7 @@ function LogPanel({ sessionId, active }: { sessionId: string; active: boolean })
 
         {open ? (
           <div className="bg-[var(--color-bg)] p-4">
-            {loadingLogs && logs === "" ? (
+            {logsQuery.isPending ? (
               <div aria-hidden="true" className="grid gap-1.5">
                 {[0, 1, 2].map((i) => (
                   <div className="h-3 animate-pulse rounded bg-surface-2" key={i} style={{ width: `${70 + i * 10}%` }} />
