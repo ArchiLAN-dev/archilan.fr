@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Identity\Domain\Entity\User;
 use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionSlot;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -142,7 +143,110 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    // ─── slot-ownership gate (issues #252 / #253) ───────────────────────────────
+
+    public function testUpdateHintStatusForbidsForeignSlot(): void
+    {
+        // Alice owns slot 0; she must not be able to change the hint priority of Bob's slot 1 (#253).
+        $session = $this->createRunningSession('run-own-hint', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'aliceh');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/1/hints/123', $session->getId()), ['status' => 30]);
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testUpdateHintStatusAllowsOwnSlot(): void
+    {
+        // Slot owner reaches validation (status 40 is bridge-managed -> 422), proving the ownership gate passed.
+        $session = $this->createRunningSession('run-own-hint-ok', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'aliceok');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/0/hints/123', $session->getId()), ['status' => 40]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testSlotItemLocationsForbidsForeignSlot(): void
+    {
+        // Item locations of another slot are spoilers -> a co-registrant must not read them (#252).
+        $session = $this->createRunningSession('run-own-il', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilalice');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/1/item-locations', $session->getId()));
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testSlotItemLocationsForbidsRegistrantWithoutSlot(): void
+    {
+        // A confirmed registrant (session-authorized) who owns no slot is still denied - the previous
+        // session-level check let this through, which was the #252 leak.
+        $session = $this->createRunningSession('run-noslot-il', 'evt-001');
+        $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilnoslot');
+        $carol = $this->createPlayer('carol-il@example.org', 'Carol');
+        $this->makeRegistration($carol->getId(), 'evt-001', confirmed: true);
+        $this->loginAs($carol);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/0/item-locations', $session->getId()));
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testSlotItemLocationsAllowsOwnSlot(): void
+    {
+        // Owner passes the gate; on a not-yet-running session the request stops at the running-state
+        // check (409), proving the ownership gate passed without needing a live bridge.
+        $session = $this->createSession('run-own-il-ok', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilok');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/0/item-locations', $session->getId()));
+        self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testSlotItemLocationsAllowsAdminOnAnySlot(): void
+    {
+        $session = $this->createSession('run-admin-il', 'evt-001');
+        $this->twoRegistrantsWithSlots($session, 'evt-001', 'iladmin');
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/1/item-locations', $session->getId()));
+        self::assertResponseStatusCodeSame(409);
+    }
+
     // ─── helpers ────────────────────────────────────────────────────────────────
+
+    /**
+     * Alice owns slot 0, Bob owns slot 1, both confirmed registrants of $eventId. Returns [alice, bob].
+     *
+     * @return array{0: User, 1: User}
+     */
+    private function twoRegistrantsWithSlots(Session $session, string $eventId, string $tag): array
+    {
+        $alice = $this->createPlayer($tag.'-alice@example.org', 'Alice');
+        $bob = $this->createPlayer($tag.'-bob@example.org', 'Bob');
+        $regA = $this->makeRegistration($alice->getId(), $eventId, confirmed: true);
+        $regB = $this->makeRegistration($bob->getId(), $eventId, confirmed: true);
+        $this->createSlot($session->getId(), $regA->getId(), 0);
+        $this->createSlot($session->getId(), $regB->getId(), 1);
+
+        return [$alice, $bob];
+    }
+
+    private function createSlot(string $sessionId, string $registrationId, int $slotOrder): void
+    {
+        $slot = SessionSlot::create(
+            bin2hex(random_bytes(16)),
+            $sessionId,
+            $registrationId,
+            'game-'.$slotOrder,
+            'Slot'.$slotOrder,
+            $slotOrder,
+        );
+        $this->entityManager->persist($slot);
+        $this->entityManager->flush();
+    }
 
     private function createSession(string $id, string $eventId): Session
     {

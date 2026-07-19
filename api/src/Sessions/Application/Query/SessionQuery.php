@@ -7,8 +7,10 @@ namespace App\Sessions\Application\Query;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 
 final readonly class SessionQuery
 {
@@ -17,6 +19,8 @@ final readonly class SessionQuery
         private ActiveRegistrationQueryInterface $activeRegistration,
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
+        private RegistrationRepositoryInterface $registrations,
+        private SessionSlotRepositoryInterface $slots,
     ) {
     }
 
@@ -78,5 +82,42 @@ final readonly class SessionQuery
         }
 
         return false;
+    }
+
+    /**
+     * True when the user owns the slot at $slotIndex in the session, i.e. the SessionSlot whose
+     * slotOrder equals $slotIndex belongs to the caller. Session-level authorization is NOT enough:
+     * a registrant/participant may only read or act on their own slots (issues #252 / #253). Admin
+     * bypass is the caller's responsibility. The reference pattern is the weekly-run path
+     * (WeeklyRunSlotQuery::findLaunchedEntryInfo), which already rejects foreign slots.
+     */
+    public function doesUserOwnSlot(string $userId, string $sessionId, int $slotIndex): bool
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return false;
+        }
+
+        $ownerKey = $this->slotOwnerKey($userId, $sessionId, $session->getEventId());
+        if (null === $ownerKey) {
+            return false;
+        }
+
+        return array_any($this->slots->findByRegistrationAndSession($ownerKey, $sessionId), fn ($slot) => $slot->getSlotOrder() === $slotIndex);
+    }
+
+    /**
+     * The key that scopes the caller's SessionSlot rows. For a personal-run session the
+     * SessionSlot.registrationId column holds the participant userId (LaunchPersonalRunJobHandler);
+     * for an event session it holds the caller's registration id. Returns null when the caller has
+     * no slots in the session.
+     */
+    private function slotOwnerKey(string $userId, string $sessionId, string $eventId): ?string
+    {
+        if ($this->runs->findBySessionId($sessionId) instanceof Run) {
+            return $userId;
+        }
+
+        return $this->registrations->findByEventAndUser($eventId, $userId)?->getId();
     }
 }
