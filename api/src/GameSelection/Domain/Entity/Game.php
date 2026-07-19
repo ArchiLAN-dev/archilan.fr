@@ -81,6 +81,10 @@ final class Game
          */
         #[ORM\Column(name: 'location_names', type: 'json', nullable: true)]
         private ?array $locationNames = null,
+        // Free-text admin-only notes about the game (apworld quirks, config pitfalls, decision
+        // history). Strictly internal: never exposed on public/game-selection payloads (story 3.12).
+        #[ORM\Column(name: 'admin_notes', type: 'text', nullable: true)]
+        private ?string $adminNotes = null,
     ) {
     }
 
@@ -273,6 +277,17 @@ final class Game
     public function recordLocationNames(?array $locationNames): void
     {
         $this->locationNames = null === $locationNames || [] === $locationNames ? null : $locationNames;
+    }
+
+    public function getAdminNotes(): ?string
+    {
+        return $this->adminNotes;
+    }
+
+    public function recordAdminNotes(?string $adminNotes): void
+    {
+        $trimmed = null === $adminNotes ? null : trim($adminNotes);
+        $this->adminNotes = null === $trimmed || '' === $trimmed ? null : $trimmed;
     }
 
     /**

@@ -68,6 +68,26 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * Save the admin-only free-text notes for a game (story 3.12). Empty/whitespace clears them.
+     *
+     * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
+     */
+    public function saveNotes(string $gameId, ?string $notes): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $game->recordAdminNotes($notes);
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.admin_notes_saved', ['gameId' => $gameId, 'hasNotes' => null !== $game->getAdminNotes()]);
+
+        return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
+    }
+
+    /**
      * Seed a draft install tutorial from existing data (bundled / apworld / sheet links). Only
      * overwrites an existing tutorial when $force is true.
      *
@@ -554,6 +574,7 @@ final readonly class AdminGameLibrary
             'defaultYaml' => $game->getDefaultYaml(),
             'optionTypes' => $game->getOptionTypes(),
             'locationNames' => $game->getLocationNames(),
+            'adminNotes' => $game->getAdminNotes(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
             'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),

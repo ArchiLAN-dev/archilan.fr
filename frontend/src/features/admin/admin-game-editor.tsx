@@ -32,6 +32,7 @@ const EDITOR_TABS = [
     {id: "catalogue", label: "Catalogue"},
     {id: "apworld", label: "APWorld"},
     {id: "tutoriel", label: "Tutoriel"},
+    {id: "notes", label: "Notes"},
 ] as const;
 
 type EditorTab = (typeof EDITOR_TABS)[number]["id"];
@@ -138,6 +139,9 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
             </div>
             <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
                 <InstallTutorialSection game={game} onUpdate={refreshGame}/>
+            </div>
+            <div aria-labelledby="tab-notes" hidden={activeTab !== "notes"} id="panel-notes" role="tabpanel">
+                <NotesSection game={game} onUpdate={refreshGame}/>
             </div>
         </div>
     );
@@ -828,6 +832,69 @@ function InstallTutorialSection({game, onUpdate}: { game: AdminGame; onUpdate: (
                         {seeding ? "Génération…" : "Générer un brouillon"}
                     </button>
                     {success ? <span className="text-sm text-success">Tutoriel enregistré.</span> : null}
+                    {error ? <span className="text-sm text-danger">{error}</span> : null}
+                </div>
+            </div>
+        </Section>
+    );
+}
+
+function NotesSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [notes, setNotes] = useState(game.adminNotes ?? "");
+    const [submitting, setSubmitting] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function save() {
+        setError(null);
+        setSuccess(false);
+        setSubmitting(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/notes`, {
+                body: JSON.stringify({adminNotes: notes}),
+                headers: {"Content-Type": "application/json"},
+                method: "PATCH",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError(extractDetails(payload)["adminNotes"]?.[0] ?? "L'enregistrement des notes a échoué.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setNotes(payload.data.adminNotes ?? "");
+                setSuccess(true);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <Section
+            description="Notes internes à l'administration (particularités de l'apworld, pièges de config, historique des décisions). Jamais affichées publiquement."
+            title="Notes admin"
+        >
+            <div className="grid gap-4">
+                <textarea
+                    aria-label="Notes admin"
+                    className="min-h-48 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Rien à signaler pour l'instant…"
+                    value={notes}
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                        disabled={submitting}
+                        onClick={save}
+                        type="button"
+                    >
+                        {submitting ? "Enregistrement…" : "Enregistrer les notes"}
+                    </button>
+                    {success ? <span className="text-sm text-success">Notes enregistrées.</span> : null}
                     {error ? <span className="text-sm text-danger">{error}</span> : null}
                 </div>
             </div>

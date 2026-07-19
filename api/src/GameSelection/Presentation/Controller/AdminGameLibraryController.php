@@ -172,6 +172,38 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Tutoriel enregistré.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/notes', name: 'api_admin_game_save_notes', methods: ['PATCH'])]
+    public function saveNotes(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = $this->jsonPayload($request);
+        $raw = $payload['adminNotes'] ?? null;
+        if (null !== $raw && !is_string($raw)) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Les notes doivent être du texte.', 422, ['adminNotes' => ['Format invalide.']]);
+        }
+        if (is_string($raw) && mb_strlen($raw) > 20000) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Les notes sont trop longues (max 20000 caractères).', 422, ['adminNotes' => ['Trop long (max 20000 caractères).']]);
+        }
+
+        $result = $this->adminGameLibrary->saveNotes($gameId, $raw);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('notes_save_failed', 'L\'enregistrement des notes a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Notes enregistrées.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/tutorial/seed', name: 'api_admin_game_seed_tutorial', methods: ['POST'])]
     public function seedTutorial(Request $request, string $gameId): JsonResponse
     {
