@@ -59,8 +59,10 @@ Contexts ordered smallest-first (by count of command methods returning outcome a
 - **35.3 - PersonalRuns** (2) · **35.4 - Events** (3) · **35.5 - GameSelection** (4) ·
   **35.6 - Registrations, public + message** (4 of 6: reserve/submit/cancel/message; adds `BadGatewayException`
   502) · **35.6b - Registrations admin** (`AdminRegistrationCancellation`, `AdminRegistrationModification` -
-  deferred: their controllers audit-log *every* outcome, so conversion needs the logging moved into the
-  command first) · **35.7 - Identity, validation-shaped admin/privacy** (3 of 8: `AdminChangeUserRole`,
+  was deferred because their controllers audit-logged *every* outcome; **Done** (commit `ecd9c47`): the
+  per-outcome audit log moved into each command's private `auditLog(..., $outcome)`, both now `void` and throw
+  typed `NotFound`/`Conflict`/`Validation` failures, controllers thinned to a single call) · **35.7 - Identity,
+  validation-shaped admin/privacy** (3 of 8: `AdminChangeUserRole`,
   `AdminCreateAdminAccount`, `CreatePrivacyRightsRequest`) · **35.7b - Identity RegisterUser** (deferred:
   `register()` is the pervasive test user-creation helper returning `{user: User}`; converting ripples into
   ~12 test files - do it as its own PR) · **35.7c - Identity discriminant** (`ChangeUserSlug`
