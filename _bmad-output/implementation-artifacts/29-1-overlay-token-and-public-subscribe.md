@@ -1,6 +1,6 @@
 # Story 29.1: revocable overlay token + public subscribe endpoint
 
-Status: review
+Status: done
 
 ## Story
 

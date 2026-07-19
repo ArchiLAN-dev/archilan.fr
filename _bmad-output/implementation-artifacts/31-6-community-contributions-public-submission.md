@@ -1,6 +1,6 @@
 # Story 31.6: Community contributions - public submission
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

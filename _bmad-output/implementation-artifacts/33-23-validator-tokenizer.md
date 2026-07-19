@@ -1,6 +1,6 @@
 # Story 33.23: Tokenizer-Based Validator Rules - Kill the Raw-Lexical-Scan Debt (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

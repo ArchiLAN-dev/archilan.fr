@@ -1,6 +1,6 @@
 # Story 30.4: Achievement catalog + deterministic engine + recompute
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

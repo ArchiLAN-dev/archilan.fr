@@ -1,6 +1,6 @@
 # Story 9.30: Paid Hints via Connect-as-Slot (player-charged)
 
-Status: review
+Status: done
 
 ## Story
 

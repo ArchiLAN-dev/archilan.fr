@@ -1,6 +1,6 @@
 # Story 15.1: Infrastructure MinIO
 
-Status: review
+Status: done
 
 ## Story
 

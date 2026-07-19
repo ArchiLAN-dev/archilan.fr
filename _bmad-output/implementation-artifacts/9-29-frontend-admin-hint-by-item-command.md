@@ -1,6 +1,6 @@
 # Story 9.29: Frontend - Admin Hint-by-Item Uses the Admin Command
 
-Status: review
+Status: done
 
 ## Story
 

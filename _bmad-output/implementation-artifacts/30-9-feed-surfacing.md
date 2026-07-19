@@ -1,6 +1,6 @@
 # Story 30.9: Feed surfacing (own + friends')
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

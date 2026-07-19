@@ -1,6 +1,6 @@
 # Story 9.20: Bridge → Mercure Reachability Push
 
-Status: review
+Status: done
 
 ## Story
 

@@ -1,6 +1,6 @@
 # Story 28.8: "Récemment joués" surfaced on the run game-selection page
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

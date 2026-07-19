@@ -1,6 +1,6 @@
 # Story 16.11: Named YAML templates for personal-run slots
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

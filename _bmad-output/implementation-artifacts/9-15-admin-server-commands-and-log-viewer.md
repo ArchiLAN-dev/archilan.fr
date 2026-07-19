@@ -1,6 +1,6 @@
 # Story 9.15: Admin Server Commands and Log Viewer
 
-Status: review
+Status: done
 
 ## Story
 

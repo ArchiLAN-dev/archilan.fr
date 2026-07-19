@@ -1,6 +1,6 @@
 # Story 30.3: Profile customization (owner edit) + AudiencePolicy
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

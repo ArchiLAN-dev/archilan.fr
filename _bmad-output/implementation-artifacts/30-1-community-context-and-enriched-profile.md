@@ -1,6 +1,6 @@
 # Story 30.1: Community context skeleton + enriched profile read model + page shell
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

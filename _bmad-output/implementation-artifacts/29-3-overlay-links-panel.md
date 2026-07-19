@@ -1,6 +1,6 @@
 # Story 29.3: overlay links panel for operators
 
-Status: review
+Status: done
 
 ## Story
 

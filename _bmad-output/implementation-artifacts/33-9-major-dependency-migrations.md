@@ -1,6 +1,6 @@
 # Story 33.9: Major Dependency Migrations (api/ + frontend/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

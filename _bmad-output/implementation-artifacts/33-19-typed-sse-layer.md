@@ -1,6 +1,6 @@
 # Story 33.19: Typed SSE Layer (frontend/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

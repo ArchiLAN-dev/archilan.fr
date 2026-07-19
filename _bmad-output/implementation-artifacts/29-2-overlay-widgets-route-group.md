@@ -1,6 +1,6 @@
 # Story 29.2: overlay widgets - bare route group + three widgets
 
-Status: review
+Status: done
 
 ## Story
 

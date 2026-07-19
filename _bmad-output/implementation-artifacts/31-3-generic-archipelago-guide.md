@@ -1,6 +1,6 @@
 # Story 31.3: Generic "Installer Archipelago" guide
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
