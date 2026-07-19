@@ -213,17 +213,22 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return array{found: bool, authorized: bool, inviteToken: string|null, inviteUrl: string|null}
+     * @return array{found: bool, authorized: bool, blocked: bool, inviteToken: string|null, inviteUrl: string|null}
      */
     public function regenerateToken(string $runId, string $callerId): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
-            return ['found' => false, 'authorized' => false, 'inviteToken' => null, 'inviteUrl' => null];
+            return ['found' => false, 'authorized' => false, 'blocked' => false, 'inviteToken' => null, 'inviteUrl' => null];
         }
 
         if (!$run->isOwnedBy($callerId)) {
-            return ['found' => true, 'authorized' => false, 'inviteToken' => null, 'inviteUrl' => null];
+            return ['found' => true, 'authorized' => false, 'blocked' => false, 'inviteToken' => null, 'inviteUrl' => null];
+        }
+
+        // A finished or cancelled run is read-only: no new invite link (#338).
+        if ($run->isTerminal()) {
+            return ['found' => true, 'authorized' => true, 'blocked' => true, 'inviteToken' => null, 'inviteUrl' => null];
         }
 
         $run->regenerateInviteToken($this->clock->now());
@@ -232,6 +237,7 @@ final readonly class PersonalRunDrafts
         return [
             'found' => true,
             'authorized' => true,
+            'blocked' => false,
             'inviteToken' => $run->getInviteToken(),
             'inviteUrl' => $this->siteUrl.'/runs/join/'.$run->getInviteToken(),
         ];
