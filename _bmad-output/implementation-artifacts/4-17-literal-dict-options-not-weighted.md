@@ -1,6 +1,6 @@
 # Story 4.17: Parse literal dict options (game_options) as freeform dicts, not weighted choices
 
-**Status:** review
+**Status:** done
 **Epic:** 4 - Registration & per-game randomizer option configuration
 **Date:** 2026-06-27
 

@@ -1,8 +1,8 @@
-# Story 4.14: Location Fields Autocomplete (Backlog)
+# Story 4.14: Location Fields Autocomplete
 
-Status: backlog
+Status: done
 
-> **Note:** Cette story est volontairement en backlog. L'implémentation nécessite une extraction préalable des locations depuis les apworlds (pipeline backend non encore câblé). La complexité est élevée (3 couches : apworld parsing → API → frontend) pour un ROI modéré. À reprendre quand le pipeline apworld sera stabilisé.
+> **Note (2026-07-19):** Débloquée et livrée. Le pipeline d'extraction est désormais câblé de bout en bout : archipelago `introspect_options.py` émet `{options, locations}`, l'orchestrateur expose `GET /apworlds/{hash}/locations`, le SDK `orchestrator-client` v1.3.0 ajoute `getLocations`, et le monorepo persiste `Game.locationNames`. Livré via PR #357 (develop) + archipelago #8 + orchestrateur #13.
 
 ## Story
 
@@ -36,31 +36,31 @@ Fields affected:
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 - Backend: extract and store location list per game during apworld upload
-  - [ ] 1.1 In the apworld processing pipeline (story 9.11 / 3.10), after parsing the apworld zip, extract `location_name_to_id` from the game's World class
-  - [ ] 1.2 Store the location list (array of strings) on the `Game` entity / table - new nullable column `location_names: string[]`
-  - [ ] 1.3 Re-extract on apworld update/replacement
-  - [ ] 1.4 Migration + PHPStan + tests
+- [x] Task 1 - Backend: extract and store location list per game during apworld upload
+  - [x] 1.1 Extraction déléguée au repo archipelago (`introspect_options.py`) : après le build des options, lit `world_cls.location_name_to_id` et émet `{options, locations}` dans le sidecar d'introspection. L'orchestrateur relit ce sidecar via `GetApworldLocations` et l'expose sur `GET /apworlds/{hash}/locations`.
+  - [x] 1.2 Colonne nullable `Game.locationNames` (`json`) + `recordLocationNames`
+  - [x] 1.3 Re-extraction à chaque upload (`RunnerGateway.uploadApworld` renvoie `locationNames`) + commande de backfill `app:games:backfill-locations` (`BackfillGameLocations`)
+  - [x] 1.4 Migration `Version20260719100000` + PHPStan max/strict + tests unitaires (`BackfillGameLocationsTest`)
 
-- [ ] Task 2 - API: expose location names per game
-  - [ ] 2.1 Add `locationNames: string[] | null` to the existing game detail payload (or slot config payload)
-  - [ ] 2.2 The slot config page already fetches game info - include `locationNames` there; no new endpoint needed
-  - [ ] 2.3 Return `null` when no apworld has been parsed yet (graceful degradation)
+- [x] Task 2 - API: expose location names per game
+  - [x] 2.1 `locationNames` ajouté aux 3 payloads slot-config (admin weekly / personal runs / registrations)
+  - [x] 2.2 Aucun nouvel endpoint : la valeur voyage dans les payloads de sélection de jeu existants
+  - [x] 2.3 `null` tant qu'aucun apworld n'a été introspecté (dégradation gracieuse)
 
-- [ ] Task 3 - Frontend: autocomplete component for location fields
-  - [ ] 3.1 Create reusable `LocationAutocompleteInput` component: text input + floating dropdown, filtered by typed value (case-insensitive substring match)
-  - [ ] 3.2 Replace plain `<input>` in `ListField` for location-type options with `LocationAutocompleteInput` when `locationNames` prop is provided
-  - [ ] 3.3 Pass `locationNames` from the parsed YAML editor context down to location fields - needs a new prop on `YamlOptionEditor`
-  - [ ] 3.4 Keyboard navigation in dropdown (↑↓ Enter Escape)
-  - [ ] 3.5 Graceful degradation: when `locationNames` is null, render plain `<input>` (no change to existing behavior)
+- [x] Task 3 - Frontend: autocomplete component for location fields
+  - [x] 3.1 Composant `LocationAutocompleteInput` (input + dropdown flottant, substring case-insensitive, min 2 chars, max 50 suggestions)
+  - [x] 3.2 `ListField` utilise `LocationAutocompleteInput`, suggestions passées uniquement pour les clés `priority_locations` / `exclude_locations` / `start_location_hints`
+  - [x] 3.3 Prop `locationNames` threadée sur `YamlOptionEditor` → `OptionField` → `ListField`, câblée sur tous les consommateurs (events, personal runs, admin weekly)
+  - [x] 3.4 Navigation clavier (↑↓ Enter Escape) + a11y combobox (`aria-controls`/`aria-expanded`/`role=listbox`)
+  - [x] 3.5 `suggestions === null` → input simple (comportement pré-4.14 inchangé)
 
-- [ ] Task 4 - Quality gates
-  - [ ] 4.1 `vendor/bin/phpstan analyse` → 0 errors
-  - [ ] 4.2 `vendor/bin/php-cs-fixer check` → 0 violations
-  - [ ] 4.3 `php bin/phpunit` → all green
-  - [ ] 4.4 `pnpm typecheck` → 0 errors
-  - [ ] 4.5 `pnpm lint` → 0 errors / 0 warnings
-  - [ ] 4.6 `pnpm build` → clean
+- [x] Task 4 - Quality gates
+  - [x] 4.1 `vendor/bin/phpstan analyse` → 0 errors
+  - [x] 4.2 `vendor/bin/php-cs-fixer check` → 0 violations (+ DDD + rector verts)
+  - [x] 4.3 `php bin/phpunit` (isolé) → 1545 tests / 10615 assertions verts
+  - [x] 4.4 `pnpm typecheck` → 0 errors
+  - [x] 4.5 `pnpm lint` → 0 errors (warning résiduel préexistant hors périmètre)
+  - [x] 4.6 `pnpm build` → clean
 
 ## Dev Notes
 
@@ -120,10 +120,51 @@ The `YamlOptionEditor` needs a new optional prop `locationNames: string[] | null
 
 ### Agent Model Used
 
-claude-sonnet-4-6
+claude-opus-4-8 (Claude Code, 1M context).
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- Pipeline 5 couches livrée. L'extraction est le rôle du repo archipelago (pas du monorepo) : `introspect_options.py` réutilise le sidecar d'introspection déjà produit après upload, étendu de `{options}` à `{options, locations}`. L'orchestrateur relit le même sidecar (pas de seconde introspection).
+- Liste statique = indice, jamais contrainte : texte libre toujours accepté, jamais de validation stricte (le sous-ensemble réel de locations dépend des options et est inconnu au moment de la config). AC-3 / UX Decision respectés.
+- Le bridge n'est pas touché : sa lecture de `location_name_to_id` (`core/ap_client.py`) est runtime-only (traduction ID→nom dans les events temps réel), sans rapport avec la config.
+- AC-5 (refresh sur nouvelle version d'apworld) : couvert par la ré-extraction à chaque upload + `app:games:backfill-locations` pour les jeux existants.
+- Versions upstream : archipelago master (PR #8), orchestrateur master (PR #13), orchestrator-client v1.3.0 (`getLocations`).
+
 ### File List
+
+**Monorepo (PR #357)**
+- `api/src/GameSelection/Domain/Entity/Game.php` (colonne `locationNames` + `recordLocationNames`/`getLocationNames`)
+- `api/migrations/Version20260719100000.php`
+- `api/src/Sessions/Application/Port/RunnerGatewayInterface.php` (`fetchLocationNames`)
+- `api/src/Sessions/Infrastructure/Http/RunnerGateway.php`
+- `api/src/Sessions/Infrastructure/Double/NullRunnerGateway.php`
+- `api/src/GameSelection/Application/Service/AdminGameLibrary.php`
+- `api/src/PersonalRuns/Application/Service/PersonalRunGameSelection.php`
+- `api/src/Registrations/Application/Service/RegistrationGameSelection.php`
+- `api/src/GameSelection/Application/Command/BackfillGameLocations.php`
+- `api/src/GameSelection/Presentation/Command/BackfillGameLocationsCommand.php`
+- `api/tests/Unit/GameSelection/BackfillGameLocationsTest.php`
+- `api/composer.json` / `composer.lock` (orchestrator-client v1.3.0)
+- `frontend/src/features/events/location-autocomplete-input.tsx` (nouveau)
+- `frontend/src/features/events/yaml-option-editor.tsx`
+- `frontend/src/lib/archipelago-yaml.ts` (`asLocationNames`)
+- `frontend/src/lib/archipelago-yaml-bounds.test.ts` (tests `asLocationNames`)
+- `frontend/src/features/events/events-api.ts`
+- `frontend/src/features/events/slot-yaml-gate.tsx`
+- `frontend/src/features/personal-runs/personal-runs-api.ts`
+- `frontend/src/features/personal-runs/personal-run-slot-yaml-page.tsx`
+- `frontend/src/features/admin/admin-weekly-runs-api.ts`
+- `frontend/src/features/admin/admin-weekly-template-form.tsx`
+
+**Repos de service (hors monorepo)**
+- archipelago `introspect_options.py` (PR #8 → master)
+- orchestrateur `internal/api|service` + `/apworlds/{hash}/locations` (PR #13 → master)
+- orchestrator-client `src/Apworlds/ApworldsClient.php` `getLocations` (v1.3.0)
+
+### Change Log
+
+| Date       | Change |
+|------------|--------|
+| 2026-07-19 | Débloquée depuis backlog et livrée de bout en bout (pipeline 5 couches). Autocomplete statique-indice pour `priority_locations` / `exclude_locations` / `start_location_hints` dans l'éditeur YAML de slot. Gates verts des deux côtés. Status → done. |
