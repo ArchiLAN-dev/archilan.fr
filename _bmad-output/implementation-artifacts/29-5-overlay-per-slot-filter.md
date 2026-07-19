@@ -1,6 +1,6 @@
 # Story 29.5: per-slot overlay filter ("my notifications only")
 
-Status: review
+Status: done
 
 ## Story
 

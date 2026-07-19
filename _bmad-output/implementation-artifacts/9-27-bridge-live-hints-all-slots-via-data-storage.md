@@ -1,6 +1,6 @@
 # Story 9.27: Bridge - Live Hints for All Slots via AP Data Storage
 
-Status: review
+Status: done
 
 ## Story
 

@@ -1,6 +1,6 @@
 # Story 33.17: Extend the DDD Validator to the Remaining Documented ACs (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

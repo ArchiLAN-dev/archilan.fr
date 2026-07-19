@@ -1,6 +1,6 @@
 # Story 30.8: Activity feed infrastructure + signals
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

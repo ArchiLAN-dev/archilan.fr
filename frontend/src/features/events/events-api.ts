@@ -6,7 +6,7 @@
 // (the pre-TanStack eligibility gate used raw fetch and silently lost that behaviour).
 
 import { apiFetch } from "@/lib/apiFetch";
-import { asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
+import { asLocationNames, asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
@@ -347,6 +347,7 @@ export type SlotYamlGame = {
   isApworldReady: boolean;
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;
+  locationNames: string[] | null;
 };
 
 export type SlotYamlData = {
@@ -406,6 +407,7 @@ function parseSlotYamlData(payload: unknown, targetSlotId: string): SlotYamlData
     isApworldReady: Reflect.get(rawGame, "isApworldReady") === true,
     defaultYaml: optionalString(rawGame, "defaultYaml"),
     optionTypes: asOptionTypesMap(Reflect.get(rawGame, "optionTypes")),
+    locationNames: asLocationNames(Reflect.get(rawGame, "locationNames")),
   };
 
   // Compute slot label - need sibling count for same game

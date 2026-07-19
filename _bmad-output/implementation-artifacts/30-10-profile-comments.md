@@ -1,6 +1,6 @@
 # Story 30.10: Profile comments (guestbook)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

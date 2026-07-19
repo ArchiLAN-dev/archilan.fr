@@ -1,6 +1,6 @@
 # Story 33.1: Test DB Isolation & Local/CI Gate Parity
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

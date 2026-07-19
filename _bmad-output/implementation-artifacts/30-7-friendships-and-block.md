@@ -1,6 +1,6 @@
 # Story 30.7: Friendships + block
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

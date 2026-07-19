@@ -38,6 +38,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return [];
     }
 
+    public function fetchLocationNames(string $hash): array
+    {
+        return [];
+    }
+
     public function preflight(string $sessionId, array $slots): array
     {
         $proposed = [];

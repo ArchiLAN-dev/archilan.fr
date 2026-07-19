@@ -72,6 +72,15 @@ final class Game
          */
         #[ORM\Column(name: 'install_steps', type: 'json', nullable: true)]
         private ?array $installSteps = null,
+        /**
+         * Static apworld location names (the World class's location_name_to_id keys), from introspection
+         * (story 4.14). Free-text suggestion hint for the location-typed YAML options; null when the
+         * apworld has no apworld/introspection yet.
+         *
+         * @var list<string>|null
+         */
+        #[ORM\Column(name: 'location_names', type: 'json', nullable: true)]
+        private ?array $locationNames = null,
     ) {
     }
 
@@ -248,6 +257,22 @@ final class Game
     public function recordOptionTypes(?array $optionTypes): void
     {
         $this->optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    public function getLocationNames(): ?array
+    {
+        return $this->locationNames;
+    }
+
+    /**
+     * @param list<string>|null $locationNames
+     */
+    public function recordLocationNames(?array $locationNames): void
+    {
+        $this->locationNames = null === $locationNames || [] === $locationNames ? null : $locationNames;
     }
 
     /**

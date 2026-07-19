@@ -87,6 +87,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
                 'archipelagoGameName' => $archipelagoGameName,
                 'defaultYaml' => $defaultYaml,
                 'optionTypes' => $this->fetchOptionTypes($result->hash),
+                'locationNames' => $this->fetchLocationNames($result->hash),
             ];
         } catch (\Throwable $e) {
             $this->logger->error('runner.apworld_upload_failed', ['filename' => $filename, 'error' => $e->getMessage()]);
@@ -113,6 +114,17 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
 
         return $types;
+    }
+
+    public function fetchLocationNames(string $hash): array
+    {
+        try {
+            return $this->client->apworlds()->getLocations($hash);
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_locations_fetch_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return [];
+        }
     }
 
     /**

@@ -1,6 +1,6 @@
 # Story 28.1: Enabler - steamAppId on Game via IGDB external_games sync
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

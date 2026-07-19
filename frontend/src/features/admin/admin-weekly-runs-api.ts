@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/apiFetch";
-import { asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
+import { asLocationNames, asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 
 // Shared TanStack Query keys for the admin weekly-runs views. Exported so the
@@ -94,6 +94,7 @@ export type AdminGameOption = {
   coverImageUrl?: string | null;
   defaultYaml?: string | null;
   optionTypes?: OptionTypesMap | null;
+  locationNames?: string[] | null;
 };
 
 // ── Fetch functions ────────────────────────────────────────────────────────────
@@ -157,6 +158,7 @@ export async function fetchAdminGameOptionDetail(id: string): Promise<AdminGameO
       isApworldReady: data.isApworldReady,
       defaultYaml: "defaultYaml" in data && typeof data.defaultYaml === "string" ? data.defaultYaml : null,
       optionTypes: "optionTypes" in data ? asOptionTypesMap(data.optionTypes) : null,
+      locationNames: "locationNames" in data ? asLocationNames(data.locationNames) : null,
     };
   } catch {
     return null;

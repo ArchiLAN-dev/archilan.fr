@@ -1,6 +1,6 @@
 # Story 4.18: Full-content scrollable modal for option descriptions
 
-**Status:** review
+**Status:** done
 **Epic:** 4 - Registration & per-game randomizer option configuration
 **Date:** 2026-06-27
 

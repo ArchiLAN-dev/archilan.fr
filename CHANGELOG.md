@@ -5,6 +5,33 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.9.0] - 2026-07-19
+
+Version de fonctionnalité ciblée : autocomplétion des noms de locations dans
+l'éditeur YAML de configuration de slot, livrée de bout en bout sur toute la
+chaîne (introspection apworld, orchestrateur, SDK PHP, API, frontend). Le reste
+est de l'hygiène documentaire BMAD, sans impact sur le code.
+
+### Ajouté
+
+- **Autocomplétion des champs de location (story 4.14)** : les options de type liste
+  `priority_locations`, `exclude_locations` et `start_location_hints` de l'éditeur YAML
+  proposent désormais des suggestions de noms de locations issues de la liste statique de
+  l'apworld. Les suggestions sont un simple indice - le texte libre reste toujours accepté
+  (jamais de validation stricte), et le champ redevient un input simple quand le jeu n'a
+  pas de données de location (dégradation gracieuse). Chaîne complète : `introspect_options.py`
+  (archipelago) expose les noms de locations, l'orchestrateur les publie via
+  `GET /apworlds/{hash}/locations`, le SDK `orchestrator-client` v1.3.0 ajoute `getLocations`,
+  l'API persiste `Game.locationNames` et l'expose dans les payloads de sélection de jeu.
+- **Commande de backfill des locations** : `app:games:backfill-locations` remplit
+  `location_names` pour les jeux déjà introspectés (miroir du backfill des types d'options).
+
+### Modifié
+
+- **Hygiène des statuts BMAD** : clôture des statuts de l'Epic 4 (story 4.14 débloquée et
+  livrée ; stories 4.15-4.19 déjà implémentées repassées de `review` à `done`) et
+  réconciliation des statuts périmés du backlog avec la réalité livrée.
+
 ## [0.8.0] - 2026-07-19
 
 Version majeure de consolidation : référencement (SEO) complet des pages publiques,

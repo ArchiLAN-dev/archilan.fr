@@ -1,6 +1,6 @@
 # Story 33.2: Standards Docs Reconciled with Enforced Tooling
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

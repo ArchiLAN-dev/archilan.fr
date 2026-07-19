@@ -1,6 +1,6 @@
 # Story 29.4: enrich feed item events with origin (check + world + sender)
 
-Status: review
+Status: done
 
 ## Story
 

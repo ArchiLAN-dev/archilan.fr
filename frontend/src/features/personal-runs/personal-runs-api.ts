@@ -156,6 +156,7 @@ export type GameSelectionGame = {
   isApworldReady: boolean;
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;
+  locationNames: string[] | null;
   coverImageUrl: string | null;
   coverImageAlt: string;
   platforms: string[];

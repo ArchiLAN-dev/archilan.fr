@@ -1,6 +1,6 @@
 # Story 31.8: Version-match guidance (apworld + Archipelago client)
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

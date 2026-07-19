@@ -29,6 +29,15 @@ interface RunnerGatewayInterface
     public function fetchOptionTypes(string $hash): array;
 
     /**
+     * Static location names introspected from an uploaded apworld (the World class's
+     * location_name_to_id keys); a free-text suggestion hint for location-typed YAML options
+     * (story 4.14). Empty when the apworld has not been introspected yet.
+     *
+     * @return list<string>
+     */
+    public function fetchLocationNames(string $hash): array;
+
+    /**
      * @param list<array{slotName: string, apworldHash: string, playerYaml: string}> $slots
      *
      * @return array{valid: bool, errors: list<array{playerName: string, errors: list<string>}>}

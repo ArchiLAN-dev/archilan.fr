@@ -1,6 +1,6 @@
 # Story 9.6: Server Lifecycle - Launch, Health Monitoring and Auto-recovery
 
-Status: review
+Status: done
 
 ## Story
 

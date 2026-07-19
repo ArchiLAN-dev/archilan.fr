@@ -39,6 +39,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
   const [name, setName] = useState("");
   const [defaultYaml, setDefaultYaml] = useState(FALLBACK_YAML);
   const [optionTypes, setOptionTypes] = useState<OptionTypesMap | null>(null);
+  const [locationNames, setLocationNames] = useState<string[] | null>(null);
   const [yamlConfig, setYamlConfig] = useState(FALLBACK_YAML);
   const [initialTemplateYaml, setInitialTemplateYaml] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<string>("");
@@ -87,6 +88,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
         setMaxAttempts(templateResult.maxAttempts != null ? String(templateResult.maxAttempts) : "");
         setDefaultYaml(gameDetailResult?.defaultYaml || templateResult.yamlConfig || FALLBACK_YAML);
         setOptionTypes(gameDetailResult?.optionTypes ?? null);
+        setLocationNames(gameDetailResult?.locationNames ?? null);
       }
     } else if (mode === "create" && initialGameId) {
       // Game pre-selected from the per-game detail page: lock it and load its defaults.
@@ -98,6 +100,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
         setDefaultYaml(nextDefaultYaml);
         setYamlConfig(nextDefaultYaml);
         setOptionTypes(gameDetailResult.optionTypes ?? null);
+        setLocationNames(gameDetailResult.locationNames ?? null);
       }
     }
 
@@ -116,6 +119,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
     const nextDefaultYaml = gameDetail?.defaultYaml || FALLBACK_YAML;
     setDefaultYaml(nextDefaultYaml);
     setOptionTypes(gameDetail?.optionTypes ?? null);
+    setLocationNames(gameDetail?.locationNames ?? null);
     setYamlConfig(nextDefaultYaml);
     setYamlEditorKey((k) => k + 1);
   }
@@ -265,6 +269,7 @@ export function AdminWeeklyTemplateForm({ mode, templateId, initialGameId }: Pro
             key={yamlEditorKey}
             ref={yamlEditorRef}
             defaultYaml={defaultYaml}
+            locationNames={locationNames}
             optionTypes={optionTypes}
             playerYaml={initialTemplateYaml}
             onChange={setYamlConfig}

@@ -1,6 +1,6 @@
 # Story 30.2: Avatar resolution + caching
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

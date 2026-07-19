@@ -1,6 +1,6 @@
 # Story 33.10: Layer Sub-Folder Taxonomy - Exception/, Command/, Query/ (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

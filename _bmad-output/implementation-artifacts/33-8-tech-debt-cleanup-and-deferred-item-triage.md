@@ -1,6 +1,6 @@
 # Story 33.8: Tech-Debt Cleanup & Deferred-Item Triage (api/ + frontend/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

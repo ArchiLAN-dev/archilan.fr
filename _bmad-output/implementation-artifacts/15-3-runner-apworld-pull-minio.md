@@ -1,6 +1,6 @@
 # Story 15.3: Runner APWorld Pull depuis MinIO
 
-Status: review
+Status: done
 
 ## Story
 

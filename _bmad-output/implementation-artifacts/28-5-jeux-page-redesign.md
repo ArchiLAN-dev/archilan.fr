@@ -1,6 +1,6 @@
 # Story 28.5: Jeux page redesign - client-driven catalog with coupling, filters, sort & instant search
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

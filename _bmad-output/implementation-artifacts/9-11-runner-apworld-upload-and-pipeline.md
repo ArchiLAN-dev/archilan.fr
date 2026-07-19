@@ -1,6 +1,6 @@
 # Story 9.11: Runner - Apworld Upload and Generation Pipeline
 
-Status: review
+Status: done
 
 ## Story
 

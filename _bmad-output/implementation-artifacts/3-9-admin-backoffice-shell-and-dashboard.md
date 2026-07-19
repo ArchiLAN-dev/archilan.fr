@@ -1,6 +1,6 @@
 # Story 3.9: Admin Backoffice Shell and Dashboard
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
