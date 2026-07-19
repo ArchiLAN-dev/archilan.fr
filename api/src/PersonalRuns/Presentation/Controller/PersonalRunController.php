@@ -128,6 +128,10 @@ final readonly class PersonalRunController
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
+        if ($result['blocked']) {
+            return $this->apiAccessGuard->errorResponse('run_finished', 'Cette partie est terminée : le lien d\'invitation ne peut plus être régénéré.', 409);
+        }
+
         return new JsonResponse(['data' => [
             'inviteToken' => $result['inviteToken'],
             'inviteUrl' => $result['inviteUrl'],
