@@ -19,12 +19,12 @@ final readonly class WeeklyEntryPatchQuery
     }
 
     /**
-     * Returns either a bridge context (post-launch, orchestrator-managed session)
-     * or a local filesystem context (legacy Docker sessions).
+     * Returns either a durable context (post-launch, orchestrator-managed session - the run's frozen
+     * MinIO output archive) or a local filesystem context (legacy Docker sessions).
      *
-     * @return array{type: 'bridge', bridgePort: int}
-     *                                                | array{type: 'local', outputDir: string, slotName: string|null}
-     *                                                | null
+     * @return array{type: 'durable', outputKey: string}
+     *                                                   | array{type: 'local', outputDir: string, slotName: string|null}
+     *                                                   | null
      */
     public function forEntry(string $weeklyRunId, string $entryId, string $userId): ?array
     {
@@ -39,14 +39,22 @@ final readonly class WeeklyEntryPatchQuery
         $externalSessionId = $entry->getExternalSessionId();
 
         if (null !== $externalSessionId) {
-            $bridgePort = $entry->getBridgePort();
-            if (null !== $bridgePort) {
-                // Orchestrator-based session: files live in a Docker volume accessible
-                // only through the bridge's /output endpoint.
-                return ['type' => 'bridge', 'bridgePort' => $bridgePort];
+            if (null !== $entry->getBridgePort()) {
+                // Orchestrator session: read the run's DURABLE MinIO output archive, never the live
+                // bridge port. The host port is freed on stop and reused by other sessions, so a
+                // finished entry's stale bridgePort would otherwise resolve to another running party's
+                // bridge and leak their patch files (#262). The run output key is frozen and unique.
+                $run = $this->runs->findById($weeklyRunId);
+                $outputKey = $run instanceof WeeklyRun ? $run->getGeneratedOutputKey() : null;
+                if (null === $outputKey) {
+                    return null;
+                }
+
+                return ['type' => 'durable', 'outputKey' => $outputKey];
             }
 
-            // Legacy Docker-based session: files are on the local filesystem.
+            // Legacy Docker-based session: files are on the local filesystem, keyed by the frozen
+            // session id (no port-reuse hazard).
             $outputDir = $this->workspaceDir.'/'.$externalSessionId.'/output';
 
             return ['type' => 'local', 'outputDir' => $outputDir, 'slotName' => null];
