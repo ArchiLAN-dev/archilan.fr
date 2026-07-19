@@ -85,6 +85,7 @@ final readonly class PersonalRunGameSelection
             'isApworldReady' => $g->isApworldReady(),
             'defaultYaml' => $g->getDefaultYaml(),
             'optionTypes' => $g->getOptionTypes(),
+            'locationNames' => $g->getLocationNames(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
             'platforms' => PlatformCategory::families($g->getPlatforms() ?? []),

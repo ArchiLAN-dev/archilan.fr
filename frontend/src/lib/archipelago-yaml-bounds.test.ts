@@ -1,4 +1,5 @@
 import {
+  asLocationNames,
   asOptionTypesMap,
   parseDefaultYaml,
   type OptionTypesMap,
@@ -69,5 +70,22 @@ describe("asOptionTypesMap", () => {
     expect(asOptionTypesMap(null)).toBeNull();
     expect(asOptionTypesMap({})).toBeNull();
     expect(asOptionTypesMap("x")).toBeNull();
+  });
+});
+
+describe("asLocationNames (story 4.14)", () => {
+  test("keeps only non-empty string entries", () => {
+    expect(asLocationNames(["Attic", "", "Kitchen", 7, null, "Cellar"])).toEqual([
+      "Attic",
+      "Kitchen",
+      "Cellar",
+    ]);
+  });
+
+  test("returns null when not an array, empty, or all entries dropped", () => {
+    expect(asLocationNames(null)).toBeNull();
+    expect(asLocationNames("Attic")).toBeNull();
+    expect(asLocationNames([])).toBeNull();
+    expect(asLocationNames(["", 3, null])).toBeNull();
   });
 });

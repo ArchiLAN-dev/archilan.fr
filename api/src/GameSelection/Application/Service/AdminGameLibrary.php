@@ -307,6 +307,7 @@ final readonly class AdminGameLibrary
         $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, $this->clock->now());
         $game->recordApworldMinioUpload($minioKey);
         $game->recordOptionTypes(self::normalizeOptionTypes($result['optionTypes'] ?? null));
+        $game->recordLocationNames(self::normalizeLocationNames($result['locationNames'] ?? null));
         $this->gameRepository->save($game);
 
         $this->logger->info('game.apworld_configured', ['gameId' => $gameId, 'hash' => $hash, 'archipelagoGameName' => $archipelagoGameName]);
@@ -552,6 +553,7 @@ final readonly class AdminGameLibrary
         return array_merge($this->payload($game), [
             'defaultYaml' => $game->getDefaultYaml(),
             'optionTypes' => $game->getOptionTypes(),
+            'locationNames' => $game->getLocationNames(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
             'apworldSourceUrl' => $sync?->getApworldSourceUrl(),
             'apworldDeployedVersion' => $sync?->getApworldDeployedVersion(),
@@ -633,6 +635,25 @@ final readonly class AdminGameLibrary
         return null !== $parsed['catalogSheetName']
             || null !== $parsed['apworldSourceUrl']
             || null !== $parsed['igdbId'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function normalizeLocationNames(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($raw as $name) {
+            if (is_string($name) && '' !== $name) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
     }
 
     /**
