@@ -1,6 +1,6 @@
 # Story 4.15: Block saving a YAML where a weighted option has all weights at 0
 
-**Status:** review
+**Status:** done
 **Epic:** 4 - Registration & per-game randomizer option configuration
 **Date:** 2026-06-12
 

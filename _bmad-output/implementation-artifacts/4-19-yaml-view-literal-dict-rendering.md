@@ -1,6 +1,6 @@
 # Story 4.19: Render literal dict options in the read-only YAML view (no "[object Object]")
 
-**Status:** review
+**Status:** done
 **Epic:** 4 - Registration & per-game randomizer option configuration
 **Date:** 2026-06-27
 

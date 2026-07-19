@@ -1,6 +1,6 @@
 # Story 4.16: Block saving a range value outside its [min, max] bounds
 
-**Status:** review
+**Status:** done
 **Epic:** 4 - Registration & per-game randomizer option configuration
 **Date:** 2026-06-13
 
