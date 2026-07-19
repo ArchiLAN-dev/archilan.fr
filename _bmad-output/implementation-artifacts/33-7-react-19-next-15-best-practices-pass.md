@@ -1,6 +1,6 @@
 # Story 33.7: React 19 / Next 15 Best-Practices Pass (frontend/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

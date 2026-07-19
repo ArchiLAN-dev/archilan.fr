@@ -1,6 +1,6 @@
 # Story 28.6: Platform categories on the Jeux catalog (curated families from IGDB + Steam facet)
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

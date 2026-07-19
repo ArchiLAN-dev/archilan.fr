@@ -1,6 +1,6 @@
 # Story 33.5: DDD Compliance Sweep + Layer-Folder Tidy (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

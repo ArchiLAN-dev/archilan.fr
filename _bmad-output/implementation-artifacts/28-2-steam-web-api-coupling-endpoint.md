@@ -1,6 +1,6 @@
 # Story 28.2: Steam Web API integration + coupling endpoint
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

@@ -1,6 +1,6 @@
 # Story 31.1: Per-game install steps - model + admin authoring + auto-seed
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

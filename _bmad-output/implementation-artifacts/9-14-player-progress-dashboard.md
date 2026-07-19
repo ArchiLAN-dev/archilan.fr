@@ -1,6 +1,6 @@
 # Story 9.14: Player Progress Dashboard
 
-Status: review
+Status: done
 
 ## Story
 

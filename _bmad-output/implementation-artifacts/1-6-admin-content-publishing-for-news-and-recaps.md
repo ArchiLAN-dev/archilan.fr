@@ -1,6 +1,6 @@
 # Story 1.6: Admin Content Publishing for News and Recaps
 
-Status: review
+Status: done
 
 ## Story
 

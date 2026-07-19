@@ -1,6 +1,6 @@
 # Story 32.1: Récap public et narratif d'une partie
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

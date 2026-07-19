@@ -1,6 +1,6 @@
 # Story 33.18: TanStack Query Migration of Fetch-in-Effect Pages (frontend/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

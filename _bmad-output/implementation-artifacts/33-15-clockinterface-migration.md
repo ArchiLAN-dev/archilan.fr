@@ -1,6 +1,6 @@
 # Story 33.15: ClockInterface Migration (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

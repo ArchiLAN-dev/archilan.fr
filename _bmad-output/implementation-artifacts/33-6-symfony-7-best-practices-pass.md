@@ -1,6 +1,6 @@
 # Story 33.6: Symfony 7 Best-Practices Pass (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

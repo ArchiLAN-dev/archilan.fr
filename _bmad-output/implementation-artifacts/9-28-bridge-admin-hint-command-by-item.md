@@ -1,6 +1,6 @@
 # Story 9.28: Bridge - Admin Hint Command by Item (any slot)
 
-Status: review
+Status: done
 
 ## Story
 

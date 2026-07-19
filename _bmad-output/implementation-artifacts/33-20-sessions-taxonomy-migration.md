@@ -1,6 +1,6 @@
 # Story 33.20: Sessions Taxonomy Migration - Unfreeze the Last Context (api/)
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

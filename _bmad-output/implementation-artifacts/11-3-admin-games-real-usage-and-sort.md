@@ -1,6 +1,6 @@
 # Story: real game usage count + sortable admin games list
 
-Status: review
+Status: done
 
 Repo: `archilan.fr` (monorepo, `api/` + `frontend/`).
 

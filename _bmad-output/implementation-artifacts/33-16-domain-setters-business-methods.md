@@ -1,6 +1,6 @@
 # Story 33.16: Domain Aggregate Setters -> Business Methods (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

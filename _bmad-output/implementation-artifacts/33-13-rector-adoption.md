@@ -1,6 +1,6 @@
 # Story 33.13: Rector Adoption (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

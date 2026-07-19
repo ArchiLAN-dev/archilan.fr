@@ -1,6 +1,6 @@
 # Story 15.2: Migration APWorld vers MinIO
 
-Status: review
+Status: done
 
 ## Story
 

@@ -1,6 +1,6 @@
 # Story 28.3: Save Steam account on the member profile
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

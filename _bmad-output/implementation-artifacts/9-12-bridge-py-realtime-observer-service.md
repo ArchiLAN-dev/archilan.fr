@@ -1,6 +1,6 @@
 # Story 9.12: Bridge.py - Real-Time Observer Service
 
-Status: review
+Status: done
 
 ## Story
 

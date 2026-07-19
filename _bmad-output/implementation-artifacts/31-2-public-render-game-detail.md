@@ -1,6 +1,6 @@
 # Story 31.2: Public render of install steps on the game detail page
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

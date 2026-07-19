@@ -1,6 +1,6 @@
 # Story 33.14: phpstan-strict-rules (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

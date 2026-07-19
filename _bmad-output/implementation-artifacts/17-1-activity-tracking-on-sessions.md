@@ -1,6 +1,6 @@
 # Story 17.1: Activity Tracking on Sessions
 
-Status: ready-for-dev
+Status: superseded (wake-on-connect design dropped; idle/restart delivered by 17.6-17.10)
 
 ## Story
 

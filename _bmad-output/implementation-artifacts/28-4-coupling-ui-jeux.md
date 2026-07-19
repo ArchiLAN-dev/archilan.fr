@@ -1,6 +1,6 @@
 # Story 28.4: Coupling UI on the Jeux page
 
-Status: ready-for-review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

@@ -1,6 +1,6 @@
 # Story 33.11: Full Sub-Folder Taxonomy - No Flat Files in Any Layer (api/)
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

@@ -1,6 +1,6 @@
 # Story 30.6: Showcases
 
-Status: ready-for-review
+Status: done
 
 ## Story
 

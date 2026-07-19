@@ -1,6 +1,6 @@
 # Story 33.4: Dependency Hygiene - Safe (Minor/Patch) Bumps
 
-Status: ready-for-review
+Status: done
 
 ## Story
 
