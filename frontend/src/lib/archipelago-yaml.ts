@@ -42,6 +42,13 @@ export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/** Validates an API `locationNames` payload (unknown) into a string[], or null (story 4.14). */
+export function asLocationNames(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const out = value.filter((v): v is string => typeof v === "string" && v.length > 0);
+  return out.length > 0 ? out : null;
+}
+
 // Top-level keys that are never shown to the player
 const METADATA_KEYS = new Set(["name", "description", "game", "requires"]);
 

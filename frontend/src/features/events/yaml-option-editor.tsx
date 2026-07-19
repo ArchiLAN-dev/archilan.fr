@@ -34,6 +34,10 @@ import {
   type ToggleOption,
 } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
+import { LocationAutocompleteInput } from "@/features/events/location-autocomplete-input";
+
+/** YAML options whose list items are location names -> get the static-location autocomplete (story 4.14). */
+const LOCATION_OPTION_KEYS = new Set(["priority_locations", "exclude_locations", "start_location_hints"]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +65,7 @@ type YamlOptionEditorProps = {
   defaultYaml: string | null;
   playerYaml: string | null;
   optionTypes?: OptionTypesMap | null;
+  locationNames?: string[] | null;
   registrationId?: string;
   registrationOpen?: boolean;
   slotId?: string;
@@ -84,6 +89,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
       defaultYaml,
       playerYaml,
       optionTypes,
+      locationNames,
       registrationId,
       registrationOpen = true,
       slotId,
@@ -346,6 +352,7 @@ export const YamlOptionEditor = forwardRef<YamlEditorHandle, YamlOptionEditorPro
                   <OptionField
                     key={opt.key}
                     invalid={invalidKeys.has(opt.key)}
+                    locationNames={locationNames}
                     mode={mode}
                     option={opt}
                     readOnly={!effectivelyOpen}
@@ -653,12 +660,14 @@ function OptionField({
   option,
   readOnly,
   onChange,
+  locationNames = null,
 }: {
   invalid?: boolean;
   mode: Mode;
   option: GameOption;
   readOnly: boolean;
   onChange: (updated: GameOption) => void;
+  locationNames?: string[] | null;
 }) {
   return (
     <div className="grid gap-2 py-5">
@@ -669,7 +678,12 @@ function OptionField({
         {option.description ? <InfoTooltip content={option.description} title={option.label} /> : null}
       </div>
       {option.type === "freeform" && option.kind === "list" && (
-        <ListField option={option} readOnly={readOnly} onChange={onChange} />
+        <ListField
+          option={option}
+          readOnly={readOnly}
+          suggestions={LOCATION_OPTION_KEYS.has(option.key) ? locationNames : null}
+          onChange={onChange}
+        />
       )}
       {option.type === "freeform" && option.kind === "dict" && (
         <DictField option={option} readOnly={readOnly} onChange={onChange} />
@@ -990,10 +1004,13 @@ function ListField({
   option,
   readOnly,
   onChange,
+  suggestions = null,
 }: {
   option: FreeformListOption;
   readOnly: boolean;
   onChange: (o: FreeformListOption) => void;
+  /** Static location suggestions for location-typed options (story 4.14); null = plain input. */
+  suggestions?: string[] | null;
 }) {
   return (
     <div className="grid gap-2">
@@ -1003,13 +1020,12 @@ function ListField({
           The inputs are fully controlled, so values stay correct across removal. */}
       {option.items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
-          <input
-            className={INPUT_CLS}
+          <LocationAutocompleteInput
             disabled={readOnly}
-            placeholder="élément"
+            suggestions={suggestions}
             value={item}
-            onChange={(e) => {
-              const items = option.items.map((it, idx) => (idx === i ? e.target.value : it));
+            onChange={(val) => {
+              const items = option.items.map((it, idx) => (idx === i ? val : it));
               onChange({ ...option, items });
             }}
           />

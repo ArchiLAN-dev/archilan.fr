@@ -256,6 +256,7 @@ export function PersonalRunSlotYamlPage({
         key={editorKey}
         ref={editorRef}
         defaultYaml={data.game.defaultYaml}
+        locationNames={data.game.locationNames ?? null}
         onChange={setCurrentYaml}
         optionTypes={data.game.optionTypes}
         playerYaml={editorYaml}
