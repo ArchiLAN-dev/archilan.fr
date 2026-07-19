@@ -173,7 +173,8 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // Hints reveal item + location (spoilers), so only the slot owner (or admin) may read them.
+        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -233,7 +234,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // The hints topic carries spoilers (unlike the public reachable/feed overlay topics), so a
+        // subscribe token is issued only for the caller's own slot (or admin).
+        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -273,8 +276,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        // Story 9.31: the slot owner (or admin) may buy a paid hint with their own points.
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // Story 9.31: the slot owner (or admin) may buy a paid hint with their own points - and only
+        // their own, so a player cannot spend another slot's hint points (issue #253).
+        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -329,8 +333,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        // The slot owner (or admin) sets the hint priority for their own slot.
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // The slot owner (or admin) sets the hint priority for their OWN slot only: a player must not
+        // be able to change another player's hint priority (issue #253).
+        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -385,8 +390,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        // Story 9.31: the slot owner (or admin) may buy a paid hint with their own points.
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // Story 9.31: the slot owner (or admin) may buy a paid hint with their own points - and only
+        // their own, so a player cannot spend another slot's hint points (issue #253).
+        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -441,7 +447,9 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
         }
 
-        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+        // Item locations expose where a slot's items are (spoilers), so only the slot owner (or admin)
+        // may read them - session-level authorization is not enough (issue #252).
+        if (!$this->ownsSlot($user, $session['id'], $slotIndex)) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
@@ -569,6 +577,20 @@ final readonly class PlayerStateController
         }
 
         return $this->sessionQuery->isUserAuthorizedForSession($user->getId(), $eventId, $sessionId);
+    }
+
+    /**
+     * Slot-scoped authorization (issues #252 / #253): being authorized for the session is not enough,
+     * the caller must own the slot at $slotIndex. Admins bypass. Prevents a registrant/participant from
+     * reading another player's item locations / hints or acting on their slot.
+     */
+    private function ownsSlot(User $user, string $sessionId, int $slotIndex): bool
+    {
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        return $this->sessionQuery->doesUserOwnSlot($user->getId(), $sessionId, $slotIndex);
     }
 
     private function isAdmin(User $user): bool
