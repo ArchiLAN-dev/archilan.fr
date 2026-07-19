@@ -105,4 +105,41 @@ final class PersonalRunConfigOverrideTest extends TestCase
         $this->expectException(\DomainException::class);
         $this->service($run, $overrides)->set($run->getId(), 'owner-1', ['spoiler' => 9]);
     }
+
+    public function testSetIsBlockedOnTerminalRun(): void
+    {
+        // A finished run is read-only: the override must not be saved (#338).
+        $run = $this->completedRun();
+        $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
+        $overrides->expects(self::never())->method('save');
+
+        $result = $this->service($run, $overrides)->set($run->getId(), 'owner-1', ['releaseMode' => 'goal']);
+
+        self::assertTrue($result['found']);
+        self::assertTrue($result['authorized']);
+        self::assertTrue($result['blocked'] ?? false);
+    }
+
+    public function testClearIsBlockedOnTerminalRun(): void
+    {
+        $run = $this->completedRun();
+        $overrides = $this->createMock(SessionConfigOverrideRepositoryInterface::class);
+        $overrides->expects(self::never())->method('delete');
+
+        $result = $this->service($run, $overrides)->clear($run->getId(), 'owner-1');
+
+        self::assertTrue($result['blocked'] ?? false);
+    }
+
+    private function completedRun(): Run
+    {
+        $now = new \DateTimeImmutable('2026-06-20T10:00:00+00:00');
+        $run = Run::create('owner-1', 'My run', $now);
+        $run->attachSession('sess-1');
+        $run->start($now);
+        $run->markRunning('runner.example.com', 38281, $now, 'deadbeef12345678');
+        $run->complete($now);
+
+        return $run;
+    }
 }

@@ -50,7 +50,7 @@ final readonly class PersonalRunConfigOverride
     /**
      * @param array<array-key, mixed> $override
      *
-     * @return array{found: bool, authorized: bool, override?: array<string, mixed>, profile?: array<string, mixed>}
+     * @return array{found: bool, authorized: bool, blocked?: bool, override?: array<string, mixed>, profile?: array<string, mixed>}
      *
      * @throws \DomainException on an invalid override field
      */
@@ -59,6 +59,11 @@ final readonly class PersonalRunConfigOverride
         $run = $this->guard($runId, $userId);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
+        }
+
+        // A finished or cancelled run is read-only: its session parameters can no longer change (#338).
+        if ($run->isTerminal()) {
+            return ['found' => true, 'authorized' => true, 'blocked' => true];
         }
 
         // Owner-locked fields stay inherited from the admin "private" profile - drop them before save.
@@ -71,13 +76,18 @@ final readonly class PersonalRunConfigOverride
     }
 
     /**
-     * @return array{found: bool, authorized: bool}
+     * @return array{found: bool, authorized: bool, blocked?: bool}
      */
     public function clear(string $runId, string $userId): array
     {
         $run = $this->guard($runId, $userId);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
+        }
+
+        // A finished or cancelled run is read-only (#338).
+        if ($run->isTerminal()) {
+            return ['found' => true, 'authorized' => true, 'blocked' => true];
         }
 
         $this->clearOverride->execute($runId);

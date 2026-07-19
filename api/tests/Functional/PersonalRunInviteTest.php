@@ -56,6 +56,24 @@ final class PersonalRunInviteTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    public function testRegenerateTokenOnFinishedRunReturns409AndKeepsToken(): void
+    {
+        // A finished (or cancelled) run is read-only: its invite link can no longer be regenerated (#338).
+        $alice = $this->createUser('alice@example.org');
+        $run = $this->createRun($alice->getId(), 'Alice Run', Run::STATUS_COMPLETED);
+        $oldToken = $run->getInviteToken();
+
+        $this->loginAs($alice);
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/invite/regenerate');
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('run_finished', $this->errorCode());
+
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Run::class, $run->getId());
+        self::assertInstanceOf(Run::class, $reloaded);
+        self::assertSame($oldToken, $reloaded->getInviteToken());
+    }
+
     public function testRegenerateTokenPreservesExistingParticipants(): void
     {
         $alice = $this->createUser('alice@example.org');

@@ -108,6 +108,10 @@ final class Run
 
     public function regenerateInviteToken(\DateTimeImmutable $now): void
     {
+        if ($this->isTerminal()) {
+            throw new \DomainException('Cannot regenerate the invite link of a finished or cancelled run.');
+        }
+
         $this->inviteToken = bin2hex(random_bytes(32));
         $this->updatedAt = $now;
     }
@@ -241,6 +245,16 @@ final class Run
     public function isLockedForEditing(): bool
     {
         return self::STATUS_DRAFT !== $this->status;
+    }
+
+    /**
+     * A finished (owner-completed) or cancelled run is terminal: it is read-only for the owner. Invite
+     * regeneration and config-override edits are refused past this point, while reads (spoiler / patch
+     * downloads) stay available (issue #338).
+     */
+    public function isTerminal(): bool
+    {
+        return in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_CANCELLED], true);
     }
 
     public function getInviteToken(): string

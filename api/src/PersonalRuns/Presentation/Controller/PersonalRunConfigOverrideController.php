@@ -76,12 +76,15 @@ final readonly class PersonalRunConfigOverrideController
         if (!$result['authorized']) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', Response::HTTP_FORBIDDEN);
         }
+        if ($result['blocked'] ?? false) {
+            return $this->apiAccessGuard->errorResponse('run_finished', 'Cette partie est terminée : ses paramètres ne peuvent plus être modifiés.', Response::HTTP_CONFLICT);
+        }
 
         return new JsonResponse(null, Response::HTTP_NO_CONTENT);
     }
 
     /**
-     * @param array{found: bool, authorized: bool, override?: array<string, mixed>, profile?: array<string, mixed>} $result
+     * @param array{found: bool, authorized: bool, blocked?: bool, override?: array<string, mixed>, profile?: array<string, mixed>} $result
      */
     private function respond(array $result): JsonResponse
     {
@@ -90,6 +93,9 @@ final readonly class PersonalRunConfigOverrideController
         }
         if (!$result['authorized']) {
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', Response::HTTP_FORBIDDEN);
+        }
+        if ($result['blocked'] ?? false) {
+            return $this->apiAccessGuard->errorResponse('run_finished', 'Cette partie est terminée : ses paramètres ne peuvent plus être modifiés.', Response::HTTP_CONFLICT);
         }
 
         return new JsonResponse(['data' => ['override' => $result['override'] ?? [], 'profile' => $result['profile'] ?? null]]);
