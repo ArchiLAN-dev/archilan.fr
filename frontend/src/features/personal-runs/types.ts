@@ -19,6 +19,12 @@ export type PersonalRunParticipant = {
   avatarUrl: string | null;
   joinedAt: string;
   slotCount: number;
+  // Status badges, coherent with the player profile (story 30.37): live membership, admin, level,
+  // and live presence. `isMember` is the live-membership badge, never the stale ROLE_MEMBER.
+  isMember: boolean;
+  isAdmin: boolean;
+  level: number;
+  playing: boolean;
 };
 
 export type ParticipantLevel = {
