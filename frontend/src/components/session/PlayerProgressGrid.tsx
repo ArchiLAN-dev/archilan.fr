@@ -355,9 +355,11 @@ function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
 
       {/* Progress bar */}
       <div className="grid gap-1">
-        <div className="flex justify-between text-xs text-muted-foreground">
+        {/* Same non-shrinking-flex hazard as the footer below: keep it wrappable so long counts
+            never push past the card edge. */}
+        <div className="flex flex-wrap justify-between gap-x-2 text-xs text-muted-foreground">
           <span>Checks</span>
-          <span>
+          <span className="min-w-0 truncate">
             {slot.checks_done} / {slot.checks_total}
           </span>
         </div>
@@ -369,15 +371,18 @@ function SlotCard({ slot, href }: { slot: PlayersSlot; href?: string }) {
         </div>
       </div>
 
-      {/* Footer: items reçus + checks accessibles */}
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>
+      {/* Footer: items reçus + checks accessibles.
+          Wraps instead of overflowing: on a 3-column desktop grid the two labels together exceed the
+          card width, and flex items default to min-width:auto (they refuse to shrink), so the row used
+          to bleed past the card border (#245). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <span className="min-w-0 truncate">
           Items reçus :{" "}
           <span className="font-semibold text-foreground">{slot.items_received}</span>
         </span>
         {typeof slot.reachable_now === "number" ? (
           <span
-            className={`font-semibold ${
+            className={`min-w-0 truncate font-semibold ${
               isBK ? "text-danger" : slot.reachable_now > 0 ? "text-success" : "text-muted-foreground"
             }`}
           >
