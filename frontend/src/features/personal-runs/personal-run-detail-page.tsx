@@ -35,6 +35,7 @@ import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
+import { PlayerBadges } from "@/features/community/player-badges";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -142,7 +143,14 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
               ) : (
                 <p className="truncate text-sm font-medium text-foreground">{name}</p>
               )}
-              <p className="text-xs text-muted-foreground">
+              <PlayerBadges
+                className="mt-1"
+                isAdmin={p.isAdmin}
+                isMember={p.isMember}
+                level={p.level}
+                playing={p.playing}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
                 Depuis le{" "}
                 {new Date(p.joinedAt).toLocaleDateString("fr-FR", {
                   day: "numeric",
