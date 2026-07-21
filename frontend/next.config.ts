@@ -16,7 +16,20 @@ const nextConfig: NextConfig = {
     // https only (no plaintext). Hostname stays broad because event/post covers can be
     // admin-entered arbitrary public URLs (coverImageMode: 'url'); since story 34.4 optimises
     // them, narrowing to a fixed host list would 400 legitimate covers.
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    //
+    // Local dev also needs plaintext localhost: MinIO serves media over http://localhost:9000
+    // (presigned, since MINIO_PUBLIC_MEDIA_BASE_URL is unset locally - see PublicMediaUrlResolver),
+    // and story 34.4 routed those covers through next/image, so they 400 without this. Gated on
+    // NODE_ENV so `next build` / production keeps the https-only rule.
+    remotePatterns: [
+      { protocol: "https", hostname: "**" },
+      ...(process.env.NODE_ENV === "development"
+        ? ([
+            { protocol: "http", hostname: "localhost" },
+            { protocol: "http", hostname: "127.0.0.1" },
+          ] as const)
+        : []),
+    ],
   },
   async headers() {
     // Baseline security headers on every response. These govern how OUR pages behave, not our
