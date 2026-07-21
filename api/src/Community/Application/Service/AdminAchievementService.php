@@ -21,6 +21,8 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class AdminAchievementService
 {
+    private const int MAX_DESCRIPTION = 1000;
+
     private const string KEY_PATTERN = '/^[a-z0-9_]{1,64}$/';
 
     public function __construct(
@@ -189,7 +191,11 @@ final readonly class AdminAchievementService
      */
     private function description(array $payload): string
     {
-        return is_string($payload['description'] ?? null) ? trim($payload['description']) : '';
+        $description = is_string($payload['description'] ?? null) ? trim($payload['description']) : '';
+
+        // Mirrors ACHIEVEMENT_DESCRIPTION_MAX in the frontend's content-limits.ts; capped like the
+        // sibling name() rather than rejected, matching this service's existing behaviour.
+        return mb_substr($description, 0, self::MAX_DESCRIPTION);
     }
 
     /**

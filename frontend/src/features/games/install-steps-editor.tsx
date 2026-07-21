@@ -4,6 +4,8 @@ import { ChevronDown, ChevronUp, ImagePlus, Loader2, Plus, X } from "lucide-reac
 import { useState } from "react";
 
 import { uploadTutorialImage } from "./tutorial-image-api";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { INSTALL_STEP_DESCRIPTION_MAX } from "@/lib/content-limits";
 
 export type InstallStepType = "acquire" | "apworld" | "client" | "yaml" | "connect" | "note";
 export type InstallLink = { label: string; url: string | null };
@@ -104,11 +106,11 @@ export function InstallStepsEditor({
             value={step.title}
           />
 
-          <textarea
-            aria-label={`Description de l'étape ${index + 1}`}
-            className="min-h-20 w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-            onChange={(e) => updateStep(index, { description: e.target.value })}
-            placeholder="Description (texte)"
+          <MarkdownEditor
+            maxLength={INSTALL_STEP_DESCRIPTION_MAX}
+            onChange={(v: string) => updateStep(index, { description: v })}
+            placeholder="Description (markdown supporté)"
+            rows={4}
             value={step.description}
           />
 

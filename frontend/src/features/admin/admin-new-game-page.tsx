@@ -6,6 +6,8 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { IgdbGameSearch, type IgdbResult } from "@/features/admin/igdb-game-search";
+import {MarkdownEditor} from "@/components/markdown/markdown-editor";
+import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -203,11 +205,11 @@ export function AdminNewGamePage() {
 
           <label className="grid gap-1.5 text-sm font-semibold text-foreground">
             Description
-            <textarea
-              className={`min-h-28 rounded border bg-background px-3 py-2 outline-none focus:border-accent ${errors.description ? "border-danger" : "border-border"}`}
-              name="description"
+            <MarkdownEditor
+              maxLength={GAME_DESCRIPTION_MAX}
+              onChange={(v: string) => setField("description", v)}
+              rows={6}
               value={fields.description}
-              onChange={(e) => setField("description", e.target.value)}
             />
             {errors.description ? (
               <span className="text-xs text-danger" role="alert">

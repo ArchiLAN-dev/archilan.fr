@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 
 import type { GameStep } from "./public-games-api";
+import { Markdown } from "@/components/markdown/markdown";
 
 /**
  * Read-only render of an ordered list of install steps (story 31.1/31.3/31.5). Descriptions are
- * plain text (never raw HTML); links/media URLs are http(s) (validated server-side). When a
+ * markdown since story 10.10, rendered through `Markdown` - which emits React elements, so raw HTML
+ * in a description stays inert text. Links/media URLs are http(s) (validated server-side). When a
  * `storageKey` is given, each step gets a checkbox whose state is kept in localStorage (story 31.5),
  * so a player can track their install progress (no account needed).
  */
@@ -70,7 +72,7 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
               </h3>
             </div>
             {step.description ? (
-              <p className="whitespace-pre-line text-sm leading-7 text-muted-foreground">{step.description}</p>
+              <Markdown className="text-sm leading-7 text-muted-foreground">{step.description}</Markdown>
             ) : null}
 
             {step.imageUrl ? (

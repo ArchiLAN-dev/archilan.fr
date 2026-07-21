@@ -12,7 +12,8 @@ use App\GameSelection\Domain\Enum\InstallStepType;
  * security-relevant ones - live in one place:
  *  - `type` must be a known {@see InstallStepType};
  *  - `title` is required;
- *  - `description` is plain text (never HTML - it is rendered safely downstream);
+ *  - `description` is markdown since story 10.10 - still never HTML: the frontend renders it with
+ *    react-markdown, which emits React elements, so any raw HTML in it stays inert text;
  *  - link `url` must be http/https (or null); other schemes (e.g. `javascript:`) are dropped.
  * Over-long fields are truncated. Returns the clean list plus any collected errors.
  */

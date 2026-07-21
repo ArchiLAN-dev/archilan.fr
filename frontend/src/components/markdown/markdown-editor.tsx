@@ -19,6 +19,8 @@ type Props = {
   onChange: (value: string) => void;
   /** Mirrors the render-side policy so the preview matches the real output. */
   untrusted?: boolean;
+  /** Set when the field renders with the inline subset, so the preview shows the same thing. */
+  inline?: boolean;
   placeholder?: string;
   maxLength?: number;
   rows?: number;
@@ -36,6 +38,7 @@ export function MarkdownEditor({
   value,
   onChange,
   untrusted = false,
+  inline = false,
   placeholder,
   maxLength,
   rows = 6,
@@ -162,7 +165,7 @@ export function MarkdownEditor({
           {value.trim() === "" ? (
             <p className="text-muted-foreground/60">Rien à prévisualiser.</p>
           ) : (
-            <Markdown untrusted={untrusted}>{value}</Markdown>
+            <Markdown inline={inline} untrusted={untrusted}>{value}</Markdown>
           )}
         </div>
       ) : (
