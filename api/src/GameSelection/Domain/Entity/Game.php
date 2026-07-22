@@ -85,6 +85,10 @@ final class Game
         // history). Strictly internal: never exposed on public/game-selection payloads (story 3.12).
         #[ORM\Column(name: 'admin_notes', type: 'text', nullable: true)]
         private ?string $adminNotes = null,
+        // Optional second description covering the Archipelago side of the game - what gets
+        // randomized, the goal, apworld quirks. Public, unlike adminNotes above (story 3.13).
+        #[ORM\Column(name: 'archipelago_description', type: 'text', nullable: true)]
+        private ?string $archipelagoDescription = null,
     ) {
     }
 
@@ -288,6 +292,17 @@ final class Game
     {
         $trimmed = null === $adminNotes ? null : trim($adminNotes);
         $this->adminNotes = null === $trimmed || '' === $trimmed ? null : $trimmed;
+    }
+
+    public function getArchipelagoDescription(): ?string
+    {
+        return $this->archipelagoDescription;
+    }
+
+    public function recordArchipelagoDescription(?string $description): void
+    {
+        $trimmed = null === $description ? null : trim($description);
+        $this->archipelagoDescription = null === $trimmed || '' === $trimmed ? null : $trimmed;
     }
 
     /**
