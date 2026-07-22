@@ -42,6 +42,9 @@
   --color-accent: var(--accent);
   --color-accent-text: var(--color-accent-text);
   --color-accent-text-hover: var(--color-accent-text-hover);
+  /* Long-form body copy: clearly primary text, without the glare of full --foreground. Sits between
+     muted (5.3:1 on surface - reads as secondary) and foreground (15.7:1). */
+  --color-body-foreground: var(--body-foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -96,6 +99,7 @@ html {
   --color-special: #e0246a;
   --color-text: #e8edf4;
   --color-text-muted: #7a8ba8;
+  --color-text-body: #b8c4d8;
   --color-success: #1abd8c;
   /* Gaming glow shadows - derived from existing tokens */
   --glow-accent-sm: 0 0 12px color-mix(in oklab, var(--color-accent) 30%, transparent);
@@ -112,6 +116,7 @@ html {
   --secondary: var(--color-surface-2);
   --secondary-foreground: var(--color-text);
   --muted: var(--color-surface-2);
+  --body-foreground: var(--color-text-body);
   --muted-foreground: var(--color-text-muted);
   --accent: var(--color-accent);
   --accent-foreground: var(--color-bg);
@@ -147,6 +152,7 @@ html {
   --secondary: var(--color-surface-2);
   --secondary-foreground: var(--color-text);
   --muted: var(--color-surface-2);
+  --body-foreground: var(--color-text-body);
   --muted-foreground: var(--color-text-muted);
   --accent: var(--color-accent);
   --accent-foreground: var(--color-bg);

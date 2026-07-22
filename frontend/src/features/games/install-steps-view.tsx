@@ -55,15 +55,19 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
           <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={step.title}>
             <div className="flex items-start gap-2">
               {lsKey !== null ? (
-                <input
-                  aria-label={`Marquer « ${step.title} » comme fait`}
-                  checked={checked}
-                  className="mt-1 size-4 shrink-0 accent-[color:var(--color-accent)]"
-                  onChange={() => toggle(step.title)}
-                  type="checkbox"
-                />
+                // Centred inside a box matching the title's first line (text-base/leading-tight = 1.25rem)
+                // so it reads as aligned with the heading rather than sitting below it.
+                <span className="flex h-5 shrink-0 items-center">
+                  <input
+                    aria-label={`Marquer « ${step.title} » comme fait`}
+                    checked={checked}
+                    className="size-4 accent-[color:var(--color-accent)]"
+                    onChange={() => toggle(step.title)}
+                    type="checkbox"
+                  />
+                </span>
               ) : (
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent-text">
+                <span className="mt-[-0.125rem] flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent-text">
                   {index + 1}
                 </span>
               )}
@@ -72,7 +76,7 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
               </h3>
             </div>
             {step.description ? (
-              <Markdown className="text-sm leading-7 text-muted-foreground">{step.description}</Markdown>
+              <Markdown className="text-base leading-7 text-body-foreground">{step.description}</Markdown>
             ) : null}
 
             {step.videoUrl ? <VideoEmbed title={`Vidéo : ${step.title}`} url={step.videoUrl} /> : null}
