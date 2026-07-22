@@ -87,7 +87,7 @@ final readonly class DbalAdminGameContributionsQuery implements AdminGameContrib
     /**
      * @param array<string, mixed> $row
      *
-     * @return array{id: string, status: string, createdAt: string, authorName: string, message: string|null, target: string, gameSlug: string|null, proposedSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>, currentSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>}
+     * @return array{id: string, status: string, createdAt: string, authorName: string, message: string|null, target: string, gameSlug: string|null, proposedSteps: list<array{type: string, title: string, description: string, videoUrl: string|null}>, currentSteps: list<array{type: string, title: string, description: string, videoUrl: string|null}>}
      */
     private function mapRow(array $row): array
     {

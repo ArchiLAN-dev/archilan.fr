@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
 
 import type { GameStep } from "./public-games-api";
 import { Markdown } from "@/components/markdown/markdown";
@@ -76,36 +75,7 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
               <Markdown className="text-sm leading-7 text-muted-foreground">{step.description}</Markdown>
             ) : null}
 
-            {step.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt={step.title} className="max-h-80 w-auto rounded border border-border" loading="lazy" src={step.imageUrl} />
-            ) : null}
-
             {step.videoUrl ? <VideoEmbed title={`Vidéo : ${step.title}`} url={step.videoUrl} /> : null}
-
-            {step.links.length > 0 ? (
-              <ul className="grid gap-1.5">
-                {step.links.map((link, linkIndex) =>
-                  link.url !== null ? (
-                    <li key={`${link.label}-${linkIndex}`}>
-                      <a
-                        className="inline-flex items-center gap-2 text-accent-text underline-offset-2 hover:underline"
-                        href={link.url}
-                        rel="noopener noreferrer"
-                        target="_blank"
-                      >
-                        {link.label}
-                        <ExternalLink aria-hidden="true" className="size-3.5" />
-                      </a>
-                    </li>
-                  ) : (
-                    <li className="text-sm text-muted-foreground" key={`${link.label}-${linkIndex}`}>
-                      {link.label}
-                    </li>
-                  ),
-                )}
-              </ul>
-            ) : null}
           </li>
         );
       })}

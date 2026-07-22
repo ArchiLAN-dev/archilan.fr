@@ -29,9 +29,6 @@ export type GameStep = {
   type: GameStepType;
   title: string;
   description: string;
-  links: GameLink[];
-  imageKey?: string | null;
-  imageUrl?: string | null;
   videoUrl?: string | null;
 };
 export type GameApworld = {

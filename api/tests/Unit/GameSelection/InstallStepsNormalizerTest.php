@@ -19,9 +19,7 @@ final class InstallStepsNormalizerTest extends TestCase
     public function testNormalizesValidSteps(): void
     {
         $result = $this->normalizer->normalize([
-            ['type' => 'note', 'title' => '  Étape  ', 'description' => '  desc ', 'links' => [
-                ['label' => '  Lien ', 'url' => 'https://example.org'],
-            ]],
+            ['type' => 'note', 'title' => '  Étape  ', 'description' => '  desc '],
         ]);
 
         self::assertSame([], $result['errors']);
@@ -29,65 +27,67 @@ final class InstallStepsNormalizerTest extends TestCase
         self::assertSame('note', $result['steps'][0]['type']);
         self::assertSame('Étape', $result['steps'][0]['title']);
         self::assertSame('desc', $result['steps'][0]['description']);
-        self::assertSame([['label' => 'Lien', 'url' => 'https://example.org']], $result['steps'][0]['links']);
     }
 
     public function testRejectsInvalidTypeAndBlankTitle(): void
     {
         $result = $this->normalizer->normalize([
-            ['type' => 'bogus', 'title' => 'x', 'links' => []],
-            ['type' => 'note', 'title' => '   ', 'links' => []],
+            ['type' => 'bogus', 'title' => 'x'],
+            ['type' => 'note', 'title' => '   '],
         ]);
 
         self::assertCount(2, $result['errors']);
         self::assertSame([], $result['steps']);
     }
 
-    public function testDropsNonHttpLinkAndRecordsError(): void
+    public function testDropsNonHttpVideoUrl(): void
     {
         $result = $this->normalizer->normalize([
-            ['type' => 'note', 'title' => 'x', 'links' => [
-                ['label' => 'evil', 'url' => 'javascript:alert(1)'],
-                ['label' => 'ok', 'url' => 'http://example.org'],
-            ]],
+            ['type' => 'note', 'title' => 'x', 'videoUrl' => 'javascript:alert(1)'],
         ]);
 
-        self::assertCount(1, $result['errors']);
-        self::assertCount(1, $result['steps']);
-        self::assertSame([['label' => 'ok', 'url' => 'http://example.org']], $result['steps'][0]['links']);
-    }
-
-    public function testAssumesHttpsForSchemelessUrl(): void
-    {
-        $result = $this->normalizer->normalize([
-            ['type' => 'note', 'title' => 'x', 'links' => [['label' => 'site', 'url' => 'example.org/guide']]],
-        ]);
-
-        self::assertSame([], $result['errors']);
-        self::assertSame('https://example.org/guide', $result['steps'][0]['links'][0]['url']);
-    }
-
-    public function testCarriesAndSanitizesMediaUrls(): void
-    {
-        $result = $this->normalizer->normalize([
-            ['type' => 'note', 'title' => 'x', 'links' => [], 'imageUrl' => 'example.org/shot.png', 'videoUrl' => 'javascript:alert(1)'],
-        ]);
-
-        self::assertSame([], $result['errors']);
-        self::assertSame('https://example.org/shot.png', $result['steps'][0]['imageUrl']);
         self::assertNull($result['steps'][0]['videoUrl']);
     }
 
-    public function testKeepsNullUrlAndDropsEmptyLabel(): void
+    public function testAssumesHttpsForSchemelessVideoUrl(): void
     {
         $result = $this->normalizer->normalize([
-            ['type' => 'note', 'title' => 'x', 'links' => [
-                ['label' => 'Label only', 'url' => null],
-                ['label' => '', 'url' => 'https://example.org'],
-            ]],
+            ['type' => 'note', 'title' => 'x', 'videoUrl' => 'youtube.com/watch?v=abc'],
         ]);
 
         self::assertSame([], $result['errors']);
-        self::assertSame([['label' => 'Label only', 'url' => null]], $result['steps'][0]['links']);
+        self::assertSame('https://youtube.com/watch?v=abc', $result['steps'][0]['videoUrl']);
+    }
+
+    public function testLegacyLinkAndImageKeysAreDropped(): void
+    {
+        // Links and images live inside the markdown description since story 31.11. A body still
+        // carrying the old fields (an out-of-date client, a replayed payload) must not resurrect them.
+        $result = $this->normalizer->normalize([
+            [
+                'type' => 'note',
+                'title' => 'x',
+                'description' => 'desc',
+                'links' => [['label' => 'Lien', 'url' => 'https://example.org']],
+                'imageKey' => 'tutorials/abc.png',
+                'imageUrl' => 'https://example.org/shot.png',
+            ],
+        ]);
+
+        self::assertSame([], $result['errors']);
+        self::assertSame(
+            ['type', 'title', 'description', 'videoUrl'],
+            array_keys($result['steps'][0]),
+        );
+    }
+
+    public function testTruncatesAnOverLongDescription(): void
+    {
+        $long = str_repeat('a', InstallStepsNormalizer::MAX_DESCRIPTION + 50);
+        $result = $this->normalizer->normalize([
+            ['type' => 'note', 'title' => 'x', 'description' => $long],
+        ]);
+
+        self::assertSame(InstallStepsNormalizer::MAX_DESCRIPTION, mb_strlen($result['steps'][0]['description']));
     }
 }

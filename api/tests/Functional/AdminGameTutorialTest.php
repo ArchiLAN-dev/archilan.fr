@@ -21,10 +21,8 @@ final class AdminGameTutorialTest extends FunctionalTestCase
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s/tutorial', $game->getId()), [
             'steps' => [
-                ['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'desc', 'links' => [
-                    ['label' => 'Releases', 'url' => 'https://example.org/r'],
-                ]],
-                ['type' => 'connect', 'title' => 'Se connecter', 'description' => '', 'links' => []],
+                ['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'desc [Releases](https://example.org/r)'],
+                ['type' => 'connect', 'title' => 'Se connecter', 'description' => ''],
             ],
         ]);
 
@@ -36,10 +34,8 @@ final class AdminGameTutorialTest extends FunctionalTestCase
         self::assertIsArray($first);
         self::assertSame('apworld', $first['type']);
         self::assertSame("Installer l'apworld", $first['title']);
-        self::assertIsArray($first['links']);
-        $link = $first['links'][0];
-        self::assertIsArray($link);
-        self::assertSame('https://example.org/r', $link['url']);
+        // Links live in the markdown description since story 31.11.
+        self::assertSame('desc [Releases](https://example.org/r)', $first['description']);
 
         $second = $steps[1];
         self::assertIsArray($second);
@@ -52,7 +48,7 @@ final class AdminGameTutorialTest extends FunctionalTestCase
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s/tutorial', $game->getId()), [
-            'steps' => [['type' => 'bogus', 'title' => 'x', 'links' => []]],
+            'steps' => [['type' => 'bogus', 'title' => 'x']],
         ]);
 
         self::assertResponseStatusCodeSame(422);
@@ -64,22 +60,27 @@ final class AdminGameTutorialTest extends FunctionalTestCase
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s/tutorial', $game->getId()), [
-            'steps' => [['type' => 'note', 'title' => '   ', 'links' => []]],
+            'steps' => [['type' => 'note', 'title' => '   ']],
         ]);
 
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testNonHttpLinkUrlIsRejected(): void
+    public function testNonHttpVideoUrlIsDroppedSilently(): void
     {
+        // Links used to be a field and a bad URL there was a validation error. Only videoUrl is left,
+        // and the normalizer drops an unsafe scheme to null rather than rejecting the whole save.
         $this->loginAsAdmin();
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
 
         $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s/tutorial', $game->getId()), [
-            'steps' => [['type' => 'note', 'title' => 'x', 'links' => [['label' => 'evil', 'url' => 'javascript:alert(1)']]]],
+            'steps' => [['type' => 'note', 'title' => 'x', 'videoUrl' => 'javascript:alert(1)']],
         ]);
 
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseStatusCodeSame(200);
+        $steps = $this->installStepsFromResponse();
+        self::assertIsArray($steps[0]);
+        self::assertNull($steps[0]['videoUrl']);
     }
 
     public function testSeedBundledGameYieldsIncludedNote(): void
@@ -123,16 +124,11 @@ final class AdminGameTutorialTest extends FunctionalTestCase
         $apworld = $steps[0];
         self::assertIsArray($apworld);
         self::assertSame('apworld', $apworld['type']);
-        self::assertIsArray($apworld['links']);
-
-        $labels = [];
-        foreach ($apworld['links'] as $link) {
-            self::assertIsArray($link);
-            self::assertIsString($link['label']);
-            $labels[] = $link['label'];
-        }
-        self::assertContains("Source de l'apworld", $labels);
-        self::assertContains("Guide d'installation", $labels);
+        // The seeder writes its catalogue links as markdown inside the description (story 31.11).
+        self::assertIsString($apworld['description']);
+        self::assertStringContainsString("- [Source de l'apworld](https://github.com/owner/hk)", $apworld['description']);
+        // A catalogue entry without a URL stays a plain bullet rather than vanishing.
+        self::assertStringContainsString("- Guide d'installation", $apworld['description']);
     }
 
     public function testSeedDoesNotOverwriteWithoutForce(): void

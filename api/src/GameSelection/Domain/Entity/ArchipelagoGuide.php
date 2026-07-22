@@ -17,7 +17,7 @@ final class ArchipelagoGuide
     public const string SINGLETON_ID = 'default';
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps
+     * @param list<array{type: string, title: string, description: string}> $steps
      */
     public function __construct(
         #[ORM\Id]
@@ -31,7 +31,7 @@ final class ArchipelagoGuide
     }
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps
+     * @param list<array{type: string, title: string, description: string}> $steps
      */
     public static function create(array $steps, \DateTimeImmutable $now): self
     {
@@ -39,7 +39,7 @@ final class ArchipelagoGuide
     }
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps
+     * @param list<array{type: string, title: string, description: string}> $steps
      */
     public function update(array $steps, \DateTimeImmutable $now): void
     {
@@ -53,7 +53,7 @@ final class ArchipelagoGuide
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string}>
      */
     public function getSteps(): array
     {
