@@ -52,6 +52,15 @@ describe("Markdown - supported marks", () => {
     expect(html).not.toContain("<h1");
   });
 
+  test("keeps blank-line-separated paragraphs apart", () => {
+    // Regression: `p` was flattened to a fragment in both variants, so consecutive paragraphs were
+    // glued together and a multi-paragraph description lost all its structure on the public pages.
+    const html = render(<Markdown>{"Para un.\n\nPara deux."}</Markdown>);
+
+    expect(html).toContain("<p");
+    expect(html.match(/<p/g)).toHaveLength(2);
+  });
+
   test("keeps single newlines as line breaks (AC 6)", () => {
     // Bio, comments and tutorial steps render with whitespace-pre-line today; standard markdown
     // would collapse these into one paragraph and silently reflow every existing text.

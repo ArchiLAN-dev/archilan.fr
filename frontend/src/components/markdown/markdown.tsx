@@ -48,6 +48,10 @@ function linkComponent(untrusted: boolean): Components["a"] {
 
 /** Headings start at h3: authored content must never outrank the page's own h1/h2. */
 const BLOCK_COMPONENTS: Components = {
+  // Paragraphs must stay real <p>s here. Flattening them (as the inline variant does) glues
+  // consecutive paragraphs together with no separation - the callers put their text styling on the
+  // wrapper, so only the spacing belongs on the element itself.
+  p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
   h1: ({ children }) => <h3 className="mt-4 font-heading text-lg font-bold text-foreground">{children}</h3>,
   h2: ({ children }) => <h3 className="mt-4 font-heading text-base font-bold text-foreground">{children}</h3>,
   h3: ({ children }) => <h4 className="mt-3 font-heading text-base font-semibold text-foreground">{children}</h4>,
@@ -62,9 +66,11 @@ const BLOCK_COMPONENTS: Components = {
   hr: () => <hr className="my-4 border-border" />,
 };
 
-/** Marks that are safe in any layout, including a one-line card. */
+/**
+ * Marks that are safe in any layout, including a one-line card. Block-level elements are NOT here:
+ * `p` in particular is overridden per variant - flattened inline, kept as a real paragraph in block.
+ */
 const INLINE_COMPONENTS: Components = {
-  p: ({ children }) => <>{children}</>,
   strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ children }) => (
@@ -80,6 +86,7 @@ export function Markdown({ children, inline = false, untrusted = false, classNam
     ...(inline
       ? // Strip block structure down to its text so a dense card never grows a heading or a list.
         {
+          p: ({ children: c }) => <>{c}</>,
           h1: ({ children: c }) => <>{c}</>,
           h2: ({ children: c }) => <>{c}</>,
           h3: ({ children: c }) => <>{c}</>,
