@@ -137,6 +137,46 @@ describe("Markdown - untrusted policy is one switch (task 3)", () => {
   });
 });
 
+describe("Markdown - video embeds (story 10.11)", () => {
+  const YT = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+  test("a lone video URL becomes an embedded player", () => {
+    const html = render(<Markdown>{YT}</Markdown>);
+
+    expect(html).toContain("<iframe");
+    expect(html).toContain("youtube-nocookie.com/embed/dQw4w9WgXcQ");
+    expect(html).toContain("sandbox=");
+  });
+
+  test("the same URL inside a sentence stays an inline link", () => {
+    // Only a paragraph that is nothing but the link may become a player.
+    const html = render(<Markdown>{`Regarde ${YT} avant de commencer.`}</Markdown>);
+
+    expect(html).not.toContain("<iframe");
+    expect(html).toContain("<a");
+  });
+
+  test("an unsupported host alone on a line stays a link, never an iframe", () => {
+    const html = render(<Markdown>{"https://evil.example/video.mp4"}</Markdown>);
+
+    expect(html).not.toContain("<iframe");
+    expect(html).toContain("<a");
+  });
+
+  test("untrusted content never embeds, it links", () => {
+    const html = render(<Markdown untrusted>{YT}</Markdown>);
+
+    expect(html).not.toContain("<iframe");
+    expect(html).toContain("<a");
+  });
+
+  test("the inline variant never embeds", () => {
+    const html = render(<Markdown inline>{YT}</Markdown>);
+
+    expect(html).not.toContain("<iframe");
+  });
+});
+
 describe("Markdown - empty input", () => {
   test.each([null, undefined, "", "   "])("renders nothing for %p", (value) => {
     expect(render(<Markdown>{value}</Markdown>)).toBe("");

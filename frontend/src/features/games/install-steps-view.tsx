@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 
 import type { GameStep } from "./public-games-api";
 import { Markdown } from "@/components/markdown/markdown";
+import { VideoEmbed } from "@/components/markdown/video-embed";
 
 /**
  * Read-only render of an ordered list of install steps (story 31.1/31.3/31.5). Descriptions are
@@ -80,7 +81,7 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
               <img alt={step.title} className="max-h-80 w-auto rounded border border-border" loading="lazy" src={step.imageUrl} />
             ) : null}
 
-            {step.videoUrl ? <StepVideo url={step.videoUrl} /> : null}
+            {step.videoUrl ? <VideoEmbed title={`Vidéo : ${step.title}`} url={step.videoUrl} /> : null}
 
             {step.links.length > 0 ? (
               <ul className="grid gap-1.5">
@@ -112,41 +113,3 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
   );
 }
 
-function youtubeId(url: string): string | null {
-  const match = url.match(
-    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^&]*&)*v=|embed\/|shorts\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
-  );
-  return match ? match[1] : null;
-}
-
-/** Embeds a YouTube video safely (sandboxed, nocookie); other URLs fall back to a plain link. */
-function StepVideo({ url }: { url: string }) {
-  const id = youtubeId(url);
-  if (id === null) {
-    return (
-      <a
-        className="inline-flex w-fit items-center gap-2 text-accent-text underline-offset-2 hover:underline"
-        href={url}
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        Voir la vidéo
-        <ExternalLink aria-hidden="true" className="size-3.5" />
-      </a>
-    );
-  }
-
-  return (
-    <div className="aspect-video w-full max-w-xl overflow-hidden rounded border border-border">
-      <iframe
-        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="h-full w-full"
-        referrerPolicy="strict-origin-when-cross-origin"
-        sandbox="allow-scripts allow-same-origin allow-presentation"
-        src={`https://www.youtube-nocookie.com/embed/${id}`}
-        title="Vidéo du tutoriel"
-      />
-    </div>
-  );
-}
