@@ -15,7 +15,7 @@ export default async function NewsPage() {
   const posts = await getPublicPosts();
 
   return (
-    <div className="mx-auto w-full max-w-wide grid gap-12">
+    <div className="mx-auto w-full max-w-content grid gap-12">
       <section>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Actualités ArchiLAN

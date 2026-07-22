@@ -56,16 +56,19 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   /* Page container widths (story 10.12). Tailwind's --container-* namespace feeds max-w-*, so these
-     give max-w-wide / max-w-content / max-w-reading. Page width used to be a literal repeated across
-     ~40 containers, which is how the same page ended up 1024px loaded and 768px empty. Set it here.
+     give max-w-shell / max-w-content / max-w-reading. Page width used to be a literal repeated
+     across ~40 containers, which is how the same page ended up 1024px loaded and 768px empty.
 
-     wide     - the site rail: header, footer, and the card-grid index pages that align with them.
-     content  - default for application pages (cards, tables, media). The common case.
+     shell    - the header and footer rail, and nothing else. Kept separate from `content` on
+                purpose: they happen to share a value today, but they answer to different things -
+                retuning page width must not drag the header along with it.
+     content  - every application page. /jeux is the reference: card grids, tables, media and
+                cards all get the full rail width.
      reading  - long-form prose. Deliberately NOT widened: past roughly 90 characters per line a
-                measure gets harder to read, so widening legal pages and articles would work against
-                the very goal of this story. */
-  --container-wide: 80rem;
-  --container-content: 64rem;
+                measure gets harder to read, so widening legal pages and articles would work
+                against the very goal of this story. */
+  --container-shell: 80rem;
+  --container-content: 80rem;
   --container-reading: 48rem;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

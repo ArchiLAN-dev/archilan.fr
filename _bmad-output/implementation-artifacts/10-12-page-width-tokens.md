@@ -25,20 +25,20 @@ loaded and `max-w-3xl` when empty, so the page changed width depending on its ow
 ### Decisions
 
 - **Tokens, not a `<PageContainer>` component.** Tailwind 4's `--container-*` namespace feeds the
-  `max-w-*` utilities, so three custom properties in `globals.css` produce `max-w-wide`,
+  `max-w-*` utilities, so three custom properties in `globals.css` produce `max-w-shell`,
   `max-w-content` and `max-w-reading`. This needs no component threaded through every page, works
   inside layouts, and reduces the sweep to a class rename.
-- **Three tiers, because one width is wrong for prose.** Past roughly 90 characters per line a
-  measure gets *harder* to read, and 768px is already at that bound. Widening legal pages and
-  article bodies would have worked against the goal, so long-form prose keeps 48rem while
-  application pages move to 64rem.
-- **`wide` is 80rem and shared by the shell and the card-grid index pages.** `/actualites`,
-  `/evenements` and `/jeux` were already at `max-w-7xl`, deliberately flush with the rail. They keep
-  that alignment through the same token rather than a duplicate value.
-- **`content` = 64rem was already the de-facto standard.** Eleven containers (`/communaute`,
-  `/compte`, `/runs-hebdo`, the admin editors, the recap) sat at `max-w-5xl`. For those the change
-  is a pure rename with no visual effect, which is what makes 64rem the harmonising value rather
-  than a fourth invented one.
+- **Prose is the one thing not widened.** Past roughly 90 characters per line a measure gets
+  *harder* to read, and 768px is already at that bound. Pushing legal pages and article bodies to
+  the rail would have worked against the goal, so long-form prose keeps 48rem.
+- **`/jeux` is the reference: every application page gets the full 80rem rail.** The first pass
+  set `content` to 64rem and let the card-grid index pages keep a separate `wide` token. Reviewed
+  live, that was still too narrow, and the split had a defect: `wide` was shared with the header
+  and footer, so retuning page width would have dragged the rail with it. `content` is now 80rem
+  and covers the index pages too.
+- **`shell` stays a distinct token even though it holds the same value.** The header/footer rail and
+  the page width answer to different concerns; collapsing them into one custom property would mean
+  no page-width change is ever possible without moving the chrome.
 
 ### Non-goals
 
@@ -47,11 +47,11 @@ Those constrain a block inside a page, not the page, and tokenising them is a se
 
 ## Acceptance Criteria
 
-1. `--container-wide` / `--container-content` / `--container-reading` are defined in `globals.css`
+1. `--container-shell` / `--container-content` / `--container-reading` are defined in `globals.css`
    and generate the matching `max-w-*` utilities.
 2. No `max-w-3xl`, `max-w-5xl` or `max-w-7xl` remains on a page container.
-3. Application pages render at 64rem; long-form prose pages stay at 48rem; the shell and the
-   card-grid index pages share 80rem.
+3. Every application page renders at 80rem, matching `/jeux`; long-form prose stays at 48rem; the
+   header/footer rail is driven by its own token so page width can move independently.
 4. Skeleton and empty states move with the container they mirror, so no layout jump between the
    loading state and the loaded page.
 5. Gates green.
@@ -61,7 +61,7 @@ Those constrain a block inside a page, not the page, and tokenising them is a se
 - [x] **Task 1 - Tokens** (AC 1). Three `--container-*` entries in the `@theme inline` block, with
       the reasoning for the prose tier recorded next to them.
 - [x] **Task 2 - Sweep** (AC 2, 3, 4). 41 containers reclassified across 33 files: 5 to `reading`,
-      30 to `content`, 6 to `wide`.
+      34 to `content`, 2 to `shell`.
 - [x] **Task 3 - Verify** (AC 5). Generated CSS inspected for the three utilities and their values;
       full gates.
 
@@ -92,8 +92,8 @@ claude-opus-4-8 (Claude Code, 1M context).
 
 ### Completion Notes List
 
-- Verified in the built CSS: `.max-w-content{max-width:64rem}`, `.max-w-reading{max-width:48rem}`,
-  `.max-w-wide{max-width:80rem}`.
+- Verified in the built CSS: `.max-w-content{max-width:80rem}`, `.max-w-reading{max-width:48rem}`,
+  `.max-w-shell{max-width:80rem}`.
 - Pre-existing lint warning in `admin-content-dashboard.tsx` (story 33.18) is unrelated and left in
   place.
 

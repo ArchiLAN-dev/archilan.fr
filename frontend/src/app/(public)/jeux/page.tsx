@@ -17,7 +17,7 @@ export default async function GamesPage() {
   const games = await getAllPublicGames();
 
   return (
-    <div className="mx-auto w-full max-w-wide grid gap-16">
+    <div className="mx-auto w-full max-w-content grid gap-16">
       <section>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Bibliothèque ArchiLAN

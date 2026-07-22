@@ -155,7 +155,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
         ])}
       />
 
-      <article className="mx-auto w-full max-w-wide grid gap-12">
+      <article className="mx-auto w-full max-w-content grid gap-12">
         <Link
           className="inline-flex w-fit items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
           href="/evenements"
