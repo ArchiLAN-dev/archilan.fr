@@ -23,6 +23,9 @@ use Psr\Log\LoggerInterface;
 
 final readonly class AdminGameLibrary
 {
+    /** Mirrors GAME_DESCRIPTION_MAX in the frontend's content-limits.ts. */
+    private const int MAX_DESCRIPTION = 5000;
+
     public function __construct(
         private GameRepositoryInterface $gameRepository,
         private AdminGameListQueryInterface $adminGameListQuery,
@@ -504,6 +507,11 @@ final readonly class AdminGameLibrary
             if ('' === $input[$field]) {
                 $errors->add($field, $message);
             }
+        }
+
+        // Was unbounded TEXT; markdown makes long input more attractive, so cap it (story 10.10).
+        if (mb_strlen($input['description']) > self::MAX_DESCRIPTION) {
+            $errors->add('description', sprintf('La description ne peut pas dépasser %d caractères.', self::MAX_DESCRIPTION));
         }
 
         if ('' !== $input['slug'] && 1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $input['slug'])) {

@@ -7,6 +7,7 @@ import { breadcrumbJsonLd } from "@/lib/structured-data";
 import { getArchipelagoClient } from "@/features/games/archipelago-client-api";
 import { GameDetail } from "@/features/games/game-detail";
 import { getPublicGame } from "@/features/games/public-games-api";
+import { markdownToPlainText } from "@/components/markdown/markdown-to-plain-text";
 
 export const revalidate = 300; // ISR (story 34.4)
 
@@ -26,7 +27,9 @@ export async function generateMetadata({ params }: GameDetailPageProps): Promise
   }
 
   const canonicalPath = `/jeux/${game.slug}`;
-  const description = game.description || `${game.name} dans la bibliothèque Archipelago d'ArchiLAN.`;
+  // Metadata must never carry markdown syntax into <meta>/OG cards (story 10.10).
+  const description =
+    markdownToPlainText(game.description) || `${game.name} dans la bibliothèque Archipelago d'ArchiLAN.`;
 
   return {
     title: game.name,

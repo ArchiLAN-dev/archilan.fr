@@ -1,6 +1,7 @@
 import { Lock, Trophy, Users } from "lucide-react";
 
 import type { Achievement, AchievementRarity } from "@/features/players/player-profile-api";
+import { Markdown } from "@/components/markdown/markdown";
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date(iso));
@@ -49,7 +50,9 @@ export function AchievementCard({
         <p className={`text-sm font-semibold ${achievement.unlocked ? "text-foreground" : "text-muted-foreground"}`}>
           {achievement.name}
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{achievement.description}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          <Markdown inline>{achievement.description}</Markdown>
+        </p>
         {achievement.unlocked && achievement.unlockedAt ? (
           <p className="mt-1 text-[11px] text-accent-text">
             Débloqué le <time dateTime={achievement.unlockedAt}>{formatDate(achievement.unlockedAt)}</time>

@@ -16,6 +16,9 @@ use Psr\Log\LoggerInterface;
 
 final readonly class AdminEventDrafts
 {
+    /** Mirrors EVENT_DESCRIPTION_MAX in the frontend's content-limits.ts. */
+    private const int MAX_DESCRIPTION = 5000;
+
     public function __construct(
         private EventRepositoryInterface $eventRepository,
         private RegistrationCounter $registrationCounter,
@@ -266,6 +269,11 @@ final readonly class AdminEventDrafts
             if ('' === $input[$field]) {
                 $errors->add($field, $message);
             }
+        }
+
+        // Was unbounded TEXT; markdown makes long input more attractive, so cap it (story 10.10).
+        if (mb_strlen($input['description']) > self::MAX_DESCRIPTION) {
+            $errors->add('description', sprintf('La description ne peut pas dépasser %d caractères.', self::MAX_DESCRIPTION));
         }
 
         if (null === $input['capacity'] || $input['capacity'] <= 0) {

@@ -7,6 +7,7 @@ import { GameContributionForm } from "./game-contribution-form";
 import { GameOwnedBadge } from "./game-owned-badge";
 import { InstallStepsView } from "./install-steps-view";
 import type { GameApworld, PublicGameDetail } from "./public-games-api";
+import { Markdown } from "@/components/markdown/markdown";
 
 export function GameDetail({ game, client }: { game: PublicGameDetail; client: ArchipelagoClient | null }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
@@ -59,7 +60,7 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
           </p>
 
           {game.description ? (
-            <p className="text-lg leading-8 text-muted-foreground">{game.description}</p>
+            <Markdown className="text-lg leading-8 text-muted-foreground">{game.description}</Markdown>
           ) : null}
 
           {game.platforms.length > 0 ? (
