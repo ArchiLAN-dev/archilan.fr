@@ -36,6 +36,11 @@ final readonly class ProfileVisibility
             return false;
         }
 
+        // Deliberately MEMBERS and not Audience::DEFAULT (story 30.28). A missing row means an account
+        // that never engaged with the profile surface at all - rows are only created lazily on a self
+        // view or a save. Reading the new public default here would publish dormant accounts that never
+        // did anything, which is exactly what keeping existing profiles untouched was meant to avoid.
+        // The public default applies to rows as they are created, not to the absence of a row.
         $audience = $this->profiles->findByUserId($ownerId)?->getAudience() ?? Audience::MEMBERS;
 
         return AudiencePolicy::canView($this->tier($viewerId, $ownerId), $audience);

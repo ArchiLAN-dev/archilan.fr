@@ -5,10 +5,21 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Community;
 
 use App\Community\Domain\Entity\CommunityProfile;
+use App\Community\Domain\ValueObject\Audience;
 use PHPUnit\Framework\TestCase;
 
 final class CommunityProfileTest extends TestCase
 {
+    public function testNewProfileIsPublic(): void
+    {
+        // Story 30.28. Nothing locked this before, which is how the default came to be spelled out in
+        // eight places free to disagree. Assert the constant, not the literal, so the two cannot drift.
+        $profile = CommunityProfile::create('user-1', new \DateTimeImmutable('2026-06-17T10:00:00+00:00'));
+
+        self::assertSame(Audience::DEFAULT, $profile->getAudience());
+        self::assertSame(Audience::PUBLIC, $profile->getAudience());
+    }
+
     public function testNewProfileHasNoAvatarAndIsStale(): void
     {
         $profile = CommunityProfile::create('user-1', new \DateTimeImmutable('2026-06-17T10:00:00+00:00'));
