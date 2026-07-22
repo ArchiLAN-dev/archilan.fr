@@ -29,7 +29,7 @@ export function PlayerProfilePage({
   const historyError = history === null;
 
   return (
-    <article className="mx-auto w-full max-w-4xl grid gap-12">
+    <article className="mx-auto w-full max-w-content grid gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
         <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 

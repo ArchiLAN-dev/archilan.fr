@@ -96,7 +96,7 @@ export default async function ResultatsPage({ params }: ResultsPageProps) {
   const goalCount = results ? results.slots.filter((s) => s.goal_reached_at !== null).length : 0;
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-content">
       <header className="mb-10 grid gap-2">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           {event.title}
