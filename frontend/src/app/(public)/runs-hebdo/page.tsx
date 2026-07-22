@@ -9,7 +9,7 @@ export const metadata = buildPageMetadata({
 
 export default function RunsHebdoPage() {
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-content">
       <header className="mb-8">
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
           Compétition hebdo

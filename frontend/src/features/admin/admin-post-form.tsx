@@ -156,7 +156,7 @@ export function AdminPostForm({ mode, postId }: { mode: "create" | "edit"; postI
   const title = mode === "create" ? "Nouveau post" : "Éditer le post";
 
   return (
-    <section className="mx-auto grid w-full max-w-5xl gap-8 px-4 py-10">
+    <section className="mx-auto grid w-full max-w-content gap-8 px-4 py-10">
       <header className="grid gap-3">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Backoffice

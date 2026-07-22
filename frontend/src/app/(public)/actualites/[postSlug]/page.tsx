@@ -82,7 +82,7 @@ export default async function PostPage({ params }: PostPageProps) {
         ])}
       />
 
-      <article className="mx-auto grid max-w-3xl gap-8">
+      <article className="mx-auto grid max-w-reading gap-8">
         {post.coverImageUrl ? <PostHeroImage post={post} /> : null}
 
         <header className="border-b border-border pb-8">

@@ -10,7 +10,7 @@ export const metadata = buildPageMetadata({
 
 export default function CguPage() {
   return (
-    <article className="mx-auto grid max-w-3xl gap-10">
+    <article className="mx-auto grid max-w-reading gap-10">
       <header className="grid gap-2 border-b border-border pb-8">
         <h1 className="font-heading text-4xl font-bold text-foreground">
           Conditions Générales d&apos;Utilisation

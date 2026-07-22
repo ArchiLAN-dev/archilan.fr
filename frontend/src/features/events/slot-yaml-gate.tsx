@@ -96,7 +96,7 @@ export function SlotYamlGate({
     }
 
     return (
-      <div aria-hidden="true" className="mx-auto grid max-w-3xl gap-8">
+      <div aria-hidden="true" className="mx-auto grid max-w-content gap-8">
         {/* back button */}
         <div className="h-9 w-44 animate-pulse rounded border border-border bg-surface-2" />
         {/* header */}
@@ -149,7 +149,7 @@ export function SlotYamlGate({
   }
 
   return (
-    <article className="mx-auto max-w-3xl grid gap-8">
+    <article className="mx-auto max-w-content grid gap-8">
       <header className="grid gap-5">
         <Link
           className="inline-flex w-fit items-center gap-1.5 rounded border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent"

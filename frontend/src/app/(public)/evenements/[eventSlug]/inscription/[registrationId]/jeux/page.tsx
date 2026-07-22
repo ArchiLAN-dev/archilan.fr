@@ -13,7 +13,7 @@ type JeuxPageProps = {
 
 export default function JeuxPage({ params }: JeuxPageProps) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-content px-4 py-10 sm:px-6">
       <GameSelectionGate params={params} />
     </div>
   );

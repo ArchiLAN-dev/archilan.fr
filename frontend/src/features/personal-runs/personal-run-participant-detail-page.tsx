@@ -115,7 +115,7 @@ export function PersonalRunParticipantDetailPage({
   // Loading covers the pending query and the 401 case (the redirect above is taking over).
   if (detailQuery.isPending || result === undefined || result.kind === "unauthorized") {
     return (
-      <div aria-hidden="true" className="mx-auto grid max-w-3xl gap-6">
+      <div aria-hidden="true" className="mx-auto grid max-w-content gap-6">
         <div className="h-4 w-40 animate-pulse rounded bg-surface" />
         <div className="h-40 animate-pulse rounded-lg border border-border bg-surface" />
         <div className="grid gap-3 sm:grid-cols-2">
@@ -136,7 +136,7 @@ export function PersonalRunParticipantDetailPage({
           : result.message;
 
     return (
-      <div className="mx-auto grid max-w-3xl gap-6">
+      <div className="mx-auto grid max-w-content gap-6">
         {backLink}
         <div className="grid gap-4 rounded-lg border border-border p-8 text-center">
           <AlertCircle aria-hidden className="mx-auto size-8 text-[color:var(--color-danger)]" />
@@ -153,7 +153,7 @@ export function PersonalRunParticipantDetailPage({
   const name = participant.displayName ?? "Joueur";
 
   return (
-    <article className="mx-auto grid max-w-3xl gap-6">
+    <article className="mx-auto grid max-w-content gap-6">
       {backLink}
 
       {/* ── Player header ── */}

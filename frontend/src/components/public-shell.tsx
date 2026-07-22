@@ -226,7 +226,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
       >
         <nav
           aria-label="Navigation principale"
-          className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between px-6 md:px-12 lg:px-20"
+          className="mx-auto flex min-h-16 w-full max-w-wide items-center justify-between px-6 md:px-12 lg:px-20"
         >
           <Link className="group flex min-h-11 items-center gap-2.5" href="/">
             <Image
@@ -299,7 +299,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
       </main>
 
       <footer className="border-t border-border bg-background/92 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:gap-6 md:px-12 lg:px-20">
+        <div className="mx-auto flex w-full max-w-wide flex-col gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:gap-6 md:px-12 lg:px-20">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="flex items-center gap-2.5">
               <Image
