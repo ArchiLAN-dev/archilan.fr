@@ -157,9 +157,9 @@ export function isGameStep(v: unknown): v is GameStep {
   if (typeof v !== "object" || v === null) return false;
   if (!("type" in v) || !isGameStepType(v.type)) return false;
   if (!hasStringProp(v, "title") || !hasStringProp(v, "description")) return false;
-  if (!isOptionalNullableString(v, "imageKey") || !isOptionalNullableString(v, "imageUrl") || !isOptionalNullableString(v, "videoUrl"))
-    return false;
-  return "links" in v && Array.isArray(v.links) && v.links.every(isGameLink);
+  // Links and images left the step in story 31.11 - requiring them here rejected every step the API
+  // sends, which loaded the guide and the tutorials empty and let a save wipe them.
+  return isOptionalNullableString(v, "videoUrl");
 }
 
 function isGameApworld(v: unknown): v is GameApworld {

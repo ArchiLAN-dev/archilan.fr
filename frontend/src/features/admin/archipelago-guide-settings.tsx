@@ -41,11 +41,11 @@ export function ArchipelagoGuideSettings() {
   async function save() {
     setSaving(true);
     setMessage(null);
-    const ok = await saveArchipelagoGuide(serializeStepsForSave(steps));
+    const failure = await saveArchipelagoGuide(serializeStepsForSave(steps));
     setMessage(
-      ok
+      failure === null
         ? { tone: "ok", text: "Guide enregistré." }
-        : { tone: "error", text: "Échec : vérifie les types d'étape et les liens (http(s))." },
+        : { tone: "error", text: failure },
     );
     setSaving(false);
   }
