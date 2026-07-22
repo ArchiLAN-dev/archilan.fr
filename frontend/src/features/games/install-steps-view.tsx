@@ -13,6 +13,14 @@ import { VideoEmbed } from "@/components/markdown/video-embed";
  * `storageKey` is given, each step gets a checkbox whose state is kept in localStorage (story 31.5),
  * so a player can track their install progress (no account needed).
  */
+/**
+ * Box holding the step marker (checkbox or number), sized to one line of the title.
+ *
+ * It repeats the `<h3>` typography on purpose: `1lh` resolves against the element's own font-size and
+ * line-height, so this is what ties the marker to the heading. Keep the two in sync.
+ */
+const MARKER_BOX = "flex h-[1lh] shrink-0 text-lg leading-tight";
+
 export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; storageKey?: string }) {
   // Progress is keyed by step title (not index) so reordering/inserting steps doesn't mis-tick.
   const [done, setDone] = useState<Set<string>>(new Set());
@@ -55,9 +63,10 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
           <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={step.title}>
             <div className="flex items-start gap-2">
               {lsKey !== null ? (
-                // Centred inside a box matching the title's first line (text-base/leading-tight = 1.25rem)
-                // so it reads as aligned with the heading rather than sitting below it.
-                <span className="flex h-5 shrink-0 items-center">
+                // MARKER_BOX carries the heading's own text metrics, so `h-[1lh]` resolves to exactly
+                // one line of the title: the marker stays centred on the first line whatever size the
+                // heading takes, instead of needing an offset re-tuned by hand at each change.
+                <span className={`${MARKER_BOX} items-center`}>
                   <input
                     aria-label={`Marquer « ${step.title} » comme fait`}
                     checked={checked}
@@ -67,11 +76,15 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
                   />
                 </span>
               ) : (
-                <span className="mt-[-0.125rem] flex size-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent-text">
-                  {index + 1}
+                // The badge is taller than one line; centring it inside the line box lets it overflow
+                // symmetrically above and below rather than dragging the row down.
+                <span className={`${MARKER_BOX} items-center`}>
+                  <span className="flex size-6 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent-text">
+                    {index + 1}
+                  </span>
                 </span>
               )}
-              <h3 className={`font-heading font-semibold leading-tight text-foreground ${checked ? "line-through opacity-60" : ""}`}>
+              <h3 className={`font-heading text-lg font-semibold leading-tight text-foreground ${checked ? "line-through opacity-60" : ""}`}>
                 {step.title}
               </h3>
             </div>
