@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flag, Trash2 } from "lucide-react";
 
+import { Markdown } from "@/components/markdown/markdown";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import {
@@ -73,11 +75,12 @@ export function ProfileComments({ slug }: { slug: string }) {
 
       {user ? (
         <div className="grid gap-2">
-          <textarea
-            className="min-h-20 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+          <MarkdownEditor
             maxLength={2000}
-            onChange={(e) => { setBody(e.target.value); setError(null); }}
+            onChange={(v: string) => { setBody(v); setError(null); }}
             placeholder="Laisse un mot sur ce profil…"
+            rows={3}
+            untrusted
             value={body}
           />
           <div className="flex items-center gap-3">
@@ -124,7 +127,9 @@ export function ProfileComments({ slug }: { slug: string }) {
                     {relativeTime(comment.createdAt)}
                   </time>
                 </div>
-                <p className="mt-0.5 whitespace-pre-line break-words text-sm text-muted-foreground">{comment.body}</p>
+                <Markdown className="mt-0.5 break-words text-sm text-muted-foreground" untrusted>
+            {comment.body}
+          </Markdown>
               </div>
               <div className="flex shrink-0 items-start gap-1">
                 {user && !reported.has(comment.id) ? (

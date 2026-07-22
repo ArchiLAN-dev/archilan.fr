@@ -15,6 +15,7 @@ import { ProfileAchievements } from "@/features/community/profile-achievements";
 import { ProfileComments } from "@/features/community/profile-comments";
 import { ProfileBanner } from "@/features/community/profile-banner";
 import { resolveLinkType } from "@/features/community/social-links";
+import { Markdown } from "@/components/markdown/markdown";
 
 export function PlayerProfilePage({
   profile,
@@ -304,7 +305,7 @@ function ProfileCustomization({ customization }: { customization: ProfileCustomi
   return (
     <section className="grid gap-2">
       <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
-      <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{bio}</p>
+      <Markdown className="text-sm leading-6 text-muted-foreground" untrusted>{bio}</Markdown>
     </section>
   );
 }

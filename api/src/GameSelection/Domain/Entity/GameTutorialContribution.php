@@ -16,6 +16,8 @@ use Doctrine\ORM\Mapping as ORM;
 final class GameTutorialContribution
 {
     public const string STATUS_PENDING = 'pending';
+
+    public const int MAX_MESSAGE = 2000;
     public const string STATUS_APPROVED = 'approved';
     public const string STATUS_REJECTED = 'rejected';
 
@@ -154,6 +156,8 @@ final class GameTutorialContribution
         }
         $trimmed = trim($message);
 
-        return '' === $trimmed ? null : $trimmed;
+        // Community-authored and previously unbounded; capped like the sibling step descriptions
+        // (story 10.10). Mirrors CONTRIBUTION_MESSAGE_MAX in the frontend's content-limits.ts.
+        return '' === $trimmed ? null : mb_substr($trimmed, 0, self::MAX_MESSAGE);
     }
 }

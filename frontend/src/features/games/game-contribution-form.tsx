@@ -7,6 +7,8 @@ import { PenLine } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { submitContribution } from "./game-contribution-api";
 import { InstallStepsEditor, serializeStepsForSave, type InstallStep } from "./install-steps-editor";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { CONTRIBUTION_MESSAGE_MAX } from "@/lib/content-limits";
 
 type Props =
   | { mode: "game"; gameSlug: string; initialSteps: InstallStep[] }
@@ -107,9 +109,11 @@ export function GameContributionForm(props: Props) {
 
       <label className="grid gap-1.5 text-sm">
         <span className="font-medium text-foreground">Message au modérateur (optionnel)</span>
-        <textarea
-          className="min-h-16 rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-          onChange={(e) => setMessage(e.target.value)}
+        <MarkdownEditor
+          maxLength={CONTRIBUTION_MESSAGE_MAX}
+          onChange={setMessage}
+          rows={3}
+          untrusted
           value={message}
         />
       </label>
