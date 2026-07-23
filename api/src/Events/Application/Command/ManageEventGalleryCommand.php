@@ -12,6 +12,7 @@ use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Exception\ValidationException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
+use Psr\Log\LoggerInterface;
 
 final readonly class ManageEventGalleryCommand
 {
@@ -22,6 +23,7 @@ final readonly class ManageEventGalleryCommand
         private MinioStorageInterface $minioStorage,
         private AdminEventDrafts $adminEventDrafts,
         private PublicMediaUrlResolver $publicMedia,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -43,7 +45,15 @@ final readonly class ManageEventGalleryCommand
 
         try {
             $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            // The client only ever sees a generic storage_unavailable; log the real cause here or it is
+            // lost. A missing/misconfigured public-media bucket surfaces exactly this way.
+            $this->logger->error('Object storage upload failed for an event gallery image.', [
+                'bucket' => $this->publicMedia->bucket(),
+                'key' => $key,
+                'exception' => $exception,
+            ]);
+
             throw new ServiceUnavailableException('Le stockage est indisponible.', 'storage_unavailable');
         }
 

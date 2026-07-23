@@ -13,6 +13,7 @@ use App\Shared\Application\Exception\ServiceUnavailableException;
 use App\Shared\Application\Support\PublicMediaUrlResolver;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 
 final readonly class UploadPostCoverImageCommand
 {
@@ -22,6 +23,7 @@ final readonly class UploadPostCoverImageCommand
         private AdminPostCatalog $adminPostCatalog,
         private ClockInterface $clock,
         private PublicMediaUrlResolver $publicMedia,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -39,7 +41,15 @@ final readonly class UploadPostCoverImageCommand
 
         try {
             $this->minioStorage->upload($this->publicMedia->bucket(), $key, $contents);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            // The client only ever sees a generic storage_unavailable; log the real cause here or it is
+            // lost. A missing/misconfigured public-media bucket surfaces exactly this way.
+            $this->logger->error('Object storage upload failed for a post cover image.', [
+                'bucket' => $this->publicMedia->bucket(),
+                'key' => $key,
+                'exception' => $exception,
+            ]);
+
             throw new ServiceUnavailableException('Le stockage est indisponible.', 'storage_unavailable');
         }
 
