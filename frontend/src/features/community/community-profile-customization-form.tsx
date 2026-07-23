@@ -117,6 +117,9 @@ export function CommunityProfileCustomizationForm({
   const [showcase, setShowcase] = useState<string[]>([]);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const [baseline, setBaseline] = useState<string>("");
+  // Whether the draft has been seeded from the server yet. Guards against re-seeding on a later query
+  // update, which would wipe in-progress edits (#388).
+  const hasHydratedRef = useRef(false);
 
   // Server state lives in TanStack Query (AC-ST2); the form fields above are the local draft copy.
   // Both fetchers resolve to a value (null / []) on error, never throw - retry off like the old effect.
@@ -125,6 +128,11 @@ export function CommunityProfileCustomizationForm({
     queryFn: fetchMyCommunityProfile,
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
+    // This is an edit surface: it must not refetch itself from under the user. The real protection
+    // against clobbering a draft is the one-time hydration below (a refetch triggered elsewhere - the
+    // nav avatar shares this query key - still updates the shared cache); this just avoids the form
+    // itself kicking off needless focus refetches.
+    refetchOnWindowFocus: false,
   });
   const { data: catalogData, isLoading: loadingCatalog } = useQuery({
     queryKey: ["public-games", "all"],
@@ -175,13 +183,15 @@ export function CommunityProfileCustomizationForm({
     );
   }, []);
 
-  // Hydrate the local draft from the fetched profile. Keyed on data identity: TanStack's structural
-  // sharing keeps the same object across refetches with identical content, so this only re-runs on the
-  // initial load or when the server profile actually changed. The draft cannot be derived during render
-  // (user edits diverge from server state), hence the sanctioned setState-in-effect.
+  // Seed the local draft from the server profile exactly once, on first load. It must NOT run again on
+  // later query updates: a background refetch (including one triggered by the nav avatar, which shares
+  // this query key) hands us a fresh object identity, and re-seeding then would overwrite whatever the
+  // user is currently typing - the ~1 min silent data-loss bug (#388). Re-baselining after a save is
+  // done directly in handleSave, not here. The draft cannot be derived during render (user edits
+  // diverge from server state), hence the sanctioned setState-in-effect.
   useEffect(() => {
-    if (profileData) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeding the local form draft from query data; see comment above
+    if (profileData && !hasHydratedRef.current) {
+      hasHydratedRef.current = true;
       hydrate(profileData);
     }
   }, [profileData, hydrate]);
