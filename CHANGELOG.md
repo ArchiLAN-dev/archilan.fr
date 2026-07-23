@@ -5,6 +5,70 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.10.0] - 2026-07-23
+
+Version de fonctionnalité axée sur le contenu éditorial et l'affichage public :
+rédaction en Markdown sur les surfaces admin et communautaires, refonte des
+tutoriels d'installation (Markdown, vidéos, accordéon), et plusieurs améliorations
+de l'interface publique (page jeu, profil, navigation). Inclut aussi les correctifs
+livrés en hotfix depuis la 0.9.0 et une passe de sécurité sur les dépendances.
+
+### Ajouté
+
+- **Rédaction Markdown (story 10.10)** : un moteur de rendu Markdown partagé et un
+  éditeur léger (barre d'outils + aperçu) sont désormais disponibles sur les champs de
+  contenu rédigés par les admins comme par les membres. Le rendu émet des éléments React
+  (jamais une chaîne HTML), donc le HTML brut saisi reste du texte inerte - aucune
+  injection possible sur les surfaces communautaires.
+- **Vidéos dans le Markdown (story 10.11)** : une URL de vidéo seule sur sa ligne se
+  transforme en lecteur embarqué durci (`youtube-nocookie`, `sandbox`), sur toutes les
+  surfaces Markdown.
+- **Description orientée Archipelago sur un jeu (story 3.13)** : champ optionnel affiché
+  en pleine largeur sur la page publique du jeu, en complément de la description générale.
+- **Onglet Notes admin sur la fiche jeu (story 3.12, #303)** : notes internes visibles des
+  seuls administrateurs.
+- **Badges de statut des participants (story 30.37, #261)** sur la page de détail d'une run.
+- **Menu compte dans la navigation (story 10.13)** : les actions de compte (profil, espace,
+  admin, déconnexion) se regroupent sous un menu avatar déroulant affichant la photo de
+  profil communauté, avec un lien direct vers le profil public.
+- **Tutoriels en accordéon** : chaque étape se replie/déplie ; repliées par défaut, elles se
+  referment aussi quand on coche leur progression.
+
+### Modifié
+
+- **Profil communautaire public par défaut (story 30.28)** : un nouveau compte est visible
+  par défaut. Les profils existants ne sont pas modifiés (rien ne distingue en base un choix
+  délibéré de l'ancien défaut). Un `PUT` partiel ne réécrit plus l'audience omise.
+- **Bio déplacée dans la carte d'identité** du profil, titre « À propos » retiré.
+- **Largeurs de page centralisées derrière des tokens (story 10.12)** : toutes les pages
+  applicatives s'alignent sur la largeur de `/jeux` ; la prose longue reste plus étroite pour
+  la lisibilité. Le rail en-tête/pied a son propre token.
+- **Tutoriels d'installation (story 31.11)** : les liens et images d'étape sont désormais
+  intégrés directement dans la description Markdown (un champ au lieu de trois). Migration de
+  données non destructive ; les images uploadées sont servies sous une URL stable.
+- **Page jeu - en-tête** : la description Archipelago passe en pleine largeur ; le titre et la
+  description habillent la jaquette (mise en page flottante) et reprennent en pleine largeur
+  sous elle.
+- **Affichage des tutoriels** : taille de titre d'étape distincte du corps, couleur de corps
+  de texte dédiée, alignement de la case de progression.
+
+### Corrigé
+
+- Erreur réelle du bridge remontée au lieu d'être masquée (#278).
+- Débordement du pied de la carte de progression joueur (#245).
+- Pulsation « En jeu » rognée par l'avatar (#299).
+- Run terminée ou annulée passée en lecture seule (#338).
+- Patches d'entrée hebdomadaire servis depuis l'archive durable, plus depuis un port de bridge
+  réutilisé (#262).
+- Propriété du slot vérifiée sur les endpoints d'indice et d'item-location (#252, #253).
+- Paragraphes réels préservés dans la variante bloc du Markdown ; garde de type d'étape ne
+  rejetant plus toutes les étapes.
+
+### Sécurité
+
+- Avis de sécurité des dépendances résolus : `guzzlehttp/guzzle`, `guzzlehttp/psr7`, `sharp`,
+  `fast-uri`, `next`, `brace-expansion`.
+
 ## [0.9.0] - 2026-07-19
 
 Version de fonctionnalité ciblée : autocomplétion des noms de locations dans
