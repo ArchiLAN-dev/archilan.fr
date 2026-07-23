@@ -13,8 +13,8 @@ import { VideoEmbed } from "@/components/markdown/video-embed";
  * in a description stays inert text. Links/media URLs are http(s) (validated server-side). When a
  * `storageKey` is given, each step gets a checkbox whose state is kept in localStorage (story 31.5),
  * so a player can track their install progress (no account needed). Each step's body (description +
- * video) is a collapsible accordion panel, folded independently of the checkbox; a title-only step
- * has no toggle since there is nothing to reveal.
+ * video) is a collapsible accordion panel: steps start collapsed, and marking a step done also folds
+ * it away (un-marking does not re-open it). A title-only step has no toggle - nothing to reveal.
  */
 /**
  * Box holding the step marker (checkbox or number), sized to one line of the title.
@@ -27,10 +27,10 @@ const MARKER_BOX = "flex h-[1lh] shrink-0 text-lg leading-tight";
 export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; storageKey?: string }) {
   // Progress is keyed by step title (not index) so reordering/inserting steps doesn't mis-tick.
   const [done, setDone] = useState<Set<string>>(new Set());
-  // Accordion open/close, independent of `done` and keyed by title the same way so it survives
-  // reordering. Every step starts open: the accordion folds away steps you're finished with, it does
-  // not hide the tutorial behind a click on first paint.
-  const [open, setOpen] = useState<Set<string>>(() => new Set(steps.map((s) => s.title)));
+  // Accordion open/close, keyed by title the same way as `done` so it survives reordering. Steps
+  // start collapsed; opening one is an explicit click. Marking a step done also folds it away (see
+  // `toggle`), but un-marking never re-opens it.
+  const [open, setOpen] = useState<Set<string>>(new Set());
   const panelBaseId = useId();
   const lsKey = storageKey ? `archilan.install-progress.${storageKey}` : null;
 
@@ -50,6 +50,8 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
 
   function toggle(title: string) {
     if (lsKey === null) return;
+    // Captured before the update: true when this click is *checking* the box, not un-checking it.
+    const willBeChecked = !done.has(title);
     setDone((prev) => {
       const next = new Set(prev);
       if (next.has(title)) next.delete(title);
@@ -61,6 +63,16 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
       }
       return next;
     });
+    // Checking a step folds its panel away. Un-checking is deliberately left alone - it must not pop
+    // the panel back open.
+    if (willBeChecked) {
+      setOpen((prev) => {
+        if (!prev.has(title)) return prev;
+        const next = new Set(prev);
+        next.delete(title);
+        return next;
+      });
+    }
   }
 
   function toggleOpen(title: string) {
