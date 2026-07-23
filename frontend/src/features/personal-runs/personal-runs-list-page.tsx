@@ -125,7 +125,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
 
   if (authLoading || runsQuery.isPending) {
     return (
-      <div className={embedded ? undefined : "mx-auto max-w-3xl"}>
+      <div className={embedded ? undefined : "mx-auto max-w-content"}>
         <div className="grid gap-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-20 animate-pulse rounded-lg border border-border bg-surface" />
@@ -139,7 +139,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
 
   if (mine === null) {
     return (
-      <div className={embedded ? undefined : "mx-auto max-w-3xl"}>
+      <div className={embedded ? undefined : "mx-auto max-w-content"}>
         <p className="text-sm text-muted-foreground">
           Impossible de charger tes parties pour le moment.
         </p>
@@ -165,7 +165,7 @@ export function PersonalRunsListPage({ embedded = false }: { embedded?: boolean 
   const activeGroups = STATUS_ORDER.filter((s) => (grouped[s]?.length ?? 0) > 0);
 
   return (
-    <div className={embedded ? "grid gap-8" : "mx-auto grid max-w-3xl gap-10"}>
+    <div className={embedded ? "grid gap-8" : "mx-auto grid max-w-content gap-10"}>
       {embedded ? (
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-xl font-bold text-foreground">Mes parties</h2>

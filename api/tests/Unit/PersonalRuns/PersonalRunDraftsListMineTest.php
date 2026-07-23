@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\Community\Application\Query\CommunityLevelQuery;
+use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
+use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -24,6 +29,12 @@ final class PersonalRunDraftsListMineTest extends TestCase
             self::createStub(UserRepositoryInterface::class),
             self::createStub(SessionRepositoryInterface::class),
             self::createStub(CommunityUserDirectoryQueryInterface::class),
+            self::createStub(ActiveMembershipQueryInterface::class),
+            new CommunityLevelQuery(
+                self::createStub(PlayerStatsQueryInterface::class),
+                self::createStub(AchievementGrantRepositoryInterface::class),
+            ),
+            self::createStub(CommunityPresenceQueryInterface::class),
             new MockClock(),
             'https://archilan.test',
         );

@@ -13,7 +13,7 @@ type InscriptionPageProps = {
 
 export default function InscriptionPage({ params }: InscriptionPageProps) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-content px-4 py-10 sm:px-6">
       <RegistrationEligibilityGate params={params} />
     </div>
   );

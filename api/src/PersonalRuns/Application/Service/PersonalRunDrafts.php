@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Service;
 
+use App\Community\Application\Query\CommunityLevelQuery;
+use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -24,6 +27,9 @@ final readonly class PersonalRunDrafts
         private UserRepositoryInterface $users,
         private SessionRepositoryInterface $sessions,
         private CommunityUserDirectoryQueryInterface $directory,
+        private ActiveMembershipQueryInterface $memberships,
+        private CommunityLevelQuery $levels,
+        private CommunityPresenceQueryInterface $presence,
         private ClockInterface $clock,
         private string $siteUrl,
     ) {
@@ -292,7 +298,7 @@ final readonly class PersonalRunDrafts
     }
 
     /**
-     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int}>
+     * @return list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}>
      */
     private function getParticipants(string $runId): array
     {
@@ -316,9 +322,16 @@ final readonly class PersonalRunDrafts
         // visible community card (none/banned/suspended) falls back to the account name, no avatar/link.
         $cards = $this->directory->cards($userIds);
 
-        return array_map(function (RunParticipant $p) use ($usersById, $cards): array {
+        // Status badges, batch-resolved (no N+1) so the participant list is coherent with the player
+        // profile: Adhérent (live membership, never the stale ROLE_MEMBER), niveau, En jeu (story 30.37).
+        $memberIds = array_fill_keys($this->memberships->activeMemberIds($userIds), true);
+        $levels = $this->levels->levelForMany($userIds);
+        $playing = $this->presence->playing($userIds);
+
+        return array_map(function (RunParticipant $p) use ($usersById, $cards, $memberIds, $levels, $playing): array {
             $user = $usersById[$p->getUserId()] ?? null;
             $card = $cards[$p->getUserId()] ?? null;
+            $level = $levels[$p->getUserId()] ?? null;
 
             return [
                 'userId' => $p->getUserId(),
@@ -328,12 +341,16 @@ final readonly class PersonalRunDrafts
                 'avatarUrl' => null !== $card ? $card['avatarUrl'] : null,
                 'joinedAt' => $p->getJoinedAt()->format(\DateTimeInterface::ATOM),
                 'slotCount' => count($p->getGameSlots()),
+                'isMember' => isset($memberIds[$p->getUserId()]),
+                'isAdmin' => null !== $user && in_array('ROLE_ADMIN', $user->getRoles(), true),
+                'level' => null !== $level ? $level['level'] : 0,
+                'playing' => isset($playing[$p->getUserId()]),
             ];
         }, $participants);
     }
 
     /**
-     * @param list<array{userId: string, displayName: string|null, joinedAt: string, slotCount: int}> $participants
+     * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
      *
      * @return array<string, mixed>
      */

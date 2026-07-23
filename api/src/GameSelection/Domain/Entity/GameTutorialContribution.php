@@ -16,11 +16,13 @@ use Doctrine\ORM\Mapping as ORM;
 final class GameTutorialContribution
 {
     public const string STATUS_PENDING = 'pending';
+
+    public const int MAX_MESSAGE = 2000;
     public const string STATUS_APPROVED = 'approved';
     public const string STATUS_REJECTED = 'rejected';
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps
+     * @param list<array{type: string, title: string, description: string}> $steps
      */
     private function __construct(
         #[ORM\Id]
@@ -50,7 +52,7 @@ final class GameTutorialContribution
     }
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps
+     * @param list<array{type: string, title: string, description: string}> $steps
      */
     public static function submitForGame(string $id, string $authorId, string $gameId, array $steps, ?string $message, \DateTimeImmutable $now): self
     {
@@ -58,7 +60,7 @@ final class GameTutorialContribution
     }
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}> $steps
+     * @param list<array{type: string, title: string, description: string}> $steps
      */
     public static function submitForProposedName(string $id, string $authorId, string $proposedGameName, array $steps, ?string $message, \DateTimeImmutable $now): self
     {
@@ -103,7 +105,7 @@ final class GameTutorialContribution
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string}>
      */
     public function getSteps(): array
     {
@@ -154,6 +156,8 @@ final class GameTutorialContribution
         }
         $trimmed = trim($message);
 
-        return '' === $trimmed ? null : $trimmed;
+        // Community-authored and previously unbounded; capped like the sibling step descriptions
+        // (story 10.10). Mirrors CONTRIBUTION_MESSAGE_MAX in the frontend's content-limits.ts.
+        return '' === $trimmed ? null : mb_substr($trimmed, 0, self::MAX_MESSAGE);
     }
 }

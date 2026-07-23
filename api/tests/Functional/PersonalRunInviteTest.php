@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Membership\Domain\Entity\Membership;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 
@@ -298,9 +299,52 @@ final class PersonalRunInviteTest extends FunctionalTestCase
         self::assertNull($participants[0]['avatarUrl']);
     }
 
+    public function testGetRunPayloadExposesParticipantBadges(): void
+    {
+        // Story 30.37 / issue #261: participants carry status badges (Adhérent / Admin / niveau / En jeu).
+        $alice = $this->createUser('alice@example.org');
+        $admin = $this->createUser('admin261@example.org', ['ROLE_USER', 'ROLE_ADMIN']);
+        $member = $this->createUser('member261@example.org');
+        $this->createActiveMembership($member->getId());
+        $run = $this->createRun($alice->getId(), 'Alice Run');
+
+        $this->loginAs($admin);
+        $this->client->jsonRequest('GET', '/api/v1/runs/join/'.$run->getInviteToken());
+        $this->loginAs($member);
+        $this->client->jsonRequest('GET', '/api/v1/runs/join/'.$run->getInviteToken());
+
+        $this->loginAs($alice);
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId());
+        self::assertResponseIsSuccessful();
+
+        $byId = [];
+        foreach ($this->participantsFromData($this->responseData()) as $p) {
+            self::assertIsString($p['userId']);
+            $byId[$p['userId']] = $p;
+        }
+
+        $adminRow = $byId[$admin->getId()];
+        self::assertTrue($adminRow['isAdmin']);
+        self::assertFalse($adminRow['isMember']);
+        self::assertFalse($adminRow['playing']);
+        self::assertSame(0, $adminRow['level']);
+
+        $memberRow = $byId[$member->getId()];
+        self::assertTrue($memberRow['isMember']);
+        self::assertFalse($memberRow['isAdmin']);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private function createActiveMembership(string $userId): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $membership = Membership::create($userId, $now, $now->modify('+1 year'), 'admin', null, null, $now);
+        $this->entityManager->persist($membership);
+        $this->entityManager->flush();
+    }
 
     private function createRun(string $ownerId, string $title, string $status = Run::STATUS_DRAFT): Run
     {

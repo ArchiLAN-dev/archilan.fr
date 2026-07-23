@@ -61,6 +61,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.name AS name',
                 'game.slug AS slug',
                 'game.description AS description',
+                'game.archipelago_description AS archipelago_description',
                 'game.cover_image_url AS cover_image_url',
                 'game.cover_image_alt AS cover_image_alt',
                 'game.cover_image_credit AS cover_image_credit',
@@ -101,6 +102,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
      *   name: string,
      *   slug: string,
      *   description: string,
+     *   archipelagoDescription: string|null,
      *   coverImageUrl: string|null,
      *   coverImageAlt: string,
      *   coverImageCredit: string,
@@ -112,7 +114,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
      *   catalogSheetName: string|null,
      *   apworld: array{deployedVersion: string|null, latestVersion: string|null, sourceUrl: string|null, releaseUrl: string|null, updateStatus: string},
      *   options: list<array{key: string, min: int, max: int, default: int|null}>,
-     *   installSteps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
+     *   installSteps: list<array{type: string, title: string, description: string, videoUrl: string|null}>
      * }
      */
     private function mapDetailRow(array $row): array
@@ -121,6 +123,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
         $name = $row['name'] ?? null;
         $slug = $row['slug'] ?? null;
         $description = $row['description'] ?? null;
+        $archipelagoDescription = $row['archipelago_description'] ?? null;
         $coverImageUrl = $row['cover_image_url'] ?? null;
         $coverImageAlt = $row['cover_image_alt'] ?? null;
         $coverImageCredit = $row['cover_image_credit'] ?? null;
@@ -143,6 +146,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'name' => is_string($name) ? $name : '',
             'slug' => is_string($slug) ? $slug : '',
             'description' => is_string($description) ? $description : '',
+            'archipelagoDescription' => is_string($archipelagoDescription) && '' !== $archipelagoDescription ? $archipelagoDescription : null,
             'coverImageUrl' => is_string($coverImageUrl) ? $coverImageUrl : null,
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'coverImageCredit' => is_string($coverImageCredit) ? $coverImageCredit : '',

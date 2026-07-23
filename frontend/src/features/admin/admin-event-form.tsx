@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
 import { DateTimePicker } from "@/components/date-time-picker";
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { EVENT_DESCRIPTION_MAX } from "@/lib/content-limits";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -74,6 +76,7 @@ export function EventForm({
   const [genericError, setGenericError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [isPublic, setIsPublic] = useState(event?.isPublic ?? true);
+  const [description, setDescription] = useState(event?.description ?? "");
   const [coverMode, setCoverMode] = useState<"url" | "upload">(
     event?.coverImageKey ? "upload" : "url"
   );
@@ -242,12 +245,13 @@ export function EventForm({
 
       <label className="grid gap-2 text-sm font-semibold text-foreground">
         Description
-        <textarea
-          aria-describedby={errors.description ? descriptionErrorId : undefined}
-          aria-invalid={errors.description ? true : undefined}
-          className="min-h-28 rounded border border-border bg-background px-3 py-2 outline-none focus:border-accent"
-          defaultValue={event?.description}
-          name="description"
+        {/* The form submits via FormData, so the markdown value rides along in a hidden input. */}
+        <input name="description" type="hidden" value={description} />
+        <MarkdownEditor
+          maxLength={EVENT_DESCRIPTION_MAX}
+          onChange={setDescription}
+          rows={6}
+          value={description}
         />
         {errors.description ? <span className="text-xs text-danger" id={descriptionErrorId}>{errors.description}</span> : null}
       </label>

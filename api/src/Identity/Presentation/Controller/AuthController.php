@@ -168,13 +168,17 @@ final readonly class AuthController
     }
 
     /**
-     * @return array{id: string, email: string, displayName: string|null, steamProfile: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
+     * @return array{id: string, email: string, slug: string|null, displayName: string|null, steamProfile: string|null, roles: list<string>, emailVerifiedAt: string|null, createdAt: string, updatedAt: string}
      */
     private function userPayload(User $user): array
     {
         return [
             'id' => $user->getId(),
             'email' => $user->getEmail(),
+            // Slug lets the client link straight to the member's public profile (/joueurs/{slug}) from
+            // the account menu. Null until the member has picked one. /account/profile already exposes
+            // it; carrying it here too means it is present right after login, not only on the next fetch.
+            'slug' => $user->getSlug(),
             // The pseudo shown across the app is the community display-name override, falling back to the
             // account display name when no override is set.
             'displayName' => $this->memberDisplayNames->displayNameFor($user->getId()) ?? $user->getDisplayName(),

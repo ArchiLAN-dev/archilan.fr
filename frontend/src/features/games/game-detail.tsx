@@ -7,15 +7,21 @@ import { GameContributionForm } from "./game-contribution-form";
 import { GameOwnedBadge } from "./game-owned-badge";
 import { InstallStepsView } from "./install-steps-view";
 import type { GameApworld, PublicGameDetail } from "./public-games-api";
+import { Markdown } from "@/components/markdown/markdown";
 
 export function GameDetail({ game, client }: { game: PublicGameDetail; client: ArchipelagoClient | null }) {
   const status = availabilityConfig[game.availability] ?? availabilityConfig.available;
   const steamUrl = game.steamAppId !== null ? `https://store.steampowered.com/app/${game.steamAppId}` : null;
 
   return (
-    <article className="mx-auto grid w-full max-w-6xl gap-12">
-      <header className="grid gap-6 border-b border-border pb-10 md:grid-cols-[auto_1fr] md:gap-10">
-        <div className="relative aspect-[3/4] w-full max-w-xs overflow-hidden rounded-lg bg-surface">
+    <article className="mx-auto grid w-full max-w-content gap-12">
+      {/* Float-based header (not a grid): the cover floats left at md+ so the description text wraps
+          to its right and keeps flowing full-width below it once it runs past the cover - instead of
+          being locked in a grid column that left the space under the jacket empty. `flow-root` makes
+          the header contain the float so its bottom border sits below everything. On mobile the cover
+          just stacks on top. */}
+      <header className="flow-root border-b border-border pb-10">
+        <div className="relative mb-6 aspect-[3/4] w-full max-w-xs overflow-hidden rounded-lg bg-surface md:float-left md:mb-4 md:mr-8 md:w-80">
           {game.coverImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -30,67 +36,81 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
           )}
         </div>
 
-        <div className="grid content-start gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded border px-2.5 py-1 text-sm font-semibold ${status.className}`}>
-              {status.label}
+        {/* A flex row establishes its own formatting context, so it sits beside the float rather than
+            wrapping under it - the badges stay pinned to the top-right of the cover. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded border px-2.5 py-1 text-sm font-semibold ${status.className}`}>
+            {status.label}
+          </span>
+          {game.bundledWithAp ? (
+            <span className="rounded border border-accent/50 bg-accent/10 px-2.5 py-1 text-sm font-semibold text-accent-text">
+              Inclus dans Archipelago
             </span>
-            {game.bundledWithAp ? (
-              <span className="rounded border border-accent/50 bg-accent/10 px-2.5 py-1 text-sm font-semibold text-accent-text">
-                Inclus dans Archipelago
-              </span>
-            ) : null}
-            {game.adultContent ? (
-              <span className="inline-flex items-center gap-1 rounded border border-danger/50 bg-danger/10 px-2.5 py-1 text-sm font-semibold text-danger">
-                <ShieldAlert aria-hidden="true" className="size-4" />
-                18+
-              </span>
-            ) : null}
-            {game.steamAppId !== null ? <GameOwnedBadge steamAppId={game.steamAppId} /> : null}
-            <AdminEditLink className="ml-auto" href={`/admin/jeux/${game.id}`} label="Modifier ce jeu" />
-          </div>
-
-          <h1 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
-            {game.name}
-          </h1>
-
-          <p className="text-sm font-medium text-accent-text">
-            {game.name} sur Archipelago - randomizer multiworld
-          </p>
-
-          {game.description ? (
-            <p className="text-lg leading-8 text-muted-foreground">{game.description}</p>
           ) : null}
-
-          {game.platforms.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {game.platforms.map((platform) => (
-                <span
-                  className="rounded border border-border bg-surface px-2.5 py-1 text-sm text-muted-foreground"
-                  key={platform}
-                >
-                  {platform}
-                </span>
-              ))}
-            </div>
+          {game.adultContent ? (
+            <span className="inline-flex items-center gap-1 rounded border border-danger/50 bg-danger/10 px-2.5 py-1 text-sm font-semibold text-danger">
+              <ShieldAlert aria-hidden="true" className="size-4" />
+              18+
+            </span>
           ) : null}
-
-          {game.coverImageCredit ? (
-            <p className="text-xs text-muted-foreground">Image : {game.coverImageCredit}</p>
-          ) : null}
-
-          {steamUrl ? (
-            <a
-              className="inline-flex w-fit min-h-11 items-center justify-center gap-2 rounded border border-border bg-surface px-5 font-semibold text-foreground transition-colors hover:border-accent"
-              href={steamUrl}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              Voir sur Steam
-              <ExternalLink aria-hidden="true" className="size-4" />
-            </a>
-          ) : null}
+          {game.steamAppId !== null ? <GameOwnedBadge steamAppId={game.steamAppId} /> : null}
+          <AdminEditLink className="ml-auto" href={`/admin/jeux/${game.id}`} label="Modifier ce jeu" />
         </div>
+
+        <h1 className="mt-4 font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">
+          {game.name}
+        </h1>
+
+        <p className="mt-3 text-sm font-medium text-accent-text">
+          {game.name} sur Archipelago - randomizer multiworld
+        </p>
+
+        {/* A plain block: its lines wrap around the floated cover and keep going full-width below it. */}
+        {game.description ? (
+          <Markdown className="mt-4 text-lg leading-8 text-muted-foreground">{game.description}</Markdown>
+        ) : null}
+
+        {game.platforms.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {game.platforms.map((platform) => (
+              <span
+                className="rounded border border-border bg-surface px-2.5 py-1 text-sm text-muted-foreground"
+                key={platform}
+              >
+                {platform}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {game.coverImageCredit ? (
+          <p className="mt-3 text-xs text-muted-foreground">Image : {game.coverImageCredit}</p>
+        ) : null}
+
+        {steamUrl ? (
+          <a
+            className="mt-5 flex w-fit min-h-11 items-center justify-center gap-2 rounded border border-border bg-surface px-5 font-semibold text-foreground transition-colors hover:border-accent"
+            href={steamUrl}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Voir sur Steam
+            <ExternalLink aria-hidden="true" className="size-4" />
+          </a>
+        ) : null}
+
+        {/* Archipelago-side description (story 3.13). clear-both drops it below the floated cover so
+            this full-width bordered block never rides up beside the jacket. */}
+        {game.archipelagoDescription ? (
+          <div className="clear-both mt-6 rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-1.5 font-heading text-sm font-bold uppercase tracking-wide text-accent-text">
+              Sur Archipelago
+            </h2>
+            <Markdown className="text-base leading-7 text-muted-foreground">
+              {game.archipelagoDescription}
+            </Markdown>
+          </div>
+        ) : null}
       </header>
 
       <VersionMatchCallout apworld={game.apworld} bundled={game.bundledWithAp} client={client} />

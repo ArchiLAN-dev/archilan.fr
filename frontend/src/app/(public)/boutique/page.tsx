@@ -15,7 +15,7 @@ export default async function BoutiquePage() {
   const checkoutEmbedUrl = await getShopCheckoutUrl();
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-8">
+    <div className="mx-auto grid max-w-content gap-8">
       <header>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Boutique

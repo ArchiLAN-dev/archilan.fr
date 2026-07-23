@@ -13,15 +13,21 @@ use Archilan\BridgeClient\Enum\HintStatus;
 use Archilan\BridgeClient\Slots\Response\Hint;
 use Archilan\BridgeClient\Slots\Response\ItemLocation;
 use Archilan\BridgeClientBundle\Bridge\BridgeClientPool;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final readonly class PlayerStateController
 {
     use RequiresAuthTrait;
+
+    /** Bridge detail surfaced to the caller, capped so a stack-like payload never lands in the UI. */
+    private const int DETAIL_MAX_LENGTH = 300;
 
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
@@ -29,6 +35,7 @@ final readonly class PlayerStateController
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
+        private LoggerInterface $logger,
         private string $bridgeHttpHost,
     ) {
     }
@@ -75,8 +82,8 @@ final readonly class PlayerStateController
             $data = $response->toArray();
 
             return new JsonResponse(['data' => $data]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $runId, null, 'players');
         }
     }
 
@@ -216,8 +223,8 @@ final readonly class PlayerStateController
                 'hintPointsAvailable' => $response->hintPointsAvailable,
                 'hintCost' => $response->hintCost,
             ]]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $sessionId, $slotIndex, 'hints');
         }
     }
 
@@ -315,8 +322,8 @@ final readonly class PlayerStateController
                 'locationId' => $response->locationId,
                 'free' => $response->free,
             ]]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $sessionId, $slotIndex, 'hints/request');
         }
     }
 
@@ -372,8 +379,8 @@ final readonly class PlayerStateController
                 'status' => $status->value,
                 'statusName' => $status->label(),
             ]]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $sessionId, $slotIndex, 'hints/update');
         }
     }
 
@@ -429,8 +436,8 @@ final readonly class PlayerStateController
                 'itemName' => $response->itemName,
                 'free' => $response->free,
             ]]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $sessionId, $slotIndex, 'hints/request-item');
         }
     }
 
@@ -482,8 +489,8 @@ final readonly class PlayerStateController
                 'slot' => $response->slot,
                 'locations' => $locations,
             ]]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $sessionId, $slotIndex, 'item-locations');
         }
     }
 
@@ -528,8 +535,8 @@ final readonly class PlayerStateController
             }
 
             return new JsonResponse(['data' => $data]);
-        } catch (\Throwable) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        } catch (\Throwable $e) {
+            return $this->bridgeFailure($e, $sessionId, $slotIndex, 'reachable');
         }
     }
 
@@ -596,5 +603,71 @@ final readonly class PlayerStateController
     private function isAdmin(User $user): bool
     {
         return in_array('ROLE_ADMIN', $user->getRoles(), true);
+    }
+
+    /**
+     * Turns a failed bridge call into a response that says what actually went wrong (issue #278).
+     *
+     * These calls used to be wrapped in a bare `catch (\Throwable)` that logged nothing and replaced
+     * every failure with "Bridge non disponible." - so a bridge that was up and answering
+     * `500 {"detail": "reachability generation failed for <game>: ..."}` looked exactly like a bridge
+     * that did not exist, and the only real diagnostic we had was discarded. The bridge SDK already
+     * puts the payload's `detail` in the exception message (HttpTransport::mapError).
+     */
+    private function bridgeFailure(\Throwable $e, string $sessionId, ?int $slotIndex, string $endpoint): JsonResponse
+    {
+        $this->logger->warning('sessions.bridge_call_failed', [
+            'sessionId' => $sessionId,
+            'slotIndex' => $slotIndex,
+            'endpoint' => $endpoint,
+            'exception' => $e::class,
+            'message' => $e->getMessage(),
+        ]);
+
+        // Connection-level failure (refused, DNS, network timeout): the bridge really is unreachable.
+        if ($e instanceof TransportExceptionInterface || $e->getPrevious() instanceof TransportExceptionInterface) {
+            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+        }
+
+        // The bridge answered - surface its own message rather than masking it as "unavailable".
+        $detail = $this->bridgeDetail($e);
+
+        if (str_contains(strtolower($detail), 'timed out')) {
+            return $this->apiAccessGuard->errorResponse('bridge_timeout', $detail, 504);
+        }
+
+        return $this->apiAccessGuard->errorResponse('bridge_error', $detail, 502);
+    }
+
+    /**
+     * The bridge's own error text: the JSON `detail` when the raw HTTP client threw on a non-2xx,
+     * otherwise the exception message (which the SDK already built from that same `detail`).
+     */
+    private function bridgeDetail(\Throwable $e): string
+    {
+        $detail = '';
+
+        if ($e instanceof HttpExceptionInterface) {
+            try {
+                $decoded = json_decode($e->getResponse()->getContent(false), true);
+                if (is_array($decoded) && is_string($decoded['detail'] ?? null)) {
+                    $detail = $decoded['detail'];
+                }
+            } catch (\Throwable) {
+                // Body unreadable - fall back to the exception message below.
+            }
+        }
+
+        if ('' === $detail) {
+            $detail = trim($e->getMessage());
+        }
+
+        if ('' === $detail) {
+            return 'Erreur du bridge.';
+        }
+
+        return mb_strlen($detail) > self::DETAIL_MAX_LENGTH
+            ? mb_substr($detail, 0, self::DETAIL_MAX_LENGTH).'…'
+            : $detail;
     }
 }

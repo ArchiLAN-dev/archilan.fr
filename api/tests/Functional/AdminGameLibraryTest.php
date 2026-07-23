@@ -343,6 +343,50 @@ final class AdminGameLibraryTest extends FunctionalTestCase
         self::assertSame('Alpha', $second['name']);
     }
 
+    public function testArchipelagoDescriptionIsSavedAndExposed(): void
+    {
+        // Story 3.13: optional public description of the Archipelago side of the game.
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            ...$this->validPayload(),
+            'slug' => 'hollow-knight',
+            'archipelagoDescription' => '  Les charmes et les clés sont randomisés.  ',
+        ]);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/admin/games/%s', $game->getId()));
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame('Les charmes et les clés sont randomisés.', $data['archipelagoDescription']);
+    }
+
+    public function testAPatchWithoutTheKeyKeepsTheArchipelagoDescription(): void
+    {
+        // The catalogue section re-sends a partial field set; a missing key must not wipe the field.
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            ...$this->validPayload(),
+            'slug' => 'hollow-knight',
+            'archipelagoDescription' => 'À conserver.',
+        ]);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            ...$this->validPayload(),
+            'slug' => 'hollow-knight',
+        ]);
+        self::assertResponseStatusCodeSame(200);
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertSame('À conserver.', $data['archipelagoDescription']);
+    }
+
     /**
      * @return array<string, mixed>
      */

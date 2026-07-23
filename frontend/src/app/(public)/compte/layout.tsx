@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireAuth>
-      <div className="mx-auto grid max-w-5xl gap-8">
+      <div className="mx-auto grid max-w-content gap-8">
         <header>
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
             Compte ArchiLAN

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, Image as ImageIcon, Loader2, Plus, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
+import { ACHIEVEMENT_DESCRIPTION_MAX } from "@/lib/content-limits";
 import { fetchDirectory, type DirectoryRow } from "@/features/community/community-directory-api";
 import {
   createAchievement,
@@ -427,7 +429,7 @@ function AchievementForm({
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-3xl gap-6 p-6 md:p-8">
+    <section className="mx-auto grid w-full max-w-content gap-6 p-6 md:p-8">
       <header className="grid gap-1">
         <h1 className="font-heading text-2xl font-bold text-foreground">
           {isEdit ? "Modifier un succès" : "Nouveau succès"}
@@ -463,10 +465,13 @@ function AchievementForm({
         </Field>
 
         <Field label="Description">
-          <textarea
-            className="min-h-20 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
-            onChange={(e) => setDescription(e.target.value)}
+          {/* Rendered inline in a dense achievement card, so the preview uses the same subset. */}
+          <MarkdownEditor
+            inline
+            maxLength={ACHIEVEMENT_DESCRIPTION_MAX}
+            onChange={setDescription}
             placeholder="Ce que le joueur doit accomplir."
+            rows={3}
             value={description}
           />
         </Field>

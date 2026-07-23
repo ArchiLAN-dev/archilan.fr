@@ -143,6 +143,61 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    // ─── bridge failures are surfaced, not masked (issue #278) ──────────────────
+
+    public function testReachableSurfacesTheBridgeErrorInsteadOfMaskingIt(): void
+    {
+        // The bridge answered with its own diagnostic (here: an apworld that fails to fake-generate).
+        // It must reach the caller instead of being replaced by a generic "Bridge non disponible.",
+        // which is what made #278 undiagnosable.
+        $session = $this->createRunningSession('run-bridge-err', 'evt-001');
+        $this->httpClient->setResponseFactory(new MockResponse(
+            '{"detail":"reachability generation failed for Twilight Princess: boom"}',
+            ['http_code' => 500],
+        ));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(502);
+        $error = $this->decodedJsonResponse()['error'];
+        self::assertIsArray($error);
+        self::assertSame('bridge_error', $error['code']);
+        self::assertIsString($error['message']);
+        self::assertStringContainsString('Twilight Princess', $error['message']);
+    }
+
+    public function testReachableMapsABridgeTimeoutToItsOwnCode(): void
+    {
+        $session = $this->createRunningSession('run-bridge-timeout', 'evt-001');
+        $this->httpClient->setResponseFactory(new MockResponse(
+            '{"detail":"reachability check timed out"}',
+            ['http_code' => 504],
+        ));
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(504);
+        $error = $this->decodedJsonResponse()['error'];
+        self::assertIsArray($error);
+        self::assertSame('bridge_timeout', $error['code']);
+    }
+
+    public function testReachableStillReportsUnavailableWhenTheBridgeIsUnreachable(): void
+    {
+        // A genuine connection-level failure keeps the original meaning: the bridge is not there.
+        $session = $this->createRunningSession('run-bridge-down', 'evt-001');
+        $this->httpClient->setResponseFactory(static function (): never {
+            throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+        });
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/reachable', $session->getId()));
+
+        self::assertResponseStatusCodeSame(503);
+        $error = $this->decodedJsonResponse()['error'];
+        self::assertIsArray($error);
+        self::assertSame('bridge_unavailable', $error['code']);
+    }
+
     // ─── slot-ownership gate (issues #252 / #253) ───────────────────────────────
 
     public function testUpdateHintStatusForbidsForeignSlot(): void

@@ -9,7 +9,7 @@ export const metadata = buildPageMetadata({
 
 export default function CommunautePage() {
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-content">
       <CommunityDirectory />
     </div>
   );

@@ -15,6 +15,8 @@ import {
 } from "@/features/admin/admin-games-api";
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
 import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
+import {MarkdownEditor} from "@/components/markdown/markdown-editor";
+import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
@@ -32,6 +34,7 @@ const EDITOR_TABS = [
     {id: "catalogue", label: "Catalogue"},
     {id: "apworld", label: "APWorld"},
     {id: "tutoriel", label: "Tutoriel"},
+    {id: "notes", label: "Notes"},
 ] as const;
 
 type EditorTab = (typeof EDITOR_TABS)[number]["id"];
@@ -59,7 +62,7 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
 
     if (loadState.kind === "loading") {
         return (
-            <div className="mx-auto max-w-5xl px-4 py-10">
+            <div className="mx-auto max-w-content px-4 py-10">
                 <div className="grid gap-4 border border-border bg-surface p-6">
                     <div className="h-5 w-48 bg-surface-2"/>
                     <div className="h-11 bg-surface-2"/>
@@ -85,7 +88,7 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
     const {game} = loadState;
 
     return (
-        <div className="mx-auto max-w-5xl px-4 py-10">
+        <div className="mx-auto max-w-content px-4 py-10">
             <header className="mb-8 grid gap-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Backoffice</p>
                 <div className="flex items-center justify-between gap-4">
@@ -139,6 +142,9 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
             <div aria-labelledby="tab-tutoriel" hidden={activeTab !== "tutoriel"} id="panel-tutoriel" role="tabpanel">
                 <InstallTutorialSection game={game} onUpdate={refreshGame}/>
             </div>
+            <div aria-labelledby="tab-notes" hidden={activeTab !== "notes"} id="panel-notes" role="tabpanel">
+                <NotesSection game={game} onUpdate={refreshGame}/>
+            </div>
         </div>
     );
 }
@@ -154,6 +160,7 @@ type BasicInfoFields = {
     name: string;
     slug: string;
     description: string;
+    archipelagoDescription: string;
     coverImageUrl: string;
     coverImageAlt: string;
     coverImageCredit: string;
@@ -171,6 +178,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
         name: game.name,
         slug: game.slug,
         description: game.description,
+        archipelagoDescription: game.archipelagoDescription ?? "",
         coverImageUrl: game.coverImageUrl ?? "",
         coverImageAlt: game.coverImageAlt,
         coverImageCredit: game.coverImageCredit,
@@ -203,6 +211,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             name: fields.name,
             slug: fields.slug,
             description: fields.description,
+            archipelagoDescription: fields.archipelagoDescription || null,
             coverImageUrl: fields.coverImageUrl || null,
             coverImageAlt: fields.coverImageAlt,
             coverImageCredit: fields.coverImageCredit,
@@ -231,6 +240,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     name: updated.name,
                     slug: updated.slug,
                     description: updated.description,
+                    archipelagoDescription: updated.archipelagoDescription ?? "",
                     coverImageUrl: updated.coverImageUrl ?? "",
                     coverImageAlt: updated.coverImageAlt,
                     coverImageCredit: updated.coverImageCredit,
@@ -378,14 +388,28 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
 
                 <label className="grid gap-1.5 text-sm font-semibold text-foreground">
                     Description
-                    <textarea
-                        className={`min-h-28 rounded border bg-background px-3 py-2 outline-none focus:border-accent ${errors.description ? "border-danger" : "border-border"}`}
-                        name="description"
+                    <MarkdownEditor
+                        maxLength={GAME_DESCRIPTION_MAX}
+                        onChange={(v: string) => setField("description", v)}
+                        rows={6}
                         value={fields.description}
-                        onChange={(e) => setField("description", e.target.value)}
                     />
                     {errors.description ?
                         <span className="text-xs text-danger" role="alert">{errors.description}</span> : null}
+                </label>
+
+                <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+                    Description Archipelago
+                    <span className="text-xs font-normal text-muted-foreground">
+                        Optionnel - ce que le randomizer fait de ce jeu. Affiché sous la description sur la
+                        fiche publique.
+                    </span>
+                    <MarkdownEditor
+                        maxLength={GAME_DESCRIPTION_MAX}
+                        onChange={(v: string) => setField("archipelagoDescription", v)}
+                        rows={6}
+                        value={fields.archipelagoDescription}
+                    />
                 </label>
 
                 <SectionFooter submitting={submitting} success={success} label="Enregistrer"/>
@@ -828,6 +852,69 @@ function InstallTutorialSection({game, onUpdate}: { game: AdminGame; onUpdate: (
                         {seeding ? "Génération…" : "Générer un brouillon"}
                     </button>
                     {success ? <span className="text-sm text-success">Tutoriel enregistré.</span> : null}
+                    {error ? <span className="text-sm text-danger">{error}</span> : null}
+                </div>
+            </div>
+        </Section>
+    );
+}
+
+function NotesSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [notes, setNotes] = useState(game.adminNotes ?? "");
+    const [submitting, setSubmitting] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function save() {
+        setError(null);
+        setSuccess(false);
+        setSubmitting(true);
+        try {
+            const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${game.id}/notes`, {
+                body: JSON.stringify({adminNotes: notes}),
+                headers: {"Content-Type": "application/json"},
+                method: "PATCH",
+            });
+            const payload: unknown = await res.json();
+            if (!res.ok) {
+                setError(extractDetails(payload)["adminNotes"]?.[0] ?? "L'enregistrement des notes a échoué.");
+                return;
+            }
+            if (isGamePayload(payload)) {
+                onUpdate(payload.data);
+                setNotes(payload.data.adminNotes ?? "");
+                setSuccess(true);
+            }
+        } catch {
+            setError("Impossible de contacter le serveur.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <Section
+            description="Notes internes à l'administration (particularités de l'apworld, pièges de config, historique des décisions). Jamais affichées publiquement."
+            title="Notes admin"
+        >
+            <div className="grid gap-4">
+                <textarea
+                    aria-label="Notes admin"
+                    className="min-h-48 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Rien à signaler pour l'instant…"
+                    value={notes}
+                />
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                        disabled={submitting}
+                        onClick={save}
+                        type="button"
+                    >
+                        {submitting ? "Enregistrement…" : "Enregistrer les notes"}
+                    </button>
+                    {success ? <span className="text-sm text-success">Notes enregistrées.</span> : null}
                     {error ? <span className="text-sm text-danger">{error}</span> : null}
                 </div>
             </div>

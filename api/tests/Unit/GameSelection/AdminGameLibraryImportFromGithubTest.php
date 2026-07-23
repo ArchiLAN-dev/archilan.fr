@@ -133,7 +133,7 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
             new GamePlatformResolver(self::createStub(IgdbHttpClientInterface::class), new NullLogger()),
             $normalizer,
             new GameTutorialSeeder(self::createStub(GameCatalogLinksProviderInterface::class), $normalizer),
-            new InstallStepsReader($minio, 'media', 3600),
+            new InstallStepsReader(),
         );
     }
 }

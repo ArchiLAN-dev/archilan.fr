@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, ArrowDown, ArrowUp, Check, ImagePlus, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
+import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { ProfileAvatar } from "@/features/players/profile-avatar";
 import { getAllPublicGames, type PublicGame } from "@/features/games/public-games-api";
@@ -15,6 +16,7 @@ import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
   AUDIENCES,
+  DEFAULT_AUDIENCE,
   fetchMyCommunityProfile,
   removeCommunityAvatar,
   SHOWCASE_WIDGETS,
@@ -109,7 +111,7 @@ export function CommunityProfileCustomizationForm({
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
   const [avatar, setAvatar] = useState<SaveState>({ kind: "idle" });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
-  const [audience, setAudience] = useState<string>("members");
+  const [audience, setAudience] = useState<string>(DEFAULT_AUDIENCE);
   const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
   const [showcase, setShowcase] = useState<string[]>([]);
@@ -402,11 +404,12 @@ export function CommunityProfileCustomizationForm({
           </Field>
         </div>
         <Field label="À propos" counter={<CharCount value={bio} max={MAX_BIO} />}>
-          <textarea
-            className={`${inputClass} min-h-28`}
+          <MarkdownEditor
             maxLength={MAX_BIO}
-            onChange={(e) => setBio(e.target.value)}
+            onChange={setBio}
             placeholder="Parle de toi, de tes jeux préférés…"
+            rows={5}
+            untrusted
             value={bio}
           />
         </Field>

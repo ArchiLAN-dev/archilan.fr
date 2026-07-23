@@ -155,6 +155,15 @@ export async function removeCommunityAvatar(): Promise<{ avatarUrl: string | nul
 
 export const AUDIENCES = ["public", "members", "friends"] as const;
 
+/**
+ * Audience a profile starts on, mirroring `Audience::DEFAULT` on the API side (story 30.28).
+ *
+ * Only ever shown before the API responds: the form hydrates from the server the moment the profile
+ * loads. It exists so the pre-hydration flash does not display a stricter setting than the one the
+ * account actually has.
+ */
+export const DEFAULT_AUDIENCE: (typeof AUDIENCES)[number] = "public";
+
 export const SHOWCASE_WIDGETS = ["favorite_games", "best_runs", "most_played"] as const;
 
 export const SHOWCASE_WIDGET_LABELS: Record<string, string> = {

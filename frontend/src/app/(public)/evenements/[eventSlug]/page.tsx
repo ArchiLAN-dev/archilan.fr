@@ -30,6 +30,8 @@ type DetailStatus = {
 };
 
 import { env } from "@/lib/env";
+import { Markdown } from "@/components/markdown/markdown";
+import { markdownToPlainText } from "@/components/markdown/markdown-to-plain-text";
 
 const statusDetails: Record<EventStatus, DetailStatus> = {
   open: {
@@ -94,7 +96,8 @@ export async function generateMetadata({ params }: EventDetailPageProps): Promis
   // Canonical uses the visited route param (locked decision: slug is the canonical
   // identity, never a DB id). PublicEvent has no separate slug field, so eventSlug IS it.
   const canonicalPath = `/evenements/${eventSlug}`;
-  const description = event.description;
+  // Metadata must never carry markdown syntax into <meta>/OG cards (story 10.10).
+  const description = markdownToPlainText(event.description);
 
   return {
     title: event.title,
@@ -152,7 +155,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
         ])}
       />
 
-      <article className="mx-auto w-full max-w-7xl grid gap-12">
+      <article className="mx-auto w-full max-w-content grid gap-12">
         <Link
           className="inline-flex w-fit items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
           href="/evenements"
@@ -171,7 +174,7 @@ export default async function EventDetailPage({ params }: EventDetailPageProps) 
             </span>
           </div>
 
-          <p className="text-lg leading-8 text-muted-foreground">{event.description}</p>
+          <Markdown className="text-lg leading-8 text-muted-foreground">{event.description}</Markdown>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {primaryCta ? <DetailCta cta={primaryCta} /> : null}
@@ -396,7 +399,7 @@ function getEventStructuredData(event: PublicEvent, canonicalUrl: string) {
     "@context": "https://schema.org",
     "@type": "Event",
     name: event.title,
-    description: event.description,
+    description: markdownToPlainText(event.description),
     url: canonicalUrl,
     startDate: event.dateIso,
     ...(event.endDateIso ? { endDate: event.endDateIso } : {}),

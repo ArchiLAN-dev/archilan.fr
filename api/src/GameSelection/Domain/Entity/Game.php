@@ -68,7 +68,7 @@ final class Game
         /**
          * Ordered per-game install tutorial steps (story 31.1).
          *
-         * @var list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null
+         * @var list<array{type: string, title: string, description: string}>|null
          */
         #[ORM\Column(name: 'install_steps', type: 'json', nullable: true)]
         private ?array $installSteps = null,
@@ -81,6 +81,14 @@ final class Game
          */
         #[ORM\Column(name: 'location_names', type: 'json', nullable: true)]
         private ?array $locationNames = null,
+        // Free-text admin-only notes about the game (apworld quirks, config pitfalls, decision
+        // history). Strictly internal: never exposed on public/game-selection payloads (story 3.12).
+        #[ORM\Column(name: 'admin_notes', type: 'text', nullable: true)]
+        private ?string $adminNotes = null,
+        // Optional second description covering the Archipelago side of the game - what gets
+        // randomized, the goal, apworld quirks. Public, unlike adminNotes above (story 3.13).
+        #[ORM\Column(name: 'archipelago_description', type: 'text', nullable: true)]
+        private ?string $archipelagoDescription = null,
     ) {
     }
 
@@ -275,8 +283,30 @@ final class Game
         $this->locationNames = null === $locationNames || [] === $locationNames ? null : $locationNames;
     }
 
+    public function getAdminNotes(): ?string
+    {
+        return $this->adminNotes;
+    }
+
+    public function recordAdminNotes(?string $adminNotes): void
+    {
+        $trimmed = null === $adminNotes ? null : trim($adminNotes);
+        $this->adminNotes = null === $trimmed || '' === $trimmed ? null : $trimmed;
+    }
+
+    public function getArchipelagoDescription(): ?string
+    {
+        return $this->archipelagoDescription;
+    }
+
+    public function recordArchipelagoDescription(?string $description): void
+    {
+        $trimmed = null === $description ? null : trim($description);
+        $this->archipelagoDescription = null === $trimmed || '' === $trimmed ? null : $trimmed;
+    }
+
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string}>
      */
     public function getInstallSteps(): array
     {
@@ -284,7 +314,7 @@ final class Game
     }
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null $steps
+     * @param list<array{type: string, title: string, description: string}>|null $steps
      */
     public function updateInstallSteps(?array $steps): void
     {

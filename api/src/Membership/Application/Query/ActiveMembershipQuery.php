@@ -14,4 +14,9 @@ final readonly class ActiveMembershipQuery implements ActiveMembershipQueryInter
     {
         return $this->query->hasActiveMembership($userId);
     }
+
+    public function activeMemberIds(array $userIds): array
+    {
+        return $this->query->activeMemberIds($userIds);
+    }
 }

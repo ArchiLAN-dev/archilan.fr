@@ -525,6 +525,23 @@ function CategoryAccordion({
 
 // ─── Mini markdown renderer ───────────────────────────────────────────────────
 
+/**
+ * Deliberately NOT the shared `Markdown` component (story 10.10, task 5).
+ *
+ * What this renders is not authored markdown: option help text is scraped from the apworld's YAML
+ * template comments by `extractDescription`, which strips `#` plus a single space and leaves the rest
+ * of the indentation alone. Apworld authors routinely indent their value enumerations, so a real
+ * markdown parser would read those lines as **indented code blocks** and turn readable help into
+ * monospace boxes. Lines starting with `##` or `1.` would likewise become headings and ordered lists
+ * that the author never intended.
+ *
+ * The shared renderer's upside here would be clickable links and ordered lists inside a tooltip -
+ * not worth regressing every apworld's help text for. Unifying the two would mean dedenting in
+ * `extractDescription` first and re-checking against real apworld templates.
+ *
+ * Like the shared renderer, this one builds React nodes and never touches dangerouslySetInnerHTML,
+ * so it carries no XSS risk of its own.
+ */
 function renderInline(text: string): React.ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/);
   return parts.map((part, i) => {

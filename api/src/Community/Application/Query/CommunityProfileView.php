@@ -81,6 +81,8 @@ final readonly class CommunityProfileView
             ? $this->ensureProfile($model['userId'])
             : $this->profiles->findByUserId($model['userId']);
 
+        // Mirrors the gate in ProfileVisibility: no row means no customization to show anyway, and the
+        // reported value must not claim a profile is public when the gate treats it as members-only.
         $audience = $profile?->getAudience() ?? Audience::MEMBERS;
 
         // Kudos are peer-only: a viewer can't kudos their own achievements, so the target is suppressed
@@ -262,7 +264,9 @@ final readonly class CommunityProfileView
             'hasCustomAvatar' => null !== $profile?->getCustomAvatarKey(),
             'socialLinks' => $profile?->getSocialLinks() ?? [],
             'favoriteGames' => $this->resolveFavoriteGames($profile?->getFavoriteGameIds() ?? []),
-            'audience' => $profile?->getAudience() ?? Audience::MEMBERS,
+            // The owner's own settings form: with no row yet, show what a first save will actually
+            // produce, which is the entity default - not the stricter value the read gate applies.
+            'audience' => $profile?->getAudience() ?? Audience::DEFAULT,
             'showcaseLayout' => $this->validShowcase($profile?->getShowcaseLayout() ?? []),
         ];
     }

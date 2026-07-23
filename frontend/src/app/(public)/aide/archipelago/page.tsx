@@ -18,7 +18,7 @@ export default async function ArchipelagoGuidePage() {
   const [steps, client] = await Promise.all([getArchipelagoGuide(), getArchipelagoClient()]);
 
   return (
-    <article className="mx-auto grid w-full max-w-3xl gap-10">
+    <article className="mx-auto grid w-full max-w-content gap-10">
       <header className="grid gap-4 border-b border-border pb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Aide</p>
         <h1 className="font-heading text-4xl font-bold leading-tight text-foreground md:text-5xl">

@@ -21,6 +21,8 @@ const REFRESH_ON_RESUME_MS = 2 * 60 * 1000; // 2 min
 export type AuthUser = {
   id: string;
   email: string;
+  // Public-profile slug (/joueurs/{slug}); null until the member has chosen one.
+  slug: string | null;
   displayName: string | null;
   roles: string[];
   emailVerifiedAt: string | null;

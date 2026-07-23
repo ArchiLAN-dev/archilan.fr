@@ -9,6 +9,7 @@ export type AdminGame = {
   name: string;
   slug: string;
   description: string;
+  archipelagoDescription: string | null;
   coverImageUrl: string | null;
   coverImageAlt: string;
   coverImageCredit: string;
@@ -30,6 +31,8 @@ export type AdminGame = {
   platforms: string[];
   installSteps: InstallStep[];
   updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
+  // Admin-only free-text notes (story 3.12). Present only in the admin detail payload, never public.
+  adminNotes: string | null;
 };
 
 // Discriminated result: keeps the editor's four failure screens distinct. Never throws
