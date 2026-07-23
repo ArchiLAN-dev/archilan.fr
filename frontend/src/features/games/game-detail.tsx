@@ -63,18 +63,6 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
             <Markdown className="text-lg leading-8 text-muted-foreground">{game.description}</Markdown>
           ) : null}
 
-          {/* Archipelago-side description (story 3.13): optional, sits under the general one. */}
-          {game.archipelagoDescription ? (
-            <div className="rounded-lg border border-border bg-surface p-4">
-              <h2 className="mb-1.5 font-heading text-sm font-bold uppercase tracking-wide text-accent-text">
-                Sur Archipelago
-              </h2>
-              <Markdown className="text-base leading-7 text-muted-foreground">
-                {game.archipelagoDescription}
-              </Markdown>
-            </div>
-          ) : null}
-
           {game.platforms.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {game.platforms.map((platform) => (
@@ -104,6 +92,21 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
             </a>
           ) : null}
         </div>
+
+        {/* Archipelago-side description (story 3.13). Full-width row under the jacket + description
+            columns rather than trapped in the right column, where it left a wide gap beside the
+            jacket. md:col-span-2 spans both header columns; on mobile the grid is single-column so it
+            simply stacks. */}
+        {game.archipelagoDescription ? (
+          <div className="rounded-lg border border-border bg-surface p-4 md:col-span-2">
+            <h2 className="mb-1.5 font-heading text-sm font-bold uppercase tracking-wide text-accent-text">
+              Sur Archipelago
+            </h2>
+            <Markdown className="text-base leading-7 text-muted-foreground">
+              {game.archipelagoDescription}
+            </Markdown>
+          </div>
+        ) : null}
       </header>
 
       <VersionMatchCallout apworld={game.apworld} bundled={game.bundledWithAp} client={client} />
