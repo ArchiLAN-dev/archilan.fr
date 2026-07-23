@@ -11,6 +11,7 @@ import { LiveTwitchBadge } from "@/features/streaming/live-twitch-badge";
 import { TwitchPlayerProvider } from "@/features/streaming/twitch-player-context";
 import { TwitchPersistentPlayer } from "@/features/streaming/twitch-mini-player";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
+import { UserMenu } from "@/features/auth/user-menu";
 import { NotificationCenter } from "@/features/community/notification-center";
 import { TwitchStatusProvider } from "@/features/streaming/twitch-status-context";
 import { apiFetch } from "@/lib/apiFetch";
@@ -70,45 +71,20 @@ function NavLink({
 }
 
 function AuthNavDesktop() {
-  const { user, loading, setUser } = useAuth();
-  const router = useRouter();
-
-  async function handleLogout() {
-    await apiFetch(`${env.apiBaseUrl}/auth/logout`, { method: "POST" }).catch(() => {});
-    setUser(null);
-    router.push("/");
-  }
+  const { user, loading } = useAuth();
 
   if (loading) {
     return <div className="w-48" aria-hidden />;
   }
 
   if (user) {
-    const isAdmin = user.roles.includes("ROLE_ADMIN");
+    // Account actions (profile, dashboard, admin, logout) live in the avatar menu so the bar does
+    // not grow a button per surface. The bell stays out, next to it - it is a glanceable indicator,
+    // not an account action.
     return (
       <div className="flex items-center gap-2">
         <NotificationCenter />
-        {isAdmin && (
-          <Link
-            className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-            href="/admin"
-          >
-            Admin
-          </Link>
-        )}
-        <Link
-          className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-          href="/compte"
-        >
-          Mon espace
-        </Link>
-        <button
-          className="btn-glow inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition-all duration-300 hover:bg-accent-hover"
-          type="button"
-          onClick={handleLogout}
-        >
-          Se déconnecter
-        </button>
+        <UserMenu user={user} />
       </div>
     );
   }
@@ -150,6 +126,15 @@ function AuthNavMobile({ onNavigate }: { onNavigate: () => void }) {
     const isAdmin = user.roles.includes("ROLE_ADMIN");
     return (
       <>
+        {user.slug ? (
+          <Link
+            className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+            href={`/joueurs/${user.slug}`}
+            onClick={onNavigate}
+          >
+            Mon profil
+          </Link>
+        ) : null}
         {isAdmin && (
           <Link
             className="inline-flex min-h-12 items-center justify-center rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent"
