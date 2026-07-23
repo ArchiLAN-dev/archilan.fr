@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 import type { GameStep } from "./public-games-api";
 import { Markdown } from "@/components/markdown/markdown";
@@ -11,7 +12,9 @@ import { VideoEmbed } from "@/components/markdown/video-embed";
  * markdown since story 10.10, rendered through `Markdown` - which emits React elements, so raw HTML
  * in a description stays inert text. Links/media URLs are http(s) (validated server-side). When a
  * `storageKey` is given, each step gets a checkbox whose state is kept in localStorage (story 31.5),
- * so a player can track their install progress (no account needed).
+ * so a player can track their install progress (no account needed). Each step's body (description +
+ * video) is a collapsible accordion panel: steps start collapsed, and marking a step done also folds
+ * it away (un-marking does not re-open it). A title-only step has no toggle - nothing to reveal.
  */
 /**
  * Box holding the step marker (checkbox or number), sized to one line of the title.
@@ -24,6 +27,11 @@ const MARKER_BOX = "flex h-[1lh] shrink-0 text-lg leading-tight";
 export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; storageKey?: string }) {
   // Progress is keyed by step title (not index) so reordering/inserting steps doesn't mis-tick.
   const [done, setDone] = useState<Set<string>>(new Set());
+  // Accordion open/close, keyed by title the same way as `done` so it survives reordering. Steps
+  // start collapsed; opening one is an explicit click. Marking a step done also folds it away (see
+  // `toggle`), but un-marking never re-opens it.
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const panelBaseId = useId();
   const lsKey = storageKey ? `archilan.install-progress.${storageKey}` : null;
 
   useEffect(() => {
@@ -42,6 +50,8 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
 
   function toggle(title: string) {
     if (lsKey === null) return;
+    // Captured before the update: true when this click is *checking* the box, not un-checking it.
+    const willBeChecked = !done.has(title);
     setDone((prev) => {
       const next = new Set(prev);
       if (next.has(title)) next.delete(title);
@@ -53,12 +63,35 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
       }
       return next;
     });
+    // Checking a step folds its panel away. Un-checking is deliberately left alone - it must not pop
+    // the panel back open.
+    if (willBeChecked) {
+      setOpen((prev) => {
+        if (!prev.has(title)) return prev;
+        const next = new Set(prev);
+        next.delete(title);
+        return next;
+      });
+    }
+  }
+
+  function toggleOpen(title: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
   }
 
   return (
     <ol className="grid gap-4">
       {steps.map((step, index) => {
         const checked = done.has(step.title);
+        const hasBody = Boolean(step.description) || Boolean(step.videoUrl);
+        const isOpen = open.has(step.title);
+        const panelId = `${panelBaseId}-${index}`;
+        const titleClass = `font-heading text-lg font-semibold leading-tight text-foreground ${checked ? "line-through opacity-60" : ""}`;
         return (
           <li className="grid gap-2 rounded-lg border border-border bg-surface p-4" key={step.title}>
             <div className="flex items-start gap-2">
@@ -84,15 +117,39 @@ export function InstallStepsView({ steps, storageKey }: { steps: GameStep[]; sto
                   </span>
                 </span>
               )}
-              <h3 className={`font-heading text-lg font-semibold leading-tight text-foreground ${checked ? "line-through opacity-60" : ""}`}>
-                {step.title}
-              </h3>
+              {hasBody ? (
+                // Disclosure pattern: the button sits inside the heading so the heading outline is
+                // preserved while the button is the control that toggles the panel below.
+                <h3 className="min-w-0 flex-1">
+                  <button
+                    aria-controls={panelId}
+                    aria-expanded={isOpen}
+                    className={`group flex w-full items-start justify-between gap-2 text-left ${titleClass}`}
+                    onClick={() => toggleOpen(step.title)}
+                    type="button"
+                  >
+                    <span>{step.title}</span>
+                    <span className={`${MARKER_BOX} items-center`}>
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`size-5 text-muted-foreground transition-transform group-hover:text-foreground ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </span>
+                  </button>
+                </h3>
+              ) : (
+                <h3 className={`flex-1 ${titleClass}`}>{step.title}</h3>
+              )}
             </div>
-            {step.description ? (
-              <Markdown className="text-base leading-7 text-body-foreground">{step.description}</Markdown>
-            ) : null}
 
-            {step.videoUrl ? <VideoEmbed title={`Vidéo : ${step.title}`} url={step.videoUrl} /> : null}
+            {hasBody && isOpen ? (
+              <div className="grid gap-2" id={panelId}>
+                {step.description ? (
+                  <Markdown className="text-base leading-7 text-body-foreground">{step.description}</Markdown>
+                ) : null}
+                {step.videoUrl ? <VideoEmbed title={`Vidéo : ${step.title}`} url={step.videoUrl} /> : null}
+              </div>
+            ) : null}
           </li>
         );
       })}
