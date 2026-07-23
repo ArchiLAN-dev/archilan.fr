@@ -214,6 +214,12 @@ final readonly class AdminGameLibrary
             $this->clock->now(),
         );
 
+        // Only touched when the caller actually sent the key: other PATCH callers (the catalogue
+        // section) re-send a partial field set, and applying a missing key would wipe the field.
+        if (array_key_exists('archipelagoDescription', $input)) {
+            $game->recordArchipelagoDescription($parsed['archipelagoDescription']);
+        }
+
         if (true === $parsed['availabilityLocked']) {
             $game->lockAvailability();
         } elseif (false === $parsed['availabilityLocked']) {
@@ -476,7 +482,7 @@ final readonly class AdminGameLibrary
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{name: string, slug: string, description: string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string, availabilityLocked: bool|null}
+     * @return array{name: string, slug: string, description: string, archipelagoDescription: ?string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string, availabilityLocked: bool|null}
      */
     private function parse(array $input): array
     {
@@ -486,6 +492,7 @@ final readonly class AdminGameLibrary
             'name' => is_string($input['name'] ?? null) ? trim($input['name']) : '',
             'slug' => is_string($input['slug'] ?? null) ? Game::normalizeSlug($input['slug']) : '',
             'description' => is_string($input['description'] ?? null) ? trim($input['description']) : '',
+            'archipelagoDescription' => is_string($input['archipelagoDescription'] ?? null) ? trim($input['archipelagoDescription']) : null,
             'coverImageUrl' => is_string($rawCoverImageUrl) && '' !== trim($rawCoverImageUrl) ? trim($rawCoverImageUrl) : null,
             'coverImageAlt' => is_string($input['coverImageAlt'] ?? null) ? trim($input['coverImageAlt']) : '',
             'coverImageCredit' => is_string($input['coverImageCredit'] ?? null) ? trim($input['coverImageCredit']) : '',
@@ -495,7 +502,7 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @param array{name: string, slug: string, description: string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string} $input
+     * @param array{name: string, slug: string, description: string, archipelagoDescription: ?string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string} $input
      *
      * @return array<string, list<string>>
      */
@@ -512,6 +519,10 @@ final readonly class AdminGameLibrary
         // Was unbounded TEXT; markdown makes long input more attractive, so cap it (story 10.10).
         if (mb_strlen($input['description']) > self::MAX_DESCRIPTION) {
             $errors->add('description', sprintf('La description ne peut pas dépasser %d caractères.', self::MAX_DESCRIPTION));
+        }
+
+        if (null !== $input['archipelagoDescription'] && mb_strlen($input['archipelagoDescription']) > self::MAX_DESCRIPTION) {
+            $errors->add('archipelagoDescription', sprintf('La description Archipelago ne peut pas dépasser %d caractères.', self::MAX_DESCRIPTION));
         }
 
         if ('' !== $input['slug'] && 1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $input['slug'])) {
@@ -556,6 +567,7 @@ final readonly class AdminGameLibrary
             'name' => $game->getName(),
             'slug' => $game->getSlug(),
             'description' => $game->getDescription(),
+            'archipelagoDescription' => $game->getArchipelagoDescription(),
             'coverImageUrl' => $game->getCoverImageUrl(),
             'coverImageAlt' => $game->getCoverImageAlt(),
             'coverImageCredit' => $game->getCoverImageCredit(),

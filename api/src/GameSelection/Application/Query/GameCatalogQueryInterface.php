@@ -30,6 +30,7 @@ interface GameCatalogQueryInterface
      *   name: string,
      *   slug: string,
      *   description: string,
+     *   archipelagoDescription: string|null,
      *   coverImageUrl: string|null,
      *   coverImageAlt: string,
      *   coverImageCredit: string,

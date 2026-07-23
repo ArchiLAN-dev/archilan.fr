@@ -40,6 +40,7 @@ export type GameApworld = {
 };
 
 export type PublicGameDetail = PublicGame & {
+  archipelagoDescription: string | null;
   coverImageCredit: string;
   bundledWithAp: boolean;
   adultContent: boolean;

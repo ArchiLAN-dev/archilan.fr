@@ -160,6 +160,7 @@ type BasicInfoFields = {
     name: string;
     slug: string;
     description: string;
+    archipelagoDescription: string;
     coverImageUrl: string;
     coverImageAlt: string;
     coverImageCredit: string;
@@ -177,6 +178,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
         name: game.name,
         slug: game.slug,
         description: game.description,
+        archipelagoDescription: game.archipelagoDescription ?? "",
         coverImageUrl: game.coverImageUrl ?? "",
         coverImageAlt: game.coverImageAlt,
         coverImageCredit: game.coverImageCredit,
@@ -209,6 +211,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             name: fields.name,
             slug: fields.slug,
             description: fields.description,
+            archipelagoDescription: fields.archipelagoDescription || null,
             coverImageUrl: fields.coverImageUrl || null,
             coverImageAlt: fields.coverImageAlt,
             coverImageCredit: fields.coverImageCredit,
@@ -237,6 +240,7 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     name: updated.name,
                     slug: updated.slug,
                     description: updated.description,
+                    archipelagoDescription: updated.archipelagoDescription ?? "",
                     coverImageUrl: updated.coverImageUrl ?? "",
                     coverImageAlt: updated.coverImageAlt,
                     coverImageCredit: updated.coverImageCredit,
@@ -392,6 +396,20 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     />
                     {errors.description ?
                         <span className="text-xs text-danger" role="alert">{errors.description}</span> : null}
+                </label>
+
+                <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+                    Description Archipelago
+                    <span className="text-xs font-normal text-muted-foreground">
+                        Optionnel - ce que le randomizer fait de ce jeu. Affiché sous la description sur la
+                        fiche publique.
+                    </span>
+                    <MarkdownEditor
+                        maxLength={GAME_DESCRIPTION_MAX}
+                        onChange={(v: string) => setField("archipelagoDescription", v)}
+                        rows={6}
+                        value={fields.archipelagoDescription}
+                    />
                 </label>
 
                 <SectionFooter submitting={submitting} success={success} label="Enregistrer"/>
