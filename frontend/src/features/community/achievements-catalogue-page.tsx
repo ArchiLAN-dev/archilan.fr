@@ -36,7 +36,7 @@ export function AchievementsCataloguePage({ catalogue }: { catalogue: PlayerAchi
   });
 
   return (
-    <article className="mx-auto grid max-w-3xl gap-6">
+    <article className="mx-auto grid max-w-content gap-6">
       <Link
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         href={`/joueurs/${catalogue.slug}`}

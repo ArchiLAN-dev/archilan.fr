@@ -2,6 +2,8 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 
+import { isEmbeddableVideo, VideoEmbed } from "./video-embed";
+
 /**
  * Renders authored markdown (story 10.10).
  *
@@ -44,6 +46,33 @@ function linkComponent(untrusted: boolean): Components["a"] {
       </a>
     );
   };
+}
+
+/**
+ * The URL of a paragraph that is nothing but a single link, or null.
+ *
+ * Read off the hast node rather than the rendered children: "this paragraph is exactly one link" is
+ * a structural fact, and guessing it from React elements would break the moment the anchor component
+ * changes. A URL written mid-sentence therefore never turns into a player (story 10.11).
+ */
+function loneLinkUrl(node: unknown): string | null {
+  if (typeof node !== "object" || node === null || !("children" in node)) return null;
+  const children = (node as { children: unknown }).children;
+  if (!Array.isArray(children)) return null;
+
+  const meaningful = children.filter(
+    (c) => !(typeof c === "object" && c !== null && "type" in c && (c as { type: unknown }).type === "text"
+      && typeof (c as { value?: unknown }).value === "string"
+      && ((c as { value: string }).value).trim() === ""),
+  );
+  if (meaningful.length !== 1) return null;
+
+  const only = meaningful[0];
+  if (typeof only !== "object" || only === null) return null;
+  const el = only as { type?: unknown; tagName?: unknown; properties?: { href?: unknown } };
+  if (el.type !== "element" || el.tagName !== "a") return null;
+
+  return typeof el.properties?.href === "string" ? el.properties.href : null;
 }
 
 /** Headings start at h3: authored content must never outrank the page's own h1/h2. */
@@ -100,6 +129,21 @@ export function Markdown({ children, inline = false, untrusted = false, classNam
           hr: () => null,
         }
       : BLOCK_COMPONENTS),
+    // A lone video URL becomes a player. Block content only (an embed cannot live inside a dense
+    // inline card), and trusted content only: on untrusted surfaces it stays a link, matching the
+    // images-are-dropped policy - the exposure there is moderation, not code (story 10.11).
+    ...(!inline && !untrusted
+      ? {
+          p: ({ children, node }) => {
+            const url = loneLinkUrl(node);
+            if (url !== null && isEmbeddableVideo(url)) {
+              return <VideoEmbed url={url} />;
+            }
+
+            return <p className="my-2 first:mt-0 last:mb-0">{children}</p>;
+          },
+        }
+      : {}),
     a: linkComponent(untrusted),
     // Remote images are a tracking/abuse vector from untrusted authors; drop them entirely there.
     img: untrusted

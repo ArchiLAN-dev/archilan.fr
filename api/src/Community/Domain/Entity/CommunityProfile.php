@@ -52,8 +52,8 @@ final class CommunityProfile
         /** @var list<string> */
         #[ORM\Column(name: 'favorite_game_ids', type: Types::JSON, options: ['default' => '[]'])]
         private array $favoriteGameIds = [],
-        #[ORM\Column(type: 'string', length: 16, options: ['default' => Audience::MEMBERS])]
-        private string $audience = Audience::MEMBERS,
+        #[ORM\Column(type: 'string', length: 16, options: ['default' => Audience::DEFAULT])]
+        private string $audience = Audience::DEFAULT,
         /** @var list<string> ordered enabled showcase widget keys */
         #[ORM\Column(name: 'showcase_layout', type: Types::JSON, options: ['default' => '[]'])]
         private array $showcaseLayout = [],

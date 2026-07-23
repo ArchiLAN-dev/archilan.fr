@@ -7,7 +7,7 @@ export function RunResultsPage({ runId, results }: { runId: string; results: Run
   const invalidated = results.slots.filter((s) => s.isInvalidated);
 
   return (
-    <article className="mx-auto w-full max-w-5xl grid gap-12">
+    <article className="mx-auto w-full max-w-content grid gap-12">
       <header className="grid gap-4 border-b border-border pb-8">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">

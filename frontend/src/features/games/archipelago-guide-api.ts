@@ -20,16 +20,41 @@ export async function getArchipelagoGuide(): Promise<GameStep[]> {
   }
 }
 
-/** Admin update of the generic guide steps. */
-export async function saveArchipelagoGuide(steps: GameStep[]): Promise<boolean> {
+/**
+ * Admin update of the generic guide steps. Returns null on success, otherwise the reason.
+ *
+ * The API answers a 422 with per-step messages ("Étape 2 : le titre est requis."). Returning a bare
+ * boolean threw that away and left the caller guessing, so the detail is surfaced instead.
+ */
+export async function saveArchipelagoGuide(steps: GameStep[]): Promise<string | null> {
   try {
     const response = await apiFetch(`${env.apiBaseUrl}/admin/archipelago-guide`, {
       body: JSON.stringify({ steps }),
       headers: { "Content-Type": "application/json" },
       method: "PUT",
     });
-    return response.ok;
+    if (response.ok) return null;
+
+    const payload: unknown = await response.json().catch(() => null);
+    const details = extractStepErrors(payload);
+
+    return details ?? `Échec de l'enregistrement (erreur ${response.status}).`;
   } catch {
-    return false;
+    return "Impossible de contacter le serveur.";
   }
+}
+
+/** The API's own per-step validation messages, joined - or null when the body carries none. */
+function extractStepErrors(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) return null;
+  const error = payload.error;
+  if (typeof error !== "object" || error === null || !("details" in error)) return null;
+  const details = error.details;
+  if (typeof details !== "object" || details === null || !("steps" in details)) return null;
+  const steps = details.steps;
+  if (!Array.isArray(steps)) return null;
+
+  const messages = steps.filter((m): m is string => typeof m === "string");
+
+  return messages.length > 0 ? messages.join(" ") : null;
 }

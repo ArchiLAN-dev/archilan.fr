@@ -5,7 +5,9 @@ import { getArchipelagoGuide } from "./archipelago-guide-api";
 
 const BASE = TEST_API_BASE_URL;
 
-const step = { type: "client", title: "Installer le launcher", description: "", links: [] };
+// Shape as the API actually sends it since story 31.11: no links, no image - they live in the
+// markdown description. A fixture still carrying them hid a guard that rejected every real step.
+const step = { type: "client", title: "Installer le launcher", description: "" };
 
 describe("getArchipelagoGuide", () => {
   it("returns the guide steps on success", async () => {
