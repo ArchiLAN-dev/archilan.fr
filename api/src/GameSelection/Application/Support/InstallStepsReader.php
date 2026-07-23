@@ -5,28 +5,19 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Support;
 
 use App\GameSelection\Domain\Enum\InstallStepType;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 
 /**
  * Read-side presenter for install-tutorial steps (story 31.10). Centralizes what used to be duplicated
  * across the game-catalog, guide and contribution queries: drop steps with an unknown type (the public
- * type guard is all-or-nothing), normalize links, and - the new part - resolve the displayed image.
+ * type guard is all-or-nothing) and expose the step as it is rendered.
  *
- * Images can be either an external pasted `imageUrl` or an uploaded `imageKey` (a private MinIO media
- * object). An uploaded key wins and is presigned to a short-lived URL at read time; the raw `imageKey`
- * is also carried through so the admin editor can round-trip it without persisting the expiring URL.
+ * Links and images used to be dedicated fields; since story 31.11 they live inside the markdown
+ * description, uploaded images being served under a stable URL by TutorialImageServeController.
  */
 final readonly class InstallStepsReader
 {
-    public function __construct(
-        private MinioStorageInterface $minioStorage,
-        private string $minioMediaBucket,
-        private int $minioPresignTtl,
-    ) {
-    }
-
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
+     * @return list<array{type: string, title: string, description: string, videoUrl: string|null}>
      */
     public function presentJson(mixed $rawJson): array
     {
@@ -42,7 +33,7 @@ final readonly class InstallStepsReader
     /**
      * @param array<mixed> $rawSteps
      *
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
+     * @return list<array{type: string, title: string, description: string, videoUrl: string|null}>
      */
     public function present(array $rawSteps): array
     {
@@ -62,49 +53,14 @@ final readonly class InstallStepsReader
             $description = $raw['description'] ?? null;
             $videoUrl = $raw['videoUrl'] ?? null;
 
-            $rawImageKey = $raw['imageKey'] ?? null;
-            $imageKey = is_string($rawImageKey) && '' !== $rawImageKey ? $rawImageKey : null;
-            $rawImageUrl = $raw['imageUrl'] ?? null;
-            $imageUrl = null !== $imageKey
-                ? $this->minioStorage->presignedUrl($this->minioMediaBucket, $imageKey, $this->minioPresignTtl)
-                : (is_string($rawImageUrl) ? $rawImageUrl : null);
-
             $steps[] = [
                 'type' => $type,
                 'title' => $title,
                 'description' => is_string($description) ? $description : '',
-                'links' => self::decodeLinks($raw['links'] ?? null),
-                'imageKey' => $imageKey,
-                'imageUrl' => $imageUrl,
                 'videoUrl' => is_string($videoUrl) ? $videoUrl : null,
             ];
         }
 
         return $steps;
-    }
-
-    /**
-     * @return list<array{label: string, url: string|null}>
-     */
-    private static function decodeLinks(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-
-        $links = [];
-        foreach ($raw as $link) {
-            if (!is_array($link)) {
-                continue;
-            }
-            $label = $link['label'] ?? null;
-            if (!is_string($label)) {
-                continue;
-            }
-            $url = $link['url'] ?? null;
-            $links[] = ['label' => $label, 'url' => is_string($url) ? $url : null];
-        }
-
-        return $links;
     }
 }

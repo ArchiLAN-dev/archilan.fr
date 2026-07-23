@@ -15,7 +15,7 @@ export default async function AdhesionPage() {
   const checkoutEmbedUrl = await getMembershipCheckoutUrl();
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-12 px-4 py-12">
+    <div className="mx-auto grid max-w-content gap-12 px-4 py-12">
       <header>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Association ArchiLAN

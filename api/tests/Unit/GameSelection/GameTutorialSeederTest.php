@@ -22,7 +22,11 @@ final class GameTutorialSeederTest extends TestCase
 
         self::assertSame(['note', 'yaml', 'connect'], array_map(static fn (array $s): string => $s['type'], $steps));
         self::assertSame('Rien à installer', $steps[0]['title']);
-        self::assertSame('https://archipelago.gg/games', $steps[0]['links'][0]['url']);
+        // Links are markdown inside the description since story 31.11, no longer a parallel field.
+        self::assertStringContainsString(
+            '- [Jeux supportés par Archipelago](https://archipelago.gg/games)',
+            $steps[0]['description'],
+        );
     }
 
     public function testApworldGameFoldsSourceUrlAndProviderLinks(): void
@@ -34,9 +38,14 @@ final class GameTutorialSeederTest extends TestCase
         $steps = $this->seeder([['label' => 'Guide', 'url' => 'https://example.org/guide']])->buildFor($game);
 
         self::assertSame('apworld', $steps[0]['type']);
-        $labels = array_map(static fn (array $l): string => $l['label'], $steps[0]['links']);
-        self::assertSame(["Source de l'apworld", 'Guide'], $labels);
-        self::assertSame('https://github.com/owner/repo', $steps[0]['links'][0]['url']);
+        $description = $steps[0]['description'];
+        self::assertStringContainsString("- [Source de l'apworld](https://github.com/owner/repo)", $description);
+        self::assertStringContainsString('- [Guide](https://example.org/guide)', $description);
+        // Order is preserved: the apworld source comes before the catalogue links.
+        self::assertLessThan(
+            mb_strpos($description, '- [Guide]'),
+            mb_strpos($description, "- [Source de l'apworld]"),
+        );
     }
 
     /**

@@ -16,7 +16,7 @@ final readonly class ArchipelagoGuideQuery
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>
+     * @return list<array{type: string, title: string, description: string, videoUrl: string|null}>
      */
     public function steps(): array
     {

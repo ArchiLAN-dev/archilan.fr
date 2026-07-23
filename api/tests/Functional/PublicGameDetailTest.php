@@ -72,9 +72,7 @@ final class PublicGameDetailTest extends FunctionalTestCase
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->updateInstallSteps([
-            ['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'desc', 'links' => [
-                ['label' => 'Releases', 'url' => 'https://example.org/r'],
-            ]],
+            ['type' => 'apworld', 'title' => "Installer l'apworld", 'description' => 'desc [Releases](https://example.org/r)'],
         ]);
         $this->entityManager->flush();
 
@@ -90,17 +88,15 @@ final class PublicGameDetailTest extends FunctionalTestCase
         $step = $data['installSteps'][0];
         self::assertIsArray($step);
         self::assertSame('apworld', $step['type']);
-        self::assertIsArray($step['links']);
-        $link = $step['links'][0];
-        self::assertIsArray($link);
-        self::assertSame('https://example.org/r', $link['url']);
+        // Links are markdown inside the description since story 31.11.
+        self::assertSame('desc [Releases](https://example.org/r)', $step['description']);
     }
 
-    public function testExposesStepImageAndVideo(): void
+    public function testExposesStepVideo(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->updateInstallSteps([
-            ['type' => 'note', 'title' => 'Avec média', 'description' => '', 'links' => [], 'imageUrl' => 'https://example.org/shot.png', 'videoUrl' => 'https://youtu.be/abcdefghijk'],
+            ['type' => 'note', 'title' => 'Avec média', 'description' => '![](https://example.org/shot.png)', 'videoUrl' => 'https://youtu.be/abcdefghijk'],
         ]);
         $this->entityManager->flush();
 
@@ -114,40 +110,17 @@ final class PublicGameDetailTest extends FunctionalTestCase
         self::assertIsArray($data['installSteps']);
         $step = $data['installSteps'][0];
         self::assertIsArray($step);
-        self::assertSame('https://example.org/shot.png', $step['imageUrl']);
+        // The image now travels inside the markdown description; only the video stays a field.
+        self::assertSame('![](https://example.org/shot.png)', $step['description']);
         self::assertSame('https://youtu.be/abcdefghijk', $step['videoUrl']);
-    }
-
-    public function testStepImageKeyIsPresignedAtRead(): void
-    {
-        $game = $this->createGame('Hollow Knight', 'hollow-knight');
-        $game->updateInstallSteps([
-            ['type' => 'note', 'title' => 'Image uploadée', 'description' => '', 'links' => [], 'imageKey' => 'tutorials/abc123.png'],
-        ]);
-        $this->entityManager->flush();
-
-        $this->configureSheetMock(self::EMPTY_CSV);
-
-        $this->client->jsonRequest('GET', '/api/v1/games/hollow-knight');
-        self::assertResponseStatusCodeSame(200);
-
-        $data = $this->decodedJsonResponse()['data'];
-        self::assertIsArray($data);
-        self::assertIsArray($data['installSteps']);
-        $step = $data['installSteps'][0];
-        self::assertIsArray($step);
-        // The uploaded key wins and is resolved to a presigned URL that embeds the object key.
-        self::assertSame('tutorials/abc123.png', $step['imageKey']);
-        self::assertIsString($step['imageUrl']);
-        self::assertStringContainsString('tutorials/abc123.png', $step['imageUrl']);
     }
 
     public function testInstallStepsWithUnknownTypeAreDropped(): void
     {
         $game = $this->createGame('Hollow Knight', 'hollow-knight');
         $game->updateInstallSteps([
-            ['type' => 'bogus', 'title' => 'Mauvaise étape', 'description' => '', 'links' => []],
-            ['type' => 'connect', 'title' => 'Se connecter', 'description' => '', 'links' => []],
+            ['type' => 'bogus', 'title' => 'Mauvaise étape', 'description' => ''],
+            ['type' => 'connect', 'title' => 'Se connecter', 'description' => ''],
         ]);
         $this->entityManager->flush();
 

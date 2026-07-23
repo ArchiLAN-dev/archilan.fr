@@ -14,20 +14,19 @@ use App\GameSelection\Domain\Enum\InstallStepType;
  *  - `title` is required;
  *  - `description` is markdown since story 10.10 - still never HTML: the frontend renders it with
  *    react-markdown, which emits React elements, so any raw HTML in it stays inert text;
- *  - link `url` must be http/https (or null); other schemes (e.g. `javascript:`) are dropped.
+ *  - `videoUrl` must be http/https (or null); other schemes are dropped;
+ *  - links and images now live inside the markdown description (story 31.11).
  * Over-long fields are truncated. Returns the clean list plus any collected errors.
  */
 final readonly class InstallStepsNormalizer
 {
     public const int MAX_TITLE = 200;
     public const int MAX_DESCRIPTION = 2000;
-    public const int MAX_LABEL = 200;
-    public const int MAX_IMAGE_KEY = 256;
 
     /**
      * @param array<mixed> $rawSteps
      *
-     * @return array{steps: list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>, imageKey: string|null, imageUrl: string|null, videoUrl: string|null}>, errors: list<string>}
+     * @return array{steps: list<array{type: string, title: string, description: string, videoUrl: string|null}>, errors: list<string>}
      */
     public function normalize(array $rawSteps): array
     {
@@ -61,53 +60,11 @@ final readonly class InstallStepsNormalizer
                 'type' => $type,
                 'title' => mb_substr($title, 0, self::MAX_TITLE),
                 'description' => mb_substr($description, 0, self::MAX_DESCRIPTION),
-                'links' => $this->normalizeLinks($raw['links'] ?? null, $index, $errors),
-                'imageKey' => self::optionalImageKey($raw['imageKey'] ?? null),
-                'imageUrl' => self::optionalUrl($raw['imageUrl'] ?? null),
                 'videoUrl' => self::optionalUrl($raw['videoUrl'] ?? null),
             ];
         }
 
         return ['steps' => $steps, 'errors' => $errors];
-    }
-
-    /**
-     * @param list<string> $errors
-     *
-     * @return list<array{label: string, url: string|null}>
-     */
-    private function normalizeLinks(mixed $rawLinks, int $stepIndex, array &$errors): array
-    {
-        if (!is_array($rawLinks)) {
-            return [];
-        }
-
-        $links = [];
-
-        foreach ($rawLinks as $rawLink) {
-            if (!is_array($rawLink)) {
-                continue;
-            }
-
-            $label = is_string($rawLink['label'] ?? null) ? trim($rawLink['label']) : '';
-            if ('' === $label) {
-                continue;
-            }
-
-            $url = null;
-            $rawUrl = $rawLink['url'] ?? null;
-            if (is_string($rawUrl) && '' !== trim($rawUrl)) {
-                $url = self::normalizeUrl(trim($rawUrl));
-                if (null === $url) {
-                    $errors[] = sprintf('Étape %d : lien "%s" - seules les URL http(s) sont autorisées.', $stepIndex, $label);
-                    continue;
-                }
-            }
-
-            $links[] = ['label' => mb_substr($label, 0, self::MAX_LABEL), 'url' => $url];
-        }
-
-        return $links;
     }
 
     /**
@@ -125,22 +82,6 @@ final readonly class InstallStepsNormalizer
         }
 
         return self::normalizeUrl(trim($raw));
-    }
-
-    /**
-     * Uploaded image reference: an opaque MinIO object key under the `tutorials/` prefix (story 31.10).
-     * Anything else (empty, wrong prefix, over-long) is dropped to null so a hand-crafted body can't make
-     * the read side presign an arbitrary object.
-     */
-    private static function optionalImageKey(mixed $raw): ?string
-    {
-        if (!is_string($raw)) {
-            return null;
-        }
-
-        $key = trim($raw);
-
-        return '' !== $key && str_starts_with($key, 'tutorials/') && mb_strlen($key) <= self::MAX_IMAGE_KEY ? $key : null;
     }
 
     private static function normalizeUrl(string $candidate): ?string

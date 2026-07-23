@@ -114,6 +114,39 @@ final class CommunityProfileCustomizationTest extends FunctionalTestCase
         self::assertSame(['favorite_games', 'best_runs'], $data['showcaseLayout']);
     }
 
+    public function testAProfileStartsPublic(): void
+    {
+        $user = $this->createUser('nora@example.org', slug: 'nora');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('GET', '/api/v1/community/profile');
+        self::assertResponseIsSuccessful();
+
+        self::assertSame('public', $this->data()['audience']);
+    }
+
+    public function testAPartialSaveDoesNotRepublishARestrictedProfile(): void
+    {
+        // The endpoint is a full replace, so an omitted `audience` used to be rewritten to the default.
+        // While the default was `members` that only ever tightened; with a `public` default the same
+        // path would publish a profile its owner had restricted, without them touching the setting.
+        $user = $this->createUser('omar@example.org', slug: 'omar');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['audience' => 'friends']);
+        self::assertResponseIsSuccessful();
+
+        // A save that carries no audience at all - the shape a partial client sends.
+        $this->client->jsonRequest('PUT', '/api/v1/community/profile', ['tagline' => 'Salut']);
+        self::assertResponseIsSuccessful();
+
+        $this->client->jsonRequest('GET', '/api/v1/community/profile');
+        self::assertResponseIsSuccessful();
+        $data = $this->data();
+        self::assertSame('friends', $data['audience'], 'an omitted audience must not be republished');
+        self::assertSame('Salut', $data['tagline']);
+    }
+
     public function testInvalidAudienceIsRejected(): void
     {
         $user = $this->createUser('gwen@example.org', slug: 'gwen');

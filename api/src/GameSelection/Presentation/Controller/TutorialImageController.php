@@ -72,6 +72,14 @@ final readonly class TutorialImageController
             return $this->apiAccessGuard->errorResponse('storage_unavailable', 'Le stockage est indisponible.', 503);
         }
 
-        return new JsonResponse(['data' => $data]);
+        // Stable URL for the markdown description: a presigned one would expire once written into
+        // content (story 31.11). Built from the request so each environment serves its own host.
+        $stableUrl = sprintf(
+            '%s/api/v1/tutorial-images/%s',
+            rtrim($request->getSchemeAndHttpHost(), '/'),
+            basename($data->key),
+        );
+
+        return new JsonResponse(['data' => ['key' => $data->key, 'url' => $stableUrl]]);
     }
 }

@@ -29,7 +29,7 @@ export function PlayerProfilePage({
   const historyError = history === null;
 
   return (
-    <article className="mx-auto w-full max-w-4xl grid gap-12">
+    <article className="mx-auto w-full max-w-content grid gap-12">
       <header className="overflow-hidden rounded-2xl border border-border bg-surface">
         <ProfileBanner className="h-28 sm:h-36" presetKey={profile.customization?.bannerPreset ?? "default"} />
 
@@ -87,6 +87,15 @@ export function PlayerProfilePage({
             <ProfileRelationshipActions name={displayName} slug={profile.slug} />
           </div>
 
+          {/* Bio, untitled: inside the identity card it reads as the person's own words, so an
+              "À propos" heading would only label the obvious. `untrusted` is what keeps a
+              visitor-authored bio inert - it must survive any move of this block. */}
+          {profile.customization?.bio ? (
+            <Markdown className="text-sm leading-6 text-body-foreground" untrusted>
+              {profile.customization.bio}
+            </Markdown>
+          ) : null}
+
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Runs" value={String(profile.stats.runsParticipated)} />
             <StatCard label="Objectifs" value={String(profile.stats.goalCompletions)} />
@@ -110,8 +119,6 @@ export function PlayerProfilePage({
           layout={profile.customization.showcaseLayout}
         />
       ) : null}
-
-      {profile.customization ? <ProfileCustomization customization={profile.customization} /> : null}
 
       {profile.achievementStats.total > 0 ? (
         <ProfileAchievements
@@ -293,20 +300,6 @@ function LevelBar({ level }: { level: PlayerProfile["level"] }) {
         <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
       </div>
     </div>
-  );
-}
-
-function ProfileCustomization({ customization }: { customization: ProfileCustomizationData }) {
-  const { bio } = customization;
-  // Favorite games render as a Vitrine block (ProfileShowcase); social links live in the header card.
-  // This section now holds only the "À propos" text.
-  if (!bio) return null;
-
-  return (
-    <section className="grid gap-2">
-      <h2 className="font-heading text-lg font-semibold text-foreground">À propos</h2>
-      <Markdown className="text-sm leading-6 text-muted-foreground" untrusted>{bio}</Markdown>
-    </section>
   );
 }
 

@@ -14,7 +14,7 @@ export default async function EventsPage() {
   const { past, upcoming } = await getPublicEvents();
 
   return (
-    <div className="mx-auto w-full max-w-7xl grid gap-16">
+    <div className="mx-auto w-full max-w-content grid gap-16">
       <section>
         <p className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">
           Événements ArchiLAN

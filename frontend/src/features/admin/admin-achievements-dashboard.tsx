@@ -429,7 +429,7 @@ function AchievementForm({
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-3xl gap-6 p-6 md:p-8">
+    <section className="mx-auto grid w-full max-w-content gap-6 p-6 md:p-8">
       <header className="grid gap-1">
         <h1 className="font-heading text-2xl font-bold text-foreground">
           {isEdit ? "Modifier un succès" : "Nouveau succès"}

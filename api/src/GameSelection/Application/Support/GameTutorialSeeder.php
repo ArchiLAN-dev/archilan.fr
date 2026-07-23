@@ -22,7 +22,7 @@ final readonly class GameTutorialSeeder
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string}>
      */
     public function buildFor(Game $game): array
     {
@@ -32,10 +32,10 @@ final readonly class GameTutorialSeeder
             $steps[] = [
                 'type' => 'note',
                 'title' => 'Rien à installer',
-                'description' => 'Ce jeu est inclus dans Archipelago : aucun apworld à installer.',
-                'links' => [
-                    ['label' => 'Jeux supportés par Archipelago', 'url' => 'https://archipelago.gg/games'],
-                ],
+                'description' => self::withLinks(
+                    'Ce jeu est inclus dans Archipelago : aucun apworld à installer.',
+                    [['label' => 'Jeux supportés par Archipelago', 'url' => 'https://archipelago.gg/games']],
+                ),
             ];
         } else {
             $links = [];
@@ -50,8 +50,10 @@ final readonly class GameTutorialSeeder
             $steps[] = [
                 'type' => 'apworld',
                 'title' => "Installer l'apworld",
-                'description' => "Télécharge l'apworld de ce jeu et place-le dans le dossier `custom_worlds` (ou `worlds`) de ton installation Archipelago.",
-                'links' => $links,
+                'description' => self::withLinks(
+                    "Télécharge l'apworld de ce jeu et place-le dans le dossier `custom_worlds` (ou `worlds`) de ton installation Archipelago.",
+                    $links,
+                ),
             ];
         }
 
@@ -59,16 +61,45 @@ final readonly class GameTutorialSeeder
             'type' => 'yaml',
             'title' => 'Configurer le YAML',
             'description' => 'Génère puis personnalise ton fichier de configuration (YAML) pour ce jeu.',
-            'links' => [],
         ];
 
         $steps[] = [
             'type' => 'connect',
             'title' => 'Se connecter',
             'description' => 'Lance le client Archipelago et connecte-toi à la session le jour J.',
-            'links' => [],
         ];
 
         return $this->normalizer->normalize($steps)['steps'];
+    }
+
+    /**
+     * Appends catalogue links as a markdown list. Links stopped being a step field in story 31.11 -
+     * the description is markdown, so `[label](url)` carries them without a parallel structure.
+     *
+     * @param list<array{label: string, url: string|null}> $links
+     */
+    private static function withLinks(string $description, array $links): string
+    {
+        $bullets = [];
+        foreach ($links as $link) {
+            $label = trim($link['label']);
+            $url = is_string($link['url'] ?? null) ? trim($link['url']) : '';
+
+            if ('' === $url) {
+                // The catalogue sheet carries label-only entries; they used to render as plain
+                // bullets in the view, so they stay bullets here rather than disappearing.
+                if ('' !== $label) {
+                    $bullets[] = sprintf('- %s', $label);
+                }
+                continue;
+            }
+
+            $bullets[] = sprintf('- [%s](%s)', '' === $label ? $url : $label, $url);
+        }
+
+        return [] === $bullets ? $description : $description.'
+
+'.implode('
+', $bullets);
     }
 }

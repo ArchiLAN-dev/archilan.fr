@@ -50,8 +50,13 @@ final readonly class UpdateCommunityProfile
             $errors->add('bannerPreset', 'Bannière invalide.');
         }
 
-        $audience = is_string($input['audience'] ?? null) ? $input['audience'] : Audience::MEMBERS;
-        if (!Audience::isValid($audience)) {
+        // Left null when the client omits it, and resolved from the stored profile below rather than
+        // from the default. This endpoint is a full replace, so falling back to the default here meant a
+        // payload without `audience` silently rewrote the setting. That was harmless while the default
+        // was the most restrictive value; now that it is `public`, the same line would publish the
+        // profile of someone who had chosen Friends only, with no action on their part.
+        $audienceInput = is_string($input['audience'] ?? null) ? $input['audience'] : null;
+        if (null !== $audienceInput && !Audience::isValid($audienceInput)) {
             $errors->add('audience', 'Audience invalide.');
         }
 
@@ -75,6 +80,10 @@ final readonly class UpdateCommunityProfile
             $profile = CommunityProfile::create($userId, $now);
             $this->profiles->save($profile);
         }
+
+        // An omitted audience keeps what the profile already holds; a profile created a line above holds
+        // the entity default, so a first save without the field lands on Audience::DEFAULT.
+        $audience = $audienceInput ?? $profile->getAudience();
 
         $profile->customize($displayName, $bio, $tagline, $pronouns, $bannerPreset, $avatarFrame, $socialLinks, $favoriteGameIds, $audience, $showcaseLayout, $now);
         $this->profiles->flush();

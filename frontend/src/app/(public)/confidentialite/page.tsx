@@ -10,7 +10,7 @@ export const metadata = buildPageMetadata({
 
 export default function ConfidentialitePage() {
   return (
-    <article className="mx-auto grid max-w-3xl gap-12">
+    <article className="mx-auto grid max-w-reading gap-12">
       <header className="grid gap-3 border-b border-border pb-8">
         <h1 className="font-heading text-4xl font-bold text-foreground">
           Politique de confidentialité

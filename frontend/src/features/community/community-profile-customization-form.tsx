@@ -16,6 +16,7 @@ import { ProfileBanner } from "./profile-banner";
 import { isKnownLinkType, LINK_TYPES, OTHER_LINK_TYPE, resolveLinkType } from "./social-links";
 import {
   AUDIENCES,
+  DEFAULT_AUDIENCE,
   fetchMyCommunityProfile,
   removeCommunityAvatar,
   SHOWCASE_WIDGETS,
@@ -110,7 +111,7 @@ export function CommunityProfileCustomizationForm({
   const [hasCustomAvatar, setHasCustomAvatar] = useState(false);
   const [avatar, setAvatar] = useState<SaveState>({ kind: "idle" });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
-  const [audience, setAudience] = useState<string>("members");
+  const [audience, setAudience] = useState<string>(DEFAULT_AUDIENCE);
   const [socialLinks, setSocialLinks] = useState<SocialLinkRowState[]>([]);
   const [favorites, setFavorites] = useState<EditableFavoriteGame[]>([]);
   const [showcase, setShowcase] = useState<string[]>([]);

@@ -23,7 +23,7 @@ export default async function ClassementsPage() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-3xl grid gap-8">
+    <div className="mx-auto w-full max-w-content grid gap-8">
       <header className="grid gap-2">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
           Communauté

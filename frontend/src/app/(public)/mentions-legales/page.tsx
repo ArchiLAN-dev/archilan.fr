@@ -9,7 +9,7 @@ export const metadata = buildPageMetadata({
 
 export default function MentionsLegalesPage() {
   return (
-    <article className="mx-auto grid max-w-3xl gap-12">
+    <article className="mx-auto grid max-w-reading gap-12">
       <header className="grid gap-2 border-b border-border pb-8">
         <h1 className="font-heading text-4xl font-bold text-foreground">Mentions légales</h1>
         <p className="text-sm text-muted-foreground">
