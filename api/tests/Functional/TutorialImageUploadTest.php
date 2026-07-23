@@ -33,11 +33,15 @@ final class TutorialImageUploadTest extends FunctionalTestCase
 
         $data = $this->decodedJsonResponse()['data'];
         self::assertIsArray($data);
-        self::assertIsString($data['key']);
-        self::assertStringStartsWith('tutorials/', $data['key']);
-        self::assertStringEndsWith('.png', $data['key']);
+        $key = $data['key'];
+        self::assertIsString($key);
+        self::assertStringStartsWith('tutorials/', $key);
+        self::assertStringEndsWith('.png', $key);
+        // The returned URL is the stable serving route, not a presigned one: it gets written into the
+        // markdown description and must never expire (story 31.11).
         self::assertIsString($data['url']);
-        self::assertStringContainsString($data['key'], $data['url']);
+        self::assertStringContainsString('/api/v1/tutorial-images/'.basename($key), $data['url']);
+        self::assertStringNotContainsString('X-Amz-Signature', $data['url']);
     }
 
     public function testRejectsNonImage(): void

@@ -1,30 +1,29 @@
 import { serializeStepsForSave, type InstallStep } from "./install-steps-editor";
 
 describe("serializeStepsForSave", () => {
-  it("drops the transient preview URL when a step has an uploaded imageKey", () => {
+  // Until story 31.11 this stripped the transient presigned preview URL off an uploaded image. A step
+  // no longer has a link list or an image field - both live in the markdown description - so the only
+  // thing left to guarantee is that saving does not alter what the author typed.
+  it("passes the authored step through untouched", () => {
     const steps: InstallStep[] = [
       {
-        type: "note",
-        title: "Étape",
-        description: "",
-        links: [],
-        imageKey: "tutorials/abc.png",
-        imageUrl: "http://minio.test/media/tutorials/abc.png?sig=1",
+        type: "apworld",
+        title: "Installer l'apworld",
+        description:
+          "Télécharge-le puis :\n\n![](https://api.test/api/v1/tutorial-images/abc.png)\n\n- [Source](https://example.org)",
+        videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       },
     ];
 
-    const [step] = serializeStepsForSave(steps);
-    expect(step.imageKey).toBe("tutorials/abc.png");
-    expect(step.imageUrl).toBeNull();
+    expect(serializeStepsForSave(steps)).toEqual(steps);
   });
 
-  it("keeps an external imageUrl when there is no imageKey", () => {
-    const steps: InstallStep[] = [
-      { type: "note", title: "Étape", description: "", links: [], imageUrl: "https://example.org/a.png" },
-    ];
+  it("returns a new array rather than mutating the input", () => {
+    const steps: InstallStep[] = [{ type: "note", title: "Étape", description: "" }];
 
-    const [step] = serializeStepsForSave(steps);
-    expect(step.imageKey).toBeNull();
-    expect(step.imageUrl).toBe("https://example.org/a.png");
+    const result = serializeStepsForSave(steps);
+
+    expect(result).not.toBe(steps);
+    expect(result[0]).not.toBe(steps[0]);
   });
 });

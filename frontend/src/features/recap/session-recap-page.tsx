@@ -38,7 +38,7 @@ export function SessionRecapView({ recap }: { recap: SessionRecap }) {
   const hasGraph = recap.graph.edges.length > 0;
 
   return (
-    <section className="mx-auto grid w-full max-w-5xl gap-10 px-4 py-10">
+    <section className="mx-auto grid w-full max-w-content gap-10 px-4 py-10">
       <header className="grid gap-3">
         <Link
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -148,7 +148,7 @@ export function SessionRecapView({ recap }: { recap: SessionRecap }) {
 
 export function SessionRecapNotFound() {
   return (
-    <section className="mx-auto grid w-full max-w-3xl gap-4 px-4 py-16 text-center">
+    <section className="mx-auto grid w-full max-w-content gap-4 px-4 py-16 text-center">
       <h1 className="font-heading text-3xl font-bold text-foreground">Récap indisponible</h1>
       <p className="text-sm text-muted-foreground">
         Cette partie n&apos;a pas de récap public - elle n&apos;est peut-être pas terminée, ou elle n&apos;est pas

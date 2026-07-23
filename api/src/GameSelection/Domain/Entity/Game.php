@@ -68,7 +68,7 @@ final class Game
         /**
          * Ordered per-game install tutorial steps (story 31.1).
          *
-         * @var list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null
+         * @var list<array{type: string, title: string, description: string}>|null
          */
         #[ORM\Column(name: 'install_steps', type: 'json', nullable: true)]
         private ?array $installSteps = null,
@@ -306,7 +306,7 @@ final class Game
     }
 
     /**
-     * @return list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>
+     * @return list<array{type: string, title: string, description: string}>
      */
     public function getInstallSteps(): array
     {
@@ -314,7 +314,7 @@ final class Game
     }
 
     /**
-     * @param list<array{type: string, title: string, description: string, links: list<array{label: string, url: string|null}>}>|null $steps
+     * @param list<array{type: string, title: string, description: string}>|null $steps
      */
     public function updateInstallSteps(?array $steps): void
     {

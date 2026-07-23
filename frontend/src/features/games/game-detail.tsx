@@ -14,7 +14,7 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
   const steamUrl = game.steamAppId !== null ? `https://store.steampowered.com/app/${game.steamAppId}` : null;
 
   return (
-    <article className="mx-auto grid w-full max-w-6xl gap-12">
+    <article className="mx-auto grid w-full max-w-content gap-12">
       <header className="grid gap-6 border-b border-border pb-10 md:grid-cols-[auto_1fr] md:gap-10">
         <div className="relative aspect-[3/4] w-full max-w-xs overflow-hidden rounded-lg bg-surface">
           {game.coverImageUrl ? (
