@@ -124,6 +124,19 @@ describe("Markdown - inline variant", () => {
   });
 });
 
+describe("Markdown - untrusted policy is one switch (task 3)", () => {
+  // Bio, comments and contribution messages are written by members, not admins. Everything the
+  // community-authored surfaces rely on has to hold from the single `untrusted` prop.
+  test("untrusted content cannot inject markup, images, or a followed link", () => {
+    const payload = '<script>alert(1)</script>\n\n![img](https://x.org/a.png)\n\n[l](https://x.org)';
+    const html = render(<Markdown untrusted>{payload}</Markdown>);
+
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img");
+    expect(html).toContain('rel="nofollow ugc noopener noreferrer"');
+  });
+});
+
 describe("Markdown - empty input", () => {
   test.each([null, undefined, "", "   "])("renders nothing for %p", (value) => {
     expect(render(<Markdown>{value}</Markdown>)).toBe("");
