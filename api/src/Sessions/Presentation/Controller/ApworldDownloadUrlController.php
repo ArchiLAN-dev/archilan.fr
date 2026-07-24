@@ -8,6 +8,7 @@ use App\Sessions\Application\Query\ApworldQuery;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -22,6 +23,7 @@ final readonly class ApworldDownloadUrlController
         private MinioStorageInterface $minioStorage,
         private string $minioApworldsBucket,
         private int $minioPresignTtl,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -48,7 +50,15 @@ final readonly class ApworldDownloadUrlController
                 $minioKey,
                 $this->minioPresignTtl,
             );
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            // The client only ever sees a generic storage_unavailable; log the real cause here or it is
+            // lost (e.g. a missing/misconfigured apworlds bucket).
+            $this->logger->error('Presigning an apworld download URL failed.', [
+                'bucket' => $this->minioApworldsBucket,
+                'key' => $minioKey,
+                'exception' => $exception,
+            ]);
+
             return new JsonResponse(
                 ['error' => ['code' => 'storage_unavailable', 'message' => 'Object storage is unavailable.']],
                 503,
