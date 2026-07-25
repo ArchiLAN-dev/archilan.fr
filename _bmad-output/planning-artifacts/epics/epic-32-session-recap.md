@@ -1,6 +1,6 @@
 # Epic 32 - Récap de partie (public session recap)
 
-Status: planned (not started)
+Status: in progress - 32.1 done (merged 2026-07-12, PR #310, shipped in v0.8.0); 32.2 ready-for-dev
 Date: 2026-06-24
 
 ## Goal
@@ -157,4 +157,5 @@ scheduled in any order.
 
 | Date       | Change |
 |------------|--------|
+| 2026-07-25 | Status updated: 32.1 done (merged 2026-07-12 via PR #310, shipped in v0.8.0). Story 32.2 drafted and ready-for-dev (`implementation-artifacts/32-2-recap-share-card-og-image.md`): frontend-only OG share card via the Next 16 `opengraph-image.tsx` file convention + `ImageResponse`, reusing `getSessionRecap`; no api/ change. |
 | 2026-06-24 | Epic planned from a community value-add discussion. Public narrative recap of a finished multiworld: item-exchange graph + timeline + podium + named superlatives, anchored on `sessionId`, in the `Sessions` context. Source = the generated-output spoiler parsed once at archival into a persisted `SessionRecap` projection (reuses `SessionSpoilerArtifactReaderInterface` + `RunResultsQuery`; corrects 9.16's `.archipelago`/spoiler terminology). Spoiler format confirmed against a committed real fixture (`api/tests/Fixtures/Sessions/sample_AP_Spoiler.txt`). Story 32.1 (full vertical slice) drafted; 32.2 (OG image), 32.3 (per-event index), 32.4 (achievements from superlatives) proposed as follow-ons. |

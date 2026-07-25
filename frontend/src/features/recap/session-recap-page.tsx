@@ -2,6 +2,7 @@ import { ArrowLeft, Clock, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { ExchangeGraph, type GraphNode } from "@/features/recap/exchange-graph";
+import { formatDuration } from "@/features/recap/recap-format";
 import { RecapVod } from "@/features/recap/recap-vod";
 import type { SessionRecap } from "@/features/recap/recap-api";
 
@@ -159,15 +160,6 @@ export function SessionRecapNotFound() {
       </Link>
     </section>
   );
-}
-
-function formatDuration(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  if (hours > 0) return `${hours} h ${minutes.toString().padStart(2, "0")} min`;
-  if (minutes > 0) return `${minutes} min ${seconds.toString().padStart(2, "0")} s`;
-  return `${seconds} s`;
 }
 
 function formatDate(iso: string): string {
