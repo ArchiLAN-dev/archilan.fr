@@ -123,6 +123,61 @@ function isRecapPayload(payload: unknown): payload is { data: SessionRecap } {
   return "superlatives" in data && Array.isArray(data.superlatives) && data.superlatives.every(isSuperlative);
 }
 
+// One event party in the per-event recap index (story 32.3) - each entry links to /parties/{id}.
+export type EventRecapIndexEntry = {
+  sessionId: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationSeconds: number | null;
+  playerCount: number;
+  winner: { playerName: string; game: string } | null;
+};
+
+function isEventRecapIndexEntry(v: unknown): v is EventRecapIndexEntry {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "sessionId")) return false;
+  if (!("startedAt" in v) || (v.startedAt !== null && typeof v.startedAt !== "string")) return false;
+  if (!("finishedAt" in v) || (v.finishedAt !== null && typeof v.finishedAt !== "string")) return false;
+  if (!("durationSeconds" in v) || (v.durationSeconds !== null && typeof v.durationSeconds !== "number")) return false;
+  if (!hasNumberProp(v, "playerCount")) return false;
+  if (!("winner" in v)) return false;
+  if (v.winner === null) return true;
+  return (
+    typeof v.winner === "object" &&
+    v.winner !== null &&
+    hasStringProp(v.winner, "playerName") &&
+    hasStringProp(v.winner, "game")
+  );
+}
+
+export function isEventRecapIndexPayload(payload: unknown): payload is { data: EventRecapIndexEntry[] } {
+  if (typeof payload !== "object" || payload === null) return false;
+  if (!("data" in payload) || !Array.isArray(payload.data)) return false;
+  return payload.data.every(isEventRecapIndexEntry);
+}
+
+// Returns [] on any error or invalid shape: the event page must never break because of the index.
+export const getEventRecapIndex = cache(async (eventId: string): Promise<EventRecapIndexEntry[]> => {
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/parties`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload: unknown = await response.json();
+    if (!isEventRecapIndexPayload(payload)) {
+      return [];
+    }
+
+    return payload.data;
+  } catch {
+    return [];
+  }
+});
+
 export const getSessionRecap = cache(async (sessionId: string): Promise<SessionRecap | null> => {
   try {
     const response = await fetch(`${env.apiBaseUrl}/parties/${sessionId}/recap`, {
