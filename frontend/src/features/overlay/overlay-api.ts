@@ -1,3 +1,4 @@
+import { isReachabilityData } from "@/features/reachability/types";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -122,6 +123,39 @@ export async function fetchOverlaySubscribe(sessionId: string): Promise<OverlayS
     if (typeof payload !== "object" || payload === null) return null;
     const data: unknown = "data" in payload ? payload.data : null;
     return isOverlaySubscribe(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+// Real progression figures shown by the goal celebration - same formulas as the progression page.
+export type SlotGoalStats = { gameName: string; checksPercent: number; itemsPercent: number };
+
+/**
+ * Fetches a slot's reachability snapshot (anonymous GET, same public endpoint the progression page and
+ * the reachable overlay use) and derives the celebration's percentages with the progression page's
+ * formulas. The `players` frame alone cannot provide them: it carries no items total. Returns null on
+ * any error or invalid shape - the caller falls back to the frame's checks counts.
+ */
+export async function fetchSlotGoalStats(sessionId: string, slotKey: string): Promise<SlotGoalStats | null> {
+  if (!sessionId || !slotKey) return null;
+  try {
+    // Bounded wait: the bridge recomputes reachability when its cache is stale, which can take a few
+    // seconds - never hold the celebration longer than this.
+    const res = await fetch(
+      `${env.apiBaseUrl}/sessions/${encodeURIComponent(sessionId)}/slots/${encodeURIComponent(slotKey)}/reachable`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!res.ok) return null;
+    const payload: unknown = await res.json();
+    const data: unknown = typeof payload === "object" && payload !== null && "data" in payload ? payload.data : payload;
+    if (!isReachabilityData(data)) return null;
+    const itemsTotal = data.items_received.length + data.items_not_received.length;
+    return {
+      gameName: data.game,
+      checksPercent: Math.round((data.counts.checked / Math.max(1, data.counts.total)) * 100),
+      itemsPercent: itemsTotal > 0 ? Math.round((data.items_received.length / itemsTotal) * 100) : 0,
+    };
   } catch {
     return null;
   }
