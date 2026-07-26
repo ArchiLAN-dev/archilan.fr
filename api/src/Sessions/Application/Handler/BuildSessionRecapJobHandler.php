@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Handler;
 
+use App\Registrations\Domain\Entity\Registration;
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
+use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
 use App\Sessions\Application\Support\RecapGraph;
 use App\Sessions\Application\Support\RecapSuperlativesCalculator;
@@ -37,6 +40,8 @@ final readonly class BuildSessionRecapJobHandler
         private SpoilerGraphParser $parser,
         private RecapSuperlativesCalculator $superlatives,
         private SessionRecapRepositoryInterface $recaps,
+        private RegistrationRepositoryInterface $registrations,
+        private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
         private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
@@ -128,6 +133,35 @@ final readonly class BuildSessionRecapJobHandler
             'edges' => \count($edges),
             'superlatives' => \count($superlatives),
         ]);
+
+        // Story 32.4: the storeArchive recompute (30.26) runs before this build, so the superlative
+        // facts only become visible if the participants are re-evaluated once the projection exists.
+        $userIds = $this->resolveParticipantUserIds($slots);
+        $this->achievementRecomputeTrigger->recomputeForUsers($userIds);
+        $this->logger->info('session.recap.achievements_recompute_triggered', [
+            'sessionId' => $job->sessionId,
+            'users' => \count($userIds),
+        ]);
+    }
+
+    /**
+     * An event slot points at a registration row (registration.user_id is the player); a
+     * personal-run slot stores the user id directly - mirror of
+     * SessionLifecycleManager::resolveParticipantUserIds.
+     *
+     * @param list<\App\Sessions\Domain\Entity\SessionSlot> $slots
+     *
+     * @return list<string>
+     */
+    private function resolveParticipantUserIds(array $slots): array
+    {
+        $userIds = [];
+        foreach ($slots as $slot) {
+            $registration = $this->registrations->findById($slot->getRegistrationId());
+            $userIds[$registration instanceof Registration ? $registration->getUserId() : $slot->getRegistrationId()] = true;
+        }
+
+        return array_keys($userIds);
     }
 
     private function readGraph(Session $session): RecapGraph
