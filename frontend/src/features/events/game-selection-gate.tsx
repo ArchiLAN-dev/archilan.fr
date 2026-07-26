@@ -470,7 +470,7 @@ export function GameSelectionGate({
                 {pageGames.map((game) => (
                   <li
                     key={game.id}
-                    className="flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface"
+                    className={`flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface ${game.disabled ? "opacity-60" : ""}`}
                   >
                     <div
                       className="h-16 w-12 shrink-0 cursor-default overflow-hidden rounded border border-border bg-surface"
@@ -495,12 +495,23 @@ export function GameSelectionGate({
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold leading-tight text-foreground">{game.name}</p>
-                      {game.description && (
+                      <p className="flex items-center gap-2 text-sm font-semibold leading-tight text-foreground">
+                        {game.name}
+                        {game.disabled && (
+                          <span className="inline-flex shrink-0 items-center rounded border border-danger/50 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger">
+                            Désactivé
+                          </span>
+                        )}
+                      </p>
+                      {game.disabled ? (
+                        <p className="mt-0.5 text-xs text-danger">
+                          Temporairement désactivé{game.disabledMessage ? ` : ${game.disabledMessage}` : "."}
+                        </p>
+                      ) : game.description ? (
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                           {game.description}
                         </p>
-                      )}
+                      ) : null}
                     </div>
 
                     {data.registrationOpen && (() => {
@@ -515,8 +526,14 @@ export function GameSelectionGate({
                               : "border-border text-foreground hover:border-accent hover:text-accent-text",
                             fading ? "opacity-0" : "opacity-100",
                           ].join(" ")}
-                          disabled={limitReached && !added}
-                          title={limitReached && !added ? `Limite de ${max} jeux atteinte` : undefined}
+                          disabled={(limitReached && !added) || game.disabled}
+                          title={
+                            game.disabled
+                              ? (game.disabledMessage ?? "Jeu temporairement désactivé")
+                              : limitReached && !added
+                                ? `Limite de ${max} jeux atteinte`
+                                : undefined
+                          }
                           type="button"
                           onClick={() => handleAddGame(game.id)}
                         >

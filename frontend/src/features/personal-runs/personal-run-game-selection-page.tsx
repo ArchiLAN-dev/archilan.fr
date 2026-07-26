@@ -480,7 +480,7 @@ export function PersonalRunGameSelectionPage({
                 const recentRel = recent ? relativeTime(recent.lastPlayedAt) : "";
                 return (
                   <li
-                    className="flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface"
+                    className={`flex items-center gap-3 bg-background px-3 py-3 first:rounded-t-lg last:rounded-b-lg transition-colors hover:bg-surface ${game.disabled ? "opacity-60" : ""}`}
                     key={game.id}
                   >
                     <div className="h-16 w-12 shrink-0 overflow-hidden rounded border border-border bg-surface">
@@ -510,6 +510,14 @@ export function PersonalRunGameSelectionPage({
                         <ExternalLink aria-hidden className="size-3 shrink-0 text-muted-foreground" />
                       </Link>
                       <div className="mt-1 flex flex-wrap gap-1.5">
+                        {game.disabled && (
+                          <span
+                            className="rounded border border-danger/50 bg-danger/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger"
+                            title={game.disabledMessage ?? undefined}
+                          >
+                            Désactivé
+                          </span>
+                        )}
                         {availabilityConfig[game.availability] && (
                           <span
                             className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${availabilityConfig[game.availability].className}`}
@@ -531,9 +539,13 @@ export function PersonalRunGameSelectionPage({
                           </span>
                         )}
                       </div>
-                      {game.description && (
+                      {game.disabled ? (
+                        <p className="mt-0.5 text-xs text-danger">
+                          Temporairement désactivé{game.disabledMessage ? ` : ${game.disabledMessage}` : "."}
+                        </p>
+                      ) : game.description ? (
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{game.description}</p>
-                      )}
+                      ) : null}
                     </div>
 
                     <button
@@ -544,7 +556,8 @@ export function PersonalRunGameSelectionPage({
                           : "border-border text-foreground hover:border-accent hover:text-accent-text",
                         fading ? "opacity-0" : "opacity-100",
                       ].join(" ")}
-                      disabled={locked}
+                      disabled={locked || game.disabled}
+                      title={game.disabled ? (game.disabledMessage ?? "Jeu temporairement désactivé") : undefined}
                       onClick={() => handleAddGame(game.id)}
                       type="button"
                     >
