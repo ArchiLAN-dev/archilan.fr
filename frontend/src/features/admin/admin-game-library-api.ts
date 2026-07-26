@@ -8,6 +8,8 @@ export type AdminGame = {
   slug: string;
   coverImageUrl: string | null;
   availability: "available" | "unavailable" | "experimental";
+  disabled: boolean;
+  disabledMessage: string | null;
   isYamlReady: boolean;
   usageCount: number;
 };

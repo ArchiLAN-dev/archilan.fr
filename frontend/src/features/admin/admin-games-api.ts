@@ -14,6 +14,8 @@ export type AdminGame = {
   coverImageAlt: string;
   coverImageCredit: string;
   availability: GameAvailability;
+  disabled: boolean;
+  disabledMessage: string | null;
   archipelagoGameName: string | null;
   isYamlReady: boolean;
   isApworldReady: boolean;

@@ -226,6 +226,19 @@ final readonly class AdminGameLibrary
             $game->unlockAvailability();
         }
 
+        // Kill switch (story 11.4): tri-state like availabilityLocked - absent key leaves the
+        // state untouched, so partial PATCH callers cannot re-enable a game by accident.
+        if (true === $parsed['disabled']) {
+            $game->disable(
+                array_key_exists('disabledMessage', $input) ? $parsed['disabledMessage'] : $game->getDisabledMessage(),
+                $this->clock->now(),
+            );
+        } elseif (false === $parsed['disabled']) {
+            $game->enable();
+        } elseif ($game->isDisabled() && array_key_exists('disabledMessage', $input)) {
+            $game->disable($parsed['disabledMessage'], $this->clock->now());
+        }
+
         $previousIgdbId = $game->getIgdbId();
 
         $catalogParsed = $this->parseCatalogSync($input);
@@ -482,7 +495,7 @@ final readonly class AdminGameLibrary
     /**
      * @param array<string, mixed> $input
      *
-     * @return array{name: string, slug: string, description: string, archipelagoDescription: ?string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string, availabilityLocked: bool|null}
+     * @return array{name: string, slug: string, description: string, archipelagoDescription: ?string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string, availabilityLocked: bool|null, disabled: bool|null, disabledMessage: ?string}
      */
     private function parse(array $input): array
     {
@@ -498,11 +511,13 @@ final readonly class AdminGameLibrary
             'coverImageCredit' => is_string($input['coverImageCredit'] ?? null) ? trim($input['coverImageCredit']) : '',
             'availability' => is_string($input['availability'] ?? null) ? trim($input['availability']) : '',
             'availabilityLocked' => isset($input['availability_locked']) ? (bool) $input['availability_locked'] : null,
+            'disabled' => isset($input['disabled']) ? (bool) $input['disabled'] : null,
+            'disabledMessage' => is_string($input['disabledMessage'] ?? null) ? trim($input['disabledMessage']) : null,
         ];
     }
 
     /**
-     * @param array{name: string, slug: string, description: string, archipelagoDescription: ?string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string} $input
+     * @param array{name: string, slug: string, description: string, archipelagoDescription: ?string, coverImageUrl: ?string, coverImageAlt: string, coverImageCredit: string, availability: string, disabledMessage: ?string} $input
      *
      * @return array<string, list<string>>
      */
@@ -531,6 +546,10 @@ final readonly class AdminGameLibrary
 
         if (!in_array($input['availability'], Game::supportedAvailabilities(), true)) {
             $errors->add('availability', 'État de disponibilité invalide.');
+        }
+
+        if (null !== $input['disabledMessage'] && mb_strlen($input['disabledMessage']) > 500) {
+            $errors->add('disabledMessage', 'Le message de désactivation ne peut pas dépasser 500 caractères.');
         }
 
         return $errors->toArray();
@@ -572,6 +591,8 @@ final readonly class AdminGameLibrary
             'coverImageAlt' => $game->getCoverImageAlt(),
             'coverImageCredit' => $game->getCoverImageCredit(),
             'availability' => $game->getAvailability(),
+            'disabled' => $game->isDisabled(),
+            'disabledMessage' => $game->getDisabledMessage(),
             'archipelagoGameName' => $game->getArchipelagoGameName(),
             'isYamlReady' => $game->isYamlReady(),
             'isApworldReady' => $game->isApworldReady(),

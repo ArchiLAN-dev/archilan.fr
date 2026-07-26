@@ -82,6 +82,8 @@ final readonly class PersonalRunGameSelection
             'slug' => $g->getSlug(),
             'description' => $g->getDescription(),
             'availability' => $g->getAvailability(),
+            'disabled' => $g->isDisabled(),
+            'disabledMessage' => $g->getDisabledMessage(),
             'isApworldReady' => $g->isApworldReady(),
             'defaultYaml' => $g->getDefaultYaml(),
             'optionTypes' => $g->getOptionTypes(),
@@ -243,6 +245,11 @@ final readonly class PersonalRunGameSelection
             }
         }
 
+        $disabledErrors = $this->validateDisabledGames($gameIds, $participant->getGameSlots(), $gamesById);
+        if ([] !== $disabledErrors) {
+            return $this->resultWithErrors(found: true, errors: $disabledErrors);
+        }
+
         $newSlots = $this->diffSlots($participant->getGameSlots(), $gameIds, $gamesById);
         $participant->replaceSlots($newSlots);
 
@@ -356,6 +363,46 @@ final readonly class PersonalRunGameSelection
             if (!$game instanceof Game) {
                 $errors->add(sprintf('gameIds.%d', $index), 'Jeu introuvable dans la bibliothèque.');
             }
+        }
+
+        return $errors->toArray();
+    }
+
+    /**
+     * A game disabled by an admin (story 11.4) cannot be NEWLY added, but slots that already
+     * reference it keep resolving: re-submitting an unchanged selection stays accepted, so a
+     * later disable never bricks an existing run.
+     *
+     * @param list<string>                                                                                                     $gameIds
+     * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
+     * @param array<string, Game>                                                                                              $gamesById
+     *
+     * @return array<string, list<string>>
+     */
+    private function validateDisabledGames(array $gameIds, array $existingSlots, array $gamesById): array
+    {
+        $errors = new ValidationErrors();
+
+        $existingCounts = array_count_values(array_column($existingSlots, 'gameId'));
+
+        foreach ($gameIds as $index => $gameId) {
+            $game = $gamesById[$gameId] ?? null;
+            if (null === $game || !$game->isDisabled()) {
+                continue;
+            }
+
+            if (($existingCounts[$gameId] ?? 0) > 0) {
+                --$existingCounts[$gameId];
+                continue;
+            }
+
+            $message = $game->getDisabledMessage();
+            $errors->add(
+                sprintf('gameIds.%d', $index),
+                null !== $message
+                    ? sprintf('Ce jeu est temporairement désactivé : %s', $message)
+                    : 'Ce jeu est temporairement désactivé.',
+            );
         }
 
         return $errors->toArray();

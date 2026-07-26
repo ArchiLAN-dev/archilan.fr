@@ -185,6 +185,68 @@ final class RegistrationGameSelectionTest extends FunctionalTestCase
         self::assertArrayHasKey('gameIds.0', $details);
     }
 
+    public function testPutRejectsNewlyAddedDisabledGame(): void
+    {
+        // Story 11.4: a disabled game stays listed (with its message) but cannot be newly added.
+        $user = $this->createUser('user@example.org');
+        $game = $this->createGame('Zelda OoT', 'zelda-oot');
+        $game->disable('Apworld cassé, correctif en cours.', new \DateTimeImmutable('2026-07-26T10:00:00+00:00'));
+        $this->entityManager->flush();
+        $event = $this->makeEvent(gameSelectionEnabled: true, gameSelectionConfig: [['gameId' => $game->getId()]]);
+        $registration = $this->createRegistration($event->getId(), $user->getId());
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('GET', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()));
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $availableGames = $data['availableGames'];
+        self::assertIsArray($availableGames);
+        self::assertIsArray($availableGames[0]);
+        self::assertTrue($availableGames[0]['disabled']);
+        self::assertSame('Apworld cassé, correctif en cours.', $availableGames[0]['disabledMessage']);
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()), [
+            'gameIds' => [$game->getId()],
+        ]);
+        self::assertResponseStatusCodeSame(422);
+
+        $response = $this->decodedJsonResponse();
+        $error = $response['error'];
+        self::assertIsArray($error);
+        $details = $error['details'];
+        self::assertIsArray($details);
+        self::assertArrayHasKey('gameIds.0', $details);
+        $messages = $details['gameIds.0'];
+        self::assertIsArray($messages);
+        self::assertIsString($messages[0]);
+        self::assertStringContainsString('Apworld cassé, correctif en cours.', $messages[0]);
+    }
+
+    public function testPutKeepsExistingSlotOfNewlyDisabledGame(): void
+    {
+        // A disable after selection must not brick the registration: re-submitting the same
+        // selection stays accepted, only NEW additions are blocked.
+        $user = $this->createUser('user@example.org');
+        $game = $this->createGame('Zelda OoT', 'zelda-oot');
+        $event = $this->makeEvent(gameSelectionEnabled: true, gameSelectionConfig: [['gameId' => $game->getId()]]);
+        $registration = $this->createRegistration($event->getId(), $user->getId());
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()), [
+            'gameIds' => [$game->getId()],
+        ]);
+        self::assertResponseStatusCodeSame(200);
+
+        $game->disable(null, new \DateTimeImmutable('2026-07-26T10:00:00+00:00'));
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/registrations/%s/game-selection', $registration->getId()), [
+            'gameIds' => [$game->getId()],
+        ]);
+        self::assertResponseStatusCodeSame(200);
+    }
+
     public function testPutRejectsWhenMaxExceeded(): void
     {
         $user = $this->createUser('user@example.org');
