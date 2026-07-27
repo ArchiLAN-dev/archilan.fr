@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries } from "./build-checks-series";
 import { ChecksChart } from "./checks-chart";
@@ -16,16 +16,30 @@ const BUCKETS = [
 ] as const;
 
 /**
- * The run's activity over time: cumulative-checks curves per player, plus a filterable exchange log.
- * Built from the persisted feed (story 32.6/32.7). Filtering by player hides lines and log rows without
- * repainting the survivors (colour follows the slot). Empty when the run has no item events (e.g. a
- * game that produced none, or a run still generating).
+ * The run's activity over time: per-player check curves plus a filterable exchange log, built from the
+ * persisted feed (story 32.6/32.7). A run spanning several days is paginated by day, so one chart shows
+ * one day's rhythm rather than squashing everything onto one axis. Filtering by player hides lines and
+ * log rows without repainting the survivors (colour follows the slot). Empty when the run has no item
+ * events (a game that produced none, or one still generating).
  */
 export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
-  const series = useMemo(() => buildChecksSeries(events, bucketSeconds), [events, bucketSeconds]);
-
   const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string).
+  const finds = useMemo(() => events.filter((e) => e.sender.slot !== null), [events]);
+  const days = useMemo(() => [...new Set(finds.map((e) => dayKey(e.occurredAt)))].sort(), [finds]);
+
+  // Default to the most recent day; clamp in case live events add a day under a stale selection.
+  const dayIndex = days.length > 0 ? Math.min(selectedDay ?? days.length - 1, days.length - 1) : 0;
+  const currentDay = days[dayIndex] ?? null;
+
+  const dayEvents = useMemo(
+    () => (currentDay === null ? [] : events.filter((e) => dayKey(e.occurredAt) === currentDay)),
+    [events, currentDay],
+  );
+  const series = useMemo(() => buildChecksSeries(dayEvents, bucketSeconds), [dayEvents, bucketSeconds]);
 
   if (series.players.length === 0) {
     return null;
@@ -34,11 +48,16 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const shownPlayers = series.players.filter((p) => !hidden.has(p.slot));
   const shownSlots = new Set(shownPlayers.map((p) => p.slot));
 
-  const rows = events
-    .filter((e) => e.sender.slot !== null && (shownSlots.has(e.sender.slot) || (e.receiver.slot !== null && shownSlots.has(e.receiver.slot))))
+  const dayFinds = dayEvents.filter((e) => e.sender.slot !== null);
+  const rows = dayFinds
+    .filter(
+      (e) =>
+        (e.sender.slot !== null && shownSlots.has(e.sender.slot)) ||
+        (e.receiver.slot !== null && shownSlots.has(e.receiver.slot)),
+    )
     .slice(-MAX_ROWS)
     .reverse();
-  const truncated = events.filter((e) => e.sender.slot !== null).length > MAX_ROWS;
+  const truncated = dayFinds.length > MAX_ROWS;
 
   function toggle(slot: number) {
     setHidden((prev) => {
@@ -59,6 +78,34 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
           Checks trouvés au fil du temps et journal des objets. Clique un joueur pour le masquer.
         </p>
       </div>
+
+      {/* Day pager: only when the run spans more than one day. */}
+      {days.length > 1 ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-2 py-1.5">
+          <button
+            aria-label="Jour précédent"
+            className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            disabled={dayIndex === 0}
+            onClick={() => setSelectedDay(dayIndex - 1)}
+            type="button"
+          >
+            <ChevronLeft aria-hidden className="size-4" />
+          </button>
+          <span className="text-sm font-medium text-foreground">
+            {currentDay !== null ? formatDay(currentDay) : ""}
+            <span className="text-muted-foreground"> · jour {dayIndex + 1}/{days.length}</span>
+          </span>
+          <button
+            aria-label="Jour suivant"
+            className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            disabled={dayIndex === days.length - 1}
+            onClick={() => setSelectedDay(dayIndex + 1)}
+            type="button"
+          >
+            <ChevronRight aria-hidden className="size-4" />
+          </button>
+        </div>
+      ) : null}
 
       {/* Player filter: same colours as the curves, so identity is never colour-alone. */}
       <div className="flex flex-wrap gap-2">
@@ -109,7 +156,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
       <ol className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
         {truncated ? (
           <li className="px-2 py-1 text-xs text-muted-foreground">
-            Les {MAX_ROWS} évènements les plus récents (partie plus longue).
+            Les {MAX_ROWS} évènements les plus récents de la journée.
           </li>
         ) : null}
         {rows.map((event) => {
@@ -140,9 +187,21 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   );
 }
 
+const pad = (n: number): string => String(n).padStart(2, "0");
+
+/** Local calendar day of an event, as YYYY-MM-DD (sorts chronologically as a string). */
+function dayKey(occurredAt: string): string {
+  const date = new Date(occurredAt);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** A YYYY-MM-DD key as a readable local date, e.g. "lundi 28 juillet". */
+function formatDay(key: string): string {
+  return new Date(`${key}T00:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
 /** Wall-clock time of day of an event, local time, e.g. "22:30:15". */
 function timeOf(occurredAt: string): string {
   const date = new Date(occurredAt);
-  const two = (n: number) => String(n).padStart(2, "0");
-  return `${two(date.getHours())}:${two(date.getMinutes())}:${two(date.getSeconds())}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
