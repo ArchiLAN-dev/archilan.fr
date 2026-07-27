@@ -31,6 +31,7 @@ import { SessionConfigOverrideForm } from "@/features/admin/session-config-overr
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { LiveRunTimeline } from "@/features/recap/live-run-timeline";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
@@ -1175,9 +1176,12 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </>
         )}
 
-        {/* Player progress grid - visible to all when active or idle */}
+        {/* Player progress grid + the live run timeline - visible to all when active or idle */}
         {activeTab === "progress" && run.sessionId && (
-          <PlayerProgressGrid personalRunId={run.id} runId={run.sessionId} />
+          <div className="grid gap-6">
+            <PlayerProgressGrid personalRunId={run.id} runId={run.sessionId} />
+            <LiveRunTimeline sessionId={run.sessionId} />
+          </div>
         )}
 
         {/* Participants' Twitch streams (story 7.7) - dedicated tab, shows an empty state when none stream */}

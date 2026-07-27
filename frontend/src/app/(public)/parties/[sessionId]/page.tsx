@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
 import { getSessionRecap } from "@/features/recap/recap-api";
-import { getSessionFeed } from "@/features/recap/feed-api";
+import { getSessionFeed } from "@/features/recap/feed-api.server";
 import { SessionRecapNotFound, SessionRecapView } from "@/features/recap/session-recap-page";
 
 type Props = {
