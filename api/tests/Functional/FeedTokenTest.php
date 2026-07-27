@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
 use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Domain\Entity\Session;
 
@@ -82,6 +83,39 @@ final class FeedTokenTest extends FunctionalTestCase
 
         $this->client->jsonRequest('GET', '/api/v1/sessions/nonexistent-run/feed-token');
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testFeedTokenAllowsAPersonalRunOwner(): void
+    {
+        // A personal run has no event registration; the previous event-only gate would have 403'd its
+        // own owner. isUserAuthorizedForSession now covers owner/participant (story 32.6).
+        $owner = $this->createPlayer('runowner@example.org', 'Owner');
+        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
+        $run = Run::create($owner->getId(), 'Ma run', $now);
+        $this->entityManager->persist($run);
+        $session = $this->createSession('run-perso-feed-1', $run->getId());
+        $run->attachSession($session->getId());
+        $this->entityManager->flush();
+
+        $this->loginAs($owner);
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/feed-token', $session->getId()));
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testFeedTokenForbidsAStrangerOnAPersonalRun(): void
+    {
+        $owner = $this->createPlayer('runowner2@example.org', 'Owner');
+        $stranger = $this->createPlayer('runstranger@example.org', 'Stranger');
+        $now = new \DateTimeImmutable('2026-05-06T10:00:00+00:00');
+        $run = Run::create($owner->getId(), 'Ma run', $now);
+        $this->entityManager->persist($run);
+        $session = $this->createSession('run-perso-feed-2', $run->getId());
+        $run->attachSession($session->getId());
+        $this->entityManager->flush();
+
+        $this->loginAs($stranger);
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/feed-token', $session->getId()));
+        self::assertResponseStatusCodeSame(403);
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────────

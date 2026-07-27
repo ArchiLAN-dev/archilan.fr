@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Query;
 
-use App\Events\Domain\Repository\EventRepositoryInterface;
-use App\PersonalRuns\Domain\Entity\Run;
-use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
-use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -20,20 +17,17 @@ use App\Sessions\Domain\Repository\SessionRepositoryInterface;
  * event VOD. Returns null - i.e. the controller 404s - when the session is not
  * finished, no projection has been built yet, or the viewer is not allowed to see it.
  *
- * Access (story 32.5): a session's `eventId` is overloaded - a real Event for event sessions, a
- * personal Run id otherwise. Event recaps are served for public events only, to anyone. Personal-run
- * recaps are private to the run owner + participants, unless the owner has published them (then public
- * like an event). Weekly runs never reach this (no finished session).
+ * Access (story 32.5) is delegated to {@see SessionRecapAudience}, shared with the feed timeline so the
+ * one rule cannot drift: public event -> anyone; personal run -> owner/participant, or anyone once
+ * published. Weekly runs never reach this (no finished session).
  */
 final readonly class SessionRecapQuery
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,
-        private EventRepositoryInterface $events,
         private SessionRecapRepositoryInterface $recaps,
         private RunResultsQuery $runResults,
-        private RunRepositoryInterface $runs,
-        private RunParticipantRepositoryInterface $participants,
+        private SessionRecapAudience $audience,
     ) {
     }
 
@@ -62,21 +56,8 @@ final readonly class SessionRecapQuery
             return null;
         }
 
-        // eventId is overloaded: a real Event, else a personal Run id.
-        $vodUrl = null;
-        $event = $this->events->findById($session->getEventId());
-        if (null !== $event) {
-            // Event recap: public events only, served to anyone.
-            if (!$event->isPublic()) {
-                return null;
-            }
-            $vodUrl = $event->getVodUrl();
-        } else {
-            // Personal-run recap: private to owner + participants unless published (story 32.5).
-            $run = $this->runs->findById($session->getEventId());
-            if (null === $run || !$this->mayViewRunRecap($run, $viewerId)) {
-                return null;
-            }
+        if (!$this->audience->canView($session, $viewerId)) {
+            return null;
         }
 
         $recap = $this->recaps->findBySessionId($sessionId);
@@ -96,7 +77,7 @@ final readonly class SessionRecapQuery
             'startedAt' => $podium['startedAt'],
             'finishedAt' => $podium['finishedAt'],
             'durationSeconds' => $podium['durationSeconds'],
-            'vodUrl' => $vodUrl,
+            'vodUrl' => $this->audience->vodUrl($session),
             'generatedAt' => $recap->getGeneratedAt()->format(\DateTimeInterface::ATOM),
             'podium' => $podium['slots'],
             'graph' => [
@@ -106,24 +87,5 @@ final readonly class SessionRecapQuery
             ],
             'superlatives' => $recap->getSuperlatives(),
         ];
-    }
-
-    /**
-     * A personal-run recap is visible to anyone once published; otherwise only to the owner or a
-     * participant. An anonymous viewer ($viewerId null) only ever sees a published recap.
-     */
-    private function mayViewRunRecap(Run $run, ?string $viewerId): bool
-    {
-        if ($run->isRecapPublic()) {
-            return true;
-        }
-        if (null === $viewerId) {
-            return false;
-        }
-        if ($run->isOwnedBy($viewerId)) {
-            return true;
-        }
-
-        return null !== $this->participants->findByRunAndUser($run->getId(), $viewerId);
     }
 }
