@@ -27,6 +27,10 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [zoom, setZoom] = useState<[number, number] | null>(null);
+  // Cross-highlight: the bucket hovered on the chart (highlights matching log rows) and the event time
+  // hovered in the log (drops a marker line on the chart).
+  const [hoverBucket, setHoverBucket] = useState<number | null>(null);
+  const [hoverEventT, setHoverEventT] = useState<number | null>(null);
 
   // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string).
   const finds = useMemo(() => events.filter((e) => e.sender.slot !== null), [events]);
@@ -168,7 +172,14 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
         ) : null}
       </div>
 
-      <ChecksChart onZoom={setZoom} players={shownPlayers} rows={series.rows} zoom={zoom} />
+      <ChecksChart
+        markerT={hoverEventT}
+        onHoverBucket={setHoverBucket}
+        onZoom={setZoom}
+        players={shownPlayers}
+        rows={series.rows}
+        zoom={zoom}
+      />
 
       <ol className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
         {truncated ? (
@@ -178,8 +189,15 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
         ) : null}
         {rows.map((event) => {
           const local = event.sender.slot === event.receiver.slot;
+          const t = Date.parse(event.occurredAt);
+          const highlighted = hoverBucket !== null && t >= hoverBucket && t < hoverBucket + bucketSeconds * 1000;
           return (
-            <li className="flex items-start gap-3 rounded px-2 py-1.5 text-sm odd:bg-background/40" key={event.id}>
+            <li
+              className={`flex items-start gap-3 rounded px-2 py-1.5 text-sm ${highlighted ? "bg-accent-text/15 ring-1 ring-accent-text/40" : "odd:bg-background/40"}`}
+              key={event.id}
+              onMouseEnter={() => setHoverEventT(t)}
+              onMouseLeave={() => setHoverEventT(null)}
+            >
               <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{timeOf(event.occurredAt)}</span>
               <span className="min-w-0 flex-1 text-body-foreground">
                 <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span>

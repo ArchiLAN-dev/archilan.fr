@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ChecksPlayer, ChecksRow } from "./build-checks-series";
 
 /** Recharts hands its mouse handlers the chart state; we only read the X value under the cursor. */
@@ -21,11 +21,15 @@ export function ChecksChart({
   rows,
   zoom,
   onZoom,
+  onHoverBucket,
+  markerT,
 }: {
   players: ChecksPlayer[];
   rows: ChecksRow[];
   zoom: Zoom;
   onZoom: (zoom: Zoom) => void;
+  onHoverBucket: (t: number | null) => void;
+  markerT: number | null;
 }) {
   // Transient drag selection (start/current X, in `t` epoch ms); the committed zoom lives in the parent.
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -53,8 +57,9 @@ export function ChecksChart({
   }
 
   function onMove(state: ChartMouse): void {
-    if (dragFrom === null) return;
     const t = readX(state);
+    onHoverBucket(t); // report the hovered bucket so the log can highlight its rows
+    if (dragFrom === null) return;
     if (t !== null) setDragTo(t);
   }
 
@@ -66,12 +71,18 @@ export function ChecksChart({
     setDragTo(null);
   }
 
+  function onLeave(): void {
+    onHoverBucket(null);
+    setDragFrom(null);
+    setDragTo(null);
+  }
+
   const selecting = dragFrom !== null && dragTo !== null && dragFrom !== dragTo;
 
   return (
     <div className="h-72 w-full select-none">
       <ResponsiveContainer height="100%" width="100%">
-        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
+        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseLeave={onLeave} onMouseMove={onMove} onMouseUp={onUp}>
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
           <XAxis
             allowDataOverflow
@@ -115,6 +126,9 @@ export function ChecksChart({
               type="monotone"
             />
           ))}
+          {markerT !== null ? (
+            <ReferenceLine stroke="var(--color-accent-text)" strokeDasharray="4 3" strokeWidth={1.5} x={markerT} />
+          ) : null}
           {selecting ? (
             <ReferenceArea
               className="chart-select-pulse"
