@@ -118,10 +118,11 @@ export function ChecksChart({
           {selecting ? (
             <ReferenceArea
               className="chart-select-pulse"
-              fill="var(--color-accent)"
-              fillOpacity={0.14}
-              stroke="var(--color-accent)"
-              strokeOpacity={0.5}
+              fill="var(--color-accent-text)"
+              fillOpacity={0.22}
+              stroke="var(--color-accent-text)"
+              strokeOpacity={0.9}
+              strokeWidth={1.5}
               x1={Math.min(dragFrom, dragTo)}
               x2={Math.max(dragFrom, dragTo)}
             />
