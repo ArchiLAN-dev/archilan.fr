@@ -41,7 +41,6 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): Chec
   }
 
   const start = finds[0].at;
-  const lastBucket = Math.floor((finds[finds.length - 1].at - start) / bucketMs);
 
   // Distinct players in slot order; color assigned by that fixed order (folds past 8 into the 8th hue).
   const slots = [...new Set(finds.map((f) => f.slot))].sort((a, b) => a - b);
@@ -56,22 +55,37 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): Chec
     color: SERIES_COLORS[Math.min(index, SERIES_COLORS.length - 1)],
   }));
 
-  // Count checks per player per bucket; a bucket with none stays 0 (the loop fills every bucket).
+  // Count checks per player per bucket.
   const perBucket = new Map<string, number>();
   for (const find of finds) {
     const bucket = Math.floor((find.at - start) / bucketMs);
-    const key = `${bucket}:s${find.slot}`;
-    perBucket.set(key, (perBucket.get(key) ?? 0) + 1);
+    perBucket.set(`${bucket}:s${find.slot}`, (perBucket.get(`${bucket}:s${find.slot}`) ?? 0) + 1);
   }
 
-  const rows: ChecksRow[] = [];
-  for (let bucket = 0; bucket <= lastBucket; bucket += 1) {
-    const row: ChecksRow = { t: start + bucket * bucketMs };
-    for (const player of players) {
-      row[player.key] = perBucket.get(`${bucket}:${player.key}`) ?? 0;
+  // Emit only buckets with activity, plus the empty bucket on each side of a gap - so a lull shows the
+  // line dropping to 0 without generating a row per empty bucket across a long idle stretch (a run
+  // paused overnight or spanning days would otherwise explode into thousands of zero rows).
+  const activeBuckets = [...new Set(finds.map((f) => Math.floor((f.at - start) / bucketMs)))].sort((a, b) => a - b);
+  const emit = new Set<number>();
+  for (let i = 0; i < activeBuckets.length; i += 1) {
+    const bucket = activeBuckets[i];
+    emit.add(bucket);
+    const previous = i > 0 ? activeBuckets[i - 1] : null;
+    if (previous !== null && bucket - previous > 1) {
+      emit.add(previous + 1);
+      emit.add(bucket - 1);
     }
-    rows.push(row);
   }
+
+  const rows: ChecksRow[] = [...emit]
+    .sort((a, b) => a - b)
+    .map((bucket) => {
+      const row: ChecksRow = { t: start + bucket * bucketMs };
+      for (const player of players) {
+        row[player.key] = perBucket.get(`${bucket}:${player.key}`) ?? 0;
+      }
+      return row;
+    });
 
   return { players, rows };
 }
