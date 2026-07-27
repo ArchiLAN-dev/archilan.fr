@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries } from "./build-checks-series";
 import { ChecksChart } from "./checks-chart";
@@ -26,6 +26,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [zoom, setZoom] = useState<[number, number] | null>(null);
 
   // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string).
   const finds = useMemo(() => events.filter((e) => e.sender.slot !== null), [events]);
@@ -59,6 +60,12 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
     .reverse();
   const truncated = dayFinds.length > MAX_ROWS;
 
+  // Switching day drops any zoom (its t range belongs to the day you left).
+  function goToDay(index: number) {
+    setSelectedDay(index);
+    setZoom(null);
+  }
+
   function toggle(slot: number) {
     setHidden((prev) => {
       const next = new Set(prev);
@@ -86,7 +93,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
             aria-label="Jour précédent"
             className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
             disabled={dayIndex === 0}
-            onClick={() => setSelectedDay(dayIndex - 1)}
+            onClick={() => goToDay(dayIndex - 1)}
             type="button"
           >
             <ChevronLeft aria-hidden className="size-4" />
@@ -99,7 +106,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
             aria-label="Jour suivant"
             className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
             disabled={dayIndex === days.length - 1}
-            onClick={() => setSelectedDay(dayIndex + 1)}
+            onClick={() => goToDay(dayIndex + 1)}
             type="button"
           >
             <ChevronRight aria-hidden className="size-4" />
@@ -149,10 +156,20 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
             );
           })}
         </div>
+
+        {zoom !== null ? (
+          <button
+            className="ml-auto inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => setZoom(null)}
+            type="button"
+          >
+            <ZoomOut aria-hidden className="size-3.5" />
+            Réinitialiser le zoom
+          </button>
+        ) : null}
       </div>
 
-      {/* Keyed by day so switching day drops any zoom (its t range no longer applies). */}
-      <ChecksChart key={currentDay ?? "day"} players={shownPlayers} rows={series.rows} />
+      <ChecksChart onZoom={setZoom} players={shownPlayers} rows={series.rows} zoom={zoom} />
 
       <ol className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
         {truncated ? (

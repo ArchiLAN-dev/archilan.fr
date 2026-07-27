@@ -2,23 +2,34 @@
 
 import { useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ZoomOut } from "lucide-react";
 import type { ChecksPlayer, ChecksRow } from "./build-checks-series";
 
 /** Recharts hands its mouse handlers the chart state; we only read the X value under the cursor. */
 type ChartMouse = { activeLabel?: string | number };
 
+type Zoom = [number, number] | null;
+
 /**
  * Checks over time, one line per player. Colours come from the player (by slot), so hiding a player
  * never repaints the others. The X axis is real time-of-day (tight to the data - no empty run-up), with
- * the date shown when the run spans more than one day. Drag across the plot to zoom into a range;
- * "Réinitialiser" restores the full view. Dark-surface tooltip/grid via the app tokens.
+ * the date shown when the run spans more than one day. Drag across the plot to select a range and zoom
+ * into it; the committed zoom is owned by the parent (`zoom`/`onZoom`) so the reset control can sit with
+ * the other filters. Dark-surface tooltip/grid via the app tokens.
  */
-export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: ChecksRow[] }) {
-  // Drag selection (start/current X) and the committed zoom domain, all in `t` (epoch ms).
+export function ChecksChart({
+  players,
+  rows,
+  zoom,
+  onZoom,
+}: {
+  players: ChecksPlayer[];
+  rows: ChecksRow[];
+  zoom: Zoom;
+  onZoom: (zoom: Zoom) => void;
+}) {
+  // Transient drag selection (start/current X, in `t` epoch ms); the committed zoom lives in the parent.
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragTo, setDragTo] = useState<number | null>(null);
-  const [zoom, setZoom] = useState<[number, number] | null>(null);
 
   if (players.length === 0 || rows.length === 0) {
     return null;
@@ -49,7 +60,7 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
 
   function onUp(): void {
     if (dragFrom !== null && dragTo !== null && dragFrom !== dragTo) {
-      setZoom([Math.min(dragFrom, dragTo), Math.max(dragFrom, dragTo)]);
+      onZoom([Math.min(dragFrom, dragTo), Math.max(dragFrom, dragTo)]);
     }
     setDragFrom(null);
     setDragTo(null);
@@ -58,79 +69,65 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
   const selecting = dragFrom !== null && dragTo !== null && dragFrom !== dragTo;
 
   return (
-    <div className="grid gap-1">
-      {zoom !== null ? (
-        <button
-          className="inline-flex w-fit items-center gap-1.5 self-end rounded border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          onClick={() => setZoom(null)}
-          type="button"
-        >
-          <ZoomOut aria-hidden className="size-3.5" />
-          Réinitialiser le zoom
-        </button>
-      ) : (
-        <p className="self-end text-xs text-muted-foreground">Sélectionne une zone du graphe pour zoomer.</p>
-      )}
-
-      <div className="h-72 w-full select-none">
-        <ResponsiveContainer height="100%" width="100%">
-          <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
-            <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
-            <XAxis
-              allowDataOverflow
-              axisLine={{ stroke: "var(--color-border)" }}
-              dataKey="t"
-              domain={zoom ?? ["dataMin", "dataMax"]}
-              scale="time"
-              tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
-              tickFormatter={tick}
-              tickLine={false}
-              type="number"
+    <div className="h-72 w-full select-none">
+      <ResponsiveContainer height="100%" width="100%">
+        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
+          <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
+          <XAxis
+            allowDataOverflow
+            axisLine={{ stroke: "var(--color-border)" }}
+            dataKey="t"
+            domain={zoom ?? ["dataMin", "dataMax"]}
+            scale="time"
+            tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
+            tickFormatter={tick}
+            tickLine={false}
+            type="number"
+          />
+          <YAxis
+            allowDecimals={false}
+            axisLine={false}
+            tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
+            tickLine={false}
+            width={36}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 8,
+              color: "var(--color-text)",
+              fontSize: 13,
+            }}
+            labelFormatter={(t) => `À ${precise(Number(t))}`}
+            labelStyle={{ color: "var(--color-text-muted)" }}
+          />
+          <Legend wrapperStyle={{ fontSize: 13 }} />
+          {players.map((player) => (
+            <Line
+              dataKey={player.key}
+              dot={false}
+              isAnimationActive={false}
+              key={player.key}
+              name={player.name}
+              stroke={player.color}
+              strokeWidth={2}
+              type="monotone"
             />
-            <YAxis
-              allowDecimals={false}
-              axisLine={false}
-              tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
-              tickLine={false}
-              width={36}
+          ))}
+          {selecting ? (
+            <ReferenceArea
+              className="chart-select-pulse"
+              fill="var(--color-accent)"
+              fillOpacity={0.14}
+              stroke="var(--color-accent)"
+              strokeOpacity={0.5}
+              x1={Math.min(dragFrom, dragTo)}
+              x2={Math.max(dragFrom, dragTo)}
             />
-            <Tooltip
-              contentStyle={{
-                background: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: 8,
-                color: "var(--color-text)",
-                fontSize: 13,
-              }}
-              labelFormatter={(t) => `À ${precise(Number(t))}`}
-              labelStyle={{ color: "var(--color-text-muted)" }}
-            />
-            <Legend wrapperStyle={{ fontSize: 13 }} />
-            {players.map((player) => (
-              <Line
-                dataKey={player.key}
-                dot={false}
-                isAnimationActive={false}
-                key={player.key}
-                name={player.name}
-                stroke={player.color}
-                strokeWidth={2}
-                type="monotone"
-              />
-            ))}
-            {selecting ? (
-              <ReferenceArea
-                fill="var(--color-accent)"
-                fillOpacity={0.12}
-                stroke="var(--color-accent)"
-                strokeOpacity={0.4}
-                x1={Math.min(dragFrom, dragTo)}
-                x2={Math.max(dragFrom, dragTo)}
-              />
-            ) : null}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+          ) : null}
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 }

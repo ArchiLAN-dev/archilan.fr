@@ -93,6 +93,18 @@ html {
   100% { background-position: 22px 0; }
 }
 
+/* Zoom selection rectangle on the run-timeline chart (story 32.7): a soft pulse while dragging. */
+@keyframes chart-select-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+.chart-select-pulse {
+  animation: chart-select-pulse 0.9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-select-pulse { animation: none; }
+}
+
 @theme inline {
   --animate-dot-bounce: dot-bounce 0.8s infinite;
   --animate-flow-dots: flow-dots 0.6s linear infinite;
