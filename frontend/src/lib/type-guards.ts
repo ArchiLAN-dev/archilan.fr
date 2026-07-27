@@ -17,3 +17,9 @@ export function hasNullableStringProp<K extends string>(v: object, key: K): v is
   const value = Reflect.get(v, key);
   return value === null || typeof value === "string";
 }
+
+export function hasNullableNumberProp<K extends string>(v: object, key: K): v is Record<K, number | null> {
+  if (!(key in v)) return false;
+  const value = Reflect.get(v, key);
+  return value === null || typeof value === "number";
+}

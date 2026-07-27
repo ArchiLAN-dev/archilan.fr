@@ -144,6 +144,16 @@ html {
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  /* Categorical series palette for data viz (story 32.7). The dataviz-validated eight hues, dark
+     column (this app is dark-only): CVD-safe, stepped for the dark chart surface. Assigned in order. */
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
+  --chart-series-3: #199e70;
+  --chart-series-4: #c98500;
+  --chart-series-5: #d55181;
+  --chart-series-6: #008300;
+  --chart-series-7: #9085e9;
+  --chart-series-8: #e66767;
   --radius: 0.5rem;
   --sidebar: var(--color-surface);
   --sidebar-foreground: var(--color-text);

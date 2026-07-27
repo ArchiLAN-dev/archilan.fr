@@ -2,6 +2,8 @@ import { ArrowLeft, Clock, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { ExchangeGraph, type GraphNode } from "@/features/recap/exchange-graph";
+import { RunTimeline } from "@/features/recap/run-timeline";
+import type { FeedEvent } from "@/features/recap/feed-api";
 import { formatDuration } from "@/features/recap/recap-format";
 import { RecapVod } from "@/features/recap/recap-vod";
 import type { SessionRecap } from "@/features/recap/recap-api";
@@ -13,7 +15,7 @@ const SUPERLATIVE_HINTS: Record<string, string> = {
   longest_road: "La plus longue route jusqu'au but",
 };
 
-export function SessionRecapView({ recap }: { recap: SessionRecap }) {
+export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: FeedEvent[] }) {
   const nameBySlot = new Map(recap.podium.map((slot) => [slot.slotId, slot.playerName]));
 
   const graphNodes: GraphNode[] = recap.graph.nodes.map((node) => {
@@ -87,6 +89,8 @@ export function SessionRecapView({ recap }: { recap: SessionRecap }) {
           </p>
         )}
       </div>
+
+      <RunTimeline events={feed} />
 
       <div className="grid gap-4">
         <h2 className="flex items-center gap-2 font-heading text-2xl font-bold text-foreground">
