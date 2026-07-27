@@ -19,7 +19,7 @@ describe("buildChecksSeries", () => {
     expect(buildChecksSeries([])).toEqual({ players: [], rows: [] });
   });
 
-  it("counts checks per player per minute, 0 in a quiet minute", () => {
+  it("counts checks per player per minute (default bucket), 0 in a quiet minute", () => {
     const series = buildChecksSeries([
       itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
       itemEvent("b", 1, "Alice", "2026-05-01T10:00:30Z"),
@@ -27,10 +27,28 @@ describe("buildChecksSeries", () => {
       itemEvent("d", 1, "Alice", "2026-05-01T10:01:30Z"),
     ]);
 
-    // Minute 0: Alice 2, Bob 1. Minute 1: Alice 1, Bob 0 (no find that minute) - not cumulative.
+    // t = elapsed seconds at each bucket start. Minute 0: Alice 2, Bob 1. Minute 1: Alice 1, Bob 0.
     expect(series.rows).toEqual([
-      { minute: 0, s1: 2, s2: 1 },
-      { minute: 1, s1: 1, s2: 0 },
+      { t: 0, s1: 2, s2: 1 },
+      { t: 60, s1: 1, s2: 0 },
+    ]);
+  });
+
+  it("supports a finer bucket, splitting a minute into sub-buckets", () => {
+    const series = buildChecksSeries(
+      [
+        itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
+        itemEvent("b", 1, "Alice", "2026-05-01T10:00:30Z"),
+      ],
+      10,
+    );
+
+    // 10 s buckets: a find at 0 s (bucket t=0), one at 30 s (t=30), empty buckets between stay 0.
+    expect(series.rows).toEqual([
+      { t: 0, s1: 1 },
+      { t: 10, s1: 0 },
+      { t: 20, s1: 0 },
+      { t: 30, s1: 1 },
     ]);
   });
 

@@ -1,18 +1,19 @@
 import type { FeedEvent } from "./feed-api";
 
 /**
- * Turns the raw feed into per-minute checks-over-time curves, one per player.
+ * Turns the raw feed into checks-over-time curves, one per player, bucketed by `bucketSeconds`.
  *
  * Every item event is a **check by its finder** (the sender), so the sender slot is the player and
  * the event's time is when that check happened - this holds in solo too (a self-find is still a find).
- * Time is bucketed to the minute, relative to the first event; each row is the number of checks that
- * player made **in that minute** (0 in a quiet minute), so the curve shows the rhythm - bursts and
- * lulls - rather than a line that only ever rises. Players are keyed and coloured by slot (identity,
- * never rank), so a filter that hides players never repaints the survivors.
+ * Time is bucketed relative to the first event; each row (`t` = elapsed seconds at the bucket start) is
+ * the number of checks that player made **in that bucket** (0 in a quiet one), so the curve shows the
+ * rhythm - bursts and lulls - rather than a line that only ever rises. A finer bucket (e.g. 10 s) shows
+ * short bursts a per-minute view flattens. Players are keyed and coloured by slot (identity, never
+ * rank), so a filter that hides players never repaints the survivors.
  */
 
 export type ChecksPlayer = { key: string; slot: number; name: string; color: string };
-export type ChecksRow = { minute: number } & Record<string, number>;
+export type ChecksRow = { t: number } & Record<string, number>;
 export type ChecksSeries = { players: ChecksPlayer[]; rows: ChecksRow[] };
 
 // The dataviz validated categorical palette, referenced as CSS custom properties so light/dark swap in
@@ -28,7 +29,8 @@ const SERIES_COLORS = [
   "var(--chart-series-8)",
 ] as const;
 
-export function buildChecksSeries(events: FeedEvent[]): ChecksSeries {
+export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): ChecksSeries {
+  const bucketMs = Math.max(1, bucketSeconds) * 1_000;
   const finds = events
     .map((event) => ({ slot: event.sender.slot, name: event.sender.name, at: Date.parse(event.occurredAt) }))
     .filter((f): f is { slot: number; name: string | null; at: number } => f.slot !== null && !Number.isNaN(f.at))
@@ -39,7 +41,7 @@ export function buildChecksSeries(events: FeedEvent[]): ChecksSeries {
   }
 
   const start = finds[0].at;
-  const lastMinute = Math.floor((finds[finds.length - 1].at - start) / 60_000);
+  const lastBucket = Math.floor((finds[finds.length - 1].at - start) / bucketMs);
 
   // Distinct players in slot order; color assigned by that fixed order (folds past 8 into the 8th hue).
   const slots = [...new Set(finds.map((f) => f.slot))].sort((a, b) => a - b);
@@ -54,19 +56,19 @@ export function buildChecksSeries(events: FeedEvent[]): ChecksSeries {
     color: SERIES_COLORS[Math.min(index, SERIES_COLORS.length - 1)],
   }));
 
-  // Count checks per player per minute; a minute with none stays 0 (the loop fills every minute).
-  const perMinute = new Map<string, number>();
+  // Count checks per player per bucket; a bucket with none stays 0 (the loop fills every bucket).
+  const perBucket = new Map<string, number>();
   for (const find of finds) {
-    const minute = Math.floor((find.at - start) / 60_000);
-    const key = `${minute}:s${find.slot}`;
-    perMinute.set(key, (perMinute.get(key) ?? 0) + 1);
+    const bucket = Math.floor((find.at - start) / bucketMs);
+    const key = `${bucket}:s${find.slot}`;
+    perBucket.set(key, (perBucket.get(key) ?? 0) + 1);
   }
 
   const rows: ChecksRow[] = [];
-  for (let minute = 0; minute <= lastMinute; minute += 1) {
-    const row: ChecksRow = { minute };
+  for (let bucket = 0; bucket <= lastBucket; bucket += 1) {
+    const row: ChecksRow = { t: bucket * bucketSeconds };
     for (const player of players) {
-      row[player.key] = perMinute.get(`${minute}:${player.key}`) ?? 0;
+      row[player.key] = perBucket.get(`${bucket}:${player.key}`) ?? 0;
     }
     rows.push(row);
   }

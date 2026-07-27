@@ -8,6 +8,13 @@ import { ChecksChart } from "./checks-chart";
 
 const MAX_ROWS = 300;
 
+const BUCKETS = [
+  { label: "10 s", seconds: 10 },
+  { label: "30 s", seconds: 30 },
+  { label: "1 min", seconds: 60 },
+  { label: "5 min", seconds: 300 },
+] as const;
+
 /**
  * The run's activity over time: cumulative-checks curves per player, plus a filterable exchange log.
  * Built from the persisted feed (story 32.6/32.7). Filtering by player hides lines and log rows without
@@ -15,7 +22,8 @@ const MAX_ROWS = 300;
  * game that produced none, or a run still generating).
  */
 export function RunTimeline({ events }: { events: FeedEvent[] }) {
-  const series = useMemo(() => buildChecksSeries(events), [events]);
+  const [bucketSeconds, setBucketSeconds] = useState<number>(60);
+  const series = useMemo(() => buildChecksSeries(events, bucketSeconds), [events, bucketSeconds]);
   const startMs = useMemo(() => {
     const times = events.map((e) => Date.parse(e.occurredAt)).filter((t) => !Number.isNaN(t));
     return times.length > 0 ? Math.min(...times) : 0;
@@ -52,7 +60,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
           Déroulé de la partie
         </h2>
         <p className="text-sm text-muted-foreground">
-          Checks trouvés par minute et journal des objets. Clique un joueur pour le masquer.
+          Checks trouvés au fil du temps et journal des objets. Clique un joueur pour le masquer.
         </p>
       </div>
 
@@ -77,6 +85,27 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
             </button>
           );
         })}
+      </div>
+
+      {/* Bucket granularity: a finer bucket surfaces short bursts a per-minute view flattens. */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Regroupement :</span>
+        <div className="inline-flex overflow-hidden rounded-lg border border-border">
+          {BUCKETS.map((option) => {
+            const on = bucketSeconds === option.seconds;
+            return (
+              <button
+                aria-pressed={on}
+                className={`px-3 py-1 transition-colors ${on ? "bg-accent/15 font-semibold text-accent-text" : "text-muted-foreground hover:text-foreground"}`}
+                key={option.seconds}
+                onClick={() => setBucketSeconds(option.seconds)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <ChecksChart players={shownPlayers} rows={series.rows} />

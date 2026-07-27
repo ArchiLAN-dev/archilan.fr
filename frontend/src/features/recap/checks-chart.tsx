@@ -19,10 +19,11 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
           <XAxis
             axisLine={{ stroke: "var(--color-border)" }}
-            dataKey="minute"
+            dataKey="t"
             tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
-            tickFormatter={(m: number) => `${m}′`}
+            tickFormatter={clock}
             tickLine={false}
+            type="number"
           />
           <YAxis
             allowDecimals={false}
@@ -39,7 +40,7 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
               color: "var(--color-text)",
               fontSize: 13,
             }}
-            labelFormatter={(m) => `Minute ${String(m)}`}
+            labelFormatter={(t) => `À ${clock(Number(t))}`}
             labelStyle={{ color: "var(--color-text-muted)" }}
           />
           <Legend wrapperStyle={{ fontSize: 13 }} />
@@ -58,4 +59,15 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
       </ResponsiveContainer>
     </div>
   );
+}
+
+/** Elapsed seconds as a compact clock: m:ss, or h:mm:ss past an hour. */
+function clock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = String(m).padStart(h > 0 ? 2 : 1, "0");
+  const ss = String(sec).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
