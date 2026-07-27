@@ -52,7 +52,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
           Déroulé de la partie
         </h2>
         <p className="text-sm text-muted-foreground">
-          Checks cumulés dans le temps et journal des objets trouvés. Clique un joueur pour le masquer.
+          Checks trouvés par minute et journal des objets. Clique un joueur pour le masquer.
         </p>
       </div>
 

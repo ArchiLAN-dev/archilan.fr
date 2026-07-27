@@ -19,7 +19,7 @@ describe("buildChecksSeries", () => {
     expect(buildChecksSeries([])).toEqual({ players: [], rows: [] });
   });
 
-  it("builds cumulative per-player curves bucketed by minute", () => {
+  it("counts checks per player per minute, 0 in a quiet minute", () => {
     const series = buildChecksSeries([
       itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
       itemEvent("b", 1, "Alice", "2026-05-01T10:00:30Z"),
@@ -27,10 +27,10 @@ describe("buildChecksSeries", () => {
       itemEvent("d", 1, "Alice", "2026-05-01T10:01:30Z"),
     ]);
 
-    // Minute 0 holds Alice's first two finds and Bob's one; minute 1 adds Alice's third. Cumulative.
+    // Minute 0: Alice 2, Bob 1. Minute 1: Alice 1, Bob 0 (no find that minute) - not cumulative.
     expect(series.rows).toEqual([
       { minute: 0, s1: 2, s2: 1 },
-      { minute: 1, s1: 3, s2: 1 },
+      { minute: 1, s1: 1, s2: 0 },
     ]);
   });
 
