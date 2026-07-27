@@ -179,6 +179,26 @@ final readonly class PersonalRunController
         return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]]);
     }
 
+    #[Route('/api/v1/runs/{runId}/recap-visibility', name: 'api_runs_recap_visibility', methods: ['PUT'])]
+    public function setRecapVisibility(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = $this->jsonPayload($request);
+        $public = $payload['public'] ?? null;
+        if (!is_bool($public)) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Champ "public" (booléen) requis.', 422);
+        }
+
+        // Missing run / not owner are thrown as typed failures and mapped to HTTP by the epic-35 listener.
+        $result = $this->lifecycle->setRecapVisibility($runId, $user->getId(), $public);
+
+        return new JsonResponse(['data' => ['runId' => $result->runId, 'recapPublic' => $result->recapPublic]]);
+    }
+
     #[Route('/api/v1/runs/{runId}/games', name: 'api_runs_configure_games', methods: ['PATCH'])]
     public function configureGames(Request $request, string $runId): JsonResponse
     {
