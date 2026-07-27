@@ -24,7 +24,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
-import { fetchPersonalRun, type PersonalRunResult } from "./personal-runs-api";
+import { fetchPersonalRun, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
@@ -1091,8 +1091,19 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
             {/* COMPLETED */}
             {run.status === "completed" && (
-              <div className="rounded-lg border border-border bg-surface p-4 text-center">
-                <p className="text-sm text-muted-foreground">Cette partie est terminée.</p>
+              <div className="grid gap-3">
+                <div className="rounded-lg border border-border bg-surface p-4 text-center">
+                  <p className="text-sm text-muted-foreground">Cette partie est terminée.</p>
+                </div>
+                {run.sessionId !== null && (
+                  <RunRecapCard
+                    isOwner={run.isOwner}
+                    onChanged={refreshRun}
+                    recapPublic={run.recapPublic}
+                    runId={run.id}
+                    sessionId={run.sessionId}
+                  />
+                )}
               </div>
             )}
 
@@ -1193,5 +1204,60 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         )}
       </div>
     </>
+  );
+}
+
+function RunRecapCard({
+  runId,
+  sessionId,
+  isOwner,
+  recapPublic,
+  onChanged,
+}: {
+  runId: string;
+  sessionId: string;
+  isOwner: boolean;
+  recapPublic: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    setBusy(true);
+    const ok = await setRunRecapVisibility(runId, !recapPublic);
+    if (ok) await onChanged();
+    setBusy(false);
+  }
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-0.5">
+          <p className="font-heading text-sm font-semibold text-foreground">Récap de la partie</p>
+          <p className="text-xs text-muted-foreground">
+            {recapPublic
+              ? "Public : partageable par lien."
+              : "Privé : visible par toi et les participants."}
+          </p>
+        </div>
+        <Link
+          className="inline-flex shrink-0 items-center gap-2 rounded border border-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+          href={`/parties/${sessionId}`}
+        >
+          Voir le récap
+        </Link>
+      </div>
+      {isOwner && (
+        <button
+          className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          disabled={busy}
+          onClick={() => void toggle()}
+          type="button"
+        >
+          {busy ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+          {recapPublic ? "Rendre privé" : "Rendre public"}
+        </button>
+      )}
+    </div>
   );
 }

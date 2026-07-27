@@ -84,6 +84,8 @@ export type PersonalRun = {
   isOwner: boolean;
   participants: PersonalRunParticipant[];
   sessionId: string | null;
+  // Whether the finished run's recap is publicly shareable (story 32.5). Falsy on an older API payload.
+  recapPublic: boolean;
   lastActivityAt: string | null;
   pausedWithoutSave: boolean;
   validationErrors: ValidationSlotError[] | null;

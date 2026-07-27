@@ -1,6 +1,6 @@
 # Story 32.5: Recap and exchange graph for personal runs
 
-**Status:** in progress
+**Status:** review
 **Epic:** 32 - Recaps
 **Date:** 2026-07-24
 
@@ -69,15 +69,15 @@ recap would be a different projection (leaderboard/goal-time based) - deferred.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 - Publish flag** (AC 2). `Run.recapPublic` (bool, default false) + `publishRecap()` /
+- [x] **Task 1 - Publish flag** (AC 2). `Run.recapPublic` (bool, default false) + `publishRecap()` /
       `unpublishRecap()` / `isRecapPublic()`; migration (reversible).
-- [ ] **Task 2 - Toggle command + endpoint** (AC 2). Owner-gated command + `PUT
+- [x] **Task 2 - Toggle command + endpoint** (AC 2). Owner-gated command + `PUT
       /api/v1/runs/{runId}/recap-visibility` on `PersonalRunController`.
-- [ ] **Task 3 - Viewer-aware read** (AC 1, 2, 3). `SessionRecapQuery::execute($sessionId, ?$viewerId)`
+- [x] **Task 3 - Viewer-aware read** (AC 1, 2, 3). `SessionRecapQuery::execute($sessionId, ?$viewerId)`
       branches event vs personal run; `SessionRecapController` passes `optionalUser`.
-- [ ] **Task 4 - Frontend** (AC 5, 6). SSR cookie forwarding in the recap fetch (page +
+- [x] **Task 4 - Frontend** (AC 5, 6). SSR cookie forwarding in the recap fetch (page +
       generateMetadata); recap link + publish toggle on the run detail page.
-- [ ] **Task 5 - Tests + gates** (AC 7). Functional tests for the four access cases; both suites green.
+- [x] **Task 5 - Tests + gates** (AC 7). Functional tests for the four access cases; both suites green.
 
 ## Dev Notes
 
