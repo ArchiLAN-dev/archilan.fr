@@ -1,6 +1,8 @@
 import { buildChecksSeries } from "./build-checks-series";
 import type { FeedEvent } from "./feed-api";
 
+const START = Date.parse("2026-05-01T10:00:00Z");
+
 function itemEvent(id: string, senderSlot: number, senderName: string, occurredAt: string): FeedEvent {
   return {
     id,
@@ -27,10 +29,10 @@ describe("buildChecksSeries", () => {
       itemEvent("d", 1, "Alice", "2026-05-01T10:01:30Z"),
     ]);
 
-    // t = elapsed seconds at each bucket start. Minute 0: Alice 2, Bob 1. Minute 1: Alice 1, Bob 0.
+    // t = the bucket start as a wall-clock epoch. Minute 0: Alice 2, Bob 1. Minute 1: Alice 1, Bob 0.
     expect(series.rows).toEqual([
-      { t: 0, s1: 2, s2: 1 },
-      { t: 60, s1: 1, s2: 0 },
+      { t: START, s1: 2, s2: 1 },
+      { t: START + 60_000, s1: 1, s2: 0 },
     ]);
   });
 
@@ -43,12 +45,12 @@ describe("buildChecksSeries", () => {
       10,
     );
 
-    // 10 s buckets: a find at 0 s (bucket t=0), one at 30 s (t=30), empty buckets between stay 0.
+    // 10 s buckets: a find at 0 s, one at 30 s, empty buckets between stay 0.
     expect(series.rows).toEqual([
-      { t: 0, s1: 1 },
-      { t: 10, s1: 0 },
-      { t: 20, s1: 0 },
-      { t: 30, s1: 1 },
+      { t: START, s1: 1 },
+      { t: START + 10_000, s1: 0 },
+      { t: START + 20_000, s1: 0 },
+      { t: START + 30_000, s1: 1 },
     ]);
   });
 

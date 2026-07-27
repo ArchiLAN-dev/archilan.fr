@@ -40,7 +40,7 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
               color: "var(--color-text)",
               fontSize: 13,
             }}
-            labelFormatter={(t) => `À ${clock(Number(t))}`}
+            labelFormatter={(t) => `À ${clockPrecise(Number(t))}`}
             labelStyle={{ color: "var(--color-text-muted)" }}
           />
           <Legend wrapperStyle={{ fontSize: 13 }} />
@@ -61,13 +61,14 @@ export function ChecksChart({ players, rows }: { players: ChecksPlayer[]; rows: 
   );
 }
 
-/** Elapsed seconds as a compact clock: m:ss, or h:mm:ss past an hour. */
-function clock(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  const mm = String(m).padStart(h > 0 ? 2 : 1, "0");
-  const ss = String(sec).padStart(2, "0");
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+/** A bucket's wall-clock epoch (ms) as local time of day, e.g. "22h30". */
+function clock(epochMs: number): string {
+  const date = new Date(epochMs);
+  return `${date.getHours()}h${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Same, with seconds - for the tooltip, so sub-minute buckets stay distinct: "22h30:15". */
+function clockPrecise(epochMs: number): string {
+  const date = new Date(epochMs);
+  return `${clock(epochMs)}:${String(date.getSeconds()).padStart(2, "0")}`;
 }

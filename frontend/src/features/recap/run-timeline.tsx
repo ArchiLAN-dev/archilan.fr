@@ -24,10 +24,6 @@ const BUCKETS = [
 export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
   const series = useMemo(() => buildChecksSeries(events, bucketSeconds), [events, bucketSeconds]);
-  const startMs = useMemo(() => {
-    const times = events.map((e) => Date.parse(e.occurredAt)).filter((t) => !Number.isNaN(t));
-    return times.length > 0 ? Math.min(...times) : 0;
-  }, [events]);
 
   const [hidden, setHidden] = useState<Set<number>>(new Set());
 
@@ -120,7 +116,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
           const local = event.sender.slot === event.receiver.slot;
           return (
             <li className="flex items-start gap-3 rounded px-2 py-1.5 text-sm odd:bg-background/40" key={event.id}>
-              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{elapsed(startMs, event.occurredAt)}</span>
+              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{timeOf(event.occurredAt)}</span>
               <span className="min-w-0 flex-1 text-body-foreground">
                 <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span>
                 {local ? (
@@ -144,13 +140,9 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   );
 }
 
-/** Elapsed time since the run's first event, as m:ss or h:mm:ss. */
-function elapsed(startMs: number, occurredAt: string): string {
-  const seconds = Math.max(0, Math.floor((Date.parse(occurredAt) - startMs) / 1000));
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  const mm = String(m).padStart(h > 0 ? 2 : 1, "0");
-  const ss = String(s).padStart(2, "0");
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+/** Wall-clock time of day of an event, local time, e.g. "22:30:15". */
+function timeOf(occurredAt: string): string {
+  const date = new Date(occurredAt);
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${two(date.getHours())}:${two(date.getMinutes())}:${two(date.getSeconds())}`;
 }

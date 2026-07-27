@@ -5,8 +5,8 @@ import type { FeedEvent } from "./feed-api";
  *
  * Every item event is a **check by its finder** (the sender), so the sender slot is the player and
  * the event's time is when that check happened - this holds in solo too (a self-find is still a find).
- * Time is bucketed relative to the first event; each row (`t` = elapsed seconds at the bucket start) is
- * the number of checks that player made **in that bucket** (0 in a quiet one), so the curve shows the
+ * Time is bucketed relative to the first event; each row (`t` = the bucket start as a wall-clock epoch
+ * in ms) is the number of checks that player made **in that bucket** (0 in a quiet one), so the curve shows the
  * rhythm - bursts and lulls - rather than a line that only ever rises. A finer bucket (e.g. 10 s) shows
  * short bursts a per-minute view flattens. Players are keyed and coloured by slot (identity, never
  * rank), so a filter that hides players never repaints the survivors.
@@ -66,7 +66,7 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): Chec
 
   const rows: ChecksRow[] = [];
   for (let bucket = 0; bucket <= lastBucket; bucket += 1) {
-    const row: ChecksRow = { t: bucket * bucketSeconds };
+    const row: ChecksRow = { t: start + bucket * bucketMs };
     for (const player of players) {
       row[player.key] = perBucket.get(`${bucket}:${player.key}`) ?? 0;
     }
