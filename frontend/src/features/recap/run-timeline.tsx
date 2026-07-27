@@ -49,16 +49,15 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const shownPlayers = series.players.filter((p) => !hidden.has(p.slot));
   const shownSlots = new Set(shownPlayers.map((p) => p.slot));
 
-  const dayFinds = dayEvents.filter((e) => e.sender.slot !== null);
-  const rows = dayFinds
-    .filter(
-      (e) =>
-        (e.sender.slot !== null && shownSlots.has(e.sender.slot)) ||
-        (e.receiver.slot !== null && shownSlots.has(e.receiver.slot)),
-    )
-    .slice(-MAX_ROWS)
-    .reverse();
-  const truncated = dayFinds.length > MAX_ROWS;
+  // The log follows both the player filter and the chart zoom - zooming a range narrows the log to it.
+  const shown = dayEvents.filter(
+    (e) =>
+      e.sender.slot !== null &&
+      (zoom === null || within(e.occurredAt, zoom)) &&
+      (shownSlots.has(e.sender.slot) || (e.receiver.slot !== null && shownSlots.has(e.receiver.slot))),
+  );
+  const rows = shown.slice(-MAX_ROWS).reverse();
+  const truncated = shown.length > MAX_ROWS;
 
   // Switching day drops any zoom (its t range belongs to the day you left).
   function goToDay(index: number) {
@@ -216,6 +215,12 @@ function dayKey(occurredAt: string): string {
 /** A YYYY-MM-DD key as a readable local date, e.g. "lundi 28 juillet". */
 function formatDay(key: string): string {
   return new Date(`${key}T00:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
+/** Whether an event falls inside the zoomed time range [lo, hi] (epoch ms). */
+function within(occurredAt: string, [lo, hi]: [number, number]): boolean {
+  const t = Date.parse(occurredAt);
+  return t >= lo && t <= hi;
 }
 
 /** Wall-clock time of day of an event, local time, e.g. "22:30:15". */
