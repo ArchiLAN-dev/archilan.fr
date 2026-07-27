@@ -151,7 +151,8 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
         </div>
       </div>
 
-      <ChecksChart players={shownPlayers} rows={series.rows} />
+      {/* Keyed by day so switching day drops any zoom (its t range no longer applies). */}
+      <ChecksChart key={currentDay ?? "day"} players={shownPlayers} rows={series.rows} />
 
       <ol className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
         {truncated ? (
