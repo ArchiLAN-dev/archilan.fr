@@ -15,12 +15,14 @@ export type GoalMarker = { name: string; at: string };
 
 const MAX_ROWS = 300;
 
-const BUCKETS = [
-  { label: "10 s", seconds: 10 },
-  { label: "30 s", seconds: 30 },
-  { label: "1 min", seconds: 60 },
-  { label: "5 min", seconds: 300 },
-] as const;
+// Values are strings so the bucket picker can ride the same generic Segmented control as the
+// other view options (parsed back to seconds on change).
+const BUCKETS: readonly { label: string; value: string }[] = [
+  { label: "10 s", value: "10" },
+  { label: "30 s", value: "30" },
+  { label: "1 min", value: "60" },
+  { label: "5 min", value: "300" },
+];
 
 // View options (story 32.10): what the curve counts, and per-interval vs running total. The defaults
 // keep 32.7's burst view (checks found, per interval).
@@ -246,23 +248,12 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
 
       {/* Bucket granularity: a finer bucket surfaces short bursts a per-minute view flattens. */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Regroupement :</span>
-        <div className="inline-flex overflow-hidden rounded-lg border border-border">
-          {BUCKETS.map((option) => {
-            const on = bucketSeconds === option.seconds;
-            return (
-              <button
-                aria-pressed={on}
-                className={`px-3 py-1 transition-colors ${on ? "bg-accent/15 font-semibold text-accent-text" : "text-muted-foreground hover:text-foreground"}`}
-                key={option.seconds}
-                onClick={() => setBucketSeconds(option.seconds)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
+        <Segmented
+          label="Regroupement :"
+          onChange={(value) => setBucketSeconds(Number(value))}
+          options={BUCKETS}
+          value={String(bucketSeconds)}
+        />
 
         {zoom !== null ? (
           <button
@@ -402,9 +393,9 @@ function LogRowContent({ event }: { event: FeedEvent }) {
 }
 
 /**
- * One labelled segmented control (same look as the bucket picker), generic over the value union.
- * The option group wraps internally (`flex-wrap`) so a wide set - the six log facets - folds onto
- * a second row on a phone instead of overflowing the viewport (story 32.13 mobile pass).
+ * One labelled view control, generic over the value union. On a phone (below `sm`) it renders as a
+ * native `<select>` - the OS picker never overflows a narrow viewport (story 32.13 mobile pass);
+ * from `sm` up it is the segmented button group.
  */
 function Segmented<T extends string>({
   label,
@@ -420,7 +411,22 @@ function Segmented<T extends string>({
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
       <span className="text-muted-foreground">{label}</span>
-      <div className="inline-flex max-w-full flex-wrap overflow-hidden rounded-lg border border-border">
+      <select
+        aria-label={label}
+        className="rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground sm:hidden"
+        onChange={(e) => {
+          const option = options.find((candidate) => candidate.value === e.target.value);
+          if (option !== undefined) onChange(option.value);
+        }}
+        value={value}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <div className="hidden max-w-full flex-wrap overflow-hidden rounded-lg border border-border sm:inline-flex">
         {options.map((option) => {
           const on = value === option.value;
           return (
