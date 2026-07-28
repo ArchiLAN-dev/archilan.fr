@@ -1,6 +1,6 @@
 # Story 32.10: Timeline view options - cumulative toggle & items-received curve
 
-**Status:** draft
+**Status:** review
 **Epic:** 32 - Recaps
 **Date:** 2026-07-28
 
@@ -44,3 +44,19 @@ without losing that default:
   `checks-chart.tsx` (Y-axis label reflects the measure).
 - The received measure keys on `event.receiver.slot`; a self-find (sender == receiver) counts once on
   the found curve and once on the received curve, which is correct.
+
+## Dev Notes (implementation, 2026-07-28)
+
+Frontend-only, exactly as scoped. `buildChecksSeries(events, bucketSeconds, {measure, mode})` with
+defaults `found`/`interval` (32.7's view unchanged); cumulative accumulates over the emitted rows
+only, which is safe because skipped buckets are empty by construction. The 32.9 progression count
+stays **per-bucket even in cumulative mode** - the dot marks the moment, not a total.
+
+- `RunTimeline`: two segmented controls ("Mesure : Checks trouvés / Objets reçus", "Courbe : Par
+  intervalle / Cumulé") via a small generic `Segmented` helper, same look as the bucket picker.
+  Both feed the same `buildChecksSeries` memo, so they compose with the day pager, bucket size,
+  player filter, zoom and cross-highlight for free.
+- `ChecksChart`: new `measureLabel` prop rendered as the Y-axis label (angle -90, axis width 36 -> 48).
+- Goal markers (32.9) are unaffected: they mark instants on the X axis, valid under every combination.
+- Tests: interval/found (existing), cumulative/found, received/interval, received/cumulative.
+- Works on the live timeline too (the toggles live inside `RunTimeline`).

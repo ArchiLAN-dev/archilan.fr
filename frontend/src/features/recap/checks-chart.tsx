@@ -49,6 +49,7 @@ export function ChecksChart({
   onHoverBucket,
   markerT,
   goals,
+  measureLabel,
 }: {
   players: ChecksPlayer[];
   rows: ChecksRow[];
@@ -57,6 +58,8 @@ export function ChecksChart({
   onHoverBucket: (t: number | null) => void;
   markerT: number | null;
   goals: ChartGoal[];
+  /** What the Y axis counts (story 32.10) - "Checks trouvés" or "Objets reçus". */
+  measureLabel: string;
 }) {
   // Transient drag selection (start/current X, in `t` epoch ms); the committed zoom lives in the parent.
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -125,9 +128,10 @@ export function ChecksChart({
           <YAxis
             allowDecimals={false}
             axisLine={false}
+            label={{ value: measureLabel, angle: -90, position: "insideLeft", fill: "var(--color-text-muted)", fontSize: 11 }}
             tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
             tickLine={false}
-            width={36}
+            width={48}
           />
           <Tooltip
             contentStyle={{

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
-import { buildChecksSeries } from "./build-checks-series";
+import { buildChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
 import { ChecksChart, type ChartGoal } from "./checks-chart";
 
 /**
@@ -21,6 +21,18 @@ const BUCKETS = [
   { label: "5 min", seconds: 300 },
 ] as const;
 
+// View options (story 32.10): what the curve counts, and per-interval vs running total. The defaults
+// keep 32.7's burst view (checks found, per interval).
+const MEASURES: readonly { label: string; value: ChecksMeasure }[] = [
+  { label: "Checks trouvés", value: "found" },
+  { label: "Objets reçus", value: "received" },
+];
+
+const MODES: readonly { label: string; value: ChecksMode }[] = [
+  { label: "Par intervalle", value: "interval" },
+  { label: "Cumulé", value: "cumulative" },
+];
+
 /**
  * The run's activity over time: per-player check curves plus a filterable exchange log, built from the
  * persisted feed (story 32.6/32.7). A run spanning several days is paginated by day, so one chart shows
@@ -33,6 +45,8 @@ const BUCKETS = [
  */
 export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals?: GoalMarker[] }) {
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
+  const [measure, setMeasure] = useState<ChecksMeasure>("found");
+  const [mode, setMode] = useState<ChecksMode>("interval");
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [zoom, setZoom] = useState<[number, number] | null>(null);
@@ -53,7 +67,10 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
     () => (currentDay === null ? [] : events.filter((e) => dayKey(e.occurredAt) === currentDay)),
     [events, currentDay],
   );
-  const series = useMemo(() => buildChecksSeries(dayEvents, bucketSeconds), [dayEvents, bucketSeconds]);
+  const series = useMemo(
+    () => buildChecksSeries(dayEvents, bucketSeconds, { measure, mode }),
+    [dayEvents, bucketSeconds, measure, mode],
+  );
 
   if (series.players.length === 0) {
     return null;
@@ -102,8 +119,9 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
           Déroulé de la partie
         </h2>
         <p className="text-sm text-muted-foreground">
-          Checks trouvés au fil du temps et journal des objets. Un point plein marque un objet de progression,
-          un trait vertical le moment où un joueur atteint son objectif. Clique un joueur pour le masquer.
+          L&apos;activité de la partie au fil du temps et le journal des objets. Un point plein marque un objet
+          de progression, un trait vertical le moment où un joueur atteint son objectif. Clique un joueur pour
+          le masquer.
         </p>
       </div>
 
@@ -158,6 +176,12 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
         })}
       </div>
 
+      {/* View options (story 32.10): what is counted (sender vs receiver) and how (burst vs total). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <Segmented label="Mesure :" onChange={setMeasure} options={MEASURES} value={measure} />
+        <Segmented label="Courbe :" onChange={setMode} options={MODES} value={mode} />
+      </div>
+
       {/* Bucket granularity: a finer bucket surfaces short bursts a per-minute view flattens. */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">Regroupement :</span>
@@ -193,6 +217,7 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
       <ChecksChart
         goals={chartGoals}
         markerT={hoverEventT}
+        measureLabel={MEASURES.find((option) => option.value === measure)?.label ?? ""}
         onHoverBucket={setHoverBucket}
         onZoom={setZoom}
         players={shownPlayers}
@@ -238,6 +263,41 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
         })}
       </ol>
     </section>
+  );
+}
+
+/** One labelled segmented control (same look as the bucket picker), generic over the value union. */
+function Segmented<T extends string>({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: T) => void;
+  options: readonly { label: string; value: T }[];
+  value: T;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="inline-flex overflow-hidden rounded-lg border border-border">
+        {options.map((option) => {
+          const on = value === option.value;
+          return (
+            <button
+              aria-pressed={on}
+              className={`px-3 py-1 transition-colors ${on ? "bg-accent/15 font-semibold text-accent-text" : "text-muted-foreground hover:text-foreground"}`}
+              key={option.value}
+              onClick={() => onChange(option.value)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

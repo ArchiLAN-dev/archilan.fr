@@ -1,9 +1,9 @@
 import { isProgressionFind, type FeedEvent } from "./feed-api";
 
 /**
- * Turns the raw feed into checks-over-time curves, one per player, bucketed by `bucketSeconds`.
+ * Turns the raw feed into per-player curves over time, bucketed by `bucketSeconds`.
  *
- * Every item event is a **check by its finder** (the sender), so the sender slot is the player and
+ * The default view counts **checks by their finder** (the sender): the sender slot is the player and
  * the event's time is when that check happened - this holds in solo too (a self-find is still a find).
  * Time is bucketed relative to the first event; each row (`t` = the bucket start as a wall-clock epoch
  * in ms) is the number of checks that player made **in that bucket** (0 in a quiet one), so the curve shows the
@@ -11,13 +11,23 @@ import { isProgressionFind, type FeedEvent } from "./feed-api";
  * short bursts a per-minute view flattens. Players are keyed and coloured by slot (identity, never
  * rank), so a filter that hides players never repaints the survivors.
  *
- * Each row also carries, under `progressionKey`, how many of that bucket's finds were *progression*
+ * Two orthogonal options (story 32.10) change what is counted, never who is who:
+ * - `measure`: `"found"` keys on the sender (checks found); `"received"` keys on the receiver (items
+ *   received). A self-find counts once on each measure, which is correct.
+ * - `mode`: `"interval"` is the per-bucket count above; `"cumulative"` sums it into a running total
+ *   for an overall-progress reading.
+ *
+ * Each row also carries, under `progressionKey`, how many of that bucket's events were *progression*
  * items (AP flags bit 1, story 32.9) - the chart marks those buckets with a dot on the player's line.
+ * That count stays per-bucket even in cumulative mode: the dot marks the moment, not a total.
  */
 
 export type ChecksPlayer = { key: string; slot: number; name: string; color: string; progressionKey: string };
 export type ChecksRow = { t: number } & Record<string, number>;
 export type ChecksSeries = { players: ChecksPlayer[]; rows: ChecksRow[] };
+export type ChecksMeasure = "found" | "received";
+export type ChecksMode = "interval" | "cumulative";
+export type ChecksOptions = { measure?: ChecksMeasure; mode?: ChecksMode };
 
 // The dataviz validated categorical palette, referenced as CSS custom properties so light/dark swap in
 // one place (globals.css). Assigned in slot order, never cycled.
@@ -32,15 +42,20 @@ const SERIES_COLORS = [
   "var(--chart-series-8)",
 ] as const;
 
-export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): ChecksSeries {
+export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60, options: ChecksOptions = {}): ChecksSeries {
+  const measure: ChecksMeasure = options.measure ?? "found";
+  const mode: ChecksMode = options.mode ?? "interval";
   const bucketMs = Math.max(1, bucketSeconds) * 1_000;
   const finds = events
-    .map((event) => ({
-      slot: event.sender.slot,
-      name: event.sender.name,
-      at: Date.parse(event.occurredAt),
-      progression: isProgressionFind(event),
-    }))
+    .map((event) => {
+      const party = measure === "received" ? event.receiver : event.sender;
+      return {
+        slot: party.slot,
+        name: party.name,
+        at: Date.parse(event.occurredAt),
+        progression: isProgressionFind(event),
+      };
+    })
     .filter(
       (f): f is { slot: number; name: string | null; at: number; progression: boolean } =>
         f.slot !== null && !Number.isNaN(f.at),
@@ -93,12 +108,22 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): Chec
     }
   }
 
+  // Cumulative mode sums the per-bucket counts into a running total. Skipped (not emitted) buckets
+  // are empty by construction, so accumulating over emitted rows only never drops anything.
+  const running = new Map<string, number>();
   const rows: ChecksRow[] = [...emit]
     .sort((a, b) => a - b)
     .map((bucket) => {
       const row: ChecksRow = { t: start + bucket * bucketMs };
       for (const player of players) {
-        row[player.key] = perBucket.get(`${bucket}:${player.key}`) ?? 0;
+        const count = perBucket.get(`${bucket}:${player.key}`) ?? 0;
+        if (mode === "cumulative") {
+          const total = (running.get(player.key) ?? 0) + count;
+          running.set(player.key, total);
+          row[player.key] = total;
+        } else {
+          row[player.key] = count;
+        }
         row[player.progressionKey] = progressionPerBucket.get(`${bucket}:${player.key}`) ?? 0;
       }
       return row;
