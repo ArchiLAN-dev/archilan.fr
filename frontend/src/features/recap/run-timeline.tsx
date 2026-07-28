@@ -1,27 +1,50 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries } from "./build-checks-series";
 import { ChecksChart } from "./checks-chart";
 
 const MAX_ROWS = 300;
 
+const BUCKETS = [
+  { label: "10 s", seconds: 10 },
+  { label: "30 s", seconds: 30 },
+  { label: "1 min", seconds: 60 },
+  { label: "5 min", seconds: 300 },
+] as const;
+
 /**
- * The run's activity over time: cumulative-checks curves per player, plus a filterable exchange log.
- * Built from the persisted feed (story 32.6/32.7). Filtering by player hides lines and log rows without
- * repainting the survivors (colour follows the slot). Empty when the run has no item events (e.g. a
- * game that produced none, or a run still generating).
+ * The run's activity over time: per-player check curves plus a filterable exchange log, built from the
+ * persisted feed (story 32.6/32.7). A run spanning several days is paginated by day, so one chart shows
+ * one day's rhythm rather than squashing everything onto one axis. Filtering by player hides lines and
+ * log rows without repainting the survivors (colour follows the slot). Empty when the run has no item
+ * events (a game that produced none, or one still generating).
  */
 export function RunTimeline({ events }: { events: FeedEvent[] }) {
-  const series = useMemo(() => buildChecksSeries(events), [events]);
-  const startMs = useMemo(() => {
-    const times = events.map((e) => Date.parse(e.occurredAt)).filter((t) => !Number.isNaN(t));
-    return times.length > 0 ? Math.min(...times) : 0;
-  }, [events]);
-
+  const [bucketSeconds, setBucketSeconds] = useState<number>(60);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [zoom, setZoom] = useState<[number, number] | null>(null);
+  // Cross-highlight: the bucket hovered on the chart (highlights matching log rows) and the event time
+  // hovered in the log (drops a marker line on the chart).
+  const [hoverBucket, setHoverBucket] = useState<number | null>(null);
+  const [hoverEventT, setHoverEventT] = useState<number | null>(null);
+
+  // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string).
+  const finds = useMemo(() => events.filter((e) => e.sender.slot !== null), [events]);
+  const days = useMemo(() => [...new Set(finds.map((e) => dayKey(e.occurredAt)))].sort(), [finds]);
+
+  // Default to the most recent day; clamp in case live events add a day under a stale selection.
+  const dayIndex = days.length > 0 ? Math.min(selectedDay ?? days.length - 1, days.length - 1) : 0;
+  const currentDay = days[dayIndex] ?? null;
+
+  const dayEvents = useMemo(
+    () => (currentDay === null ? [] : events.filter((e) => dayKey(e.occurredAt) === currentDay)),
+    [events, currentDay],
+  );
+  const series = useMemo(() => buildChecksSeries(dayEvents, bucketSeconds), [dayEvents, bucketSeconds]);
 
   if (series.players.length === 0) {
     return null;
@@ -30,11 +53,21 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   const shownPlayers = series.players.filter((p) => !hidden.has(p.slot));
   const shownSlots = new Set(shownPlayers.map((p) => p.slot));
 
-  const rows = events
-    .filter((e) => e.sender.slot !== null && (shownSlots.has(e.sender.slot) || (e.receiver.slot !== null && shownSlots.has(e.receiver.slot))))
-    .slice(-MAX_ROWS)
-    .reverse();
-  const truncated = events.filter((e) => e.sender.slot !== null).length > MAX_ROWS;
+  // The log follows both the player filter and the chart zoom - zooming a range narrows the log to it.
+  const shown = dayEvents.filter(
+    (e) =>
+      e.sender.slot !== null &&
+      (zoom === null || within(e.occurredAt, zoom)) &&
+      (shownSlots.has(e.sender.slot) || (e.receiver.slot !== null && shownSlots.has(e.receiver.slot))),
+  );
+  const rows = shown.slice(-MAX_ROWS).reverse();
+  const truncated = shown.length > MAX_ROWS;
+
+  // Switching day drops any zoom (its t range belongs to the day you left).
+  function goToDay(index: number) {
+    setSelectedDay(index);
+    setZoom(null);
+  }
 
   function toggle(slot: number) {
     setHidden((prev) => {
@@ -52,9 +85,37 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
           Déroulé de la partie
         </h2>
         <p className="text-sm text-muted-foreground">
-          Checks cumulés dans le temps et journal des objets trouvés. Clique un joueur pour le masquer.
+          Checks trouvés au fil du temps et journal des objets. Clique un joueur pour le masquer.
         </p>
       </div>
+
+      {/* Day pager: only when the run spans more than one day. */}
+      {days.length > 1 ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-2 py-1.5">
+          <button
+            aria-label="Jour précédent"
+            className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            disabled={dayIndex === 0}
+            onClick={() => goToDay(dayIndex - 1)}
+            type="button"
+          >
+            <ChevronLeft aria-hidden className="size-4" />
+          </button>
+          <span className="text-sm font-medium text-foreground">
+            {currentDay !== null ? formatDay(currentDay) : ""}
+            <span className="text-muted-foreground"> · jour {dayIndex + 1}/{days.length}</span>
+          </span>
+          <button
+            aria-label="Jour suivant"
+            className="inline-flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+            disabled={dayIndex === days.length - 1}
+            onClick={() => goToDay(dayIndex + 1)}
+            type="button"
+          >
+            <ChevronRight aria-hidden className="size-4" />
+          </button>
+        </div>
+      ) : null}
 
       {/* Player filter: same colours as the curves, so identity is never colour-alone. */}
       <div className="flex flex-wrap gap-2">
@@ -79,19 +140,65 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
         })}
       </div>
 
-      <ChecksChart players={shownPlayers} rows={series.rows} />
+      {/* Bucket granularity: a finer bucket surfaces short bursts a per-minute view flattens. */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Regroupement :</span>
+        <div className="inline-flex overflow-hidden rounded-lg border border-border">
+          {BUCKETS.map((option) => {
+            const on = bucketSeconds === option.seconds;
+            return (
+              <button
+                aria-pressed={on}
+                className={`px-3 py-1 transition-colors ${on ? "bg-accent/15 font-semibold text-accent-text" : "text-muted-foreground hover:text-foreground"}`}
+                key={option.seconds}
+                onClick={() => setBucketSeconds(option.seconds)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {zoom !== null ? (
+          <button
+            className="ml-auto inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => setZoom(null)}
+            type="button"
+          >
+            <ZoomOut aria-hidden className="size-3.5" />
+            Réinitialiser le zoom
+          </button>
+        ) : null}
+      </div>
+
+      <ChecksChart
+        markerT={hoverEventT}
+        onHoverBucket={setHoverBucket}
+        onZoom={setZoom}
+        players={shownPlayers}
+        rows={series.rows}
+        zoom={zoom}
+      />
 
       <ol className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
         {truncated ? (
           <li className="px-2 py-1 text-xs text-muted-foreground">
-            Les {MAX_ROWS} évènements les plus récents (partie plus longue).
+            Les {MAX_ROWS} évènements les plus récents de la journée.
           </li>
         ) : null}
         {rows.map((event) => {
           const local = event.sender.slot === event.receiver.slot;
+          const t = Date.parse(event.occurredAt);
+          const highlighted = hoverBucket !== null && t >= hoverBucket && t < hoverBucket + bucketSeconds * 1000;
           return (
-            <li className="flex items-start gap-3 rounded px-2 py-1.5 text-sm odd:bg-background/40" key={event.id}>
-              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{elapsed(startMs, event.occurredAt)}</span>
+            <li
+              className={`flex items-start gap-3 rounded px-2 py-1.5 text-sm ${highlighted ? "bg-accent-text/15 ring-1 ring-accent-text/40" : "odd:bg-background/40"}`}
+              key={event.id}
+              onMouseEnter={() => setHoverEventT(t)}
+              onMouseLeave={() => setHoverEventT(null)}
+            >
+              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{timeOf(event.occurredAt)}</span>
               <span className="min-w-0 flex-1 text-body-foreground">
                 <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span>
                 {local ? (
@@ -115,13 +222,27 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
   );
 }
 
-/** Elapsed time since the run's first event, as m:ss or h:mm:ss. */
-function elapsed(startMs: number, occurredAt: string): string {
-  const seconds = Math.max(0, Math.floor((Date.parse(occurredAt) - startMs) / 1000));
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  const mm = String(m).padStart(h > 0 ? 2 : 1, "0");
-  const ss = String(s).padStart(2, "0");
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+const pad = (n: number): string => String(n).padStart(2, "0");
+
+/** Local calendar day of an event, as YYYY-MM-DD (sorts chronologically as a string). */
+function dayKey(occurredAt: string): string {
+  const date = new Date(occurredAt);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** A YYYY-MM-DD key as a readable local date, e.g. "lundi 28 juillet". */
+function formatDay(key: string): string {
+  return new Date(`${key}T00:00:00`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
+/** Whether an event falls inside the zoomed time range [lo, hi] (epoch ms). */
+function within(occurredAt: string, [lo, hi]: [number, number]): boolean {
+  const t = Date.parse(occurredAt);
+  return t >= lo && t <= hi;
+}
+
+/** Wall-clock time of day of an event, local time, e.g. "22:30:15". */
+function timeOf(occurredAt: string): string {
+  const date = new Date(occurredAt);
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
