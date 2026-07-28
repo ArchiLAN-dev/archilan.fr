@@ -5,6 +5,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
 import { ChecksChart, type ChartGoal } from "./checks-chart";
+import { matchesFacet, matchesSearch, normalizeSearch, type LogFacet } from "./log-filters";
 
 /**
  * A player's goal-reached instant (story 32.9). `name` is the AP slot name - the same name the feed
@@ -33,6 +34,15 @@ const MODES: readonly { label: string; value: ChecksMode }[] = [
   { label: "Cumulé", value: "cumulative" },
 ];
 
+// Exchange-type facet for the log (story 32.11), relative to the shown players: with one player
+// isolated, "Envoyés"/"Reçus" read as "what they sent" / "what they received".
+const FACETS: readonly { label: string; value: LogFacet }[] = [
+  { label: "Tous", value: "all" },
+  { label: "Reçus", value: "received" },
+  { label: "Envoyés", value: "sent" },
+  { label: "Locaux", value: "local" },
+];
+
 /**
  * The run's activity over time: per-player check curves plus a filterable exchange log, built from the
  * persisted feed (story 32.6/32.7). A run spanning several days is paginated by day, so one chart shows
@@ -54,6 +64,9 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
   // hovered in the log (drops a marker line on the chart).
   const [hoverBucket, setHoverBucket] = useState<number | null>(null);
   const [hoverEventT, setHoverEventT] = useState<number | null>(null);
+  // Log lookup (story 32.11): free-text search + exchange-type facet, applied before the row cap.
+  const [search, setSearch] = useState("");
+  const [facet, setFacet] = useState<LogFacet>("all");
 
   // Days that actually saw item finds, chronological (YYYY-MM-DD sorts as a string).
   const finds = useMemo(() => events.filter((e) => e.sender.slot !== null), [events]);
@@ -87,12 +100,16 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
     return player === undefined ? [] : [{ key: player.key, name: player.name, color: player.color, at }];
   });
 
-  // The log follows both the player filter and the chart zoom - zooming a range narrows the log to it.
+  // The log follows the player filter, the chart zoom, the search and the type facet - all narrow
+  // *before* the row cap, so a match late in a long run is still found.
+  const normalizedQuery = normalizeSearch(search);
   const shown = dayEvents.filter(
     (e) =>
       e.sender.slot !== null &&
       (zoom === null || within(e.occurredAt, zoom)) &&
-      (shownSlots.has(e.sender.slot) || (e.receiver.slot !== null && shownSlots.has(e.receiver.slot))),
+      (shownSlots.has(e.sender.slot) || (e.receiver.slot !== null && shownSlots.has(e.receiver.slot))) &&
+      matchesFacet(e, facet, shownSlots) &&
+      matchesSearch(e, normalizedQuery),
   );
   const rows = shown.slice(-MAX_ROWS).reverse();
   const truncated = shown.length > MAX_ROWS;
@@ -225,11 +242,27 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
         zoom={zoom}
       />
 
+      {/* Log lookup (story 32.11): search + type facet narrow the log before its row cap. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <input
+          aria-label="Rechercher un objet ou un check"
+          className="w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-1 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-1 focus:ring-accent-text/50"
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher un objet ou un check…"
+          type="search"
+          value={search}
+        />
+        <Segmented label="Type :" onChange={setFacet} options={FACETS} value={facet} />
+      </div>
+
       <ol className="grid max-h-96 gap-1 overflow-y-auto rounded-lg border border-border bg-surface p-2">
         {truncated ? (
           <li className="px-2 py-1 text-xs text-muted-foreground">
-            Les {MAX_ROWS} évènements les plus récents de la journée.
+            Les {MAX_ROWS} évènements les plus récents sur {shown.length} correspondants.
           </li>
+        ) : null}
+        {rows.length === 0 ? (
+          <li className="px-2 py-2 text-sm text-muted-foreground">Aucun évènement ne correspond aux filtres.</li>
         ) : null}
         {rows.map((event) => {
           const local = event.sender.slot === event.receiver.slot;
