@@ -86,3 +86,18 @@ leaving the plot (recharts throttles mousemove but not mousedown; needs a precis
 mis-zoom), and collapsing the travellers inside an exactly-two-point zoom leaves the internal slice
 at one point until the next brush interaction (controlled props only resync on value change).
 `contain-intrinsic-size: 34px` can make the scrollbar twitch when rows wrap to two lines (cosmetic).
+
+### Post-merge fix (2026-07-28, reported live)
+
+Console errors "Received NaN for the `x` attribute" on the Brush rects, four per incoming live
+check. Root cause traced in recharts 3.10.1 sources: the chart copies its `data` prop into its
+internal store **in an effect** (`chartDataContext.js`) - one commit late - and a controlled Brush
+index that overruns that stale copy resolves through the old brush scale to `undefined`
+(`Brush.js` `getDerivedStateFromProps`, controlled branch), which `Math.min/max` turns into NaN
+rect coordinates. Every live check that opens a new bucket grows `rows` and hit the mismatch for
+one commit. Fix: the controlled window is computed from `useDeferredValue(rows)` - deferred by the
+same one commit, so the indices are always resolvable by the scale recharts actually holds, and
+they catch up in the deferred re-render (a ref-based previous-count clamp was rejected by the
+`react-hooks/refs` lint). Residual: a coarsening bucket switch under an active zoom can still log
+one transient warning through recharts' own internal stale `dataStartIndex` (its `setChartData`
+reducer only re-clamps `dataEndIndex`) - internal to the lib, not reachable from props.

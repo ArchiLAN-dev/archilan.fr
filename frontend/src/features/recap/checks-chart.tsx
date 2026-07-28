@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type Key } from "react";
+import { useDeferredValue, useState, type Key } from "react";
 import { Brush, CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ChecksPlayer, ChecksRow } from "./build-checks-series";
 
@@ -65,6 +65,13 @@ export function ChecksChart({
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragTo, setDragTo] = useState<number | null>(null);
 
+  // recharts copies the chart data into its internal store in an effect - one commit *after* the
+  // `rows` prop changes. A controlled Brush index computed from the new rows can overrun the store's
+  // stale scale during that commit and render NaN rect coordinates (a console error on every new
+  // live bucket). Deferring the index computation by that same one commit keeps the window
+  // resolvable by the scale recharts actually holds; it catches up right after.
+  const brushRows = useDeferredValue(rows);
+
   if (players.length === 0 || rows.length === 0) {
     return null;
   }
@@ -114,9 +121,9 @@ export function ChecksChart({
   // In recharts 3 the Brush *slices* the chart data to [startIndex, endIndex], so the window must
   // always be a valid ordered pair: after a bucket/measure switch re-grids the rows under an active
   // zoom, the two index lookups can land inverted (slice would be empty) - clamp the order.
-  const rawStart = zoom === null ? 0 : Math.max(0, rows.findIndex((row) => row.t >= zoom[0]));
-  const lastInZoom = zoom === null ? -1 : rows.findLastIndex((row) => row.t <= zoom[1]);
-  const rawEnd = lastInZoom === -1 ? rows.length - 1 : lastInZoom;
+  const rawStart = zoom === null ? 0 : Math.max(0, brushRows.findIndex((row) => row.t >= zoom[0]));
+  const lastInZoom = zoom === null ? -1 : brushRows.findLastIndex((row) => row.t <= zoom[1]);
+  const rawEnd = lastInZoom === -1 ? brushRows.length - 1 : lastInZoom;
   const brushStart = Math.min(rawStart, rawEnd);
   const brushEnd = Math.max(rawStart, rawEnd);
 
