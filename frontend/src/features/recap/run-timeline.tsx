@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
-import { buildChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
+import { buildChecksSeries, combineChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
 import { ChecksChart, type ChartGoal } from "./checks-chart";
 import { matchesFacet, matchesSearch, normalizeSearch, type LogFacet } from "./log-filters";
 
@@ -34,6 +34,13 @@ const MODES: readonly { label: string; value: ChecksMode }[] = [
   { label: "Cumulé", value: "cumulative" },
 ];
 
+// Story 32.14: one line per player, or every shown player folded into a single combined curve.
+type PlayersView = "split" | "combined";
+const PLAYERS_VIEWS: readonly { label: string; value: PlayersView }[] = [
+  { label: "Séparés", value: "split" },
+  { label: "Confondus", value: "combined" },
+];
+
 // Exchange-type facet for the log (story 32.11), relative to the shown players: with one player
 // isolated, "Envoyés"/"Reçus" read as "what they sent" / "what they received". "Indices" and
 // "Objectifs" (story 32.12) isolate the hint/goal rows.
@@ -62,6 +69,7 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
   const [measure, setMeasure] = useState<ChecksMeasure>("found");
   const [mode, setMode] = useState<ChecksMode>("interval");
+  const [playersView, setPlayersView] = useState<PlayersView>("split");
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [zoom, setZoom] = useState<[number, number] | null>(null);
@@ -115,6 +123,12 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
 
   const shownPlayers = series.players.filter((p) => !hidden.has(p.slot));
   const shownSlots = new Set(shownPlayers.map((p) => p.slot));
+
+  // Combined view (story 32.14): fold the shown players into one curve. Chips, goal markers and
+  // the log keep working off the split series - only what the chart draws changes.
+  const displayed = playersView === "combined" ? combineChecksSeries(series, shownSlots) : null;
+  const chartPlayers = displayed === null ? shownPlayers : displayed.players;
+  const chartRows = displayed === null ? series.rows : displayed.rows;
 
   // Goal markers: the recap passes its podium instants; without them (live), the feed's goal events
   // (story 32.12) provide the same {AP slot name, instant} pairs.
@@ -223,10 +237,11 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
         })}
       </div>
 
-      {/* View options (story 32.10): what is counted (sender vs receiver) and how (burst vs total). */}
+      {/* View options (32.10/32.14): what is counted, how, and per-player vs combined. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <Segmented label="Mesure :" onChange={setMeasure} options={MEASURES} value={measure} />
         <Segmented label="Courbe :" onChange={setMode} options={MODES} value={mode} />
+        <Segmented label="Joueurs :" onChange={setPlayersView} options={PLAYERS_VIEWS} value={playersView} />
       </div>
 
       {/* Bucket granularity: a finer bucket surfaces short bursts a per-minute view flattens. */}
@@ -267,8 +282,8 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
         measureLabel={MEASURES.find((option) => option.value === measure)?.label ?? ""}
         onHoverBucket={onHoverBucket}
         onZoom={setZoom}
-        players={shownPlayers}
-        rows={series.rows}
+        players={chartPlayers}
+        rows={chartRows}
         zoom={zoom}
       />
 
