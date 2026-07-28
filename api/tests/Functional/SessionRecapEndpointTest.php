@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Functional;
 
 use App\Events\Domain\Entity\Event;
+use App\Identity\Domain\Entity\User;
+use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionRecap;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -138,6 +141,98 @@ final class SessionRecapEndpointTest extends FunctionalTestCase
         $this->client->request('GET', sprintf('/api/v1/parties/%s/recap', $session->getId()));
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testPersonalRunRecapIsPrivateByDefaultButOwnerParticipantAndPublishExposeIt(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $owner = $this->createUser('owner@example.org', displayName: 'Owner');
+        $participant = $this->createUser('participant@example.org', displayName: 'Participant');
+        $stranger = $this->createUser('stranger@example.org', displayName: 'Stranger');
+
+        [$run, $session] = $this->createFinishedPersonalRun($now, $owner);
+        $this->entityManager->persist(RunParticipant::create($run->getId(), $participant->getId(), $now));
+        $this->entityManager->flush();
+
+        $recapUrl = sprintf('/api/v1/parties/%s/recap', $session->getId());
+
+        // Anonymous: a private personal-run recap must not leak.
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', $recapUrl);
+        self::assertResponseStatusCodeSame(404);
+
+        // Owner and participant may see it.
+        $this->loginAs($owner);
+        $this->client->request('GET', $recapUrl);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->loginAs($participant);
+        $this->client->request('GET', $recapUrl);
+        self::assertResponseStatusCodeSame(200);
+
+        // A logged-in stranger may not.
+        $this->loginAs($stranger);
+        $this->client->request('GET', $recapUrl);
+        self::assertResponseStatusCodeSame(404);
+
+        // The owner publishes the recap.
+        $this->loginAs($owner);
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/recap-visibility', $run->getId()), ['public' => true]);
+        self::assertResponseStatusCodeSame(200);
+        $published = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($published);
+        self::assertTrue($published['recapPublic']);
+
+        // Now anyone, even anonymous, can see it.
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', $recapUrl);
+        self::assertResponseStatusCodeSame(200);
+    }
+
+    public function testOnlyTheOwnerCanToggleRecapVisibility(): void
+    {
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $owner = $this->createUser('owner2@example.org');
+        $stranger = $this->createUser('stranger2@example.org');
+        [$run] = $this->createFinishedPersonalRun($now, $owner);
+
+        $url = sprintf('/api/v1/runs/%s/recap-visibility', $run->getId());
+
+        $this->loginAs($stranger);
+        $this->client->jsonRequest('PUT', $url, ['public' => true]);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->loginAs($owner);
+        $this->client->jsonRequest('PUT', $url, ['public' => false]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertFalse($data['recapPublic']);
+    }
+
+    /**
+     * @return array{Run, Session}
+     */
+    private function createFinishedPersonalRun(\DateTimeImmutable $now, User $owner): array
+    {
+        $run = Run::create($owner->getId(), 'Ma run privée', $now);
+        $this->entityManager->persist($run);
+
+        $session = $this->createFinishedSession($run->getId(), $now);
+        $run->attachSession($session->getId());
+
+        $game = $this->createGame('Run game', 'run-game-'.bin2hex(random_bytes(4)));
+        $startedAt = $session->getStartedAt();
+        self::assertNotNull($startedAt);
+        // A personal-run slot stores the user id directly in registration_id.
+        $slot = SessionSlot::create(bin2hex(random_bytes(16)), $session->getId(), $owner->getId(), $game->getId(), 'Player1', 0, 'slot-p1');
+        $slot->recordGoal($startedAt->modify('+100 seconds'));
+        $this->entityManager->persist($slot);
+
+        $this->persistProjection($session->getId());
+        $this->entityManager->flush();
+
+        return [$run, $session];
     }
 
     private function persistProjection(string $sessionId): void

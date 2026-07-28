@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
@@ -180,8 +181,12 @@ export const getEventRecapIndex = cache(async (eventId: string): Promise<EventRe
 
 export const getSessionRecap = cache(async (sessionId: string): Promise<SessionRecap | null> => {
   try {
+    // Forward the viewer's cookies so the owner/participants of a private personal-run recap can load
+    // it (story 32.5); an event or published recap needs no auth and works without them.
+    const cookieHeader = (await cookies()).toString();
     const response = await fetch(`${env.apiBaseUrl}/parties/${sessionId}/recap`, {
       cache: "no-store",
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     });
 
     if (!response.ok) {
