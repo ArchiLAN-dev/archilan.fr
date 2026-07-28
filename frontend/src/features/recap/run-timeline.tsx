@@ -401,7 +401,11 @@ function LogRowContent({ event }: { event: FeedEvent }) {
   );
 }
 
-/** One labelled segmented control (same look as the bucket picker), generic over the value union. */
+/**
+ * One labelled segmented control (same look as the bucket picker), generic over the value union.
+ * The option group wraps internally (`flex-wrap`) so a wide set - the six log facets - folds onto
+ * a second row on a phone instead of overflowing the viewport (story 32.13 mobile pass).
+ */
 function Segmented<T extends string>({
   label,
   onChange,
@@ -414,9 +418,9 @@ function Segmented<T extends string>({
   value: T;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       <span className="text-muted-foreground">{label}</span>
-      <div className="inline-flex overflow-hidden rounded-lg border border-border">
+      <div className="inline-flex max-w-full flex-wrap overflow-hidden rounded-lg border border-border">
         {options.map((option) => {
           const on = value === option.value;
           return (
