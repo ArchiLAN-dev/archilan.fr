@@ -24,7 +24,7 @@ final class SessionFeedEndpointTest extends FunctionalTestCase
             'type' => 'item_sent',
             'text' => 'Alice found Master Sword for Bob',
             'timestamp' => '2026-05-01T10:00:30+00:00',
-            'item' => ['id' => 42, 'name' => 'Master Sword'],
+            'item' => ['id' => 42, 'name' => 'Master Sword', 'flags' => 1],
             'location' => ['id' => 10, 'name' => 'Chest'],
             'sender' => ['slot' => 1, 'name' => 'Alice', 'game' => 'ALTTP'],
             'receiver' => ['slot' => 2, 'name' => 'Bob', 'game' => 'SM64'],
@@ -45,6 +45,7 @@ final class SessionFeedEndpointTest extends FunctionalTestCase
         $event = $stored[0];
         self::assertSame('item-received', $event->getType());
         self::assertSame('Master Sword', $event->getItemName());
+        self::assertSame(1, $event->getItemFlags());
         self::assertSame('Chest', $event->getLocationName());
         self::assertSame(1, $event->getSenderSlot());
         self::assertSame('SM64', $event->getReceiverGame());
@@ -115,6 +116,7 @@ final class SessionFeedEndpointTest extends FunctionalTestCase
             $now->modify('+30 seconds'),
             7,
             'Key',
+            1,
             3,
             'Basement',
             1,

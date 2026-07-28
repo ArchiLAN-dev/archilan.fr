@@ -1,4 +1,4 @@
-import type { FeedEvent } from "./feed-api";
+import { isProgressionFind, type FeedEvent } from "./feed-api";
 
 /**
  * Turns the raw feed into checks-over-time curves, one per player, bucketed by `bucketSeconds`.
@@ -10,9 +10,12 @@ import type { FeedEvent } from "./feed-api";
  * rhythm - bursts and lulls - rather than a line that only ever rises. A finer bucket (e.g. 10 s) shows
  * short bursts a per-minute view flattens. Players are keyed and coloured by slot (identity, never
  * rank), so a filter that hides players never repaints the survivors.
+ *
+ * Each row also carries, under `progressionKey`, how many of that bucket's finds were *progression*
+ * items (AP flags bit 1, story 32.9) - the chart marks those buckets with a dot on the player's line.
  */
 
-export type ChecksPlayer = { key: string; slot: number; name: string; color: string };
+export type ChecksPlayer = { key: string; slot: number; name: string; color: string; progressionKey: string };
 export type ChecksRow = { t: number } & Record<string, number>;
 export type ChecksSeries = { players: ChecksPlayer[]; rows: ChecksRow[] };
 
@@ -32,8 +35,16 @@ const SERIES_COLORS = [
 export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): ChecksSeries {
   const bucketMs = Math.max(1, bucketSeconds) * 1_000;
   const finds = events
-    .map((event) => ({ slot: event.sender.slot, name: event.sender.name, at: Date.parse(event.occurredAt) }))
-    .filter((f): f is { slot: number; name: string | null; at: number } => f.slot !== null && !Number.isNaN(f.at))
+    .map((event) => ({
+      slot: event.sender.slot,
+      name: event.sender.name,
+      at: Date.parse(event.occurredAt),
+      progression: isProgressionFind(event),
+    }))
+    .filter(
+      (f): f is { slot: number; name: string | null; at: number; progression: boolean } =>
+        f.slot !== null && !Number.isNaN(f.at),
+    )
     .sort((a, b) => a.at - b.at);
 
   if (finds.length === 0) {
@@ -53,13 +64,18 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): Chec
     slot,
     name: nameBySlot.get(slot) ?? `Slot ${slot}`,
     color: SERIES_COLORS[Math.min(index, SERIES_COLORS.length - 1)],
+    progressionKey: `s${slot}p`,
   }));
 
-  // Count checks per player per bucket.
+  // Count checks (and progression finds) per player per bucket.
   const perBucket = new Map<string, number>();
+  const progressionPerBucket = new Map<string, number>();
   for (const find of finds) {
     const bucket = Math.floor((find.at - start) / bucketMs);
     perBucket.set(`${bucket}:s${find.slot}`, (perBucket.get(`${bucket}:s${find.slot}`) ?? 0) + 1);
+    if (find.progression) {
+      progressionPerBucket.set(`${bucket}:s${find.slot}`, (progressionPerBucket.get(`${bucket}:s${find.slot}`) ?? 0) + 1);
+    }
   }
 
   // Emit only buckets with activity, plus the empty bucket on each side of a gap - so a lull shows the
@@ -83,6 +99,7 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60): Chec
       const row: ChecksRow = { t: start + bucket * bucketMs };
       for (const player of players) {
         row[player.key] = perBucket.get(`${bucket}:${player.key}`) ?? 0;
+        row[player.progressionKey] = progressionPerBucket.get(`${bucket}:${player.key}`) ?? 0;
       }
       return row;
     });

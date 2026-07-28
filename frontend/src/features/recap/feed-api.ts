@@ -2,13 +2,17 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasNullableNumberProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 
-/** A persisted item event (story 32.6): who found what, for whom, and when. */
+/**
+ * A persisted item event (story 32.6): who found what, for whom, and when. `item.flags` are the AP
+ * classification bits (bit 1 = progression, story 32.9); null on rows persisted before the flag
+ * existed.
+ */
 export type FeedEvent = {
   id: string;
   type: string;
   text: string;
   occurredAt: string;
-  item: { id: number | null; name: string | null };
+  item: { id: number | null; name: string | null; flags: number | null };
   location: { id: number | null; name: string | null };
   sender: { slot: number | null; name: string | null; game: string | null };
   receiver: { slot: number | null; name: string | null; game: string | null };
@@ -24,7 +28,17 @@ function isParty(v: unknown): v is FeedEvent["sender"] {
   );
 }
 
-function isItemOrLocation(v: unknown): boolean {
+function isItemRef(v: unknown): v is FeedEvent["item"] {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasNullableNumberProp(v, "id") &&
+    hasNullableStringProp(v, "name") &&
+    hasNullableNumberProp(v, "flags")
+  );
+}
+
+function isLocationRef(v: unknown): boolean {
   return typeof v === "object" && v !== null && hasNullableNumberProp(v, "id") && hasNullableStringProp(v, "name");
 }
 
@@ -34,11 +48,16 @@ export function isFeedEvent(v: unknown): v is FeedEvent {
     return false;
   }
   return (
-    "item" in v && isItemOrLocation(v.item) &&
-    "location" in v && isItemOrLocation(v.location) &&
+    "item" in v && isItemRef(v.item) &&
+    "location" in v && isLocationRef(v.location) &&
     "sender" in v && isParty(v.sender) &&
     "receiver" in v && isParty(v.receiver)
   );
+}
+
+/** Whether the found item is a progression item (AP flags bit 1) - vs useful/trap/filler. */
+export function isProgressionFind(event: FeedEvent): boolean {
+  return ((event.item.flags ?? 0) & 1) === 1;
 }
 
 export function parseFeedPayload(payload: unknown): FeedEvent[] {

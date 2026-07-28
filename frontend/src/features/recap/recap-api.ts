@@ -5,6 +5,8 @@ import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards"
 
 export type RecapPodiumSlot = {
   slotId: string;
+  // The AP in-world name - the join key with the feed's sender names (goal markers, story 32.9).
+  slotName: string;
   playerName: string;
   game: string;
   checksDone: number;
@@ -59,6 +61,7 @@ export type SessionRecap = {
 function isPodiumSlot(v: unknown): v is RecapPodiumSlot {
   if (typeof v !== "object" || v === null) return false;
   if (!hasStringProp(v, "slotId")) return false;
+  if (!hasStringProp(v, "slotName")) return false;
   if (!hasStringProp(v, "playerName")) return false;
   if (!hasStringProp(v, "game")) return false;
   if (!hasNumberProp(v, "checksDone")) return false;

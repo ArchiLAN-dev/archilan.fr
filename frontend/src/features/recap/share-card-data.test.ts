@@ -4,6 +4,7 @@ import { buildShareCardData } from "./share-card-data";
 function podiumSlot(overrides: Partial<RecapPodiumSlot> = {}): RecapPodiumSlot {
   return {
     slotId: "slot-1",
+    slotName: "Michel",
     playerName: "Michel_M",
     game: "Super Mario 64",
     checksDone: 120,

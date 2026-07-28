@@ -41,7 +41,8 @@ export function AdminContentDashboard() {
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
-  const state: DashboardState = data ?? { kind: "loading" };
+  // Memoized so the fallback object is stable and the filter memo below only recomputes on data.
+  const state: DashboardState = useMemo(() => data ?? { kind: "loading" }, [data]);
 
   const filteredPosts = useMemo(() => {
     if (state.kind !== "ready") return [];
