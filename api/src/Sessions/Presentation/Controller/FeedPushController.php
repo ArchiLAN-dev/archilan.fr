@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
+use App\Sessions\Application\Command\RecordSessionFeedEvent;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
@@ -31,6 +33,8 @@ final readonly class FeedPushController
         private ApiAccessGuard $apiAccessGuard,
         private HubInterface $mercureHub,
         private string $centralApiSecret,
+        private RecordSessionFeedEvent $recordFeedEvent,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -48,6 +52,17 @@ final readonly class FeedPushController
         $type = $event['type'] ?? null;
         if (is_string($type) && isset(self::TYPE_MAP[$type])) {
             $event['type'] = self::TYPE_MAP[$type];
+        }
+
+        // Keep the event for the timeline / check curves (story 32.6). Best-effort: a persistence
+        // failure is logged and must never break the live Mercure publish below.
+        try {
+            $this->recordFeedEvent->record($sessionId, $event);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Persisting a session feed event failed.', [
+                'sessionId' => $sessionId,
+                'exception' => $exception,
+            ]);
         }
 
         $topic = sprintf('runs/%s/feed', $sessionId);

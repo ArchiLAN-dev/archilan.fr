@@ -40,8 +40,11 @@ final readonly class FeedTokenController
 
         $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
 
+        // isUserAuthorizedForSession, not hasActiveEventRegistration: the latter is event-only and a
+        // personal-run participant never satisfies it, so they could not watch a private run's live
+        // feed (story 32.6). This covers event registrants AND personal-run owner/participants.
         if (!$isAdmin) {
-            if (!$this->sessionQuery->hasActiveEventRegistration($user->getId(), $session['eventId'])) {
+            if (!$this->sessionQuery->isUserAuthorizedForSession($user->getId(), $session['eventId'], $runId)) {
                 return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
             }
         }
