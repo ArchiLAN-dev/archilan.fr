@@ -16,6 +16,21 @@ function itemEvent(id: string, senderSlot: number, senderName: string, occurredA
   };
 }
 
+/** A cross-player transfer: found by the sender, received by someone else. */
+function transferEvent(
+  id: string,
+  senderSlot: number,
+  senderName: string,
+  receiverSlot: number,
+  receiverName: string,
+  occurredAt: string,
+): FeedEvent {
+  return {
+    ...itemEvent(id, senderSlot, senderName, occurredAt),
+    receiver: { slot: receiverSlot, name: receiverName, game: "Game" },
+  };
+}
+
 describe("buildChecksSeries", () => {
   it("returns empty when there are no item events with a finder", () => {
     expect(buildChecksSeries([])).toEqual({ players: [], rows: [] });
@@ -66,6 +81,57 @@ describe("buildChecksSeries", () => {
       { t: START + 10_000, s1: 0, s1p: 0 },
       { t: START + 20_000, s1: 0, s1p: 0 },
       { t: START + 30_000, s1: 1, s1p: 0 },
+    ]);
+  });
+
+  it("sums into a running total in cumulative mode (found measure)", () => {
+    const series = buildChecksSeries(
+      [
+        itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
+        itemEvent("b", 1, "Alice", "2026-05-01T10:00:30Z"),
+        itemEvent("c", 2, "Bob", "2026-05-01T10:00:30Z"),
+        itemEvent("d", 1, "Alice", "2026-05-01T10:01:30Z"),
+      ],
+      60,
+      { mode: "cumulative" },
+    );
+
+    // Same finds as the interval test, but each bucket shows the running total.
+    expect(series.rows).toEqual([
+      { t: START, s1: 2, s1p: 0, s2: 1, s2p: 0 },
+      { t: START + 60_000, s1: 3, s1p: 0, s2: 1, s2p: 0 },
+    ]);
+  });
+
+  it("keys on the receiver with measure: received (a transfer counts for the receiver)", () => {
+    // Alice (slot 1) finds both items; Bob (slot 2) receives the second one.
+    const series = buildChecksSeries(
+      [
+        itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
+        transferEvent("b", 1, "Alice", 2, "Bob", "2026-05-01T10:00:30Z"),
+      ],
+      60,
+      { measure: "received" },
+    );
+
+    expect(series.players.map((p) => p.slot)).toEqual([1, 2]);
+    expect(series.rows).toEqual([{ t: START, s1: 1, s1p: 0, s2: 1, s2p: 0 }]);
+  });
+
+  it("composes measure: received with mode: cumulative", () => {
+    // Bob receives at 10:00 and 10:01 - his received total climbs; Alice never receives.
+    const series = buildChecksSeries(
+      [
+        transferEvent("a", 1, "Alice", 2, "Bob", "2026-05-01T10:00:00Z"),
+        transferEvent("b", 1, "Alice", 2, "Bob", "2026-05-01T10:01:30Z"),
+      ],
+      60,
+      { measure: "received", mode: "cumulative" },
+    );
+
+    expect(series.rows).toEqual([
+      { t: START, s2: 1, s2p: 0 },
+      { t: START + 60_000, s2: 2, s2p: 0 },
     ]);
   });
 
