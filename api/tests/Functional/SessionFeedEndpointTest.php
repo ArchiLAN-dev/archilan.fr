@@ -51,6 +51,59 @@ final class SessionFeedEndpointTest extends FunctionalTestCase
         self::assertSame('SM64', $event->getReceiverGame());
     }
 
+    public function testFeedPushPersistsHintAndGoalEvents(): void
+    {
+        $sessionId = 'run-feed-persist-2';
+        $uri = sprintf('/api/v1/internal/sessions/%s/feed-push', $sessionId);
+
+        // A hint carries the same origin shape as an item event (story 32.12).
+        $this->client->jsonRequest('POST', $uri, [
+            'type' => 'hint',
+            'text' => "[Hint]: Bob's Master Sword is at Chest",
+            'timestamp' => '2026-05-01T10:01:00+00:00',
+            'item' => ['id' => 42, 'name' => 'Master Sword', 'flags' => 1],
+            'location' => ['id' => 10, 'name' => 'Chest'],
+            'sender' => ['slot' => 1, 'name' => 'Alice', 'game' => 'ALTTP'],
+            'receiver' => ['slot' => 2, 'name' => 'Bob', 'game' => 'SM64'],
+        ], ['HTTP_X_INTERNAL_SECRET' => self::SECRET]);
+        self::assertResponseStatusCodeSame(200);
+
+        // A goal only carries the finishing player.
+        $this->client->jsonRequest('POST', $uri, [
+            'type' => 'goal',
+            'text' => 'Bob has completed their goal',
+            'timestamp' => '2026-05-01T11:00:00+00:00',
+            'sender' => ['slot' => 2, 'name' => 'Bob', 'game' => 'SM64'],
+        ], ['HTTP_X_INTERNAL_SECRET' => self::SECRET]);
+        self::assertResponseStatusCodeSame(200);
+
+        // Join/part/system noise still stays out.
+        $this->client->jsonRequest('POST', $uri, [
+            'type' => 'join',
+            'text' => 'Bob joined',
+            'timestamp' => '2026-05-01T11:00:10+00:00',
+        ], ['HTTP_X_INTERNAL_SECRET' => self::SECRET]);
+        self::assertResponseStatusCodeSame(200);
+
+        $this->entityManager->clear();
+        $stored = $this->entityManager->getRepository(SessionFeedEvent::class)
+            ->findBy(['sessionId' => $sessionId], ['occurredAt' => 'ASC']);
+        self::assertCount(2, $stored, 'hint and goal are persisted, join is not');
+
+        [$hint, $goal] = $stored;
+        self::assertSame('hint', $hint->getType());
+        self::assertSame('Master Sword', $hint->getItemName());
+        self::assertSame(1, $hint->getItemFlags());
+        self::assertSame(1, $hint->getSenderSlot());
+        self::assertSame(2, $hint->getReceiverSlot());
+
+        self::assertSame('goal', $goal->getType());
+        self::assertSame(2, $goal->getSenderSlot());
+        self::assertSame('Bob', $goal->getSenderName());
+        self::assertNull($goal->getItemId());
+        self::assertNull($goal->getLocationId());
+    }
+
     public function testPersonalRunFeedIsPrivateByDefaultButOwnerParticipantAndPublishExposeIt(): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');

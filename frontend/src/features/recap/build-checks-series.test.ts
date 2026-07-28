@@ -135,6 +135,14 @@ describe("buildChecksSeries", () => {
     ]);
   });
 
+  it("counts item events only - hints and goals stay off the curves (story 32.12)", () => {
+    const hint: FeedEvent = { ...itemEvent("h", 1, "Alice", "2026-05-01T10:00:10Z", 1), type: "hint" };
+    const goal: FeedEvent = { ...itemEvent("g", 1, "Alice", "2026-05-01T10:00:20Z"), type: "goal" };
+    const series = buildChecksSeries([itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"), hint, goal]);
+
+    expect(series.rows).toEqual([{ t: START, s1: 1, s1p: 0 }]);
+  });
+
   it("keys and colours players by slot order, not by rank", () => {
     // Bob (slot 2) finds first, but colours follow the slot, so slot 1 keeps series-1.
     const series = buildChecksSeries([
