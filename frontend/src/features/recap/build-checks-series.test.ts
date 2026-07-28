@@ -1,4 +1,4 @@
-import { buildChecksSeries } from "./build-checks-series";
+import { buildChecksSeries, combineChecksSeries } from "./build-checks-series";
 import type { FeedEvent } from "./feed-api";
 
 const START = Date.parse("2026-05-01T10:00:00Z");
@@ -141,6 +141,54 @@ describe("buildChecksSeries", () => {
     const series = buildChecksSeries([itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"), hint, goal]);
 
     expect(series.rows).toEqual([{ t: START, s1: 1, s1p: 0 }]);
+  });
+
+  it("combines the shown players into one curve, summing counts and progression (story 32.14)", () => {
+    const series = buildChecksSeries([
+      itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z", 1),
+      itemEvent("b", 2, "Bob", "2026-05-01T10:00:30Z"),
+      itemEvent("c", 1, "Alice", "2026-05-01T10:01:30Z"),
+    ]);
+
+    const combined = combineChecksSeries(series, new Set([1, 2]));
+
+    expect(combined.players).toHaveLength(1);
+    expect(combined.players[0]).toMatchObject({ key: "all", name: "Tous les joueurs", progressionKey: "allp" });
+    expect(combined.rows).toEqual([
+      { t: START, all: 2, allp: 1 },
+      { t: START + 60_000, all: 1, allp: 0 },
+    ]);
+  });
+
+  it("excludes hidden players from the combined total", () => {
+    const series = buildChecksSeries([
+      itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
+      itemEvent("b", 2, "Bob", "2026-05-01T10:00:30Z"),
+    ]);
+
+    const combined = combineChecksSeries(series, new Set([2]));
+    expect(combined.rows).toEqual([{ t: START, all: 1, allp: 0 }]);
+
+    // Nobody shown: no curve at all.
+    expect(combineChecksSeries(series, new Set())).toEqual({ players: [], rows: [] });
+  });
+
+  it("composes with cumulative mode - a sum of running totals is the running total of the sum", () => {
+    const series = buildChecksSeries(
+      [
+        itemEvent("a", 1, "Alice", "2026-05-01T10:00:00Z"),
+        itemEvent("b", 2, "Bob", "2026-05-01T10:00:30Z"),
+        itemEvent("c", 1, "Alice", "2026-05-01T10:01:30Z"),
+      ],
+      60,
+      { mode: "cumulative" },
+    );
+
+    const combined = combineChecksSeries(series, new Set([1, 2]));
+    expect(combined.rows).toEqual([
+      { t: START, all: 2, allp: 0 },
+      { t: START + 60_000, all: 3, allp: 0 },
+    ]);
   });
 
   it("keys and colours players by slot order, not by rank", () => {

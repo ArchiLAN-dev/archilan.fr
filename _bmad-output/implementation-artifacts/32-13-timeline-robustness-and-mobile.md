@@ -87,6 +87,16 @@ mis-zoom), and collapsing the travellers inside an exactly-two-point zoom leaves
 at one point until the next brush interaction (controlled props only resync on value change).
 `contain-intrinsic-size: 34px` can make the scrollbar twitch when rows wrap to two lines (cosmetic).
 
+### Mobile layout pass (2026-07-28, user-reported, verified in-browser at 375 px)
+
+The chart and log controls broke on a phone: the six-option facet group (Tous/Reçus/Envoyés/
+Locaux/Indices/Objectifs) overflowed the viewport and got clipped, and the X-axis ticks collided
+at narrow widths. Fixes, checked live at 375 px (no horizontal scroll, facets fold onto two rows):
+`Segmented`'s option group wraps internally (`flex-wrap` + `max-w-full`), the X axis gets
+`minTickGap={24}`, and the chart is taller on phones (`h-80 sm:h-72`) to compensate for the
+legend + brush share of the box. Goal-marker labels can still clip at the plot edge (recharts
+`Label` has no collision avoidance) - cosmetic, the "Chronologie des objectifs" list has the data.
+
 ### Post-merge fix (2026-07-28, reported live)
 
 Console errors "Received NaN for the `x` attribute" on the Brush rects, four per incoming live

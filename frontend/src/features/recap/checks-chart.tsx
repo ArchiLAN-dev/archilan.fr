@@ -149,7 +149,7 @@ export function ChecksChart({
   }
 
   return (
-    <div className="h-72 w-full select-none">
+    <div className="h-80 w-full select-none sm:h-72">
       <ResponsiveContainer height="100%" width="100%">
         <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseLeave={onLeave} onMouseMove={onMove} onMouseUp={onUp}>
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
@@ -158,6 +158,7 @@ export function ChecksChart({
             axisLine={{ stroke: "var(--color-border)" }}
             dataKey="t"
             domain={zoom ?? ["dataMin", "dataMax"]}
+            minTickGap={24}
             scale="time"
             tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
             tickFormatter={tick}

@@ -42,6 +42,37 @@ const SERIES_COLORS = [
   "var(--chart-series-8)",
 ] as const;
 
+/**
+ * Folds a per-player series into one "all players combined" curve (story 32.14): each bucket sums
+ * the kept players' counts and progression counts. A sum of running totals is the running total of
+ * the sum, so this composes with cumulative mode as-is. `shownSlots` keeps the player filter
+ * meaningful - a hidden player stays out of the total. Derived from the split series (same buckets,
+ * same gap rows), never rebuilt from events.
+ */
+export function combineChecksSeries(series: ChecksSeries, shownSlots: ReadonlySet<number>): ChecksSeries {
+  const kept = series.players.filter((player) => shownSlots.has(player.slot));
+  if (kept.length === 0) {
+    return { players: [], rows: [] };
+  }
+  const combined: ChecksPlayer = {
+    key: "all",
+    slot: -1,
+    name: "Tous les joueurs",
+    color: SERIES_COLORS[0],
+    progressionKey: "allp",
+  };
+  const rows = series.rows.map((row) => {
+    let total = 0;
+    let progression = 0;
+    for (const player of kept) {
+      total += row[player.key] ?? 0;
+      progression += row[player.progressionKey] ?? 0;
+    }
+    return { t: row.t, [combined.key]: total, [combined.progressionKey]: progression };
+  });
+  return { players: [combined], rows };
+}
+
 export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60, options: ChecksOptions = {}): ChecksSeries {
   const measure: ChecksMeasure = options.measure ?? "found";
   const mode: ChecksMode = options.mode ?? "interval";
