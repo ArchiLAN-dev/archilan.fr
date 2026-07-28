@@ -116,7 +116,7 @@ function normalize(event: OverlayFeedEvent): FeedEvent | null {
     type: event.type,
     text: event.text ?? "",
     occurredAt: event.timestamp,
-    item: { id: event.item?.id ?? null, name: event.item?.name ?? null },
+    item: { id: event.item?.id ?? null, name: event.item?.name ?? null, flags: event.item?.flags ?? null },
     location: { id: event.location?.id ?? null, name: event.location?.name ?? null },
     sender: { slot: senderSlot, name: event.sender?.name ?? null, game: event.sender?.game ?? null },
     receiver: { slot: event.receiver?.slot ?? null, name: event.receiver?.name ?? null, game: event.receiver?.game ?? null },

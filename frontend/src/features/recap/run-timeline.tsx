@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries } from "./build-checks-series";
-import { ChecksChart } from "./checks-chart";
+import { ChecksChart, type ChartGoal } from "./checks-chart";
+
+/**
+ * A player's goal-reached instant (story 32.9). `name` is the AP slot name - the same name the feed
+ * events carry as sender, which is how the marker finds its player (and colour) on the chart.
+ */
+export type GoalMarker = { name: string; at: string };
 
 const MAX_ROWS = 300;
 
@@ -21,8 +27,11 @@ const BUCKETS = [
  * one day's rhythm rather than squashing everything onto one axis. Filtering by player hides lines and
  * log rows without repainting the survivors (colour follows the slot). Empty when the run has no item
  * events (a game that produced none, or one still generating).
+ *
+ * `goals` (story 32.9) mark each player's goal-reached instant on the curve; a marker follows its
+ * player through the day pager, the zoom and the player filter (hiding a player hides their marker).
  */
-export function RunTimeline({ events }: { events: FeedEvent[] }) {
+export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals?: GoalMarker[] }) {
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -52,6 +61,14 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
 
   const shownPlayers = series.players.filter((p) => !hidden.has(p.slot));
   const shownSlots = new Set(shownPlayers.map((p) => p.slot));
+
+  // Goal markers for the shown day and players, resolved to their series colour by AP slot name.
+  const chartGoals: ChartGoal[] = goals.flatMap((goal) => {
+    const at = Date.parse(goal.at);
+    if (Number.isNaN(at) || currentDay === null || dayKey(goal.at) !== currentDay) return [];
+    const player = shownPlayers.find((p) => p.name === goal.name);
+    return player === undefined ? [] : [{ key: player.key, name: player.name, color: player.color, at }];
+  });
 
   // The log follows both the player filter and the chart zoom - zooming a range narrows the log to it.
   const shown = dayEvents.filter(
@@ -85,7 +102,8 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
           Déroulé de la partie
         </h2>
         <p className="text-sm text-muted-foreground">
-          Checks trouvés au fil du temps et journal des objets. Clique un joueur pour le masquer.
+          Checks trouvés au fil du temps et journal des objets. Un point plein marque un objet de progression,
+          un trait vertical le moment où un joueur atteint son objectif. Clique un joueur pour le masquer.
         </p>
       </div>
 
@@ -173,6 +191,7 @@ export function RunTimeline({ events }: { events: FeedEvent[] }) {
       </div>
 
       <ChecksChart
+        goals={chartGoals}
         markerT={hoverEventT}
         onHoverBucket={setHoverBucket}
         onZoom={setZoom}

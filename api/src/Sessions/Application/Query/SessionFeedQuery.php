@@ -43,7 +43,7 @@ final readonly class SessionFeedQuery
                 'type' => $event->getType(),
                 'text' => $event->getText(),
                 'occurredAt' => $event->getOccurredAt()->format(\DateTimeInterface::ATOM),
-                'item' => ['id' => $event->getItemId(), 'name' => $event->getItemName()],
+                'item' => ['id' => $event->getItemId(), 'name' => $event->getItemName(), 'flags' => $event->getItemFlags()],
                 'location' => ['id' => $event->getLocationId(), 'name' => $event->getLocationName()],
                 'sender' => [
                     'slot' => $event->getSenderSlot(),

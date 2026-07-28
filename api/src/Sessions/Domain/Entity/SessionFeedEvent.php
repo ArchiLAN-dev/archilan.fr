@@ -44,6 +44,9 @@ final class SessionFeedEvent
         #[ORM\Column(name: 'item_name', type: Types::STRING, length: 255, nullable: true)]
         private ?string $itemName,
 
+        #[ORM\Column(name: 'item_flags', type: Types::INTEGER, nullable: true)]
+        private ?int $itemFlags,
+
         #[ORM\Column(name: 'location_id', type: Types::INTEGER, nullable: true)]
         private ?int $locationId,
 
@@ -103,6 +106,12 @@ final class SessionFeedEvent
     public function getItemName(): ?string
     {
         return $this->itemName;
+    }
+
+    /** AP item classification bits (1 = progression); null when the bridge sent none. */
+    public function getItemFlags(): ?int
+    {
+        return $this->itemFlags;
     }
 
     public function getLocationId(): ?int

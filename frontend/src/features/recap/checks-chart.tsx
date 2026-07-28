@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Key } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ChecksPlayer, ChecksRow } from "./build-checks-series";
 
@@ -9,12 +9,37 @@ type ChartMouse = { activeLabel?: string | number };
 
 type Zoom = [number, number] | null;
 
+/** A player's goal-reached instant (story 32.9), already resolved to their series colour. */
+export type ChartGoal = { key: string; name: string; color: string; at: number };
+
+/** What recharts hands a Line's `dot` renderer; only the fields we read. */
+type DotRenderProps = { key?: Key | null; cx?: number; cy?: number; payload?: ChecksRow };
+
+/**
+ * Marks the buckets where this player found at least one *progression* item (story 32.9) with a
+ * filled dot on their line; other buckets get an invisible zero-radius dot (recharts requires an
+ * element per point). Rows persisted before the flag existed count 0 and stay dot-less.
+ */
+function progressionDot(player: ChecksPlayer) {
+  return function renderDot({ key, cx, cy, payload }: DotRenderProps) {
+    const count = payload?.[player.progressionKey] ?? 0;
+    if (cx === undefined || cy === undefined || count === 0) {
+      return <circle cx={cx} cy={cy} fill="none" key={key} r={0} stroke="none" />;
+    }
+    return <circle cx={cx} cy={cy} fill={player.color} key={key} r={3.5} stroke="var(--color-surface)" strokeWidth={1} />;
+  };
+}
+
 /**
  * Checks over time, one line per player. Colours come from the player (by slot), so hiding a player
  * never repaints the others. The X axis is real time-of-day (tight to the data - no empty run-up), with
  * the date shown when the run spans more than one day. Drag across the plot to select a range and zoom
  * into it; the committed zoom is owned by the parent (`zoom`/`onZoom`) so the reset control can sit with
  * the other filters. Dark-surface tooltip/grid via the app tokens.
+ *
+ * `goals` drop a dashed vertical line (in the player's colour, labelled with their name) at each
+ * player's goal-reached instant; `ifOverflow="hidden"` keeps them honest under the zoom, and the
+ * parent already filters them per day.
  */
 export function ChecksChart({
   players,
@@ -23,6 +48,7 @@ export function ChecksChart({
   onZoom,
   onHoverBucket,
   markerT,
+  goals,
 }: {
   players: ChecksPlayer[];
   rows: ChecksRow[];
@@ -30,6 +56,7 @@ export function ChecksChart({
   onZoom: (zoom: Zoom) => void;
   onHoverBucket: (t: number | null) => void;
   markerT: number | null;
+  goals: ChartGoal[];
 }) {
   // Transient drag selection (start/current X, in `t` epoch ms); the committed zoom lives in the parent.
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -117,13 +144,24 @@ export function ChecksChart({
           {players.map((player) => (
             <Line
               dataKey={player.key}
-              dot={false}
+              dot={progressionDot(player)}
               isAnimationActive={false}
               key={player.key}
               name={player.name}
               stroke={player.color}
               strokeWidth={2}
               type="monotone"
+            />
+          ))}
+          {goals.map((goal) => (
+            <ReferenceLine
+              ifOverflow="hidden"
+              key={`goal-${goal.key}`}
+              label={{ value: goal.name, position: "insideTop", fill: goal.color, fontSize: 11 }}
+              stroke={goal.color}
+              strokeDasharray="6 4"
+              strokeWidth={1.5}
+              x={goal.at}
             />
           ))}
           {markerT !== null ? (

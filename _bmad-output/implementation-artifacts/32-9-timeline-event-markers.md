@@ -1,6 +1,6 @@
 # Story 32.9: Timeline event markers - goal reached & progression items
 
-**Status:** draft
+**Status:** review
 **Epic:** 32 - Recaps
 **Date:** 2026-07-28
 
@@ -50,3 +50,27 @@ The checks curve (`ChecksChart`) shows checks-per-bucket per player over real ti
 - Files: `frontend/src/features/recap/checks-chart.tsx` (markers), `build-checks-series.ts` (may expose
   per-bucket progression counts), `feed-api.ts` (flag field), `api` `SessionFeedEvent` + bridge (flags).
 - Reference: `SessionRecapView` "Chronologie des objectifs" already uses `goalReachedAt`.
+
+## Dev Notes (implementation, 2026-07-28)
+
+Confirmed at the source: the AP `ItemSend` PrintJSON carries `flags` on its NetworkItem (the bridge
+already read them in `_track_item_send`), so no DataPackageStore lookup was needed - the full
+"bridge + persistence + render" path of AC 2 shipped in one pass.
+
+- **Bridge** (separate repo, commit `088d299`): `_build_item_origin` now emits
+  `item: {id, name, flags}` (0 when the server sends none). Ruff/pytest/mypy green.
+- **API**: `session_feed_event.item_flags` nullable INT (migration `Version20260728120000`);
+  `RecordSessionFeedEvent` persists `item.flags`; `SessionFeedQuery` exposes it. Old rows stay null
+  and simply render dot-less. `RunResultsQuery` podium rows gained `slotName` (the AP in-world name) -
+  the join key between a podium entry and the feed's sender names.
+- **Frontend**: `FeedEvent.item.flags` (guard updated; live path passes the bridge flag through, so
+  progression dots work on the live timeline too). `buildChecksSeries` counts progression finds
+  (flags bit 1) per player per bucket under `progressionKey`; `ChecksChart` renders a filled dot on
+  the player's line for those buckets, and one dashed `ReferenceLine` per goal (player colour,
+  `ifOverflow="hidden"` so the zoom clips it; the parent filters by day and by the player filter).
+  `SessionRecapView` builds the goal markers from `podium[].goalReachedAt` + `slotName`.
+- **AC 1 deviation**: the goal marker label (player name) is always visible rather than hover-only -
+  recharts `ReferenceLine` has no hover affordance, and a permanent small label reads better anyway.
+- **Live goal markers** stay deferred as planned (no goal signal on the live feed yet).
+- Included gate fix (exempt change): memoized the `state` fallback in `admin-content-dashboard.tsx` -
+  `pnpm lint` on develop emitted a react-hooks/exhaustive-deps warning, and the lint gate is 0 warnings.

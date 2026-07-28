@@ -13,8 +13,10 @@ use Psr\Clock\ClockInterface;
  *
  * Only **item** events are kept - they are what the timeline and per-player check curves are built
  * from (a solo self-find is still an item event). Chat/join/part/system events are ignored. The
- * pushed shape is `{type, text, timestamp, item:{id,name}, location:{id,name}, sender:{slot,name,game},
- * receiver:{slot,name,game}}`; `type` is already mapped to `item-received` by the controller.
+ * pushed shape is `{type, text, timestamp, item:{id,name,flags}, location:{id,name},
+ * sender:{slot,name,game}, receiver:{slot,name,game}}`; `type` is already mapped to `item-received`
+ * by the controller. `item.flags` are the AP classification bits (1 = progression, story 32.9);
+ * an older bridge omits them and the row keeps null.
  */
 final readonly class RecordSessionFeedEvent
 {
@@ -49,6 +51,7 @@ final readonly class RecordSessionFeedEvent
             $this->occurredAt($event),
             self::intOrNull($item, 'id'),
             self::stringOrNull($item, 'name'),
+            self::intOrNull($item, 'flags'),
             self::intOrNull($location, 'id'),
             self::stringOrNull($location, 'name'),
             self::intOrNull($sender, 'slot'),
