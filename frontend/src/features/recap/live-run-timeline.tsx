@@ -36,8 +36,6 @@ export function LiveRunTimeline({ sessionId }: { sessionId: string }) {
     let cancelled = false;
     let source: EventSource | null = null;
     let reconnect: ReturnType<typeof setTimeout> | null = null;
-    // Whether a connection was already established once - a later onopen is then a *re*connect.
-    let hadConnection = false;
 
     function connect(token: string, hubUrl: string, topic: string): void {
       if (cancelled) return;
@@ -49,15 +47,13 @@ export function LiveRunTimeline({ sessionId }: { sessionId: string }) {
       source.onopen = () => {
         if (cancelled) return;
         setConnected(true);
-        // Mercure is pub/sub with no replay: frames pushed during an outage are gone from the
-        // stream. On reconnect, re-pull the persisted feed and merge - the dedup keys absorb the
-        // overlap, so the gap fills without a manual reload (story 32.13).
-        if (hadConnection) {
-          void fetchSessionFeed(sessionId).then((snapshot) => {
-            if (!cancelled) setEvents((live) => mergeMany(live, snapshot));
-          });
-        }
-        hadConnection = true;
+        // Mercure is pub/sub with no replay: frames pushed while the stream was down are gone. On
+        // every open, re-pull the persisted feed and merge - the dedup keys absorb the overlap
+        // (story 32.13). Covering the *first* open too closes the window between the initial fetch
+        // and the subscription handshake, at the cost of one redundant GET.
+        void fetchSessionFeed(sessionId).then((snapshot) => {
+          if (!cancelled) setEvents((live) => mergeMany(live, snapshot));
+        });
       };
       source.onmessage = (event) => {
         if (typeof event.data !== "string") return;

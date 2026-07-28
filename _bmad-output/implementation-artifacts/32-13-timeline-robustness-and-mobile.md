@@ -64,3 +64,25 @@ All four hardenings shipped, frontend-only, no API change:
   `zoom` as the desktop drag (full-range brush maps to `zoom: null`), and mirrors external zoom
   changes back as a controlled index window - the two mechanisms stay in sync and the reset button
   clears both. Drag-zoom kept as-is for desktop.
+
+### Review (2026-07-28, two independent passes + recharts 3.10.1 source verification)
+
+Two confirmed Brush/zoom bugs found and fixed before merge (recharts 3's Brush *slices* the chart
+data to [startIndex, endIndex], it does not merely mirror the domain):
+
+- Bucket/measure switch under an active zoom could invert the two index lookups (start > end) and
+  slice the chart empty - the controlled window is now order-clamped.
+- Collapsing the travellers onto one index sliced the chart to a single point while `onBrush`
+  silently ignored the event (recharts' internal dispatch runs before the app callback) - the
+  handler now re-imposes a two-point window and commits it as the zoom.
+
+Also hardened on review: the reconnect refetch now runs on *every* `onopen` (not only reconnects),
+closing the pre-existing first-open window between the initial fetch and the subscription handshake
+(one redundant GET, absorbed by dedup). Refuted as not-a-bug: duplicate rows for events without
+`location.id` cannot occur - the bridge omits the whole structured origin when the location is
+unresolvable, so such frames never pass `normalize()`; goals dedup by slot. Known residual risks,
+accepted: a one-frame race can start a phantom drag-select when clicking the brush < 16 ms after
+leaving the plot (recharts throttles mousemove but not mousedown; needs a precise pointer dance to
+mis-zoom), and collapsing the travellers inside an exactly-two-point zoom leaves the internal slice
+at one point until the next brush interaction (controlled props only resync on value change).
+`contain-intrinsic-size: 34px` can make the scrollbar twitch when rows wrap to two lines (cosmetic).

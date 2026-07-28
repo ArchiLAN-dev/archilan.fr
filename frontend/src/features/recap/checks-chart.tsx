@@ -111,16 +111,28 @@ export function ChecksChart({
 
   // The Brush (story 32.13) is the touch-friendly zoom: it drives the same committed `zoom` the
   // desktop drag uses, and mirrors it back as a controlled index window so the two stay in sync.
-  const brushStart = zoom === null ? 0 : Math.max(0, rows.findIndex((row) => row.t >= zoom[0]));
+  // In recharts 3 the Brush *slices* the chart data to [startIndex, endIndex], so the window must
+  // always be a valid ordered pair: after a bucket/measure switch re-grids the rows under an active
+  // zoom, the two index lookups can land inverted (slice would be empty) - clamp the order.
+  const rawStart = zoom === null ? 0 : Math.max(0, rows.findIndex((row) => row.t >= zoom[0]));
   const lastInZoom = zoom === null ? -1 : rows.findLastIndex((row) => row.t <= zoom[1]);
-  const brushEnd = lastInZoom === -1 ? rows.length - 1 : lastInZoom;
+  const rawEnd = lastInZoom === -1 ? rows.length - 1 : lastInZoom;
+  const brushStart = Math.min(rawStart, rawEnd);
+  const brushEnd = Math.max(rawStart, rawEnd);
 
   function onBrush(range: { startIndex?: number; endIndex?: number }): void {
-    const start = range.startIndex ?? 0;
-    const end = range.endIndex ?? rows.length - 1;
+    let start = range.startIndex ?? 0;
+    let end = range.endIndex ?? rows.length - 1;
     if (start <= 0 && end >= rows.length - 1) {
       onZoom(null);
       return;
+    }
+    // The travellers can meet on a single index, and recharts has by then already sliced the chart
+    // to that lone point (its internal dispatch runs before this callback) - silently ignoring the
+    // event would leave an emptied plot with no zoom state. Re-impose a two-point window instead.
+    if (end <= start) {
+      if (start + 1 <= rows.length - 1) end = start + 1;
+      else start = end - 1;
     }
     const from = rows[start]?.t;
     const to = rows[end]?.t;
