@@ -1,6 +1,6 @@
 # Story 32.13: Timeline robustness & mobile
 
-**Status:** draft
+**Status:** review
 **Epic:** 32 - Recaps
 **Date:** 2026-07-28
 
@@ -45,3 +45,44 @@ The timeline (stories 32.7/32.8) works but has known rough edges flagged during 
   `live-run-timeline.tsx` (reconnect re-fetch), `checks-chart.tsx` (Brush).
 - Virtualization: no library is installed today; either add a small windowing lib or hand-roll, weighing
   the project's lean-deps stance.
+
+## Dev Notes (implementation, 2026-07-28)
+
+All four hardenings shipped, frontend-only, no API change:
+
+- **Hover throttle (AC 1)**: `RunTimeline` coalesces the chart's per-mousemove hover reports to at
+  most one state commit per animation frame (rAF + latest-value ref, cancelled on unmount).
+- **Log cost (AC 1)**: rows extracted to a memoized `LogRow` - across a highlight change only the
+  rows entering/leaving the highlight re-render, not all 300. Instead of a windowing library, each
+  row gets `content-visibility: auto` + `contain-intrinsic-size` (arbitrary-property Tailwind
+  classes): the browser skips layout/paint for off-screen rows - native windowing, zero new deps
+  (the lean-deps call the story asked to weigh). Unsupporting browsers just render normally.
+- **Reconnect catch-up (AC 2)**: on a *re*connect `onopen` (first open is tracked), the live
+  timeline re-pulls the persisted feed and merges; the 32.12 type-aware dedup keys absorb the
+  overlap, so an SSE outage fills without a reload.
+- **Touch zoom (AC 3)**: a recharts `Brush` (22 px) under the chart drives the same committed
+  `zoom` as the desktop drag (full-range brush maps to `zoom: null`), and mirrors external zoom
+  changes back as a controlled index window - the two mechanisms stay in sync and the reset button
+  clears both. Drag-zoom kept as-is for desktop.
+
+### Review (2026-07-28, two independent passes + recharts 3.10.1 source verification)
+
+Two confirmed Brush/zoom bugs found and fixed before merge (recharts 3's Brush *slices* the chart
+data to [startIndex, endIndex], it does not merely mirror the domain):
+
+- Bucket/measure switch under an active zoom could invert the two index lookups (start > end) and
+  slice the chart empty - the controlled window is now order-clamped.
+- Collapsing the travellers onto one index sliced the chart to a single point while `onBrush`
+  silently ignored the event (recharts' internal dispatch runs before the app callback) - the
+  handler now re-imposes a two-point window and commits it as the zoom.
+
+Also hardened on review: the reconnect refetch now runs on *every* `onopen` (not only reconnects),
+closing the pre-existing first-open window between the initial fetch and the subscription handshake
+(one redundant GET, absorbed by dedup). Refuted as not-a-bug: duplicate rows for events without
+`location.id` cannot occur - the bridge omits the whole structured origin when the location is
+unresolvable, so such frames never pass `normalize()`; goals dedup by slot. Known residual risks,
+accepted: a one-frame race can start a phantom drag-select when clicking the brush < 16 ms after
+leaving the plot (recharts throttles mousemove but not mousedown; needs a precise pointer dance to
+mis-zoom), and collapsing the travellers inside an exactly-two-point zoom leaves the internal slice
+at one point until the next brush interaction (controlled props only resync on value change).
+`contain-intrinsic-size: 34px` can make the scrollbar twitch when rows wrap to two lines (cosmetic).

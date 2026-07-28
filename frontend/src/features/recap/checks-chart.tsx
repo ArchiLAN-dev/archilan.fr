@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Key } from "react";
-import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Brush, CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ChecksPlayer, ChecksRow } from "./build-checks-series";
 
 /** Recharts hands its mouse handlers the chart state; we only read the X value under the cursor. */
@@ -109,6 +109,38 @@ export function ChecksChart({
 
   const selecting = dragFrom !== null && dragTo !== null && dragFrom !== dragTo;
 
+  // The Brush (story 32.13) is the touch-friendly zoom: it drives the same committed `zoom` the
+  // desktop drag uses, and mirrors it back as a controlled index window so the two stay in sync.
+  // In recharts 3 the Brush *slices* the chart data to [startIndex, endIndex], so the window must
+  // always be a valid ordered pair: after a bucket/measure switch re-grids the rows under an active
+  // zoom, the two index lookups can land inverted (slice would be empty) - clamp the order.
+  const rawStart = zoom === null ? 0 : Math.max(0, rows.findIndex((row) => row.t >= zoom[0]));
+  const lastInZoom = zoom === null ? -1 : rows.findLastIndex((row) => row.t <= zoom[1]);
+  const rawEnd = lastInZoom === -1 ? rows.length - 1 : lastInZoom;
+  const brushStart = Math.min(rawStart, rawEnd);
+  const brushEnd = Math.max(rawStart, rawEnd);
+
+  function onBrush(range: { startIndex?: number; endIndex?: number }): void {
+    let start = range.startIndex ?? 0;
+    let end = range.endIndex ?? rows.length - 1;
+    if (start <= 0 && end >= rows.length - 1) {
+      onZoom(null);
+      return;
+    }
+    // The travellers can meet on a single index, and recharts has by then already sliced the chart
+    // to that lone point (its internal dispatch runs before this callback) - silently ignoring the
+    // event would leave an emptied plot with no zoom state. Re-impose a two-point window instead.
+    if (end <= start) {
+      if (start + 1 <= rows.length - 1) end = start + 1;
+      else start = end - 1;
+    }
+    const from = rows[start]?.t;
+    const to = rows[end]?.t;
+    if (from !== undefined && to !== undefined && from < to) {
+      onZoom([from, to]);
+    }
+  }
+
   return (
     <div className="h-72 w-full select-none">
       <ResponsiveContainer height="100%" width="100%">
@@ -183,6 +215,17 @@ export function ChecksChart({
               x2={Math.max(dragFrom, dragTo)}
             />
           ) : null}
+          <Brush
+            dataKey="t"
+            endIndex={brushEnd}
+            fill="var(--color-surface)"
+            height={22}
+            onChange={onBrush}
+            startIndex={brushStart}
+            stroke="var(--color-border)"
+            tickFormatter={tick}
+            travellerWidth={8}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

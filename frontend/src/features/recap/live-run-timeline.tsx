@@ -45,7 +45,15 @@ export function LiveRunTimeline({ sessionId }: { sessionId: string }) {
       source = new EventSource(url.toString());
 
       source.onopen = () => {
-        if (!cancelled) setConnected(true);
+        if (cancelled) return;
+        setConnected(true);
+        // Mercure is pub/sub with no replay: frames pushed while the stream was down are gone. On
+        // every open, re-pull the persisted feed and merge - the dedup keys absorb the overlap
+        // (story 32.13). Covering the *first* open too closes the window between the initial fetch
+        // and the subscription handshake, at the cost of one redundant GET.
+        void fetchSessionFeed(sessionId).then((snapshot) => {
+          if (!cancelled) setEvents((live) => mergeMany(live, snapshot));
+        });
       };
       source.onmessage = (event) => {
         if (typeof event.data !== "string") return;
