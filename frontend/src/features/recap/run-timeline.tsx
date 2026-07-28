@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
@@ -69,6 +69,25 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
   // hovered in the log (drops a marker line on the chart).
   const [hoverBucket, setHoverBucket] = useState<number | null>(null);
   const [hoverEventT, setHoverEventT] = useState<number | null>(null);
+
+  // The chart reports the hovered bucket on every mousemove; committing that straight to state
+  // re-renders the log per move. Coalesce to at most one commit per animation frame (story 32.13).
+  const pendingHover = useRef<number | null>(null);
+  const hoverRaf = useRef<number | null>(null);
+  const onHoverBucket = useCallback((t: number | null) => {
+    pendingHover.current = t;
+    if (hoverRaf.current !== null) return;
+    hoverRaf.current = requestAnimationFrame(() => {
+      hoverRaf.current = null;
+      setHoverBucket(pendingHover.current);
+    });
+  }, []);
+  useEffect(
+    () => () => {
+      if (hoverRaf.current !== null) cancelAnimationFrame(hoverRaf.current);
+    },
+    [],
+  );
   // Log lookup (story 32.11): free-text search + exchange-type facet, applied before the row cap.
   const [search, setSearch] = useState("");
   const [facet, setFacet] = useState<LogFacet>("all");
@@ -246,7 +265,7 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
         goals={chartGoals}
         markerT={hoverEventT}
         measureLabel={MEASURES.find((option) => option.value === measure)?.label ?? ""}
-        onHoverBucket={setHoverBucket}
+        onHoverBucket={onHoverBucket}
         onZoom={setZoom}
         players={shownPlayers}
         rows={series.rows}
@@ -278,24 +297,41 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
         {rows.map((event) => {
           const t = Date.parse(event.occurredAt);
           const highlighted = hoverBucket !== null && t >= hoverBucket && t < hoverBucket + bucketSeconds * 1000;
-          return (
-            <li
-              className={`flex items-start gap-3 rounded px-2 py-1.5 text-sm ${highlighted ? "bg-accent-text/15 ring-1 ring-accent-text/40" : "odd:bg-background/40"}`}
-              key={event.id}
-              onMouseEnter={() => setHoverEventT(t)}
-              onMouseLeave={() => setHoverEventT(null)}
-            >
-              <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{timeOf(event.occurredAt)}</span>
-              <span className="min-w-0 flex-1 text-body-foreground">
-                <LogRowContent event={event} />
-              </span>
-            </li>
-          );
+          return <LogRow event={event} highlighted={highlighted} key={event.id} onHover={setHoverEventT} />;
         })}
       </ol>
     </section>
   );
 }
+
+/**
+ * One log row, memoized (story 32.13): across a hover-highlight change only the rows entering or
+ * leaving the highlight re-render, not all 300. `content-visibility` lets the browser skip layout
+ * and paint for off-screen rows - native windowing without a virtualization dependency.
+ */
+const LogRow = memo(function LogRow({
+  event,
+  highlighted,
+  onHover,
+}: {
+  event: FeedEvent;
+  highlighted: boolean;
+  onHover: (t: number | null) => void;
+}) {
+  const t = Date.parse(event.occurredAt);
+  return (
+    <li
+      className={`flex items-start gap-3 rounded px-2 py-1.5 text-sm [contain-intrinsic-size:auto_34px] [content-visibility:auto] ${highlighted ? "bg-accent-text/15 ring-1 ring-accent-text/40" : "odd:bg-background/40"}`}
+      onMouseEnter={() => onHover(t)}
+      onMouseLeave={() => onHover(null)}
+    >
+      <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{timeOf(event.occurredAt)}</span>
+      <span className="min-w-0 flex-1 text-body-foreground">
+        <LogRowContent event={event} />
+      </span>
+    </li>
+  );
+});
 
 /**
  * One log row's prose, by event type (story 32.12): an item find (the 32.7 shapes), a hint (intent -

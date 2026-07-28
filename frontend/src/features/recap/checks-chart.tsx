@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Key } from "react";
-import { CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Brush, CartesianGrid, Legend, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { ChecksPlayer, ChecksRow } from "./build-checks-series";
 
 /** Recharts hands its mouse handlers the chart state; we only read the X value under the cursor. */
@@ -109,6 +109,26 @@ export function ChecksChart({
 
   const selecting = dragFrom !== null && dragTo !== null && dragFrom !== dragTo;
 
+  // The Brush (story 32.13) is the touch-friendly zoom: it drives the same committed `zoom` the
+  // desktop drag uses, and mirrors it back as a controlled index window so the two stay in sync.
+  const brushStart = zoom === null ? 0 : Math.max(0, rows.findIndex((row) => row.t >= zoom[0]));
+  const lastInZoom = zoom === null ? -1 : rows.findLastIndex((row) => row.t <= zoom[1]);
+  const brushEnd = lastInZoom === -1 ? rows.length - 1 : lastInZoom;
+
+  function onBrush(range: { startIndex?: number; endIndex?: number }): void {
+    const start = range.startIndex ?? 0;
+    const end = range.endIndex ?? rows.length - 1;
+    if (start <= 0 && end >= rows.length - 1) {
+      onZoom(null);
+      return;
+    }
+    const from = rows[start]?.t;
+    const to = rows[end]?.t;
+    if (from !== undefined && to !== undefined && from < to) {
+      onZoom([from, to]);
+    }
+  }
+
   return (
     <div className="h-72 w-full select-none">
       <ResponsiveContainer height="100%" width="100%">
@@ -183,6 +203,17 @@ export function ChecksChart({
               x2={Math.max(dragFrom, dragTo)}
             />
           ) : null}
+          <Brush
+            dataKey="t"
+            endIndex={brushEnd}
+            fill="var(--color-surface)"
+            height={22}
+            onChange={onBrush}
+            startIndex={brushStart}
+            stroke="var(--color-border)"
+            tickFormatter={tick}
+            travellerWidth={8}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
