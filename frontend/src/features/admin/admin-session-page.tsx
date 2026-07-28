@@ -1050,11 +1050,11 @@ function SessionDetail({
         </div>
       </div>
 
-      {/* ── Tab bar ── */}
-      <div className="flex gap-1 border-b border-border bg-surface px-4">
+      {/* ── Tab bar ── one scrollable row on every width, same pattern as the run page (16.12). */}
+      <div className="flex gap-1 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TABS.map((tab) => (
           <button
-            className={`px-4 py-3 text-sm font-medium transition-colors ${
+            className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "border-b-2 border-accent-text text-foreground"
                 : "text-muted-foreground hover:text-foreground"

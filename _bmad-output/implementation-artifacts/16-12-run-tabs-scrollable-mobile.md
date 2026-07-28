@@ -38,3 +38,5 @@ one row, edge fade to signal overflow, active tab auto-scrolled into view.
   `{block: "nearest", inline: "nearest"}` - `nearest` avoids the vertical jump.
 - Verified in-browser at 375 px (single row, fade visible, active tab in view) and at desktop
   width (unchanged).
+- Rollout: the admin session page's four-tab bar (`admin-session-page.tsx`) got the same
+  scrollable-row treatment (no fade or auto-scroll needed there - four short tabs, admin surface).
