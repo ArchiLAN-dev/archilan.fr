@@ -97,6 +97,12 @@ at narrow widths. Fixes, checked live at 375 px (no horizontal scroll, facets fo
 legend + brush share of the box. Goal-marker labels can still clip at the plot edge (recharts
 `Label` has no collision avoidance) - cosmetic, the "Chronologie des objectifs" list has the data.
 
+Second iteration (user request): below `sm`, every view control renders as a **native `<select>`**
+(the OS picker, which can never overflow a narrow viewport) and the segmented button group only
+shows from `sm` up. The bucket picker joined the same generic `Segmented` component (string
+values, parsed back to seconds), so all five controls - Mesure, Courbe, Joueurs, Regroupement,
+Type - share the one responsive behaviour. Verified in-browser at 375 px.
+
 ### Post-merge fix (2026-07-28, reported live)
 
 Console errors "Received NaN for the `x` attribute" on the Brush rects, four per incoming live
