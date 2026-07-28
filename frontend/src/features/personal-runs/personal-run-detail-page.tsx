@@ -453,6 +453,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const tab: RunTab = isRunTab(tabParam) ? tabParam : "overview";
   const prevStatusRef = useRef<string | null>(null);
   const restartRequestedRef = useRef(false);
+  // The tab bar scrolls horizontally on a phone (story 16.12); keep the active tab in view when
+  // it changes (or when the page lands on a deep-linked tab past the scrollable edge).
+  const tabListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const active = tabListRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    active?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [tab]);
 
   // fetchPersonalRun never throws (404/403, server errors and network failures are encoded in the
   // result's `kind`), so the query never errors and - like the old effect - never retries.
@@ -839,29 +846,37 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           )}
         </header>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1 border-b border-border" role="tablist">
-          {tabs.map((t) => {
-            const active = t.key === activeTab;
-            return (
-              <button
-                aria-selected={active}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
-                  active
-                    ? "border-accent text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-                key={t.key}
-                onClick={() => {
-                  selectTab(t.key);
-                }}
-                role="tab"
-                type="button"
-              >
-                {t.label}
-              </button>
-            );
-          })}
+        {/* Tabs: one row on every width - horizontal scroll on a phone (never a wrapped block),
+            with a right-edge fade hinting at the overflow (story 16.12). */}
+        <div className="relative">
+          <div
+            className="flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            ref={tabListRef}
+            role="tablist"
+          >
+            {tabs.map((t) => {
+              const active = t.key === activeTab;
+              return (
+                <button
+                  aria-selected={active}
+                  className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+                    active
+                      ? "border-accent text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  key={t.key}
+                  onClick={() => {
+                    selectTab(t.key);
+                  }}
+                  role="tab"
+                  type="button"
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" />
         </div>
 
         {/* My games card - visible to owner + participants when configurable */}
