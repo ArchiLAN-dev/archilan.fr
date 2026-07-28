@@ -1,6 +1,6 @@
 # Story 32.11: Exchange log - search & type facets
 
-**Status:** draft
+**Status:** review
 **Epic:** 32 - Recaps
 **Date:** 2026-07-28
 
@@ -42,3 +42,18 @@ no text search and no type facet. Two additions make it a real lookup tool:
 - Files: `frontend/src/features/recap/run-timeline.tsx` (log filtering + controls). No API change.
 - "local" = `event.sender.slot === event.receiver.slot`; "envoyé"/"reçu" are relative to the selected
   player(s) - decide whether the facet keys on the viewer or on the player-filter selection.
+
+## Dev Notes (implementation, 2026-07-28)
+
+- **Decision made**: the facet keys on the **player-filter selection** (the shown players), not on a
+  viewer - the recap page is public and has no viewer identity. With every player shown, "Envoyés" and
+  "Reçus" both mean "all transfers" (symmetric); isolate one player and they read as "what X sent" /
+  "what X received". "Locaux" is selection-independent.
+- Logic extracted to a pure module `log-filters.ts` (`normalizeSearch` - NFD + strip diacritics +
+  lowercase, `matchesSearch` - substring on item/location name, `matchesFacet`) with unit tests
+  (8 tests). `run-timeline.tsx` only wires state + UI.
+- UI: a `type="search"` input and a "Type : Tous / Reçus / Envoyés / Locaux" segmented control (reuses
+  32.10's `Segmented`), placed just above the log. Both narrow the set **before** the 300-row cap
+  (AC 3); the truncation note now reads "Les 300 évènements les plus récents sur N correspondants",
+  and an empty state row appears when nothing matches.
+- Composes with player filter, zoom, day pager by construction (same `shown` pipeline).
