@@ -11,16 +11,19 @@ use Psr\Clock\ClockInterface;
 /**
  * Persists a game feed event pushed by the bridge (story 32.6).
  *
- * Only **item** events are kept - they are what the timeline and per-player check curves are built
- * from (a solo self-find is still an item event). Chat/join/part/system events are ignored. The
- * pushed shape is `{type, text, timestamp, item:{id,name,flags}, location:{id,name},
- * sender:{slot,name,game}, receiver:{slot,name,game}}`; `type` is already mapped to `item-received`
- * by the controller. `item.flags` are the AP classification bits (1 = progression, story 32.9);
- * an older bridge omits them and the row keeps null.
+ * **Item**, **hint** and **goal** events are kept (story 32.12) - items feed the timeline and
+ * per-player check curves, a hint marks intent, a goal marks completion. Chat/join/part/system
+ * events stay ignored (noise). The pushed shape is `{type, text, timestamp, item:{id,name,flags},
+ * location:{id,name}, sender:{slot,name,game}, receiver:{slot,name,game}}`; an AP hint carries the
+ * same origin shape as an item event, and a goal only its `sender` (the finishing player), so the
+ * one row shape serves all three - unresolved parts stay null. `type` is already mapped to
+ * `item-received` by the controller for items; hints and goals pass through as `hint`/`goal`.
+ * `item.flags` are the AP classification bits (1 = progression, story 32.9); an older bridge omits
+ * them and the row keeps null.
  */
 final readonly class RecordSessionFeedEvent
 {
-    private const string ITEM_TYPE = 'item-received';
+    private const array PERSISTED_TYPES = ['item-received', 'hint', 'goal'];
 
     public function __construct(
         private SessionFeedEventRepositoryInterface $events,
@@ -34,7 +37,7 @@ final readonly class RecordSessionFeedEvent
     public function record(string $sessionId, array $event): void
     {
         $type = is_string($event['type'] ?? null) ? $event['type'] : '';
-        if (self::ITEM_TYPE !== $type) {
+        if (!\in_array($type, self::PERSISTED_TYPES, true)) {
             return;
         }
 

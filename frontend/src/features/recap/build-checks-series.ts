@@ -46,7 +46,10 @@ export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60, optio
   const measure: ChecksMeasure = options.measure ?? "found";
   const mode: ChecksMode = options.mode ?? "interval";
   const bucketMs = Math.max(1, bucketSeconds) * 1_000;
+  // Curves count item events only - the feed also persists hints and goals (story 32.12), which are
+  // log/marker material, not checks (a hint is intent, not a find).
   const finds = events
+    .filter((event) => event.type === "item-received")
     .map((event) => {
       const party = measure === "received" ? event.receiver : event.sender;
       return {

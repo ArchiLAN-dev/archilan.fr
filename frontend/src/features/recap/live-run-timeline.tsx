@@ -13,7 +13,10 @@ import { RunTimeline } from "./run-timeline";
  * finder + origin check so an event that is both in the initial snapshot and arrives live is not
  * counted twice (the persisted timestamp is second-precision, the live one is not, so time can't dedup).
  *
- * Item finds only (they carry a finder slot); hints/chat frames are ignored, matching what is persisted.
+ * Item finds, hints and goals (they all carry a sender slot - story 32.12), matching what is
+ * persisted; chat/join/system frames are ignored. Goal markers on the live chart derive from the
+ * feed's goal events inside RunTimeline (no `goals` prop here - the recap's podium stays the
+ * authoritative source on its own page).
  */
 export function LiveRunTimeline({ sessionId }: { sessionId: string }) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
@@ -123,9 +126,19 @@ function normalize(event: OverlayFeedEvent): FeedEvent | null {
   };
 }
 
-/** Unique find key: one item lives at one location, found once by one finder. */
+/**
+ * Dedup key between the persisted snapshot and the live stream. An item lives at one location and
+ * is found once by one finder; a slot reaches its goal once; a hint for one location repeats
+ * verbatim when AP re-broadcasts it. Anything unresolvable falls back to the event id (no dedup).
+ */
 function findKey(event: FeedEvent): string | null {
-  return event.sender.slot !== null && event.location.id !== null ? `${event.sender.slot}:${event.location.id}` : event.id;
+  if (event.type === "goal") {
+    return event.sender.slot !== null ? `goal:${event.sender.slot}` : event.id;
+  }
+  const prefix = event.type === "hint" ? "hint" : "item";
+  return event.sender.slot !== null && event.location.id !== null
+    ? `${prefix}:${event.sender.slot}:${event.location.id}`
+    : event.id;
 }
 
 function mergeMany(base: FeedEvent[], incoming: FeedEvent[]): FeedEvent[] {

@@ -35,12 +35,15 @@ const MODES: readonly { label: string; value: ChecksMode }[] = [
 ];
 
 // Exchange-type facet for the log (story 32.11), relative to the shown players: with one player
-// isolated, "Envoyés"/"Reçus" read as "what they sent" / "what they received".
+// isolated, "Envoyés"/"Reçus" read as "what they sent" / "what they received". "Indices" and
+// "Objectifs" (story 32.12) isolate the hint/goal rows.
 const FACETS: readonly { label: string; value: LogFacet }[] = [
   { label: "Tous", value: "all" },
   { label: "Reçus", value: "received" },
   { label: "Envoyés", value: "sent" },
   { label: "Locaux", value: "local" },
+  { label: "Indices", value: "hints" },
+  { label: "Objectifs", value: "goals" },
 ];
 
 /**
@@ -52,8 +55,10 @@ const FACETS: readonly { label: string; value: LogFacet }[] = [
  *
  * `goals` (story 32.9) mark each player's goal-reached instant on the curve; a marker follows its
  * player through the day pager, the zoom and the player filter (hiding a player hides their marker).
+ * When the caller passes no `goals` (the live timeline), they are derived from the feed's goal
+ * events (story 32.12) - one source per surface: the recap passes its authoritative podium instants.
  */
-export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals?: GoalMarker[] }) {
+export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: GoalMarker[] }) {
   const [bucketSeconds, setBucketSeconds] = useState<number>(60);
   const [measure, setMeasure] = useState<ChecksMeasure>("found");
   const [mode, setMode] = useState<ChecksMode>("interval");
@@ -92,8 +97,14 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
   const shownPlayers = series.players.filter((p) => !hidden.has(p.slot));
   const shownSlots = new Set(shownPlayers.map((p) => p.slot));
 
+  // Goal markers: the recap passes its podium instants; without them (live), the feed's goal events
+  // (story 32.12) provide the same {AP slot name, instant} pairs.
+  const goalMarkers: GoalMarker[] =
+    goals ??
+    events.flatMap((e) => (e.type === "goal" && e.sender.name !== null ? [{ name: e.sender.name, at: e.occurredAt }] : []));
+
   // Goal markers for the shown day and players, resolved to their series colour by AP slot name.
-  const chartGoals: ChartGoal[] = goals.flatMap((goal) => {
+  const chartGoals: ChartGoal[] = goalMarkers.flatMap((goal) => {
     const at = Date.parse(goal.at);
     if (Number.isNaN(at) || currentDay === null || dayKey(goal.at) !== currentDay) return [];
     const player = shownPlayers.find((p) => p.name === goal.name);
@@ -265,7 +276,6 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
           <li className="px-2 py-2 text-sm text-muted-foreground">Aucun évènement ne correspond aux filtres.</li>
         ) : null}
         {rows.map((event) => {
-          const local = event.sender.slot === event.receiver.slot;
           const t = Date.parse(event.occurredAt);
           const highlighted = hoverBucket !== null && t >= hoverBucket && t < hoverBucket + bucketSeconds * 1000;
           return (
@@ -277,25 +287,66 @@ export function RunTimeline({ events, goals = [] }: { events: FeedEvent[]; goals
             >
               <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">{timeOf(event.occurredAt)}</span>
               <span className="min-w-0 flex-1 text-body-foreground">
-                <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span>
-                {local ? (
-                  <> a trouvé </>
-                ) : (
-                  <span className="inline-flex items-center gap-1">
-                    {" "}
-                    <ArrowRight aria-hidden className="size-3 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{event.receiver.name ?? "?"}</span>
-                    {" : "}
-                  </span>
-                )}
-                <span className="text-accent-text">{event.item.name ?? "objet"}</span>
-                {event.location.name ? <span className="text-muted-foreground"> · {event.location.name}</span> : null}
+                <LogRowContent event={event} />
               </span>
             </li>
           );
         })}
       </ol>
     </section>
+  );
+}
+
+/**
+ * One log row's prose, by event type (story 32.12): an item find (the 32.7 shapes), a hint (intent -
+ * where an item waits, badged "Indice") or a goal (completion, badged "Objectif").
+ */
+function LogRowContent({ event }: { event: FeedEvent }) {
+  if (event.type === "goal") {
+    return (
+      <>
+        <span className="mr-1.5 rounded bg-accent/15 px-1.5 py-0.5 text-xs font-semibold text-accent-text">Objectif</span>
+        <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span> a atteint son objectif
+      </>
+    );
+  }
+  if (event.type === "hint") {
+    return (
+      <>
+        <span className="mr-1.5 rounded bg-accent-warm/15 px-1.5 py-0.5 text-xs font-semibold text-accent-warm">Indice</span>
+        <span className="text-accent-text">{event.item.name ?? "objet"}</span>
+        {event.receiver.name !== null ? (
+          <>
+            {" pour "}
+            <span className="font-medium text-foreground">{event.receiver.name}</span>
+          </>
+        ) : null}
+        {event.location.name !== null ? (
+          <span className="text-muted-foreground">
+            {" "}· {event.location.name}
+            {event.sender.name !== null ? ` (monde de ${event.sender.name})` : ""}
+          </span>
+        ) : null}
+      </>
+    );
+  }
+  const local = event.sender.slot === event.receiver.slot;
+  return (
+    <>
+      <span className="font-medium text-foreground">{event.sender.name ?? "?"}</span>
+      {local ? (
+        <> a trouvé </>
+      ) : (
+        <span className="inline-flex items-center gap-1">
+          {" "}
+          <ArrowRight aria-hidden className="size-3 text-muted-foreground" />
+          <span className="font-medium text-foreground">{event.receiver.name ?? "?"}</span>
+          {" : "}
+        </span>
+      )}
+      <span className="text-accent-text">{event.item.name ?? "objet"}</span>
+      {event.location.name !== null ? <span className="text-muted-foreground"> · {event.location.name}</span> : null}
+    </>
   );
 }
 

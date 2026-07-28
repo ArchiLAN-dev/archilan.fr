@@ -1,10 +1,16 @@
 import type { FeedEvent } from "./feed-api";
 import { matchesFacet, matchesSearch, normalizeSearch } from "./log-filters";
 
-function event(senderSlot: number | null, receiverSlot: number | null, itemName: string | null, locationName: string | null): FeedEvent {
+function event(
+  senderSlot: number | null,
+  receiverSlot: number | null,
+  itemName: string | null,
+  locationName: string | null,
+  type = "item-received",
+): FeedEvent {
   return {
     id: "e",
-    type: "item-received",
+    type,
     text: "",
     occurredAt: "2026-05-01T10:00:00Z",
     item: { id: 1, name: itemName, flags: null },
@@ -63,5 +69,22 @@ describe("matchesFacet", () => {
     expect(matchesFacet(event(2, 1, null, null), "received", shown)).toBe(true);
     expect(matchesFacet(event(1, 2, null, null), "received", shown)).toBe(false);
     expect(matchesFacet(event(1, 1, null, null), "received", shown)).toBe(false);
+  });
+
+  it('"hints" and "goals" isolate those event types (story 32.12)', () => {
+    const hint = event(1, 2, "Key", "Chest", "hint");
+    const goal = event(1, null, null, null, "goal");
+    expect(matchesFacet(hint, "hints", shown)).toBe(true);
+    expect(matchesFacet(goal, "goals", shown)).toBe(true);
+    expect(matchesFacet(event(1, 2, null, null), "hints", shown)).toBe(false);
+    expect(matchesFacet(hint, "goals", shown)).toBe(false);
+  });
+
+  it("transfer facets keep item events only - a hint is intent, not a transfer", () => {
+    const hint = event(1, 2, "Key", "Chest", "hint");
+    expect(matchesFacet(hint, "sent", shown)).toBe(false);
+    expect(matchesFacet(hint, "received", new Set([2]))).toBe(false);
+    expect(matchesFacet(hint, "local", shown)).toBe(false);
+    expect(matchesFacet(hint, "all", shown)).toBe(true);
   });
 });
