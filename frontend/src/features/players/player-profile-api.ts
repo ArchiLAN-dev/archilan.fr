@@ -323,3 +323,33 @@ export const getPlayerHistory = cache(async (slug: string): Promise<PlayerHistor
     return null;
   }
 });
+
+/** One sitemap entry for a public-audience profile (story 34.8). */
+export type PublicProfileSlug = { slug: string; updatedAt: string };
+
+function isPublicProfileSlug(v: unknown): v is PublicProfileSlug {
+  return typeof v === "object" && v !== null && hasStringProp(v, "slug") && hasStringProp(v, "updatedAt");
+}
+
+/**
+ * Slugs of the profiles an anonymous crawler can see (audience "public"), for the sitemap's
+ * /joueurs/{slug} entries. Returns [] on any failure - the sitemap must never 500.
+ */
+export const getPublicProfileSlugs = cache(async (): Promise<PublicProfileSlug[]> => {
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/community/public-profile-slugs`, { cache: "no-store" });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload: unknown = await response.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload) || !Array.isArray(payload.data)) {
+      return [];
+    }
+
+    return payload.data.every(isPublicProfileSlug) ? payload.data : [];
+  } catch {
+    return [];
+  }
+});
