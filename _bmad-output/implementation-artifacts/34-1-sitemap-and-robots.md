@@ -1,4 +1,11 @@
-# Story 34.1: Sitemap & Robots (frontend/)
+# Story 34.1
+
+> **Addendum 2026-07-29**: the sitemap now also lists the public session recaps
+> (`/parties/{sessionId}`) of past public events - epic 32 shipped those indexable pages after this
+> story, and nobody stitched the seam. One `getEventRecapIndex` call per past event (fails to `[]`,
+> preserving the never-500 contract), `lastModified` from the real `finishedAt`. Published personal
+> runs stay out by design (no public enumeration - link-shared). Player profiles (`/joueurs/{slug}`)
+> stay out pending a product/privacy decision on indexing member profiles.: Sitemap & Robots (frontend/)
 
 Status: done
 

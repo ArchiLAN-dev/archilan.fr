@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { getPublicPosts } from "@/features/content/public-posts-api";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { getAllPublicGames } from "@/features/games/public-games-api";
+import { getEventRecapIndex } from "@/features/recap/recap-api";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { fetchCurrentWeeklyRuns } from "@/features/weekly-runs/weekly-runs-api";
 import { env } from "@/lib/env";
@@ -73,5 +74,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: absolute(`/runs-hebdo/jeu/${slug}`),
   }));
 
-  return [...staticEntries, ...eventEntries, ...postEntries, ...gameEntries, ...weeklyEntries];
+  // Public session recaps (epic 32, stitched in after 34.1): every finished session of a past
+  // public event has an indexable /parties/{id} page - the richest per-page content the site
+  // produces. `finishedAt` is a real timestamp, so it can honestly drive `lastModified`.
+  // Published personal runs stay out: they have no public enumeration (link-shared by design).
+  // `getEventRecapIndex` returns [] on any failure, keeping the sitemap's never-500 contract.
+  const recapIndexes = await Promise.all(events.past.map((event) => getEventRecapIndex(event.id)));
+  const recapEntries: MetadataRoute.Sitemap = recapIndexes.flat().map((entry) => ({
+    url: absolute(`/parties/${entry.sessionId}`),
+    ...(entry.finishedAt !== null ? { lastModified: entry.finishedAt.slice(0, 10) } : {}),
+  }));
+
+  return [...staticEntries, ...eventEntries, ...postEntries, ...gameEntries, ...weeklyEntries, ...recapEntries];
 }
