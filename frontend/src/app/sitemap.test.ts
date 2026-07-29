@@ -57,12 +57,25 @@ const validGame = {
 
 const validWeeklyRun = { gameName: "Super Metroid" };
 
+// A completed event: lands in `past`, whose recap index feeds /parties/{id} entries (epic 32).
+const pastEvent = { ...validEvent, id: "evt-past", status: "completed" };
+
+const validRecapEntry = {
+  sessionId: "sess-1",
+  startedAt: "2024-06-01T18:00:00+00:00",
+  finishedAt: "2024-06-01T23:30:00+00:00",
+  durationSeconds: 19800,
+  playerCount: 4,
+  winner: { playerName: "Michel_M", game: "Super Mario 64" },
+};
+
 function allSourcesReturn(): void {
   server.use(
-    http.get(`${BASE}/events`, () => HttpResponse.json({ data: [validEvent] })),
+    http.get(`${BASE}/events`, () => HttpResponse.json({ data: [validEvent, pastEvent] })),
     http.get(`${BASE}/posts`, () => HttpResponse.json({ data: [validPost] })),
     http.get(`${BASE}/games`, () => HttpResponse.json({ data: [validGame] })),
     http.get(`${BASE}/weekly-runs/current`, () => HttpResponse.json({ data: [validWeeklyRun] })),
+    http.get(`${BASE}/events/evt-past/parties`, () => HttpResponse.json({ data: [validRecapEntry] })),
   );
 }
 
@@ -88,19 +101,35 @@ describe("sitemap", () => {
     expect(result).toContain("http://localhost:3000/actualites/news-test");
     expect(result).toContain("http://localhost:3000/jeux/alttp");
     expect(result).toContain("http://localhost:3000/runs-hebdo/jeu/super-metroid");
+    expect(result).toContain("http://localhost:3000/parties/sess-1");
   });
 
-  it("sets lastModified on posts from the real published date, and nowhere else", async () => {
+  it("sets lastModified only from real timestamps: posts and recap sessions", async () => {
     allSourcesReturn();
     const entries = await sitemap();
 
     const post = entries.find((e) => e.url.endsWith("/actualites/news-test"));
     expect(post?.lastModified).toBe("2024-06-01");
+    const recap = entries.find((e) => e.url.endsWith("/parties/sess-1"));
+    expect(recap?.lastModified).toBe("2024-06-01");
 
     const event = entries.find((e) => e.url.endsWith("/evenements/evt-1"));
     expect(event?.lastModified).toBeUndefined();
     const game = entries.find((e) => e.url.endsWith("/jeux/alttp"));
     expect(game?.lastModified).toBeUndefined();
+  });
+
+  it("only fetches recaps for past events, and survives a failing recap index", async () => {
+    allSourcesReturn();
+    server.use(http.get(`${BASE}/events/evt-past/parties`, () => HttpResponse.error()));
+
+    const result = await urls();
+
+    // The upcoming event's index is never requested (no handler exists for it: MSW would error),
+    // the failing past index degrades to no entries, and everything else still renders.
+    expect(result.some((u) => u.includes("/parties/"))).toBe(false);
+    expect(result).toContain("http://localhost:3000/evenements/evt-past");
+    expect(result).toContain("http://localhost:3000/jeux/alttp");
   });
 
   it("never emits a noindex or private route", async () => {
