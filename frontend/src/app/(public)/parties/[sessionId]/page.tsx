@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
 import { getSessionRecap } from "@/features/recap/recap-api";
+import { getSessionFeed } from "@/features/recap/feed-api.server";
 import { SessionRecapNotFound, SessionRecapView } from "@/features/recap/session-recap-page";
 
 type Props = {
@@ -42,11 +43,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SessionRecapRoute({ params }: Props) {
   const { sessionId } = await params;
-  const recap = await getSessionRecap(sessionId);
+  const [recap, feed] = await Promise.all([getSessionRecap(sessionId), getSessionFeed(sessionId)]);
 
   if (!recap) {
     return <SessionRecapNotFound />;
   }
 
-  return <SessionRecapView recap={recap} />;
+  return <SessionRecapView feed={feed} recap={recap} />;
 }

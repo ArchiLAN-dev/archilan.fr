@@ -5,6 +5,54 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.11.0] - 2026-07-29
+
+Version de fonctionnalité centrée sur les récaps de partie (epic 32 au complet) : chaque
+partie terminée d'un événement public a désormais sa page de récap publique et sa timeline
+interactive, rejouable après coup comme en direct. S'y ajoutent une passe mobile sur les
+surfaces de partie, l'enrichissement du sitemap (récaps et profils publics) et une grosse
+correction de poids des images de la page d'accueil.
+
+### Ajouté
+
+- **Récaps publics de partie (stories 32.1-32.5)** : page `/parties/{id}` avec podium,
+  chronologie des objectifs, graphe « qui a envoyé quoi à qui », superlatifs et VOD ;
+  index des parties par événement ; carte de partage Open Graph ; récap des runs
+  personnelles (publiable par leur propriétaire) ; succès communautaires dérivés des
+  superlatifs.
+- **Timeline de partie (stories 32.6-32.14)** : le feed de jeu est persisté (objets, puis
+  indices et objectifs) et alimente des courbes de checks par joueur - consultables en
+  direct comme après la partie. Marqueurs d'objectif et d'objets de progression, options de
+  vue (par intervalle/cumulé, checks trouvés/objets reçus, joueurs séparés/confondus),
+  recherche insensible aux accents et facettes du journal (reçus/envoyés/locaux/indices/
+  objectifs), zoom tactile via une barre de sélection, rattrapage automatique après une
+  coupure du direct.
+- **Sitemap enrichi (stories 34.1 addendum, 34.8)** : les récaps publics et les profils des
+  joueurs ayant choisi l'audience « public » sont désormais énumérés (nouvel endpoint
+  anonyme dédié), avec des dates de modification réelles.
+- **Désactivation d'un jeu du catalogue (story 11.4)** côté admin.
+- **Garde-fou de poids des images statiques** : un test échoue si un fichier de
+  `public/images` dépasse 500 Ko.
+
+### Modifié
+
+- **Passe mobile des surfaces de partie** : contrôles de vue de la timeline en sélecteurs
+  natifs sous la largeur tablette, barres d'onglets défilables horizontalement (page de
+  partie et backoffice session), graphe plus haut sur téléphone, facettes repliables.
+- **Images de la page d'accueil recompressées** : la photo hero passe de 10,6 Mo à 128 Ko et
+  le logo de 2,4 Mo à 51 Ko (~13,4 Mo de poids de page économisés ; le LCP mobile mesuré
+  passait de 95 s avec les fichiers bruts).
+
+### Corrigé
+
+- **Timeline** : coordonnées NaN du sélecteur de plage à l'arrivée d'événements en direct ;
+  deux bugs de synchronisation sélecteur/zoom (grille de temps changée sous un zoom actif,
+  poignées jointes) détectés en revue avant merge.
+- **Profil communautaire** : le formulaire ne perd plus les modifications en cours de saisie
+  (#391).
+- **Overlays** : statistiques de célébration d'objectif et tri des checks atteignables
+  (#393) ; les échecs d'upload vers le stockage sont désormais journalisés (#389, #392).
+
 ## [0.10.0] - 2026-07-23
 
 Version de fonctionnalité axée sur le contenu éditorial et l'affichage public :

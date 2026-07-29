@@ -10,6 +10,7 @@ use App\Community\Application\Service\AdminAchievementService;
 use App\Community\Domain\Exception\InvalidAchievementRuleException;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +37,7 @@ final readonly class AdminAchievementController
         private AdminAchievementService $achievements,
         private AchievementImageService $images,
         private AdminAchievementGrantService $grants,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -122,7 +124,14 @@ final readonly class AdminAchievementController
 
         try {
             $url = $this->images->upload($key, $contents);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            // The client only ever sees a generic storage_unavailable; log the real cause here or it is
+            // lost (e.g. a missing/misconfigured media bucket).
+            $this->logger->error('Achievement image upload to object storage failed.', [
+                'key' => $key,
+                'exception' => $exception,
+            ]);
+
             return $this->apiAccessGuard->errorResponse('storage_unavailable', 'Le stockage est indisponible.', 503);
         }
 

@@ -152,7 +152,8 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
 // ─── Section 1: Informations générales ────────────────────────────────────────
 
 type BasicInfoErrors = Partial<Record<
-    "name" | "slug" | "description" | "coverImageUrl" | "coverImageAlt" | "coverImageCredit" | "availability",
+    "name" | "slug" | "description" | "coverImageUrl" | "coverImageAlt" | "coverImageCredit" | "availability"
+    | "disabledMessage",
     string
 >>;
 
@@ -166,6 +167,8 @@ type BasicInfoFields = {
     coverImageCredit: string;
     availability: GameAvailability;
     igdbId: number | null;
+    disabled: boolean;
+    disabledMessage: string;
 };
 
 function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
@@ -184,6 +187,8 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
         coverImageCredit: game.coverImageCredit,
         availability: game.availability,
         igdbId: game.igdbId,
+        disabled: game.disabled,
+        disabledMessage: game.disabledMessage ?? "",
     });
 
     function setField<K extends keyof BasicInfoFields>(key: K, value: BasicInfoFields[K]) {
@@ -217,6 +222,8 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
             coverImageCredit: fields.coverImageCredit,
             availability: fields.availability,
             igdb_id: fields.igdbId,
+            disabled: fields.disabled,
+            disabledMessage: fields.disabledMessage || null,
         };
 
         try {
@@ -246,6 +253,8 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                     coverImageCredit: updated.coverImageCredit,
                     availability: updated.availability,
                     igdbId: updated.igdbId,
+                    disabled: updated.disabled,
+                    disabledMessage: updated.disabledMessage ?? "",
                 });
                 setSuccess(true);
             }
@@ -384,6 +393,37 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                         {errors.availability ?
                             <span className="text-xs text-danger" role="alert">{errors.availability}</span> : null}
                     </label>
+                </div>
+
+                <div className="grid gap-2 rounded border border-border bg-surface p-4">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground">
+                        <input
+                            checked={fields.disabled}
+                            className="size-4 rounded border-border accent-accent"
+                            type="checkbox"
+                            onChange={(e) => setField("disabled", e.target.checked)}
+                        />
+                        Désactiver le jeu
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                        Un jeu désactivé reste visible dans les sélecteurs mais ne peut plus être ajouté à une
+                        partie. Les slots déjà enregistrés ne sont pas supprimés.
+                    </p>
+                    {fields.disabled ? (
+                        <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+                            Message affiché aux joueurs
+                            <textarea
+                                className={`min-h-20 rounded border bg-background px-3 py-2 text-sm font-normal text-foreground outline-none focus:border-accent ${errors.disabledMessage ? "border-danger" : "border-border"}`}
+                                maxLength={500}
+                                name="disabledMessage"
+                                placeholder="Ex : apworld cassé depuis la v2.1, correction en cours."
+                                value={fields.disabledMessage}
+                                onChange={(e) => setField("disabledMessage", e.target.value)}
+                            />
+                            {errors.disabledMessage ?
+                                <span className="text-xs text-danger" role="alert">{errors.disabledMessage}</span> : null}
+                        </label>
+                    ) : null}
                 </div>
 
                 <label className="grid gap-1.5 text-sm font-semibold text-foreground">

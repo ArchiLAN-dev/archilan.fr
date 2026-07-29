@@ -105,8 +105,17 @@ export function OverlayLinksPanel({ sessionId }: Props) {
   }
 
   const activeWidget = WIDGETS.find((w) => w.key === activeTab) ?? WIDGETS[0];
+  // Reachability is computed per slot (one bridge topic per player) - there is no aggregate, so the
+  // Checks widget only offers single-player scopes. "Tous"/"Groupe" would render an empty or
+  // misleading overlay.
+  const singlePlayerOnly = activeWidget.key === "reachable";
   // Selected scope drives the single URL shown: "" = all, "group" = the ticked players, else one slot.
-  const effectiveSlot = scope === "group" ? group.join(",") : scope;
+  // On a single-player-only widget, a non-player scope falls back to the first slot.
+  const effectiveSlot = singlePlayerOnly
+    ? (scope !== "" && scope !== "group" ? scope : (slots[0]?.key ?? ""))
+    : scope === "group"
+      ? group.join(",")
+      : scope;
   const overlayLink = overlayUrl(activeWidget.key, effectiveSlot);
 
   return (
@@ -137,10 +146,14 @@ export function OverlayLinksPanel({ sessionId }: Props) {
               onChange={(e) => {
                 setScope(e.target.value);
               }}
-              value={scope}
+              value={singlePlayerOnly ? effectiveSlot : scope}
             >
-              <option value="">Tous les joueurs</option>
-              <option value="group">Groupe personnalisé</option>
+              {singlePlayerOnly ? null : (
+                <>
+                  <option value="">Tous les joueurs</option>
+                  <option value="group">Groupe personnalisé</option>
+                </>
+              )}
               {slots.map((s) => (
                 <option key={s.key} value={s.key}>
                   {s.name}
@@ -151,10 +164,14 @@ export function OverlayLinksPanel({ sessionId }: Props) {
               <span className="text-[11px] text-muted-foreground">
                 (démarre la session pour lister les joueurs)
               </span>
+            ) : singlePlayerOnly ? (
+              <span className="text-[11px] text-muted-foreground">
+                (les checks réalisables sont calculés par joueur)
+              </span>
             ) : null}
           </div>
 
-          {scope === "group" ? (
+          {scope === "group" && !singlePlayerOnly ? (
             <GroupPicker
               group={group}
               onToggle={(key, on) => {

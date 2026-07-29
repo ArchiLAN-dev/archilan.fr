@@ -89,6 +89,13 @@ final class Game
         // randomized, the goal, apworld quirks. Public, unlike adminNotes above (story 3.13).
         #[ORM\Column(name: 'archipelago_description', type: 'text', nullable: true)]
         private ?string $archipelagoDescription = null,
+        // Temporary admin kill switch (story 11.4): a disabled game stays visible in the game
+        // pickers but cannot be newly selected for a session. Orthogonal to availability, which
+        // is long-term catalogue status owned by the sheet sync.
+        #[ORM\Column(name: 'disabled_at', type: 'datetimetz_immutable', nullable: true)]
+        private ?\DateTimeImmutable $disabledAt = null,
+        #[ORM\Column(name: 'disabled_message', type: 'string', length: 500, nullable: true)]
+        private ?string $disabledMessage = null,
     ) {
     }
 
@@ -329,6 +336,29 @@ final class Game
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function isDisabled(): bool
+    {
+        return null !== $this->disabledAt;
+    }
+
+    public function getDisabledMessage(): ?string
+    {
+        return $this->disabledMessage;
+    }
+
+    public function disable(?string $message, \DateTimeImmutable $now): void
+    {
+        $this->disabledAt ??= $now;
+        $trimmed = null === $message ? null : trim($message);
+        $this->disabledMessage = null === $trimmed || '' === $trimmed ? null : mb_substr($trimmed, 0, 500);
+    }
+
+    public function enable(): void
+    {
+        $this->disabledAt = null;
+        $this->disabledMessage = null;
     }
 
     public function isAvailabilityLocked(): bool

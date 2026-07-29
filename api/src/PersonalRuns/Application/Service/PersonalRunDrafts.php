@@ -399,6 +399,7 @@ final readonly class PersonalRunDrafts
             'isOwner' => $isOwner,
             'participants' => $participants,
             'sessionId' => $sessionId,
+            'recapPublic' => $run->isRecapPublic(),
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,

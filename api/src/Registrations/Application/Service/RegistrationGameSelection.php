@@ -82,6 +82,8 @@ final readonly class RegistrationGameSelection
                 'slug' => $game->getSlug(),
                 'description' => $game->getDescription(),
                 'availability' => $game->getAvailability(),
+                'disabled' => $game->isDisabled(),
+                'disabledMessage' => $game->getDisabledMessage(),
                 'isApworldReady' => $game->isApworldReady(),
                 'defaultYaml' => $game->getDefaultYaml(),
                 'optionTypes' => $game->getOptionTypes(),
@@ -170,6 +172,11 @@ final readonly class RegistrationGameSelection
             foreach ($games as $game) {
                 $gamesById[$game->getId()] = $game;
             }
+        }
+
+        $disabledErrors = $this->validateDisabledGames($gameIds, $registration->getGameSlots(), $gamesById);
+        if ([] !== $disabledErrors) {
+            return ['outcome' => 'error', 'errors' => $disabledErrors];
         }
 
         $diffedSlots = $this->diffSlots($registration->getGameSlots(), $gameIds, $gamesById);
@@ -275,6 +282,46 @@ final readonly class RegistrationGameSelection
             if (!in_array($gameId, $availableIds, true)) {
                 $errors->add(sprintf('gameIds.%d', $index), "Ce jeu n'est pas disponible pour cet événement.");
             }
+        }
+
+        return $errors->toArray();
+    }
+
+    /**
+     * A game disabled by an admin (story 11.4) cannot be NEWLY added, but slots that already
+     * reference it keep resolving: re-submitting an unchanged selection stays accepted, so a
+     * later disable never bricks an existing registration.
+     *
+     * @param list<string>                                                                                                     $gameIds
+     * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
+     * @param array<string, Game>                                                                                              $gamesById
+     *
+     * @return array<string, list<string>>
+     */
+    private function validateDisabledGames(array $gameIds, array $existingSlots, array $gamesById): array
+    {
+        $errors = new ValidationErrors();
+
+        $existingCounts = array_count_values(array_column($existingSlots, 'gameId'));
+
+        foreach ($gameIds as $index => $gameId) {
+            $game = $gamesById[$gameId] ?? null;
+            if (null === $game || !$game->isDisabled()) {
+                continue;
+            }
+
+            if (($existingCounts[$gameId] ?? 0) > 0) {
+                --$existingCounts[$gameId];
+                continue;
+            }
+
+            $message = $game->getDisabledMessage();
+            $errors->add(
+                sprintf('gameIds.%d', $index),
+                null !== $message
+                    ? sprintf('Ce jeu est temporairement désactivé : %s', $message)
+                    : 'Ce jeu est temporairement désactivé.',
+            );
         }
 
         return $errors->toArray();

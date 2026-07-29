@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Handler\BuildSessionRecapJobHandler;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
+use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
 use App\Sessions\Application\Port\SpoilerArtifact;
 use App\Sessions\Application\Support\RecapSuperlativesCalculator;
@@ -21,6 +23,12 @@ use Symfony\Component\Clock\MockClock;
 final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
 {
     private const string FIXTURE = __DIR__.'/../Fixtures/Sessions/sample_AP_Spoiler.txt';
+
+    /** @var list<list<string>> one entry per recomputeForUsers call (story 32.4) */
+    private array $recomputeCalls = [];
+
+    /** @var list<string> user ids created by seedThreePlayerSession */
+    private array $seededUserIds = [];
 
     public function testBuildsProjectionFromSpoilerAndReconcilesSlotsToIds(): void
     {
@@ -110,6 +118,29 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         self::assertSame('2026-06-02T00:00:00+00:00', $recap->getGeneratedAt()->format(\DateTimeInterface::ATOM));
     }
 
+    public function testSuccessfulBuildTriggersAchievementRecomputeForParticipants(): void
+    {
+        $this->seedThreePlayerSession();
+
+        $this->runHandler($this->spoilerReaderReturning($this->fixtureContents()));
+
+        self::assertCount(1, $this->recomputeCalls, 'exactly one recompute per build');
+        $notified = $this->recomputeCalls[0];
+        sort($notified);
+        $expected = $this->seededUserIds;
+        sort($expected);
+        self::assertSame($expected, $notified);
+    }
+
+    public function testNoRecomputeWhenTheBuildAbortsEarly(): void
+    {
+        $this->seedThreePlayerSession();
+
+        $this->runHandler($this->spoilerReaderReturning(null), sessionId: 'sess-unknown');
+
+        self::assertSame([], $this->recomputeCalls);
+    }
+
     private function seedThreePlayerSession(): void
     {
         $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
@@ -139,6 +170,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         foreach ($goals as $slotName => $goalAt) {
             ++$order;
             $user = $this->createUser(strtolower($slotName).'@example.org', displayName: $slotName);
+            $this->seededUserIds[] = $user->getId();
             $reg = $this->createRegistration($event->getId(), $user->getId());
             $slot = SessionSlot::create(
                 bin2hex(random_bytes(16)),
@@ -155,13 +187,19 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         $this->entityManager->flush();
     }
 
-    private function runHandler(SessionSpoilerArtifactReaderInterface $reader, string $clockNow = '2026-06-01T00:00:00+00:00'): void
-    {
+    private function runHandler(
+        SessionSpoilerArtifactReaderInterface $reader,
+        string $clockNow = '2026-06-01T00:00:00+00:00',
+        string $sessionId = 'sess-recap',
+    ): void {
         $sessions = self::getContainer()->get(SessionRepositoryInterface::class);
         self::assertInstanceOf(SessionRepositoryInterface::class, $sessions);
         $slots = self::getContainer()->get(SessionSlotRepositoryInterface::class);
         self::assertInstanceOf(SessionSlotRepositoryInterface::class, $slots);
+        $registrations = self::getContainer()->get(RegistrationRepositoryInterface::class);
+        self::assertInstanceOf(RegistrationRepositoryInterface::class, $registrations);
 
+        $spy = $this->recomputeSpy();
         $handler = new BuildSessionRecapJobHandler(
             $sessions,
             $slots,
@@ -169,12 +207,31 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
             new SpoilerGraphParser(),
             new RecapSuperlativesCalculator(),
             $this->recaps(),
+            $registrations,
+            $spy,
             new MockClock(new \DateTimeImmutable($clockNow)),
             new NullLogger(),
         );
 
-        $handler(new BuildSessionRecapJob('sess-recap'));
+        $handler(new BuildSessionRecapJob($sessionId));
+        $this->recomputeCalls = [...$this->recomputeCalls, ...$spy->calls];
         $this->entityManager->clear();
+    }
+
+    /**
+     * @return AchievementRecomputeTriggerInterface&object{calls: list<list<string>>}
+     */
+    private function recomputeSpy(): AchievementRecomputeTriggerInterface
+    {
+        return new class implements AchievementRecomputeTriggerInterface {
+            /** @var list<list<string>> */
+            public array $calls = [];
+
+            public function recomputeForUsers(array $userIds): void
+            {
+                $this->calls[] = $userIds;
+            }
+        };
     }
 
     private function spoilerReaderReturning(?string $contents): SessionSpoilerArtifactReaderInterface

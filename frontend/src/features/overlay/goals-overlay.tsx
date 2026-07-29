@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import type { PlayersSlot, PlayersState } from "./overlay-api";
-import { isPlayersState } from "./overlay-api";
+import { fetchSlotGoalStats, isPlayersState } from "./overlay-api";
 import type { OverlayParams } from "./overlay-params";
 import { useOverlayStream } from "./use-overlay-stream";
 
 const GOAL_STATUS = 30;
 const DEFAULT_DURATION_S = 12;
 
-type Goal = { id: number; slotName: string; checksPercent: number };
+type Goal = { id: number; slotName: string; gameName: string; checksPercent: number; itemsPercent: number };
 
 function clampPercent(done: number, total: number): number {
   if (total <= 0) return 0;
@@ -35,6 +35,25 @@ export function GoalsOverlay({
   const baselineDoneRef = useRef(false);
   const idRef = useRef(0);
 
+  // The real percentages come from the slot's reachability snapshot (the players frame has no items
+  // total, so its `items_received` count alone cannot make a percentage). When the snapshot is
+  // unavailable (session without reachability, test slot), fall back to the frame's checks counts.
+  const celebrate = useCallback(
+    (slotKey: string, slot: PlayersSlot) => {
+      void (async () => {
+        const stats = await fetchSlotGoalStats(sessionId, slotKey);
+        setCurrent({
+          id: (idRef.current += 1),
+          slotName: slot.slot_name,
+          gameName: stats?.gameName ?? "",
+          checksPercent: stats?.checksPercent ?? clampPercent(slot.checks_done, slot.checks_total),
+          itemsPercent: stats?.itemsPercent ?? 0,
+        });
+      })();
+    },
+    [sessionId],
+  );
+
   const onEvent = useCallback(
     (state: PlayersState) => {
       const slots = state.slots;
@@ -47,11 +66,7 @@ export function GoalsOverlay({
         for (const [slotKey, slot] of Object.entries(slots)) {
           if (slot.client_status !== GOAL_STATUS || !slot.goal_reached_at) continue;
           if (!matchesSlotFilter(slotKey, slot, params.slots)) continue;
-          setCurrent({
-            id: (idRef.current += 1),
-            slotName: slot.slot_name,
-            checksPercent: clampPercent(slot.checks_done, slot.checks_total),
-          });
+          celebrate(slotKey, slot);
           break;
         }
         return;
@@ -67,15 +82,11 @@ export function GoalsOverlay({
         if (seenRef.current.has(slotKey)) continue;
         seenRef.current.add(slotKey);
         if (isBaseline) continue;
-        setCurrent({
-          id: (idRef.current += 1),
-          slotName: slot.slot_name,
-          checksPercent: clampPercent(slot.checks_done, slot.checks_total),
-        });
+        celebrate(slotKey, slot);
       }
       baselineDoneRef.current = true;
     },
-    [params.slots],
+    [params.slots, celebrate],
   );
 
   useOverlayStream<PlayersState>(sessionId, "players", isPlayersState, onEvent);
@@ -84,7 +95,7 @@ export function GoalsOverlay({
   useEffect(() => {
     if (!params.demo) return;
     const timer = setTimeout(() => {
-      setCurrent({ id: (idRef.current += 1), slotName: "Démo Joueur", checksPercent: 100 });
+      setCurrent({ id: (idRef.current += 1), slotName: "Démo Joueur", gameName: "", checksPercent: 100, itemsPercent: 80 });
     }, 400);
     return () => {
       clearTimeout(timer);
@@ -109,8 +120,8 @@ export function GoalsOverlay({
     <GoalCelebration
       bare
       checksPercent={current.checksPercent}
-      gameName=""
-      itemsPercent={0}
+      gameName={current.gameName}
+      itemsPercent={current.itemsPercent}
       key={current.id}
       onDismiss={() => {
         setCurrent(null);

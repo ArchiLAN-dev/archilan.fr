@@ -136,6 +136,20 @@ export async function fetchPersonalRun(runId: string): Promise<PersonalRunResult
   }
 }
 
+/** Publish or unpublish a finished run's recap (owner only, story 32.5). Returns whether it succeeded. */
+export async function setRunRecapVisibility(runId: string, isPublic: boolean): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/recap-visibility`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ public: isPublic }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // ─── My game selection (/runs/{runId}/participants/me/game-selection) ────────
 
 export type GameSelectionSlot = {
@@ -153,6 +167,9 @@ export type GameSelectionGame = {
   slug: string;
   description: string;
   availability: string;
+  // Temporary admin kill switch (story 11.4): still listed, but not addable.
+  disabled?: boolean;
+  disabledMessage?: string | null;
   isApworldReady: boolean;
   defaultYaml: string | null;
   optionTypes: OptionTypesMap | null;

@@ -100,7 +100,8 @@ export function ReachableOverlay({
 
   const fontSize = BASE_FONT_PX * params.scale;
   // Reachability is per-slot; without a `?slot=` there's nothing to show (don't display stale data).
-  const shown = !params.demo && slot === null ? [] : checks;
+  // Alphabetical order, same as the progression page's check panels.
+  const shown = (!params.demo && slot === null ? [] : checks).slice().sort((a, b) => a.localeCompare(b));
 
   return (
     <div className={`pointer-events-none fixed inset-0 flex overflow-hidden p-[1.5vmin] ${posToContainerClasses(params.pos)}`}>

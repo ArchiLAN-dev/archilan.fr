@@ -75,6 +75,9 @@ final class Run
         private ?string $connectionPassword = null,
         #[ORM\Column(name: 'session_id', type: 'string', length: 32, nullable: true)]
         private ?string $sessionId = null,
+        /** Whether the finished run's recap is publicly shareable (story 32.5). Private by default. */
+        #[ORM\Column(name: 'recap_public', type: 'boolean', options: ['default' => false])]
+        private bool $recapPublic = false,
     ) {
     }
 
@@ -95,6 +98,25 @@ final class Run
     public function isOwnedBy(string $userId): bool
     {
         return $this->ownerId === $userId;
+    }
+
+    /** Make the finished run's recap publicly shareable (story 32.5). */
+    public function publishRecap(\DateTimeImmutable $now): void
+    {
+        $this->recapPublic = true;
+        $this->updatedAt = $now;
+    }
+
+    /** Take the recap back to owner/participant-only. */
+    public function unpublishRecap(\DateTimeImmutable $now): void
+    {
+        $this->recapPublic = false;
+        $this->updatedAt = $now;
+    }
+
+    public function isRecapPublic(): bool
+    {
+        return $this->recapPublic;
     }
 
     /**

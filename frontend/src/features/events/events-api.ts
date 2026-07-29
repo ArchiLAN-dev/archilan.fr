@@ -109,6 +109,9 @@ export type AvailableGame = {
   slug: string;
   description: string;
   availability: string;
+  // Temporary admin kill switch (story 11.4): still listed, but not addable.
+  disabled?: boolean;
+  disabledMessage?: string | null;
   isApworldReady: boolean;
   defaultYaml: string | null;
   coverImageUrl: string | null;
