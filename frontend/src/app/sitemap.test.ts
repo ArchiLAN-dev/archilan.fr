@@ -76,6 +76,9 @@ function allSourcesReturn(): void {
     http.get(`${BASE}/games`, () => HttpResponse.json({ data: [validGame] })),
     http.get(`${BASE}/weekly-runs/current`, () => HttpResponse.json({ data: [validWeeklyRun] })),
     http.get(`${BASE}/events/evt-past/parties`, () => HttpResponse.json({ data: [validRecapEntry] })),
+    http.get(`${BASE}/community/public-profile-slugs`, () =>
+      HttpResponse.json({ data: [{ slug: "alice-pub", updatedAt: "2024-07-01T09:00:00+00:00" }] }),
+    ),
   );
 }
 
@@ -102,6 +105,7 @@ describe("sitemap", () => {
     expect(result).toContain("http://localhost:3000/jeux/alttp");
     expect(result).toContain("http://localhost:3000/runs-hebdo/jeu/super-metroid");
     expect(result).toContain("http://localhost:3000/parties/sess-1");
+    expect(result).toContain("http://localhost:3000/joueurs/alice-pub");
   });
 
   it("sets lastModified only from real timestamps: posts and recap sessions", async () => {
@@ -112,6 +116,8 @@ describe("sitemap", () => {
     expect(post?.lastModified).toBe("2024-06-01");
     const recap = entries.find((e) => e.url.endsWith("/parties/sess-1"));
     expect(recap?.lastModified).toBe("2024-06-01");
+    const profile = entries.find((e) => e.url.endsWith("/joueurs/alice-pub"));
+    expect(profile?.lastModified).toBe("2024-07-01");
 
     const event = entries.find((e) => e.url.endsWith("/evenements/evt-1"));
     expect(event?.lastModified).toBeUndefined();
@@ -136,7 +142,8 @@ describe("sitemap", () => {
     allSourcesReturn();
     const result = await urls();
 
-    const forbidden = ["/admin", "/o/", "/compte", "/connexion", "/inscription", "/runs/", "/joueurs", "/streams", "/resultats"];
+    // /joueurs left this list with story 34.8: public-audience profiles are now enumerated.
+    const forbidden = ["/admin", "/o/", "/compte", "/connexion", "/inscription", "/runs/", "/streams", "/resultats"];
     for (const url of result) {
       for (const bad of forbidden) {
         expect(url).not.toContain(bad);
@@ -164,6 +171,7 @@ describe("sitemap", () => {
       http.get(`${BASE}/posts`, () => HttpResponse.error()),
       http.get(`${BASE}/games`, () => HttpResponse.error()),
       http.get(`${BASE}/weekly-runs/current`, () => HttpResponse.error()),
+      http.get(`${BASE}/community/public-profile-slugs`, () => HttpResponse.error()),
     );
 
     const result = await urls();

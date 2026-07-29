@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { getPublicPosts } from "@/features/content/public-posts-api";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { getAllPublicGames } from "@/features/games/public-games-api";
+import { getPublicProfileSlugs } from "@/features/players/player-profile-api";
 import { getEventRecapIndex } from "@/features/recap/recap-api";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { fetchCurrentWeeklyRuns } from "@/features/weekly-runs/weekly-runs-api";
@@ -45,11 +46,12 @@ const STATIC_ROUTES = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [events, posts, games, weeklyRuns] = await Promise.all([
+  const [events, posts, games, weeklyRuns, publicProfiles] = await Promise.all([
     getPublicEvents(),
     getPublicPosts(),
     getAllPublicGames(),
     fetchCurrentWeeklyRuns(),
+    getPublicProfileSlugs(),
   ]);
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((path) => ({ url: absolute(path) }));
@@ -85,5 +87,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...(entry.finishedAt !== null ? { lastModified: entry.finishedAt.slice(0, 10) } : {}),
   }));
 
-  return [...staticEntries, ...eventEntries, ...postEntries, ...gameEntries, ...weeklyEntries, ...recapEntries];
+  // Player profiles whose audience is "public" (story 34.8, product decision 2026-07-29): the
+  // API enumerates exactly what an anonymous crawler can see - members/friends-only profiles
+  // never appear, matching the profile page's own visibility gate. `updatedAt` is the profile
+  // row's real timestamp.
+  const profileEntries: MetadataRoute.Sitemap = publicProfiles.map((profile) => ({
+    url: absolute(`/joueurs/${profile.slug}`),
+    ...(profile.updatedAt !== "" ? { lastModified: profile.updatedAt.slice(0, 10) } : {}),
+  }));
+
+  return [...staticEntries, ...eventEntries, ...postEntries, ...gameEntries, ...weeklyEntries, ...recapEntries, ...profileEntries];
 }
