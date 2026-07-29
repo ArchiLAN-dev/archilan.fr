@@ -77,12 +77,27 @@ images. So the epic's before/after mobile Lighthouse (34.5 AC5) is run on a **de
 2. Record the scores + CWV (LCP, CLS, INP) below.
 3. Confirm no regression after the epic-34 changes are live.
 
-| Date | Page | Perf | LCP | CLS | INP | Notes |
-|---|---|---|---|---|---|---|
-| _tbd_ | `/` | | | | | before epic 34 |
-| _tbd_ | `/` | | | | | after |
-| _tbd_ | event detail | | | | | before |
-| _tbd_ | event detail | | | | | after |
+| Date | Page | Perf | A11y | BP | SEO | LCP | CLS | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 2026-07-29 | `/` | 45 | 100 | 96 | 100 | 95.6 s | 0 | post-epic deployed baseline; sunk by two raw static assets (below) |
+| 2026-07-29 | event detail | 92 | 96 | 96 | 100 | 1.8 s | - | post-epic deployed baseline - the epic's target state |
+
+Baseline findings (2026-07-29, Lighthouse 12 mobile, local machine against https://archilan.fr):
+
+- **SEO / a11y / best-practices are done**: 96-100 on both pages. The remaining gap is home performance.
+- **Root cause 1 (fixed in-repo)**: `public/images/events/lan-photo-1.webp` was a raw 6000x4000
+  **10.6 MB** export and `public/images/logo.webp` a 2048x2048 lossless **2.4 MB** file - 18.8 MB page
+  weight, LCP 95.6 s throttled. Recompressed to 128 KB (1920 px, q72) and 51 KB (512 px, q85); a jest
+  gate (`src/lib/public-images-weight.test.ts`) now fails any `public/images` file over 500 KB. The fix
+  reaches production at the next release.
+- **Root cause 2 (to watch after next deploy)**: the production `/_next/image` optimizer returns
+  local static files **byte-identical** (`X-Nextjs-Cache: HIT` on original bytes, at every width) - it
+  cached failed optimizations, the classic signature of `sharp` missing/failing in the standalone
+  Docker runtime. With lean sources the impact is now minor, but after the next deploy check
+  `curl -sI ".../_next/image?url=%2Fimages%2Flogo.webp&w=96&q=75"` returns a size well under 51 KB;
+  if it still passes through, add `sharp` as an explicit dependency so Next's standalone tracing
+  bundles its linux binaries.
+- Re-run this table after the release that carries the compressed assets.
 
 ## 4. Off-site actions (handed to the association - out of repo scope)
 

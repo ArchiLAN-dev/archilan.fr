@@ -1,6 +1,6 @@
 # Story 34.7: Measurement & tooling (frontend/ CI + external)
 
-Status: in-progress (code parts this PR; GSC verification + sitemap submission = human handoff)
+Status: review (code + deployed baseline done; GSC verification + sitemap submission + off-site = human handoff, documented)
 
 ## Story
 
@@ -151,3 +151,4 @@ claude-opus-4-8 (1M context)
 |------|--------|
 | 2026-07-16 | Story created from epic 34 (final story). Split into code parts (env-driven GSC tag, advisory LHCI, measurement doc) and the human handoff (verify the GSC property + submit the sitemap + off-site actions). Status: in-progress (code this PR). |
 | 2026-07-16 | Code parts implemented: env-driven GSC verification tag, advisory Lighthouse workflow + config, measurement doc. `pnpm gates` green + dev smoke of the tag both states. GSC verify/submit + off-site actions remain the documented human handoff. |
+| 2026-07-29 | Deployed baseline recorded in `docs/seo-measurement.md` (home 45/100/96/100, event detail 92/96/96/100, mobile). Two findings: raw static assets (10.6 MB hero + 2.4 MB logo) recompressed in-repo + new jest weight gate; prod `/_next/image` passthrough on local files documented as a post-deploy check. Advisory CI Lighthouse workflow dispatched once (first artifact). Remaining: GSC verify + sitemap submit + MinIO media-public policy/env (34.4 handoff) + off-site actions - all human/ops, documented. Status -> review. |
