@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Sessions\Presentation\Controller;
 
+use App\Sessions\Application\Command\RecordPlayersSnapshot;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mercure\HubInterface;
@@ -17,6 +19,8 @@ final readonly class PlayersPushController
         private ApiAccessGuard $apiAccessGuard,
         private HubInterface $mercureHub,
         private string $centralApiSecret,
+        private RecordPlayersSnapshot $recordSnapshot,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -30,6 +34,18 @@ final readonly class PlayersPushController
         }
 
         $payload = $request->toArray();
+
+        // Keep the last-known state for the bridge-down fallback (story 17.21). Best-effort: a
+        // persistence failure is logged and must never break the live Mercure publish below.
+        try {
+            $this->recordSnapshot->record($sessionId, $payload);
+        } catch (\Throwable $exception) {
+            $this->logger->error('Persisting the players snapshot failed.', [
+                'sessionId' => $sessionId,
+                'exception' => $exception,
+            ]);
+        }
+
         $topic = sprintf('runs/%s/players', $sessionId);
 
         try {

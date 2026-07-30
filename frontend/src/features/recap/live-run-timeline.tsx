@@ -21,11 +21,16 @@ import { RunTimeline } from "./run-timeline";
 export function LiveRunTimeline({ sessionId }: { sessionId: string }) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [connected, setConnected] = useState(false);
+  // Whether the persisted snapshot has been fetched (story 17.21): an empty feed after loading is
+  // "nothing recorded", not "still connecting" - a paused run must not say "Connexion…" forever.
+  const [snapshotLoaded, setSnapshotLoaded] = useState(false);
 
   useEffect(() => {
     let on = true;
     void fetchSessionFeed(sessionId).then((initial) => {
-      if (on) setEvents((live) => mergeMany(initial, live));
+      if (!on) return;
+      setEvents((live) => mergeMany(initial, live));
+      setSnapshotLoaded(true);
     });
     return () => {
       on = false;
@@ -97,7 +102,11 @@ export function LiveRunTimeline({ sessionId }: { sessionId: string }) {
     return (
       <section className="grid gap-2 rounded-lg border border-border bg-surface p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          {connected ? "En direct - en attente des premiers objets trouvés…" : "Connexion au direct…"}
+          {connected
+            ? "En direct - en attente des premiers objets trouvés…"
+            : snapshotLoaded
+              ? "Aucun évènement enregistré pour cette partie pour l'instant."
+              : "Connexion au direct…"}
         </p>
       </section>
     );

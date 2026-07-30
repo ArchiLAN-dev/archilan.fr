@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Presentation\Controller;
 
 use App\Identity\Domain\Entity\User;
+use App\Sessions\Application\Query\PlayersSnapshotQuery;
 use App\Sessions\Application\Query\SessionQuery;
 use App\Sessions\Domain\Entity\Session;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -32,6 +33,7 @@ final readonly class PlayerStateController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private SessionQuery $sessionQuery,
+        private PlayersSnapshotQuery $playersSnapshotQuery,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
@@ -58,7 +60,16 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
+        // Not running (idle/stopped/finished - the everyday case since epic 17's auto-idle), no
+        // port, or a dead bridge: serve the last pushed snapshot instead of erroring, so the
+        // Progression tab keeps showing the last known state (story 17.21). The historical error
+        // semantics only apply when no snapshot was ever recorded.
         if (Session::STATUS_RUNNING !== $session['status']) {
+            $stale = $this->staleSnapshotResponse($runId);
+            if (null !== $stale) {
+                return $stale;
+            }
+
             return $this->apiAccessGuard->errorResponse(
                 'session_not_running',
                 sprintf('La session est en état "%s", pas encore en cours.', $session['status']),
@@ -70,7 +81,8 @@ final readonly class PlayerStateController
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
-            return $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
+            return $this->staleSnapshotResponse($runId)
+                ?? $this->apiAccessGuard->errorResponse('bridge_unavailable', 'Bridge non disponible.', 503);
         }
 
         try {
@@ -83,8 +95,22 @@ final readonly class PlayerStateController
 
             return new JsonResponse(['data' => $data]);
         } catch (\Throwable $e) {
-            return $this->bridgeFailure($e, $runId, null, 'players');
+            return $this->staleSnapshotResponse($runId) ?? $this->bridgeFailure($e, $runId, null, 'players');
         }
+    }
+
+    /** The last pushed players state, marked stale - or null when none was ever recorded. */
+    private function staleSnapshotResponse(string $sessionId): ?JsonResponse
+    {
+        $snapshot = $this->playersSnapshotQuery->execute($sessionId);
+        if (null === $snapshot) {
+            return null;
+        }
+
+        return new JsonResponse([
+            'data' => $snapshot['payload'],
+            'meta' => ['stale' => true, 'updatedAt' => $snapshot['updatedAt']],
+        ]);
     }
 
     #[Route('/api/v1/sessions/{runId}/players-token', methods: ['GET'])]
