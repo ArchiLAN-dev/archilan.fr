@@ -9,8 +9,11 @@ import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {
     fetchAdminGame,
     isAdminGamePayload as isGamePayload,
+    overrideApworldPreflight,
+    rerunApworldPreflight,
     type AdminGame,
     type AdminGameResult,
+    type ApworldPreflight,
     type GameAvailability,
 } from "@/features/admin/admin-games-api";
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
@@ -717,6 +720,7 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
                             ? <span className="text-foreground">{game.archipelagoGameName}</span>
                             : <span className="text-danger">manquant</span>}
                     </p>
+                    <ApworldPreflightStatus game={game} />
                 </div>
             ) : (
                 <p className="text-sm text-muted-foreground">Aucun fichier .apworld configuré.</p>
@@ -1108,4 +1112,92 @@ function fieldErrorsFromPayload(payload: unknown): BasicInfoErrors {
         coverImageCredit: first("coverImageCredit"),
         availability: first("availability"),
     };
+}
+
+// ─── Apworld preflight verdict (story 9.38) ──────────────────────────────────
+
+const preflightLabels: Record<ApworldPreflight["status"], { label: string; className: string }> = {
+    pending: { label: "Test de génération en cours…", className: "text-muted-foreground" },
+    passed: { label: "Test de génération réussi", className: "text-success" },
+    failed: { label: "Échec du test de génération", className: "text-danger" },
+    skipped: { label: "Test impossible (pas de template YAML)", className: "text-muted-foreground" },
+};
+
+function ApworldPreflightStatus({ game }: { game: AdminGame }) {
+    const [preflight, setPreflight] = useState<ApworldPreflight | null>(game.apworldPreflight ?? null);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function handleRerun(): Promise<void> {
+        setBusy(true);
+        setError(null);
+        const accepted = await rerunApworldPreflight(game.id);
+        if (accepted) {
+            setPreflight({ status: "pending", error: "", checkedAt: "", overridden: preflight?.overridden ?? false, blocks: false });
+        } else {
+            setError("Impossible de relancer le test (runner indisponible ?).");
+        }
+        setBusy(false);
+    }
+
+    async function handleOverride(overridden: boolean): Promise<void> {
+        setBusy(true);
+        setError(null);
+        const updated = await overrideApworldPreflight(game.id, overridden);
+        if (updated !== null) {
+            setPreflight(updated);
+        } else {
+            setError("Impossible d'appliquer la dérogation (runner indisponible ?).");
+        }
+        setBusy(false);
+    }
+
+    const info = preflight !== null ? preflightLabels[preflight.status] : null;
+
+    return (
+        <div className="mt-2 grid gap-1.5">
+            <p className={`text-sm font-semibold ${info?.className ?? "text-muted-foreground"}`}>
+                {info?.label ?? "Génération pas encore testée"}
+                {preflight?.checkedAt ? (
+                    <span className="ml-2 font-normal text-xs text-muted-foreground">
+                        (vérifié avec les options par défaut, le{" "}
+                        {new Date(preflight.checkedAt).toLocaleDateString("fr-FR", {
+                            day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+                        })})
+                    </span>
+                ) : null}
+            </p>
+            {preflight?.status === "failed" && preflight.error !== "" ? (
+                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-2 p-2 text-[11px] leading-relaxed text-muted-foreground">
+                    {preflight.error}
+                </pre>
+            ) : null}
+            {preflight?.overridden ? (
+                <p className="text-xs text-warning">
+                    Dérogation active : le jeu reste sélectionnable malgré le verdict.
+                </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+                <button
+                    className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={busy || preflight?.status === "pending"}
+                    type="button"
+                    onClick={() => void handleRerun()}
+                >
+                    Relancer le test
+                </button>
+                {preflight?.status === "failed" || preflight?.overridden ? (
+                    <button
+                        className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={busy}
+                        type="button"
+                        onClick={() => void handleOverride(!(preflight?.overridden ?? false))}
+                    >
+                        {preflight?.overridden ? "Retirer la dérogation" : "Autoriser malgré l'échec"}
+                    </button>
+                ) : null}
+            </div>
+            {error !== null ? <p className="text-xs text-danger">{error}</p> : null}
+        </div>
+    );
 }

@@ -17,6 +17,7 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -33,6 +34,7 @@ final readonly class PersonalRunGameSelection
         private UserRepositoryInterface $users,
         private CommunityUserDirectoryQueryInterface $directory,
         private CommunityLevelQuery $levels,
+        private RunnerGatewayInterface $runnerGateway,
         private LoggerInterface $logger,
         private ClockInterface $clock,
     ) {
@@ -250,6 +252,11 @@ final readonly class PersonalRunGameSelection
             return $this->resultWithErrors(found: true, errors: $disabledErrors);
         }
 
+        $preflightErrors = $this->validateApworldPreflights($gameIds, $participant->getGameSlots(), $gamesById);
+        if ([] !== $preflightErrors) {
+            return $this->resultWithErrors(found: true, errors: $preflightErrors);
+        }
+
         $newSlots = $this->diffSlots($participant->getGameSlots(), $gameIds, $gamesById);
         $participant->replaceSlots($newSlots);
 
@@ -402,6 +409,60 @@ final readonly class PersonalRunGameSelection
                 null !== $message
                     ? sprintf('Ce jeu est temporairement désactivé : %s', $message)
                     : 'Ce jeu est temporairement désactivé.',
+            );
+        }
+
+        return $errors->toArray();
+    }
+
+    /**
+     * Story 9.38 AC4: a newly added game whose apworld failed its upload-time preflight test
+     * generation (and has no admin override) cannot be attached. One runner fetch per save;
+     * when the runner is unreachable the verdict map is empty and nothing is blocked (fail
+     * open). Games already present in the participant's slots are never re-blocked.
+     *
+     * @param list<string>                                                                                                     $gameIds
+     * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
+     * @param array<string, Game>                                                                                              $gamesById
+     *
+     * @return array<string, list<string>>
+     */
+    private function validateApworldPreflights(array $gameIds, array $existingSlots, array $gamesById): array
+    {
+        $hashesByGameId = [];
+        foreach ($gameIds as $gameId) {
+            $hash = ($gamesById[$gameId] ?? null)?->getApworldHash();
+            if (null !== $hash && '' !== $hash) {
+                $hashesByGameId[$gameId] = $hash;
+            }
+        }
+        if ([] === $hashesByGameId) {
+            return [];
+        }
+
+        $verdicts = $this->runnerGateway->fetchApworldPreflights();
+        if ([] === $verdicts) {
+            return [];
+        }
+
+        $errors = new ValidationErrors();
+        $existingCounts = array_count_values(array_column($existingSlots, 'gameId'));
+
+        foreach ($gameIds as $index => $gameId) {
+            $hash = $hashesByGameId[$gameId] ?? null;
+            $verdict = null !== $hash ? ($verdicts[$hash] ?? null) : null;
+            if (null === $verdict || !$verdict['blocks']) {
+                continue;
+            }
+
+            if (($existingCounts[$gameId] ?? 0) > 0) {
+                --$existingCounts[$gameId];
+                continue;
+            }
+
+            $errors->add(
+                sprintf('gameIds.%d', $index),
+                'Le monde Archipelago de ce jeu a échoué au test de génération ; il ne peut pas être ajouté pour le moment.',
             );
         }
 
