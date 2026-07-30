@@ -181,7 +181,13 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
 
 // ─── Validation error banner ──────────────────────────────────────────────────
 
-function ValidationErrorBanner({ errors }: { errors: ValidationSlotError[] }) {
+function ValidationErrorBanner({
+  errors,
+  logExcerpt = null,
+}: {
+  errors: ValidationSlotError[];
+  logExcerpt?: string | null;
+}) {
   return (
     <div className="rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-4">
       <div className="flex items-start gap-2">
@@ -202,6 +208,16 @@ function ValidationErrorBanner({ errors }: { errors: ValidationSlotError[] }) {
               </li>
             ))}
           </ul>
+          {logExcerpt !== null && logExcerpt !== "" ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                Détails techniques
+              </summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-3 text-[11px] leading-relaxed text-muted-foreground">
+                {logExcerpt}
+              </pre>
+            </details>
+          ) : null}
         </div>
       </div>
     </div>
@@ -915,7 +931,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             {run.status === "draft" && (
               <>
                 {run.validationErrors !== null && run.validationErrors.length > 0 && (
-                  <ValidationErrorBanner errors={run.validationErrors} />
+                  <ValidationErrorBanner errors={run.validationErrors} logExcerpt={run.generationLogExcerpt ?? null} />
                 )}
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"

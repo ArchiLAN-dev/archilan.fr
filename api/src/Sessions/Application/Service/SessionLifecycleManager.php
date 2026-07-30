@@ -20,6 +20,8 @@ use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Port\SessionReconcilerInterface;
+use App\Sessions\Application\Support\GenerationFailureParser;
+use App\Sessions\Application\Support\GenerationFailureReport;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
@@ -232,10 +234,13 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $now = $this->clock->now();
         $session->transition(Session::STATUS_FAILED, $now);
 
-        $message = 'La génération a échoué côté serveur. Vérifie ta configuration (YAML / jeux) puis relance.';
-        $session->recordValidationErrors([['slotName' => 'Génération', 'errors' => [$message]]]);
-        if (null !== $reason && '' !== trim($reason)) {
-            $session->recordLogs($reason);
+        // Story 9.40: attribute the failure to the faulty slot(s) when the generator's stderr
+        // names them, so the right player sees the world's actionable message instead of a
+        // generic "ça a planté".
+        $report = GenerationFailureParser::parse($reason);
+        $session->recordValidationErrors($this->crashValidationErrors($sessionId, $report));
+        if ('' !== $report->cleanedLog) {
+            $session->recordLogs($report->cleanedLog);
         }
 
         $personalRun = $this->runs->findBySessionId($sessionId);
@@ -249,6 +254,45 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         $this->logger->error('session.crash.failed', ['sessionId' => $sessionId, 'from' => $from, 'reason' => $reason]);
 
         return ['found' => true];
+    }
+
+    /**
+     * Maps parsed crash findings onto the session's real slots: attributed findings land on
+     * their slot in the standard validation-errors channel; anything unattributable keeps the
+     * generic "Génération" pseudo-slot entry (story 9.40).
+     *
+     * @return list<array{slotName: string, errors: list<string>}>
+     */
+    private function crashValidationErrors(string $sessionId, GenerationFailureReport $report): array
+    {
+        $knownSlotNames = array_map(
+            static fn (SessionSlot $slot): string => $slot->getSlotName(),
+            $this->slots->findBySessionId($sessionId),
+        );
+
+        /** @var array<string, list<string>> $bySlot */
+        $bySlot = [];
+        $generic = [];
+        foreach ($report->findings as $finding) {
+            if (null !== $finding->slotName && in_array($finding->slotName, $knownSlotNames, true)) {
+                $bySlot[$finding->slotName][] = 'La génération a échoué à cause de ce slot : '.$finding->message;
+            } else {
+                $generic[] = 'La génération a échoué côté serveur : '.$finding->message;
+            }
+        }
+
+        $errors = [];
+        foreach ($bySlot as $slotName => $messages) {
+            $errors[] = ['slotName' => $slotName, 'errors' => array_values(array_unique($messages))];
+        }
+
+        if ([] !== $generic) {
+            $errors[] = ['slotName' => 'Génération', 'errors' => array_values(array_unique($generic))];
+        } elseif ([] === $errors) {
+            $errors[] = ['slotName' => 'Génération', 'errors' => ['La génération a échoué côté serveur. Vérifie ta configuration (YAML / jeux) puis relance.']];
+        }
+
+        return $errors;
     }
 
     /** @return array{found: bool} */

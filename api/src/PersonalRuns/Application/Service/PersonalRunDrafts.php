@@ -362,6 +362,7 @@ final readonly class PersonalRunDrafts
         $lastActivityAt = null;
         $pausedWithoutSave = false;
         $validationErrors = null;
+        $generationLogExcerpt = null;
         $adminPassword = null;
         $sessionId = $run->getSessionId();
 
@@ -378,6 +379,15 @@ final readonly class PersonalRunDrafts
                 if (Run::STATUS_DRAFT === $run->getStatus()
                     && in_array($session->getStatus(), [Session::STATUS_DRAFT, Session::STATUS_FAILED], true)) {
                     $validationErrors = $session->getValidationErrors();
+
+                    // Owner-only bounded excerpt of the failed generation's stderr (story 9.40) -
+                    // the full raw log stays admin-only via /admin/sessions/{id}/logs.
+                    if ($isOwner && Session::STATUS_FAILED === $session->getStatus()) {
+                        $logs = $session->getLastLogs();
+                        if (null !== $logs && '' !== trim($logs)) {
+                            $generationLogExcerpt = mb_substr($logs, -2000);
+                        }
+                    }
                 }
 
                 if ($isActive && $isOwner) {
@@ -403,6 +413,7 @@ final readonly class PersonalRunDrafts
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,
+            'generationLogExcerpt' => $generationLogExcerpt,
             'adminPassword' => $adminPassword,
             'createdAt' => $run->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $run->getUpdatedAt()->format(\DateTimeInterface::ATOM),

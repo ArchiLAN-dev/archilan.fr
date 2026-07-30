@@ -89,6 +89,8 @@ export type PersonalRun = {
   lastActivityAt: string | null;
   pausedWithoutSave: boolean;
   validationErrors: ValidationSlotError[] | null;
+  // Bounded stderr excerpt of a failed generation, owner-only (story 9.40). Absent on older API payloads.
+  generationLogExcerpt?: string | null;
   adminPassword: string | null;
   createdAt: string;
   updatedAt: string;
