@@ -63,6 +63,21 @@ interface RunnerGatewayInterface
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 
     /**
+     * Queue a solo test generation of one player's real YAML (story 9.42). $apworldHash is
+     * null for official worlds bundled in the generation image. Returns the orchestrator job
+     * id to poll with getSlotPreflight, or null when the runner is unreachable.
+     */
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string;
+
+    /**
+     * Poll a slot preflight job. Returns null for unknown/expired ids or runner errors (the
+     * caller decides whether to retry or give up).
+     *
+     * @return array{status: string, error: string}|null status: pending|passed|failed
+     */
+    public function getSlotPreflight(string $jobId): ?array;
+
+    /**
      * @param list<array{slotName: string, apworldHash: string, playerYaml: string}> $slots
      *
      * @return array{valid: bool, errors: list<array{playerName: string, errors: list<string>}>}

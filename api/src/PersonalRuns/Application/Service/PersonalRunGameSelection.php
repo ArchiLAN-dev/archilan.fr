@@ -12,6 +12,7 @@ use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
@@ -21,6 +22,7 @@ use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
@@ -35,6 +37,7 @@ final readonly class PersonalRunGameSelection
         private CommunityUserDirectoryQueryInterface $directory,
         private CommunityLevelQuery $levels,
         private RunnerGatewayInterface $runnerGateway,
+        private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private ClockInterface $clock,
     ) {
@@ -307,9 +310,54 @@ final readonly class PersonalRunGameSelection
 
         $participant->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
+        // Story 9.42: every saved yaml gets an automatic solo test generation. The verdict
+        // is advisory (never blocks a launch) and keyed to this exact yaml.
+        $yamlSha = hash('sha256', $playerYaml);
+        $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
+
         $this->participants->flush();
 
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha));
+
         $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
+
+        return $this->yamlResult(found: true);
+    }
+
+    /**
+     * Story 9.42: explicit "Tester ma config" re-run of the solo test generation for one slot.
+     *
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, errors: array<string, list<string>>}
+     */
+    public function requestSlotPreflight(string $runId, string $userId, string $slotId): array
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
+            return $this->yamlResult(found: false);
+        }
+
+        $participant = $this->loadParticipant($run, $userId);
+        if (null === $participant) {
+            return $this->yamlResult(found: true, authorized: false);
+        }
+
+        $slot = $participant->getSlot($slotId);
+        if (null === $slot) {
+            return $this->yamlResult(found: true, errors: ['slotId' => ['Slot introuvable.']]);
+        }
+
+        $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
+        if ('' === $yaml) {
+            return $this->yamlResult(found: true, errors: ['playerYaml' => ['Configure d\'abord un YAML pour ce slot.']]);
+        }
+
+        $yamlSha = hash('sha256', $yaml);
+        $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
+        $this->participants->flush();
+
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha));
+
+        $this->logger->info('personal_run.slot_preflight_requested', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
     }

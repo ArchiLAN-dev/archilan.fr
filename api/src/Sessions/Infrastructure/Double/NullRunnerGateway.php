@@ -95,6 +95,19 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return $current;
     }
 
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): string
+    {
+        return 'null-preflight-job';
+    }
+
+    /**
+     * @return array{status: string, error: string}
+     */
+    public function getSlotPreflight(string $jobId): array
+    {
+        return ['status' => 'passed', 'error' => ''];
+    }
+
     public function configureSession(string $sessionId, array $slots): array
     {
         self::$lastConfigureSlots = $slots;

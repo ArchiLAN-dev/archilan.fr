@@ -60,6 +60,7 @@ framework:
             'App\Communications\Application\Message\SessionRestartFailedMessage': async
             'App\Sessions\Application\Message\BuildSessionRecapJob': async
             'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
+            'App\PersonalRuns\Application\Message\RunSlotPreflightJob': run_server
 
 when@test:
     framework:
