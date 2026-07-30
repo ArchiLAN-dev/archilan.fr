@@ -8,6 +8,7 @@ use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Message\NotifyGenerationFailureJob;
 use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Service\SessionLifecycleManager;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final class SessionLifecycleManagerRecordCrashTest extends TestCase
@@ -78,6 +80,50 @@ LOG;
         self::assertNull($session->getLastLogs());
     }
 
+    public function testRecordCrashDispatchesNotificationJobWithFindings(): void
+    {
+        $session = $this->generatingSession();
+        $dispatched = [];
+        $bus = self::createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message) use (&$dispatched): Envelope {
+            $dispatched[] = $message;
+
+            return new Envelope($message);
+        });
+        $manager = $this->manager($session, [$this->slot('masterkafey_ABL')], $bus);
+
+        $manager->recordCrash('session-1', self::ABL_STDERR);
+
+        self::assertCount(1, $dispatched);
+        $job = $dispatched[0];
+        self::assertInstanceOf(NotifyGenerationFailureJob::class, $job);
+        self::assertSame('session-1', $job->sessionId);
+        self::assertSame([[
+            'slotName' => 'masterkafey_ABL',
+            'message' => 'Exception: Too many upgrade items based on LEVEL_CAPS: 141 items for 16 locations. Disable some location categories/options or verify cap data.',
+        ]], $job->findings);
+    }
+
+    public function testRecordCrashDispatchesNotificationJobWithoutFindings(): void
+    {
+        $session = $this->generatingSession();
+        $dispatched = [];
+        $bus = self::createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static function (object $message) use (&$dispatched): Envelope {
+            $dispatched[] = $message;
+
+            return new Envelope($message);
+        });
+        $manager = $this->manager($session, [$this->slot('masterkafey_ABL')], $bus);
+
+        $manager->recordCrash('session-1', null);
+
+        self::assertCount(1, $dispatched);
+        $job = $dispatched[0];
+        self::assertInstanceOf(NotifyGenerationFailureJob::class, $job);
+        self::assertSame([], $job->findings);
+    }
+
     private function generatingSession(): Session
     {
         $now = new \DateTimeImmutable('2026-07-30T12:00:00+00:00');
@@ -97,7 +143,7 @@ LOG;
     /**
      * @param list<SessionSlot> $slots
      */
-    private function manager(Session $session, array $slots): SessionLifecycleManager
+    private function manager(Session $session, array $slots, ?MessageBusInterface $bus = null): SessionLifecycleManager
     {
         $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn($session);
@@ -108,6 +154,11 @@ LOG;
         $clock = self::createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2026-07-30T12:34:56+00:00'));
 
+        if (null === $bus) {
+            $bus = self::createStub(MessageBusInterface::class);
+            $bus->method('dispatch')->willReturnCallback(static fn (object $message): Envelope => new Envelope($message));
+        }
+
         return new SessionLifecycleManager(
             sessions: $sessions,
             slots: $slotRepository,
@@ -116,7 +167,7 @@ LOG;
             users: self::createStub(UserRepositoryInterface::class),
             events: self::createStub(EventRepositoryInterface::class),
             mercureHub: self::createStub(HubInterface::class),
-            messageBus: self::createStub(MessageBusInterface::class),
+            messageBus: $bus,
             logger: new NullLogger(),
             runnerGateway: self::createStub(RunnerGatewayInterface::class),
             weeklyEntries: self::createStub(WeeklyEntryRepositoryInterface::class),

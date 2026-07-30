@@ -197,6 +197,19 @@ function messageFor(item: NotificationItem): string {
       return hasStringProp(item.data, "reason") && item.data.reason !== ""
         ? `Avertissement de la modération : ${item.data.reason}`
         : "La modération t'a envoyé un avertissement";
+    case "generation_failed": {
+      const runTitle =
+        hasStringProp(item.data, "runTitle") && item.data.runTitle !== "" ? ` « ${item.data.runTitle} »` : "";
+      if (
+        hasStringProp(item.data, "role") &&
+        item.data.role === "player" &&
+        hasStringProp(item.data, "slotName") &&
+        item.data.slotName !== ""
+      ) {
+        return `Ta config (slot « ${item.data.slotName} ») a fait échouer la génération de la partie${runTitle}`;
+      }
+      return `La génération de la partie${runTitle} a échoué`;
+    }
     default:
       return "Nouvelle notification";
   }
@@ -205,6 +218,9 @@ function messageFor(item: NotificationItem): string {
 function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
     return "/admin/moderation";
+  }
+  if (item.type === "generation_failed") {
+    return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
   }
   if (item.actor !== null && item.type !== "achievement_unlocked") {
     return `/joueurs/${item.actor.slug}`;
