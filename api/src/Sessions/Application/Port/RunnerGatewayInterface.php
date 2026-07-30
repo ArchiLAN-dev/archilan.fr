@@ -38,6 +38,31 @@ interface RunnerGatewayInterface
     public function fetchLocationNames(string $hash): array;
 
     /**
+     * Upload-time preflight verdicts for all uploaded apworlds, keyed by hash (story 9.38).
+     * `blocks` is true only for a failed, non-overridden verdict. Apworlds never checked
+     * (uploaded before the preflight existed) appear with an empty status and blocks=false.
+     * Returns an empty array when the runner is unreachable - callers MUST fail open (never
+     * block on missing data).
+     *
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}>
+     */
+    public function fetchApworldPreflights(): array;
+
+    /**
+     * Re-run the upload-time preflight for one apworld (asynchronous on the orchestrator).
+     * Returns false when the runner rejected the request or is unreachable.
+     */
+    public function runApworldPreflight(string $hash): bool;
+
+    /**
+     * Toggle the admin "force allow" override on a preflight verdict (story 9.38 AC4).
+     * Returns the updated verdict, or null when the runner is unreachable.
+     *
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}|null
+     */
+    public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
+
+    /**
      * @param list<array{slotName: string, apworldHash: string, playerYaml: string}> $slots
      *
      * @return array{valid: bool, errors: list<array{playerName: string, errors: list<string>}>}

@@ -254,6 +254,53 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Plateformes synchronisées.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/apworld-preflight', name: 'api_admin_game_apworld_preflight_rerun', methods: ['POST'])]
+    public function rerunApworldPreflight(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->rerunApworldPreflight($gameId);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('preflight_rerun_failed', 'Le test de génération n\'a pas pu être relancé.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => ['status' => 'pending'], 'meta' => ['message' => 'Test de génération relancé.']], 202);
+    }
+
+    #[Route('/api/v1/admin/games/{gameId}/apworld-preflight-override', name: 'api_admin_game_apworld_preflight_override', methods: ['POST'])]
+    public function overrideApworldPreflight(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $overridden = is_array($payload) && true === ($payload['overridden'] ?? null);
+
+        $result = $this->adminGameLibrary->overrideApworldPreflight($gameId, $overridden);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('preflight_override_failed', 'La dérogation n\'a pas pu être appliquée.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => ['preflight' => $result['preflight'] ?? null]]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/apworld', name: 'api_admin_game_configure_apworld', methods: ['PATCH'])]
     public function configureApworld(Request $request, string $gameId): JsonResponse
     {

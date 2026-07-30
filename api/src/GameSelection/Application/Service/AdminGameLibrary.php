@@ -120,8 +120,21 @@ final readonly class AdminGameLibrary
         $result = $this->adminGameListQuery->find($page, $perPage, $search, $availability, $yamlReady, $apworldReady, $sort, $dir);
         $totalPages = $result['total'] > 0 ? (int) ceil($result['total'] / $perPage) : 1;
 
+        // Story 9.38: join the upload-time preflight verdict by apworld hash. One runner
+        // call for the whole page; on runner error the verdicts are simply absent (fail open).
+        $items = $result['items'];
+        if ([] !== array_filter($items, static fn (array $item): bool => is_string($item['apworldHash'] ?? null))) {
+            $verdicts = $this->runnerGateway->fetchApworldPreflights();
+            foreach ($items as $i => $item) {
+                $hash = $item['apworldHash'] ?? null;
+                $verdict = is_string($hash) ? ($verdicts[$hash] ?? null) : null;
+                // An empty status means "never checked" - present it as no verdict at all.
+                $items[$i]['apworldPreflight'] = (null !== $verdict && '' !== $verdict['status']) ? $verdict : null;
+            }
+        }
+
         return [
-            'items' => $result['items'],
+            'items' => $items,
             'total' => $result['total'],
             'page' => $page,
             'perPage' => $perPage,
@@ -135,8 +148,82 @@ final readonly class AdminGameLibrary
     public function detail(string $gameId): ?array
     {
         $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return null;
+        }
 
-        return $game instanceof Game ? $this->detailPayload($game) : null;
+        $payload = $this->detailPayload($game);
+        $payload['apworldPreflight'] = $this->preflightForGame($game);
+
+        return $payload;
+    }
+
+    /**
+     * Re-run the upload-time preflight test generation of this game's apworld (story 9.38).
+     *
+     * @return array{found: bool, errors: array<string, list<string>>}
+     */
+    public function rerunApworldPreflight(string $gameId): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $hash = $game->getApworldHash();
+        if (null === $hash || '' === $hash) {
+            return ['found' => true, 'errors' => ['apworld' => ['Ce jeu n\'a pas d\'apworld configuré.']]];
+        }
+
+        if (!$this->runnerGateway->runApworldPreflight($hash)) {
+            return ['found' => true, 'errors' => ['apworld' => ['Le runner est indisponible, réessaie plus tard.']]];
+        }
+
+        $this->logger->info('game.apworld_preflight_rerun', ['gameId' => $gameId, 'hash' => $hash]);
+
+        return ['found' => true, 'errors' => []];
+    }
+
+    /**
+     * Toggle the "force allow" override on this game's apworld preflight verdict (story 9.38 AC4).
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}}
+     */
+    public function overrideApworldPreflight(string $gameId, bool $overridden): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $hash = $game->getApworldHash();
+        if (null === $hash || '' === $hash) {
+            return ['found' => true, 'errors' => ['apworld' => ['Ce jeu n\'a pas d\'apworld configuré.']]];
+        }
+
+        $verdict = $this->runnerGateway->overrideApworldPreflight($hash, $overridden);
+        if (null === $verdict) {
+            return ['found' => true, 'errors' => ['apworld' => ['Le runner est indisponible, réessaie plus tard.']]];
+        }
+
+        $this->logger->info('game.apworld_preflight_override', ['gameId' => $gameId, 'hash' => $hash, 'overridden' => $overridden]);
+
+        return ['found' => true, 'errors' => [], 'preflight' => $verdict];
+    }
+
+    /**
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}|null
+     */
+    private function preflightForGame(Game $game): ?array
+    {
+        $hash = $game->getApworldHash();
+        if (null === $hash || '' === $hash) {
+            return null;
+        }
+
+        $verdict = $this->runnerGateway->fetchApworldPreflights()[$hash] ?? null;
+
+        return (null !== $verdict && '' !== $verdict['status']) ? $verdict : null;
     }
 
     /**
