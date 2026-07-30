@@ -152,6 +152,15 @@ export async function setRunRecapVisibility(runId: string, isPublic: boolean): P
 
 // ─── My game selection (/runs/{runId}/participants/me/game-selection) ────────
 
+// Story 9.42: solo test-generation verdict of the slot's current yaml. Advisory only -
+// a failed verdict never blocks a launch (single-seed solo test, the full generation can
+// still differ).
+export type SlotPreflightVerdict = {
+  status: "pending" | "passed" | "failed";
+  error: string;
+  checkedAt: string;
+};
+
 export type GameSelectionSlot = {
   slotId: string;
   slotOrder: number;
@@ -159,7 +168,20 @@ export type GameSelectionSlot = {
   gameName: string;
   playerYaml: string | null;
   apworldHash: string | null;
+  preflight?: SlotPreflightVerdict | null;
 };
+
+/** Story 9.42: queue a "Tester ma config" solo test generation for one slot. */
+export async function requestSlotPreflight(runId: string, slotId: string): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/slots/${slotId}/preflight`, {
+      method: "POST",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 export type GameSelectionGame = {
   id: string;

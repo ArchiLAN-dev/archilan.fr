@@ -293,6 +293,31 @@ final readonly class PersonalRunController
         return new JsonResponse(['data' => ['slots' => $result['slots']]]);
     }
 
+    #[Route('/api/v1/runs/{runId}/participants/me/slots/{slotId}/preflight', name: 'api_runs_slot_preflight_request', methods: ['POST'])]
+    public function requestSlotPreflight(Request $request, string $runId, string $slotId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $result = $this->gameSelection->requestSlotPreflight($runId, $user->getId(), $slotId);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Test impossible.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => ['status' => 'pending']], 202);
+    }
+
     #[Route('/api/v1/runs/{runId}/participants/me/slots/{slotId}/yaml', name: 'api_runs_slot_yaml_save', methods: ['PUT'])]
     public function saveSlotYaml(Request $request, string $runId, string $slotId): JsonResponse
     {

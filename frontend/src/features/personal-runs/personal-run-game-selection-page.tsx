@@ -13,7 +13,7 @@ import { SteamCoupling } from "@/features/games/steam-coupling";
 import { useSteamCoupling } from "@/features/games/use-steam-coupling";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
 import { allCategories, categoriesOf, isOwned } from "@/features/games/games-filter";
-import { fetchMyGameSelection, type GameSelectionSlot } from "./personal-runs-api";
+import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +105,11 @@ export function PersonalRunGameSelectionPage({
     queryFn: () => fetchMyGameSelection(runId),
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
+    // Story 9.42: while a slot's solo test generation is pending, poll for its verdict.
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      return d?.kind === "data" && d.data.slots.some((s) => s.preflight?.status === "pending") ? 10_000 : false;
+    },
   });
   const result = selectionQuery.data;
   const selection = result?.kind === "data" ? result.data : null;
@@ -382,6 +387,17 @@ export function PersonalRunGameSelectionPage({
               >
                 <span className="text-sm font-medium text-foreground">{label}</span>
                 <div className="flex items-center gap-1.5">
+                  {slot !== null && saveState.kind === "saved" && hasYaml && (
+                    <SlotPreflightBadge
+                      onRetest={async () => {
+                        const accepted = await requestSlotPreflight(runId, slot.slotId);
+                        if (accepted) {
+                          void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] });
+                        }
+                      }}
+                      preflight={slot.preflight ?? null}
+                    />
+                  )}
                   {slot !== null && saveState.kind === "saved" && (
                     <Link
                       className={[
@@ -604,5 +620,66 @@ export function PersonalRunGameSelectionPage({
         )}
       </section>
     </article>
+  );
+}
+
+// ─── Slot preflight badge (story 9.42) ───────────────────────────────────────
+
+/**
+ * Advisory verdict of the slot's solo test generation. "Tester" queues a re-run; the page's
+ * query polls while a test is pending. Single-seed solo test: honest copy in the tooltip.
+ */
+function SlotPreflightBadge({
+  preflight,
+  onRetest,
+}: {
+  preflight: { status: "pending" | "passed" | "failed"; error: string; checkedAt: string } | null;
+  onRetest: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  if (preflight?.status === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs text-muted-foreground">
+        Test en cours…
+      </span>
+    );
+  }
+
+  const badge =
+    preflight === null ? null : preflight.status === "passed" ? (
+      <span
+        className="inline-flex items-center gap-1 rounded border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 px-2 py-1 text-xs font-semibold text-[color:var(--color-success)]"
+        title="Testé seul avec une seed - la génération complète peut encore différer."
+      >
+        <CheckCircle aria-hidden className="size-3" />
+        Config testée
+      </span>
+    ) : (
+      <span
+        className="inline-flex items-center gap-1 rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-2 py-1 text-xs font-semibold text-[color:var(--color-danger)]"
+        title={preflight.error !== "" ? preflight.error : "Échec du test de génération."}
+      >
+        <AlertCircle aria-hidden className="size-3" />
+        Échec du test
+      </span>
+    );
+
+  return (
+    <>
+      {badge}
+      <button
+        className="inline-flex items-center rounded border border-border px-2 py-1 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void onRetest().finally(() => setBusy(false));
+        }}
+        title="Lance une génération test avec uniquement ce slot (seed unique, résultat indicatif)."
+        type="button"
+      >
+        Tester ma config
+      </button>
+    </>
   );
 }

@@ -359,6 +359,17 @@ final readonly class PersonalRunDrafts
         $isActive = Run::STATUS_ACTIVE === $run->getStatus();
         $isOwner = null !== $callerId && $run->isOwnedBy($callerId);
 
+        // Story 9.42 (advisory launch warning): count slots whose solo test generation
+        // failed across all participants. Never blocks anything.
+        $failedPreflightCount = 0;
+        foreach ($this->participants->findByRunId($run->getId()) as $runParticipant) {
+            foreach ($runParticipant->getGameSlots() as $gameSlot) {
+                if ('failed' === (($gameSlot['preflight'] ?? [])['status'] ?? null)) {
+                    ++$failedPreflightCount;
+                }
+            }
+        }
+
         $lastActivityAt = null;
         $pausedWithoutSave = false;
         $validationErrors = null;
@@ -414,6 +425,7 @@ final readonly class PersonalRunDrafts
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,
             'generationLogExcerpt' => $generationLogExcerpt,
+            'failedPreflightCount' => $failedPreflightCount,
             'adminPassword' => $adminPassword,
             'createdAt' => $run->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $run->getUpdatedAt()->format(\DateTimeInterface::ATOM),

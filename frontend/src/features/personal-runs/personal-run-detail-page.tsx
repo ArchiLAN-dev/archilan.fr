@@ -933,6 +933,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 {run.validationErrors !== null && run.validationErrors.length > 0 && (
                   <ValidationErrorBanner errors={run.validationErrors} logExcerpt={run.generationLogExcerpt ?? null} />
                 )}
+                {run.status === "draft" && (run.failedPreflightCount ?? 0) > 0 && (
+                  <p className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/5 p-3 text-xs text-[color:var(--color-warning)]">
+                    {run.failedPreflightCount} slot{(run.failedPreflightCount ?? 0) > 1 ? "s ont" : " a"} échoué au
+                    test de génération individuel. La génération complète risque d&apos;échouer : vérifie les configs
+                    marquées « Échec du test » avant de lancer.
+                  </p>
+                )}
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                   disabled={!isStartable || actioning}

@@ -21,6 +21,8 @@ use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Story 9.38 AC4: the PersonalRuns game-selection write path rejects NEWLY added games whose
@@ -130,6 +132,9 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
         $clock = self::createStub(ClockInterface::class);
         $clock->method('now')->willReturn($now);
 
+        $bus = self::createStub(MessageBusInterface::class);
+        $bus->method('dispatch')->willReturnCallback(static fn (object $message): Envelope => new Envelope($message));
+
         return new PersonalRunGameSelection(
             runs: $runs,
             participants: $participants,
@@ -142,6 +147,7 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
                 self::createStub(AchievementGrantRepositoryInterface::class),
             ),
             runnerGateway: $runner,
+            messageBus: $bus,
             logger: new NullLogger(),
             clock: $clock,
         );

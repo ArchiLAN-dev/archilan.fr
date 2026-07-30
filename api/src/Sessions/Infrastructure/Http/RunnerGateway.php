@@ -231,6 +231,30 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         ];
     }
 
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
+    {
+        try {
+            return $this->client->preflight()->start($playerYaml, $apworldHash)->id;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.slot_preflight_start_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function getSlotPreflight(string $jobId): ?array
+    {
+        try {
+            $job = $this->client->preflight()->get($jobId);
+
+            return ['status' => $job->status, 'error' => $job->error];
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.slot_preflight_poll_failed', ['jobId' => $jobId, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function configureSession(string $sessionId, array $slots): array
     {
         try {
