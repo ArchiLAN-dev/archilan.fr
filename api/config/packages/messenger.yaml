@@ -59,6 +59,7 @@ framework:
             'App\Communications\Application\Message\SessionPausedWithoutSaveMessage': async
             'App\Communications\Application\Message\SessionRestartFailedMessage': async
             'App\Sessions\Application\Message\BuildSessionRecapJob': async
+            'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
 
 when@test:
     framework:

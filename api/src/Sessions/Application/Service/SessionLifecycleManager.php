@@ -16,10 +16,12 @@ use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
+use App\Sessions\Application\Message\NotifyGenerationFailureJob;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Port\SessionReconcilerInterface;
+use App\Sessions\Application\Support\GenerationFailureFinding;
 use App\Sessions\Application\Support\GenerationFailureParser;
 use App\Sessions\Application\Support\GenerationFailureReport;
 use App\Sessions\Domain\Entity\Session;
@@ -250,6 +252,18 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
 
         $this->sessions->flush();
         $this->publish($session);
+
+        // Story 9.41: notify the faulty players and the owner after the crash is committed.
+        $this->messageBus->dispatch(new NotifyGenerationFailureJob(
+            $sessionId,
+            array_map(
+                static fn (GenerationFailureFinding $finding): array => [
+                    'slotName' => $finding->slotName,
+                    'message' => $finding->message,
+                ],
+                $report->findings,
+            ),
+        ));
 
         $this->logger->error('session.crash.failed', ['sessionId' => $sessionId, 'from' => $from, 'reason' => $reason]);
 
