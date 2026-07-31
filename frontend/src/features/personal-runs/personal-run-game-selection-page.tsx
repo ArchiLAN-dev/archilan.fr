@@ -448,13 +448,6 @@ export function PersonalRunGameSelectionPage({
           </ul>
         )}
 
-        {selectionItems.some(({ slot }) => slot?.preflight != null) && (
-          <p className="text-xs text-muted-foreground">
-            Chaque config est testée seule, avec une seed unique : un échec signale un YAML à corriger (clique sur le
-            badge rouge pour voir l&apos;erreur) ; une réussite ne garantit pas la génération complète de la partie.
-          </p>
-        )}
-
         <div className="grid gap-2">
           <button
             className="inline-flex min-h-10 w-full cursor-pointer items-center justify-center rounded bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
@@ -712,7 +705,7 @@ function SlotPreflightBadge({
           setBusy(true);
           void onRetest().finally(() => setBusy(false));
         }}
-        title="Lance une génération test avec uniquement ce slot (seed unique, résultat indicatif)."
+        title="Teste cette config seule, avec une seed unique : un échec signale un YAML à corriger ; une réussite ne garantit pas la génération complète de la partie."
         type="button"
       >
         Tester ma config
