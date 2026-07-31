@@ -360,12 +360,16 @@ final readonly class PersonalRunDrafts
         $isOwner = null !== $callerId && $run->isOwnedBy($callerId);
 
         // Story 9.42 (advisory launch warning): count slots whose solo test generation
-        // failed across all participants. Never blocks anything.
+        // failed across all participants. Never blocks anything. Draft runs only - the
+        // warning is pre-launch UI, and computing it in listMine() for every historical
+        // run would be a pointless findByRunId per row (review fix).
         $failedPreflightCount = 0;
-        foreach ($this->participants->findByRunId($run->getId()) as $runParticipant) {
-            foreach ($runParticipant->getGameSlots() as $gameSlot) {
-                if ('failed' === (($gameSlot['preflight'] ?? [])['status'] ?? null)) {
-                    ++$failedPreflightCount;
+        if (Run::STATUS_DRAFT === $run->getStatus()) {
+            foreach ($this->participants->findByRunId($run->getId()) as $runParticipant) {
+                foreach ($runParticipant->getGameSlots() as $gameSlot) {
+                    if ('failed' === (($gameSlot['preflight'] ?? [])['status'] ?? null)) {
+                        ++$failedPreflightCount;
+                    }
                 }
             }
         }

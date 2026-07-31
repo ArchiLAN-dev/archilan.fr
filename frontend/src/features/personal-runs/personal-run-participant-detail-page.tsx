@@ -274,6 +274,29 @@ export function PersonalRunParticipantDetailPage({
                   </div>
                 </div>
 
+                {slot.preflight ? (
+                  <p
+                    className={[
+                      "inline-flex items-center gap-1.5 text-xs font-semibold",
+                      slot.preflight.status === "failed"
+                        ? "text-[color:var(--color-danger)]"
+                        : slot.preflight.status === "passed"
+                          ? "text-[color:var(--color-success)]"
+                          : "text-muted-foreground",
+                    ].join(" ")}
+                    title={
+                      slot.preflight.status === "failed" && slot.preflight.error !== ""
+                        ? slot.preflight.error
+                        : "Testé seul avec une seed - la génération complète peut encore différer."
+                    }
+                  >
+                    {slot.preflight.status === "failed"
+                      ? "Échec du test de génération"
+                      : slot.preflight.status === "passed"
+                        ? "Config testée"
+                        : "Test de génération en cours…"}
+                  </p>
+                ) : null}
                 {slot.playerYaml !== null ? (
                   <button
                     className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"

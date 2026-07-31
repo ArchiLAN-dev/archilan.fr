@@ -64,6 +64,9 @@ export type ParticipantGameSlot = {
   platforms: string[];
   isApworldReady: boolean;
   playerYaml: string | null;
+  // Story 9.42: solo test-generation verdict of the slot's current yaml (advisory).
+  // Absent on older API payloads.
+  preflight?: { status: "pending" | "passed" | "failed"; error: string; checkedAt: string } | null;
 };
 
 export type ValidationSlotError = {
