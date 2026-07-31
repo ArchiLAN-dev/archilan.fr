@@ -102,6 +102,13 @@ frontend `pnpm gates` green.
   RunSlotPreflightJob's pattern when needed.
 - Polling is Messenger-delay based (DelayStamp re-dispatch, no sleep), run_server transport.
 
+### Review fixes (post-merge adversarial review)
+
+- failedPreflightCount is computed for draft runs only (was an extra findByRunId per row in
+  listMine, including finished runs).
+- getParticipantSlots now exposes the per-slot preflight verdict + badge on the owner's
+  participant detail page (AC3 owner-side was missing).
+
 
 ### Agent Model Used
 

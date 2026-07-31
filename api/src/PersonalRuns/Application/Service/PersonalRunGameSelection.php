@@ -162,6 +162,9 @@ final readonly class PersonalRunGameSelection
                 'platforms' => null !== $game ? PlatformCategory::families($game->getPlatforms() ?? []) : [],
                 'isApworldReady' => null !== $game && $game->isApworldReady(),
                 'playerYaml' => (null !== $playerYaml && '' !== $playerYaml) ? $playerYaml : null,
+                // Story 9.42 review fix: the owner's per-participant view shows the solo
+                // test-generation verdict too, not just the aggregated launch warning.
+                'preflight' => $slot['preflight'] ?? null,
             ];
         }
 
