@@ -51,6 +51,60 @@ ValueError: Encountered 1 error(s) in player files. See logs for full tracebacks
 Exception: No game options for selected game "2048" found.
 LOG;
 
+    /** Real stderr of the 2026-07-31 Atlyss preflight: the world raises a multi-line OptionError. */
+    private const string ATLYSS_STDERR = <<<'LOG'
+DEBUG host gates enabled: {'stardew_valley_options': {'allow_chaos_er': True}}
+Traceback (most recent call last):
+  File "/usr/local/bin/generate_multiworld.py", line 454, in <module>
+    ERmain(erargs, seed)
+  File "/app/ArchipelagoSrc/worlds/AutoWorld.py", line 169, in _timed_call
+    ret = method(*args)
+  File "/tmp/apworld_6oe69zs7/Atlyss/Options.py", line 100, in raise_yaml_error
+    raise OptionError(f'\n\n=== Atlyss YAML ERROR ===\n...')
+Options.OptionError:
+
+=== Atlyss YAML ERROR ===
+Atlyss: 1 You cannot have the same class selected for main_class and secondary_class, PLEASE FIX YOUR YAML
+
+
+Exception in <bound method Atlyss.generate_early of <worlds.Atlyss.Atlyss object at 0x7f767f090980>> for player 1, named Player1.
+LOG;
+
+    /** Real stderr of the 2026-07-31 Beat Saber preflight: single-line message, must stay verbatim. */
+    private const string BEAT_SABER_STDERR = <<<'LOG'
+Traceback (most recent call last):
+  File "/tmp/apworld_kvtynptf/beat_saber/BeatmapMasterList.py", line 116, in save_to_json
+    with open(full_path, "w", encoding="utf-8") as f:
+FileNotFoundError: [Errno 2] No such file or directory: '/Archipelago/data/ranked_maps.json'
+Exception in <bound method BSWorld.generate_early of <worlds.beat_saber.BSWorld object at 0x7fa4d42916a0>> for player 1, named Player1.
+LOG;
+
+    public function testParseRebuildsMultiLineExceptionMessage(): void
+    {
+        $report = GenerationFailureParser::parse(self::ATLYSS_STDERR);
+
+        self::assertCount(1, $report->findings);
+        self::assertSame('Player1', $report->findings[0]->slotName);
+        self::assertStringContainsString(
+            'You cannot have the same class selected for main_class and secondary_class',
+            $report->findings[0]->message,
+        );
+        // The useless AutoWorld marker must never be the message when a real cause exists.
+        self::assertStringNotContainsString('bound method', $report->findings[0]->message);
+    }
+
+    public function testParseKeepsSingleLineMessageVerbatim(): void
+    {
+        $report = GenerationFailureParser::parse(self::BEAT_SABER_STDERR);
+
+        self::assertCount(1, $report->findings);
+        self::assertSame('Player1', $report->findings[0]->slotName);
+        self::assertSame(
+            "FileNotFoundError: [Errno 2] No such file or directory: '/Archipelago/data/ranked_maps.json'",
+            $report->findings[0]->message,
+        );
+    }
+
     public function testParseAttributesAutoworldFailureToNamedSlot(): void
     {
         $report = GenerationFailureParser::parse(self::ABL_STDERR);
