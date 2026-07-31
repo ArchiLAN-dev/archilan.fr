@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { use, useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, FileText, Search, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, FileText, Search, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
@@ -56,6 +56,7 @@ export function PersonalRunGameSelectionPage({
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
+  const [expandedPreflightSlotId, setExpandedPreflightSlotId] = useState<string | null>(null);
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
 
   const { matchedAppIds, coupled, couplingProps } = useSteamCoupling();
@@ -382,19 +383,24 @@ export function PersonalRunGameSelectionPage({
           <ul className="grid gap-1.5" role="list">
             {selectionItems.map(({ gameId, n, idx, label, slot, hasYaml }) => (
               <li
-                className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2"
+                className="rounded border border-border bg-background px-3 py-2"
                 key={`${gameId}-${n}`}
               >
+                <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-foreground">{label}</span>
                 <div className="flex items-center gap-1.5">
                   {slot !== null && saveState.kind === "saved" && hasYaml && (
                     <SlotPreflightBadge
+                      detailsOpen={expandedPreflightSlotId === slot.slotId}
                       onRetest={async () => {
                         const accepted = await requestSlotPreflight(runId, slot.slotId);
                         if (accepted) {
                           void queryClient.invalidateQueries({ queryKey: ["personal-run-game-selection", runId] });
                         }
                       }}
+                      onToggleDetails={() =>
+                        setExpandedPreflightSlotId((prev) => (prev === slot.slotId ? null : slot.slotId))
+                      }
                       preflight={slot.preflight ?? null}
                     />
                   )}
@@ -425,9 +431,28 @@ export function PersonalRunGameSelectionPage({
                     <X aria-hidden className="size-3.5" />
                   </button>
                 </div>
+                </div>
+                {slot !== null &&
+                  slot.preflight?.status === "failed" &&
+                  expandedPreflightSlotId === slot.slotId && (
+                    <div className="mt-2 rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-2">
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed text-muted-foreground">
+                        {slot.preflight.error !== ""
+                          ? slot.preflight.error
+                          : "Échec du test de génération (aucun détail disponible)."}
+                      </pre>
+                    </div>
+                  )}
               </li>
             ))}
           </ul>
+        )}
+
+        {selectionItems.some(({ slot }) => slot?.preflight != null) && (
+          <p className="text-xs text-muted-foreground">
+            Chaque config est testée seule, avec une seed unique : un échec signale un YAML à corriger (clique sur le
+            badge rouge pour voir l&apos;erreur) ; une réussite ne garantit pas la génération complète de la partie.
+          </p>
         )}
 
         <div className="grid gap-2">
@@ -627,13 +652,18 @@ export function PersonalRunGameSelectionPage({
 
 /**
  * Advisory verdict of the slot's solo test generation. "Tester" queues a re-run; the page's
- * query polls while a test is pending. Single-seed solo test: honest copy in the tooltip.
+ * query polls while a test is pending. A failed badge is a toggle that expands the error
+ * detail under the slot row (a native tooltip alone was not discoverable enough).
  */
 function SlotPreflightBadge({
   preflight,
+  detailsOpen,
+  onToggleDetails,
   onRetest,
 }: {
   preflight: { status: "pending" | "passed" | "failed"; error: string; checkedAt: string } | null;
+  detailsOpen: boolean;
+  onToggleDetails: () => void;
   onRetest: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -656,13 +686,20 @@ function SlotPreflightBadge({
         Config testée
       </span>
     ) : (
-      <span
-        className="inline-flex items-center gap-1 rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-2 py-1 text-xs font-semibold text-[color:var(--color-danger)]"
-        title={preflight.error !== "" ? preflight.error : "Échec du test de génération."}
+      <button
+        aria-expanded={detailsOpen}
+        className="inline-flex cursor-pointer items-center gap-1 rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-2 py-1 text-xs font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/20"
+        onClick={onToggleDetails}
+        type="button"
       >
         <AlertCircle aria-hidden className="size-3" />
         Échec du test
-      </span>
+        {detailsOpen ? (
+          <ChevronUp aria-hidden className="size-3" />
+        ) : (
+          <ChevronDown aria-hidden className="size-3" />
+        )}
+      </button>
     );
 
   return (
