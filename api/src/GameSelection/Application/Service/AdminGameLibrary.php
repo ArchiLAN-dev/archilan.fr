@@ -165,6 +165,56 @@ final readonly class AdminGameLibrary
     private const int DEFAULT_YAML_MAX_BYTES = 65536;
 
     /**
+     * Set or clear the admin platform override (story 9.47). IGDB lists every platform the
+     * game was released on; the Archipelago world often supports only one, and the catalog
+     * should advertise the latter. Passing null restores the IGDB-derived list.
+     *
+     * @param list<string>|null $families
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function savePlatformFamilies(string $gameId, ?array $families): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        if (null !== $families) {
+            $errors = new ValidationErrors();
+            $selectable = PlatformCategory::selectableFamilies();
+
+            if ([] === $families) {
+                // An empty selection would drop the game out of every platform filter; clearing
+                // the override is the explicit way to say "use IGDB".
+                $errors->add('platforms', 'Sélectionne au moins une plateforme, ou reviens aux plateformes IGDB.');
+            }
+
+            foreach ($families as $family) {
+                if (!in_array($family, $selectable, true)) {
+                    $errors->add('platforms', sprintf('Plateforme inconnue : "%s".', $family));
+                }
+            }
+
+            $errs = $errors->toArray();
+            if ([] !== $errs) {
+                return ['found' => true, 'errors' => $errs];
+            }
+        }
+
+        $game->overridePlatformFamilies($families, $this->clock->now());
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.platforms_overridden', [
+            'gameId' => $gameId,
+            'families' => $families,
+            'cleared' => null === $families,
+        ]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
      * Replace the default YAML template served to players (story 9.45).
      *
      * The stored copy next to the apworld is updated too, because the upload preflight reads
@@ -847,7 +897,9 @@ final readonly class AdminGameLibrary
             'availabilityLocked' => $game->isAvailabilityLocked(),
             'igdbId' => $sync?->getIgdbId(),
             'steamAppId' => $sync?->getSteamAppId(),
-            'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
+            'platforms' => $game->platformFamilies(),
+            'platformsOverridden' => $game->hasPlatformOverride(),
+            'selectablePlatforms' => PlatformCategory::selectableFamilies(),
             'installSteps' => $this->stepsReader->present($game->getInstallSteps()),
             'updateStatus' => $game->computeApworldUpdateStatus(),
         ]);

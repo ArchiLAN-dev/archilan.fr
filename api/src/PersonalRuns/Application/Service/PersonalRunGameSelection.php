@@ -8,7 +8,6 @@ use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
@@ -95,7 +94,7 @@ final readonly class PersonalRunGameSelection
             'locationNames' => $g->getLocationNames(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
-            'platforms' => PlatformCategory::families($g->getPlatforms() ?? []),
+            'platforms' => $g->platformFamilies(),
             'steamAppId' => $g->getSteamAppId(),
         ], $allGames);
 
@@ -159,7 +158,7 @@ final readonly class PersonalRunGameSelection
                 'coverImageUrl' => $game?->getCoverImageUrl(),
                 'coverImageAlt' => null !== $game ? $game->getCoverImageAlt() : $slot['gameId'],
                 'availability' => $game?->getAvailability(),
-                'platforms' => null !== $game ? PlatformCategory::families($game->getPlatforms() ?? []) : [],
+                'platforms' => null !== $game ? $game->platformFamilies() : [],
                 'isApworldReady' => null !== $game && $game->isApworldReady(),
                 'playerYaml' => (null !== $playerYaml && '' !== $playerYaml) ? $playerYaml : null,
                 // Story 9.42 review fix: the owner's per-participant view shows the solo

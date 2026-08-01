@@ -71,6 +71,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.install_steps AS install_steps',
                 'sync.steam_app_id AS steam_app_id',
                 'sync.platforms AS platforms',
+                'game.platform_families AS platform_families',
                 'sync.catalog_sheet_name AS catalog_sheet_name',
                 'sync.apworld_source_url AS apworld_source_url',
                 'sync.apworld_deployed_version AS apworld_deployed_version',
@@ -152,7 +153,10 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageCredit' => is_string($coverImageCredit) ? $coverImageCredit : '',
             'availability' => is_string($availability) ? $availability : '',
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
-            'platforms' => PlatformCategory::families(self::decodePlatforms($row['platforms'] ?? null)),
+            'platforms' => PlatformCategory::resolve(
+                self::decodePlatformFamilies($row['platform_families'] ?? null),
+                self::decodePlatforms($row['platforms'] ?? null),
+            ),
             'supportedEventTypes' => [],
             'archipelagoGameName' => is_string($archipelagoGameName) ? $archipelagoGameName : null,
             'catalogSheetName' => is_string($catalogSheetName) ? $catalogSheetName : null,
@@ -225,6 +229,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.availability AS availability',
                 'sync.steam_app_id AS steam_app_id',
                 'sync.platforms AS platforms',
+                'game.platform_families AS platform_families',
             )
             ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
             // LOWER() so the order is case-insensitive: the DB collation is byte-ordered (C), which
@@ -257,7 +262,10 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'availability' => is_string($availability) ? $availability : '',
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
-            'platforms' => PlatformCategory::families(self::decodePlatforms($row['platforms'] ?? null)),
+            'platforms' => PlatformCategory::resolve(
+                self::decodePlatformFamilies($row['platform_families'] ?? null),
+                self::decodePlatforms($row['platforms'] ?? null),
+            ),
             'supportedEventTypes' => [],
         ];
     }
@@ -289,6 +297,32 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
         }
 
         return $platforms;
+    }
+
+    /**
+     * Admin platform override stored on the game (story 9.47); null keeps the IGDB-derived list.
+     *
+     * @return list<string>|null
+     */
+    private static function decodePlatformFamilies(mixed $raw): ?array
+    {
+        if (!is_string($raw) || '' === $raw) {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $families = [];
+        foreach ($decoded as $family) {
+            if (is_string($family) && '' !== trim($family)) {
+                $families[] = $family;
+            }
+        }
+
+        return [] === $families ? null : $families;
     }
 
     private function buildBaseQuery(string $searchQuery): QueryBuilder
