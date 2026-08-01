@@ -53,6 +53,12 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
         queryFn: () => fetchAdminGame(gameId),
         staleTime: DEFAULT_STALE_TIME,
         retry: false,
+        // Story 9.38: the apworld test generation runs asynchronously on the orchestrator,
+        // so poll while its verdict is pending instead of making the admin reload the page.
+        refetchInterval: (query) => {
+            const result = query.state.data;
+            return result?.kind === "ready" && result.game.apworldPreflight?.status === "pending" ? 10_000 : false;
+        },
     });
     const loadState: LoadState = data ?? {kind: "loading"};
 
@@ -1124,16 +1130,24 @@ const preflightLabels: Record<ApworldPreflight["status"], { label: string; class
 };
 
 function ApworldPreflightStatus({ game }: { game: AdminGame }) {
-    const [preflight, setPreflight] = useState<ApworldPreflight | null>(game.apworldPreflight ?? null);
+    const queryClient = useQueryClient();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // The verdict is server state (AC-ST2): read it from the query, never from a local copy -
+    // a local copy is exactly what kept the panel stale until a page reload. Both actions
+    // invalidate the query, and the editor polls while the status is pending.
+    const preflight: ApworldPreflight | null = game.apworldPreflight ?? null;
+
+    async function refreshGame(): Promise<void> {
+        await queryClient.invalidateQueries({ queryKey: ["admin-game", game.id] });
+    }
 
     async function handleRerun(): Promise<void> {
         setBusy(true);
         setError(null);
-        const accepted = await rerunApworldPreflight(game.id);
-        if (accepted) {
-            setPreflight({ status: "pending", error: "", checkedAt: "", overridden: preflight?.overridden ?? false, blocks: false });
+        if (await rerunApworldPreflight(game.id)) {
+            await refreshGame();
         } else {
             setError("Impossible de relancer le test (runner indisponible ?).");
         }
@@ -1143,9 +1157,8 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
     async function handleOverride(overridden: boolean): Promise<void> {
         setBusy(true);
         setError(null);
-        const updated = await overrideApworldPreflight(game.id, overridden);
-        if (updated !== null) {
-            setPreflight(updated);
+        if ((await overrideApworldPreflight(game.id, overridden)) !== null) {
+            await refreshGame();
         } else {
             setError("Impossible d'appliquer la dérogation (runner indisponible ?).");
         }
