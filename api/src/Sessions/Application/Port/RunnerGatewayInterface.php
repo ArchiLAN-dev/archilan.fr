@@ -63,6 +63,22 @@ interface RunnerGatewayInterface
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 
     /**
+     * Replace the YAML template stored next to an apworld (story 9.45), so the upload
+     * preflight tests what the platform actually serves to players. Returns false when the
+     * runner is unreachable - the caller keeps the player-facing value it just saved.
+     */
+    public function setApworldTemplate(string $hash, string $template): bool;
+
+    /**
+     * Regenerate the template from the stored apworld (story 9.46). Returns the fresh
+     * template, or null when the world still cannot produce one - the stored template is
+     * then left untouched, so a failure never blanks a working value.
+     *
+     * @return array{template: string}|array{error: string}
+     */
+    public function regenerateApworldTemplate(string $hash): array;
+
+    /**
      * Queue a solo test generation of one player's real YAML (story 9.42). $apworldHash is
      * null for official worlds bundled in the generation image. Returns the orchestrator job
      * id to poll with getSlotPreflight, or null when the runner is unreachable.

@@ -10,10 +10,13 @@ import {
     fetchAdminGame,
     isAdminGamePayload as isGamePayload,
     overrideApworldPreflight,
+    regenerateDefaultYaml,
     rerunApworldPreflight,
+    saveDefaultYaml,
     type AdminGame,
     type AdminGameResult,
     type ApworldPreflight,
+    type DefaultYamlResult,
     type GameAvailability,
 } from "@/features/admin/admin-games-api";
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
@@ -826,18 +829,112 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
                 {uploadError ? <p className="text-sm text-danger" role="alert">{uploadError}</p> : null}
             </div>
 
-            {/* ── 3. Le template, replié : c'est une référence, pas le sujet principal ── */}
-            {game.defaultYaml ? (
-                <details className="mt-5">
-                    <summary className="cursor-pointer text-sm font-semibold text-foreground hover:text-accent-text">
-                        Template YAML extrait ({game.defaultYaml.split("\n").length} lignes)
-                    </summary>
-                    <pre className="mt-2 max-h-96 overflow-auto whitespace-pre rounded border border-border bg-background p-3 font-mono text-xs text-muted-foreground">
-{game.defaultYaml}
-                    </pre>
-                </details>
-            ) : null}
+            {/* ── 3. Le template servi aux joueurs, éditable (stories 9.45/9.46) ── */}
+            {game.isApworldReady ? <DefaultYamlEditor game={game} onUpdate={onUpdate}/> : null}
         </Section>
+    );
+}
+
+/**
+ * The default template is not a read-only artefact: it seeds every new player slot and is
+ * the fallback at launch, so an invalid generated one (Atlyss ships one) has to be fixable
+ * here - and revertible to the generated version.
+ */
+function DefaultYamlEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [draft, setDraft] = useState(game.defaultYaml ?? "");
+    const [saving, setSaving] = useState(false);
+    const [regenerating, setRegenerating] = useState(false);
+    const [message, setMessage] = useState<{ kind: "ok" | "warn" | "error"; text: string } | null>(null);
+
+    const stored = game.defaultYaml ?? "";
+    const dirty = draft !== stored;
+
+    function applyResult(result: DefaultYamlResult, okText: string): void {
+        if (result.kind === "saved") {
+            onUpdate(result.game);
+            setDraft(result.game.defaultYaml ?? "");
+            setMessage(result.warning !== null
+                ? {kind: "warn", text: result.warning}
+                : {kind: "ok", text: okText});
+            return;
+        }
+        setMessage({kind: "error", text: result.message});
+    }
+
+    async function handleSave(): Promise<void> {
+        setSaving(true);
+        setMessage(null);
+        applyResult(await saveDefaultYaml(game.id, draft), "Template enregistré. Le test de génération a été relancé.");
+        setSaving(false);
+    }
+
+    async function handleRegenerate(): Promise<void> {
+        if (!window.confirm("Régénérer le template depuis l'apworld ? Les modifications manuelles seront perdues.")) {
+            return;
+        }
+        setRegenerating(true);
+        setMessage(null);
+        applyResult(await regenerateDefaultYaml(game.id), "Template régénéré depuis l'apworld.");
+        setRegenerating(false);
+    }
+
+    return (
+        <div className="mt-5 grid gap-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">
+                    Template YAML {stored ? `(${stored.split("\n").length} lignes)` : "(absent)"}
+                </p>
+                {dirty ? <span className="text-xs text-warning">Modifications non enregistrées</span> : null}
+            </div>
+            <p className="text-xs text-muted-foreground">
+                Ce template est livré aux joueurs : il pré-remplit chaque nouveau slot et sert de configuration par
+                défaut au lancement. Certains apworlds en génèrent un invalide - corrigez-le ici.
+            </p>
+
+            <textarea
+                className="min-h-64 rounded border border-border bg-background p-3 font-mono text-xs text-foreground outline-none focus:border-accent"
+                spellCheck={false}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+            />
+
+            <div className="flex flex-wrap items-center gap-2">
+                <button
+                    className="inline-flex min-h-9 items-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={!dirty || saving || regenerating}
+                    type="button"
+                    onClick={() => void handleSave()}
+                >
+                    {saving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+                <button
+                    className="inline-flex min-h-9 items-center rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={saving || regenerating}
+                    type="button"
+                    onClick={() => void handleRegenerate()}
+                >
+                    {regenerating ? "Régénération…" : "Réinitialiser depuis l'apworld"}
+                </button>
+                {dirty ? (
+                    <button
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        type="button"
+                        onClick={() => setDraft(stored)}
+                    >
+                        Annuler mes modifications
+                    </button>
+                ) : null}
+            </div>
+
+            {message !== null ? (
+                <p
+                    className={`text-xs ${message.kind === "error" ? "text-danger" : message.kind === "warn" ? "text-warning" : "text-success"}`}
+                    role={message.kind === "error" ? "alert" : undefined}
+                >
+                    {message.text}
+                </p>
+            ) : null}
+        </div>
     );
 }
 

@@ -95,6 +95,21 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return $current;
     }
 
+    /** @var string|null Canned regenerated template; null makes the call fail (test inspection). */
+    public static ?string $regeneratedTemplate = "name: Player{number}\ngame: Null\n";
+
+    public function setApworldTemplate(string $hash, string $template): bool
+    {
+        return true;
+    }
+
+    public function regenerateApworldTemplate(string $hash): array
+    {
+        return null !== self::$regeneratedTemplate
+            ? ['template' => self::$regeneratedTemplate]
+            : ['error' => 'runner_unavailable'];
+    }
+
     public function startSlotPreflight(string $playerYaml, ?string $apworldHash): string
     {
         return 'null-preflight-job';

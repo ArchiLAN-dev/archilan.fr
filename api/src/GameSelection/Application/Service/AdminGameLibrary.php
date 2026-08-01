@@ -17,9 +17,12 @@ use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Support\GenerationFailureParser;
 use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 final readonly class AdminGameLibrary
 {
@@ -156,6 +159,138 @@ final readonly class AdminGameLibrary
         $payload['apworldPreflight'] = $this->preflightForGame($game);
 
         return $payload;
+    }
+
+    /** A template is a whole YAML file with comments: 64 KB is generous and still bounded. */
+    private const int DEFAULT_YAML_MAX_BYTES = 65536;
+
+    /**
+     * Replace the default YAML template served to players (story 9.45).
+     *
+     * The stored copy next to the apworld is updated too, because the upload preflight reads
+     * THAT file: without the sync, a template an admin just fixed would keep failing its own
+     * check. A runner outage never blocks the player-facing save - it only leaves the verdict
+     * stale, which the caller reports.
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>, warning?: string}
+     */
+    public function saveDefaultYaml(string $gameId, string $defaultYaml): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $errors = $this->validateDefaultYaml($game, $defaultYaml);
+        if ([] !== $errors) {
+            return ['found' => true, 'errors' => $errors];
+        }
+
+        $game->overrideDefaultYaml($defaultYaml, $this->clock->now());
+        $this->gameRepository->save($game);
+
+        $warning = null;
+        $hash = $game->getApworldHash();
+        if (null !== $hash && '' !== $hash) {
+            if ($this->runnerGateway->setApworldTemplate($hash, $defaultYaml)) {
+                // The verdict must describe the template we now serve, not the previous one.
+                $this->runnerGateway->runApworldPreflight($hash);
+            } else {
+                $warning = 'Template enregistré, mais le runner est indisponible : le verdict du test reste celui de la version précédente.';
+            }
+        }
+
+        $this->logger->info('game.default_yaml_edited', ['gameId' => $gameId, 'bytes' => \strlen($defaultYaml)]);
+
+        $payload = ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+
+        return null !== $warning ? [...$payload, 'warning' => $warning] : $payload;
+    }
+
+    /**
+     * Regenerate the template from the stored apworld (story 9.46): undoes an edit, and
+     * repairs a game whose template failed at upload. A world that still cannot produce a
+     * template leaves the stored value untouched and returns the actionable error.
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function regenerateDefaultYaml(string $gameId): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $hash = $game->getApworldHash();
+        if (null === $hash || '' === $hash) {
+            return ['found' => true, 'errors' => ['apworld' => ['Ce jeu n\'a pas d\'apworld configuré.']]];
+        }
+
+        $result = $this->runnerGateway->regenerateApworldTemplate($hash);
+        $template = $result['template'] ?? null;
+        if (!is_string($template) || '' === trim($template)) {
+            $detail = is_string($result['error'] ?? null) ? GenerationFailureParser::summarize($result['error']) : '';
+
+            return ['found' => true, 'errors' => ['apworld' => [
+                '' !== $detail
+                    ? 'La régénération a échoué : '.$detail
+                    : 'La régénération a échoué : cet apworld ne produit pas de template.',
+            ]]];
+        }
+
+        $game->overrideDefaultYaml($template, $this->clock->now());
+        // The regenerated template may expose different options/locations than the edited one.
+        $game->recordOptionTypes($this->runnerGateway->fetchOptionTypes($hash));
+        $game->recordLocationNames($this->runnerGateway->fetchLocationNames($hash));
+        $this->gameRepository->save($game);
+
+        $this->runnerGateway->runApworldPreflight($hash);
+
+        $this->logger->info('game.default_yaml_regenerated', ['gameId' => $gameId, 'hash' => $hash]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    private function validateDefaultYaml(Game $game, string $defaultYaml): array
+    {
+        $errors = new ValidationErrors();
+
+        if ('' === trim($defaultYaml)) {
+            $errors->add('defaultYaml', 'Le template ne peut pas être vide.');
+
+            return $errors->toArray();
+        }
+
+        if (\strlen($defaultYaml) > self::DEFAULT_YAML_MAX_BYTES) {
+            $errors->add('defaultYaml', sprintf('Le template dépasse la taille maximale (%d Ko).', self::DEFAULT_YAML_MAX_BYTES / 1024));
+
+            return $errors->toArray();
+        }
+
+        try {
+            $parsed = Yaml::parse($defaultYaml);
+        } catch (ParseException $e) {
+            $errors->add('defaultYaml', 'YAML invalide : '.$e->getMessage());
+
+            return $errors->toArray();
+        }
+
+        $game_ = is_array($parsed) && is_string($parsed['game'] ?? null) ? $parsed['game'] : null;
+        if (null === $game_) {
+            $errors->add('defaultYaml', 'Le template doit contenir un champ "game".');
+
+            return $errors->toArray();
+        }
+
+        $expected = $game->getArchipelagoGameName();
+        if (null !== $expected && '' !== $expected && $game_ !== $expected) {
+            $errors->add('defaultYaml', sprintf('Le champ "game" doit valoir "%s" (trouvé "%s").', $expected, $game_));
+        }
+
+        return $errors->toArray();
     }
 
     /**

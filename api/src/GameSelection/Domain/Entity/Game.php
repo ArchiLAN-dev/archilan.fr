@@ -161,6 +161,19 @@ final class Game
         $this->apworldMinioKey = $key;
     }
 
+    /**
+     * Replace the default YAML template served to players (story 9.45). Some generated
+     * templates are not valid configurations - Atlyss ships one where main_class equals
+     * secondary_class, which the world rejects - and this value seeds every new slot plus
+     * the launch fallback, so an admin must be able to fix it without re-uploading a
+     * patched apworld. Same BOM strip as the generated path.
+     */
+    public function overrideDefaultYaml(string $defaultYaml, \DateTimeImmutable $now): void
+    {
+        $this->defaultYaml = str_starts_with($defaultYaml, "\u{FEFF}") ? substr($defaultYaml, 3) : $defaultYaml;
+        $this->updatedAt = $now;
+    }
+
     public function isApworldReady(): bool
     {
         return null !== $this->apworldStorageKey;
