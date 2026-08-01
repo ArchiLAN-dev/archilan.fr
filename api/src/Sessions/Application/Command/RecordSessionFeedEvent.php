@@ -23,8 +23,6 @@ use Psr\Clock\ClockInterface;
  */
 final readonly class RecordSessionFeedEvent
 {
-    private const array PERSISTED_TYPES = ['item-received', 'hint', 'goal'];
-
     public function __construct(
         private SessionFeedEventRepositoryInterface $events,
         private ClockInterface $clock,
@@ -37,7 +35,7 @@ final readonly class RecordSessionFeedEvent
     public function record(string $sessionId, array $event): void
     {
         $type = is_string($event['type'] ?? null) ? $event['type'] : '';
-        if (!\in_array($type, self::PERSISTED_TYPES, true)) {
+        if (!\in_array($type, SessionFeedEvent::PERSISTED_TYPES, true)) {
             return;
         }
 

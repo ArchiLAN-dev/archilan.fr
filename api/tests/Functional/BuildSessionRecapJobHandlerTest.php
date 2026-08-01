@@ -100,8 +100,8 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
     public function testHintAndGoalEventsAreIgnored(): void
     {
         $this->seedThreePlayerSession();
-        $this->persistFeedEvent('hint', 'Player1', 'Player2');
-        $this->persistFeedEvent('goal', 'Player2', 'Player2');
+        $this->persistFeedEvent(SessionFeedEvent::TYPE_HINT, 'Player1', 'Player2');
+        $this->persistFeedEvent(SessionFeedEvent::TYPE_GOAL, 'Player2', 'Player2');
         $this->entityManager->flush();
 
         $this->runHandler();
@@ -206,6 +206,12 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
         'Player3' => 'The Wind Waker',
     ];
 
+    /**
+     * Seeds through the entity's own type constants, never a literal. The first cut of this test
+     * invented `'item'` - a type the bridge never sends - so it agreed with the reader's own bug
+     * and every real session produced an empty graph. The writer's vocabulary is proven against a
+     * real bridge payload in SessionFeedEndpointTest; sharing the constant closes the chain.
+     */
     private function seedFeed(): void
     {
         $sends = [
@@ -220,7 +226,7 @@ final class BuildSessionRecapJobHandlerTest extends FunctionalTestCase
             ['Player3', 'Player3'],
         ];
         foreach ($sends as [$from, $to]) {
-            $this->persistFeedEvent('item', $from, $to);
+            $this->persistFeedEvent(SessionFeedEvent::TYPE_ITEM_RECEIVED, $from, $to);
         }
         $this->entityManager->flush();
     }

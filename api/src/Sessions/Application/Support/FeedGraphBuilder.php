@@ -20,8 +20,6 @@ use App\Sessions\Domain\Entity\SessionFeedEvent;
  */
 final class FeedGraphBuilder
 {
-    private const string TYPE_ITEM = 'item';
-
     /**
      * @param list<SessionFeedEvent> $events
      */
@@ -35,7 +33,7 @@ final class FeedGraphBuilder
         $localItemCounts = [];
 
         foreach ($events as $event) {
-            if (self::TYPE_ITEM !== $event->getType()) {
+            if (SessionFeedEvent::TYPE_ITEM_RECEIVED !== $event->getType()) {
                 continue;
             }
 

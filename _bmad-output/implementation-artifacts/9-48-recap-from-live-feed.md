@@ -71,3 +71,21 @@ stats-only recap, exactly as a missing spoiler did before - never an exception.
   unchanged.
 - Out of scope: new live-only superlatives (first goal, longest dry spell…). The existing
   metrics keep their definitions - only their input changes.
+
+## Post-merge regression (fixed 2026-08-02)
+
+The first cut of `FeedGraphBuilder` filtered on a literal type `'item'`. The bridge never sends
+that value: `FeedPushController` normalizes `item_sent` to `item-received`, which is what
+`RecordSessionFeedEvent` persists. Every item event was therefore discarded and the exchange
+graph came out empty on every real session ("Le graphe des echanges n'est pas disponible pour
+cette partie"), while both test suites stayed green because their fixtures invented the same
+wrong type.
+
+Fix: the persisted type vocabulary moved onto `SessionFeedEvent` as constants
+(`TYPE_ITEM_RECEIVED`, `TYPE_HINT`, `TYPE_GOAL`, `PERSISTED_TYPES`); the writer and the reader
+now share it, and the tests seed through it instead of literals. `FeedGraphBuilderTest` gained
+`testReadsTheTypeThatIsActuallyPersisted`, which asserts a literal-`'item'` event is ignored.
+
+A recap is a projection and never self-heals, so `app:sessions:rebuild-recap <sessionId>...`
+(`Sessions/Presentation/Command`) re-runs the build synchronously and prints the resulting node
+and edge counts.
