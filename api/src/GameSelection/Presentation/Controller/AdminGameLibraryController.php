@@ -254,6 +254,68 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Plateformes synchronisées.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/default-yaml', name: 'api_admin_game_save_default_yaml', methods: ['PUT'])]
+    public function saveDefaultYaml(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $defaultYaml = is_array($payload) && is_string($payload['defaultYaml'] ?? null) ? $payload['defaultYaml'] : '';
+
+        $result = $this->adminGameLibrary->saveDefaultYaml($gameId, $defaultYaml);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Template invalide.', 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('default_yaml_save_failed', 'L\'enregistrement a échoué.', 500);
+        }
+
+        $meta = ['message' => 'Template enregistré.'];
+        if (isset($result['warning'])) {
+            $meta['warning'] = $result['warning'];
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => $meta]);
+    }
+
+    #[Route('/api/v1/admin/games/{gameId}/default-yaml/regenerate', name: 'api_admin_game_regenerate_default_yaml', methods: ['POST'])]
+    public function regenerateDefaultYaml(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $result = $this->adminGameLibrary->regenerateDefaultYaml($gameId);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('regenerate_failed', 'La régénération a échoué.', 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('regenerate_failed', 'La régénération a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Template régénéré depuis l\'apworld.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/apworld-preflight', name: 'api_admin_game_apworld_preflight_rerun', methods: ['POST'])]
     public function rerunApworldPreflight(Request $request, string $gameId): JsonResponse
     {

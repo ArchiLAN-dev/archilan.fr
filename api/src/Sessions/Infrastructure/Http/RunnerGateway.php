@@ -231,6 +231,30 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         ];
     }
 
+    public function setApworldTemplate(string $hash, string $template): bool
+    {
+        try {
+            $this->client->apworlds()->setYamlTemplate($hash, $template);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_template_write_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    public function regenerateApworldTemplate(string $hash): array
+    {
+        try {
+            return ['template' => $this->client->apworlds()->regenerateYamlTemplate($hash)];
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_template_regenerate_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return ['error' => $e->getMessage()];
+        }
+    }
+
     public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
     {
         try {

@@ -57,6 +57,84 @@ export function isApworldPreflight(v: unknown): v is ApworldPreflight {
   return "blocks" in v && typeof v.blocks === "boolean";
 }
 
+// Story 9.45/9.46: the default template is what players receive, so saving it can also
+// report a soft warning (saved, but the verdict could not be refreshed).
+export type DefaultYamlResult =
+  | { kind: "saved"; game: AdminGame; warning: string | null }
+  | { kind: "invalid"; message: string }
+  | { kind: "error"; message: string };
+
+function readDetail(payload: unknown, fallback: string): string {
+  if (typeof payload === "object" && payload !== null && "error" in payload) {
+    const err: unknown = payload.error;
+    if (typeof err === "object" && err !== null && "details" in err) {
+      const details: unknown = err.details;
+      if (typeof details === "object" && details !== null && "defaultYaml" in details) {
+        const list: unknown = details.defaultYaml;
+        if (Array.isArray(list) && typeof list[0] === "string") return list[0];
+      }
+      if (typeof details === "object" && details !== null && "apworld" in details) {
+        const list: unknown = details.apworld;
+        if (Array.isArray(list) && typeof list[0] === "string") return list[0];
+      }
+    }
+    if (typeof err === "object" && err !== null && "message" in err && typeof err.message === "string") {
+      return err.message;
+    }
+  }
+  return fallback;
+}
+
+function readWarning(payload: unknown): string | null {
+  if (typeof payload === "object" && payload !== null && "meta" in payload) {
+    const meta: unknown = payload.meta;
+    if (typeof meta === "object" && meta !== null && "warning" in meta && typeof meta.warning === "string") {
+      return meta.warning;
+    }
+  }
+  return null;
+}
+
+/** Save the default YAML template served to players. */
+export async function saveDefaultYaml(gameId: string, defaultYaml: string): Promise<DefaultYamlResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/default-yaml`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultYaml }),
+    });
+    const payload: unknown = await res.json();
+    if (res.status === 422) {
+      return { kind: "invalid", message: readDetail(payload, "Template invalide.") };
+    }
+    if (!res.ok || !isAdminGamePayload(payload)) {
+      return { kind: "error", message: "L'enregistrement a échoué." };
+    }
+    return { kind: "saved", game: payload.data, warning: readWarning(payload) };
+  } catch {
+    return { kind: "error", message: "Impossible de contacter le serveur." };
+  }
+}
+
+/** Regenerate the template from the stored apworld, discarding edits. */
+export async function regenerateDefaultYaml(gameId: string): Promise<DefaultYamlResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/default-yaml/regenerate`, {
+      method: "POST",
+    });
+    const payload: unknown = await res.json();
+    if (res.status === 422) {
+      return { kind: "invalid", message: readDetail(payload, "La régénération a échoué.") };
+    }
+    if (!res.ok || !isAdminGamePayload(payload)) {
+      return { kind: "error", message: "La régénération a échoué." };
+    }
+    return { kind: "saved", game: payload.data, warning: null };
+  } catch {
+    return { kind: "error", message: "Impossible de contacter le serveur." };
+  }
+}
+
 /** Queue a preflight re-run (async on the orchestrator). Returns whether it was accepted. */
 export async function rerunApworldPreflight(gameId: string): Promise<boolean> {
   try {
