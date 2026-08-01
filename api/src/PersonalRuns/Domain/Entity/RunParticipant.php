@@ -20,9 +20,11 @@ final class RunParticipant
         #[ORM\Column(name: 'joined_at', type: 'datetimetz_immutable')]
         private \DateTimeImmutable $joinedAt,
         /**
-         * Ordered list of game slots chosen by this participant.
+         * Ordered list of game slots chosen by this participant. `preflight` is the solo
+         * test-generation verdict of the slot's CURRENT yaml (story 9.42): keyed by yamlSha
+         * so an edit invalidates it, advisory only (never blocks a launch).
          *
-         * @var list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>
+         * @var list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null}>
          */
         #[ORM\Column(name: 'game_slots', type: Types::JSON)]
         private array $gameSlots = [],
@@ -50,7 +52,7 @@ final class RunParticipant
     }
 
     /**
-     * @return list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>
+     * @return list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null}>
      */
     public function getGameSlots(): array
     {
@@ -67,6 +69,13 @@ final class RunParticipant
      */
     public function replaceSlots(array $slots): void
     {
+        $preflightBySlotId = [];
+        foreach ($this->gameSlots as $existing) {
+            if (isset($existing['preflight'])) {
+                $preflightBySlotId[$existing['slotId']] = $existing['preflight'];
+            }
+        }
+
         $orderedSlots = [];
         foreach ($slots as $idx => $slot) {
             $entry = [
@@ -79,6 +88,10 @@ final class RunParticipant
             }
             if (array_key_exists('apworldHash', $slot)) {
                 $entry['apworldHash'] = $slot['apworldHash'];
+            }
+            // A kept slot keeps its preflight verdict (story 9.42): the yaml did not change.
+            if (isset($preflightBySlotId[$slot['slotId']])) {
+                $entry['preflight'] = $preflightBySlotId[$slot['slotId']];
             }
 
             $orderedSlots[] = $entry;
@@ -93,6 +106,8 @@ final class RunParticipant
             if ($slot['slotId'] === $slotId) {
                 $slot['playerYaml'] = $playerYaml;
                 $slot['apworldHash'] = $apworldHash;
+                // The verdict was for the previous yaml - a stale badge must not survive.
+                unset($slot['preflight']);
 
                 return;
             }
@@ -102,7 +117,29 @@ final class RunParticipant
     }
 
     /**
-     * @return array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}|null
+     * Records the solo test-generation verdict for a slot (story 9.42). Returns false when
+     * the slot no longer exists (selection changed while the check ran).
+     */
+    public function recordSlotPreflight(string $slotId, string $status, string $error, string $yamlSha, \DateTimeImmutable $now): bool
+    {
+        foreach ($this->gameSlots as &$slot) {
+            if ($slot['slotId'] === $slotId) {
+                $slot['preflight'] = [
+                    'status' => $status,
+                    'error' => $error,
+                    'checkedAt' => $now->format(\DateTimeInterface::ATOM),
+                    'yamlSha' => $yamlSha,
+                ];
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null}|null
      */
     public function getSlot(string $slotId): ?array
     {

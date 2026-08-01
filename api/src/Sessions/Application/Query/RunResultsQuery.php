@@ -120,6 +120,9 @@ final readonly class RunResultsQuery
 
             $rows[] = [
                 'slotId' => $slot->getSlotId() ?? $slot->getId(),
+                // The AP in-world name - the join key between a podium entry and the feed's
+                // sender names, so the timeline can place goal markers (story 32.9).
+                'slotName' => $slot->getSlotName(),
                 'playerName' => $user?->getDisplayName() ?? $user?->getEmail() ?? '',
                 'game' => $game?->getName() ?? '',
                 'checksDone' => $slot->getChecksDone(),

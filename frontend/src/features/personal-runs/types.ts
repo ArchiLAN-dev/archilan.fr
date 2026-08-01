@@ -64,6 +64,9 @@ export type ParticipantGameSlot = {
   platforms: string[];
   isApworldReady: boolean;
   playerYaml: string | null;
+  // Story 9.42: solo test-generation verdict of the slot's current yaml (advisory).
+  // Absent on older API payloads.
+  preflight?: { status: "pending" | "passed" | "failed"; error: string; checkedAt: string } | null;
 };
 
 export type ValidationSlotError = {
@@ -84,9 +87,16 @@ export type PersonalRun = {
   isOwner: boolean;
   participants: PersonalRunParticipant[];
   sessionId: string | null;
+  // Whether the finished run's recap is publicly shareable (story 32.5). Falsy on an older API payload.
+  recapPublic: boolean;
   lastActivityAt: string | null;
   pausedWithoutSave: boolean;
   validationErrors: ValidationSlotError[] | null;
+  // Bounded stderr excerpt of a failed generation, owner-only (story 9.40). Absent on older API payloads.
+  generationLogExcerpt?: string | null;
+  // Story 9.42: slots across all participants whose solo test generation failed (advisory
+  // launch warning). Absent on older API payloads.
+  failedPreflightCount?: number;
   adminPassword: string | null;
   createdAt: string;
   updatedAt: string;

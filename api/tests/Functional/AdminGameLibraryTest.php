@@ -387,6 +387,47 @@ final class AdminGameLibraryTest extends FunctionalTestCase
         self::assertSame('À conserver.', $data['archipelagoDescription']);
     }
 
+    public function testDisableAndReenableGameWithMessage(): void
+    {
+        // Story 11.4: temporary kill switch with a player-facing message.
+        $this->loginAs($this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN']));
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            ...$this->validPayload(),
+            'slug' => 'hollow-knight',
+            'disabled' => true,
+            'disabledMessage' => '  Apworld cassé, correctif en cours.  ',
+        ]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertTrue($data['disabled']);
+        self::assertSame('Apworld cassé, correctif en cours.', $data['disabledMessage']);
+
+        // A PATCH without the keys (partial callers) must not silently re-enable the game.
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            ...$this->validPayload(),
+            'slug' => 'hollow-knight',
+        ]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertTrue($data['disabled']);
+        self::assertSame('Apworld cassé, correctif en cours.', $data['disabledMessage']);
+
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/admin/games/%s', $game->getId()), [
+            ...$this->validPayload(),
+            'slug' => 'hollow-knight',
+            'disabled' => false,
+        ]);
+        self::assertResponseStatusCodeSame(200);
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        self::assertFalse($data['disabled']);
+        self::assertNull($data['disabledMessage']);
+    }
+
     /**
      * @return array<string, mixed>
      */

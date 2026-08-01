@@ -4,27 +4,30 @@ declare(strict_types=1);
 
 namespace App\Sessions\Application\Query;
 
-use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\Sessions\Application\Support\SessionRecapAudience;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 
 /**
- * Public read facade for a finished session's recap.
+ * Read facade for a finished session's recap.
  *
  * Composes the persisted exchange-graph projection with the live podium
  * (RunResultsQuery, reused - handles ranking/released/invalidated) and the
  * event VOD. Returns null - i.e. the controller 404s - when the session is not
- * finished, its event is not a public event (personal/weekly runs never expose
- * a recap), or no projection has been built yet.
+ * finished, no projection has been built yet, or the viewer is not allowed to see it.
+ *
+ * Access (story 32.5) is delegated to {@see SessionRecapAudience}, shared with the feed timeline so the
+ * one rule cannot drift: public event -> anyone; personal run -> owner/participant, or anyone once
+ * published. Weekly runs never reach this (no finished session).
  */
 final readonly class SessionRecapQuery
 {
     public function __construct(
         private SessionRepositoryInterface $sessions,
-        private EventRepositoryInterface $events,
         private SessionRecapRepositoryInterface $recaps,
         private RunResultsQuery $runResults,
+        private SessionRecapAudience $audience,
     ) {
     }
 
@@ -46,16 +49,14 @@ final readonly class SessionRecapQuery
      *     superlatives: list<array{key: string, label: string, slotId: string, value: int|string}>
      * }|null
      */
-    public function execute(string $sessionId): ?array
+    public function execute(string $sessionId, ?string $viewerId = null): ?array
     {
         $session = $this->sessions->findById($sessionId);
         if (null === $session || Session::STATUS_FINISHED !== $session->getStatus()) {
             return null;
         }
 
-        // Recaps exist only for public events - never for personal or weekly runs.
-        $event = $this->events->findById($session->getEventId());
-        if (null === $event || !$event->isPublic()) {
+        if (!$this->audience->canView($session, $viewerId)) {
             return null;
         }
 
@@ -64,6 +65,7 @@ final readonly class SessionRecapQuery
             return null;
         }
 
+        // Podium already resolves the display name for both event and personal-run sessions.
         $podium = $this->runResults->execute($sessionId);
         if (null === $podium) {
             return null;
@@ -75,7 +77,7 @@ final readonly class SessionRecapQuery
             'startedAt' => $podium['startedAt'],
             'finishedAt' => $podium['finishedAt'],
             'durationSeconds' => $podium['durationSeconds'],
-            'vodUrl' => $event->getVodUrl(),
+            'vodUrl' => $this->audience->vodUrl($session),
             'generatedAt' => $recap->getGeneratedAt()->format(\DateTimeInterface::ATOM),
             'podium' => $podium['slots'],
             'graph' => [

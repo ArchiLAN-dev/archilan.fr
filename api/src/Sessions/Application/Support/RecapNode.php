@@ -6,7 +6,7 @@ namespace App\Sessions\Application\Support;
 
 /**
  * A node in the item-exchange graph: one Archipelago slot, keyed by its slot
- * name (the name used inside the spoiler), with the game it played.
+ * name (the name the AP server broadcasts), with the game it played.
  */
 final readonly class RecapNode
 {

@@ -286,7 +286,17 @@ function GameTable({
                           </div>
                         )}
                         <div>
-                          <p className="font-semibold text-foreground">{game.name}</p>
+                          <p className="flex items-center gap-2 font-semibold text-foreground">
+                            {game.name}
+                            {game.disabled ? (
+                              <span
+                                className="inline-flex items-center rounded border border-danger/50 bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger"
+                                title={game.disabledMessage ?? undefined}
+                              >
+                                Désactivé
+                              </span>
+                            ) : null}
+                          </p>
                           <p className="font-mono text-xs text-muted-foreground">{game.slug}</p>
                         </div>
                       </div>
@@ -358,7 +368,17 @@ function GameTable({
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground">{game.name}</p>
+                    <p className="flex items-center gap-2 font-semibold text-foreground">
+                      {game.name}
+                      {game.disabled ? (
+                        <span
+                          className="inline-flex shrink-0 items-center rounded border border-danger/50 bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger"
+                          title={game.disabledMessage ?? undefined}
+                        >
+                          Désactivé
+                        </span>
+                      ) : null}
+                    </p>
                     <p className="truncate font-mono text-xs text-muted-foreground">{game.slug}</p>
                   </div>
                   {game.isYamlReady ? (

@@ -46,6 +46,53 @@ final readonly class PlatformCategory
     ];
 
     /**
+     * The curated families an admin can pick from when overriding a game's platforms
+     * (story 9.47). Deliberately a closed vocabulary: the catalog filters are built on it.
+     *
+     * @return list<string>
+     */
+    public static function selectableFamilies(): array
+    {
+        $families = array_map(static fn (array $rule): string => $rule['family'], self::RULES);
+        sort($families);
+
+        return $families;
+    }
+
+    /**
+     * Effective platform families of a game (story 9.47): the admin's explicit choice when
+     * there is one, the IGDB-derived list otherwise. IGDB describes the game; the override
+     * describes what the Archipelago world actually supports.
+     *
+     * Single source of this precedence - the entity and the catalog DBAL queries both call
+     * it, so no read site can drift.
+     *
+     * @param list<string>|null                  $override
+     * @param list<array{id: int, name: string}> $igdbPlatforms
+     *
+     * @return list<string>
+     */
+    public static function resolve(?array $override, array $igdbPlatforms): array
+    {
+        if (null !== $override && [] !== $override) {
+            $cleaned = [];
+            foreach ($override as $family) {
+                $trimmed = trim($family);
+                if ('' !== $trimmed && !in_array($trimmed, $cleaned, true)) {
+                    $cleaned[] = $trimmed;
+                }
+            }
+            if ([] !== $cleaned) {
+                sort($cleaned);
+
+                return $cleaned;
+            }
+        }
+
+        return self::families($igdbPlatforms);
+    }
+
+    /**
      * @param list<array{id: int, name: string}> $igdbPlatforms
      *
      * @return list<string>

@@ -201,6 +201,53 @@ final class PersonalRunGameConfigTest extends FunctionalTestCase
         self::assertSame('run_generated', $this->errorCode());
     }
 
+    public function testSaveMyGamesRejectsNewlyAddedDisabledGame(): void
+    {
+        // Story 11.4: a disabled game cannot be newly added to a personal run selection.
+        $user = $this->createUser('alice@example.org');
+        $game = $this->createGame('Celeste', 'celeste');
+        $game->disable('Apworld cassé, correctif en cours.', new \DateTimeImmutable('2026-07-26T10:00:00+00:00'));
+        $this->entityManager->flush();
+        $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('PUT', '/api/v1/runs/'.$run->getId().'/participants/me/games', [
+            'gameIds' => [$game->getId()],
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('validation_failed', $this->errorCode());
+        $details = $this->errorDetails();
+        self::assertArrayHasKey('gameIds.0', $details);
+        $messages = $details['gameIds.0'];
+        self::assertIsArray($messages);
+        self::assertIsString($messages[0]);
+        self::assertStringContainsString('Apworld cassé, correctif en cours.', $messages[0]);
+    }
+
+    public function testSaveMyGamesKeepsExistingSlotOfNewlyDisabledGame(): void
+    {
+        // A disable after selection must not brick the run: re-submitting the same selection
+        // stays accepted, only NEW additions are blocked.
+        $user = $this->createUser('alice@example.org');
+        $game = $this->createGame('Celeste', 'celeste');
+        $run = $this->createRunDirectly($user->getId(), 'My Run', Run::STATUS_DRAFT);
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('PUT', '/api/v1/runs/'.$run->getId().'/participants/me/games', [
+            'gameIds' => [$game->getId()],
+        ]);
+        self::assertResponseStatusCodeSame(200);
+
+        $game->disable(null, new \DateTimeImmutable('2026-07-26T10:00:00+00:00'));
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('PUT', '/api/v1/runs/'.$run->getId().'/participants/me/games', [
+            'gameIds' => [$game->getId()],
+        ]);
+        self::assertResponseStatusCodeSame(200);
+    }
+
     public function testSaveSlotYamlIdleRunReturns422(): void
     {
         $user = $this->createUser('alice@example.org');

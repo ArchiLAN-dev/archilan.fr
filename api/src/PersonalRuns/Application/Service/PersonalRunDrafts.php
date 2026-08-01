@@ -359,9 +359,25 @@ final readonly class PersonalRunDrafts
         $isActive = Run::STATUS_ACTIVE === $run->getStatus();
         $isOwner = null !== $callerId && $run->isOwnedBy($callerId);
 
+        // Story 9.42 (advisory launch warning): count slots whose solo test generation
+        // failed across all participants. Never blocks anything. Draft runs only - the
+        // warning is pre-launch UI, and computing it in listMine() for every historical
+        // run would be a pointless findByRunId per row (review fix).
+        $failedPreflightCount = 0;
+        if (Run::STATUS_DRAFT === $run->getStatus()) {
+            foreach ($this->participants->findByRunId($run->getId()) as $runParticipant) {
+                foreach ($runParticipant->getGameSlots() as $gameSlot) {
+                    if ('failed' === (($gameSlot['preflight'] ?? [])['status'] ?? null)) {
+                        ++$failedPreflightCount;
+                    }
+                }
+            }
+        }
+
         $lastActivityAt = null;
         $pausedWithoutSave = false;
         $validationErrors = null;
+        $generationLogExcerpt = null;
         $adminPassword = null;
         $sessionId = $run->getSessionId();
 
@@ -378,6 +394,15 @@ final readonly class PersonalRunDrafts
                 if (Run::STATUS_DRAFT === $run->getStatus()
                     && in_array($session->getStatus(), [Session::STATUS_DRAFT, Session::STATUS_FAILED], true)) {
                     $validationErrors = $session->getValidationErrors();
+
+                    // Owner-only bounded excerpt of the failed generation's stderr (story 9.40) -
+                    // the full raw log stays admin-only via /admin/sessions/{id}/logs.
+                    if ($isOwner && Session::STATUS_FAILED === $session->getStatus()) {
+                        $logs = $session->getLastLogs();
+                        if (null !== $logs && '' !== trim($logs)) {
+                            $generationLogExcerpt = mb_substr($logs, -2000);
+                        }
+                    }
                 }
 
                 if ($isActive && $isOwner) {
@@ -399,9 +424,12 @@ final readonly class PersonalRunDrafts
             'isOwner' => $isOwner,
             'participants' => $participants,
             'sessionId' => $sessionId,
+            'recapPublic' => $run->isRecapPublic(),
             'lastActivityAt' => $lastActivityAt,
             'pausedWithoutSave' => $pausedWithoutSave,
             'validationErrors' => $validationErrors,
+            'generationLogExcerpt' => $generationLogExcerpt,
+            'failedPreflightCount' => $failedPreflightCount,
             'adminPassword' => $adminPassword,
             'createdAt' => $run->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $run->getUpdatedAt()->format(\DateTimeInterface::ATOM),

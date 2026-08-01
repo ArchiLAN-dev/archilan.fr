@@ -24,13 +24,14 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
-import { fetchPersonalRun, type PersonalRunResult } from "./personal-runs-api";
+import { fetchPersonalRun, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
 import { ConnectionDetails } from "./connection-details";
 import { InviteLinkPanel } from "./invite-link-panel";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
+import { LiveRunTimeline } from "@/features/recap/live-run-timeline";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
@@ -180,7 +181,13 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
 
 // ─── Validation error banner ──────────────────────────────────────────────────
 
-function ValidationErrorBanner({ errors }: { errors: ValidationSlotError[] }) {
+function ValidationErrorBanner({
+  errors,
+  logExcerpt = null,
+}: {
+  errors: ValidationSlotError[];
+  logExcerpt?: string | null;
+}) {
   return (
     <div className="rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-4">
       <div className="flex items-start gap-2">
@@ -201,6 +208,16 @@ function ValidationErrorBanner({ errors }: { errors: ValidationSlotError[] }) {
               </li>
             ))}
           </ul>
+          {logExcerpt !== null && logExcerpt !== "" ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                Détails techniques
+              </summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-3 text-[11px] leading-relaxed text-muted-foreground">
+                {logExcerpt}
+              </pre>
+            </details>
+          ) : null}
         </div>
       </div>
     </div>
@@ -452,6 +469,13 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
   const tab: RunTab = isRunTab(tabParam) ? tabParam : "overview";
   const prevStatusRef = useRef<string | null>(null);
   const restartRequestedRef = useRef(false);
+  // The tab bar scrolls horizontally on a phone (story 16.12); keep the active tab in view when
+  // it changes (or when the page lands on a deep-linked tab past the scrollable edge).
+  const tabListRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const active = tabListRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    active?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [tab]);
 
   // fetchPersonalRun never throws (404/403, server errors and network failures are encoded in the
   // result's `kind`), so the query never errors and - like the old effect - never retries.
@@ -838,29 +862,37 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           )}
         </header>
 
-        {/* Tabs */}
-        <div className="flex flex-wrap gap-1 border-b border-border" role="tablist">
-          {tabs.map((t) => {
-            const active = t.key === activeTab;
-            return (
-              <button
-                aria-selected={active}
-                className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
-                  active
-                    ? "border-accent text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-                key={t.key}
-                onClick={() => {
-                  selectTab(t.key);
-                }}
-                role="tab"
-                type="button"
-              >
-                {t.label}
-              </button>
-            );
-          })}
+        {/* Tabs: one row on every width - horizontal scroll on a phone (never a wrapped block),
+            with a right-edge fade hinting at the overflow (story 16.12). */}
+        <div className="relative">
+          <div
+            className="flex gap-1 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            ref={tabListRef}
+            role="tablist"
+          >
+            {tabs.map((t) => {
+              const active = t.key === activeTab;
+              return (
+                <button
+                  aria-selected={active}
+                  className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition-colors ${
+                    active
+                      ? "border-accent text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  key={t.key}
+                  onClick={() => {
+                    selectTab(t.key);
+                  }}
+                  role="tab"
+                  type="button"
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" />
         </div>
 
         {/* My games card - visible to owner + participants when configurable */}
@@ -899,7 +931,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             {run.status === "draft" && (
               <>
                 {run.validationErrors !== null && run.validationErrors.length > 0 && (
-                  <ValidationErrorBanner errors={run.validationErrors} />
+                  <ValidationErrorBanner errors={run.validationErrors} logExcerpt={run.generationLogExcerpt ?? null} />
+                )}
+                {run.status === "draft" && (run.failedPreflightCount ?? 0) > 0 && (
+                  <p className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/5 p-3 text-xs text-[color:var(--color-warning)]">
+                    {run.failedPreflightCount} slot{(run.failedPreflightCount ?? 0) > 1 ? "s ont" : " a"} échoué au
+                    test de génération individuel. La génération complète risque d&apos;échouer : vérifie les configs
+                    marquées « Échec du test » avant de lancer.
+                  </p>
                 )}
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
@@ -1091,8 +1130,19 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
             {/* COMPLETED */}
             {run.status === "completed" && (
-              <div className="rounded-lg border border-border bg-surface p-4 text-center">
-                <p className="text-sm text-muted-foreground">Cette partie est terminée.</p>
+              <div className="grid gap-3">
+                <div className="rounded-lg border border-border bg-surface p-4 text-center">
+                  <p className="text-sm text-muted-foreground">Cette partie est terminée.</p>
+                </div>
+                {run.sessionId !== null && (
+                  <RunRecapCard
+                    isOwner={run.isOwner}
+                    onChanged={refreshRun}
+                    recapPublic={run.recapPublic}
+                    runId={run.id}
+                    sessionId={run.sessionId}
+                  />
+                )}
               </div>
             )}
 
@@ -1164,9 +1214,12 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </>
         )}
 
-        {/* Player progress grid - visible to all when active or idle */}
+        {/* Player progress grid + the live run timeline - visible to all when active or idle */}
         {activeTab === "progress" && run.sessionId && (
-          <PlayerProgressGrid personalRunId={run.id} runId={run.sessionId} />
+          <div className="grid gap-6">
+            <PlayerProgressGrid personalRunId={run.id} runId={run.sessionId} />
+            <LiveRunTimeline sessionId={run.sessionId} />
+          </div>
         )}
 
         {/* Participants' Twitch streams (story 7.7) - dedicated tab, shows an empty state when none stream */}
@@ -1193,5 +1246,60 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         )}
       </div>
     </>
+  );
+}
+
+function RunRecapCard({
+  runId,
+  sessionId,
+  isOwner,
+  recapPublic,
+  onChanged,
+}: {
+  runId: string;
+  sessionId: string;
+  isOwner: boolean;
+  recapPublic: boolean;
+  onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    setBusy(true);
+    const ok = await setRunRecapVisibility(runId, !recapPublic);
+    if (ok) await onChanged();
+    setBusy(false);
+  }
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-0.5">
+          <p className="font-heading text-sm font-semibold text-foreground">Récap de la partie</p>
+          <p className="text-xs text-muted-foreground">
+            {recapPublic
+              ? "Public : partageable par lien."
+              : "Privé : visible par toi et les participants."}
+          </p>
+        </div>
+        <Link
+          className="inline-flex shrink-0 items-center gap-2 rounded border border-border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent"
+          href={`/parties/${sessionId}`}
+        >
+          Voir le récap
+        </Link>
+      </div>
+      {isOwner && (
+        <button
+          className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          disabled={busy}
+          onClick={() => void toggle()}
+          type="button"
+        >
+          {busy ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+          {recapPublic ? "Rendre privé" : "Rendre public"}
+        </button>
+      )}
+    </div>
   );
 }

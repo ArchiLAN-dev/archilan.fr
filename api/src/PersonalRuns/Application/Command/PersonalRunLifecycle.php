@@ -31,6 +31,32 @@ final readonly class PersonalRunLifecycle
     }
 
     /**
+     * Publish or unpublish the finished run's recap (story 32.5). Owner-only.
+     *
+     * @throws NotFoundException  when the run does not exist
+     * @throws ForbiddenException when the caller is not the owner
+     */
+    public function setRecapVisibility(string $runId, string $callerId, bool $public): RunRecapVisibilityResult
+    {
+        $run = $this->runs->findById($runId);
+        if (null === $run) {
+            throw new NotFoundException('Run introuvable.');
+        }
+        if (!$run->isOwnedBy($callerId)) {
+            throw new ForbiddenException('Accès refusé.');
+        }
+
+        if ($public) {
+            $run->publishRecap($this->clock->now());
+        } else {
+            $run->unpublishRecap($this->clock->now());
+        }
+        $this->runs->save($run);
+
+        return new RunRecapVisibilityResult($run->getId(), $run->isRecapPublic());
+    }
+
+    /**
      * @throws NotFoundException   when the run does not exist
      * @throws ForbiddenException  when the caller does not own the run
      * @throws ValidationException when the run cannot be started in its current state

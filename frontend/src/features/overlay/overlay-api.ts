@@ -13,8 +13,10 @@ export type OverlaySubscribe = {
 // One end of an item transfer (sender = finder, receiver = owner of the item), as resolved by the
 // bridge. `game` is the player's world.
 export type FeedActor = { slot: number; name: string; game: string };
-// A named id reference (the item, or the origin check/location).
-export type FeedRef = { id: number; name: string };
+// A named id reference (the item, or the origin check/location). On the item ref the bridge also
+// sends the AP classification `flags` (bit 1 = progression, story 32.9); absent from older bridges
+// and from location refs.
+export type FeedRef = { id: number; name: string; flags?: number };
 
 // Feed event shape published by the bridge on `runs/{id}/feed` (see EventFeed / story 9.13). The
 // `item`/`location`/`sender`/`receiver` fields are present only on item events (story 29.4) and only

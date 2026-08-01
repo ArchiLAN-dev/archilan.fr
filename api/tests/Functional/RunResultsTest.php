@@ -84,6 +84,7 @@ final class RunResultsTest extends FunctionalTestCase
         $slot0 = $slots[0];
         self::assertIsArray($slot0);
         self::assertSame('slot-2', $slot0['slotId']);
+        self::assertSame('Bob', $slot0['slotName']);
         self::assertSame('Bob', $slot0['playerName']);
         self::assertSame('Hollow Knight', $slot0['game']);
         self::assertSame(100, $slot0['completionSeconds']);

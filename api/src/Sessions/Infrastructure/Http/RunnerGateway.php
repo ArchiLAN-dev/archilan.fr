@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Sessions\Infrastructure\Http;
 
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use Archilan\OrchestratorClient\Apworlds\Response\ApworldPreflight;
 use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
@@ -170,6 +171,112 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         return null !== $detail
             ? ['error' => 'template_failed', 'detail' => $detail]
             : ['error' => 'template_failed'];
+    }
+
+    public function fetchApworldPreflights(): array
+    {
+        try {
+            $verdicts = [];
+            foreach ($this->client->apworlds()->list() as $entry) {
+                // Apworlds uploaded before the preflight existed have no verdict: surface
+                // them with an empty status so the backfill can find them (never blocking).
+                $verdicts[$entry->hash] = null !== $entry->preflight
+                    ? $this->preflightPayload($entry->preflight)
+                    : ['status' => '', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => false];
+            }
+
+            return $verdicts;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_preflights_fetch_failed', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    public function runApworldPreflight(string $hash): bool
+    {
+        try {
+            $this->client->apworlds()->runPreflight($hash);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_preflight_rerun_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    public function overrideApworldPreflight(string $hash, bool $overridden): ?array
+    {
+        try {
+            return $this->preflightPayload($this->client->apworlds()->overridePreflight($hash, $overridden));
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_preflight_override_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}
+     */
+    private function preflightPayload(ApworldPreflight $preflight): array
+    {
+        return [
+            'status' => $preflight->status,
+            'error' => $preflight->error,
+            'checkedAt' => $preflight->checkedAt,
+            'overridden' => $preflight->overridden,
+            'blocks' => $preflight->blocksUsage(),
+        ];
+    }
+
+    public function setApworldTemplate(string $hash, string $template): bool
+    {
+        try {
+            $this->client->apworlds()->setYamlTemplate($hash, $template);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_template_write_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    public function regenerateApworldTemplate(string $hash): array
+    {
+        try {
+            return ['template' => $this->client->apworlds()->regenerateYamlTemplate($hash)];
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.apworld_template_regenerate_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): ?string
+    {
+        try {
+            return $this->client->preflight()->start($playerYaml, $apworldHash)->id;
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.slot_preflight_start_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public function getSlotPreflight(string $jobId): ?array
+    {
+        try {
+            $job = $this->client->preflight()->get($jobId);
+
+            return ['status' => $job->status, 'error' => $job->error];
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.slot_preflight_poll_failed', ['jobId' => $jobId, 'error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     public function configureSession(string $sessionId, array $slots): array

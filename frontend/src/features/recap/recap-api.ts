@@ -1,9 +1,12 @@
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type RecapPodiumSlot = {
   slotId: string;
+  // The AP in-world name - the join key with the feed's sender names (goal markers, story 32.9).
+  slotName: string;
   playerName: string;
   game: string;
   checksDone: number;
@@ -58,6 +61,7 @@ export type SessionRecap = {
 function isPodiumSlot(v: unknown): v is RecapPodiumSlot {
   if (typeof v !== "object" || v === null) return false;
   if (!hasStringProp(v, "slotId")) return false;
+  if (!hasStringProp(v, "slotName")) return false;
   if (!hasStringProp(v, "playerName")) return false;
   if (!hasStringProp(v, "game")) return false;
   if (!hasNumberProp(v, "checksDone")) return false;
@@ -180,8 +184,12 @@ export const getEventRecapIndex = cache(async (eventId: string): Promise<EventRe
 
 export const getSessionRecap = cache(async (sessionId: string): Promise<SessionRecap | null> => {
   try {
+    // Forward the viewer's cookies so the owner/participants of a private personal-run recap can load
+    // it (story 32.5); an event or published recap needs no auth and works without them.
+    const cookieHeader = (await cookies()).toString();
     const response = await fetch(`${env.apiBaseUrl}/parties/${sessionId}/recap`, {
       cache: "no-store",
+      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     });
 
     if (!response.ok) {
