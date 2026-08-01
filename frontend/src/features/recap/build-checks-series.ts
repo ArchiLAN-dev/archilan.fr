@@ -73,6 +73,22 @@ export function combineChecksSeries(series: ChecksSeries, shownSlots: ReadonlySe
   return { players: [combined], rows };
 }
 
+/**
+ * Slot name -> colour, using the same slot ordering and the same palette as the curves, so a player
+ * keeps one visual identity across the whole recap page (exchange diagram and timeline alike).
+ * Keyed on the AP slot *name* because that is the only identifier the recap graph and the feed share.
+ */
+export function slotColorsByName(events: FeedEvent[]): Map<string, string> {
+  const nameBySlot = new Map<number, string>();
+  for (const event of events) {
+    if (event.type !== "item-received") continue;
+    const { slot, name } = event.sender;
+    if (slot !== null && name !== null && !nameBySlot.has(slot)) nameBySlot.set(slot, name);
+  }
+  const ordered = [...nameBySlot.entries()].sort((a, b) => a[0] - b[0]);
+  return new Map(ordered.map(([, name], index) => [name, SERIES_COLORS[Math.min(index, SERIES_COLORS.length - 1)]]));
+}
+
 export function buildChecksSeries(events: FeedEvent[], bucketSeconds = 60, options: ChecksOptions = {}): ChecksSeries {
   const measure: ChecksMeasure = options.measure ?? "found";
   const mode: ChecksMode = options.mode ?? "interval";

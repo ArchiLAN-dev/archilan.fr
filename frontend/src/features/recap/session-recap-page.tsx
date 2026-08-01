@@ -1,7 +1,8 @@
 import { ArrowLeft, Clock, Trophy } from "lucide-react";
 import Link from "next/link";
 
-import { ExchangeGraph, type GraphNode } from "@/features/recap/exchange-graph";
+import { slotColorsByName } from "@/features/recap/build-checks-series";
+import { ExchangeSankey, type ExchangeSlot } from "@/features/recap/exchange-sankey";
 import { RunTimeline, type GoalMarker } from "@/features/recap/run-timeline";
 import type { FeedEvent } from "@/features/recap/feed-api";
 import { formatDuration } from "@/features/recap/recap-format";
@@ -16,23 +17,27 @@ const SUPERLATIVE_HINTS: Record<string, string> = {
 };
 
 export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: FeedEvent[] }) {
-  const nameBySlot = new Map(recap.podium.map((slot) => [slot.slotId, slot.playerName]));
+  // A player name alone is ambiguous when one person holds several slots - the ArchiLAN norm in solo
+  // and duo multiworlds - so the slot name disambiguates it wherever a name would otherwise repeat.
+  const slotsPerName = new Map<string, number>();
+  for (const slot of recap.podium) {
+    slotsPerName.set(slot.playerName, (slotsPerName.get(slot.playerName) ?? 0) + 1);
+  }
+  const nameBySlot = new Map(
+    recap.podium.map((slot) => [
+      slot.slotId,
+      (slotsPerName.get(slot.playerName) ?? 0) > 1 ? `${slot.playerName} (${slot.slotName})` : slot.playerName,
+    ]),
+  );
 
-  const graphNodes: GraphNode[] = recap.graph.nodes.map((node) => {
-    const sent = recap.graph.edges
-      .filter((e) => e.fromSlotId === node.slotId)
-      .reduce((sum, e) => sum + e.count, 0);
-    const received = recap.graph.edges
-      .filter((e) => e.toSlotId === node.slotId)
-      .reduce((sum, e) => sum + e.count, 0);
-    return {
-      slotId: node.slotId,
-      label: nameBySlot.get(node.slotId) ?? node.slotName,
-      game: node.game,
-      sent,
-      received,
-    };
-  });
+  // One colour per slot, shared with the timeline below so a player keeps a single identity.
+  const colorBySlotName = slotColorsByName(feed);
+  const exchangeSlots: ExchangeSlot[] = recap.graph.nodes.map((node) => ({
+    color: colorBySlotName.get(node.slotName) ?? "var(--chart-series-1)",
+    game: node.game,
+    slotId: node.slotId,
+    slotName: node.slotName,
+  }));
 
   const timeline = recap.podium
     .filter((slot) => slot.goalReachedAt !== null && !slot.isInvalidated)
@@ -88,7 +93,7 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
       <div className="grid gap-4">
         <h2 className="font-heading text-2xl font-bold text-foreground">Qui a envoyé quoi à qui</h2>
         {hasGraph ? (
-          <ExchangeGraph edges={recap.graph.edges} nodes={graphNodes} />
+          <ExchangeSankey flows={recap.graph.edges} locals={recap.graph.localItems} slots={exchangeSlots} />
         ) : (
           <p className="rounded-lg border border-border bg-surface p-6 text-sm text-muted-foreground">
             Le graphe des échanges n&apos;est pas disponible pour cette partie.
