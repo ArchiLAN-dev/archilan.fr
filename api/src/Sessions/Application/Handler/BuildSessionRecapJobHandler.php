@@ -8,12 +8,12 @@ use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\BuildSessionRecapJob;
 use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
-use App\Sessions\Application\Port\SessionSpoilerArtifactReaderInterface;
+use App\Sessions\Application\Support\FeedGraphBuilder;
 use App\Sessions\Application\Support\RecapGraph;
 use App\Sessions\Application\Support\RecapSuperlativesCalculator;
-use App\Sessions\Application\Support\SpoilerGraphParser;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionRecap;
+use App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRecapRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
@@ -22,13 +22,16 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 /**
- * Builds the {@see SessionRecap} projection from the generation spoiler.
+ * Builds the {@see SessionRecap} projection from the session's live feed (story 9.48).
  *
- * Reconciliation: the parser works in slot-name space (all the spoiler exposes);
- * this handler joins slot name -> slot id / goal time via the session slots so
- * the stored projection is entirely slot-id-keyed and joins cleanly to the
- * podium. A missing or unreadable spoiler yields a stats-only recap (empty
- * graph) rather than a failure - the public page then falls back to the podium.
+ * The graph describes what was actually played - every item genuinely sent - instead of what
+ * the seed contained, which is what the generation spoiler described. Races, whose seeds
+ * carry no spoiler, therefore get a recap too.
+ *
+ * Reconciliation: the builder works in slot-name space (what the feed carries); this handler
+ * joins slot name -> slot id / goal time via the session slots so the stored projection is
+ * entirely slot-id-keyed and joins cleanly to the podium. An empty feed yields a stats-only
+ * recap (empty graph) rather than a failure - the public page then falls back to the podium.
  */
 #[AsMessageHandler]
 final readonly class BuildSessionRecapJobHandler
@@ -36,8 +39,8 @@ final readonly class BuildSessionRecapJobHandler
     public function __construct(
         private SessionRepositoryInterface $sessions,
         private SessionSlotRepositoryInterface $slots,
-        private SessionSpoilerArtifactReaderInterface $spoilerReader,
-        private SpoilerGraphParser $parser,
+        private SessionFeedEventRepositoryInterface $feedEvents,
+        private FeedGraphBuilder $feedGraphBuilder,
         private RecapSuperlativesCalculator $superlatives,
         private SessionRecapRepositoryInterface $recaps,
         private RegistrationRepositoryInterface $registrations,
@@ -164,22 +167,18 @@ final readonly class BuildSessionRecapJobHandler
         return array_keys($userIds);
     }
 
+    /**
+     * Story 9.48: the graph now describes what was actually played, not what the seed
+     * contained. An empty feed yields an empty graph and a stats-only recap - never a
+     * failure - exactly as a missing spoiler did before.
+     */
     private function readGraph(Session $session): RecapGraph
     {
-        $outputKey = $session->getGeneratedOutputKey();
-        if (null === $outputKey) {
-            $this->logger->warning('session.recap.build.no_output_key', ['sessionId' => $session->getId()]);
-
-            return new RecapGraph([], [], []);
+        $events = $this->feedEvents->findBySessionId($session->getId());
+        if ([] === $events) {
+            $this->logger->warning('session.recap.build.empty_feed', ['sessionId' => $session->getId()]);
         }
 
-        $artifact = $this->spoilerReader->extractSpoiler($outputKey);
-        if (null === $artifact) {
-            $this->logger->warning('session.recap.build.spoiler_unreadable', ['sessionId' => $session->getId(), 'outputKey' => $outputKey]);
-
-            return new RecapGraph([], [], []);
-        }
-
-        return $this->parser->parse($artifact->contents);
+        return $this->feedGraphBuilder->build($events);
     }
 }

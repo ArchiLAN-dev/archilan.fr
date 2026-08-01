@@ -7,7 +7,7 @@ namespace App\Sessions\Application\Support;
 /**
  * An aggregated exchange edge: `from` sent `count` items to `to` across the run
  * (one edge per ordered slot-name pair, self-edges excluded - those are local
- * items). Slot names, not slot ids - the parser works purely off the spoiler.
+ * items). Slot names, not slot ids - the builder works purely off the feed.
  */
 final readonly class RecapEdge
 {
