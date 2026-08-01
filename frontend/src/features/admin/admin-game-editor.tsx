@@ -708,111 +708,146 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
             description="Fichier .apworld pour les joueurs configurant leur slot avec un YAML personnalisé."
             title="Fichier .apworld"
         >
+            {/* ── 1. État du fichier : ce que le serveur a, et s'il est sain ── */}
             {game.isApworldReady ? (
-                <div className="grid gap-1">
-                    <p className="text-sm text-success">
-                        Configuré le{" "}
-                        {game.apworldUploadedAt
-                            ? new Date(game.apworldUploadedAt).toLocaleDateString("fr-FR", {
-                                day: "numeric", month: "long", year: "numeric",
-                                hour: "2-digit", minute: "2-digit",
-                            })
-                            : "-"}{" "}
-                        - SHA-256 : {game.apworldHash ? `${game.apworldHash.slice(0, 8)}…` : "-"}
-                    </p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                        Nom Archipelago :{" "}
-                        {game.archipelagoGameName
-                            ? <span className="text-foreground">{game.archipelagoGameName}</span>
-                            : <span className="text-danger">manquant</span>}
-                    </p>
-                    <ApworldPreflightStatus game={game} />
+                <div className="grid gap-3 rounded border border-border bg-surface-2 p-4">
+                    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                        <ApworldFact label="Jeu Archipelago">
+                            {game.archipelagoGameName
+                                ? <span className="text-foreground">{game.archipelagoGameName}</span>
+                                : <span className="font-semibold text-danger">manquant - la génération échouera</span>}
+                        </ApworldFact>
+                        <ApworldFact label="Téléversé le">
+                            {game.apworldUploadedAt
+                                ? new Date(game.apworldUploadedAt).toLocaleDateString("fr-FR", {
+                                    day: "numeric", month: "long", year: "numeric",
+                                    hour: "2-digit", minute: "2-digit",
+                                })
+                                : "-"}
+                        </ApworldFact>
+                        <ApworldFact label="Empreinte SHA-256">
+                            <span className="font-mono" title={game.apworldHash ?? undefined}>
+                                {game.apworldHash ? `${game.apworldHash.slice(0, 12)}…` : "-"}
+                            </span>
+                        </ApworldFact>
+                        <ApworldFact label="Template YAML">
+                            {game.defaultYaml
+                                ? `${game.defaultYaml.split("\n").length} lignes`
+                                : <span className="font-semibold text-danger">absent</span>}
+                        </ApworldFact>
+                    </dl>
+
+                    <div className="border-t border-border pt-3">
+                        <ApworldPreflightStatus game={game} />
+                    </div>
                 </div>
             ) : (
-                <p className="text-sm text-muted-foreground">Aucun fichier .apworld configuré.</p>
+                <p className="rounded border border-dashed border-border p-4 text-sm text-muted-foreground">
+                    Aucun fichier .apworld configuré : les joueurs ne peuvent pas personnaliser leur YAML pour ce jeu.
+                </p>
             )}
 
-            {game.apworldSourceUrl && (
-                <div className="mt-4">
+            {/* ── 2. Mettre à jour le fichier : les deux sources, au même niveau ── */}
+            <div className="mt-5 grid gap-3">
+                <p className="text-sm font-semibold text-foreground">
+                    {game.isApworldReady ? "Remplacer le fichier" : "Ajouter un fichier"}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                    {game.apworldSourceUrl ? (
+                        <button
+                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={importingGithub || uploading || loadingAssets}
+                            type="button"
+                            onClick={handleOpenGithubPicker}
+                        >
+                            {loadingAssets ? "Chargement…" : importingGithub ? "Import en cours…" : "Importer depuis GitHub"}
+                        </button>
+                    ) : null}
+                    <input
+                        accept=".apworld"
+                        className="text-sm text-foreground file:mr-3 file:rounded file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-foreground hover:file:border-accent"
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                    />
                     <button
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={importingGithub || uploading || loadingAssets}
+                        className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={!selectedFile || uploading}
                         type="button"
-                        onClick={handleOpenGithubPicker}
+                        onClick={handleUpload}
                     >
-                        {loadingAssets ? "Chargement…" : importingGithub ? "Import en cours…" : "Importer depuis GitHub"}
+                        {uploading ? "Envoi en cours…" : "Uploader"}
                     </button>
-                    <p className="mt-1 font-mono text-xs text-muted-foreground">{game.apworldSourceUrl}</p>
-
-                    {githubAssets !== null && githubAssets.length === 0 && (
-                        <p className="mt-2 text-sm text-danger">Aucun asset .apworld trouvé dans la dernière
-                            release.</p>
-                    )}
-
-                    {githubAssets !== null && githubAssets.length > 1 && (
-                        <div className="mt-3 rounded border border-border bg-surface-2 p-3">
-                            <p className="mb-2 text-sm font-semibold text-foreground">
-                                Plusieurs .apworld disponibles - choisissez :
-                            </p>
-                            <ul className="flex flex-col gap-1.5">
-                                {githubAssets.map((asset) => (
-                                    <li key={asset.downloadUrl}>
-                                        <button
-                                            className="flex w-full items-center justify-between gap-3 rounded border border-border bg-surface px-3 py-2 text-left text-sm transition-colors hover:border-accent disabled:opacity-60"
-                                            disabled={importingGithub}
-                                            type="button"
-                                            onClick={() => doImport(asset.downloadUrl, asset.name, asset.tag)}
-                                        >
-                                            <span className="font-mono text-foreground">{asset.name}</span>
-                                            <span className="shrink-0 text-xs text-muted-foreground">
-                        {(asset.size / 1024).toFixed(0)} Ko
-                      </span>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                            <button
-                                className="mt-2 text-xs text-muted-foreground hover:text-foreground"
-                                type="button"
-                                onClick={() => setGithubAssets(null)}
-                            >
-                                Annuler
-                            </button>
-                        </div>
-                    )}
                 </div>
-            )}
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-                <input
-                    accept=".apworld"
-                    className="text-sm text-foreground file:mr-3 file:rounded file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-foreground hover:file:border-accent"
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-                />
-                <button
-                    className="inline-flex min-h-10 items-center justify-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={!selectedFile || uploading}
-                    type="button"
-                    onClick={handleUpload}
-                >
-                    {uploading ? "Envoi en cours…" : "Uploader le .apworld"}
-                </button>
+                {game.apworldSourceUrl ? (
+                    <p className="truncate font-mono text-xs text-muted-foreground" title={game.apworldSourceUrl}>
+                        Source : {game.apworldSourceUrl}
+                    </p>
+                ) : null}
+
+                {githubAssets !== null && githubAssets.length === 0 && (
+                    <p className="text-sm text-danger">Aucun asset .apworld trouvé dans la dernière release.</p>
+                )}
+
+                {githubAssets !== null && githubAssets.length > 1 && (
+                    <div className="rounded border border-border bg-surface-2 p-3">
+                        <p className="mb-2 text-sm font-semibold text-foreground">
+                            Plusieurs .apworld disponibles - choisissez :
+                        </p>
+                        <ul className="flex flex-col gap-1.5">
+                            {githubAssets.map((asset) => (
+                                <li key={asset.downloadUrl}>
+                                    <button
+                                        className="flex w-full items-center justify-between gap-3 rounded border border-border bg-surface px-3 py-2 text-left text-sm transition-colors hover:border-accent disabled:opacity-60"
+                                        disabled={importingGithub}
+                                        type="button"
+                                        onClick={() => doImport(asset.downloadUrl, asset.name, asset.tag)}
+                                    >
+                                        <span className="font-mono text-foreground">{asset.name}</span>
+                                        <span className="shrink-0 text-xs text-muted-foreground">
+                                            {(asset.size / 1024).toFixed(0)} Ko
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                        <button
+                            className="mt-2 text-xs text-muted-foreground hover:text-foreground"
+                            type="button"
+                            onClick={() => setGithubAssets(null)}
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                )}
+
+                {uploadError ? <p className="text-sm text-danger" role="alert">{uploadError}</p> : null}
             </div>
 
-            {uploadError ? <p className="mt-3 text-sm text-danger" role="alert">{uploadError}</p> : null}
-
+            {/* ── 3. Le template, replié : c'est une référence, pas le sujet principal ── */}
             {game.defaultYaml ? (
-                <div className="mt-6">
-                    <p className="text-sm font-semibold text-foreground">Template YAML extrait</p>
-                    <pre
-                        className="mt-2 max-h-96 overflow-auto whitespace-pre rounded border border-border bg-background p-3 font-mono text-xs text-muted-foreground">
-            {game.defaultYaml}
-          </pre>
-                </div>
+                <details className="mt-5">
+                    <summary className="cursor-pointer text-sm font-semibold text-foreground hover:text-accent-text">
+                        Template YAML extrait ({game.defaultYaml.split("\n").length} lignes)
+                    </summary>
+                    <pre className="mt-2 max-h-96 overflow-auto whitespace-pre rounded border border-border bg-background p-3 font-mono text-xs text-muted-foreground">
+{game.defaultYaml}
+                    </pre>
+                </details>
             ) : null}
         </Section>
+    );
+}
+
+/** One label/value pair in the apworld status card. */
+function ApworldFact({label, children}: { label: string; children: React.ReactNode }) {
+    return (
+        <div className="grid gap-0.5">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+            <dd className="text-sm text-muted-foreground">{children}</dd>
+        </div>
     );
 }
 
@@ -1168,48 +1203,67 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
     const info = preflight !== null ? preflightLabels[preflight.status] : null;
 
     return (
-        <div className="mt-2 grid gap-1.5">
-            <p className={`text-sm font-semibold ${info?.className ?? "text-muted-foreground"}`}>
-                {info?.label ?? "Génération pas encore testée"}
-                {preflight?.checkedAt ? (
-                    <span className="ml-2 font-normal text-xs text-muted-foreground">
-                        (vérifié avec les options par défaut, le{" "}
-                        {new Date(preflight.checkedAt).toLocaleDateString("fr-FR", {
-                            day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
-                        })})
+        <div className="grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <div className="grid gap-0.5">
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Test de génération</span>
+                    <span className={`text-sm font-semibold ${info?.className ?? "text-muted-foreground"}`}>
+                        {info?.label ?? "Jamais testée"}
+                        {preflight?.checkedAt ? (
+                            <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                le{" "}
+                                {new Date(preflight.checkedAt).toLocaleDateString("fr-FR", {
+                                    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+                                })}
+                            </span>
+                        ) : null}
                     </span>
-                ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={busy || preflight?.status === "pending"}
+                        type="button"
+                        onClick={() => void handleRerun()}
+                    >
+                        Relancer le test
+                    </button>
+                    {preflight?.status === "failed" || preflight?.overridden ? (
+                        <button
+                            className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={busy}
+                            type="button"
+                            onClick={() => void handleOverride(!(preflight?.overridden ?? false))}
+                        >
+                            {preflight?.overridden ? "Retirer la dérogation" : "Autoriser malgré l'échec"}
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+                Généré seul, avec les options par défaut du template et une seule seed : un échec signale un apworld
+                inutilisable en l&apos;état, une réussite ne garantit pas toutes les combinaisons d&apos;options.
             </p>
-            {preflight?.status === "failed" && preflight.error !== "" ? (
-                <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-2 p-2 text-[11px] leading-relaxed text-muted-foreground">
-                    {preflight.error}
-                </pre>
-            ) : null}
+
             {preflight?.overridden ? (
                 <p className="text-xs text-warning">
                     Dérogation active : le jeu reste sélectionnable malgré le verdict.
                 </p>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-                <button
-                    className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={busy || preflight?.status === "pending"}
-                    type="button"
-                    onClick={() => void handleRerun()}
-                >
-                    Relancer le test
-                </button>
-                {preflight?.status === "failed" || preflight?.overridden ? (
-                    <button
-                        className="inline-flex min-h-8 items-center rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={busy}
-                        type="button"
-                        onClick={() => void handleOverride(!(preflight?.overridden ?? false))}
-                    >
-                        {preflight?.overridden ? "Retirer la dérogation" : "Autoriser malgré l'échec"}
-                    </button>
-                ) : null}
-            </div>
+
+            {preflight?.status === "failed" && preflight.error !== "" ? (
+                <details>
+                    <summary className="cursor-pointer text-xs font-semibold text-danger hover:underline">
+                        Voir l&apos;erreur de génération
+                    </summary>
+                    <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-background p-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {preflight.error}
+                    </pre>
+                </details>
+            ) : null}
+
             {error !== null ? <p className="text-xs text-danger">{error}</p> : null}
         </div>
     );
