@@ -254,6 +254,48 @@ final readonly class AdminGameLibraryController
         return new JsonResponse(['data' => $game, 'meta' => ['message' => 'Plateformes synchronisées.']]);
     }
 
+    #[Route('/api/v1/admin/games/{gameId}/platforms', name: 'api_admin_game_save_platforms', methods: ['PUT'])]
+    public function savePlatforms(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $raw = is_array($payload) ? ($payload['platforms'] ?? null) : null;
+
+        $families = null;
+        if (is_array($raw)) {
+            $families = [];
+            foreach ($raw as $family) {
+                if (is_string($family)) {
+                    $families[] = $family;
+                }
+            }
+        }
+
+        $result = $this->adminGameLibrary->savePlatformFamilies($gameId, $families);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Plateformes invalides.', 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('platforms_save_failed', 'L\'enregistrement a échoué.', 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => null === $families
+            ? 'Plateformes IGDB rétablies.'
+            : 'Plateformes enregistrées.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/default-yaml', name: 'api_admin_game_save_default_yaml', methods: ['PUT'])]
     public function saveDefaultYaml(Request $request, string $gameId): JsonResponse
     {

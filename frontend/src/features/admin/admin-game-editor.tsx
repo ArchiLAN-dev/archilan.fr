@@ -13,6 +13,7 @@ import {
     regenerateDefaultYaml,
     rerunApworldPreflight,
     saveDefaultYaml,
+    savePlatforms,
     type AdminGame,
     type AdminGameResult,
     type ApworldPreflight,
@@ -311,42 +312,13 @@ function BasicInfoSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Adm
                 <IgdbGameSearch onSelect={handleIgdbSelect}/>
             </div>
 
-            <div className="mb-5">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                    <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                        Plateformes
-                        <FieldTooltip text="Familles de plateformes résolues depuis IGDB (lecture seule)."/>
-                    </p>
-                    <button
-                        className="inline-flex min-h-9 items-center gap-2 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={game.igdbId === null || resyncing}
-                        onClick={resyncPlatforms}
-                        type="button"
-                    >
-                        <RefreshCw aria-hidden="true" className={`size-4 ${resyncing ? "animate-spin" : ""}`}/>
-                        Synchroniser depuis IGDB
-                    </button>
-                </div>
-                {game.platforms.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                        {game.platforms.map((platform) => (
-                            <span
-                                className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-muted-foreground"
-                                key={platform}
-                            >
-                                {platform}
-                            </span>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-xs text-muted-foreground">
-                        {game.igdbId === null
-                            ? "Associe un jeu IGDB ci-dessus puis enregistre pour récupérer les plateformes."
-                            : "Aucune plateforme enregistrée - clique sur Synchroniser depuis IGDB."}
-                    </p>
-                )}
-                {platformsMessage ? <p className="mt-2 text-xs text-danger">{platformsMessage}</p> : null}
-            </div>
+            <PlatformsField
+                game={game}
+                onResync={resyncPlatforms}
+                onUpdate={onUpdate}
+                resyncing={resyncing}
+                resyncMessage={platformsMessage}
+            />
 
             <form className="grid gap-4" onSubmit={submit}>
                 <div className="grid items-start gap-4 md:grid-cols-2">
@@ -609,6 +581,156 @@ function CatalogSyncSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: A
                 <SectionFooter label="Enregistrer" submitting={submitting} success={success}/>
             </form>
         </Section>
+    );
+}
+
+/**
+ * Story 9.47: IGDB lists every platform the game shipped on, but the Archipelago world often
+ * supports only one - so the displayed list is an editorial choice, with the IGDB-derived
+ * list one click away.
+ */
+function PlatformsField({game, resyncing, resyncMessage, onResync, onUpdate}: {
+    game: AdminGame;
+    resyncing: boolean;
+    resyncMessage: string | null;
+    onResync: () => void;
+    onUpdate: (g: AdminGame) => void;
+}) {
+    const [editing, setEditing] = useState(false);
+    const [selection, setSelection] = useState<string[]>(game.platforms);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const overridden = game.platformsOverridden === true;
+    const selectable = game.selectablePlatforms ?? [];
+
+    function toggle(family: string): void {
+        setSelection((prev) => prev.includes(family) ? prev.filter((f) => f !== family) : [...prev, family]);
+    }
+
+    async function persist(platforms: string[] | null): Promise<void> {
+        setSaving(true);
+        setError(null);
+        const result = await savePlatforms(game.id, platforms);
+        if (result.kind === "saved") {
+            onUpdate(result.game);
+            setSelection(result.game.platforms);
+            setEditing(false);
+        } else {
+            setError(result.message);
+        }
+        setSaving(false);
+    }
+
+    return (
+        <div className="mb-5">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                    Plateformes
+                    <FieldTooltip text="Ce que le catalogue affiche. Par défaut déduit d'IGDB ; à corriger quand le monde Archipelago ne tourne que sur une partie d'entre elles."/>
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                    {!editing ? (
+                        <button
+                            className="inline-flex min-h-9 items-center rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={selectable.length === 0}
+                            onClick={() => { setSelection(game.platforms); setEditing(true); }}
+                            type="button"
+                        >
+                            Modifier
+                        </button>
+                    ) : null}
+                    <button
+                        className="inline-flex min-h-9 items-center gap-2 rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={game.igdbId === null || resyncing || saving}
+                        onClick={onResync}
+                        type="button"
+                    >
+                        <RefreshCw aria-hidden="true" className={`size-4 ${resyncing ? "animate-spin" : ""}`}/>
+                        Synchroniser depuis IGDB
+                    </button>
+                </div>
+            </div>
+
+            <p className="mb-2 text-xs text-muted-foreground">
+                {overridden
+                    ? "Liste définie manuellement : une synchronisation IGDB ne la remplacera pas."
+                    : "Liste déduite d'IGDB."}
+            </p>
+
+            {editing ? (
+                <div className="grid gap-3 rounded border border-border bg-surface-2 p-3">
+                    <div className="flex flex-wrap gap-1.5">
+                        {selectable.map((family) => {
+                            const active = selection.includes(family);
+                            return (
+                                <button
+                                    aria-pressed={active}
+                                    className={`rounded border px-2 py-1 text-xs transition-colors ${active
+                                        ? "border-accent bg-accent/10 text-accent-text"
+                                        : "border-border text-muted-foreground hover:text-foreground"}`}
+                                    key={family}
+                                    onClick={() => toggle(family)}
+                                    type="button"
+                                >
+                                    {family}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            className="inline-flex min-h-9 items-center rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={saving || selection.length === 0}
+                            onClick={() => void persist(selection)}
+                            type="button"
+                        >
+                            {saving ? "Enregistrement…" : "Enregistrer"}
+                        </button>
+                        {overridden ? (
+                            <button
+                                className="inline-flex min-h-9 items-center rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-60"
+                                disabled={saving}
+                                onClick={() => void persist(null)}
+                                type="button"
+                            >
+                                Revenir aux plateformes IGDB
+                            </button>
+                        ) : null}
+                        <button
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => { setEditing(false); setError(null); }}
+                            type="button"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                    {selection.length === 0 ? (
+                        <p className="text-xs text-warning">Sélectionne au moins une plateforme.</p>
+                    ) : null}
+                </div>
+            ) : game.platforms.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                    {game.platforms.map((platform) => (
+                        <span
+                            className="rounded border border-border bg-surface px-2 py-0.5 text-xs text-muted-foreground"
+                            key={platform}
+                        >
+                            {platform}
+                        </span>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-xs text-muted-foreground">
+                    {game.igdbId === null
+                        ? "Associe un jeu IGDB ci-dessus puis enregistre pour récupérer les plateformes, ou définis-les à la main."
+                        : "Aucune plateforme enregistrée - synchronise depuis IGDB ou définis-les à la main."}
+                </p>
+            )}
+
+            {error !== null ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
+            {resyncMessage ? <p className="mt-2 text-xs text-danger">{resyncMessage}</p> : null}
+        </div>
     );
 }
 
