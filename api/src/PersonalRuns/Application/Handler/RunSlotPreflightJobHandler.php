@@ -93,10 +93,10 @@ final readonly class RunSlotPreflightJobHandler
         if (null !== $state && 'pending' !== $state['status']) {
             $error = '';
             if ('failed' === $state['status']) {
-                // Extract the actionable exception line when the stderr excerpt allows it
-                // (same parser as the crash attribution, story 9.40).
-                $findings = GenerationFailureParser::parse($state['error'])->findings;
-                $error = [] !== $findings ? $findings[0]->message : $state['error'];
+                // Actionable one-liner: the generator's structured record when present,
+                // else the parsed exception; never the raw multi-kilobyte excerpt
+                // (stories 9.40/9.43).
+                $error = GenerationFailureParser::summarize($state['error']);
             }
             $this->record($job, $state['status'], $error);
 

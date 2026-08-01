@@ -20,6 +20,14 @@ namespace App\Sessions\Application\Support;
  */
 final class GenerationFailureParser
 {
+    /**
+     * Machine-readable failure record emitted last on stderr by generate_multiworld.py
+     * (story 9.43): `###ARCHILAN-FAILURE### {"type":…,"message":…,"slot":…,"world":…}`.
+     * It is authoritative - the text heuristics below only serve older images and crashes
+     * that kill the interpreter before the record is printed.
+     */
+    private const string FAILURE_SENTINEL = '###ARCHILAN-FAILURE###';
+
     private const string ENVELOPE_PATTERN = '/^generate_multiworld\.py exited \d+:\s*/';
     private const string EXCEPTION_LINE_PATTERN = '/^(?:[A-Za-z_][A-Za-z0-9_.]*)?(?:Error|Exception): .+$/';
     /** Same, but also matches a header whose message is empty (multi-line message on the lines below). */
@@ -45,6 +53,17 @@ final class GenerationFailureParser
 
         $findings = [...self::playerMarkerFindings($lines), ...self::playerFileFindings($lines)];
 
+        // The generator told us exactly what failed: its record wins over any heuristic.
+        // When it could not name a slot (a failure outside a world hook), the text pass
+        // still provides the attribution.
+        $structured = self::structuredFinding($text);
+        if (null !== $structured) {
+            return new GenerationFailureReport(
+                [new GenerationFailureFinding($structured->slotName ?? ($findings[0]->slotName ?? null), $structured->message)],
+                $cleanedLog,
+            );
+        }
+
         if ([] === $findings) {
             $last = self::lastExceptionLine($lines);
             if (null !== $last) {
@@ -52,7 +71,94 @@ final class GenerationFailureParser
             }
         }
 
+        $findings = array_map(
+            static fn (GenerationFailureFinding $finding): GenerationFailureFinding => new GenerationFailureFinding(
+                $finding->slotName,
+                self::formatMessage($finding->message),
+            ),
+            $findings,
+        );
+
         return new GenerationFailureReport(self::dedupe($findings), $cleanedLog);
+    }
+
+    /**
+     * One-line summary suitable for a badge: the best finding's message, or the last
+     * meaningful line of the cleaned log. Never returns the raw multi-kilobyte blob.
+     */
+    public static function summarize(?string $reason): string
+    {
+        $report = self::parse($reason);
+        if ([] !== $report->findings) {
+            return $report->findings[0]->message;
+        }
+
+        $lines = array_values(array_filter(
+            preg_split('/\r?\n/', $report->cleanedLog) ?: [],
+            static fn (string $line): bool => '' !== trim($line),
+        ));
+        if ([] === $lines) {
+            return '';
+        }
+
+        return self::formatMessage(trim($lines[count($lines) - 1]));
+    }
+
+    private static function structuredFinding(string $text): ?GenerationFailureFinding
+    {
+        $record = null;
+        foreach (preg_split('/\r?\n/', $text) ?: [] as $line) {
+            $line = trim($line);
+            if (!str_starts_with($line, self::FAILURE_SENTINEL)) {
+                continue;
+            }
+            $decoded = json_decode(substr($line, \strlen(self::FAILURE_SENTINEL)), true);
+            if (is_array($decoded)) {
+                // Keep the last record: a retry would append a newer one.
+                $record = $decoded;
+            }
+        }
+
+        if (null === $record) {
+            return null;
+        }
+
+        $message = is_string($record['message'] ?? null) ? trim($record['message']) : '';
+        if ('' === $message) {
+            return null;
+        }
+
+        $type = is_string($record['type'] ?? null) ? trim($record['type']) : '';
+        $slot = is_string($record['slot'] ?? null) && '' !== $record['slot'] ? $record['slot'] : null;
+
+        return new GenerationFailureFinding($slot, self::formatMessage('' !== $type ? $type.': '.$message : $message));
+    }
+
+    /**
+     * Display shaping: a fill/accessibility error carries every (location, item) pair, which
+     * is unreadable in a badge panel. Long bracketed lists collapse to their size, then the
+     * whole message is bounded - the head is what carries the meaning.
+     */
+    private static function formatMessage(string $message): string
+    {
+        $collapsed = preg_replace_callback(
+            '/\[[^\[\]]{120,}(\]|…)/u',
+            static function (array $matches): string {
+                if (']' !== $matches[1]) {
+                    // Already cut upstream: no closing bracket, so no trustworthy count.
+                    return '[… liste tronquée …]';
+                }
+                $tupleSeparators = substr_count($matches[0], '), (');
+                $entries = $tupleSeparators > 0 ? $tupleSeparators + 1 : substr_count($matches[0], ',') + 1;
+
+                return sprintf('[… %d entrées …]', $entries);
+            },
+            $message,
+        ) ?? $message;
+
+        return mb_strlen($collapsed) > self::MAX_MESSAGE_LENGTH
+            ? mb_substr($collapsed, 0, self::MAX_MESSAGE_LENGTH).'…'
+            : $collapsed;
     }
 
     /**
@@ -78,6 +184,10 @@ final class GenerationFailureParser
             $inPipBlock = false;
 
             if (str_starts_with($line, 'DEBUG ')) {
+                continue;
+            }
+            // The machine-readable record is for the parser, not for the human panel.
+            if (str_starts_with($line, self::FAILURE_SENTINEL)) {
                 continue;
             }
 

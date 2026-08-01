@@ -79,6 +79,90 @@ FileNotFoundError: [Errno 2] No such file or directory: '/Archipelago/data/ranke
 Exception in <bound method BSWorld.generate_early of <worlds.beat_saber.BSWorld object at 0x7fa4d42916a0>> for player 1, named Player1.
 LOG;
 
+    public function testStructuredRecordWinsOverTextHeuristics(): void
+    {
+        $log = self::ATLYSS_STDERR."\n"
+            .'###ARCHILAN-FAILURE### {"type":"OptionError","message":"=== Atlyss YAML ERROR === Atlyss: 1 You cannot have the same class selected for main_class and secondary_class, PLEASE FIX YOUR YAML","player":1,"slot":"Player1","world":"Atlyss"}';
+
+        $report = GenerationFailureParser::parse($log);
+
+        self::assertCount(1, $report->findings);
+        self::assertSame('Player1', $report->findings[0]->slotName);
+        self::assertSame(
+            'OptionError: === Atlyss YAML ERROR === Atlyss: 1 You cannot have the same class selected for main_class and secondary_class, PLEASE FIX YOUR YAML',
+            $report->findings[0]->message,
+        );
+        // The machine line never leaks into the human-facing log.
+        self::assertStringNotContainsString('###ARCHILAN-FAILURE###', $report->cleanedLog);
+    }
+
+    public function testStructuredRecordWithoutSlotBorrowsTheTextAttribution(): void
+    {
+        $log = self::BEAT_SABER_STDERR."\n"
+            .'###ARCHILAN-FAILURE### {"type":"FillError","message":"Not all progression items reachable."}';
+
+        $report = GenerationFailureParser::parse($log);
+
+        self::assertCount(1, $report->findings);
+        self::assertSame('Player1', $report->findings[0]->slotName);
+        self::assertSame('FillError: Not all progression items reachable.', $report->findings[0]->message);
+    }
+
+    public function testMalformedStructuredRecordFallsBackToTextParsing(): void
+    {
+        $log = self::BEAT_SABER_STDERR."\n".'###ARCHILAN-FAILURE### {not json at all';
+
+        $report = GenerationFailureParser::parse($log);
+
+        self::assertCount(1, $report->findings);
+        self::assertStringContainsString('FileNotFoundError', $report->findings[0]->message);
+    }
+
+    public function testLongEntryListsAreCollapsed(): void
+    {
+        $entries = implode(', ', array_map(static fn (int $i): string => "(Quest $i, Item $i)", range(1, 40)));
+        $log = '###ARCHILAN-FAILURE### '.json_encode([
+            'type' => 'FillError',
+            'message' => "Not all progression items reachable. Unreachable: [$entries]",
+        ], JSON_THROW_ON_ERROR);
+
+        $message = GenerationFailureParser::parse($log)->findings[0]->message;
+
+        self::assertStringContainsString('Not all progression items reachable.', $message);
+        self::assertStringContainsString('[… 40 entrées …]', $message);
+        self::assertStringNotContainsString('(Quest 20, Item 20)', $message);
+    }
+
+    public function testMessagesAreBounded(): void
+    {
+        $log = '###ARCHILAN-FAILURE### '.json_encode([
+            'type' => 'Exception',
+            'message' => str_repeat('a', 900),
+        ], JSON_THROW_ON_ERROR);
+
+        $message = GenerationFailureParser::parse($log)->findings[0]->message;
+
+        self::assertLessThanOrEqual(501, mb_strlen($message));
+        self::assertStringEndsWith('…', $message);
+    }
+
+    public function testSummarizeNeverReturnsTheRawBlob(): void
+    {
+        // What production stored before 9.43: one 2000-char line, cut mid-word, no header.
+        $blob = "lete: Summore' Spectral Powder!), ".str_repeat('(Quest Completion: X, Complete: X), ', 60);
+
+        $summary = GenerationFailureParser::summarize($blob);
+
+        self::assertLessThanOrEqual(501, mb_strlen($summary));
+    }
+
+    public function testSummarizeUsesTheStructuredRecord(): void
+    {
+        $log = '###ARCHILAN-FAILURE### {"type":"OptionError","message":"fix your yaml","slot":"Player1"}';
+
+        self::assertSame('OptionError: fix your yaml', GenerationFailureParser::summarize($log));
+    }
+
     public function testParseRebuildsMultiLineExceptionMessage(): void
     {
         $report = GenerationFailureParser::parse(self::ATLYSS_STDERR);
