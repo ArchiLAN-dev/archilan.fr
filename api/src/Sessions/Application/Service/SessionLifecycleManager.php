@@ -720,7 +720,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         // participants' achievements with a notification (story 30.26). Async, off this request path.
         $this->achievementRecomputeTrigger->recomputeForUsers($this->resolveParticipantUserIds(array_keys($registrationIds)));
 
-        // Post-commit (AC-A4): (re)build the public session recap from the archived spoiler (story 32.1).
+        // Post-commit (AC-A4): (re)build the public session recap from the live feed (story 9.48).
         $this->messageBus->dispatch(new BuildSessionRecapJob($sessionId));
 
         return ['found' => true];

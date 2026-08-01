@@ -44,7 +44,7 @@ final class FeedGraphBuilderTest extends TestCase
     public function testGamesComeFromBothSidesOfTheEvent(): void
     {
         $graph = new FeedGraphBuilder()->build([
-            self::event('item', 'Alice', 'Bob', 'Super Metroid', 'TUNIC'),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'Super Metroid', 'TUNIC'),
         ]);
 
         $games = [];
@@ -59,7 +59,7 @@ final class FeedGraphBuilderTest extends TestCase
     public function testAnUnknownGameStaysEmptyRatherThanInvented(): void
     {
         $graph = new FeedGraphBuilder()->build([
-            self::event('item', 'Alice', 'Bob', 'Super Metroid'),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'Super Metroid'),
         ]);
 
         $games = [];
@@ -74,8 +74,8 @@ final class FeedGraphBuilderTest extends TestCase
     public function testIgnoresNonItemEvents(): void
     {
         $graph = new FeedGraphBuilder()->build([
-            self::event('hint', 'Alice', 'Bob'),
-            self::event('goal', 'Bob', 'Bob'),
+            self::event(SessionFeedEvent::TYPE_HINT, 'Alice', 'Bob'),
+            self::event(SessionFeedEvent::TYPE_GOAL, 'Bob', 'Bob'),
         ]);
 
         self::assertSame([], $graph->nodes);
@@ -86,9 +86,9 @@ final class FeedGraphBuilderTest extends TestCase
     public function testSkipsEventsWithoutBothSides(): void
     {
         $graph = new FeedGraphBuilder()->build([
-            self::event('item', null, 'Bob'),
-            self::event('item', 'Alice', null),
-            self::event('item', '  ', 'Bob'),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, null, 'Bob'),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', null),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, '  ', 'Bob'),
         ]);
 
         self::assertSame([], $graph->edges);
@@ -104,9 +104,25 @@ final class FeedGraphBuilderTest extends TestCase
         self::assertSame([], $graph->localItemCounts);
     }
 
+    /**
+     * The type the builder reads must be the type the writer persists. The first cut of this file
+     * seeded a literal `'item'`, which the bridge never sends - so the suite was green while every
+     * real session produced an empty graph.
+     */
+    public function testReadsTheTypeThatIsActuallyPersisted(): void
+    {
+        self::assertContains(SessionFeedEvent::TYPE_ITEM_RECEIVED, SessionFeedEvent::PERSISTED_TYPES);
+
+        $graph = new FeedGraphBuilder()->build([
+            self::event('item', 'Alice', 'Bob', 'Super Metroid'),
+        ]);
+
+        self::assertSame([], $graph->edges, 'only the persisted item type feeds the graph');
+    }
+
     private static function item(string $sender, string $receiver, string $receiverGame): SessionFeedEvent
     {
-        return self::event('item', $sender, $receiver, $receiverGame);
+        return self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, $sender, $receiver, $receiverGame);
     }
 
     private static function event(
