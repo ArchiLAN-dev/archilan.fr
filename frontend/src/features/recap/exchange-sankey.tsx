@@ -72,7 +72,7 @@ function renderNode({ x, y, width, height, payload }: NodeRenderProps) {
         {name}
       </text>
       <text fill="var(--color-muted-foreground)" fontSize={11} textAnchor={anchor} x={textX} y={middle + 13}>
-        {total} {isSender ? "envoyés" : "reçus"}
+        {total} {isSender ? "envoyés aux autres" : "reçus des autres"}
       </text>
     </g>
   );
@@ -194,10 +194,10 @@ export function ExchangeSankey({ slots, flows, locals }: Props) {
     sentBySlot.set(flow.fromSlotId, (sentBySlot.get(flow.fromSlotId) ?? 0) + flow.count);
     receivedBySlot.set(flow.toSlotId, (receivedBySlot.get(flow.toSlotId) ?? 0) + flow.count);
   }
-  for (const local of locals) {
-    sentBySlot.set(local.slotId, (sentBySlot.get(local.slotId) ?? 0) + local.count);
-    receivedBySlot.set(local.slotId, (receivedBySlot.get(local.slotId) ?? 0) + local.count);
-  }
+  // Totals count exchanges *with other players* and deliberately exclude a slot's own finds, which
+  // stay readable on their own straight-through ribbon. This is the same notion the "most generous"
+  // superlative measures - counting local finds here would print a different number for the same
+  // idea a few hundred pixels apart on the page.
 
   const nodes: FlowNode[] = slots.flatMap((slot) => [
     {
@@ -248,7 +248,7 @@ export function ExchangeSankey({ slots, flows, locals }: Props) {
             <Sankey
               data={{ links, nodes }}
               link={renderLink}
-              margin={{ bottom: 12, left: 110, right: 110, top: 12 }}
+              margin={{ bottom: 12, left: 132, right: 132, top: 12 }}
               node={renderNode}
               nodePadding={30}
               nodeWidth={10}
