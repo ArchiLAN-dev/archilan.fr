@@ -95,6 +95,20 @@ final class Run
         );
     }
 
+    /**
+     * Renames the run (story 17.24).
+     *
+     * Allowed at every status, terminal ones included: a title is a label, not configuration. The
+     * read-only rule that {@see isTerminal} enforces covers invites and config overrides - things
+     * that would change what a finished run *was*. Renaming "Partie Luigi's Mansion" into something
+     * memorable months later changes nothing about the run itself.
+     */
+    public function rename(string $title, \DateTimeImmutable $now): void
+    {
+        $this->title = trim($title);
+        $this->updatedAt = $now;
+    }
+
     public function isOwnedBy(string $userId): bool
     {
         return $this->ownerId === $userId;

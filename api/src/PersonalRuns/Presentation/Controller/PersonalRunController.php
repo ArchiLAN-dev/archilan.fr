@@ -179,6 +179,31 @@ final readonly class PersonalRunController
         return new JsonResponse(['data' => ['runId' => $result->runId, 'status' => $result->status]]);
     }
 
+    #[Route('/api/v1/runs/{runId}/title', name: 'api_runs_rename', methods: ['PUT'])]
+    public function rename(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $result = $this->drafts->rename($runId, $user->getId(), $this->jsonPayload($request));
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Données invalides.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => $result['run']]);
+    }
+
     #[Route('/api/v1/runs/{runId}/recap-visibility', name: 'api_runs_recap_visibility', methods: ['PUT'])]
     public function setRecapVisibility(Request $request, string $runId): JsonResponse
     {
