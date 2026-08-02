@@ -160,7 +160,9 @@ export function ChecksChart({
   return (
     <div className="h-80 w-full select-none sm:h-72">
       <ResponsiveContainer height="100%" width="100%">
-        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseLeave={onLeave} onMouseMove={onMove} onMouseUp={onUp}>
+        {/* The left margin stays >= 0: recharts places the Y axis label at `margin.left + offset`, so a
+            negative margin pushes it outside the SVG viewport and the browser clips it to a sliver. */}
+        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 0 }} onMouseDown={onDown} onMouseLeave={onLeave} onMouseMove={onMove} onMouseUp={onUp}>
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
           <XAxis
             allowDataOverflow
