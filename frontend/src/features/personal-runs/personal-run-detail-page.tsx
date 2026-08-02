@@ -37,6 +37,7 @@ import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { PlayerBadges } from "@/features/community/player-badges";
+import { RunTitle } from "./run-title";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -831,9 +832,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
           <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1">
-              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground">
-                {run.title}
-              </h1>
+              <RunTitle canRename={run.isOwner} onRenamed={refreshRun} runId={run.id} title={run.title} />
               {run.status === "idle" && run.lastActivityAt !== null && (
                 <InactivityBadge lastActivityAt={run.lastActivityAt} />
               )}

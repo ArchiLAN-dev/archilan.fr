@@ -82,6 +82,49 @@ final readonly class PersonalRunDrafts
     }
 
     /**
+     * Renames a run the caller owns (story 17.24). Same title rules as creation, so a run cannot be
+     * renamed into something the creation form would have rejected.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array{found: bool, authorized: bool, run: array<string, mixed>|null, errors: array<string, list<string>>}
+     */
+    public function rename(string $runId, string $callerId, array $input): array
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
+            return ['found' => false, 'authorized' => false, 'run' => null, 'errors' => []];
+        }
+
+        if (!$run->isOwnedBy($callerId)) {
+            return ['found' => true, 'authorized' => false, 'run' => null, 'errors' => []];
+        }
+
+        $title = is_string($input['title'] ?? null) ? trim($input['title']) : '';
+        $errors = new ValidationErrors();
+        if ('' === $title) {
+            $errors->add('title', 'Le titre est requis.');
+        } elseif (mb_strlen($title) > 80) {
+            $errors->add('title', 'Le titre ne peut pas dépasser 80 caractères.');
+        }
+
+        $errs = $errors->toArray();
+        if ([] !== $errs) {
+            return ['found' => true, 'authorized' => true, 'run' => null, 'errors' => $errs];
+        }
+
+        $run->rename($title, $this->clock->now());
+        $this->runs->flush();
+
+        return [
+            'found' => true,
+            'authorized' => true,
+            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId())),
+            'errors' => [],
+        ];
+    }
+
+    /**
      * Runs visible in the user's "Mes parties" space: the ones they own and the ones
      * they joined (participant but not owner).
      *
