@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Done
 
 ## Story
 
@@ -40,11 +40,13 @@ annoncé à l'écran - un top silencieusement tronqué se lit comme un inventair
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: fonctions pures `buildTopItems(feed, limit)` et `buildSendQuality(feed)`, testées (AC1, AC2, AC3).
-- [ ] Task 2: composants de rendu sur `recharts` (déjà dans le bundle) (AC1, AC2, AC4).
-- [ ] Task 3: câblage dans `SessionRecapView` (AC5).
-- [ ] Task 4: tests - objets sans nom, partie sans flags, égalités dans le top (AC3, AC5).
-- [ ] Task 5: gates (AC6).
+- [x] Task 1: fonctions pures `buildTopItems(feed, limit)` et `buildSendQuality(feed)`, testées (AC1, AC2, AC3).
+- [x] Task 2: rendu en barres CSS, **pas en `recharts`** contrairement au plan initial (AC1, AC2, AC4).
+      Les deux lectures sont des proportions d'un tout, ce qu'une largeur de `div` exprime
+      exactement ; ça garde la section en composant serveur, sans aucun JavaScript client.
+- [x] Task 3: câblage dans `SessionRecapView` (AC5).
+- [x] Task 4: tests - objets sans nom, partie sans flags, égalités dans le top (AC3, AC5).
+- [x] Task 5: gates (AC6).
 
 ## Dev Notes
 
