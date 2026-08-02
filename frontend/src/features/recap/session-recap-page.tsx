@@ -2,34 +2,18 @@ import { ArrowLeft, Clock, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { slotColorsByName } from "@/features/recap/build-checks-series";
+import { buildRecapKeyFigures } from "@/features/recap/build-key-figures";
+import { buildPlayerRows } from "@/features/recap/build-player-rows";
 import { ExchangeSankey, type ExchangeSlot } from "@/features/recap/exchange-sankey";
+import { RecapKeyFigures } from "@/features/recap/recap-key-figures";
+import { RecapPlayerTable } from "@/features/recap/recap-player-table";
 import { RunTimeline, type GoalMarker } from "@/features/recap/run-timeline";
 import type { FeedEvent } from "@/features/recap/feed-api";
 import { formatDuration } from "@/features/recap/recap-format";
 import { RecapVod } from "@/features/recap/recap-vod";
 import type { SessionRecap } from "@/features/recap/recap-api";
 
-const SUPERLATIVE_HINTS: Record<string, string> = {
-  most_generous: "A envoyé le plus d'objets aux autres",
-  biggest_hub: "A débloqué le plus de joueurs différents",
-  first_to_goal: "Premier à atteindre son objectif",
-  longest_road: "La plus longue route jusqu'au but",
-};
-
 export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: FeedEvent[] }) {
-  // A player name alone is ambiguous when one person holds several slots - the ArchiLAN norm in solo
-  // and duo multiworlds - so the slot name disambiguates it wherever a name would otherwise repeat.
-  const slotsPerName = new Map<string, number>();
-  for (const slot of recap.podium) {
-    slotsPerName.set(slot.playerName, (slotsPerName.get(slot.playerName) ?? 0) + 1);
-  }
-  const nameBySlot = new Map(
-    recap.podium.map((slot) => [
-      slot.slotId,
-      (slotsPerName.get(slot.playerName) ?? 0) > 1 ? `${slot.playerName} (${slot.slotName})` : slot.playerName,
-    ]),
-  );
-
   // One colour per slot, shared with the timeline below so a player keeps a single identity.
   const colorBySlotName = slotColorsByName(feed);
   const exchangeSlots: ExchangeSlot[] = recap.graph.nodes.map((node) => ({
@@ -74,21 +58,15 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
         </div>
       </header>
 
-      {recap.superlatives.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {recap.superlatives.map((superlative) => (
-            <div className="rounded-lg border border-border bg-surface p-4" key={superlative.key}>
-              <p className="font-heading text-lg font-bold text-accent-text">{superlative.label}</p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                {nameBySlot.get(superlative.slotId) ?? "-"}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {SUPERLATIVE_HINTS[superlative.key] ?? ""} - {formatSuperlativeValue(superlative.value)}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <RecapKeyFigures figures={buildRecapKeyFigures(recap, feed)} />
+
+      <div className="grid gap-4">
+        <h2 className="flex items-center gap-2 font-heading text-2xl font-bold text-foreground">
+          <Trophy aria-hidden="true" className="size-5 text-accent-text" />
+          Les joueurs
+        </h2>
+        <RecapPlayerTable colorBySlotName={colorBySlotName} rows={buildPlayerRows(recap)} />
+      </div>
 
       <div className="grid gap-4">
         <h2 className="font-heading text-2xl font-bold text-foreground">Qui a envoyé quoi à qui</h2>
@@ -102,38 +80,6 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
       </div>
 
       <RunTimeline events={feed} goals={goalMarkers} />
-
-      <div className="grid gap-4">
-        <h2 className="flex items-center gap-2 font-heading text-2xl font-bold text-foreground">
-          <Trophy aria-hidden="true" className="size-5 text-accent-text" />
-          Podium
-        </h2>
-        <ol className="grid gap-2">
-          {recap.podium.map((slot, index) => (
-            <li
-              className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-4 py-3"
-              key={slot.slotId}
-            >
-              <div className="flex items-center gap-3">
-                <span className="w-6 text-center font-heading text-lg font-bold text-muted-foreground">
-                  {slot.isInvalidated ? "-" : index + 1}
-                </span>
-                <div>
-                  <p className="font-semibold text-foreground">{slot.playerName}</p>
-                  <p className="text-xs text-muted-foreground">{slot.game}</p>
-                </div>
-              </div>
-              <span className="text-sm text-muted-foreground">
-                {slot.completionSeconds !== null
-                  ? formatDuration(slot.completionSeconds)
-                  : slot.isInvalidated
-                    ? "Invalidé"
-                    : "Non terminé"}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </div>
 
       {timeline.length > 0 ? (
         <div className="grid gap-4">
@@ -181,13 +127,4 @@ function formatDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
-
-function formatSuperlativeValue(value: number | string): string {
-  if (typeof value === "number") return `${value} objets`;
-  const date = new Date(value);
-  if (!Number.isNaN(date.getTime())) {
-    return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  }
-  return value;
 }
