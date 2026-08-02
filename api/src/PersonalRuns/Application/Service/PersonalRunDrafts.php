@@ -11,6 +11,7 @@ use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
+use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -30,6 +31,7 @@ final readonly class PersonalRunDrafts
         private ActiveMembershipQueryInterface $memberships,
         private CommunityLevelQuery $levels,
         private CommunityPresenceQueryInterface $presence,
+        private RunGameAssignmentInterface $gameAssignment,
         private ClockInterface $clock,
         private string $siteUrl,
     ) {
@@ -51,6 +53,19 @@ final readonly class PersonalRunDrafts
             $errors->add('title', 'Le titre ne peut pas dépasser 80 caractères.');
         }
 
+        // Story 17.23: an optional game preselects the creator's first slot, so the "create a run
+        // with this game" button on a game page is one call rather than two.
+        $gameId = is_string($input['gameId'] ?? null) ? trim($input['gameId']) : '';
+
+        // Validated BEFORE anything is created: a game that cannot be added must not leave an empty
+        // run behind. The rule itself lives in PersonalRunGameSelection, so this path and the normal
+        // selection path can never disagree about what is addable.
+        if ('' !== $gameId) {
+            foreach ($this->gameAssignment->reasonsGameCannotBeAdded($gameId) as $reason) {
+                $errors->add('gameId', $reason);
+            }
+        }
+
         $errs = $errors->toArray();
         if ([] !== $errs) {
             return ['run' => null, 'errors' => $errs];
@@ -58,6 +73,10 @@ final readonly class PersonalRunDrafts
 
         $run = Run::create($ownerId, $title, $this->clock->now());
         $this->runs->save($run);
+
+        if ('' !== $gameId) {
+            $this->gameAssignment->assignGameToCreator($run->getId(), $ownerId, $gameId);
+        }
 
         return ['run' => $this->payload($run, $ownerId, []), 'errors' => []];
     }

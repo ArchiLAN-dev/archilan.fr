@@ -66,6 +66,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.cover_image_alt AS cover_image_alt',
                 'game.cover_image_credit AS cover_image_credit',
                 'game.availability AS availability',
+                'game.disabled_at AS disabled_at',
                 'game.archipelago_game_name AS archipelago_game_name',
                 'game.option_types AS option_types',
                 'game.install_steps AS install_steps',
@@ -108,6 +109,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
      *   coverImageAlt: string,
      *   coverImageCredit: string,
      *   availability: string,
+     *   disabled: bool,
      *   steamAppId: int|null,
      *   platforms: list<string>,
      *   supportedEventTypes: list<string>,
@@ -152,6 +154,8 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'coverImageCredit' => is_string($coverImageCredit) ? $coverImageCredit : '',
             'availability' => is_string($availability) ? $availability : '',
+            // Story 17.23: the public page hides its "create a run" button on a game an admin cut off.
+            'disabled' => is_string($row['disabled_at'] ?? null) && '' !== $row['disabled_at'],
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
             'platforms' => PlatformCategory::resolve(
                 self::decodePlatformFamilies($row['platform_families'] ?? null),

@@ -12,6 +12,7 @@ use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
+use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
@@ -25,7 +26,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
-final readonly class PersonalRunGameSelection
+final readonly class PersonalRunGameSelection implements RunGameAssignmentInterface
 {
     public function __construct(
         private RunRepositoryInterface $runs,
@@ -270,6 +271,47 @@ final readonly class PersonalRunGameSelection
         $this->logger->info('personal_run.game_selection_saved', ['runId' => $runId, 'userId' => $userId]);
 
         return $this->resultWithErrors(found: true, slots: $participant->getGameSlots());
+    }
+
+    /**
+     * Why this game cannot be added to a brand-new selection - empty when it can (story 17.23).
+     *
+     * Single source of truth for "is this game addable", shared with {@see saveMyGames}: the run
+     * creation path validates through here *before* creating anything, so a game that cannot be
+     * added never leaves an empty run behind. Existing slots are deliberately passed as empty -
+     * the leniency that lets an already-selected game survive a later disable does not apply to a
+     * selection that does not exist yet.
+     *
+     * @return list<string>
+     */
+    public function reasonsGameCannotBeAdded(string $gameId): array
+    {
+        $gameIds = [$gameId];
+
+        $missing = $this->validateGameIds($gameIds);
+        if ([] !== $missing) {
+            return $missing['gameIds.0'] ?? ['Jeu introuvable dans la bibliothèque.'];
+        }
+
+        /** @var array<string, Game> $gamesById */
+        $gamesById = [];
+        foreach ($this->games->findByIds($gameIds) as $game) {
+            $gamesById[$game->getId()] = $game;
+        }
+
+        $disabled = $this->validateDisabledGames($gameIds, [], $gamesById);
+        if ([] !== $disabled) {
+            return $disabled['gameIds.0'] ?? [];
+        }
+
+        $preflight = $this->validateApworldPreflights($gameIds, [], $gamesById);
+
+        return $preflight['gameIds.0'] ?? [];
+    }
+
+    public function assignGameToCreator(string $runId, string $ownerId, string $gameId): void
+    {
+        $this->saveMyGames($runId, $ownerId, ['gameIds' => [$gameId]]);
     }
 
     /**
