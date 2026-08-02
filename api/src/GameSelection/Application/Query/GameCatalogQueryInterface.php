@@ -35,6 +35,7 @@ interface GameCatalogQueryInterface
      *   coverImageAlt: string,
      *   coverImageCredit: string,
      *   availability: string,
+     *   disabled: bool,
      *   steamAppId: int|null,
      *   platforms: list<string>,
      *   supportedEventTypes: list<string>,

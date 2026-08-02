@@ -48,6 +48,64 @@ final class PersonalRunTest extends FunctionalTestCase
         self::assertTrue($data['isOwner']);
     }
 
+    /**
+     * Story 17.23: the "create a run with this game" button on a public game page sends the game
+     * along with the title, and the creator's slot must come back already carrying it.
+     */
+    public function testCreateRunWithAGamePreselectsTheCreatorSlot(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+        $game = $this->createGame("Luigi's Mansion", 'luigis-mansion');
+
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Ma partie', 'gameId' => $game->getId()]);
+
+        self::assertResponseStatusCodeSame(201);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/runs/%s/participants/me/game-selection', $runId));
+        self::assertResponseIsSuccessful();
+        $slots = $this->responseData()['slots'];
+        self::assertIsArray($slots);
+        self::assertCount(1, $slots);
+        $slot = $slots[0];
+        self::assertIsArray($slot);
+        self::assertSame($game->getId(), $slot['gameId']);
+    }
+
+    public function testCreateRunWithAnUnknownGameCreatesNothing(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Ma partie', 'gameId' => 'nope']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertArrayHasKey('gameId', $this->errorDetails());
+
+        // The whole point of validating before creating: no orphan run is left behind.
+        $this->client->jsonRequest('GET', '/api/v1/runs/mine');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->responseData()['owned']);
+    }
+
+    public function testCreateRunWithoutAGameStillCreatesAnEmptyDraft(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Sans jeu']);
+
+        self::assertResponseStatusCodeSame(201);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/runs/%s/participants/me/game-selection', $runId));
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->responseData()['slots']);
+    }
+
     public function testCreateRunValidatesTitle(): void
     {
         $user = $this->createUser('alice@example.org');

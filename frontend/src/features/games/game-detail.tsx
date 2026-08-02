@@ -3,6 +3,7 @@ import { AlertTriangle, BookOpen, ExternalLink, Gamepad2, Settings2, ShieldAlert
 import { AdminEditLink } from "@/components/admin-edit-link";
 import type { ArchipelagoClient } from "./archipelago-client-api";
 import { availabilityConfig } from "./game-card";
+import { CreateRunWithGameButton } from "./create-run-with-game-button";
 import { GameContributionForm } from "./game-contribution-form";
 import { GameOwnedBadge } from "./game-owned-badge";
 import { InstallStepsView } from "./install-steps-view";
@@ -82,6 +83,14 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
             ))}
           </div>
         ) : null}
+
+        {/* Story 17.23: the page used to be a dead end - it described the game and stopped there,
+            exactly where the intention to play is strongest. Not offered on a game an admin cut off. */}
+        {true === game.disabled ? null : (
+          <div className="mt-5">
+            <CreateRunWithGameButton gameId={game.id} gameName={game.name} gameSlug={game.slug} />
+          </div>
+        )}
 
         {game.coverImageCredit ? (
           <p className="mt-3 text-xs text-muted-foreground">Image : {game.coverImageCredit}</p>

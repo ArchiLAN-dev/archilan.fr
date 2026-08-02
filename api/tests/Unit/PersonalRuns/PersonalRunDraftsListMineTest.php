@@ -11,6 +11,7 @@ use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
+use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -35,6 +36,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
                 self::createStub(AchievementGrantRepositoryInterface::class),
             ),
             self::createStub(CommunityPresenceQueryInterface::class),
+            self::createStub(RunGameAssignmentInterface::class),
             new MockClock(),
             'https://archilan.test',
         );

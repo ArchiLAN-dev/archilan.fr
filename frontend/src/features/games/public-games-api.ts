@@ -42,6 +42,12 @@ export type GameApworld = {
 export type PublicGameDetail = PublicGame & {
   archipelagoDescription: string | null;
   coverImageCredit: string;
+  /**
+   * Cut off by an admin (story 11.4): the page still describes the game, but it cannot be added to
+   * a new run, so the "create a run" button is not offered (story 17.23). Optional because an older
+   * API build does not send it - absent means "not disabled", which is the safe default here.
+   */
+  disabled?: boolean;
   bundledWithAp: boolean;
   adultContent: boolean;
   apworld: GameApworld;
@@ -173,6 +179,7 @@ function isGameApworld(v: unknown): v is GameApworld {
 function isPublicGameDetail(v: unknown): v is PublicGameDetail {
   if (!isPublicGame(v)) return false;
   if (!hasStringProp(v, "coverImageCredit")) return false;
+  if ("disabled" in v && typeof v.disabled !== "boolean") return false;
   if (!hasBooleanProp(v, "bundledWithAp") || !hasBooleanProp(v, "adultContent")) return false;
   if (!("apworld" in v) || !isGameApworld(v.apworld)) return false;
   if (!("options" in v) || !Array.isArray(v.options) || !v.options.every(isGameOption)) return false;
