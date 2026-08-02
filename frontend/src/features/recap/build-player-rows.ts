@@ -33,11 +33,27 @@ export type PlayerRow = {
  * Order follows `recap.podium`, which the API already returns in podium order - re-sorting here
  * would silently compete with the server's ranking rules.
  */
-export function buildPlayerRows(recap: SessionRecap): PlayerRow[] {
+/**
+ * Slot id -> display label: the player name, suffixed with the slot name only when that name
+ * designates several slots. Shared by every surface of the recap page, because a page that shows
+ * "masterkafey" three times in three sections has told the reader nothing.
+ */
+export function buildSlotLabels(podium: SessionRecap["podium"]): Map<string, string> {
   const slotsPerName = new Map<string, number>();
-  for (const slot of recap.podium) {
+  for (const slot of podium) {
     slotsPerName.set(slot.playerName, (slotsPerName.get(slot.playerName) ?? 0) + 1);
   }
+
+  return new Map(
+    podium.map((slot) => [
+      slot.slotId,
+      (slotsPerName.get(slot.playerName) ?? 0) > 1 ? `${slot.playerName} (${slot.slotName})` : slot.playerName,
+    ]),
+  );
+}
+
+export function buildPlayerRows(recap: SessionRecap): PlayerRow[] {
+  const labels = buildSlotLabels(recap.podium);
 
   const sent = new Map<string, number>();
   const received = new Map<string, number>();
@@ -65,10 +81,7 @@ export function buildPlayerRows(recap: SessionRecap): PlayerRow[] {
       game: slot.game,
       isInvalidated: slot.isInvalidated,
       kept: kept.get(slot.slotId) ?? 0,
-      label:
-        (slotsPerName.get(slot.playerName) ?? 0) > 1
-          ? `${slot.playerName} (${slot.slotName})`
-          : slot.playerName,
+      label: labels.get(slot.slotId) ?? slot.playerName,
       rank: ranked ? rank : null,
       receivedFromOthers: received.get(slot.slotId) ?? 0,
       sentToOthers: sent.get(slot.slotId) ?? 0,
