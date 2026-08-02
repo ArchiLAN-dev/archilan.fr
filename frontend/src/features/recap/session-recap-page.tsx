@@ -4,7 +4,9 @@ import Link from "next/link";
 import { slotColorsByName } from "@/features/recap/build-checks-series";
 import { buildRecapKeyFigures, hasUsableFlags } from "@/features/recap/build-key-figures";
 import { buildPlayerRows, buildSlotLabels } from "@/features/recap/build-player-rows";
+import { buildSendQuality, buildTopItems } from "@/features/recap/build-item-content";
 import { ExchangeSankey, type ExchangeSlot } from "@/features/recap/exchange-sankey";
+import { RecapItemContent } from "@/features/recap/recap-item-content";
 import { RecapKeyFigures } from "@/features/recap/recap-key-figures";
 import { RecapPlayerTable } from "@/features/recap/recap-player-table";
 import { RunTimeline, type GoalMarker } from "@/features/recap/run-timeline";
@@ -12,6 +14,9 @@ import type { FeedEvent } from "@/features/recap/feed-api";
 import { formatDuration } from "@/features/recap/recap-format";
 import { RecapVod } from "@/features/recap/recap-vod";
 import type { SessionRecap } from "@/features/recap/recap-api";
+
+/** Enough to see a pattern, few enough to stay readable; the total is announced next to it. */
+const TOP_ITEMS_LIMIT = 10;
 
 export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: FeedEvent[] }) {
   const slotLabels = buildSlotLabels(recap.podium);
@@ -94,6 +99,11 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
       </div>
 
       <RunTimeline events={feed} goals={goalMarkers} />
+
+      <div className="grid gap-4">
+        <h2 className="font-heading text-2xl font-bold text-foreground">Ce qui a circulé</h2>
+        <RecapItemContent quality={buildSendQuality(feed)} topItems={buildTopItems(feed, TOP_ITEMS_LIMIT)} />
+      </div>
 
       {timeline.length > 0 ? (
         <div className="grid gap-4">
