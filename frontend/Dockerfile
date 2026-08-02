@@ -21,6 +21,11 @@ ENV NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN=$NEXT_PUBLIC_TWITCH_CHANNEL_LOGIN \
     NEXT_PUBLIC_MERCURE_URL=$NEXT_PUBLIC_MERCURE_URL \
     NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 RUN corepack enable pnpm && pnpm build
+# sharp's native binary dlopens libvips at runtime - a dependency Next's file tracing cannot see,
+# so the standalone output ships sharp without the libvips package and the image optimizer
+# silently serves originals (34.7 finding). Stage the @img native packages here (shell glob keeps
+# this version-agnostic) so the runner can graft them into the traced .pnpm store.
+RUN mkdir -p /sharp-native && cp -r node_modules/.pnpm/@img+* /sharp-native/
 
 FROM base AS runner
 WORKDIR /app
@@ -32,6 +37,7 @@ RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /sharp-native ./node_modules/.pnpm/
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
