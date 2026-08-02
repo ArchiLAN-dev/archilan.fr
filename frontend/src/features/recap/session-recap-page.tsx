@@ -2,7 +2,7 @@ import { ArrowLeft, Clock, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { slotColorsByName } from "@/features/recap/build-checks-series";
-import { buildRecapKeyFigures } from "@/features/recap/build-key-figures";
+import { buildRecapKeyFigures, hasUsableFlags } from "@/features/recap/build-key-figures";
 import { buildPlayerRows } from "@/features/recap/build-player-rows";
 import { ExchangeSankey, type ExchangeSlot } from "@/features/recap/exchange-sankey";
 import { RecapKeyFigures } from "@/features/recap/recap-key-figures";
@@ -34,6 +34,13 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
   );
 
   const hasGraph = recap.graph.edges.length > 0;
+
+  // The progression filter needs both sides: a projection that carries the counts (story 32.17) and
+  // a run whose feed actually has AP flags (story 32.9). Missing either, the filter is not offered.
+  const progressionAvailable =
+    hasUsableFlags(feed) &&
+    recap.graph.edges.every((edge) => edge.progressionCount !== undefined) &&
+    recap.graph.localItems.every((local) => local.progressionCount !== undefined);
 
   return (
     <section className="mx-auto grid w-full max-w-content gap-10 px-4 py-10">
@@ -71,7 +78,12 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
       <div className="grid gap-4">
         <h2 className="font-heading text-2xl font-bold text-foreground">Qui a envoyé quoi à qui</h2>
         {hasGraph ? (
-          <ExchangeSankey flows={recap.graph.edges} locals={recap.graph.localItems} slots={exchangeSlots} />
+          <ExchangeSankey
+            flows={recap.graph.edges}
+            locals={recap.graph.localItems}
+            progressionAvailable={progressionAvailable}
+            slots={exchangeSlots}
+          />
         ) : (
           <p className="rounded-lg border border-border bg-surface p-6 text-sm text-muted-foreground">
             Le graphe des échanges n&apos;est pas disponible pour cette partie.

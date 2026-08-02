@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ResponsiveContainer, Sankey } from "recharts";
 
 export type ExchangeSlot = {
@@ -10,14 +11,22 @@ export type ExchangeSlot = {
   color: string;
 };
 
-export type ExchangeFlow = { fromSlotId: string; toSlotId: string; count: number };
-export type ExchangeLocal = { slotId: string; count: number };
+export type ExchangeFlow = { fromSlotId: string; toSlotId: string; count: number; progressionCount?: number };
+export type ExchangeLocal = { slotId: string; count: number; progressionCount?: number };
 
 type Props = {
   slots: ExchangeSlot[];
   flows: ExchangeFlow[];
   locals: ExchangeLocal[];
+  /**
+   * Whether the run carries AP item flags at all. False for runs recorded before story 32.9, where
+   * "not progression" cannot be distinguished from "unknown" - offering a filter that would return
+   * an empty diagram is worse than not offering it.
+   */
+  progressionAvailable: boolean;
 };
+
+type Scope = "all" | "progression";
 
 type FlowNode = { name: string; side: "out" | "in"; color: string; total: number; game: string };
 
@@ -184,15 +193,22 @@ function renderLink({
  * section asks. Items a slot found for itself, invisible in the old graph, are the ribbon that
  * crosses straight over. Built on the recharts Sankey already in the bundle: no new dependency.
  */
-export function ExchangeSankey({ slots, flows, locals }: Props) {
+export function ExchangeSankey({ slots, flows, locals, progressionAvailable }: Props) {
+  const [scope, setScope] = useState<Scope>("all");
+  const active: Scope = progressionAvailable ? scope : "all";
+
+  /** The count this scope reads. Progression counts come from the projection, never recomputed here. */
+  const valueOf = (entry: { count: number; progressionCount?: number }): number =>
+    active === "progression" ? (entry.progressionCount ?? 0) : entry.count;
+
   // Index layout: slot i occupies node 2i (sender side) and node 2i + 1 (receiver side).
   const indexBySlotId = new Map(slots.map((slot, i) => [slot.slotId, i]));
 
   const sentBySlot = new Map<string, number>();
   const receivedBySlot = new Map<string, number>();
   for (const flow of flows) {
-    sentBySlot.set(flow.fromSlotId, (sentBySlot.get(flow.fromSlotId) ?? 0) + flow.count);
-    receivedBySlot.set(flow.toSlotId, (receivedBySlot.get(flow.toSlotId) ?? 0) + flow.count);
+    sentBySlot.set(flow.fromSlotId, (sentBySlot.get(flow.fromSlotId) ?? 0) + valueOf(flow));
+    receivedBySlot.set(flow.toSlotId, (receivedBySlot.get(flow.toSlotId) ?? 0) + valueOf(flow));
   }
   // Totals count exchanges *with other players* and deliberately exclude a slot's own finds, which
   // stay readable on their own straight-through ribbon. This is the same notion the "most generous"
@@ -220,28 +236,60 @@ export function ExchangeSankey({ slots, flows, locals }: Props) {
     ...flows.flatMap((flow) => {
       const from = indexBySlotId.get(flow.fromSlotId);
       const to = indexBySlotId.get(flow.toSlotId);
-      return from === undefined || to === undefined || flow.count === 0
+      const value = valueOf(flow);
+      return from === undefined || to === undefined || value === 0
         ? []
-        : [{ source: from * 2, target: to * 2 + 1, value: flow.count }];
+        : [{ source: from * 2, target: to * 2 + 1, value }];
     }),
     ...locals.flatMap((local) => {
       const at = indexBySlotId.get(local.slotId);
-      return at === undefined || local.count === 0 ? [] : [{ source: at * 2, target: at * 2 + 1, value: local.count }];
+      const value = valueOf(local);
+      return at === undefined || value === 0 ? [] : [{ source: at * 2, target: at * 2 + 1, value }];
     }),
   ];
 
-  if (slots.length === 0 || links.length === 0) {
+  if (slots.length === 0 || (links.length === 0 && active === "all")) {
     return null;
   }
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4">
+      {progressionAvailable ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Compter :</span>
+          {(
+            [
+              ["all", "Tous les objets"],
+              ["progression", "Progression uniquement"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              className={
+                active === key
+                  ? "rounded-md bg-accent/15 px-2.5 py-1 font-semibold text-accent-text"
+                  : "rounded-md px-2.5 py-1 text-muted-foreground hover:text-foreground"
+              }
+              key={key}
+              onClick={() => setScope(key)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <p className="mb-3 text-xs text-muted-foreground">
         Expéditeurs à gauche, destinataires à droite. L&apos;épaisseur d&apos;un ruban est le nombre d&apos;objets
         envoyés ; un ruban qui traverse tout droit correspond aux objets qu&apos;un joueur a trouvés pour lui-même.
       </p>
       {/* The two label gutters need room; below ~36rem the diagram scrolls rather than crushing
           into an unreadable strip. The sr-only table stays the non-visual path either way. */}
+      {links.length === 0 ? (
+        <p className="rounded-md border border-border bg-background/40 px-4 py-6 text-center text-sm text-muted-foreground">
+          Aucun objet de progression n&apos;a circulé entre les joueurs sur cette partie.
+        </p>
+      ) : (
       <div className="overflow-x-auto">
         <div className="min-w-[36rem]">
           <ResponsiveContainer height={Math.max(MIN_HEIGHT, slots.length * NODE_ROW_HEIGHT)} width="100%">
@@ -256,6 +304,28 @@ export function ExchangeSankey({ slots, flows, locals }: Props) {
           </ResponsiveContainer>
         </div>
       </div>
+      )}
+
+      {/* Who carried the run: volume alone never says whether a player gave more than they got. */}
+      <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-3 text-xs">
+        {slots.map((slot) => {
+          const sent = sentBySlot.get(slot.slotId) ?? 0;
+          const received = receivedBySlot.get(slot.slotId) ?? 0;
+          const net = sent - received;
+          return (
+            <li className="flex items-center gap-1.5" key={slot.slotId}>
+              <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: slot.color }} />
+              <span className="font-semibold text-foreground">{slot.slotName}</span>
+              <span className="text-muted-foreground">
+                {sent} donnés, {received} reçus
+              </span>
+              <span className={net > 0 ? "font-semibold text-accent-text" : "text-muted-foreground"}>
+                {net > 0 ? `+${net}` : net}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
 
       {/* Accessible / crawlable mirror of the diagram. */}
       <table className="sr-only">
@@ -268,20 +338,24 @@ export function ExchangeSankey({ slots, flows, locals }: Props) {
           </tr>
         </thead>
         <tbody>
-          {flows.map((flow) => (
-            <tr key={`${flow.fromSlotId}-${flow.toSlotId}`}>
-              <td>{slots.find((s) => s.slotId === flow.fromSlotId)?.slotName ?? flow.fromSlotId}</td>
-              <td>{slots.find((s) => s.slotId === flow.toSlotId)?.slotName ?? flow.toSlotId}</td>
-              <td>{flow.count}</td>
-            </tr>
-          ))}
-          {locals.map((local) => (
-            <tr key={`local-${local.slotId}`}>
-              <td>{slots.find((s) => s.slotId === local.slotId)?.slotName ?? local.slotId}</td>
-              <td>Lui-même</td>
-              <td>{local.count}</td>
-            </tr>
-          ))}
+          {flows
+            .filter((flow) => valueOf(flow) > 0)
+            .map((flow) => (
+              <tr key={`${flow.fromSlotId}-${flow.toSlotId}`}>
+                <td>{slots.find((s) => s.slotId === flow.fromSlotId)?.slotName ?? flow.fromSlotId}</td>
+                <td>{slots.find((s) => s.slotId === flow.toSlotId)?.slotName ?? flow.toSlotId}</td>
+                <td>{valueOf(flow)}</td>
+              </tr>
+            ))}
+          {locals
+            .filter((local) => valueOf(local) > 0)
+            .map((local) => (
+              <tr key={`local-${local.slotId}`}>
+                <td>{slots.find((s) => s.slotId === local.slotId)?.slotName ?? local.slotId}</td>
+                <td>Lui-même</td>
+                <td>{valueOf(local)}</td>
+              </tr>
+            ))}
         </tbody>
       </table>
     </div>

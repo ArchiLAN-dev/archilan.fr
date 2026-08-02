@@ -244,8 +244,8 @@ final class SessionRecapEndpointTest extends FunctionalTestCase
                 ['slotId' => 'slot-p1', 'slotName' => 'Player1', 'game' => "Luigi's Mansion"],
                 ['slotId' => 'slot-p2', 'slotName' => 'Player2', 'game' => 'Super Mario 64'],
             ],
-            [['fromSlotId' => 'slot-p1', 'toSlotId' => 'slot-p2', 'count' => 32]],
-            [['slotId' => 'slot-p1', 'count' => 103]],
+            [['fromSlotId' => 'slot-p1', 'toSlotId' => 'slot-p2', 'count' => 32, 'progressionCount' => 9]],
+            [['slotId' => 'slot-p1', 'count' => 103, 'progressionCount' => 21]],
             [['key' => 'most_generous', 'label' => 'Le Parrain', 'slotId' => 'slot-p2', 'value' => 60]],
         );
         $this->entityManager->persist($recap);

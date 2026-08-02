@@ -12,8 +12,8 @@ export type KeyFigure = { key: string; label: string; value: string };
  * null `flags`, which means "unknown", not "filler" - so a run whose feed has no flag at all can
  * report no progression share, rather than an honest-looking 0 %.
  */
-function hasUsableFlags(items: FeedEvent[]): boolean {
-  return items.some((event) => event.item.flags !== null);
+export function hasUsableFlags(feed: FeedEvent[]): boolean {
+  return feed.some((event) => event.type === "item-received" && event.item.flags !== null);
 }
 
 export function buildRecapKeyFigures(recap: SessionRecap, feed: FeedEvent[]): KeyFigure[] {

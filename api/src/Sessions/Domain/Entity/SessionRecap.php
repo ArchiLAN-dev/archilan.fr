@@ -21,10 +21,10 @@ use Doctrine\ORM\Mapping as ORM;
 final class SessionRecap
 {
     /**
-     * @param list<array{slotId: string, slotName: string, game: string}>                $nodes
-     * @param list<array{fromSlotId: string, toSlotId: string, count: int}>              $edges
-     * @param list<array{slotId: string, count: int}>                                    $localItems
-     * @param list<array{key: string, label: string, slotId: string, value: int|string}> $superlatives
+     * @param list<array{slotId: string, slotName: string, game: string}>                          $nodes
+     * @param list<array{fromSlotId: string, toSlotId: string, count: int, progressionCount: int}> $edges
+     * @param list<array{slotId: string, count: int, progressionCount: int}>                       $localItems
+     * @param list<array{key: string, label: string, slotId: string, value: int|string}>           $superlatives
      */
     public function __construct(
         #[ORM\Id]
@@ -51,10 +51,10 @@ final class SessionRecap
     /**
      * Replace the projection in place (idempotent rebuild - same session id).
      *
-     * @param list<array{slotId: string, slotName: string, game: string}>                $nodes
-     * @param list<array{fromSlotId: string, toSlotId: string, count: int}>              $edges
-     * @param list<array{slotId: string, count: int}>                                    $localItems
-     * @param list<array{key: string, label: string, slotId: string, value: int|string}> $superlatives
+     * @param list<array{slotId: string, slotName: string, game: string}>                          $nodes
+     * @param list<array{fromSlotId: string, toSlotId: string, count: int, progressionCount: int}> $edges
+     * @param list<array{slotId: string, count: int, progressionCount: int}>                       $localItems
+     * @param list<array{key: string, label: string, slotId: string, value: int|string}>           $superlatives
      */
     public function rebuild(
         \DateTimeImmutable $generatedAt,
@@ -89,7 +89,7 @@ final class SessionRecap
     }
 
     /**
-     * @return list<array{fromSlotId: string, toSlotId: string, count: int}>
+     * @return list<array{fromSlotId: string, toSlotId: string, count: int, progressionCount: int}>
      */
     public function getEdges(): array
     {
@@ -97,7 +97,7 @@ final class SessionRecap
     }
 
     /**
-     * @return list<array{slotId: string, count: int}>
+     * @return list<array{slotId: string, count: int, progressionCount: int}>
      */
     public function getLocalItems(): array
     {
