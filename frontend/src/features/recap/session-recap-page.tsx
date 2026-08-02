@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { slotColorsByName } from "@/features/recap/build-checks-series";
 import { buildRecapKeyFigures, hasUsableFlags } from "@/features/recap/build-key-figures";
-import { buildPlayerRows } from "@/features/recap/build-player-rows";
+import { buildPlayerRows, buildSlotLabels } from "@/features/recap/build-player-rows";
 import { ExchangeSankey, type ExchangeSlot } from "@/features/recap/exchange-sankey";
 import { RecapKeyFigures } from "@/features/recap/recap-key-figures";
 import { RecapPlayerTable } from "@/features/recap/recap-player-table";
@@ -14,6 +14,8 @@ import { RecapVod } from "@/features/recap/recap-vod";
 import type { SessionRecap } from "@/features/recap/recap-api";
 
 export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: FeedEvent[] }) {
+  const slotLabels = buildSlotLabels(recap.podium);
+
   // One colour per slot, shared with the timeline below so a player keeps a single identity.
   const colorBySlotName = slotColorsByName(feed);
   const exchangeSlots: ExchangeSlot[] = recap.graph.nodes.map((node) => ({
@@ -100,7 +102,9 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
             {timeline.map((slot) => (
               <li className="relative" key={slot.slotId}>
                 <span className="absolute -left-[1.4rem] top-1.5 size-2.5 rounded-full bg-accent" aria-hidden="true" />
-                <p className="text-sm font-semibold text-foreground">{slot.playerName}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {slotLabels.get(slot.slotId) ?? slot.playerName}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Objectif atteint en {formatDuration(slot.completionSeconds ?? 0)}
                 </p>

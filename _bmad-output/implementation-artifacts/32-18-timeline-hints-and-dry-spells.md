@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Done
 
 ## Story
 
@@ -35,13 +35,13 @@ joueur avec moins de deux réceptions n'a pas de temps mort calculable et est om
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: fonction pure `buildDrySpells(feed)` - par slot, plus grand écart entre deux
+- [x] Task 1: fonction pure `buildDrySpells(feed)` - par slot, plus grand écart entre deux
       réceptions consécutives, testée sur les bords (AC2, AC4).
-- [ ] Task 2: marqueurs d'indices dans `ChecksChart`, sur le modèle des marqueurs d'objectif de la
+- [x] Task 2: marqueurs d'indices dans `ChecksChart`, sur le modèle des marqueurs d'objectif de la
       story 32.9 (AC1).
-- [ ] Task 3: câblage des filtres joueurs existants (AC3).
-- [ ] Task 4: tests - partie sans indice, joueur à une seule réception (AC4).
-- [ ] Task 5: gates (AC5).
+- [x] Task 3: câblage des filtres joueurs existants (AC3).
+- [x] Task 4: tests - partie sans indice, joueur à une seule réception (AC4).
+- [x] Task 5: gates (AC5).
 
 ## Dev Notes
 
