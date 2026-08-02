@@ -104,6 +104,33 @@ final class FeedGraphBuilderTest extends TestCase
         self::assertSame([], $graph->localItemCounts);
     }
 
+    public function testCountsProgressionItemsAlongsideTheTotal(): void
+    {
+        // AP flags: bit 1 = progression. Bit 2 (useful) and a null flag are not progression.
+        $graph = new FeedGraphBuilder()->build([
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'TUNIC', null, 1),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'TUNIC', null, 3),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'TUNIC', null, 2),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'TUNIC', null, 0),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Bob', 'TUNIC', null, null),
+        ]);
+
+        self::assertCount(1, $graph->edges);
+        self::assertSame(5, $graph->edges[0]->count);
+        self::assertSame(2, $graph->edges[0]->progressionCount, 'only flags 1 and 3 carry the progression bit');
+    }
+
+    public function testCountsProgressionAmongLocalItemsToo(): void
+    {
+        $graph = new FeedGraphBuilder()->build([
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Alice', 'TUNIC', null, 1),
+            self::event(SessionFeedEvent::TYPE_ITEM_RECEIVED, 'Alice', 'Alice', 'TUNIC', null, 0),
+        ]);
+
+        self::assertSame(['Alice' => 2], $graph->localItemCounts);
+        self::assertSame(['Alice' => 1], $graph->localProgressionCounts);
+    }
+
     /**
      * The type the builder reads must be the type the writer persists. The first cut of this file
      * seeded a literal `'item'`, which the bridge never sends - so the suite was green while every
@@ -131,6 +158,7 @@ final class FeedGraphBuilderTest extends TestCase
         ?string $receiver,
         ?string $receiverGame = null,
         ?string $senderGame = null,
+        ?int $flags = null,
     ): SessionFeedEvent {
         return new SessionFeedEvent(
             bin2hex(random_bytes(8)),
@@ -140,7 +168,7 @@ final class FeedGraphBuilderTest extends TestCase
             new \DateTimeImmutable('2026-08-01T12:00:00+00:00'),
             null,
             'Item',
-            null,
+            $flags,
             null,
             'Location',
             null,

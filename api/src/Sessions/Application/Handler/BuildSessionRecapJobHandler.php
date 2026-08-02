@@ -95,7 +95,12 @@ final readonly class BuildSessionRecapJobHandler
             if (null === $fromSlotId || null === $toSlotId) {
                 continue;
             }
-            $edges[] = ['fromSlotId' => $fromSlotId, 'toSlotId' => $toSlotId, 'count' => $edge->count];
+            $edges[] = [
+                'fromSlotId' => $fromSlotId,
+                'toSlotId' => $toSlotId,
+                'count' => $edge->count,
+                'progressionCount' => $edge->progressionCount,
+            ];
         }
 
         $localItems = [];
@@ -104,7 +109,11 @@ final readonly class BuildSessionRecapJobHandler
             if (null === $slotId) {
                 continue;
             }
-            $localItems[] = ['slotId' => $slotId, 'count' => $count];
+            $localItems[] = [
+                'slotId' => $slotId,
+                'count' => $count,
+                'progressionCount' => $graph->localProgressionCounts[$slotName] ?? 0,
+            ];
         }
 
         $superlatives = [];

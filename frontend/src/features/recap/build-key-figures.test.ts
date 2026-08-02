@@ -1,6 +1,6 @@
 import type { FeedEvent } from "./feed-api";
 import type { SessionRecap } from "./recap-api";
-import { buildRecapKeyFigures } from "./build-key-figures";
+import { buildRecapKeyFigures, hasUsableFlags } from "./build-key-figures";
 
 function item(flags: number | null): FeedEvent {
   return {
@@ -91,6 +91,15 @@ describe("buildRecapKeyFigures", () => {
     const figures = buildRecapKeyFigures(recapWith([{ checksDone: 1 }], 60), [item(1), item(null)]);
 
     expect(valueOf(figures, "progression")).toBe("50 %");
+  });
+
+  it("only reports usable flags from item events, never from hints", () => {
+    // A hint carries no item classification, so it must not make the run look flagged - that would
+    // switch the progression filter on for a run whose items are all unknown (story 32.17).
+    expect(hasUsableFlags([{ ...item(1), type: "hint" }])).toBe(false);
+    expect(hasUsableFlags([item(null)])).toBe(false);
+    expect(hasUsableFlags([item(null), item(0)])).toBe(true);
+    expect(hasUsableFlags([])).toBe(false);
   });
 
   it("omits every figure it cannot establish", () => {

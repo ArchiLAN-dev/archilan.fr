@@ -29,8 +29,12 @@ final class FeedGraphBuilder
         $gameBySlotName = [];
         /** @var array<string, array<string, int>> $edgeCounts from => to => count */
         $edgeCounts = [];
+        /** @var array<string, array<string, int>> $edgeProgression from => to => count */
+        $edgeProgression = [];
         /** @var array<string, int> $localItemCounts */
         $localItemCounts = [];
+        /** @var array<string, int> $localProgression */
+        $localProgression = [];
 
         foreach ($events as $event) {
             if (SessionFeedEvent::TYPE_ITEM_RECEIVED !== $event->getType()) {
@@ -48,12 +52,16 @@ final class FeedGraphBuilder
             self::rememberGame($gameBySlotName, $from, $event->getSenderGame());
             self::rememberGame($gameBySlotName, $to, $event->getReceiverGame());
 
+            $isProgression = self::isProgression($event->getItemFlags());
+
             if ($from === $to) {
                 $localItemCounts[$from] = ($localItemCounts[$from] ?? 0) + 1;
+                $localProgression[$from] = ($localProgression[$from] ?? 0) + ($isProgression ? 1 : 0);
                 continue;
             }
 
             $edgeCounts[$from][$to] = ($edgeCounts[$from][$to] ?? 0) + 1;
+            $edgeProgression[$from][$to] = ($edgeProgression[$from][$to] ?? 0) + ($isProgression ? 1 : 0);
         }
 
         $slotNames = array_keys($gameBySlotName);
@@ -67,11 +75,21 @@ final class FeedGraphBuilder
         $edges = [];
         foreach ($edgeCounts as $from => $targets) {
             foreach ($targets as $to => $count) {
-                $edges[] = new RecapEdge($from, $to, $count);
+                $edges[] = new RecapEdge($from, $to, $count, $edgeProgression[$from][$to] ?? 0);
             }
         }
 
-        return new RecapGraph($nodes, $edges, $localItemCounts);
+        return new RecapGraph($nodes, $edges, $localItemCounts, $localProgression);
+    }
+
+    /**
+     * AP classification bit 1 = progression. A null flag means the bridge that recorded the event
+     * predates story 32.9 and simply did not say - which is not the same as "filler", hence the
+     * front only offers the progression filter when the run actually carries flags.
+     */
+    private static function isProgression(?int $flags): bool
+    {
+        return null !== $flags && 1 === ($flags & 1);
     }
 
     /**

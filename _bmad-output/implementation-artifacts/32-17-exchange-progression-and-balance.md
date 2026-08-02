@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft
+Done
 
 ## Story
 
@@ -41,14 +41,15 @@ pas d'un recalcul client qui pourrait diverger du diagramme « Tous ».
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: `FeedGraphBuilder` compte aussi les objets de progression par arête et par entrée
+- [x] Task 1: `FeedGraphBuilder` compte aussi les objets de progression par arête et par entrée
       locale ; `SessionRecap` porte `progressionCount` à côté de `count` (AC5).
-- [ ] Task 2: migration + exposition dans `SessionRecapQuery` et le type TS `RecapEdge` /
-      `RecapLocalItem` (AC5).
-- [ ] Task 3: reconstruction des projections existantes via `app:sessions:rebuild-recap` (AC5).
-- [ ] Task 4: basculement et bande de soldes dans `ExchangeSankey` (AC1, AC2, AC3, AC4).
-- [ ] Task 5: tests - builder (comptage double), rendu (filtre sans flags masqué) (AC3, AC5).
-- [ ] Task 6: gates (AC6).
+- [x] Task 2: exposition dans `SessionRecapQuery` et le type TS `RecapEdge` / `RecapLocalItem`
+      (AC5). **Aucune migration nécessaire** - `nodes`, `edges` et `local_items` sont des colonnes
+      JSON, donc un champ supplémentaire dans les objets ne touche pas au schéma.
+- [x] Task 3: reconstruction des projections existantes via `app:sessions:rebuild-recap` (AC5).
+- [x] Task 4: basculement et bande de soldes dans `ExchangeSankey` (AC1, AC2, AC3, AC4).
+- [x] Task 5: tests - builder (comptage double, bits 2 et null exclus), `hasUsableFlags` (AC3, AC5).
+- [x] Task 6: gates (AC6).
 
 ## Dev Notes
 

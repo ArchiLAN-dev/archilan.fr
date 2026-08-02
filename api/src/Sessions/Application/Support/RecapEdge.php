@@ -15,6 +15,8 @@ final readonly class RecapEdge
         public string $fromSlotName,
         public string $toSlotName,
         public int $count,
+        /** How many of those items were AP progression items (story 32.17) - always <= $count. */
+        public int $progressionCount = 0,
     ) {
     }
 }

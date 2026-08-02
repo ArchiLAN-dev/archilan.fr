@@ -43,8 +43,8 @@ final readonly class SessionRecapQuery
      *     podium: list<array<string, mixed>>,
      *     graph: array{
      *         nodes: list<array{slotId: string, slotName: string, game: string}>,
-     *         edges: list<array{fromSlotId: string, toSlotId: string, count: int}>,
-     *         localItems: list<array{slotId: string, count: int}>
+     *         edges: list<array{fromSlotId: string, toSlotId: string, count: int, progressionCount: int}>,
+     *         localItems: list<array{slotId: string, count: int, progressionCount: int}>
      *     },
      *     superlatives: list<array{key: string, label: string, slotId: string, value: int|string}>
      * }|null
