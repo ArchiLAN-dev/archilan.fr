@@ -21,12 +21,16 @@ const availabilityLabels: Record<Exclude<AvailabilityFilter, "all">, string> = {
 };
 
 export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
-  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling();
-
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 150);
   const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [ownedOnly, setOwnedOnly] = useState(false);
+
+  // Story 28.11: coupling a library *is* the request to see what you own - so an explicit
+  // coupling turns the filter on. The automatic pre-fill on each load never does.
+  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling({
+    onExplicitCouple: () => setOwnedOnly(true),
+  });
   const [sort, setSort] = useState<SortOrder>("name-asc");
   const [categories, setCategories] = useState<string[]>([]);
   const categoryOptions = useMemo(() => allCategories(initialGames), [initialGames]);

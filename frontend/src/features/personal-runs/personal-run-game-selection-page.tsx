@@ -59,9 +59,13 @@ export function PersonalRunGameSelectionPage({
   const [expandedPreflightSlotId, setExpandedPreflightSlotId] = useState<string | null>(null);
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
 
-  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling();
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [ownedOnly, setOwnedOnly] = useState(false);
+
+  // Story 28.11: same rule as the public catalog - an explicit coupling filters to owned games.
+  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling({
+    onExplicitCouple: () => setOwnedOnly(true),
+  });
   const [recentOnly, setRecentOnly] = useState(false);
 
   useEffect(() => {
