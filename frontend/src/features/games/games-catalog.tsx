@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Gamepad2, Search } from "lucide-react";
 import { GameCard } from "./game-card";
 import { SteamCoupling } from "./steam-coupling";
@@ -13,6 +14,7 @@ import {
   type AvailabilityFilter,
   type SortOrder,
 } from "./games-filter";
+import { filtersToQueryString, readFiltersFromParams } from "./catalog-url-filters";
 import type { PublicGame } from "./public-games-api";
 
 const availabilityLabels: Record<Exclude<AvailabilityFilter, "all">, string> = {
@@ -21,27 +23,54 @@ const availabilityLabels: Record<Exclude<AvailabilityFilter, "all">, string> = {
 };
 
 export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Story 28.12: the URL *is* the filter state, so a browser back after opening a game restores
+  // the list exactly as it was. Read once at mount; written back below.
+  const [initial] = useState(() => readFiltersFromParams(searchParams));
+
+  const [query, setQuery] = useState(initial.query);
   const debouncedQuery = useDebouncedValue(query, 150);
-  const [availability, setAvailability] = useState<AvailabilityFilter>("all");
-  const [ownedOnly, setOwnedOnly] = useState(false);
+  const [availability, setAvailability] = useState<AvailabilityFilter>(initial.availability);
+  const [ownedOnly, setOwnedOnly] = useState(initial.ownedOnly);
 
   // Story 28.11: coupling a library *is* the request to see what you own - so an explicit
   // coupling turns the filter on. The automatic pre-fill on each load never does.
-  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling({
+  const { matchedAppIds, coupled, settled, couplingProps } = useSteamCoupling({
     onExplicitCouple: () => setOwnedOnly(true),
   });
-  const [sort, setSort] = useState<SortOrder>("name-asc");
-  const [categories, setCategories] = useState<string[]>([]);
+  const [sort, setSort] = useState<SortOrder>(initial.sort);
+  const [categories, setCategories] = useState<string[]>(initial.categories);
   const categoryOptions = useMemo(() => allCategories(initialGames), [initialGames]);
 
-  // Drop the owned-only filter if a coupling is cleared/unsuccessful.
+  // Drop the owned-only filter if a coupling is cleared/unsuccessful. Waits for `settled`: at
+  // mount the automatic attempt is still in flight, and clearing early would wipe the filter the
+  // URL had just restored (story 28.12).
   useEffect(() => {
-    if (!coupled && ownedOnly) {
+    if (settled && !coupled && ownedOnly) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter in reaction to the external Steam coupling being cleared; guarded so it fires once per transition
       setOwnedOnly(false);
     }
-  }, [coupled, ownedOnly]);
+  }, [settled, coupled, ownedOnly]);
+
+  // Mirror the filters into the URL. `replace` rather than `push`: filtering must not make the back
+  // button walk backwards through every keystroke, while the entry still carries the latest state.
+  // Follows the debounced query, not the raw input.
+  useEffect(() => {
+    const queryString = filtersToQueryString({
+      availability,
+      categories,
+      ownedOnly,
+      query: debouncedQuery,
+      sort,
+    });
+    const next = "" === queryString ? pathname : `${pathname}?${queryString}`;
+    if (next !== `${pathname}${window.location.search}`) {
+      router.replace(next, { scroll: false });
+    }
+  }, [debouncedQuery, availability, ownedOnly, sort, categories, pathname, router]);
 
   const visibleGames = useMemo(
     () =>
