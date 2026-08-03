@@ -5,6 +5,73 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.12.0] - 2026-08-03
+
+Version centrée sur deux chantiers : rendre visibles les échecs de génération multiworld, qui
+plantaient jusqu'ici sans que personne ne sache pourquoi, et refondre le récap de fin de partie
+pour qu'il raconte ce qui s'est réellement joué plutôt que ce que la seed contenait.
+
+### Ajouté
+
+- **Diagnostic des échecs de génération (epic 9, stories 9.38-9.44)** : les erreurs de génération
+  sont analysées et attribuées au joueur fautif, qui est notifié avec le propriétaire de la partie ;
+  un apworld est testé seul à l'upload comme à la sélection, avec le verdict affiché sur la
+  configuration concernée ; l'enregistrement d'échec est structuré côté générateur ; les mondes
+  Archipelago sont désormais chargés « honnêtement », sans stubs masquant les vraies dépendances
+  manquantes (70 mondes chargés, 2 modules réellement absents contre l'intégralité auparavant).
+- **Administration des apworlds (stories 9.45-9.47)** : le template YAML par défaut d'un jeu est
+  éditable et réinitialisable depuis l'apworld, les plateformes d'un jeu sont surchargeables à la
+  main, et l'onglet ApWorld a été réorganisé.
+- **Refonte du récap (stories 32.15-32.19)** : bandeau de chiffres clés, tableau comparatif des
+  joueurs qui remplace le podium et les cartes de superlatifs, filtre « progression uniquement » et
+  balance des échanges, marqueurs d'indices et temps morts sur la timeline, objets les plus échangés
+  et qualité des envois par joueur.
+- **Créer une partie depuis la page d'un jeu (story 17.23)** avec ce jeu déjà sélectionné, et
+  **renommer une partie** (story 17.24), ce qui n'était possible d'aucune façon jusqu'ici.
+- **Filtre « mes jeux » automatique** au couplage explicite d'une bibliothèque Steam (story 28.11).
+- **Repli de la page Progression** quand le bridge est indisponible (story 17.21) et **indices en
+  clair sur l'overlay de log** (story 29.6).
+- **Masquage par champ des informations de connexion** (stories 17.21, 17.22) sur les parties
+  privées, les sessions d'événement et les runs hebdomadaires : copie possible sans révéler.
+
+### Modifié
+
+- **Le graphe des échanges devient un diagramme de flux** (story 9.49). Un layout à force dirigée
+  sert à révéler la structure d'un réseau dense ; une partie ArchiLAN compte 2 à 6 slots, où il
+  produisait deux ronds et deux flèches superposées. Chaque slot est dédoublé en expéditeur et
+  destinataire, ce qui rend le graphe acyclique et fait apparaître les objets gardés en local.
+- **La page de résultats d'une run est retirée** au profit du récap (story 32.20), qui la couvrait
+  déjà entièrement. La route `GET /api/v1/runs/{id}/results` disparaît avec elle - **changement de
+  contrat cassant**, les liens partagés hors du site renvoient un 404.
+- **Vocabulaire unifié** : « checks complétés » partout, au lieu de « checks trouvés » sur le seul
+  récap.
+
+### Corrigé
+
+- **Le graphe des échanges ne s'affichait plus du tout** (story 9.48) : le lecteur filtrait sur un
+  type d'événement que le bridge n'envoie jamais, si bien que tous les objets étaient écartés. Les
+  tests validaient le défaut, leurs fixtures inventant le même type.
+- **Une génération plantait sur les jeux au nom numérique** (story 9.39, cas « 2048 ») : la clé de
+  section YAML était coercée en entier par PHP.
+- **Une partie terminée retombait en « inactive »** une vingtaine de secondes plus tard (story
+  17.25) : l'arrêt du conteneur, conséquence normale de la fin de partie, écrasait son statut final -
+  ce qui masquait son récap et la rendait relançable. Commande `app:runs:repair-finished` pour
+  réparer les parties déjà dans cet état.
+- **Fuite de confidentialité** (story 32.20) : la page de résultats servait les participants, jeux
+  et temps de toute session terminée dont on connaissait l'identifiant, sans authentification -
+  runs privées et événements non publics compris, malgré le réglage « récap privé ».
+- **Lisibilité daltonienne** de la barre de qualité des envois : trois des cinq catégories étaient
+  des gris quasi identiques et les deux autres la paire violet/rouge la plus confondue. Palette
+  validée, écart de séparation entre segments, et tous les chiffres écrits en toutes lettres.
+- Libellé de l'axe Y du graphe de déroulé, et poids de l'image front (`libvips` embarqué).
+
+### Technique
+
+- Deux migrations additives et réversibles : `session_players_snapshot`, et `platform_families` sur
+  `game`.
+- `js-yaml` 4 → 5 côté front, plus les lots de dépendances mineures.
+- Nouvelles commandes d'exploitation : `app:sessions:rebuild-recap`, `app:runs:repair-finished`.
+
 ## [0.11.0] - 2026-07-29
 
 Version de fonctionnalité centrée sur les récaps de partie (epic 32 au complet) : chaque
