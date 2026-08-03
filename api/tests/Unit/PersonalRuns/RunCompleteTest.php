@@ -34,6 +34,74 @@ final class RunCompleteTest extends TestCase
         $run->complete($now);
     }
 
+    // ─── the runner stopping must never reopen a finished run (story 17.25) ─────
+
+    public function testMarkStoppedLeavesACompletedRunAlone(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-02T22:54:36+00:00');
+        $run = Run::create('owner-1', 'My run', $now);
+        $run->attachSession('sess-1');
+        $run->start($now);
+        $run->markRunning('runner.example.com', 38281, $now, 'deadbeef12345678');
+        $run->complete($now);
+
+        // The orchestrateur stops the container ~20 s later and the webhook lands here.
+        $run->markStopped($now->modify('+23 seconds'));
+
+        self::assertSame(Run::STATUS_COMPLETED, $run->getStatus(), 'stopping the runner must not undo the finish');
+    }
+
+    public function testMarkStoppedLeavesACancelledRunAlone(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-02T22:54:36+00:00');
+        $run = Run::create('owner-1', 'My run', $now);
+        $run->cancel($now);
+
+        $run->markStopped($now->modify('+1 minute'));
+
+        self::assertSame(Run::STATUS_CANCELLED, $run->getStatus());
+    }
+
+    public function testMarkStoppedStillIdlesARunningRun(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-02T22:54:36+00:00');
+        $run = Run::create('owner-1', 'My run', $now);
+        $run->attachSession('sess-1');
+        $run->start($now);
+        $run->markRunning('runner.example.com', 38281, $now, 'deadbeef12345678');
+
+        $run->markStopped($now->modify('+1 minute'));
+
+        self::assertSame(Run::STATUS_IDLE, $run->getStatus());
+        self::assertNull($run->getConnectionHost());
+    }
+
+    public function testMarkSessionFinishedCompletesANonTerminalRun(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-02T22:54:36+00:00');
+        $run = Run::create('owner-1', 'My run', $now);
+        $run->attachSession('sess-1');
+        $run->start($now);
+        $run->markRunning('runner.example.com', 38281, $now, 'deadbeef12345678');
+        $run->stop($now);
+
+        $run->markSessionFinished($now->modify('+5 minutes'));
+
+        self::assertSame(Run::STATUS_COMPLETED, $run->getStatus());
+        self::assertNull($run->getConnectionPassword());
+    }
+
+    public function testMarkSessionFinishedLeavesACancelledRunAlone(): void
+    {
+        $now = new \DateTimeImmutable('2026-08-02T22:54:36+00:00');
+        $run = Run::create('owner-1', 'My run', $now);
+        $run->cancel($now);
+
+        $run->markSessionFinished($now->modify('+5 minutes'));
+
+        self::assertSame(Run::STATUS_CANCELLED, $run->getStatus());
+    }
+
     // ─── terminal read-only guard (issue #338) ──────────────────────────────────
 
     public function testDraftRunIsNotTerminal(): void

@@ -29,6 +29,20 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         self::assertSame(Run::STATUS_IDLE, $run->getStatus());
     }
 
+    /**
+     * Story 17.25: a finished session used to be lumped with stopped/crashed/failed and mapped to
+     * idle, which left a run that is over restartable and without its recap.
+     */
+    public function testStuckStoppingWithFinishedSessionCompletesTheRun(): void
+    {
+        $run = $this->makeStuckRun(Run::STATUS_STOPPING);
+        $session = $this->makeSession(Session::STATUS_FINISHED);
+
+        $this->handle($run, $session);
+
+        self::assertSame(Run::STATUS_COMPLETED, $run->getStatus());
+    }
+
     public function testStuckStoppingWithRunningSessionGoesActive(): void
     {
         $run = $this->makeStuckRun(Run::STATUS_STOPPING);
@@ -139,6 +153,11 @@ final class ReconcileStuckRunsHandlerTest extends TestCase
         }
         if (Session::STATUS_STOPPED === $status) {
             $session->transition(Session::STATUS_STOPPED, $now);
+
+            return $session;
+        }
+        if (Session::STATUS_FINISHED === $status) {
+            $session->transition(Session::STATUS_FINISHED, $now);
 
             return $session;
         }
