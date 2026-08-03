@@ -35,6 +35,13 @@ type SteamCouplingOptions = {
 export function useSteamCoupling(options: SteamCouplingOptions = {}): {
   matchedAppIds: Set<number>;
   coupled: boolean;
+  /**
+   * True once a coupling attempt has finished, or once we know there is nothing to attempt
+   * (story 28.12). Callers that clear an owned-games filter when no library is coupled must wait
+   * for this: at mount the automatic attempt is still in flight, and acting early would wipe a
+   * filter the URL had just restored.
+   */
+  settled: boolean;
   couplingProps: SteamCouplingProps;
 } {
   const { user, setUser, loading: authLoading } = useAuth();
@@ -49,6 +56,7 @@ export function useSteamCoupling(options: SteamCouplingOptions = {}): {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CouplingResult | null>(null);
   const [editing, setEditing] = useState(true);
+  const [settled, setSettled] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const dirty = useRef(false);
   const autoCoupled = useRef(false);
@@ -83,6 +91,7 @@ export function useSteamCoupling(options: SteamCouplingOptions = {}): {
       }
 
       setSubmitting(false);
+      setSettled(true);
     },
     [user],
   );
@@ -92,10 +101,17 @@ export function useSteamCoupling(options: SteamCouplingOptions = {}): {
   useEffect(() => {
     if (authLoading || autoCoupled.current || dirty.current) return;
     const prefill = user?.steamProfile ?? window.localStorage.getItem(STORAGE_KEY) ?? "";
-    if ("" === prefill) return;
+    if ("" === prefill) {
+      // Nothing to try: the question is settled, there simply is no library to couple.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- terminal state once auth has settled and no profile exists
+      setSettled(true);
+
+      return;
+    }
 
     autoCoupled.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot pre-fill from persisted data (account profile or localStorage) once auth has settled; guarded by the autoCoupled ref
+    // One-shot pre-fill from persisted data (account profile or localStorage) once auth has
+    // settled; guarded by the autoCoupled ref. The rule is already disabled above for this effect.
     setSteamInput(prefill);
     void couple(prefill, false);
   }, [authLoading, user, couple]);
@@ -135,5 +151,5 @@ export function useSteamCoupling(options: SteamCouplingOptions = {}): {
     },
   };
 
-  return { matchedAppIds, coupled, couplingProps };
+  return { matchedAppIds, coupled, settled, couplingProps };
 }
