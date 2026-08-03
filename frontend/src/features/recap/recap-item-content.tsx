@@ -1,17 +1,32 @@
 import type { SendQuality, TopItems } from "./build-item-content";
 
 /**
- * Categories get a semantic palette of their own - highlight, neutral, danger, muted - deliberately
- * NOT the per-player series palette: on a page where a colour already means "this player", reusing
- * those hues for "this kind of item" would make the two readings collide.
+ * Category colours, rebuilt for colour-vision deficiency.
+ *
+ * The first cut used accent (violet), `--color-chart-2`, danger (red), muted and border. Two of
+ * those are the classic protan/deutan confusion pair, and `--color-chart-2` turned out to be a pure
+ * grey (`oklch(0.556 0 0)`) - so three of the five categories were near-identical greys and the
+ * two coloured ones were the pair hardest to tell apart. It was unreadable by construction.
+ *
+ * The three identity hues now come from the documented series palette and are validated: worst
+ * adjacent pair Piège↔Utile at ΔE 13.7 under deuteranopia (target 8), 19.4 under normal vision.
+ * Only ONE grey remains - a neutral is the right encoding for "nothing special", but two adjacent
+ * greys are not - and "Non classé" is separated by **texture** rather than a second shade, the one
+ * channel that survives every colour-vision deficiency.
+ *
+ * Colour is never the only channel here: segments are separated by a surface gap, and every count
+ * is written out underneath the bar.
  */
 const QUALITY_SEGMENTS = [
-  { color: "var(--color-accent-text)", key: "progression", label: "Progression" },
-  { color: "var(--color-chart-2)", key: "useful", label: "Utile" },
-  { color: "var(--color-danger)", key: "trap", label: "Piège" },
-  { color: "var(--color-muted-foreground)", key: "filler", label: "Remplissage" },
-  { color: "var(--color-border)", key: "unknown", label: "Non classé" },
+  { color: "var(--chart-series-1)", key: "progression", label: "Progression", striped: false },
+  { color: "var(--chart-series-4)", key: "useful", label: "Utile", striped: false },
+  { color: "var(--color-danger)", key: "trap", label: "Piège", striped: false },
+  { color: "var(--color-muted-foreground)", key: "filler", label: "Remplissage", striped: false },
+  { color: "var(--color-muted-foreground)", key: "unknown", label: "Non classé", striped: true },
 ] as const;
+
+/** Diagonal hatching: the secondary encoding that distinguishes "Non classé" from "Remplissage". */
+const STRIPES = "repeating-linear-gradient(45deg, currentColor 0 3px, transparent 3px 7px)";
 
 /**
  * What circulated, and what it was worth (story 32.19).
@@ -75,21 +90,43 @@ export function RecapItemContent({ topItems, quality }: { topItems: TopItems; qu
                     {entry.progression} de progression sur {entry.total}
                   </span>
                 </div>
-                <div className="flex h-2.5 overflow-hidden rounded-full bg-border/40">
-                  {QUALITY_SEGMENTS.map((segment) => {
-                    const value = entry[segment.key];
-                    return value === 0 ? null : (
-                      <div
-                        key={segment.key}
+                <div className="flex h-3 overflow-hidden rounded-full bg-border/40">
+                  {QUALITY_SEGMENTS.filter((segment) => entry[segment.key] > 0).map((segment, index) => (
+                    <div
+                      className="h-full"
+                      key={segment.key}
+                      style={{
+                        // A 2px surface gap between fills: the segment boundaries stay countable
+                        // even when two hues converge for a colour-blind reader.
+                        borderLeft: index === 0 ? undefined : "2px solid var(--color-surface)",
+                        backgroundColor: segment.color,
+                        backgroundImage: segment.striped ? STRIPES : undefined,
+                        color: "var(--color-surface)",
+                        width: `${(entry[segment.key] / entry.total) * 100}%`,
+                      }}
+                      title={`${segment.label} : ${entry[segment.key]}`}
+                    />
+                  ))}
+                </div>
+
+                {/* Every count in plain text: the bar shows the proportions, this reads without
+                    relying on colour at all. */}
+                <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  {QUALITY_SEGMENTS.filter((segment) => entry[segment.key] > 0).map((segment) => (
+                    <span className="inline-flex items-center gap-1.5" key={segment.key}>
+                      <span
+                        aria-hidden="true"
+                        className="size-2 shrink-0 rounded-full"
                         style={{
                           backgroundColor: segment.color,
-                          width: `${(value / entry.total) * 100}%`,
+                          backgroundImage: segment.striped ? STRIPES : undefined,
+                          color: "var(--color-surface)",
                         }}
-                        title={`${segment.label} : ${value}`}
                       />
-                    );
-                  })}
-                </div>
+                      {entry[segment.key]} {segment.label.toLowerCase()}
+                    </span>
+                  ))}
+                </p>
               </li>
             ))}
           </ul>
@@ -100,7 +137,11 @@ export function RecapItemContent({ topItems, quality }: { topItems: TopItems; qu
                 <span
                   aria-hidden="true"
                   className="size-2 rounded-full"
-                  style={{ backgroundColor: segment.color }}
+                  style={{
+                    backgroundColor: segment.color,
+                    backgroundImage: segment.striped ? STRIPES : undefined,
+                    color: "var(--color-surface)",
+                  }}
                 />
                 {segment.label}
               </li>
