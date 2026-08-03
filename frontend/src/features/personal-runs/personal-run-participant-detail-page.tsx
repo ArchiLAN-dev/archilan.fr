@@ -274,6 +274,33 @@ export function PersonalRunParticipantDetailPage({
                   </div>
                 </div>
 
+                {slot.preflight ? (
+                  slot.preflight.status === "failed" ? (
+                    <details className="grid gap-1.5">
+                      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold text-[color:var(--color-danger)] hover:underline">
+                        <AlertCircle aria-hidden className="size-3.5" />
+                        Échec du test de génération - voir le détail
+                      </summary>
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-2 text-[11px] leading-relaxed text-muted-foreground">
+                        {slot.preflight.error !== ""
+                          ? slot.preflight.error
+                          : "Échec du test de génération (aucun détail disponible)."}
+                      </pre>
+                    </details>
+                  ) : (
+                    <p
+                      className={[
+                        "inline-flex items-center gap-1.5 text-xs font-semibold",
+                        slot.preflight.status === "passed"
+                          ? "text-[color:var(--color-success)]"
+                          : "text-muted-foreground",
+                      ].join(" ")}
+                      title="Testé seul avec une seed - la génération complète peut encore différer."
+                    >
+                      {slot.preflight.status === "passed" ? "Config testée" : "Test de génération en cours…"}
+                    </p>
+                  )
+                ) : null}
                 {slot.playerYaml !== null ? (
                   <button
                     className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"

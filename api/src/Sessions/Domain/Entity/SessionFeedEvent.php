@@ -21,6 +21,19 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_feed_event_session_time', columns: ['session_id', 'occurred_at'])]
 final class SessionFeedEvent
 {
+    /**
+     * The persisted type vocabulary. It lives here, on the entity, because both the writer
+     * (RecordSessionFeedEvent) and the readers (the recap graph, the timeline) must agree on it -
+     * story 9.48 shipped a reader filtering on a literal `'item'`, a value the bridge never sends,
+     * so the exchange graph came out empty on every real session while its test passed.
+     */
+    public const string TYPE_ITEM_RECEIVED = 'item-received';
+    public const string TYPE_HINT = 'hint';
+    public const string TYPE_GOAL = 'goal';
+
+    /** @var list<string> the only types kept out of the bridge's stream - the rest is noise */
+    public const array PERSISTED_TYPES = [self::TYPE_ITEM_RECEIVED, self::TYPE_HINT, self::TYPE_GOAL];
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: Types::STRING, length: 32)]

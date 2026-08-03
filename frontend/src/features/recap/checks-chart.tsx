@@ -12,6 +12,12 @@ type Zoom = [number, number] | null;
 /** A player's goal-reached instant (story 32.9), already resolved to their series colour. */
 export type ChartGoal = { key: string; name: string; color: string; at: number };
 
+/**
+ * A moment a player asked for a hint (story 32.18), in their series colour. Drawn thinner, dotted
+ * and translucent so it never competes with a goal marker - a hint is intent, a goal is an outcome.
+ */
+export type ChartHint = { key: string; at: number };
+
 /** What recharts hands a Line's `dot` renderer; only the fields we read. */
 type DotRenderProps = { key?: Key | null; cx?: number; cy?: number; payload?: ChecksRow };
 
@@ -49,6 +55,7 @@ export function ChecksChart({
   onHoverBucket,
   markerT,
   goals,
+  hints,
   measureLabel,
 }: {
   players: ChecksPlayer[];
@@ -58,7 +65,9 @@ export function ChecksChart({
   onHoverBucket: (t: number | null) => void;
   markerT: number | null;
   goals: ChartGoal[];
-  /** What the Y axis counts (story 32.10) - "Checks trouvés" or "Objets reçus". */
+  /** Hint requests to mark on the axis; already filtered to the shown players and day. */
+  hints: Array<ChartHint & { color: string }>;
+  /** What the Y axis counts (story 32.10) - "Checks complétés" or "Objets reçus". */
   measureLabel: string;
 }) {
   // Transient drag selection (start/current X, in `t` epoch ms); the committed zoom lives in the parent.
@@ -151,7 +160,9 @@ export function ChecksChart({
   return (
     <div className="h-80 w-full select-none sm:h-72">
       <ResponsiveContainer height="100%" width="100%">
-        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: -8 }} onMouseDown={onDown} onMouseLeave={onLeave} onMouseMove={onMove} onMouseUp={onUp}>
+        {/* The left margin stays >= 0: recharts places the Y axis label at `margin.left + offset`, so a
+            negative margin pushes it outside the SVG viewport and the browser clips it to a sliver. */}
+        <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 0 }} onMouseDown={onDown} onMouseLeave={onLeave} onMouseMove={onMove} onMouseUp={onUp}>
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.5} vertical={false} />
           <XAxis
             allowDataOverflow
@@ -195,6 +206,17 @@ export function ChecksChart({
               stroke={player.color}
               strokeWidth={2}
               type="monotone"
+            />
+          ))}
+          {hints.map((hint) => (
+            <ReferenceLine
+              ifOverflow="hidden"
+              key={`hint-${hint.key}-${hint.at}`}
+              stroke={hint.color}
+              strokeDasharray="2 4"
+              strokeOpacity={0.55}
+              strokeWidth={1}
+              x={hint.at}
             />
           ))}
           {goals.map((goal) => (

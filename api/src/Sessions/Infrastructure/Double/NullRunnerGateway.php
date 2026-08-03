@@ -17,11 +17,15 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{status: string, bridgePort: ?int, apPort: ?int}|null Canned getSessionInfo() return for reconciliation tests. */
     public static ?array $nextSessionInfo = null;
 
+    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}> Canned preflight verdicts by hash (story 9.38 tests). */
+    public static array $apworldPreflights = [];
+
     public static function reset(): void
     {
         self::$apworldUploadResult = null;
         self::$lastConfigureSlots = null;
         self::$nextSessionInfo = null;
+        self::$apworldPreflights = [];
     }
 
     public function uploadApworld(string $fileContents, string $filename): array
@@ -66,6 +70,57 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         }
 
         return ['valid' => $valid, 'slots' => $proposed];
+    }
+
+    public function fetchApworldPreflights(): array
+    {
+        return self::$apworldPreflights;
+    }
+
+    public function runApworldPreflight(string $hash): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}
+     */
+    public function overrideApworldPreflight(string $hash, bool $overridden): array
+    {
+        $current = self::$apworldPreflights[$hash] ?? ['status' => 'failed', 'error' => '', 'checkedAt' => '', 'overridden' => false, 'blocks' => true];
+        $current['overridden'] = $overridden;
+        $current['blocks'] = 'failed' === $current['status'] && !$overridden;
+        self::$apworldPreflights[$hash] = $current;
+
+        return $current;
+    }
+
+    /** @var string|null Canned regenerated template; null makes the call fail (test inspection). */
+    public static ?string $regeneratedTemplate = "name: Player{number}\ngame: Null\n";
+
+    public function setApworldTemplate(string $hash, string $template): bool
+    {
+        return true;
+    }
+
+    public function regenerateApworldTemplate(string $hash): array
+    {
+        return null !== self::$regeneratedTemplate
+            ? ['template' => self::$regeneratedTemplate]
+            : ['error' => 'runner_unavailable'];
+    }
+
+    public function startSlotPreflight(string $playerYaml, ?string $apworldHash): string
+    {
+        return 'null-preflight-job';
+    }
+
+    /**
+     * @return array{status: string, error: string}
+     */
+    public function getSlotPreflight(string $jobId): array
+    {
+        return ['status' => 'passed', 'error' => ''];
     }
 
     public function configureSession(string $sessionId, array $slots): array

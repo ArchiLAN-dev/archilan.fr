@@ -362,7 +362,8 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
   const muted = entry.isInvalidated;
 
-  // Weekly runs have no public /runs/{id}/resultats page, so the row isn't a link.
+  // A row links to its recap only when the server says this viewer may open it (story 32.20):
+  // weekly runs have none, and a private run's recap is owner/participants-only.
   const baseClassName = `grid gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_auto] ${
     muted ? "border-border/60 bg-surface/60" : "border-border bg-surface"
   }`;
@@ -411,12 +412,12 @@ function RunHistoryRow({ entry }: { entry: RunHistoryEntry }) {
     </>
   );
 
-  if (entry.isWeekly) {
+  if (entry.isWeekly || entry.recapAccessible !== true) {
     return <div className={baseClassName}>{inner}</div>;
   }
 
   return (
-    <Link className={`${baseClassName} transition-colors hover:border-accent`} href={`/runs/${entry.sessionId}/resultats`}>
+    <Link className={`${baseClassName} transition-colors hover:border-accent`} href={`/parties/${entry.sessionId}`}>
       {inner}
     </Link>
   );

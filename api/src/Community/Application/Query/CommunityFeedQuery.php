@@ -10,6 +10,7 @@ use App\Community\Domain\Entity\Kudos;
 use App\Community\Domain\Repository\ActivityEntryRepositoryInterface;
 use App\Community\Domain\Repository\FriendshipRepositoryInterface;
 use App\Community\Domain\Repository\KudosRepositoryInterface;
+use App\Sessions\Application\Query\ViewableRecapsQuery;
 
 /**
  * Reads the activity feed (story 30.9). Visibility is resolved at read time per actor via the shared
@@ -27,6 +28,7 @@ final readonly class CommunityFeedQuery
         private CommunityUserDirectoryQueryInterface $directory,
         private KudosRepositoryInterface $kudos,
         private CommunityPresenceQueryInterface $presence,
+        private ViewableRecapsQuery $viewableRecaps,
     ) {
     }
 
@@ -97,6 +99,17 @@ final readonly class CommunityFeedQuery
         $kudosCounts = $this->kudos->countsFor(Kudos::TARGET_RUN, $runEntryIds);
         $kudosGiven = null === $viewerId ? [] : array_flip($this->kudos->givenBy($viewerId, Kudos::TARGET_RUN, $runEntryIds));
 
+        // Story 32.20: a row links to its recap only when this viewer can actually open it. Resolved
+        // for the whole page in one pass - never per row - and never guessed by the front.
+        $sessionIds = [];
+        foreach ($entries as $entry) {
+            $sessionId = $entry->getPayload()['sessionId'] ?? null;
+            if (is_string($sessionId) && '' !== $sessionId) {
+                $sessionIds[] = $sessionId;
+            }
+        }
+        $recapViewable = $this->viewableRecaps->forViewer(array_values(array_unique($sessionIds)), $viewerId);
+
         $items = [];
         foreach ($entries as $entry) {
             $payload = $entry->getPayload();
@@ -108,6 +121,8 @@ final readonly class CommunityFeedQuery
                 'game' => is_string($payload['game'] ?? null) ? $payload['game'] : null,
                 'event' => is_string($payload['event'] ?? null) ? $payload['event'] : null,
                 'sessionId' => is_string($payload['sessionId'] ?? null) ? $payload['sessionId'] : null,
+                'recapAccessible' => is_string($payload['sessionId'] ?? null)
+                    && ($recapViewable[$payload['sessionId']] ?? false),
                 'withSlug' => null,
                 'withName' => null,
                 'kudosTargetType' => $canKudos ? Kudos::TARGET_RUN : null,

@@ -95,6 +95,20 @@ final class Run
         );
     }
 
+    /**
+     * Renames the run (story 17.24).
+     *
+     * Allowed at every status, terminal ones included: a title is a label, not configuration. The
+     * read-only rule that {@see isTerminal} enforces covers invites and config overrides - things
+     * that would change what a finished run *was*. Renaming "Partie Luigi's Mansion" into something
+     * memorable months later changes nothing about the run itself.
+     */
+    public function rename(string $title, \DateTimeImmutable $now): void
+    {
+        $this->title = trim($title);
+        $this->updatedAt = $now;
+    }
+
     public function isOwnedBy(string $userId): bool
     {
         return $this->ownerId === $userId;
@@ -205,12 +219,44 @@ final class Run
         $this->updatedAt = $now;
     }
 
+    /**
+     * The runner stopped. Never reopens a run that is already over (story 17.25).
+     *
+     * Stopping the container is the normal *consequence* of finishing a run, not a reason to undo
+     * it: without this guard the `session.stopped` webhook demoted a freshly completed run back to
+     * idle about twenty seconds after its owner finished it - hiding its recap, which only shows on
+     * a completed run, and making a finished run startable again.
+     */
     public function markStopped(\DateTimeImmutable $now): void
     {
+        if ($this->isTerminal()) {
+            return;
+        }
+
         $this->connectionHost = null;
         $this->connectionPort = null;
         $this->connectionPassword = null;
         $this->status = self::STATUS_IDLE;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * The session this run points at reached its end (story 17.25).
+     *
+     * Used by reconciliation for a run that never got its owner-driven completion - a run stuck in
+     * a transitional state whose session is already finished is over, not idle. Idle would leave it
+     * restartable and recap-less.
+     */
+    public function markSessionFinished(\DateTimeImmutable $now): void
+    {
+        if ($this->isTerminal()) {
+            return;
+        }
+
+        $this->connectionHost = null;
+        $this->connectionPort = null;
+        $this->connectionPassword = null;
+        $this->status = self::STATUS_COMPLETED;
         $this->updatedAt = $now;
     }
 

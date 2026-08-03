@@ -48,6 +48,119 @@ final class PersonalRunTest extends FunctionalTestCase
         self::assertTrue($data['isOwner']);
     }
 
+    /**
+     * Story 17.23: the "create a run with this game" button on a public game page sends the game
+     * along with the title, and the creator's slot must come back already carrying it.
+     */
+    public function testCreateRunWithAGamePreselectsTheCreatorSlot(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+        $game = $this->createGame("Luigi's Mansion", 'luigis-mansion');
+
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Ma partie', 'gameId' => $game->getId()]);
+
+        self::assertResponseStatusCodeSame(201);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/runs/%s/participants/me/game-selection', $runId));
+        self::assertResponseIsSuccessful();
+        $slots = $this->responseData()['slots'];
+        self::assertIsArray($slots);
+        self::assertCount(1, $slots);
+        $slot = $slots[0];
+        self::assertIsArray($slot);
+        self::assertSame($game->getId(), $slot['gameId']);
+    }
+
+    public function testCreateRunWithAnUnknownGameCreatesNothing(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Ma partie', 'gameId' => 'nope']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertArrayHasKey('gameId', $this->errorDetails());
+
+        // The whole point of validating before creating: no orphan run is left behind.
+        $this->client->jsonRequest('GET', '/api/v1/runs/mine');
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->responseData()['owned']);
+    }
+
+    public function testCreateRunWithoutAGameStillCreatesAnEmptyDraft(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Sans jeu']);
+
+        self::assertResponseStatusCodeSame(201);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/runs/%s/participants/me/game-selection', $runId));
+        self::assertResponseIsSuccessful();
+        self::assertSame([], $this->responseData()['slots']);
+    }
+
+    /** Story 17.24: a run created from a game page gets a generated title, so it must be renamable. */
+    public function testOwnerCanRenameTheirRun(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => "Partie Luigi's Mansion"]);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/title', $runId), ['title' => 'Soirée du samedi']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Soirée du samedi', $this->responseData()['title']);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/runs/%s', $runId));
+        self::assertSame('Soirée du samedi', $this->responseData()['title']);
+    }
+
+    public function testRenameAppliesTheSameTitleRulesAsCreation(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'Titre correct']);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/title', $runId), ['title' => '  ']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertArrayHasKey('title', $this->errorDetails());
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/title', $runId), ['title' => str_repeat('a', 81)]);
+        self::assertResponseStatusCodeSame(422);
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/title', $runId), ['title' => str_repeat('a', 80)]);
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testOnlyTheOwnerCanRename(): void
+    {
+        $alice = $this->createUser('alice@example.org');
+        $bob = $this->createUser('bob@example.org');
+
+        $this->loginAs($alice);
+        $this->client->jsonRequest('POST', '/api/v1/runs', ['title' => 'À Alice']);
+        $runId = $this->responseData()['id'];
+        self::assertIsString($runId);
+
+        $this->loginAs($bob);
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/runs/%s/title', $runId), ['title' => 'Volée']);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->client->jsonRequest('PUT', '/api/v1/runs/doesnotexist/title', ['title' => 'Fantôme']);
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testCreateRunValidatesTitle(): void
     {
         $user = $this->createUser('alice@example.org');

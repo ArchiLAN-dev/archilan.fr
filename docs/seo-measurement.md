@@ -79,8 +79,10 @@ images. So the epic's before/after mobile Lighthouse (34.5 AC5) is run on a **de
 
 | Date | Page | Perf | A11y | BP | SEO | LCP | CLS | Notes |
 |---|---|---|---|---|---|---|---|---|
-| 2026-07-29 | `/` | 45 | 100 | 96 | 100 | 95.6 s | 0 | post-epic deployed baseline; sunk by two raw static assets (below) |
-| 2026-07-29 | event detail | 92 | 96 | 96 | 100 | 1.8 s | - | post-epic deployed baseline - the epic's target state |
+| 2026-07-29 | `/` | 45 | 100 | 96 | 100 | 95.6 s | 0 | pre-v0.11.0; sunk by two raw static assets (below) |
+| 2026-07-29 | event detail | 92 | 96 | 96 | 100 | 1.8 s | - | pre-v0.11.0; flattering - the cover 404ed (missing bucket) so LCP had no image |
+| 2026-07-29 | `/` | **88** | 100 | 96 | 100 | **3.8 s** | 0 | v0.11.0 deployed: compressed assets, 898 KiB total (was 18.8 MiB), TBT 70 ms |
+| 2026-07-29 | event detail | 82 | 96 | 96 | 100 | 4.6 s | 0 | v0.11.0 + media-public live: the real 309 KiB cover now renders (and IS the LCP); optimizer passthrough serves it full-size - the sharp fix below claws this back |
 
 Baseline findings (2026-07-29, Lighthouse 12 mobile, local machine against https://archilan.fr):
 
@@ -90,13 +92,16 @@ Baseline findings (2026-07-29, Lighthouse 12 mobile, local machine against https
   weight, LCP 95.6 s throttled. Recompressed to 128 KB (1920 px, q72) and 51 KB (512 px, q85); a jest
   gate (`src/lib/public-images-weight.test.ts`) now fails any `public/images` file over 500 KB. The fix
   reaches production at the next release.
-- **Root cause 2 (to watch after next deploy)**: the production `/_next/image` optimizer returns
-  local static files **byte-identical** (`X-Nextjs-Cache: HIT` on original bytes, at every width) - it
-  cached failed optimizations, the classic signature of `sharp` missing/failing in the standalone
-  Docker runtime. With lean sources the impact is now minor, but after the next deploy check
-  `curl -sI ".../_next/image?url=%2Fimages%2Flogo.webp&w=96&q=75"` returns a size well under 51 KB;
-  if it still passes through, add `sharp` as an explicit dependency so Next's standalone tracing
-  bundles its linux binaries.
+- **Root cause 2 (fixed 2026-07-29, verified in-container)**: the production `/_next/image`
+  optimizer returned every image **byte-identical** (local statics and remote covers alike). Traced
+  in the actual Docker image: sharp's native binary dlopens `libvips-cpp.so` from the companion
+  package `@img/sharp-libvips-linuxmusl-x64`, a dependency Next's file tracing cannot see - the
+  standalone output shipped sharp without libvips, `require('sharp')` died with `ERR_DLOPEN_FAILED`,
+  and the optimizer silently fell back to originals. Fix: `sharp` added as an explicit app
+  dependency (guarantees resolution) **and** the Dockerfile grafts the `@img+*` native packages from
+  the builder's pnpm store into the runner (guarantees dlopen). Post-deploy check:
+  `curl -s -o /dev/null -w '%{size_download}' -H 'Accept: image/webp' "https://archilan.fr/_next/image?url=%2Fimages%2Flogo.webp&w=96&q=75"`
+  must return a few KB, not 51618.
 - Re-run this table after the release that carries the compressed assets.
 
 ## 4. Off-site actions (handed to the association - out of repo scope)

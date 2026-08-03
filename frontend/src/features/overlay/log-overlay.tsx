@@ -19,7 +19,11 @@ const BASE_FONT_PX = 16;
 
 // Types whose text reveals future item locations - masked when spoilers are off (the default) so a
 // caster does not leak the seed on stream. The badge is kept; only the text is hidden.
-const SPOILER_TYPES = new Set(["hint", "location-checked"]);
+// Hints are NOT masked (story 29.6, owner decision 2026-07-30): an Archipelago hint is broadcast to
+// every player in the session, so it is already public in-game - masking it on stream protected
+// nothing and became visible noise once 32.12 made every hint reach the feed. `?spoilers=1` still
+// reveals the remaining masked types.
+const SPOILER_TYPES = new Set(["location-checked"]);
 
 const TYPE_LABELS: Record<string, string> = {
   hint: "Indice",

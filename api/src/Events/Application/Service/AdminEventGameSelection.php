@@ -8,7 +8,6 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -65,7 +64,7 @@ final readonly class AdminEventGameSelection
                 'availability' => $game->getAvailability(),
                 'isApworldReady' => $game->isApworldReady(),
                 'coverImageUrl' => $game->getCoverImageUrl(),
-                'platforms' => PlatformCategory::families($game->getPlatforms() ?? []),
+                'platforms' => $game->platformFamilies(),
             ],
             array_values(array_filter(
                 $allGames,

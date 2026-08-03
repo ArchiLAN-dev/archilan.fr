@@ -19,6 +19,18 @@ final readonly class DoctrineSessionRecapRepository implements SessionRecapRepos
         return $this->entityManager->find(SessionRecap::class, $sessionId);
     }
 
+    public function findExistingSessionIds(array $sessionIds): array
+    {
+        if ([] === $sessionIds) {
+            return [];
+        }
+
+        // ORM finder rather than a query builder: the project bans DQL, and this stays one round trip.
+        $recaps = $this->entityManager->getRepository(SessionRecap::class)->findBy(['sessionId' => $sessionIds]);
+
+        return array_map(static fn (SessionRecap $recap): string => $recap->getSessionId(), $recaps);
+    }
+
     public function save(SessionRecap $recap): void
     {
         $this->entityManager->persist($recap);

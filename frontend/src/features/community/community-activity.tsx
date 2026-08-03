@@ -129,8 +129,8 @@ function ActivityText({ item }: { item: ActivityItem }) {
   return (
     <span className="text-muted-foreground">
       a terminé{" "}
-      {item.sessionId ? (
-        <Link className="font-medium text-foreground hover:text-accent-text" href={`/runs/${item.sessionId}/resultats`}>
+      {item.sessionId !== null && item.recapAccessible === true ? (
+        <Link className="font-medium text-foreground hover:text-accent-text" href={`/parties/${item.sessionId}`}>
           {item.game ?? "une run"}
         </Link>
       ) : (

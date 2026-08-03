@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Domain\Entity;
 
+use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
@@ -96,6 +97,16 @@ final class Game
         private ?\DateTimeImmutable $disabledAt = null,
         #[ORM\Column(name: 'disabled_message', type: 'string', length: 500, nullable: true)]
         private ?string $disabledMessage = null,
+        /**
+         * Admin-curated platform families overriding the IGDB-derived list (story 9.47). IGDB
+         * describes the game - often 8 platforms - while the Archipelago world may support
+         * only one. Kept on the game, not on the catalog sync, so an IGDB resync never
+         * discards it. Null means "derive from IGDB".
+         *
+         * @var list<string>|null
+         */
+        #[ORM\Column(name: 'platform_families', type: 'json', nullable: true)]
+        private ?array $platformFamilies = null,
     ) {
     }
 
@@ -159,6 +170,19 @@ final class Game
     public function recordApworldMinioUpload(string $key): void
     {
         $this->apworldMinioKey = $key;
+    }
+
+    /**
+     * Replace the default YAML template served to players (story 9.45). Some generated
+     * templates are not valid configurations - Atlyss ships one where main_class equals
+     * secondary_class, which the world rejects - and this value seeds every new slot plus
+     * the launch fallback, so an admin must be able to fix it without re-uploading a
+     * patched apworld. Same BOM strip as the generated path.
+     */
+    public function overrideDefaultYaml(string $defaultYaml, \DateTimeImmutable $now): void
+    {
+        $this->defaultYaml = str_starts_with($defaultYaml, "\u{FEFF}") ? substr($defaultYaml, 3) : $defaultYaml;
+        $this->updatedAt = $now;
     }
 
     public function isApworldReady(): bool
@@ -547,6 +571,33 @@ final class Game
     public function recordPlatforms(?array $platforms): void
     {
         $this->catalogSync?->recordPlatforms($platforms);
+    }
+
+    /**
+     * The platform families to show for this game: the admin's choice when set, the
+     * IGDB-derived list otherwise (story 9.47).
+     *
+     * @return list<string>
+     */
+    public function platformFamilies(): array
+    {
+        return PlatformCategory::resolve($this->platformFamilies, $this->getPlatforms() ?? []);
+    }
+
+    public function hasPlatformOverride(): bool
+    {
+        return null !== $this->platformFamilies && [] !== $this->platformFamilies;
+    }
+
+    /**
+     * Set or clear the admin platform override. Null restores the IGDB-derived list.
+     *
+     * @param list<string>|null $families
+     */
+    public function overridePlatformFamilies(?array $families, \DateTimeImmutable $now): void
+    {
+        $this->platformFamilies = null === $families || [] === $families ? null : $families;
+        $this->updatedAt = $now;
     }
 
     public function isAdultContent(): bool

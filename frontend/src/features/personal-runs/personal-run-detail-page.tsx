@@ -37,6 +37,7 @@ import { PersonalRunPatchPanel } from "./personal-run-patches";
 import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { PlayerBadges } from "@/features/community/player-badges";
+import { RunTitle } from "./run-title";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -181,7 +182,13 @@ function ParticipantList({ runId, participants }: { runId: string; participants:
 
 // ─── Validation error banner ──────────────────────────────────────────────────
 
-function ValidationErrorBanner({ errors }: { errors: ValidationSlotError[] }) {
+function ValidationErrorBanner({
+  errors,
+  logExcerpt = null,
+}: {
+  errors: ValidationSlotError[];
+  logExcerpt?: string | null;
+}) {
   return (
     <div className="rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 p-4">
       <div className="flex items-start gap-2">
@@ -202,6 +209,16 @@ function ValidationErrorBanner({ errors }: { errors: ValidationSlotError[] }) {
               </li>
             ))}
           </ul>
+          {logExcerpt !== null && logExcerpt !== "" ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                Détails techniques
+              </summary>
+              <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border bg-surface p-3 text-[11px] leading-relaxed text-muted-foreground">
+                {logExcerpt}
+              </pre>
+            </details>
+          ) : null}
         </div>
       </div>
     </div>
@@ -815,9 +832,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
           <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1">
-              <h1 className="font-heading text-3xl font-bold leading-tight text-foreground">
-                {run.title}
-              </h1>
+              <RunTitle canRename={run.isOwner} onRenamed={refreshRun} runId={run.id} title={run.title} />
               {run.status === "idle" && run.lastActivityAt !== null && (
                 <InactivityBadge lastActivityAt={run.lastActivityAt} />
               )}
@@ -915,7 +930,14 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             {run.status === "draft" && (
               <>
                 {run.validationErrors !== null && run.validationErrors.length > 0 && (
-                  <ValidationErrorBanner errors={run.validationErrors} />
+                  <ValidationErrorBanner errors={run.validationErrors} logExcerpt={run.generationLogExcerpt ?? null} />
+                )}
+                {run.status === "draft" && (run.failedPreflightCount ?? 0) > 0 && (
+                  <p className="rounded-lg border border-[color:var(--color-warning)]/30 bg-[color:var(--color-warning)]/5 p-3 text-xs text-[color:var(--color-warning)]">
+                    {run.failedPreflightCount} slot{(run.failedPreflightCount ?? 0) > 1 ? "s ont" : " a"} échoué au
+                    test de génération individuel. La génération complète risque d&apos;échouer : vérifie les configs
+                    marquées « Échec du test » avant de lancer.
+                  </p>
                 )}
                 <button
                   className="inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"

@@ -27,11 +27,18 @@ export type RecapEdge = {
   fromSlotId: string;
   toSlotId: string;
   count: number;
+  /**
+   * How many of those were AP progression items (story 32.17). Absent on projections built before
+   * that story - which means "unknown", not "none", so the progression filter is not offered then.
+   */
+  progressionCount?: number;
 };
 
 export type RecapLocalItem = {
   slotId: string;
   count: number;
+  /** See {@link RecapEdge.progressionCount} - absent means unknown, not zero. */
+  progressionCount?: number;
 };
 
 export type RecapSuperlative = {
@@ -88,12 +95,24 @@ function isEdge(v: unknown): v is RecapEdge {
     v !== null &&
     hasStringProp(v, "fromSlotId") &&
     hasStringProp(v, "toSlotId") &&
-    hasNumberProp(v, "count")
+    hasNumberProp(v, "count") &&
+    hasOptionalProgressionCount(v)
   );
 }
 
 function isLocalItem(v: unknown): v is RecapLocalItem {
-  return typeof v === "object" && v !== null && hasStringProp(v, "slotId") && hasNumberProp(v, "count");
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    hasStringProp(v, "slotId") &&
+    hasNumberProp(v, "count") &&
+    hasOptionalProgressionCount(v)
+  );
+}
+
+/** Absent is valid (older projection); present must be a number, never a string. */
+function hasOptionalProgressionCount(v: object): boolean {
+  return !("progressionCount" in v) || hasNumberProp(v, "progressionCount");
 }
 
 function isSuperlative(v: unknown): v is RecapSuperlative {

@@ -66,11 +66,13 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.cover_image_alt AS cover_image_alt',
                 'game.cover_image_credit AS cover_image_credit',
                 'game.availability AS availability',
+                'game.disabled_at AS disabled_at',
                 'game.archipelago_game_name AS archipelago_game_name',
                 'game.option_types AS option_types',
                 'game.install_steps AS install_steps',
                 'sync.steam_app_id AS steam_app_id',
                 'sync.platforms AS platforms',
+                'game.platform_families AS platform_families',
                 'sync.catalog_sheet_name AS catalog_sheet_name',
                 'sync.apworld_source_url AS apworld_source_url',
                 'sync.apworld_deployed_version AS apworld_deployed_version',
@@ -107,6 +109,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
      *   coverImageAlt: string,
      *   coverImageCredit: string,
      *   availability: string,
+     *   disabled: bool,
      *   steamAppId: int|null,
      *   platforms: list<string>,
      *   supportedEventTypes: list<string>,
@@ -151,8 +154,13 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'coverImageCredit' => is_string($coverImageCredit) ? $coverImageCredit : '',
             'availability' => is_string($availability) ? $availability : '',
+            // Story 17.23: the public page hides its "create a run" button on a game an admin cut off.
+            'disabled' => is_string($row['disabled_at'] ?? null) && '' !== $row['disabled_at'],
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
-            'platforms' => PlatformCategory::families(self::decodePlatforms($row['platforms'] ?? null)),
+            'platforms' => PlatformCategory::resolve(
+                self::decodePlatformFamilies($row['platform_families'] ?? null),
+                self::decodePlatforms($row['platforms'] ?? null),
+            ),
             'supportedEventTypes' => [],
             'archipelagoGameName' => is_string($archipelagoGameName) ? $archipelagoGameName : null,
             'catalogSheetName' => is_string($catalogSheetName) ? $catalogSheetName : null,
@@ -225,6 +233,7 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
                 'game.availability AS availability',
                 'sync.steam_app_id AS steam_app_id',
                 'sync.platforms AS platforms',
+                'game.platform_families AS platform_families',
             )
             ->leftJoin('game', 'game_catalog_sync', 'sync', 'sync.game_id = game.id')
             // LOWER() so the order is case-insensitive: the DB collation is byte-ordered (C), which
@@ -257,7 +266,10 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
             'coverImageAlt' => is_string($coverImageAlt) ? $coverImageAlt : '',
             'availability' => is_string($availability) ? $availability : '',
             'steamAppId' => is_numeric($steamAppId) ? (int) $steamAppId : null,
-            'platforms' => PlatformCategory::families(self::decodePlatforms($row['platforms'] ?? null)),
+            'platforms' => PlatformCategory::resolve(
+                self::decodePlatformFamilies($row['platform_families'] ?? null),
+                self::decodePlatforms($row['platforms'] ?? null),
+            ),
             'supportedEventTypes' => [],
         ];
     }
@@ -289,6 +301,32 @@ final readonly class DbalGameCatalogQuery implements GameCatalogQueryInterface
         }
 
         return $platforms;
+    }
+
+    /**
+     * Admin platform override stored on the game (story 9.47); null keeps the IGDB-derived list.
+     *
+     * @return list<string>|null
+     */
+    private static function decodePlatformFamilies(mixed $raw): ?array
+    {
+        if (!is_string($raw) || '' === $raw) {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+
+        $families = [];
+        foreach ($decoded as $family) {
+            if (is_string($family) && '' !== trim($family)) {
+                $families[] = $family;
+            }
+        }
+
+        return [] === $families ? null : $families;
     }
 
     private function buildBaseQuery(string $searchQuery): QueryBuilder

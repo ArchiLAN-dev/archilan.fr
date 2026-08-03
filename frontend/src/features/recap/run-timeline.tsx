@@ -4,8 +4,13 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, ZoomOut } from "lucide-react";
 import type { FeedEvent } from "./feed-api";
 import { buildChecksSeries, combineChecksSeries, type ChecksMeasure, type ChecksMode } from "./build-checks-series";
+import { buildDrySpells } from "./build-dry-spells";
 import { ChecksChart, type ChartGoal } from "./checks-chart";
 import { matchesFacet, matchesSearch, normalizeSearch, type LogFacet } from "./log-filters";
+import { formatDuration } from "./recap-format";
+
+/** Beyond this many hint markers the axis turns into noise; the surplus is announced, not hidden. */
+const MAX_HINT_MARKERS = 24;
 
 /**
  * A player's goal-reached instant (story 32.9). `name` is the AP slot name - the same name the feed
@@ -27,7 +32,7 @@ const BUCKETS: readonly { label: string; value: string }[] = [
 // View options (story 32.10): what the curve counts, and per-interval vs running total. The defaults
 // keep 32.7's burst view (checks found, per interval).
 const MEASURES: readonly { label: string; value: ChecksMeasure }[] = [
-  { label: "Checks trouvés", value: "found" },
+  { label: "Checks complétés", value: "found" },
   { label: "Objets reçus", value: "received" },
 ];
 
@@ -145,6 +150,23 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
     const player = shownPlayers.find((p) => p.name === goal.name);
     return player === undefined ? [] : [{ key: player.key, name: player.name, color: player.color, at }];
   });
+
+  // Hint markers (story 32.18). A hint reads "<receiver>'s <item> is at <location> in <sender>'s
+  // world", so the player who was looking for something is the RECEIVER - that is who the marker
+  // belongs to, not the world the item happened to sit in.
+  const allHints = dayEvents.flatMap((e) => {
+    if (e.type !== "hint" || e.receiver.name === null) return [];
+    const at = Date.parse(e.occurredAt);
+    const player = shownPlayers.find((p) => p.name === e.receiver.name);
+    return Number.isNaN(at) || player === undefined ? [] : [{ at, color: player.color, key: player.key }];
+  });
+  // A long run can ask for hints faster than the axis can show them; cap and say so rather than
+  // letting a silently truncated axis read as "there were only these".
+  const chartHints = allHints.slice(0, MAX_HINT_MARKERS);
+  const hiddenHints = allHints.length - chartHints.length;
+
+  // Longest stretch without receiving anything, for the shown players (story 32.18).
+  const drySpells = buildDrySpells(dayEvents).filter((spell) => shownSlots.has(spell.slot));
 
   // The log follows the player filter, the chart zoom, the search and the type facet - all narrow
   // *before* the row cap, so a match late in a long run is still found.
@@ -269,6 +291,7 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
 
       <ChecksChart
         goals={chartGoals}
+        hints={chartHints}
         markerT={hoverEventT}
         measureLabel={MEASURES.find((option) => option.value === measure)?.label ?? ""}
         onHoverBucket={onHoverBucket}
@@ -277,6 +300,23 @@ export function RunTimeline({ events, goals }: { events: FeedEvent[]; goals?: Go
         rows={chartRows}
         zoom={zoom}
       />
+
+      {chartHints.length > 0 || drySpells.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+          {chartHints.length > 0 ? (
+            <span>
+              Les traits pointillés marquent les indices demandés
+              {hiddenHints > 0 ? ` (${chartHints.length} affichés sur ${allHints.length})` : ""}.
+            </span>
+          ) : null}
+          {drySpells.map((spell) => (
+            <span className="inline-flex items-center gap-1.5" key={`dry-${spell.slot}`}>
+              <span className="font-semibold text-foreground">{spell.name}</span>
+              <span>a attendu {formatDuration(spell.seconds)} sans rien recevoir</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {/* Log lookup (story 32.11): search + type facet narrow the log before its row cap. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">

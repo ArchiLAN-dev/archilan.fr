@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { SecretField } from "@/components/secret-field";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { isPlayersState } from "@/features/overlay/overlay-api";
@@ -37,27 +38,6 @@ type PageState =
   | { kind: "loading" }
   | { kind: "data"; data: ReachabilityData }
   | { kind: "error"; message: string };
-
-// ─── Connection panel ─────────────────────────────────────────────────────────
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  function handleCopy() {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => undefined);
-  }
-  return (
-    <button
-      className="ml-2 rounded border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-      onClick={handleCopy}
-      type="button"
-    >
-      {copied ? "Copié !" : "Copier"}
-    </button>
-  );
-}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -691,25 +671,13 @@ export function WeeklyRunSlotPage({
             </div>
           </div>
 
-          {/* Connection info */}
+          {/* Connection info: masked per field for streamers - copy works without revealing */}
           {myEntry.connectionInfo ? (
-            <div className="flex flex-wrap gap-4 rounded border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 font-mono text-sm">
-              <span className="flex items-center gap-1">
-                <span className="text-muted-foreground">Host</span>
-                <span className="ml-2 text-foreground">{myEntry.connectionInfo.host}</span>
-                <CopyButton value={myEntry.connectionInfo.host} />
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="text-muted-foreground">Port</span>
-                <span className="ml-2 text-foreground">{myEntry.connectionInfo.port}</span>
-                <CopyButton value={String(myEntry.connectionInfo.port)} />
-              </span>
+            <div className="grid gap-2 rounded border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 sm:grid-cols-3">
+              <SecretField label="Hôte" value={myEntry.connectionInfo.host} />
+              <SecretField label="Port" value={String(myEntry.connectionInfo.port)} />
               {myEntry.connectionInfo.password ? (
-                <span className="flex items-center gap-1">
-                  <span className="text-muted-foreground">Password</span>
-                  <span className="ml-2 text-foreground">{myEntry.connectionInfo.password}</span>
-                  <CopyButton value={myEntry.connectionInfo.password} />
-                </span>
+                <SecretField label="Mot de passe" value={myEntry.connectionInfo.password} />
               ) : null}
             </div>
           ) : null}

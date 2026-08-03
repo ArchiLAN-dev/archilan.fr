@@ -65,13 +65,19 @@ final readonly class ReconcileStuckRunsHandler
             if ($session instanceof Session && Session::STATUS_RUNNING === $sessionStatus) {
                 $run->markRunning($session->getHost() ?? '', $session->getPort() ?? 0, $now, $session->getPassword());
                 $to = Run::STATUS_ACTIVE;
+            } elseif (Session::STATUS_FINISHED === $sessionStatus) {
+                // A finished session means the run is over, not paused. Mapping it to idle - as this
+                // branch used to, alongside stopped/crashed/failed - left it restartable and hid its
+                // recap, which only renders on a completed run (story 17.25).
+                $run->markSessionFinished($now);
+                $to = $run->getStatus();
             } elseif (null === $sessionStatus || in_array($sessionStatus, self::RESOLVED_SESSION_STATUSES, true)) {
                 if (Run::STATUS_STARTING === $from) {
                     $run->resetAfterValidationFailure($now);
                     $to = Run::STATUS_DRAFT;
                 } else {
                     $run->markStopped($now);
-                    $to = Run::STATUS_IDLE;
+                    $to = $run->getStatus();
                 }
             } else {
                 // Session still transitional - leave it to the session watchdog, retry next pass.

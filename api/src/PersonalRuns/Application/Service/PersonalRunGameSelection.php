@@ -8,22 +8,25 @@ use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
-use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
+use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Shared\Domain\ValueObject\SlotName;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
-final readonly class PersonalRunGameSelection
+final readonly class PersonalRunGameSelection implements RunGameAssignmentInterface
 {
     public function __construct(
         private RunRepositoryInterface $runs,
@@ -33,6 +36,8 @@ final readonly class PersonalRunGameSelection
         private UserRepositoryInterface $users,
         private CommunityUserDirectoryQueryInterface $directory,
         private CommunityLevelQuery $levels,
+        private RunnerGatewayInterface $runnerGateway,
+        private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private ClockInterface $clock,
     ) {
@@ -90,7 +95,7 @@ final readonly class PersonalRunGameSelection
             'locationNames' => $g->getLocationNames(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),
-            'platforms' => PlatformCategory::families($g->getPlatforms() ?? []),
+            'platforms' => $g->platformFamilies(),
             'steamAppId' => $g->getSteamAppId(),
         ], $allGames);
 
@@ -154,9 +159,12 @@ final readonly class PersonalRunGameSelection
                 'coverImageUrl' => $game?->getCoverImageUrl(),
                 'coverImageAlt' => null !== $game ? $game->getCoverImageAlt() : $slot['gameId'],
                 'availability' => $game?->getAvailability(),
-                'platforms' => null !== $game ? PlatformCategory::families($game->getPlatforms() ?? []) : [],
+                'platforms' => null !== $game ? $game->platformFamilies() : [],
                 'isApworldReady' => null !== $game && $game->isApworldReady(),
                 'playerYaml' => (null !== $playerYaml && '' !== $playerYaml) ? $playerYaml : null,
+                // Story 9.42 review fix: the owner's per-participant view shows the solo
+                // test-generation verdict too, not just the aggregated launch warning.
+                'preflight' => $slot['preflight'] ?? null,
             ];
         }
 
@@ -250,6 +258,11 @@ final readonly class PersonalRunGameSelection
             return $this->resultWithErrors(found: true, errors: $disabledErrors);
         }
 
+        $preflightErrors = $this->validateApworldPreflights($gameIds, $participant->getGameSlots(), $gamesById);
+        if ([] !== $preflightErrors) {
+            return $this->resultWithErrors(found: true, errors: $preflightErrors);
+        }
+
         $newSlots = $this->diffSlots($participant->getGameSlots(), $gameIds, $gamesById);
         $participant->replaceSlots($newSlots);
 
@@ -258,6 +271,47 @@ final readonly class PersonalRunGameSelection
         $this->logger->info('personal_run.game_selection_saved', ['runId' => $runId, 'userId' => $userId]);
 
         return $this->resultWithErrors(found: true, slots: $participant->getGameSlots());
+    }
+
+    /**
+     * Why this game cannot be added to a brand-new selection - empty when it can (story 17.23).
+     *
+     * Single source of truth for "is this game addable", shared with {@see saveMyGames}: the run
+     * creation path validates through here *before* creating anything, so a game that cannot be
+     * added never leaves an empty run behind. Existing slots are deliberately passed as empty -
+     * the leniency that lets an already-selected game survive a later disable does not apply to a
+     * selection that does not exist yet.
+     *
+     * @return list<string>
+     */
+    public function reasonsGameCannotBeAdded(string $gameId): array
+    {
+        $gameIds = [$gameId];
+
+        $missing = $this->validateGameIds($gameIds);
+        if ([] !== $missing) {
+            return $missing['gameIds.0'] ?? ['Jeu introuvable dans la bibliothèque.'];
+        }
+
+        /** @var array<string, Game> $gamesById */
+        $gamesById = [];
+        foreach ($this->games->findByIds($gameIds) as $game) {
+            $gamesById[$game->getId()] = $game;
+        }
+
+        $disabled = $this->validateDisabledGames($gameIds, [], $gamesById);
+        if ([] !== $disabled) {
+            return $disabled['gameIds.0'] ?? [];
+        }
+
+        $preflight = $this->validateApworldPreflights($gameIds, [], $gamesById);
+
+        return $preflight['gameIds.0'] ?? [];
+    }
+
+    public function assignGameToCreator(string $runId, string $ownerId, string $gameId): void
+    {
+        $this->saveMyGames($runId, $ownerId, ['gameIds' => [$gameId]]);
     }
 
     /**
@@ -300,9 +354,54 @@ final readonly class PersonalRunGameSelection
 
         $participant->submitSlotPlayerYaml($slotId, $playerYaml, $game->getApworldHash() ?? '');
 
+        // Story 9.42: every saved yaml gets an automatic solo test generation. The verdict
+        // is advisory (never blocks a launch) and keyed to this exact yaml.
+        $yamlSha = hash('sha256', $playerYaml);
+        $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
+
         $this->participants->flush();
 
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha));
+
         $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
+
+        return $this->yamlResult(found: true);
+    }
+
+    /**
+     * Story 9.42: explicit "Tester ma config" re-run of the solo test generation for one slot.
+     *
+     * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null, errors: array<string, list<string>>}
+     */
+    public function requestSlotPreflight(string $runId, string $userId, string $slotId): array
+    {
+        $run = $this->runs->findById($runId);
+        if (!$run instanceof Run) {
+            return $this->yamlResult(found: false);
+        }
+
+        $participant = $this->loadParticipant($run, $userId);
+        if (null === $participant) {
+            return $this->yamlResult(found: true, authorized: false);
+        }
+
+        $slot = $participant->getSlot($slotId);
+        if (null === $slot) {
+            return $this->yamlResult(found: true, errors: ['slotId' => ['Slot introuvable.']]);
+        }
+
+        $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
+        if ('' === $yaml) {
+            return $this->yamlResult(found: true, errors: ['playerYaml' => ['Configure d\'abord un YAML pour ce slot.']]);
+        }
+
+        $yamlSha = hash('sha256', $yaml);
+        $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
+        $this->participants->flush();
+
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha));
+
+        $this->logger->info('personal_run.slot_preflight_requested', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
         return $this->yamlResult(found: true);
     }
@@ -402,6 +501,60 @@ final readonly class PersonalRunGameSelection
                 null !== $message
                     ? sprintf('Ce jeu est temporairement désactivé : %s', $message)
                     : 'Ce jeu est temporairement désactivé.',
+            );
+        }
+
+        return $errors->toArray();
+    }
+
+    /**
+     * Story 9.38 AC4: a newly added game whose apworld failed its upload-time preflight test
+     * generation (and has no admin override) cannot be attached. One runner fetch per save;
+     * when the runner is unreachable the verdict map is empty and nothing is blocked (fail
+     * open). Games already present in the participant's slots are never re-blocked.
+     *
+     * @param list<string>                                                                                                     $gameIds
+     * @param list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}> $existingSlots
+     * @param array<string, Game>                                                                                              $gamesById
+     *
+     * @return array<string, list<string>>
+     */
+    private function validateApworldPreflights(array $gameIds, array $existingSlots, array $gamesById): array
+    {
+        $hashesByGameId = [];
+        foreach ($gameIds as $gameId) {
+            $hash = ($gamesById[$gameId] ?? null)?->getApworldHash();
+            if (null !== $hash && '' !== $hash) {
+                $hashesByGameId[$gameId] = $hash;
+            }
+        }
+        if ([] === $hashesByGameId) {
+            return [];
+        }
+
+        $verdicts = $this->runnerGateway->fetchApworldPreflights();
+        if ([] === $verdicts) {
+            return [];
+        }
+
+        $errors = new ValidationErrors();
+        $existingCounts = array_count_values(array_column($existingSlots, 'gameId'));
+
+        foreach ($gameIds as $index => $gameId) {
+            $hash = $hashesByGameId[$gameId] ?? null;
+            $verdict = null !== $hash ? ($verdicts[$hash] ?? null) : null;
+            if (null === $verdict || !$verdict['blocks']) {
+                continue;
+            }
+
+            if (($existingCounts[$gameId] ?? 0) > 0) {
+                --$existingCounts[$gameId];
+                continue;
+            }
+
+            $errors->add(
+                sprintf('gameIds.%d', $index),
+                'Le monde Archipelago de ce jeu a échoué au test de génération ; il ne peut pas être ajouté pour le moment.',
             );
         }
 

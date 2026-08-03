@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react";
 
 import { env } from "@/lib/env";
+import { SecretField } from "@/components/secret-field";
 import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
 import { isSessionStatusFrame, type SessionStatusFrame } from "@/features/realtime/realtime-api";
@@ -279,15 +280,7 @@ function WaitingCard({ onRefetch }: { onRefetch: () => Promise<void> }) {
 // ─── RunningConnectionCard ────────────────────────────────────────────────────
 
 function RunningConnectionCard({ session }: { session: SessionPayload }) {
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
-
-  function copyField(value: string, key: string) {
-    void navigator.clipboard.writeText(value).then(() => {
-      setCopiedField(key);
-      setTimeout(() => { setCopiedField(null); }, 2000);
-    });
-  }
 
   function copyAll() {
     const text = `Adresse: ${session.host}:${session.port ?? ""} | Mot de passe: ${session.password ?? ""}`;
@@ -307,28 +300,14 @@ function RunningConnectionCard({ session }: { session: SessionPayload }) {
         <span className="text-xs font-semibold uppercase tracking-wide text-success">EN LIGNE</span>
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Valeurs masquées pour le stream - la copie fonctionne sans les afficher.
+      </p>
+
       <div className="grid gap-3 sm:grid-cols-3">
-        <PlayerConnectionField
-          ariaLabelCopy="Copier l'adresse"
-          copied={copiedField === "host"}
-          label="Adresse"
-          onCopy={() => { copyField(session.host ?? "", "host"); }}
-          value={session.host ?? ""}
-        />
-        <PlayerConnectionField
-          ariaLabelCopy="Copier le port"
-          copied={copiedField === "port"}
-          label="Port"
-          onCopy={() => { copyField(String(session.port ?? ""), "port"); }}
-          value={String(session.port ?? "")}
-        />
-        <PlayerConnectionField
-          ariaLabelCopy="Copier le mot de passe"
-          copied={copiedField === "password"}
-          label="Mot de passe"
-          onCopy={() => { copyField(session.password ?? "", "password"); }}
-          value={session.password ?? "-"}
-        />
+        <SecretField label="Adresse" value={session.host ?? ""} />
+        <SecretField label="Port" value={String(session.port ?? "")} />
+        <SecretField label="Mot de passe" value={session.password ?? "-"} />
       </div>
 
       <button
@@ -344,41 +323,6 @@ function RunningConnectionCard({ session }: { session: SessionPayload }) {
         )}
       </button>
     </section>
-  );
-}
-
-function PlayerConnectionField({
-  label,
-  value,
-  onCopy,
-  copied,
-  ariaLabelCopy,
-}: {
-  label: string;
-  value: string;
-  onCopy: () => void;
-  copied: boolean;
-  ariaLabelCopy: string;
-}) {
-  return (
-    <div className="rounded border border-border bg-surface p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <span className="font-mono text-sm font-semibold text-foreground">{value}</span>
-        <button
-          aria-label={ariaLabelCopy}
-          className="text-muted-foreground hover:text-foreground"
-          onClick={onCopy}
-          type="button"
-        >
-          {copied ? (
-            <Check aria-hidden="true" className="size-4 text-success" />
-          ) : (
-            <Copy aria-hidden="true" className="size-4" />
-          )}
-        </button>
-      </div>
-    </div>
   );
 }
 

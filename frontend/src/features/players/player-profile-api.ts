@@ -123,6 +123,11 @@ export type RunHistoryEntry = {
   wasReleased: boolean;
   isInvalidated: boolean;
   isWeekly: boolean;
+  /**
+   * Whether this viewer may open the session's recap (story 32.20). Optional: absent means "do not
+   * link", the safe default - a link the viewer cannot follow is worse than plain text.
+   */
+  recapAccessible?: boolean;
 };
 
 export type PlayerHistory = {
@@ -212,6 +217,7 @@ function isRunHistoryEntry(v: unknown): v is RunHistoryEntry {
   if (!("goalReachedAt" in v) || (v.goalReachedAt !== null && typeof v.goalReachedAt !== "string")) return false;
   if (!hasBooleanProp(v, "wasReleased")) return false;
   if (!hasBooleanProp(v, "isInvalidated")) return false;
+  if ("recapAccessible" in v && typeof v.recapAccessible !== "boolean") return false;
   return hasBooleanProp(v, "isWeekly");
 }
 
