@@ -52,12 +52,13 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
   return (
     <section className="mx-auto grid w-full max-w-content gap-10 px-4 py-10">
       <header className="grid gap-3">
+        {/* Story 32.20: the results page this used to return to is gone - the recap absorbed it. */}
         <Link
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          href={`/runs/${recap.sessionId}/resultats`}
+          href="/classements"
         >
           <ArrowLeft aria-hidden="true" className="size-3.5" />
-          Retour aux résultats
+          Voir le classement communautaire
         </Link>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-warm">Récap de partie</p>
         <h1 className="font-heading text-4xl font-bold leading-tight text-foreground">{recap.eventName}</h1>
