@@ -3,22 +3,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/features/auth/auth-context";
 import { saveSteamAccount } from "@/features/auth/steam-account-api";
-import { coupleSteamLibrary, type CouplingResult } from "./steam-coupling-api";
+import { coupleSteamLibrary, type CouplingOutcome, type CouplingResult } from "./steam-coupling-api";
 import type { SteamCouplingProps } from "./steam-coupling";
 
 const STORAGE_KEY = "archilan.steamProfile";
+
+/**
+ * Whether a coupling that just happened should switch the "my games" filter on (story 28.11).
+ *
+ * Two conditions, and the first is the whole point: **only an explicit submit** counts. The hook
+ * also couples automatically on every page load from the saved account or localStorage, and acting
+ * on that would re-impose the filter on a player who had just turned it off.
+ */
+export function shouldApplyOwnedFilter(outcome: CouplingOutcome, explicit: boolean): boolean {
+  return explicit && "ok" === outcome;
+}
+
+type SteamCouplingOptions = {
+  /**
+   * Called when the player *explicitly* couples their library and it succeeds - never on the
+   * automatic pre-fill that runs on each page load (story 28.11).
+   */
+  onExplicitCouple?: () => void;
+};
 
 /**
  * Encapsulates the Steam coupling state shared by the public catalog and the run
  * game-selection page: auto-couple from the saved account / localStorage, inline save,
  * and the matched appids used to badge/filter owned games.
  */
-export function useSteamCoupling(): {
+export function useSteamCoupling(options: SteamCouplingOptions = {}): {
   matchedAppIds: Set<number>;
   coupled: boolean;
   couplingProps: SteamCouplingProps;
 } {
   const { user, setUser, loading: authLoading } = useAuth();
+  // Kept in a ref so a caller can pass an inline arrow without re-running the coupling effect,
+  // and synced in an effect rather than during render (writing a ref while rendering is banned).
+  const onExplicitCouple = useRef(options.onExplicitCouple);
+  useEffect(() => {
+    onExplicitCouple.current = options.onExplicitCouple;
+  }, [options.onExplicitCouple]);
 
   const [steamInput, setSteamInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +66,7 @@ export function useSteamCoupling(): {
     user !== null && "" !== steamInput.trim() && user.steamProfile === steamInput.trim();
 
   const couple = useCallback(
-    async (rawValue: string) => {
+    async (rawValue: string, explicit: boolean) => {
       const trimmed = rawValue.trim();
       if ("" === trimmed) return;
 
@@ -54,6 +79,7 @@ export function useSteamCoupling(): {
       if (coupling.outcome === "ok") {
         setEditing(false);
         if (user === null) window.localStorage.setItem(STORAGE_KEY, trimmed);
+        if (shouldApplyOwnedFilter(coupling.outcome, explicit)) onExplicitCouple.current?.();
       }
 
       setSubmitting(false);
@@ -71,7 +97,7 @@ export function useSteamCoupling(): {
     autoCoupled.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot pre-fill from persisted data (account profile or localStorage) once auth has settled; guarded by the autoCoupled ref
     setSteamInput(prefill);
-    void couple(prefill);
+    void couple(prefill, false);
   }, [authLoading, user, couple]);
 
   async function handleSave() {
@@ -100,7 +126,7 @@ export function useSteamCoupling(): {
     onSubmit: (event) => {
       event.preventDefault();
       if (submitting) return;
-      void couple(steamInput);
+      void couple(steamInput, true);
     },
     onEdit: () => setEditing(true),
     onCancel: () => setEditing(false),
