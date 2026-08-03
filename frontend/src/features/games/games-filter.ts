@@ -14,9 +14,21 @@ export type CatalogFilters = {
 export const STEAM_CATEGORY = "Steam";
 
 /** Minimal shape needed for categories/ownership - satisfied by PublicGame and the run's AvailableGame. */
-export type Categorizable = { platforms: string[]; steamAppId: number | null };
+export type Categorizable = { id: string; platforms: string[]; steamAppId: number | null };
 
-export function isOwned(game: Categorizable, ownedAppIds: Set<number>): boolean {
+/**
+ * Owned through either source (story 28.13): a coupled Steam library, or the player's own ArchiLAN
+ * list. They are unioned here at read time and never merged in storage, so re-coupling Steam cannot
+ * wipe a manual mark - and a manual mark is the only way to claim a game that has no `steamAppId`
+ * at all, which is most of this catalog.
+ */
+export function isOwned(
+  game: Categorizable,
+  ownedAppIds: Set<number>,
+  ownedGameIds: ReadonlySet<string> = new Set(),
+): boolean {
+  if (ownedGameIds.has(game.id)) return true;
+
   return game.steamAppId !== null && ownedAppIds.has(game.steamAppId);
 }
 
@@ -41,13 +53,14 @@ export function filterAndSortGames(
   games: PublicGame[],
   filters: CatalogFilters,
   ownedAppIds: Set<number>,
+  ownedGameIds: ReadonlySet<string> = new Set(),
 ): PublicGame[] {
   const needle = filters.query.trim().toLowerCase();
   const selectedCategories = new Set(filters.categories);
 
   const filtered = games.filter((game) => {
     if (filters.availability !== "all" && game.availability !== filters.availability) return false;
-    if (filters.ownedOnly && !isOwned(game, ownedAppIds)) return false;
+    if (filters.ownedOnly && !isOwned(game, ownedAppIds, ownedGameIds)) return false;
     if (selectedCategories.size > 0 && !categoriesOf(game).some((c) => selectedCategories.has(c))) {
       return false;
     }

@@ -54,7 +54,8 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
               18+
             </span>
           ) : null}
-          {game.steamAppId !== null ? <GameOwnedBadge steamAppId={game.steamAppId} /> : null}
+          {/* Story 28.13: shown even without a steamAppId - that is the point of the manual list. */}
+          <GameOwnedBadge gameId={game.id} steamAppId={game.steamAppId} />
           <AdminEditLink className="ml-auto" href={`/admin/jeux/${game.id}`} label="Modifier ce jeu" />
         </div>
 
