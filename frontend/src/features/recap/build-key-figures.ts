@@ -41,7 +41,9 @@ export function buildRecapKeyFigures(recap: SessionRecap, feed: FeedEvent[]): Ke
     });
   }
   if (checks > 0) {
-    figures.push({ key: "checks", label: "Checks trouvés", value: String(checks) });
+    // "Complétés", not "trouvés": a check is done, not found - what you find is the item inside it.
+    // Same wording as the community stats widget, which already says "checks complétés".
+    figures.push({ key: "checks", label: "Checks complétés", value: String(checks) });
   }
   if (hints > 0) {
     figures.push({ key: "hints", label: "Indices demandés", value: String(hints) });

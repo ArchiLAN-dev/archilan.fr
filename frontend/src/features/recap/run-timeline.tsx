@@ -32,7 +32,7 @@ const BUCKETS: readonly { label: string; value: string }[] = [
 // View options (story 32.10): what the curve counts, and per-interval vs running total. The defaults
 // keep 32.7's burst view (checks found, per interval).
 const MEASURES: readonly { label: string; value: ChecksMeasure }[] = [
-  { label: "Checks trouvés", value: "found" },
+  { label: "Checks complétés", value: "found" },
   { label: "Objets reçus", value: "received" },
 ];
 
