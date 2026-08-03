@@ -67,7 +67,7 @@ export function ChecksChart({
   goals: ChartGoal[];
   /** Hint requests to mark on the axis; already filtered to the shown players and day. */
   hints: Array<ChartHint & { color: string }>;
-  /** What the Y axis counts (story 32.10) - "Checks trouvés" or "Objets reçus". */
+  /** What the Y axis counts (story 32.10) - "Checks complétés" or "Objets reçus". */
   measureLabel: string;
 }) {
   // Transient drag selection (start/current X, in `t` epoch ms); the committed zoom lives in the parent.
