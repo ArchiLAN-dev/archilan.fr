@@ -15,6 +15,12 @@ export type ActivityItem = {
   game: string | null;
   event: string | null;
   sessionId: string | null;
+  /**
+   * Whether this viewer may open the session's recap (story 32.20). Optional: an older API build
+   * does not send it, and absent means "do not link" - the safe default, since the alternative is a
+   * link to an error page.
+   */
+  recapAccessible?: boolean;
   withSlug: string | null;
   withName: string | null;
   actor: ActivityActor | null;
@@ -44,6 +50,7 @@ function isActivityItem(v: unknown): v is ActivityItem {
   }
   if ("actor" in v && v.actor !== null && !isActor(v.actor)) return false;
   if (!hasNullableStringProp(v, "kudosTargetType") || !hasNullableStringProp(v, "kudosTargetId")) return false;
+  if ("recapAccessible" in v && typeof v.recapAccessible !== "boolean") return false;
   return hasNumberProp(v, "kudosCount") && hasBooleanProp(v, "viewerHasKudos");
 }
 

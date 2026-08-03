@@ -19,6 +19,15 @@ final readonly class DoctrineSessionRepository implements SessionRepositoryInter
         return $this->entityManager->find(Session::class, $id);
     }
 
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return $this->entityManager->getRepository(Session::class)->findBy(['id' => $ids]);
+    }
+
     public function findByEventId(string $eventId): array
     {
         /* @var list<Session> */

@@ -24,7 +24,10 @@ final readonly class PlayerHistoryController
         $page = max(1, (int) $request->query->get('page', '1'));
         $limit = max(1, min(100, (int) $request->query->get('limit', '10')));
 
-        $result = $this->playerHistoryQuery->execute($slug, $page, $limit);
+        // Optional auth: a signed-in viewer may open recaps of private runs they took part in, an
+        // anonymous one only public ones (story 32.20).
+        $viewer = $this->apiAccessGuard->optionalUser($request);
+        $result = $this->playerHistoryQuery->execute($slug, $page, $limit, $viewer?->getId());
         if (null === $result) {
             return $this->apiAccessGuard->errorResponse('player_not_found', 'Joueur introuvable.', 404);
         }

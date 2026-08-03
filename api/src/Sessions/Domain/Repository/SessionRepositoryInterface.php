@@ -11,6 +11,13 @@ interface SessionRepositoryInterface
     public function findById(string $id): ?Session;
 
     /**
+     * @param list<string> $ids
+     *
+     * @return list<Session>
+     */
+    public function findByIds(array $ids): array;
+
+    /**
      * @return list<Session>
      */
     public function findByEventId(string $eventId): array;

@@ -6,12 +6,14 @@ namespace App\Identity\Application\Query;
 
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\Sessions\Application\Query\ViewableRecapsQuery;
 
 final readonly class PlayerHistoryQuery
 {
     public function __construct(
         private UserRepositoryInterface $userRepository,
         private PlayerHistoryQueryInterface $historyQuery,
+        private ViewableRecapsQuery $viewableRecaps,
     ) {
     }
 
@@ -21,7 +23,7 @@ final readonly class PlayerHistoryQuery
      *     meta: array{page: int, limit: int, total: int}
      * }|null
      */
-    public function execute(string $slug, int $page, int $limit): ?array
+    public function execute(string $slug, int $page, int $limit, ?string $viewerId = null): ?array
     {
         $user = $this->userRepository->findBySlug($slug);
         if (!$user instanceof User) {
@@ -41,7 +43,18 @@ final readonly class PlayerHistoryQuery
         $total = count($allRows);
         $pageRows = array_slice($allRows, $offset, $limit);
 
-        $data = array_map(function (array $row): array {
+        // Story 32.20: each row links to its recap only when this viewer may open it - resolved for
+        // the page in one pass, so a 20-entry page costs two grouped reads rather than sixty.
+        $sessionIds = [];
+        foreach ($pageRows as $row) {
+            $sessionId = $row['session_id'] ?? null;
+            if (is_string($sessionId) && '' !== $sessionId) {
+                $sessionIds[] = $sessionId;
+            }
+        }
+        $recapViewable = $this->viewableRecaps->forViewer(array_values(array_unique($sessionIds)), $viewerId);
+
+        $data = array_map(function (array $row) use ($recapViewable): array {
             $goalReachedAt = is_string($row['goal_reached_at'] ?? null) ? $row['goal_reached_at'] : null;
             $wasReleased = (bool) ($row['was_released'] ?? false);
             $isInvalidated = $wasReleased && null === $goalReachedAt;
@@ -57,6 +70,8 @@ final readonly class PlayerHistoryQuery
                 'wasReleased' => $wasReleased,
                 'isInvalidated' => $isInvalidated,
                 'isWeekly' => (bool) ($row['is_weekly'] ?? false),
+                'recapAccessible' => is_string($row['session_id'] ?? null)
+                    && ($recapViewable[$row['session_id']] ?? false),
             ];
         }, $pageRows);
 

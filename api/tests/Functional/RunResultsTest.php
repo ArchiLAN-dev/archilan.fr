@@ -6,14 +6,34 @@ namespace App\Tests\Functional;
 
 use App\Events\Domain\Entity\Event;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\Sessions\Application\Query\RunResultsQuery;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 
+/**
+ * Covers {@see RunResultsQuery}, which composes the podium a recap renders.
+ *
+ * It used to drive the public `GET /api/v1/runs/{id}/results` route. Story 32.20 removed that route
+ * - it served any finished session to anyone, ignoring the recap's own visibility rule - but the
+ * query survives as the recap's podium source, so its assertions moved down one level rather than
+ * being deleted with the endpoint.
+ */
 final class RunResultsTest extends FunctionalTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function results(string $sessionId): ?array
+    {
+        $query = self::getContainer()->get(RunResultsQuery::class);
+        self::assertInstanceOf(RunResultsQuery::class, $query);
+
+        return $query->execute($sessionId);
     }
 
     public function testFinishedSessionReturns200WithCorrectPayloadAndSlotOrdering(): void
@@ -62,11 +82,7 @@ final class RunResultsTest extends FunctionalTestCase
 
         $this->entityManager->flush();
 
-        $this->client->request('GET', sprintf('/api/v1/runs/%s/results', $session->getId()));
-
-        self::assertResponseStatusCodeSame(200);
-        $body = $this->decodedJsonResponse();
-        $data = $body['data'];
+        $data = $this->results($session->getId());
         self::assertIsArray($data);
 
         self::assertSame($session->getId(), $data['sessionId']);
@@ -133,11 +149,7 @@ final class RunResultsTest extends FunctionalTestCase
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 
-        $this->client->request('GET', sprintf('/api/v1/runs/%s/results', $session->getId()));
-
-        self::assertResponseStatusCodeSame(200);
-        $responseBody = $this->decodedJsonResponse();
-        $responseData = $responseBody['data'];
+        $responseData = $this->results($session->getId());
         self::assertIsArray($responseData);
         $slots = $responseData['slots'];
         self::assertIsArray($slots);
@@ -154,20 +166,12 @@ final class RunResultsTest extends FunctionalTestCase
         $now = new \DateTimeImmutable();
         $session = $this->createRunningSession('running-session', 'evt-nf-1', $now);
 
-        $this->client->request('GET', sprintf('/api/v1/runs/%s/results', $session->getId()));
-
-        self::assertResponseStatusCodeSame(404);
-        $body = $this->decodedJsonResponse();
-        $error = $body['error'];
-        self::assertIsArray($error);
-        self::assertSame('run_not_found_or_not_finished', $error['code']);
+        self::assertNull($this->results($session->getId()), 'a session still running has no results');
     }
 
     public function testNonExistentSessionReturns404(): void
     {
-        $this->client->request('GET', '/api/v1/runs/does-not-exist/results');
-
-        self::assertResponseStatusCodeSame(404);
+        self::assertNull($this->results('does-not-exist'));
     }
 
     public function testPersonalRunSessionReturnsEventNameFromPersonalRun(): void
@@ -196,11 +200,7 @@ final class RunResultsTest extends FunctionalTestCase
         $this->entityManager->persist($slot);
         $this->entityManager->flush();
 
-        $this->client->request('GET', sprintf('/api/v1/runs/%s/results', $session->getId()));
-
-        self::assertResponseStatusCodeSame(200);
-        $prResponse = $this->decodedJsonResponse();
-        $data = $prResponse['data'];
+        $data = $this->results($session->getId());
         self::assertIsArray($data);
 
         self::assertSame($session->getId(), $data['sessionId']);
