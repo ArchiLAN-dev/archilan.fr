@@ -116,6 +116,10 @@ export type AvailableGame = {
   defaultYaml: string | null;
   coverImageUrl: string | null;
   coverImageAlt: string | null;
+  // Story 28.16: what the picker filters on - platform families and the Steam app id that lets a
+  // coupled library recognise the game. Absent from older payloads, hence the defensive defaults.
+  platforms: string[];
+  steamAppId: number | null;
 };
 
 export type SelectionSlot = {
@@ -188,7 +192,23 @@ function toAvailableGame(v: unknown): AvailableGame | null {
     defaultYaml: optionalString(v, "defaultYaml"),
     coverImageUrl: optionalString(v, "coverImageUrl"),
     coverImageAlt: optionalString(v, "coverImageAlt"),
+    platforms: stringList(v, "platforms"),
+    steamAppId: optionalNumber(v, "steamAppId"),
   };
+}
+
+/** A list of strings from an unvalidated payload - anything else reads as an empty list. */
+function stringList(v: object, key: string): string[] {
+  const raw: unknown = Reflect.get(v, key);
+  if (!Array.isArray(raw)) return [];
+
+  return raw.filter((item): item is string => typeof item === "string");
+}
+
+function optionalNumber(v: object, key: string): number | null {
+  const raw: unknown = Reflect.get(v, key);
+
+  return typeof raw === "number" ? raw : null;
 }
 
 function parseSelectionData(payload: unknown): SelectionData | null {

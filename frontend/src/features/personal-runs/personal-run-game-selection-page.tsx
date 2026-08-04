@@ -14,15 +14,15 @@ import { useSteamCoupling } from "@/features/games/use-steam-coupling";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
 import { useGameList } from "@/features/games/use-game-list";
 import { allCategories, isOwned, type ListFilter } from "@/features/games/games-filter";
-import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 import {
-  filterRunGames,
-  orderRunGames,
-  runFilterOptions,
+  filterPickerGames,
+  orderPickerGames,
+  pickerFilterOptions,
   OWNED_FILTER,
   PLANNED_FILTER,
   RECENT_FILTER,
-} from "./run-game-filters";
+} from "@/features/games/game-picker-filters";
+import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -270,8 +270,9 @@ export function PersonalRunGameSelectionPage({
   const recentRank = new Map(data.recentlyPlayedGames.map((r, i) => [r.gameId, i]));
   const hasRecent = data.recentlyPlayedGames.length > 0;
 
-  // Filtered + paginated catalog. The derivation itself lives in ./run-game-filters as pure code,
-  // so what this page decides to show can be tested without mounting it (story 28.15).
+  // Filtered + paginated catalog. The derivation itself lives in games/game-picker-filters as pure
+  // code, so what this page decides to show can be tested without mounting it (story 28.15), and
+  // the event registration picker derives its own list the same way (story 28.16).
   const categoryOptions = allCategories(data.availableGames);
   const runFilters = { query: gameSearch, list, recentOnly, categories: selectedCategories };
   const playerSources = {
@@ -279,13 +280,13 @@ export function PersonalRunGameSelectionPage({
     plannedGameIds,
     steamAppIds: matchedAppIds,
   };
-  const filteredGames = filterRunGames(
+  const filteredGames = filterPickerGames(
     data.availableGames,
     runFilters,
     playerSources,
     new Set(recentById.keys()),
   );
-  const displayGames = orderRunGames(filteredGames, recentRank, new Set(workingGameIds), gameSearch);
+  const displayGames = orderPickerGames(filteredGames, recentRank, new Set(workingGameIds), gameSearch);
 
   const totalPages = Math.max(1, Math.ceil(displayGames.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -318,7 +319,7 @@ export function PersonalRunGameSelectionPage({
   const filterGroups: FilterGroup[] = [
     {
       label: "Filtres",
-      options: runFilterOptions(
+      options: pickerFilterOptions(
         { hasOwnership: hasAnyOwnership, hasPlanned, hasRecent },
         runFilters,
       ),
