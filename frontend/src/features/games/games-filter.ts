@@ -3,10 +3,17 @@ import type { PublicGame } from "./public-games-api";
 export type SortOrder = "name-asc" | "name-desc";
 export type AvailabilityFilter = "all" | "available" | "experimental";
 
+/**
+ * Which of the player's lists the catalog is narrowed to (story 28.14). Exclusive on purpose:
+ * "mes jeux" and "à essayer" are two answers to the same question, not two criteria, and their
+ * intersection has no obvious reading.
+ */
+export type ListFilter = "all" | "owned" | "planned";
+
 export type CatalogFilters = {
   query: string;
   availability: AvailabilityFilter;
-  ownedOnly: boolean;
+  list: ListFilter;
   sort: SortOrder;
   categories: string[];
 };
@@ -47,20 +54,25 @@ export function allCategories(games: Categorizable[]): string[] {
 }
 
 /**
- * Pure client-side catalog derivation: filter by search/availability/owned, then sort by name.
+ * Pure client-side catalog derivation: filter by search/availability/list, then sort by name.
+ *
+ * The two lists are read separately (story 28.14): "à essayer" is never folded into `isOwned`, so
+ * wanting a game never makes the catalog claim you have it.
  */
 export function filterAndSortGames(
   games: PublicGame[],
   filters: CatalogFilters,
   ownedAppIds: Set<number>,
   ownedGameIds: ReadonlySet<string> = new Set(),
+  plannedGameIds: ReadonlySet<string> = new Set(),
 ): PublicGame[] {
   const needle = filters.query.trim().toLowerCase();
   const selectedCategories = new Set(filters.categories);
 
   const filtered = games.filter((game) => {
     if (filters.availability !== "all" && game.availability !== filters.availability) return false;
-    if (filters.ownedOnly && !isOwned(game, ownedAppIds, ownedGameIds)) return false;
+    if (filters.list === "owned" && !isOwned(game, ownedAppIds, ownedGameIds)) return false;
+    if (filters.list === "planned" && !plannedGameIds.has(game.id)) return false;
     if (selectedCategories.size > 0 && !categoriesOf(game).some((c) => selectedCategories.has(c))) {
       return false;
     }

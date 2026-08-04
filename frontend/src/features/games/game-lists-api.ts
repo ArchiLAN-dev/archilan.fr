@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
 /** Which of the player's lists is being addressed - mirrors the API's `kind` path segment. */
-export type GameListKind = "owned";
+export type GameListKind = "owned" | "planned";
 
 /**
  * The lists a player keeps on ArchiLAN (story 28.13) - deliberately independent of the Steam

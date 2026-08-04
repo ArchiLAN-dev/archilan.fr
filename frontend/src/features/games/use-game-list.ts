@@ -19,16 +19,17 @@ import { fetchGameListIds, setGameInList, type GameListKind } from "./game-lists
 export function useGameList(kind: GameListKind): {
   gameIds: Set<string>;
   canMark: boolean;
+  settled: boolean;
   isInList: (gameId: string) => boolean;
   toggle: (gameId: string, inList: boolean) => void;
   pending: boolean;
 } {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const queryClient = useQueryClient();
   const signedIn = user !== null;
   const queryKey = ["game-lists", kind] as const;
 
-  const { data } = useQuery({
+  const { data, isFetched } = useQuery({
     enabled: signedIn,
     queryFn: () => fetchGameListIds(kind),
     queryKey,
@@ -48,6 +49,10 @@ export function useGameList(kind: GameListKind): {
     gameIds,
     isInList: (gameId: string) => gameIds.has(gameId),
     pending: mutation.isPending,
+    // An empty list means "nothing on it" only once auth has resolved and, when signed in, the
+    // query has answered. Before that it is indistinguishable from "not loaded yet", and a caller
+    // acting on it would wipe a filter the URL had just restored (the trap story 28.12 hit).
+    settled: !loading && (!signedIn || isFetched),
     toggle: (gameId: string, inList: boolean) => mutation.mutate({ gameId, inList }),
   };
 }
