@@ -64,4 +64,27 @@ final readonly class SessionServerConfig
 
         return $flags;
     }
+
+    /**
+     * The join password a server should launch with, or `null` for one that takes none (story 16.13).
+     *
+     * Three states, where the launch path used to see two:
+     *
+     *  - **not configured** (`null`) - nobody expressed a preference, so `$freshSecret` is used, or
+     *    `$reusable` when relaunching a server whose players already hold a password;
+     *  - **configured with a value** - that value;
+     *  - **configured empty** (`''`) - a deliberate "no password", answered with `null` so the
+     *    caller can omit the field entirely rather than send an empty one.
+     *
+     * The secret is a parameter rather than minted here: this is a domain value object, and drawing
+     * randomness inside it would make it impure (AC-D3).
+     */
+    public function joinPasswordOr(string $freshSecret, ?string $reusable = null): ?string
+    {
+        if (null !== $this->joinPassword) {
+            return '' === $this->joinPassword ? null : $this->joinPassword;
+        }
+
+        return null !== $reusable && '' !== $reusable ? $reusable : $freshSecret;
+    }
 }

@@ -373,10 +373,9 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         }
 
         $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
-        $serverPassword = bin2hex(random_bytes(8));
 
         $config = $this->configResolver->resolve($this->sessionType($sessionId), $this->scopeKey($sessionId));
-        $serverPassword = $config->server->joinPassword ?? $serverPassword;
+        $serverPassword = $config->server->joinPasswordOr(bin2hex(random_bytes(8)));
         $serverOptions = $config->server->toServerFlags();
         unset($serverOptions['password']);
 
@@ -385,15 +384,12 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             return $result;
         }
 
-        $this->sessionLifecycleManager->storePendingCredentials(
-            $sessionId,
-            host: $this->runnerPublicHost,
-            password: $serverPassword,
-        );
+        $this->sessionLifecycleManager->storePendingCredentials($sessionId, host: $this->runnerPublicHost);
+        $this->sessionLifecycleManager->applyJoinPassword($sessionId, $serverPassword);
 
         $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword, $serverOptions);
 
-        $this->logger->info('session.orchestrate.launch', ['sessionId' => $sessionId]);
+        $this->logger->info('session.orchestrate.launch', ['sessionId' => $sessionId, 'joinPassword' => null !== $serverPassword]);
 
         return ['found' => true, 'session' => $result['session']];
     }
@@ -423,10 +419,9 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
 
         $adminPassword = $session->getAdminPassword() ?? bin2hex(random_bytes(16));
         $existingPassword = $session->getPassword();
-        $serverPassword = null !== $existingPassword && '' !== $existingPassword ? $existingPassword : bin2hex(random_bytes(8));
 
         $config = $this->configResolver->resolve($this->sessionType($sessionId), $this->scopeKey($sessionId));
-        $serverPassword = $config->server->joinPassword ?? $serverPassword;
+        $serverPassword = $config->server->joinPasswordOr(bin2hex(random_bytes(8)), $existingPassword);
         $serverOptions = $config->server->toServerFlags();
         unset($serverOptions['password']);
 
@@ -435,11 +430,8 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
             return $result;
         }
 
-        $this->sessionLifecycleManager->storePendingCredentials(
-            $sessionId,
-            host: $this->runnerPublicHost,
-            password: $serverPassword,
-        );
+        $this->sessionLifecycleManager->storePendingCredentials($sessionId, host: $this->runnerPublicHost);
+        $this->sessionLifecycleManager->applyJoinPassword($sessionId, $serverPassword);
 
         $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword, $serverOptions);
 

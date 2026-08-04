@@ -499,6 +499,17 @@ final class Session
         return $this->adminPassword;
     }
 
+    /**
+     * The join password this session runs with, or none at all (story 16.13).
+     *
+     * Distinct from {@see storePendingCredentials}, whose null means "leave untouched": here null
+     * is a value, so a session relaunched without a password stops carrying the previous one.
+     */
+    public function applyJoinPassword(?string $password): void
+    {
+        $this->password = $password;
+    }
+
     public function storePendingCredentials(
         ?string $adminPassword = null,
         ?string $host = null,
