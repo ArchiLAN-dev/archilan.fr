@@ -90,6 +90,11 @@ final readonly class RegistrationGameSelection
                 'locationNames' => $game->getLocationNames(),
                 'coverImageUrl' => $game->getCoverImageUrl(),
                 'coverImageAlt' => $game->getCoverImageAlt(),
+                // Story 28.16: what the picker needs to filter by platform and to recognise a game
+                // in a coupled Steam library. Without them this screen could only ever offer a
+                // name search, while the two other game pickers offered the full set.
+                'platforms' => $game->platformFamilies(),
+                'steamAppId' => $game->getSteamAppId(),
             ];
         }
 

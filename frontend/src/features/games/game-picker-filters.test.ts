@@ -1,25 +1,22 @@
 import {
-  filterRunGames,
-  orderRunGames,
-  runFilterOptions,
+  filterPickerGames,
+  orderPickerGames,
+  pickerFilterOptions,
+  type GamePickerFilters,
+  type PickableGame,
   type PlayerGameSources,
-  type RunGameFilters,
-} from "./run-game-filters";
-import type { GameSelectionGame } from "./personal-runs-api";
+} from "./game-picker-filters";
 
-function game(overrides: Partial<GameSelectionGame> & { name: string }): GameSelectionGame {
+/**
+ * The fixture carries only what a picker needs, which is the point of the shared module: the run's
+ * `GameSelectionGame` and the registration's `AvailableGame` are different types over the same
+ * catalogue, and the filtering knows neither (stories 28.15, 28.16).
+ */
+function game(overrides: Partial<PickableGame> & { name: string }): PickableGame {
   return {
     id: overrides.id ?? overrides.name.toLowerCase(),
     name: overrides.name,
-    slug: overrides.slug ?? overrides.name.toLowerCase().replace(/\s+/g, "-"),
     description: overrides.description ?? "",
-    availability: overrides.availability ?? "available",
-    isApworldReady: overrides.isApworldReady ?? true,
-    defaultYaml: overrides.defaultYaml ?? null,
-    optionTypes: overrides.optionTypes ?? null,
-    locationNames: overrides.locationNames ?? null,
-    coverImageUrl: overrides.coverImageUrl ?? null,
-    coverImageAlt: overrides.coverImageAlt ?? "",
     platforms: overrides.platforms ?? [],
     steamAppId: overrides.steamAppId ?? null,
   };
@@ -36,17 +33,17 @@ const noSources: PlayerGameSources = {
   plannedGameIds: new Set(),
 };
 
-const base: RunGameFilters = { query: "", list: "all", recentOnly: false, categories: [] };
+const base: GamePickerFilters = { query: "", list: "all", recentOnly: false, categories: [] };
 
-const names = (gs: GameSelectionGame[]) => gs.map((g) => g.name);
+const names = (gs: PickableGame[]) => gs.map((g) => g.name);
 
-describe("filterRunGames - the owned filter unions both sources (story 28.15)", () => {
+describe("filterPickerGames - the owned filter unions both sources (story 28.15)", () => {
   it("recognises a game marked by hand even with no steamAppId", () => {
-    // The debt story 28.13 left here: this page knew the Steam coupling alone, so a GameCube
-    // title showed up under /jeux and not in the run picker.
+    // The debt story 28.13 left behind: a picker knowing the Steam coupling alone hid a GameCube
+    // title that /jeux showed.
     const sources = { ...noSources, ownedGameIds: new Set(["luigi"]) };
 
-    expect(names(filterRunGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
+    expect(names(filterPickerGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
       "Luigi",
     ]);
   });
@@ -54,7 +51,7 @@ describe("filterRunGames - the owned filter unions both sources (story 28.15)", 
   it("still recognises a coupled Steam game with nothing marked by hand", () => {
     const sources = { ...noSources, steamAppIds: new Set([367520]) };
 
-    expect(names(filterRunGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
+    expect(names(filterPickerGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
       "Hollow Knight",
     ]);
   });
@@ -66,27 +63,27 @@ describe("filterRunGames - the owned filter unions both sources (story 28.15)", 
       steamAppIds: new Set([367520]),
     };
 
-    expect(names(filterRunGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
+    expect(names(filterPickerGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
       "Hollow Knight",
       "Luigi",
     ]);
   });
 });
 
-describe("filterRunGames - the two lists stay apart", () => {
+describe("filterPickerGames - the two lists stay apart", () => {
   it("filters to the planned list alone", () => {
     const sources = { ...noSources, plannedGameIds: new Set(["zelda"]) };
 
-    expect(names(filterRunGames(games, { ...base, list: "planned" }, sources, new Set()))).toEqual([
-      "Zelda",
-    ]);
+    expect(
+      names(filterPickerGames(games, { ...base, list: "planned" }, sources, new Set())),
+    ).toEqual(["Zelda"]);
   });
 
   it("never lets the planned list satisfy the owned filter", () => {
-    // Wanting a game must not make the picker claim you have it.
+    // Wanting a game must not make a picker claim you have it.
     const sources = { ...noSources, plannedGameIds: new Set(["zelda"]) };
 
-    expect(filterRunGames(games, { ...base, list: "owned" }, sources, new Set())).toEqual([]);
+    expect(filterPickerGames(games, { ...base, list: "owned" }, sources, new Set())).toEqual([]);
   });
 
   it("never lets an owned source satisfy the planned filter", () => {
@@ -96,7 +93,7 @@ describe("filterRunGames - the two lists stay apart", () => {
       steamAppIds: new Set([367520]),
     };
 
-    expect(filterRunGames(games, { ...base, list: "planned" }, sources, new Set())).toEqual([]);
+    expect(filterPickerGames(games, { ...base, list: "planned" }, sources, new Set())).toEqual([]);
   });
 
   it("keeps a game sitting on both lists under either filter", () => {
@@ -106,50 +103,52 @@ describe("filterRunGames - the two lists stay apart", () => {
       plannedGameIds: new Set(["zelda"]),
     };
 
-    expect(names(filterRunGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
+    expect(names(filterPickerGames(games, { ...base, list: "owned" }, sources, new Set()))).toEqual([
       "Zelda",
     ]);
-    expect(names(filterRunGames(games, { ...base, list: "planned" }, sources, new Set()))).toEqual([
-      "Zelda",
-    ]);
+    expect(
+      names(filterPickerGames(games, { ...base, list: "planned" }, sources, new Set())),
+    ).toEqual(["Zelda"]);
   });
 });
 
-describe("filterRunGames - the other axes", () => {
+describe("filterPickerGames - the other axes", () => {
   it("combines a list filter with 'récemment joués' rather than replacing it", () => {
-    // AC5: recency is a different axis, so the two narrow together.
+    // Recency is a different axis, so the two narrow together.
     const sources = { ...noSources, plannedGameIds: new Set(["zelda", "luigi"]) };
     const filters = { ...base, list: "planned" as const, recentOnly: true };
 
-    expect(names(filterRunGames(games, filters, sources, new Set(["luigi"])))).toEqual(["Luigi"]);
+    expect(names(filterPickerGames(games, filters, sources, new Set(["luigi"])))).toEqual(["Luigi"]);
   });
 
   it("combines a list filter with a category", () => {
     const sources = { ...noSources, ownedGameIds: new Set(["luigi", "zelda"]) };
     const filters = { ...base, list: "owned" as const, categories: ["Nintendo 64"] };
 
-    expect(names(filterRunGames(games, filters, sources, new Set()))).toEqual(["Zelda"]);
+    expect(names(filterPickerGames(games, filters, sources, new Set()))).toEqual(["Zelda"]);
   });
 
   it("searches name and description, case- and whitespace-insensitively", () => {
-    expect(names(filterRunGames(games, { ...base, query: "  HANTÉ " }, noSources, new Set()))).toEqual([
-      "Luigi",
-    ]);
+    // Story 28.16: the event registration used to search the name alone, so "manoir hanté" found
+    // nothing there while it worked on the two other pickers.
+    expect(
+      names(filterPickerGames(games, { ...base, query: "  HANTÉ " }, noSources, new Set())),
+    ).toEqual(["Luigi"]);
   });
 
   it("keeps everything when nothing is filtered", () => {
-    expect(filterRunGames(games, base, noSources, new Set())).toHaveLength(3);
+    expect(filterPickerGames(games, base, noSources, new Set())).toHaveLength(3);
   });
 });
 
-describe("orderRunGames - recently played bubble to the top", () => {
+describe("orderPickerGames - recently played bubble to the top", () => {
   const rank = new Map([
     ["zelda", 0],
     ["hollow knight", 1],
   ]);
 
   it("pins recently played games in recency order", () => {
-    expect(names(orderRunGames(games, rank, new Set(), ""))).toEqual([
+    expect(names(orderPickerGames(games, rank, new Set(), ""))).toEqual([
       "Zelda",
       "Hollow Knight",
       "Luigi",
@@ -158,7 +157,7 @@ describe("orderRunGames - recently played bubble to the top", () => {
 
   it("does not pin a game already in the selection", () => {
     // It lives under "Ma sélection"; pinning it again would offer what is already taken.
-    expect(names(orderRunGames(games, rank, new Set(["zelda"]), ""))).toEqual([
+    expect(names(orderPickerGames(games, rank, new Set(["zelda"]), ""))).toEqual([
       "Hollow Knight",
       "Luigi",
       "Zelda",
@@ -167,19 +166,20 @@ describe("orderRunGames - recently played bubble to the top", () => {
 
   it("drops the pinned block during a search", () => {
     // Once the player is naming what they want, a pinned block only pushes the answer down.
-    expect(names(orderRunGames(games, rank, new Set(), "zel"))).toEqual(names(games));
+    expect(names(orderPickerGames(games, rank, new Set(), "zel"))).toEqual(names(games));
   });
 
-  it("leaves the order alone when nothing was recently played", () => {
-    expect(orderRunGames(games, new Map(), new Set(), "")).toEqual(games);
+  it("leaves the order alone for a picker with no recency signal", () => {
+    // The event registration has no run history to draw on (story 28.16).
+    expect(orderPickerGames(games, new Map(), new Set(), "")).toEqual(games);
   });
 });
 
-describe("runFilterOptions - what the picker offers", () => {
+describe("pickerFilterOptions - what a picker offers", () => {
   const all = { hasRecent: true, hasOwnership: true, hasPlanned: true };
 
   it("offers every filter with a non-empty source", () => {
-    expect(runFilterOptions(all, base).map((o) => o.label)).toEqual([
+    expect(pickerFilterOptions(all, base).map((o) => o.label)).toEqual([
       "Récemment joués",
       "Mes jeux",
       "À essayer",
@@ -189,18 +189,27 @@ describe("runFilterOptions - what the picker offers", () => {
   it("hides a filter whose source is empty", () => {
     const sources = { hasRecent: false, hasOwnership: false, hasPlanned: true };
 
-    expect(runFilterOptions(sources, base).map((o) => o.label)).toEqual(["À essayer"]);
+    expect(pickerFilterOptions(sources, base).map((o) => o.label)).toEqual(["À essayer"]);
+  });
+
+  it("offers no recency filter to a picker that has no such signal", () => {
+    const sources = { hasRecent: false, hasOwnership: true, hasPlanned: true };
+
+    expect(pickerFilterOptions(sources, base).map((o) => o.label)).toEqual([
+      "Mes jeux",
+      "À essayer",
+    ]);
   });
 
   it("stops offering the active list and keeps offering the other - they replace, not stack", () => {
-    const offered = runFilterOptions(all, { ...base, list: "owned" }).map((o) => o.label);
+    const offered = pickerFilterOptions(all, { ...base, list: "owned" }).map((o) => o.label);
 
     expect(offered).not.toContain("Mes jeux");
     expect(offered).toContain("À essayer");
   });
 
   it("keeps offering the list filters while 'récemment joués' is active", () => {
-    const offered = runFilterOptions(all, { ...base, recentOnly: true }).map((o) => o.label);
+    const offered = pickerFilterOptions(all, { ...base, recentOnly: true }).map((o) => o.label);
 
     expect(offered).toEqual(["Mes jeux", "À essayer"]);
   });

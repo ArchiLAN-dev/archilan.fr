@@ -7,6 +7,16 @@ import { AlertCircle, ArrowLeft, CheckCircle, ChevronLeft, ChevronRight, Search,
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
 import { InstallNudge } from "@/features/games/install-nudge";
+import { useSteamCoupling } from "@/features/games/use-steam-coupling";
+import { useGameList } from "@/features/games/use-game-list";
+import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
+import { allCategories, type ListFilter } from "@/features/games/games-filter";
+import {
+  filterPickerGames,
+  pickerFilterOptions,
+  OWNED_FILTER,
+  PLANNED_FILTER,
+} from "@/features/games/game-picker-filters";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -55,6 +65,30 @@ export function GameSelectionGate({
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
   const [fadingOut, setFadingOut] = useState<Set<string>>(new Set());
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
+
+  // Story 28.16: the same filters as the two other game pickers. This screen composes a real event
+  // registration and had nothing but a name search, so the same question got a third answer here.
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [list, setList] = useState<ListFilter>("all");
+  // Read-only on the coupling: a library coupled once on /jeux carries over through localStorage
+  // and is honoured here, but this registration funnel is not the place to open a new coupling
+  // form. A player who never coupled simply gets "mes jeux" from their manual list, or not at all.
+  const { matchedAppIds, coupled, settled } = useSteamCoupling();
+  const { gameIds: ownedGameIds, settled: ownedSettled } = useGameList("owned");
+  const { gameIds: plannedGameIds, settled: plannedSettled } = useGameList("planned");
+  const hasAnyOwnership = coupled || ownedGameIds.size > 0;
+  const hasPlanned = plannedGameIds.size > 0;
+
+  // Drop a list filter once its list proves empty, each waiting for its own source to settle: an
+  // empty list means "nothing on it" only after the session resolved and the query answered.
+  useEffect(() => {
+    const strandedOnOwned = settled && ownedSettled && !hasAnyOwnership && "owned" === list;
+    const strandedOnPlanned = plannedSettled && !hasPlanned && "planned" === list;
+    if (strandedOnOwned || strandedOnPlanned) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter when its external source (Steam coupling, player list) resolves to empty; guarded so it fires once per transition
+      setList("all");
+    }
+  }, [settled, ownedSettled, hasAnyOwnership, plannedSettled, hasPlanned, list]);
 
   useEffect(() => {
     const timers = addTimers.current;
@@ -295,12 +329,22 @@ export function GameSelectionGate({
       : [];
   });
 
-  // Filtered + paginated games
-  const q = gameSearch.trim().toLowerCase();
-  const filteredGames =
-    q === ""
-      ? data.availableGames
-      : data.availableGames.filter((g) => g.name.toLowerCase().includes(q));
+  // Filtered + paginated games. The derivation is the shared picker module (story 28.16), so this
+  // screen narrows exactly like the catalog and the run picker - search included, which used to
+  // read the name alone here and missed anything worded in a description.
+  const categoryOptions = allCategories(data.availableGames);
+  const pickerFilters = {
+    categories: selectedCategories,
+    list,
+    query: gameSearch,
+    recentOnly: false,
+  };
+  const filteredGames = filterPickerGames(
+    data.availableGames,
+    pickerFilters,
+    { ownedGameIds, plannedGameIds, steamAppIds: matchedAppIds },
+    new Set(),
+  );
   const totalPages = Math.max(1, Math.ceil(filteredGames.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageGames = filteredGames.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -309,6 +353,60 @@ export function GameSelectionGate({
     setGameSearch(value);
     setCurrentPage(1);
   }
+
+  // No recency signal on this screen: it has no run history to draw on, so that filter is never
+  // offered rather than invented.
+  const filterGroups: FilterGroup[] = [
+    {
+      label: "Filtres",
+      options: pickerFilterOptions(
+        { hasOwnership: hasAnyOwnership, hasPlanned, hasRecent: false },
+        pickerFilters,
+      ),
+    },
+    {
+      label: "Plateformes",
+      options: categoryOptions
+        .filter((c) => !selectedCategories.includes(c))
+        .map((c) => ({ value: `cat:${c}`, label: c })),
+    },
+  ];
+
+  const addFilter = (value: string) => {
+    if (OWNED_FILTER === value) setList("owned");
+    else if (PLANNED_FILTER === value) setList("planned");
+    else if (value.startsWith("cat:")) {
+      const category = value.slice(4);
+      setSelectedCategories((prev) => (prev.includes(category) ? prev : [...prev, category]));
+    }
+    setCurrentPage(1);
+  };
+
+  const activeTokens: ActiveFilterToken[] = [];
+  if ("all" !== list) {
+    activeTokens.push({
+      key: `list:${list}`,
+      label: "owned" === list ? "Mes jeux" : "À essayer",
+      icon: "owned" === list ? "gamepad" : "bookmark",
+      remove: () => { setList("all"); setCurrentPage(1); },
+    });
+  }
+  for (const category of selectedCategories) {
+    activeTokens.push({
+      key: `cat:${category}`,
+      label: category,
+      remove: () => { setSelectedCategories((prev) => prev.filter((c) => c !== category)); setCurrentPage(1); },
+    });
+  }
+
+  const hasActiveFilters =
+    gameSearch.trim() !== "" || "all" !== list || selectedCategories.length > 0;
+  const clearFilters = () => {
+    setGameSearch("");
+    setList("all");
+    setSelectedCategories([]);
+    setCurrentPage(1);
+  };
 
   return (
     <article className="grid gap-8">
@@ -458,6 +556,14 @@ export function GameSelectionGate({
               onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
+
+          <FilterTokenBar
+            activeTokens={activeTokens}
+            groups={filterGroups}
+            hasActiveFilters={hasActiveFilters}
+            onAdd={addFilter}
+            onClear={clearFilters}
+          />
 
           {filteredGames.length === 0 ? (
             <p className="text-sm text-muted-foreground">

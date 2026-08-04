@@ -1,20 +1,26 @@
-import { categoriesOf, isOwned, type ListFilter } from "@/features/games/games-filter";
-import type { GameSelectionGame } from "./personal-runs-api";
+import { categoriesOf, isOwned, type Categorizable, type ListFilter } from "./games-filter";
 
 /**
- * What the run's game picker narrows on (story 28.15).
+ * The minimum a game must expose to be filtered by a picker. Structural on purpose: the run's
+ * `GameSelectionGame` and the event registration's `AvailableGame` are different types describing
+ * the same catalogue, and neither should have to know about the other (story 28.16).
+ */
+export type PickableGame = Categorizable & { name: string; description: string };
+
+/**
+ * What a game picker narrows on (stories 28.15, 28.16).
  *
  * `list` is exclusive - "mes jeux" and "à essayer" are two answers to one question. `recentOnly`
  * and `categories` are separate axes and stay cumulable with either.
  */
-export type RunGameFilters = {
+export type GamePickerFilters = {
   query: string;
   list: ListFilter;
   recentOnly: boolean;
   categories: string[];
 };
 
-/** The coupled Steam library and the player's own lists, as the picker reads them. */
+/** The coupled Steam library and the player's own lists, as a picker reads them. */
 export type PlayerGameSources = {
   steamAppIds: Set<number>;
   ownedGameIds: ReadonlySet<string>;
@@ -22,7 +28,7 @@ export type PlayerGameSources = {
 };
 
 /** Which filters have anything behind them - a filter with an empty source is not offered. */
-export type RunFilterSources = {
+export type PickerFilterSources = {
   hasRecent: boolean;
   hasOwnership: boolean;
   hasPlanned: boolean;
@@ -33,19 +39,19 @@ export const OWNED_FILTER = "list:owned";
 export const PLANNED_FILTER = "list:planned";
 
 /**
- * The picker's predicate, as pure code so it can be tested without mounting the page.
+ * A picker's predicate, as pure code so it can be tested without mounting a page.
  *
- * The owned filter unions both sources exactly like the public catalog (story 28.13): this page
- * used to know the Steam coupling alone, so a game with no `steamAppId` marked by hand was
- * invisible here and visible under /jeux. The planned list is never folded into that union -
- * wanting a game must not make the picker claim you have it.
+ * The owned filter unions both sources exactly like the public catalog (story 28.13): a picker that
+ * knew the Steam coupling alone made a game with no `steamAppId` marked by hand invisible where
+ * /jeux showed it. The planned list is never folded into that union - wanting a game must not make
+ * a picker claim you have it.
  */
-export function filterRunGames(
-  games: GameSelectionGame[],
-  filters: RunGameFilters,
+export function filterPickerGames<T extends PickableGame>(
+  games: T[],
+  filters: GamePickerFilters,
   sources: PlayerGameSources,
   recentGameIds: ReadonlySet<string>,
-): GameSelectionGame[] {
+): T[] {
   const needle = filters.query.trim().toLowerCase();
   const selectedCategories = new Set(filters.categories);
 
@@ -70,13 +76,16 @@ export function filterRunGames(
  * Default view: bubble recently-played games to the top in recency order, minus the ones already
  * selected (they live under "Ma sélection"). A live search reverts to the flat list - once the
  * player is naming what they want, a pinned block only pushes the answer down.
+ *
+ * A picker with no recency signal - the event registration has none - passes an empty rank and gets
+ * its list back untouched.
  */
-export function orderRunGames(
-  games: GameSelectionGame[],
+export function orderPickerGames<T extends { id: string }>(
+  games: T[],
   recentRank: ReadonlyMap<string, number>,
   selectedGameIds: ReadonlySet<string>,
   query: string,
-): GameSelectionGame[] {
+): T[] {
   if (query.trim() !== "" || recentRank.size === 0) return games;
 
   const pinned = games
@@ -90,13 +99,13 @@ export function orderRunGames(
 }
 
 /**
- * The options the picker offers, which is where exclusivity lives: the active list filter is not
+ * The options a picker offers, which is where exclusivity lives: the active list filter is not
  * offered again, and picking the other one replaces it rather than adding to it. A filter whose
  * source is empty is never offered at all.
  */
-export function runFilterOptions(
-  sources: RunFilterSources,
-  filters: RunGameFilters,
+export function pickerFilterOptions(
+  sources: PickerFilterSources,
+  filters: GamePickerFilters,
 ): { value: string; label: string }[] {
   return [
     ...(sources.hasRecent && !filters.recentOnly
