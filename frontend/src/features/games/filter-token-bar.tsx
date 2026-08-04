@@ -1,8 +1,8 @@
 "use client";
 
-import { Clock, Gamepad2, X } from "lucide-react";
+import { Bookmark, Clock, Gamepad2, X } from "lucide-react";
 
-export type FilterTokenIcon = "clock" | "gamepad";
+export type FilterTokenIcon = "clock" | "gamepad" | "bookmark";
 
 /** A group of selectable filter options, rendered as an <optgroup> in the picker. */
 export type FilterGroup = {
@@ -72,6 +72,7 @@ export function FilterTokenBar({
         >
           {token.icon === "clock" && <Clock aria-hidden className="size-3.5" />}
           {token.icon === "gamepad" && <Gamepad2 aria-hidden className="size-3.5" />}
+          {token.icon === "bookmark" && <Bookmark aria-hidden className="size-3.5" />}
           {token.label}
           <button
             aria-label={`Retirer le filtre ${token.label}`}

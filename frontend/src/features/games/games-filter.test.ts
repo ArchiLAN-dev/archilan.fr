@@ -25,7 +25,7 @@ function game(overrides: Partial<PublicGame> & { name: string }): PublicGame {
 const base: CatalogFilters = {
   query: "",
   availability: "all",
-  ownedOnly: false,
+  list: "all",
   sort: "name-asc",
   categories: [],
 };
@@ -69,7 +69,7 @@ describe("filterAndSortGames", () => {
 
   it("filters to owned only", () => {
     const owned = new Set([367520]);
-    expect(filterAndSortGames(games, { ...base, ownedOnly: true }, owned).map((g) => g.name)).toEqual([
+    expect(filterAndSortGames(games, { ...base, list: "owned" }, owned).map((g) => g.name)).toEqual([
       "Hollow Knight",
     ]);
   });
@@ -81,6 +81,41 @@ describe("filterAndSortGames", () => {
       "Hollow Knight",
       "Zelda",
     ]);
+  });
+});
+
+describe("list filtering - two independent lists (story 28.14)", () => {
+  it("filters to the planned list, which owes nothing to Steam", () => {
+    expect(
+      filterAndSortGames(games, { ...base, list: "planned" }, new Set(), new Set(), new Set(["zelda"])).map(
+        (g) => g.name,
+      ),
+    ).toEqual(["Zelda"]);
+  });
+
+  it("does not let the planned list leak into the owned filter", () => {
+    // Wanting a game must never make the catalog claim you have it.
+    expect(
+      filterAndSortGames(games, { ...base, list: "owned" }, new Set(), new Set(), new Set(["zelda"])),
+    ).toEqual([]);
+  });
+
+  it("does not let the owned lists leak into the planned filter", () => {
+    expect(
+      filterAndSortGames(games, { ...base, list: "planned" }, new Set([367520]), new Set(["celeste"])),
+    ).toEqual([]);
+  });
+
+  it("keeps a game that is on both lists", () => {
+    const both = filterAndSortGames(
+      games,
+      { ...base, list: "planned" },
+      new Set(),
+      new Set(["celeste"]),
+      new Set(["celeste"]),
+    );
+
+    expect(both.map((g) => g.name)).toEqual(["Celeste"]);
   });
 });
 

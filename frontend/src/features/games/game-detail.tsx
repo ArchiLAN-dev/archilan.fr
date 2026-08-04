@@ -6,6 +6,7 @@ import { availabilityConfig } from "./game-card";
 import { CreateRunWithGameButton } from "./create-run-with-game-button";
 import { GameContributionForm } from "./game-contribution-form";
 import { GameOwnedBadge } from "./game-owned-badge";
+import { GamePlannedButton } from "./game-planned-button";
 import { InstallStepsView } from "./install-steps-view";
 import type { GameApworld, PublicGameDetail } from "./public-games-api";
 import { Markdown } from "@/components/markdown/markdown";
@@ -54,8 +55,11 @@ export function GameDetail({ game, client }: { game: PublicGameDetail; client: A
               18+
             </span>
           ) : null}
-          {/* Story 28.13: shown even without a steamAppId - that is the point of the manual list. */}
+          {/* Story 28.13: shown even without a steamAppId - that is the point of the manual list.
+              Story 28.14: the two lists sit side by side and are independent - owning a game says
+              nothing about having played it. */}
           <GameOwnedBadge gameId={game.id} steamAppId={game.steamAppId} />
+          <GamePlannedButton gameId={game.id} />
           <AdminEditLink className="ml-auto" href={`/admin/jeux/${game.id}`} label="Modifier ce jeu" />
         </div>
 

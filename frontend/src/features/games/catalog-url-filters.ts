@@ -1,10 +1,10 @@
-import type { AvailabilityFilter, SortOrder } from "./games-filter";
+import type { AvailabilityFilter, ListFilter, SortOrder } from "./games-filter";
 
 /** The filter state the catalog carries in the URL (story 28.12). */
 export type CatalogFilters = {
   query: string;
   availability: AvailabilityFilter;
-  ownedOnly: boolean;
+  list: ListFilter;
   sort: SortOrder;
   categories: string[];
 };
@@ -12,13 +12,19 @@ export type CatalogFilters = {
 export const DEFAULT_FILTERS: CatalogFilters = {
   availability: "all",
   categories: [],
-  ownedOnly: false,
+  list: "all",
   query: "",
   sort: "name-asc",
 };
 
 const AVAILABILITIES: readonly AvailabilityFilter[] = ["all", "available", "experimental"];
 const SORTS: readonly SortOrder[] = ["name-asc", "name-desc"];
+
+/** French slugs for the list filter - the URL is user-facing, like `dispo` and `tri` (story 28.14). */
+const LIST_SLUGS: Record<Exclude<ListFilter, "all">, string> = {
+  owned: "mes-jeux",
+  planned: "a-essayer",
+};
 
 /** A minimal read view of URLSearchParams - what Next's useSearchParams provides. */
 type ReadableParams = {
@@ -37,10 +43,24 @@ export function readFiltersFromParams(params: ReadableParams): CatalogFilters {
   return {
     availability: isAvailability(availability) ? availability : DEFAULT_FILTERS.availability,
     categories: params.getAll("cat").filter((value) => "" !== value),
-    ownedOnly: "1" === params.get("mes-jeux"),
+    list: readListFilter(params),
     query: params.get("q") ?? DEFAULT_FILTERS.query,
     sort: isSort(sort) ? sort : DEFAULT_FILTERS.sort,
   };
+}
+
+/**
+ * The list filter, still honouring the `mes-jeux=1` flag story 28.12 used to write. Reading it costs
+ * a line and keeps every URL shared back then landing on the same list; writing it too would have
+ * frozen two spellings of one state, so 28.14 only writes `liste=`.
+ */
+function readListFilter(params: ReadableParams): ListFilter {
+  const value = params.get("liste");
+  if (LIST_SLUGS.owned === value) return "owned";
+  if (LIST_SLUGS.planned === value) return "planned";
+  if ("1" === params.get("mes-jeux")) return "owned";
+
+  return DEFAULT_FILTERS.list;
 }
 
 /**
@@ -54,7 +74,7 @@ export function filtersToQueryString(filters: CatalogFilters): string {
   const query = filters.query.trim();
   if ("" !== query) params.set("q", query);
   if (DEFAULT_FILTERS.availability !== filters.availability) params.set("dispo", filters.availability);
-  if (filters.ownedOnly) params.set("mes-jeux", "1");
+  if ("all" !== filters.list) params.set("liste", LIST_SLUGS[filters.list]);
   if (DEFAULT_FILTERS.sort !== filters.sort) params.set("tri", filters.sort);
   for (const category of filters.categories) params.append("cat", category);
 

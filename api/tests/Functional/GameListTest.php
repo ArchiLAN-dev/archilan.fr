@@ -113,6 +113,38 @@ final class GameListTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /**
+     * Story 28.14: the lists share a table, not a meaning. Owning a game says nothing about having
+     * played it, so a game may sit on both, and taking it off one must leave the other alone.
+     */
+    public function testTheListsDoNotTouchEachOther(): void
+    {
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+        $game = $this->createGame('Outer Wilds', 'outer-wilds');
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/me/game-lists/owned/%s', $game->getId()));
+        self::assertResponseIsSuccessful();
+
+        $this->client->jsonRequest('GET', '/api/v1/me/game-lists/planned');
+        self::assertSame([], $this->listedIds(), 'Owning a game does not put it on the "à essayer" list');
+
+        $this->client->jsonRequest('PUT', sprintf('/api/v1/me/game-lists/planned/%s', $game->getId()));
+        self::assertResponseIsSuccessful();
+
+        $this->client->jsonRequest('GET', '/api/v1/me/game-lists/owned');
+        self::assertSame([$game->getId()], $this->listedIds(), 'A game may sit on both lists');
+
+        $this->client->jsonRequest('DELETE', sprintf('/api/v1/me/game-lists/planned/%s', $game->getId()));
+        self::assertResponseIsSuccessful();
+
+        $this->client->jsonRequest('GET', '/api/v1/me/game-lists/owned');
+        self::assertSame([$game->getId()], $this->listedIds(), 'Removing from one list leaves the other alone');
+
+        $this->client->jsonRequest('GET', '/api/v1/me/game-lists/planned');
+        self::assertSame([], $this->listedIds());
+    }
+
     public function testTheListIsPerPlayer(): void
     {
         $alice = $this->createUser('alice@example.org');
