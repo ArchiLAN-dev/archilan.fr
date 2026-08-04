@@ -6,6 +6,7 @@ import { Gamepad2, Search } from "lucide-react";
 import { GameCard } from "./game-card";
 import { SteamCoupling } from "./steam-coupling";
 import { useSteamCoupling } from "./use-steam-coupling";
+import { useGameList } from "./use-game-list";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "./filter-token-bar";
 import {
   allCategories,
@@ -41,6 +42,10 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   const { matchedAppIds, coupled, settled, couplingProps } = useSteamCoupling({
     onExplicitCouple: () => setOwnedOnly(true),
   });
+  // Story 28.13: the ArchiLAN-side list, unioned with the Steam one. It is the only way to claim a
+  // game with no steamAppId - a GameCube or SNES title will never match a coupled library.
+  const { gameIds: ownedGameIds } = useGameList("owned");
+  const hasAnyOwnership = coupled || ownedGameIds.size > 0;
   const [sort, setSort] = useState<SortOrder>(initial.sort);
   const [categories, setCategories] = useState<string[]>(initial.categories);
   const categoryOptions = useMemo(() => allCategories(initialGames), [initialGames]);
@@ -49,11 +54,11 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   // mount the automatic attempt is still in flight, and clearing early would wipe the filter the
   // URL had just restored (story 28.12).
   useEffect(() => {
-    if (settled && !coupled && ownedOnly) {
+    if (settled && !hasAnyOwnership && ownedOnly) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter in reaction to the external Steam coupling being cleared; guarded so it fires once per transition
       setOwnedOnly(false);
     }
-  }, [settled, coupled, ownedOnly]);
+  }, [settled, hasAnyOwnership, ownedOnly]);
 
   // Mirror the filters into the URL. `replace` rather than `push`: filtering must not make the back
   // button walk backwards through every keystroke, while the entry still carries the latest state.
@@ -78,8 +83,9 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
         initialGames,
         { query: debouncedQuery, availability, ownedOnly, sort, categories },
         matchedAppIds,
+        ownedGameIds,
       ),
-    [initialGames, debouncedQuery, availability, ownedOnly, sort, categories, matchedAppIds],
+    [initialGames, debouncedQuery, availability, ownedOnly, sort, categories, matchedAppIds, ownedGameIds],
   );
 
   // ── Token filters (availability + owned + categories), cumulable via a single picker ──
@@ -102,7 +108,7 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
     },
     {
       label: "Filtres",
-      options: coupled && !ownedOnly ? [{ value: "__owned", label: "Mes jeux" }] : [],
+      options: hasAnyOwnership && !ownedOnly ? [{ value: "__owned", label: "Mes jeux" }] : [],
     },
     {
       label: "Plateformes",
@@ -176,13 +182,15 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
 
       <p className="text-sm text-muted-foreground" role="status">
         {visibleGames.length} jeu{visibleGames.length !== 1 ? "x" : ""}
-        {coupled ? ` · ${visibleGames.filter((g) => isOwned(g, matchedAppIds)).length} possédé(s)` : ""}
+        {hasAnyOwnership
+          ? ` · ${visibleGames.filter((g) => isOwned(g, matchedAppIds, ownedGameIds)).length} possédé(s)`
+          : ""}
       </p>
 
       {visibleGames.length > 0 ? (
         <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {visibleGames.map((game) => (
-            <GameCard game={game} key={game.id} owned={isOwned(game, matchedAppIds)} />
+            <GameCard game={game} key={game.id} owned={isOwned(game, matchedAppIds, ownedGameIds)} />
           ))}
         </div>
       ) : (

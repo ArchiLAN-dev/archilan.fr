@@ -122,3 +122,27 @@ describe("isOwned", () => {
     expect(isOwned(zelda, new Set([367520]))).toBe(false);
   });
 });
+
+describe("isOwned - two sources (story 28.13)", () => {
+  const gameCube = { id: "g1", platforms: ["GameCube"], steamAppId: null };
+  const onSteam = { id: "g2", platforms: ["PC"], steamAppId: 42 };
+
+  it("recognises a game marked on ArchiLAN even with no steamAppId", () => {
+    // The whole point: a console-era game can never match a coupled Steam library.
+    expect(isOwned(gameCube, new Set(), new Set(["g1"]))).toBe(true);
+  });
+
+  it("still recognises a coupled Steam game with nothing marked by hand", () => {
+    expect(isOwned(onSteam, new Set([42]), new Set())).toBe(true);
+  });
+
+  it("is false when neither source claims it", () => {
+    expect(isOwned(onSteam, new Set([99]), new Set(["other"]))).toBe(false);
+    expect(isOwned(gameCube, new Set([42]), new Set())).toBe(false);
+  });
+
+  it("keeps the manual mark when the Steam library does not contain the game", () => {
+    // Re-coupling Steam must never wipe what the player claimed by hand.
+    expect(isOwned(onSteam, new Set(), new Set(["g2"]))).toBe(true);
+  });
+});
