@@ -12,8 +12,17 @@ import { InstallNudge } from "@/features/games/install-nudge";
 import { SteamCoupling } from "@/features/games/steam-coupling";
 import { useSteamCoupling } from "@/features/games/use-steam-coupling";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "@/features/games/filter-token-bar";
-import { allCategories, categoriesOf, isOwned } from "@/features/games/games-filter";
+import { useGameList } from "@/features/games/use-game-list";
+import { allCategories, isOwned, type ListFilter } from "@/features/games/games-filter";
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
+import {
+  filterRunGames,
+  orderRunGames,
+  runFilterOptions,
+  OWNED_FILTER,
+  PLANNED_FILTER,
+  RECENT_FILTER,
+} from "./run-game-filters";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,12 +69,21 @@ export function PersonalRunGameSelectionPage({
   const addTimers = useRef<Map<string, [ReturnType<typeof setTimeout>, ReturnType<typeof setTimeout>]>>(new Map());
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [ownedOnly, setOwnedOnly] = useState(false);
+  const [list, setList] = useState<ListFilter>("all");
 
   // Story 28.11: same rule as the public catalog - an explicit coupling filters to owned games.
   const { matchedAppIds, coupled, couplingProps } = useSteamCoupling({
-    onExplicitCouple: () => setOwnedOnly(true),
+    onExplicitCouple: () => setList("owned"),
   });
+  // Stories 28.13/28.15: the player's own lists, read here too. This page used to know only the
+  // Steam coupling, so a GameCube title marked by hand showed up in /jeux and not here - the same
+  // question answered twice. The hooks sit with the others, above this component's early returns.
+  const { gameIds: ownedGameIds, settled: ownedSettled } = useGameList("owned");
+  // Story 28.15: and the "à essayer" list, at the one moment it is worth something - choosing what
+  // to launch. Read only: a run is composed here, an inventory is not kept here.
+  const { gameIds: plannedGameIds, settled: plannedSettled } = useGameList("planned");
+  const hasAnyOwnership = coupled || ownedGameIds.size > 0;
+  const hasPlanned = plannedGameIds.size > 0;
   const [recentOnly, setRecentOnly] = useState(false);
 
   useEffect(() => {
@@ -73,12 +91,17 @@ export function PersonalRunGameSelectionPage({
     return () => { timers.forEach(([t1, t2]) => { clearTimeout(t1); clearTimeout(t2); }); };
   }, []);
 
+  // Drop a list filter once its list proves empty - a dropped Steam coupling with nothing marked by
+  // hand, or an "à essayer" list emptied elsewhere. Each waits for its own source to settle: an
+  // empty list means "nothing on it" only once the session has resolved and the query has answered.
   useEffect(() => {
-    if (!coupled && ownedOnly) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the owned-only filter when the Steam coupling drops (external state, cannot be derived during render)
-      setOwnedOnly(false);
+    const strandedOnOwned = ownedSettled && !hasAnyOwnership && "owned" === list;
+    const strandedOnPlanned = plannedSettled && !hasPlanned && "planned" === list;
+    if (strandedOnOwned || strandedOnPlanned) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter when its external source (Steam coupling, player list) resolves to empty; guarded so it fires once per transition
+      setList("all");
     }
-  }, [coupled, ownedOnly]);
+  }, [ownedSettled, hasAnyOwnership, plannedSettled, hasPlanned, list]);
 
   const handleAddGame = useCallback((gameId: string) => {
     setWorkingGameIds((prev) => [...prev, gameId]);
@@ -247,53 +270,44 @@ export function PersonalRunGameSelectionPage({
   const recentRank = new Map(data.recentlyPlayedGames.map((r, i) => [r.gameId, i]));
   const hasRecent = data.recentlyPlayedGames.length > 0;
 
-  // Filtered + paginated catalog
-  const q = gameSearch.trim().toLowerCase();
+  // Filtered + paginated catalog. The derivation itself lives in ./run-game-filters as pure code,
+  // so what this page decides to show can be tested without mounting it (story 28.15).
   const categoryOptions = allCategories(data.availableGames);
-  const selectedCategorySet = new Set(selectedCategories);
-  const filteredGames = data.availableGames.filter((g) => {
-    if (q !== "" && !(g.name.toLowerCase().includes(q) || g.description.toLowerCase().includes(q))) {
-      return false;
-    }
-    if (ownedOnly && !isOwned(g, matchedAppIds)) return false;
-    if (recentOnly && !recentById.has(g.id)) return false;
-    if (selectedCategorySet.size > 0 && !categoriesOf(g).some((c) => selectedCategorySet.has(c))) {
-      return false;
-    }
-    return true;
-  });
-
-  // Default view: bubble recently-played games to the top (recency order), excluding ones already
-  // selected (they live under "Ma sélection"). A live search reverts to the flat, name-ordered list.
-  let displayGames = filteredGames;
-  if (q === "" && hasRecent) {
-    const workingSet = new Set(workingGameIds);
-    const pinned = filteredGames
-      .filter((g) => recentById.has(g.id) && !workingSet.has(g.id))
-      .sort((a, b) => (recentRank.get(a.id) ?? 0) - (recentRank.get(b.id) ?? 0));
-    if (pinned.length > 0) {
-      const pinnedIds = new Set(pinned.map((g) => g.id));
-      displayGames = [...pinned, ...filteredGames.filter((g) => !pinnedIds.has(g.id))];
-    }
-  }
+  const runFilters = { query: gameSearch, list, recentOnly, categories: selectedCategories };
+  const playerSources = {
+    ownedGameIds,
+    plannedGameIds,
+    steamAppIds: matchedAppIds,
+  };
+  const filteredGames = filterRunGames(
+    data.availableGames,
+    runFilters,
+    playerSources,
+    new Set(recentById.keys()),
+  );
+  const displayGames = orderRunGames(filteredGames, recentRank, new Set(workingGameIds), gameSearch);
 
   const totalPages = Math.max(1, Math.ceil(displayGames.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const pageGames = displayGames.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const hasActiveFilters = q !== "" || recentOnly || ownedOnly || selectedCategories.length > 0;
+  const hasActiveFilters =
+    gameSearch.trim() !== "" || recentOnly || "all" !== list || selectedCategories.length > 0;
   const clearFilters = () => {
     setGameSearch("");
     setRecentOnly(false);
-    setOwnedOnly(false);
+    setList("all");
     setSelectedCategories([]);
     setCurrentPage(1);
   };
 
-  // Filters as cumulable tokens via the shared FilterTokenBar. (Search stays a separate field above.)
+  // Filters as cumulable tokens via the shared FilterTokenBar, except that the two list tokens
+  // replace each other: "mes jeux" and "à essayer" are two answers to one question. "Récemment
+  // joués" is a different axis and stays cumulable with either. (Search stays a field above.)
   const addFilter = (value: string) => {
-    if ("__recent" === value) setRecentOnly(true);
-    else if ("__owned" === value) setOwnedOnly(true);
+    if (RECENT_FILTER === value) setRecentOnly(true);
+    else if (OWNED_FILTER === value) setList("owned");
+    else if (PLANNED_FILTER === value) setList("planned");
     else if (value.startsWith("cat:")) {
       const category = value.slice(4);
       setSelectedCategories((prev) => (prev.includes(category) ? prev : [...prev, category]));
@@ -304,10 +318,10 @@ export function PersonalRunGameSelectionPage({
   const filterGroups: FilterGroup[] = [
     {
       label: "Filtres",
-      options: [
-        ...(hasRecent && !recentOnly ? [{ value: "__recent", label: "Récemment joués" }] : []),
-        ...(coupled && !ownedOnly ? [{ value: "__owned", label: "Mes jeux" }] : []),
-      ],
+      options: runFilterOptions(
+        { hasOwnership: hasAnyOwnership, hasPlanned, hasRecent },
+        runFilters,
+      ),
     },
     {
       label: "Plateformes",
@@ -319,10 +333,15 @@ export function PersonalRunGameSelectionPage({
 
   const activeTokens: ActiveFilterToken[] = [];
   if (recentOnly) {
-    activeTokens.push({ key: "__recent", label: "Récemment joués", icon: "clock", remove: () => { setRecentOnly(false); setCurrentPage(1); } });
+    activeTokens.push({ key: RECENT_FILTER, label: "Récemment joués", icon: "clock", remove: () => { setRecentOnly(false); setCurrentPage(1); } });
   }
-  if (ownedOnly) {
-    activeTokens.push({ key: "__owned", label: "Mes jeux", icon: "gamepad", remove: () => { setOwnedOnly(false); setCurrentPage(1); } });
+  if ("all" !== list) {
+    activeTokens.push({
+      key: `list:${list}`,
+      label: "owned" === list ? "Mes jeux" : "À essayer",
+      icon: "owned" === list ? "gamepad" : "bookmark",
+      remove: () => { setList("all"); setCurrentPage(1); },
+    });
   }
   for (const category of selectedCategories) {
     activeTokens.push({
@@ -563,9 +582,14 @@ export function PersonalRunGameSelectionPage({
                             {availabilityConfig[game.availability].label}
                           </span>
                         )}
-                        {isOwned(game, matchedAppIds) && (
+                        {isOwned(game, matchedAppIds, ownedGameIds) && (
                           <span className="rounded border border-success/50 bg-success/10 px-1.5 py-0.5 text-[11px] font-semibold text-success">
                             Tu possèdes ce jeu
+                          </span>
+                        )}
+                        {plannedGameIds.has(game.id) && (
+                          <span className="rounded border border-accent/50 bg-accent/10 px-1.5 py-0.5 text-[11px] font-semibold text-accent-text">
+                            À essayer
                           </span>
                         )}
                         {recent && (
