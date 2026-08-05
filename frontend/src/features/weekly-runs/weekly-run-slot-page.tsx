@@ -520,7 +520,7 @@ export function WeeklyRunSlotPage({
           </div>
         </div>
         <h1 className="font-heading text-xl font-bold text-foreground">Run introuvable</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Ce run n&apos;existe pas ou n&apos;est plus actif.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Cette run n&apos;existe pas ou n&apos;est plus active.</p>
         <div className="mt-8">
           <Link
             className="inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
@@ -538,7 +538,7 @@ export function WeeklyRunSlotPage({
     return (
       <div className="mx-auto max-w-sm py-20 text-center">
         <h1 className="font-heading text-xl font-bold text-foreground">Non inscrit</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Tu n&apos;es pas inscrit à ce run.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Tu n&apos;es pas inscrit à cette run.</p>
         <div className="mt-8">
           <Link
             className="inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"

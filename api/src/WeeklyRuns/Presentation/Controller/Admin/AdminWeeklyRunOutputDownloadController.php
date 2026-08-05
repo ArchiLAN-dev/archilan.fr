@@ -33,7 +33,7 @@ final readonly class AdminWeeklyRunOutputDownloadController
 
         $outputKey = $this->outputQuery->findOutputKey($weeklyRunId);
         if (null === $outputKey) {
-            return $this->apiAccessGuard->errorResponse('not_found', 'Seed non disponible pour ce run.', 404);
+            return $this->apiAccessGuard->errorResponse('not_found', 'Seed non disponible pour cette run.', 404);
         }
 
         try {

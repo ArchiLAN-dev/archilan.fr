@@ -81,7 +81,7 @@ export function AdminSessionConfigPage() {
       <header>
         <h2 className="font-heading text-xl font-bold text-foreground">Configuration des sessions</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Options serveur &amp; génération appliquées aux runs lancés, par type de session.
+          Options serveur &amp; génération appliquées aux runs lancées, par type de session.
         </p>
       </header>
 

@@ -43,7 +43,7 @@ final readonly class PersonalRunController
 
         $run = $result['run'];
         if (null === $run) {
-            return $this->apiAccessGuard->errorResponse('run_creation_failed', 'La création du run a échoué.', 500);
+            return $this->apiAccessGuard->errorResponse('run_creation_failed', 'La création de la run a échoué.', 500);
         }
 
         return new JsonResponse(['data' => $run], 201);

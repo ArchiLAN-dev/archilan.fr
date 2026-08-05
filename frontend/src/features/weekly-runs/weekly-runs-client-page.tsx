@@ -104,7 +104,7 @@ export function WeeklyRunsClientPage() {
         {notice}
         <div className="py-16 text-center">
           <p className="text-lg font-semibold text-foreground">
-            Aucun run cette semaine - revenez lundi&nbsp;!
+            Aucune run cette semaine - revenez lundi&nbsp;!
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Les runs hebdomadaires démarrent automatiquement chaque lundi.
