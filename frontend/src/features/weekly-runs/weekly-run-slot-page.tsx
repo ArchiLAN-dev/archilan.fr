@@ -527,7 +527,7 @@ export function WeeklyRunSlotPage({
             href="/runs-hebdo"
           >
             <ArrowLeft aria-hidden className="size-4" />
-            Retour aux runs hebdo
+            Retour aux runs hebdos
           </Link>
         </div>
       </div>
@@ -545,7 +545,7 @@ export function WeeklyRunSlotPage({
             href="/runs-hebdo"
           >
             <ArrowLeft aria-hidden className="size-4" />
-            Retour aux runs hebdo
+            Retour aux runs hebdos
           </Link>
         </div>
       </div>
@@ -557,7 +557,7 @@ export function WeeklyRunSlotPage({
       <div className="mx-auto max-w-sm py-20 text-center">
         <Route aria-hidden className="mx-auto mb-4 size-10 text-muted-foreground/40" />
         <h1 className="font-heading text-xl font-bold text-foreground">Partie non lancée</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Lance ta partie depuis la page des runs hebdo pour accéder à ton suivi.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Lance ta partie depuis la page des runs hebdos pour accéder à ton suivi.</p>
         <div className="mt-8">
           <Link
             className="inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
@@ -613,7 +613,7 @@ export function WeeklyRunSlotPage({
             href={backHref}
           >
             <ArrowLeft aria-hidden className="size-4" />
-            Retour aux runs hebdo
+            Retour aux runs hebdos
           </Link>
         </div>
       </div>
@@ -686,7 +686,7 @@ export function WeeklyRunSlotPage({
             <nav className="text-sm text-muted-foreground">
               <Link className="inline-flex items-center gap-1 hover:text-foreground" href={backHref}>
                 <ArrowLeft aria-hidden="true" className="size-3.5" />
-                Retour aux runs hebdo
+                Retour aux runs hebdos
               </Link>
             </nav>
             {slots.length > 1 && (

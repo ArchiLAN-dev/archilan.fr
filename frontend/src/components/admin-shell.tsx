@@ -39,7 +39,7 @@ const navGroups = [
     items: [
       { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
       { href: "/admin/aide-archipelago", icon: BookOpen, label: "Aide Archipelago", shortLabel: "Aide", exact: false },
-      { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdo", shortLabel: "Runs", exact: false },
+      { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdos", shortLabel: "Runs", exact: false },
       { href: "/admin/sessions/config", icon: SlidersHorizontal, label: "Config sessions", shortLabel: "Config", exact: false },
     ],
   },
