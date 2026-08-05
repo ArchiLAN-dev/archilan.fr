@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { buildPageMetadata } from "@/lib/seo";
 
 import { GamesCatalog } from "@/features/games/games-catalog";
@@ -31,7 +33,10 @@ export default async function GamesPage() {
         </p>
       </section>
 
-      <GamesCatalog initialGames={games} />
+      {/* useSearchParams (story 28.12) needs a boundary under this statically rendered page. */}
+      <Suspense>
+        <GamesCatalog initialGames={games} />
+      </Suspense>
 
       <GameRequestSection />
 

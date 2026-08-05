@@ -1,18 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Gamepad2, Search } from "lucide-react";
 import { GameCard } from "./game-card";
 import { SteamCoupling } from "./steam-coupling";
 import { useSteamCoupling } from "./use-steam-coupling";
+import { useGameList } from "./use-game-list";
 import { FilterTokenBar, type ActiveFilterToken, type FilterGroup } from "./filter-token-bar";
 import {
   allCategories,
   filterAndSortGames,
   isOwned,
   type AvailabilityFilter,
+  type ListFilter,
   type SortOrder,
 } from "./games-filter";
+import { filtersToQueryString, readFiltersFromParams } from "./catalog-url-filters";
 import type { PublicGame } from "./public-games-api";
 
 const availabilityLabels: Record<Exclude<AvailabilityFilter, "all">, string> = {
@@ -20,44 +24,102 @@ const availabilityLabels: Record<Exclude<AvailabilityFilter, "all">, string> = {
   experimental: "Expérimental",
 };
 
+const listLabels: Record<Exclude<ListFilter, "all">, string> = {
+  owned: "Mes jeux",
+  planned: "À essayer",
+};
+
 export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Story 28.12: the URL *is* the filter state, so a browser back after opening a game restores
+  // the list exactly as it was. Read once at mount; written back below.
+  const [initial] = useState(() => readFiltersFromParams(searchParams));
+
+  const [query, setQuery] = useState(initial.query);
   const debouncedQuery = useDebouncedValue(query, 150);
-  const [availability, setAvailability] = useState<AvailabilityFilter>("all");
-  const [ownedOnly, setOwnedOnly] = useState(false);
+  const [availability, setAvailability] = useState<AvailabilityFilter>(initial.availability);
+  const [list, setList] = useState<ListFilter>(initial.list);
 
   // Story 28.11: coupling a library *is* the request to see what you own - so an explicit
   // coupling turns the filter on. The automatic pre-fill on each load never does.
-  const { matchedAppIds, coupled, couplingProps } = useSteamCoupling({
-    onExplicitCouple: () => setOwnedOnly(true),
+  const { matchedAppIds, coupled, settled, couplingProps } = useSteamCoupling({
+    onExplicitCouple: () => setList("owned"),
   });
-  const [sort, setSort] = useState<SortOrder>("name-asc");
-  const [categories, setCategories] = useState<string[]>([]);
+  // Story 28.13: the ArchiLAN-side list, unioned with the Steam one. It is the only way to claim a
+  // game with no steamAppId - a GameCube or SNES title will never match a coupled library.
+  const { gameIds: ownedGameIds } = useGameList("owned");
+  // Story 28.14: the second list, read on its own. It never feeds `isOwned` - wanting a game must
+  // not make the catalog claim you have it.
+  const { gameIds: plannedGameIds, settled: plannedSettled } = useGameList("planned");
+  const hasAnyOwnership = coupled || ownedGameIds.size > 0;
+  const hasPlanned = plannedGameIds.size > 0;
+  const [sort, setSort] = useState<SortOrder>(initial.sort);
+  const [categories, setCategories] = useState<string[]>(initial.categories);
   const categoryOptions = useMemo(() => allCategories(initialGames), [initialGames]);
 
-  // Drop the owned-only filter if a coupling is cleared/unsuccessful.
+  // Drop a list filter whose list turns out to hold nothing: a cleared or unsuccessful Steam
+  // coupling for "mes jeux", a shared `?liste=a-essayer` opened by someone whose own list is empty
+  // or who is signed out. Each waits for its own source to settle - at mount the coupling attempt
+  // is still in flight and the list query has not answered, and clearing early would wipe the
+  // filter the URL had just restored (story 28.12).
   useEffect(() => {
-    if (!coupled && ownedOnly) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter in reaction to the external Steam coupling being cleared; guarded so it fires once per transition
-      setOwnedOnly(false);
+    const strandedOnOwned = settled && !hasAnyOwnership && "owned" === list;
+    const strandedOnPlanned = plannedSettled && !hasPlanned && "planned" === list;
+    if (strandedOnOwned || strandedOnPlanned) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the filter in reaction to an external source (Steam coupling cleared, list empty) resolving; guarded so it fires once per transition
+      setList("all");
     }
-  }, [coupled, ownedOnly]);
+  }, [settled, hasAnyOwnership, plannedSettled, hasPlanned, list]);
+
+  // Mirror the filters into the URL. `replace` rather than `push`: filtering must not make the back
+  // button walk backwards through every keystroke, while the entry still carries the latest state.
+  // Follows the debounced query, not the raw input.
+  useEffect(() => {
+    const queryString = filtersToQueryString({
+      availability,
+      categories,
+      list,
+      query: debouncedQuery,
+      sort,
+    });
+    const next = "" === queryString ? pathname : `${pathname}?${queryString}`;
+    if (next !== `${pathname}${window.location.search}`) {
+      router.replace(next, { scroll: false });
+    }
+  }, [debouncedQuery, availability, list, sort, categories, pathname, router]);
 
   const visibleGames = useMemo(
     () =>
       filterAndSortGames(
         initialGames,
-        { query: debouncedQuery, availability, ownedOnly, sort, categories },
+        { query: debouncedQuery, availability, list, sort, categories },
         matchedAppIds,
+        ownedGameIds,
+        plannedGameIds,
       ),
-    [initialGames, debouncedQuery, availability, ownedOnly, sort, categories, matchedAppIds],
+    [
+      initialGames,
+      debouncedQuery,
+      availability,
+      list,
+      sort,
+      categories,
+      matchedAppIds,
+      ownedGameIds,
+      plannedGameIds,
+    ],
   );
 
-  // ── Token filters (availability + owned + categories), cumulable via a single picker ──
+  // ── Token filters (availability + list + categories), cumulable via a single picker, except
+  // that the two list tokens replace each other rather than adding up (story 28.14) ──
   const addFilter = (value: string) => {
     if ("avail:available" === value) setAvailability("available");
     else if ("avail:experimental" === value) setAvailability("experimental");
-    else if ("__owned" === value) setOwnedOnly(true);
+    else if ("list:owned" === value) setList("owned");
+    else if ("list:planned" === value) setList("planned");
     else if (value.startsWith("cat:")) {
       const category = value.slice(4);
       setCategories((prev) => (prev.includes(category) ? prev : [...prev, category]));
@@ -72,8 +134,11 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
         .map((a) => ({ value: `avail:${a}`, label: availabilityLabels[a] })),
     },
     {
-      label: "Filtres",
-      options: coupled && !ownedOnly ? [{ value: "__owned", label: "Mes jeux" }] : [],
+      label: "Mes listes",
+      options: [
+        ...(hasAnyOwnership && "owned" !== list ? [{ value: "list:owned", label: listLabels.owned }] : []),
+        ...(hasPlanned && "planned" !== list ? [{ value: "list:planned", label: listLabels.planned }] : []),
+      ],
     },
     {
       label: "Plateformes",
@@ -87,8 +152,13 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
   if (availability !== "all") {
     activeTokens.push({ key: "avail", label: availabilityLabels[availability], remove: () => setAvailability("all") });
   }
-  if (ownedOnly) {
-    activeTokens.push({ key: "owned", label: "Mes jeux", icon: "gamepad", remove: () => setOwnedOnly(false) });
+  if ("all" !== list) {
+    activeTokens.push({
+      key: `list:${list}`,
+      label: listLabels[list],
+      icon: "owned" === list ? "gamepad" : "bookmark",
+      remove: () => setList("all"),
+    });
   }
   for (const category of categories) {
     activeTokens.push({
@@ -98,11 +168,12 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
     });
   }
 
-  const hasActiveFilters = query.trim() !== "" || availability !== "all" || ownedOnly || categories.length > 0;
+  const hasActiveFilters =
+    query.trim() !== "" || availability !== "all" || list !== "all" || categories.length > 0;
   const clearFilters = () => {
     setQuery("");
     setAvailability("all");
-    setOwnedOnly(false);
+    setList("all");
     setCategories([]);
   };
 
@@ -147,13 +218,15 @@ export function GamesCatalog({ initialGames }: { initialGames: PublicGame[] }) {
 
       <p className="text-sm text-muted-foreground" role="status">
         {visibleGames.length} jeu{visibleGames.length !== 1 ? "x" : ""}
-        {coupled ? ` · ${visibleGames.filter((g) => isOwned(g, matchedAppIds)).length} possédé(s)` : ""}
+        {hasAnyOwnership
+          ? ` · ${visibleGames.filter((g) => isOwned(g, matchedAppIds, ownedGameIds)).length} possédé(s)`
+          : ""}
       </p>
 
       {visibleGames.length > 0 ? (
         <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {visibleGames.map((game) => (
-            <GameCard game={game} key={game.id} owned={isOwned(game, matchedAppIds)} />
+            <GameCard game={game} key={game.id} owned={isOwned(game, matchedAppIds, ownedGameIds)} />
           ))}
         </div>
       ) : (

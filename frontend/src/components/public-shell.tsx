@@ -229,7 +229,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
 
           <div className="hidden items-center gap-4 lg:flex xl:gap-6">
             <NavLink href="/evenements" label="Événements" />
-            <NavLink href="/runs-hebdo" label="Runs hebdo" />
+            <NavLink href="/runs-hebdo" label="Runs hebdos" />
             <NavLink href="/jeux" label="Jeux" />
             <NavLink href="/communaute" label="Communauté" />
             <LiveTwitchBadge />
@@ -267,7 +267,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
           <nav aria-label="Navigation mobile" className="flex h-full flex-col">
             <div className="flex flex-col gap-3">
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink href="/runs-hebdo" label="Runs hebdo" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink href="/runs-hebdo" label="Runs hebdos" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />

@@ -6,7 +6,7 @@ import { WeeklyRunSlotPage } from "@/features/weekly-runs/weekly-run-slot-page";
 
 export const metadata: Metadata = {
   title: "Ma progression - Run hebdo",
-  description: "Suis ta progression sur le run hebdomadaire Archipelago.",
+  description: "Suis ta progression sur la run hebdomadaire Archipelago.",
   openGraph: {
     title: "Ma progression - Run hebdomadaire",
   },

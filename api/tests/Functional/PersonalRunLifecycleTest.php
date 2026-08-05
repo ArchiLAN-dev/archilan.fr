@@ -35,11 +35,12 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertSame($run->getId(), $data['runId']);
         self::assertSame(Run::STATUS_STARTING, $data['status']);
 
-        // Password stored on run
+        // No password is invented at start (story 16.13): it used to be generated here, before
+        // anything knew whether this run wanted one, and was overwritten by the session's own the
+        // moment the server answered. The session is authoritative, `markRunning` carries it over.
         $this->entityManager->refresh($run);
         self::assertSame(Run::STATUS_STARTING, $run->getStatus());
-        self::assertNotNull($run->getConnectionPassword());
-        self::assertSame(16, strlen($run->getConnectionPassword()));
+        self::assertNull($run->getConnectionPassword());
 
         // Job dispatched to run_server queue
         /** @var InMemoryTransport $transport */

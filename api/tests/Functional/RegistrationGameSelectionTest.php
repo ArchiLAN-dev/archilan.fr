@@ -119,6 +119,11 @@ final class RegistrationGameSelectionTest extends FunctionalTestCase
         self::assertSame('Zelda OoT', $firstGame['name']);
         self::assertFalse($firstGame['isApworldReady']);
         self::assertNull($firstGame['defaultYaml']);
+        // Story 28.16: the picker filters by platform and recognises a coupled Steam library, which
+        // it cannot do unless the payload carries these - a game with no catalogue metadata still
+        // answers, with an empty platform list and no app id, rather than omitting the keys.
+        self::assertSame([], $firstGame['platforms']);
+        self::assertNull($firstGame['steamAppId']);
     }
 
     public function testPutSavesGameSelection(): void

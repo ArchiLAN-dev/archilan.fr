@@ -350,6 +350,7 @@ services:
     App\GameSelection\Application\Port\GameCatalogLinksProviderInterface: '@App\CatalogSync\Infrastructure\Adapter\CatalogSyncGameLinksProvider'
 
     App\GameSelection\Domain\Repository\GameRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameRepository'
+    App\GameSelection\Domain\Repository\GameListRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameListRepository'
     App\GameSelection\Domain\Repository\ArchipelagoClientInfoRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineArchipelagoClientInfoRepository'
     App\GameSelection\Domain\Repository\ArchipelagoGuideRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineArchipelagoGuideRepository'
     App\GameSelection\Domain\Repository\GameTutorialContributionRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineGameTutorialContributionRepository'
