@@ -5,6 +5,54 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.13.0] - 2026-08-05
+
+Version consacrée aux listes de jeux du joueur - ce qu'il possède, ce qu'il veut essayer - et à
+leur présence partout où l'on choisit un jeu. Elle lève aussi une contrainte qui n'avait jamais été
+un choix : une partie privée était obligée d'avoir un mot de passe.
+
+### Ajouté
+
+- **Déclarer qu'on possède un jeu, sans Steam (story 28.13)** : le filtre « mes jeux » ne reposait
+  que sur le couplage Steam, qui ne peut reconnaître qu'un titre portant un `steamAppId`. Une
+  grande partie du catalogue n'en a pas - un jeu GameCube, SNES ou N64 était donc **structurellement
+  impossible** à marquer comme possédé. Une liste rattachée au compte comble ce trou ; les deux
+  sources sont unies à la lecture, jamais fusionnées en base, si bien que recoupler Steam ne peut
+  pas effacer un marquage manuel.
+- **Une deuxième liste, « à essayer » (story 28.14)** : « mes jeux » répond à ce qu'on peut lancer,
+  pas à ce qu'on veut découvrir. Les deux listes partagent un stockage, pas une sémantique - un jeu
+  peut appartenir aux deux, et vouloir un jeu ne fait jamais croire au catalogue qu'on le possède.
+- **Les deux listes au moment de choisir (stories 28.15, 28.16)** : dans la sélection de jeux d'une
+  partie privée et dans celle d'une inscription à un événement. Une liste d'envies qu'on ne peut pas
+  consulter en décidant est une liste qu'on remplit une fois et qu'on ne rouvre jamais.
+- **Une partie privée peut se passer de mot de passe (story 16.13)** : elle est déjà privée par son
+  lien d'invitation, et le mot de passe Archipelago était une seconde barrière imposée. Le laisser
+  vide donne désormais un serveur ouvert, au lieu d'un mot de passe aléatoire que personne n'avait
+  demandé.
+
+### Modifié
+
+- **Le filtre du catalogue devient un sélecteur de liste** : « mes jeux » et « à essayer » sont deux
+  réponses à la même question, donc exclusives l'une de l'autre. L'URL porte `liste=mes-jeux` ou
+  `liste=a-essayer` ; l'ancien `mes-jeux=1` reste lu pour que les liens partagés continuent de
+  fonctionner.
+- **La sélection de jeux d'une inscription rejoint les deux autres** : elle n'avait qu'une recherche,
+  et qui ne regardait que le nom. Elle gagne les plateformes, les deux listes, et une recherche qui
+  couvre aussi la description. La charge utile de l'API expose désormais `platforms` et
+  `steamAppId`, sans quoi aucun de ces filtres n'était calculable.
+
+### Corrigé
+
+- **Une partie sans mot de passe restait bloquée en « lancement »** alors que son serveur tournait et
+  acceptait les connexions (story 16.13) : le passage à l'état « en cours » exigeait un mot de passe
+  non vide. La garde datait d'une époque où il y en avait toujours un, et aucun test ne pouvait
+  l'atteindre. Trouvée en lançant une vraie partie.
+- **Deux failles de sécurité dans `guzzlehttp/guzzle`** (CVE-2026-69246, CVE-2026-69245) : hôte non
+  canonique contournant les contrôles d'hôte, et domaine de cookie non canonique conservant sa portée
+  de sous-domaine.
+- **Accords en français** : « Runs hebdos » plutôt que « Runs hebdo », et « run » au féminin partout -
+  la moitié du site l'écrivait déjà ainsi, les pages hebdomadaires étaient restées en arrière.
+
 ## [0.12.0] - 2026-08-03
 
 Version centrée sur deux chantiers : rendre visibles les échecs de génération multiworld, qui
