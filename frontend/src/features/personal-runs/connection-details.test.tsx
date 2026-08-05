@@ -42,4 +42,28 @@ describe("ConnectionDetails - per-field streamer masking (story 17.21)", () => {
     expect(html).not.toContain("mot de passe admin");
     expect(html).toContain('aria-label="Copier mot de passe"');
   });
+
+  describe("a run launched without a join password (story 16.13)", () => {
+    const noPassword = { ...props, password: null };
+
+    test("host and port are still shown - they are what a player needs to connect", () => {
+      const html = render(<ConnectionDetails {...noPassword} />);
+
+      expect(html).toContain('aria-label="Copier hôte"');
+      expect(html).toContain('aria-label="Copier port"');
+    });
+
+    test("the password row gives way to an explanation, not an empty field", () => {
+      const html = render(<ConnectionDetails {...noPassword} />);
+
+      expect(html).not.toContain('aria-label="Copier mot de passe"');
+      expect(html).toContain("Pas de mot de passe");
+    });
+
+    test("the admin password is unaffected - it was never the player's to see", () => {
+      const html = render(<ConnectionDetails {...noPassword} />);
+
+      expect(html).toContain('aria-label="Copier mot de passe admin"');
+    });
+  });
 });

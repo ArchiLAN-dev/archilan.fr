@@ -173,9 +173,14 @@ final class Run
         $this->updatedAt = $now;
     }
 
+    /**
+     * The connection password is not invented here (story 16.13). It used to be generated on the
+     * spot, before anything knew whether this run wanted one at all - and it was overwritten by
+     * `markRunning` with the session's own password the moment the server answered. Pre-generating
+     * it only meant a run configured without a password still carried one.
+     */
     public function start(\DateTimeImmutable $now): void
     {
-        $this->connectionPassword = bin2hex(random_bytes(8));
         $this->status = self::STATUS_STARTING;
         $this->updatedAt = $now;
     }
@@ -202,13 +207,17 @@ final class Run
         $this->sessionId = $sessionId;
     }
 
+    /**
+     * The session is authoritative on the password, including when it has none (story 16.13). The
+     * assignment used to be skipped on null, which was harmless while `start()` pre-generated one
+     * and wrong as soon as a run could legitimately have none: a run switched to "no password"
+     * would have kept displaying the secret from its previous launch.
+     */
     public function markRunning(string $host, int $port, \DateTimeImmutable $now, ?string $password = null): void
     {
         $this->connectionHost = $host;
         $this->connectionPort = $port;
-        if (null !== $password) {
-            $this->connectionPassword = $password;
-        }
+        $this->connectionPassword = $password;
         $this->status = self::STATUS_ACTIVE;
         $this->updatedAt = $now;
     }

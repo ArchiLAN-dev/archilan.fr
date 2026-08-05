@@ -315,7 +315,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     /**
      * @param array<string, scalar> $serverOptions
      */
-    public function launchSession(string $sessionId, string $adminPassword, string $serverPassword, array $serverOptions = []): void
+    public function launchSession(string $sessionId, string $adminPassword, ?string $serverPassword, array $serverOptions = []): void
     {
         $this->client->sessions()->launch($sessionId, $adminPassword, $serverPassword, $serverOptions);
     }

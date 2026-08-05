@@ -354,6 +354,18 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         return ['found' => true, 'session' => $session->payload()];
     }
 
+    /** Sets the join password a session runs with, `null` meaning it takes none (story 16.13). */
+    public function applyJoinPassword(string $sessionId, ?string $password): void
+    {
+        $session = $this->sessions->findById($sessionId);
+        if (!$session instanceof Session) {
+            return;
+        }
+
+        $session->applyJoinPassword($password);
+        $this->sessions->flush();
+    }
+
     public function storePendingCredentials(
         string $sessionId,
         ?string $adminPassword = null,

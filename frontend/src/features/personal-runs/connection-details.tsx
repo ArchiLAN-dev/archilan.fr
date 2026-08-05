@@ -12,7 +12,8 @@ export function ConnectionDetails({
 }: {
   host: string;
   port: number;
-  password: string;
+  /** Null when the run was launched without a join password (story 16.13) - the row is then omitted. */
+  password: string | null;
   adminPassword?: string | null;
 }) {
   return (
@@ -27,7 +28,13 @@ export function ConnectionDetails({
       <div className="grid grid-cols-1 gap-2">
         <SecretField label="Hôte" value={host} />
         <SecretField label="Port" value={String(port)} />
-        <SecretField label="Mot de passe" value={password} />
+        {password != null ? (
+          <SecretField label="Mot de passe" value={password} />
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Pas de mot de passe : le lien d&apos;invitation suffit pour rejoindre.
+          </p>
+        )}
         {adminPassword != null && <SecretField label="Mot de passe admin" value={adminPassword} />}
       </div>
     </div>

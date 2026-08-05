@@ -1024,10 +1024,11 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             )}
 
             {/* ACTIVE */}
+            {/* Story 16.13: the password is no longer part of the condition - a run launched
+                without one must still show its host and port, not vanish entirely. */}
             {run.status === "active" &&
               run.connectionHost !== null &&
-              run.connectionPort !== null &&
-              run.connectionPassword !== null && (
+              run.connectionPort !== null && (
                 <>
                   <ConnectionDetails
                     adminPassword={run.adminPassword}
@@ -1192,8 +1193,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           !run.isOwner &&
           run.status === "active" &&
           run.connectionHost !== null &&
-          run.connectionPort !== null &&
-          run.connectionPassword !== null && (
+          run.connectionPort !== null && (
             <ConnectionDetails
               host={run.connectionHost}
               password={run.connectionPassword}
