@@ -168,7 +168,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
     }
     if ("error" in result) {
       if (result.error === "max_attempts_reached") {
-        showToast("Tu as atteint le nombre maximum de tentatives pour ce run.");
+        showToast("Tu as atteint le nombre maximum de tentatives pour cette run.");
       } else {
         showToast(`Erreur : ${result.error}`);
       }
@@ -268,7 +268,7 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
               onClick={() => void handleOptIn()}
               type="button"
             >
-              {actionLoading ? "Inscription…" : "S'inscrire à ce run"}
+              {actionLoading ? "Inscription…" : "S'inscrire à cette run"}
             </button>
           )}
 

@@ -3,7 +3,7 @@ import { WeeklyRunsClientPage } from "@/features/weekly-runs/weekly-runs-client-
 
 export const metadata = buildPageMetadata({
   title: "Runs hebdomadaires",
-  description: "Participe au run Archipelago de la semaine et suis le classement en temps réel.",
+  description: "Participe à la run Archipelago de la semaine et suis le classement en temps réel.",
   path: "/runs-hebdo",
 });
 
@@ -18,7 +18,7 @@ export default function RunsHebdoPage() {
           Runs Archipelago hebdomadaires
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Une nouvelle seed Archipelago chaque semaine : choisis un jeu pour voir le run de la
+          Une nouvelle seed Archipelago chaque semaine : choisis un jeu pour voir la run de la
           semaine et consulter le classement.
         </p>
       </header>

@@ -591,7 +591,7 @@ export function WeeklyRunGameClientPage({ params }: Props) {
       <div className="py-16 text-center">
         <p className="text-lg font-semibold text-foreground">Jeu introuvable</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Aucun run actif pour ce jeu cette semaine.
+          Aucune run active pour ce jeu cette semaine.
         </p>
         <Link
           className="mt-6 inline-flex items-center gap-2 rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"

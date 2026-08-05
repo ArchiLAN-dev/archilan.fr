@@ -168,7 +168,7 @@ export function AdminWeeklyRunTemplateDetail({ templateId }: { templateId: strin
               <History aria-hidden="true" className="size-7 text-muted-foreground" />
             </div>
             <h4 className="font-heading text-base font-semibold text-foreground">
-              Aucun run pour ce template
+              Aucune run pour ce template
             </h4>
             <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
               Les runs apparaîtront ici dès que la génération hebdomadaire sera déclenchée.
