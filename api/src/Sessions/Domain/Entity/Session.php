@@ -226,13 +226,21 @@ final class Session
         }
 
         if (self::STATUS_RUNNING === $newStatus) {
-            if (null === $host || '' === trim($host) || null === $port || $port <= 0 || null === $password || '' === trim($password)) {
-                throw new \LogicException('Host, port et mot de passe sont requis pour passer la session en running.');
+            // Host and port are what a player needs to reach the server, so they stay required. The
+            // join password does not: a session may legitimately run without one (story 16.13), and
+            // demanding it here left such a session stuck in `launching` while its server was up and
+            // accepting connections.
+            if (null === $host || '' === trim($host) || null === $port || $port <= 0) {
+                throw new \LogicException('Host et port sont requis pour passer la session en running.');
             }
 
             $this->host = $host;
             $this->port = $port;
-            $this->password = $password;
+            // Only overwrite when the runner reports one: the launch already stored the authoritative
+            // value, and a silent report must not erase it.
+            if (null !== $password) {
+                $this->password = $password;
+            }
             $this->serverPassword = $serverPassword;
             $this->bridgePort = $bridgePort;
             $this->startedAt = $now;
