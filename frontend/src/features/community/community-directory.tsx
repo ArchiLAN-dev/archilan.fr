@@ -6,11 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Search, Trophy, Users, Clock } from "lucide-react";
 
 import { useAuth } from "@/features/auth/auth-context";
-import {
-  fetchDirectory,
-  type DirectoryMode,
-  type DirectoryRow,
-} from "./community-directory-api";
+import { fetchDirectory, type DirectoryMode } from "./community-directory-api";
+import { MemberCard } from "./member-card";
 
 const STALE_TIME = 20_000;
 
@@ -20,11 +17,16 @@ const TABS: { mode: DirectoryMode; label: string; icon: typeof Trophy }[] = [
   { mode: "friends", label: "Mes amis", icon: Users },
 ];
 
-export function CommunityDirectory() {
+type Props = {
+  /** Term handed over by the hub's search box (/joueurs?search=…). */
+  initialSearch?: string;
+};
+
+export function CommunityDirectory({ initialSearch = "" }: Props) {
   const { user } = useAuth();
   const [mode, setMode] = useState<DirectoryMode>("top");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -66,9 +68,14 @@ export function CommunityDirectory() {
   return (
     <section className="grid gap-6">
       <header className="grid gap-2">
-        <h1 className="font-heading text-3xl font-bold text-foreground">Communauté</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
+          <Link className="hover:underline" href="/communaute">
+            Communauté
+          </Link>
+        </p>
+        <h1 className="font-heading text-3xl font-bold text-foreground">Membres</h1>
         <p className="text-sm text-muted-foreground">
-          Parcoure les joueurs ArchiLAN, le classement et tes amis.
+          Tous les joueurs ArchiLAN : classement par XP, activité récente et tes amis.
         </p>
       </header>
 
@@ -131,7 +138,7 @@ export function CommunityDirectory() {
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
             {rows.map((row, i) => (
               <li key={row.slug}>
-                <PlayerCard rank={mode === "top" && !searching ? (page - 1) * perPage + i + 1 : null} row={row} />
+                <MemberCard rank={mode === "top" && !searching ? (page - 1) * perPage + i + 1 : null} row={row} />
               </li>
             ))}
           </ul>
@@ -162,45 +169,5 @@ export function CommunityDirectory() {
         </>
       )}
     </section>
-  );
-}
-
-function PlayerCard({ row, rank }: { row: DirectoryRow; rank: number | null }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const name = row.displayName ?? row.slug;
-  const showImg = row.avatarUrl !== null && !imgFailed;
-
-  return (
-    <Link
-      className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-accent"
-      href={`/joueurs/${row.slug}`}
-    >
-      {rank !== null ? (
-        <span className="w-6 shrink-0 text-center font-heading text-sm font-bold text-muted-foreground">{rank}</span>
-      ) : null}
-      {/* Positioning context only (no clip) so the "En jeu" badge can overflow the avatar circle.
-          The avatar itself is clipped by the inner span; the badge is a sibling outside that clip. */}
-      <span className="relative inline-flex size-10 shrink-0">
-        <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text">
-          {showImg ? (
-            // eslint-disable-next-line @next/next/no-img-element -- avatar URLs are external (Discord/Steam CDN), not statically known
-            <img alt="" className="size-full object-cover" onError={() => setImgFailed(true)} src={row.avatarUrl ?? ""} />
-          ) : (
-            name.slice(0, 1).toUpperCase()
-          )}
-        </span>
-        {row.playing ? (
-          <span
-            aria-label="En jeu"
-            className="absolute -bottom-0.5 -right-0.5 z-10 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"
-            title="En jeu"
-          />
-        ) : null}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{name}</span>
-        <span className="text-xs text-muted-foreground">Niv. {row.level}</span>
-      </span>
-    </Link>
   );
 }

@@ -55,7 +55,7 @@ export function SessionRecapView({ recap, feed }: { recap: SessionRecap; feed: F
         {/* Story 32.20: the results page this used to return to is gone - the recap absorbed it. */}
         <Link
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          href="/classements"
+          href="/communaute"
         >
           <ArrowLeft aria-hidden="true" className="size-3.5" />
           Voir le classement communautaire

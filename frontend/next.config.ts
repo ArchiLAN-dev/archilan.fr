@@ -31,6 +31,17 @@ const nextConfig: NextConfig = {
         : []),
     ],
   },
+  async redirects() {
+    return [
+      {
+        // Story 30.38: the leaderboards are a section of the community hub now. Permanent, because
+        // /classements was in the sitemap and is indexed.
+        source: "/classements",
+        destination: "/communaute",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     // Baseline security headers on every response. These govern how OUR pages behave, not our
     // ability to embed Twitch/HelloAsso (that is CSP frame-src, not added here) - so they are

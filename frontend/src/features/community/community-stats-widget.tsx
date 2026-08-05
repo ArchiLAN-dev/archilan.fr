@@ -70,7 +70,7 @@ export function CommunityStatsWidget() {
       <div className="mt-6 flex justify-center">
         <Link
           className="inline-flex min-h-10 items-center justify-center gap-2 rounded border border-border bg-surface px-5 text-sm font-semibold text-foreground transition-colors hover:border-accent"
-          href="/classements"
+          href="/communaute"
         >
           Voir le classement communautaire →
         </Link>

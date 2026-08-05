@@ -32,7 +32,7 @@ final readonly class CommunityDirectory
 
     /**
      * @return array{
-     *     rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>,
+     *     rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}>,
      *     total: int, page: int, perPage: int
      * }
      */
@@ -58,7 +58,7 @@ final readonly class CommunityDirectory
     }
 
     /**
-     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>, total: int, page: int, perPage: int}
+     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}>, total: int, page: int, perPage: int}
      */
     private function top(int $page, int $perPage, int $offset): array
     {
@@ -86,7 +86,7 @@ final readonly class CommunityDirectory
     }
 
     /**
-     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>, total: int, page: int, perPage: int}
+     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}>, total: int, page: int, perPage: int}
      */
     private function recent(int $page, int $perPage, int $offset): array
     {
@@ -96,7 +96,7 @@ final readonly class CommunityDirectory
     }
 
     /**
-     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>, total: int, page: int, perPage: int}
+     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}>, total: int, page: int, perPage: int}
      */
     private function friends(?string $viewerId, int $page, int $perPage, int $offset): array
     {
@@ -131,7 +131,7 @@ final readonly class CommunityDirectory
      * @param array<string, array{userId: string, slug: string, displayName: string|null, avatarUrl: string|null}>|null                                                                           $cards
      * @param array<string, array{level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, runsParticipated: int, goalCompletions: int, totalChecksDone: int, achievementsUnlocked: int}>|null $levels
      *
-     * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>
+     * @return list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}>
      */
     private function enrich(array $userIds, ?array $cards = null, ?array $levels = null): array
     {
@@ -156,6 +156,10 @@ final readonly class CommunityDirectory
                 'avatarUrl' => $card['avatarUrl'],
                 'level' => null !== $level ? $level['level'] : 0,
                 'xp' => null !== $level ? $level['xp'] : 0,
+                // Progress within the current level - already computed by CommunityLevelQuery and until
+                // story 30.38 discarded here, which left the cards unable to draw an XP bar.
+                'xpIntoLevel' => null !== $level ? $level['xpIntoLevel'] : 0,
+                'xpForNextLevel' => null !== $level ? $level['xpForNextLevel'] : 0,
                 'playing' => isset($playing[$userId]),
             ];
         }
@@ -164,9 +168,9 @@ final readonly class CommunityDirectory
     }
 
     /**
-     * @param list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}> $rows
+     * @param list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}> $rows
      *
-     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, playing: bool}>, total: int, page: int, perPage: int}
+     * @return array{rows: list<array{slug: string, displayName: string|null, avatarUrl: string|null, level: int, xp: int, xpIntoLevel: int, xpForNextLevel: int, playing: bool}>, total: int, page: int, perPage: int}
      */
     private function page(array $rows, int $total, int $page, int $perPage): array
     {

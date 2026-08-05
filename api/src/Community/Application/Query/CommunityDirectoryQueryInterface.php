@@ -27,4 +27,10 @@ interface CommunityDirectoryQueryInterface
      * @return array{ids: list<string>, total: int}
      */
     public function search(string $term, int $limit, int $offset): array;
+
+    /**
+     * How many members are listable at all (a public slug, not deleted) - the population every community
+     * surface counts, and the same base DbalAchievementRarityQuery divides by. Story 30.38 (hub header).
+     */
+    public function listableMemberCount(): int;
 }

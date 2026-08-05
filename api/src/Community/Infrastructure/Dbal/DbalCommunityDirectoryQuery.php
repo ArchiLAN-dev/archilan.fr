@@ -58,6 +58,20 @@ final readonly class DbalCommunityDirectoryQuery implements CommunityDirectoryQu
         return ['ids' => $ids, 'total' => is_numeric($total) ? (int) $total : 0];
     }
 
+    public function listableMemberCount(): int
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $count = $qb
+            ->select('COUNT(u.id)')
+            ->from($this->userTable, 'u')
+            ->where('u.slug IS NOT NULL')
+            ->andWhere($qb->expr()->isNull('u.deleted_at'))
+            ->executeQuery()
+            ->fetchOne();
+
+        return is_numeric($count) ? (int) $count : 0;
+    }
+
     public function search(string $term, int $limit, int $offset): array
     {
         $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
