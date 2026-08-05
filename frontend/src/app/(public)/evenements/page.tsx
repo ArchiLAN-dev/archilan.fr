@@ -35,7 +35,7 @@ export default async function EventsPage() {
               Prochains événements
             </h2>
             <p className="mt-2 text-muted-foreground">
-              États affichés explicitement pour aider à choisir rapidement.
+              Date, places restantes et état des inscriptions pour chaque événement à venir.
             </p>
           </div>
         </div>
