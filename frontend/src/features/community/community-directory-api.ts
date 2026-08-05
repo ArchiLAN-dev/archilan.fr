@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
-export type DirectoryMode = "top" | "recent" | "friends";
+export type DirectorySort = "xp" | "recent";
 
 export type DirectoryRow = {
   slug: string;
@@ -17,7 +17,8 @@ export type DirectoryRow = {
 
 export type DirectoryResult = { rows: DirectoryRow[]; total: number; page: number; perPage: number };
 
-export type DirectoryParams = { mode: DirectoryMode; search: string; page: number };
+/** The three controls compose server-side: the term narrows, the filter narrows further, the sort orders. */
+export type DirectoryParams = { sort: DirectorySort; search: string; friendsOnly: boolean; page: number };
 
 function isRow(v: unknown): v is DirectoryRow {
   return (
@@ -35,8 +36,9 @@ function isRow(v: unknown): v is DirectoryRow {
 }
 
 function directoryUrl(params: DirectoryParams): string {
-  const query = new URLSearchParams({ mode: params.mode, page: String(params.page) });
+  const query = new URLSearchParams({ sort: params.sort, page: String(params.page) });
   if (params.search.trim() !== "") query.set("search", params.search.trim());
+  if (params.friendsOnly) query.set("friendsOnly", "1");
 
   return `${env.apiBaseUrl}/community/directory?${query.toString()}`;
 }

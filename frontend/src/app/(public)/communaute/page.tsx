@@ -25,7 +25,7 @@ export default async function CommunautePage() {
     fetchCommunityStats(),
     fetchLeaderboard("goals", 20),
     getPublicEvents(),
-    fetchDirectoryServerSide({ mode: "top", search: "", page: 1 }),
+    fetchDirectoryServerSide({ sort: "xp", search: "", friendsOnly: false, page: 1 }),
   ]);
 
   const events = [...eventsData.upcoming, ...eventsData.past].map((event) => ({

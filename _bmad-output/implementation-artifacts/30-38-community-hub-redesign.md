@@ -115,9 +115,26 @@ plutôt que trois appels : le hub fait alors 3 requêtes au total (overview + st
 
 ### Frontend - annuaire déplacé et nettoyage
 
-11. **`/joueurs`** (nouvelle page index) porte l'annuaire complet : recherche, modes Top / Récemment
-    actifs / Mes amis, pagination - c'est-à-dire le comportement actuel de `CommunityDirectory`, avec les
-    cartes retravaillées (niveau + barre d'XP, badge en jeu, badges de reconnaissance si dispo).
+11. **`/joueurs`** (nouvelle page index) porte l'annuaire complet, avec les cartes retravaillées (niveau
+    + barre d'XP, badge en jeu, badges de reconnaissance si dispo).
+    *Revu après relecture de Jean :* le brouillon reprenait les trois onglets existants (Top joueurs /
+    Récemment actifs / Mes amis) + recherche. La page était illisible, pour une raison de fond : ce sont
+    **deux tris et un filtre personnel** présentés comme un seul et même choix, plus une recherche qui
+    écrasait silencieusement l'onglet actif (`browse()` ignorait le mode dès qu'un terme existait - taper
+    trois lettres depuis « Mes amis » renvoyait des inconnus). Remplacé par **trois contrôles orthogonaux
+    qui se composent** : une recherche, un tri (`sort=xp|recent`) et un filtre `friendsOnly`.
+    « Chercher parmi mes amis » devient exprimable ; ça ne l'était pas.
+11b. **Le contrat de l'annuaire change** (`GET /api/v1/community/directory`) : `mode=top|recent|friends`
+    devient `sort=xp|recent` + `friendsOnly=1`, et le terme **narrow** le jeu de résultats au lieu de le
+    remplacer. Côté lecture, `CommunityDirectoryQueryInterface` passe d'une méthode paginée par onglet
+    (`recentlyActive` / `search`) à un jeu de candidats (`listableIds(?string $search)`) plus
+    `lastActivityAt()` : une requête paginée par onglet ne sait pas exprimer une composition.
+    Conséquence assumée : le tri par XP liste **tous** les membres, un membre sans XP finissant en bas au
+    lieu d'être écarté comme le faisait l'onglet « Top joueurs ». C'est l'annuaire, pas le classement -
+    celui-ci vit sur `/communaute` avec sa propre requête - et ça réconcilie la liste avec le
+    « 15 membres » affiché par le hub.
+    `friendsOnly` sans viewer renvoie un ensemble vide, jamais l'annuaire entier.
+
     *Livré :* la barre d'XP a nécessité d'ajouter `xpIntoLevel` / `xpForNextLevel` aux lignes d'annuaire.
     `CommunityLevelQuery` les calculait déjà et `CommunityDirectory::enrich()` les jetait. Les badges de
     reconnaissance (adhérent / admin) ne sont **pas** livrés : ils demandent une lecture d'adhésion
@@ -231,6 +248,12 @@ claude-opus-5 (Claude Code).
   `phpunit` 1731 tests verts (run isolé) ; frontend `typecheck` / `lint` / `test` (348) / `build` verts.
   Vérifié en local : endpoint 200 avec données réelles, hub rendu côté serveur (compteur, cartes, succès),
   `/joueurs` 200, `/classements` 308.
+- **Second passage sur `/joueurs` (relecture Jean)** : la page reprenait les trois onglets historiques et
+  restait confuse. Restructurée en recherche + tri + filtre composables (AC 11 / 11b), ce qui a demandé
+  de retourner le contrat de lecture de l'annuaire - c'est la seule façon d'exprimer « chercher parmi mes
+  amis », que le modèle par onglets rendait littéralement impossible. Un consommateur inattendu est
+  ressorti au typecheck : `admin-achievements-dashboard.tsx` utilisait `fetchDirectory({mode:"top"})`
+  pour son champ de recherche de membres.
 - **Observation pour Jean, non traitée** : sur les données réelles, quatre grants partagent l'horodatage
   du backfill (2026-07-04T13:45), donc « succès récemment débloqués » affiche trois fois « Premier
   objectif » et quatre tuiles pour le même membre. La section est fidèle aux données ; si l'effet vitrine
@@ -268,4 +291,5 @@ claude-opus-5 (Claude Code).
 | Date       | Change |
 |------------|--------|
 | 2026-08-05 | Créée (draft). `/communaute` refaite en hub composé orienté visiteur non connecté ; absorbe `/classements` (supprimée + redirigée) ; l'annuaire complet part sur `/joueurs` ; un nouvel endpoint public `/community/overview` couvre les trois manques (nombre de membres, présence globale, succès récents). |
+| 2026-08-05 | `/joueurs` restructurée après relecture. Les trois onglets (deux tris + un filtre personnel) et la recherche qui les écrasait sont remplacés par recherche + `sort` + `friendsOnly`, composables côté API (`listableIds` / `lastActivityAt` en remplacement de `recentlyActive` / `search`). Le tri XP liste désormais tous les membres. Gates verts, endpoint et page vérifiés en local. |
 | 2026-08-05 | Implémentée. Endpoint overview + `ViewableSessionsQuery` + présence globale + comptage membres ; hub serveur en 6 sections, `/joueurs` créée, `/classements` supprimée et redirigée en 308, liens et sitemap suivis. Filtrage `ProfileVisibility` abandonné après vérification (aurait vidé la page pour un anonyme) au profit de la règle « membre listable ». Gates API + frontend verts, vérifié en local. Status → review. |

@@ -254,7 +254,7 @@ function GrantPanel({
   async function runSearch(): Promise<void> {
     setSearching(true);
     setMessage(null);
-    const result = await fetchDirectory({ mode: "top", search, page: 1 });
+    const result = await fetchDirectory({ sort: "xp", search, friendsOnly: false, page: 1 });
     setRows(result?.rows ?? []);
     setSearched(true);
     setSearching(false);

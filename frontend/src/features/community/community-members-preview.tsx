@@ -31,8 +31,8 @@ export function CommunityMembersPreview({ initialRows }: Props) {
   const [search, setSearch] = useState("");
 
   const { data: friends } = useQuery({
-    queryKey: ["community-directory", "friends", "", 1],
-    queryFn: () => fetchDirectory({ mode: "friends", search: "", page: 1 }),
+    queryKey: ["community-directory", "xp", "", true, 1],
+    queryFn: () => fetchDirectory({ sort: "xp", search: "", friendsOnly: true, page: 1 }),
     staleTime: DEFAULT_STALE_TIME,
     enabled: user !== null,
   });
