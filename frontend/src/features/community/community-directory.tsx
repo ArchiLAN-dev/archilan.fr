@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Loader2, Search } from "lucide-react";
 
+import { Switch } from "@/components/switch";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchDirectory, type DirectorySort } from "./community-directory-api";
 import { MemberCard } from "./member-card";
@@ -116,18 +117,19 @@ export function CommunityDirectory({ initialSearch = "" }: Props) {
           </div>
 
           {user !== null ? (
-            <label className="inline-flex items-center gap-2 text-sm text-foreground">
-              <input
+            <span className="inline-flex items-center gap-2">
+              <Switch
+                ariaLabel="Mes amis uniquement"
                 checked={friendsOnly}
-                className="size-4 rounded border-border text-accent focus:ring-accent"
-                onChange={(e) => {
-                  setFriendsOnly(e.target.checked);
+                onChange={(checked) => {
+                  setFriendsOnly(checked);
                   setPage(1);
                 }}
-                type="checkbox"
               />
-              Mes amis uniquement
-            </label>
+              <span className={`text-sm ${friendsOnly ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                Mes amis uniquement
+              </span>
+            </span>
           ) : null}
 
           <p className="text-xs text-muted-foreground">

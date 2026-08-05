@@ -25,22 +25,35 @@ const legalLinks = [
   { href: "/cgv", label: "CGV" },
 ] as const;
 
-function isActive(pathname: string, href: string) {
-  return href.startsWith("/") && (pathname === href || pathname.startsWith(`${href}/`));
+/** Routes that belong to the "Communauté" section without sitting under /communaute. */
+const COMMUNITY_PATHS = ["/joueurs"] as const;
+
+/**
+ * Whether a nav entry owns the current path. `alsoMatch` covers the section's other routes: a section
+ * is not always a single URL prefix - "Communauté" lands on /communaute but /joueurs (the members
+ * directory and every player profile) belongs to it just as much, and would otherwise leave the whole
+ * nav bar unlit.
+ */
+export function isActive(pathname: string, href: string, alsoMatch: readonly string[] = []) {
+  return [href, ...alsoMatch].some(
+    (path) => path.startsWith("/") && (pathname === path || pathname.startsWith(`${path}/`)),
+  );
 }
 
 function NavLink({
   href,
   label,
+  alsoMatch,
   onNavigate,
 }: {
   href: string;
   label: string;
+  alsoMatch?: readonly string[];
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const external = href.startsWith("http://") || href.startsWith("https://");
-  const active = isActive(pathname, href);
+  const active = isActive(pathname, href, alsoMatch);
   const className = [
     "inline-flex min-h-11 items-center border-b-2 px-1 text-sm font-medium transition-all duration-200",
     active
@@ -231,7 +244,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
             <NavLink href="/evenements" label="Événements" />
             <NavLink href="/runs-hebdo" label="Runs hebdos" />
             <NavLink href="/jeux" label="Jeux" />
-            <NavLink href="/communaute" label="Communauté" />
+            <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" />
             <LiveTwitchBadge />
           </div>
 
@@ -269,7 +282,7 @@ export function PublicShell({ children }: Readonly<{ children: React.ReactNode }
               <NavLink href="/evenements" label="Événements" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/runs-hebdo" label="Runs hebdos" onNavigate={() => setMenuState({ open: false, pathname })} />
               <NavLink href="/jeux" label="Jeux" onNavigate={() => setMenuState({ open: false, pathname })} />
-              <NavLink href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
+              <NavLink alsoMatch={COMMUNITY_PATHS} href="/communaute" label="Communauté" onNavigate={() => setMenuState({ open: false, pathname })} />
               <LiveTwitchBadge onNavigate={() => setMenuState({ open: false, pathname })} />
             </div>
             <div className="mt-auto grid gap-3 border-t border-border pt-6">

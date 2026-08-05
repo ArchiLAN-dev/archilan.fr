@@ -145,8 +145,12 @@ plutôt que trois appels : le hub fait alors 3 requêtes au total (overview + st
 13. **Tous les liens entrants sont mis à jour** : `app/(public)/page.tsx:58`,
     `features/community/community-stats-widget.tsx:73`, `features/recap/session-recap-page.tsx:58`.
 14. **Sitemap** : `/classements` retiré, `/joueurs` ajouté dans `STATIC_ROUTES`.
-15. **Nav** : l'entrée « Communauté » reste inchangée dans `public-shell.tsx` (desktop + mobile) - le hub
-    est désormais la destination unique, `/classements` n'est plus orpheline.
+15. **Nav** : l'entrée « Communauté » reste la seule entrée de section dans `public-shell.tsx` (desktop +
+    mobile) - le hub est désormais la destination unique, `/classements` n'est plus orpheline.
+    *Ajouté après relecture :* elle doit rester **allumée sur `/joueurs`** et sur les profils joueurs.
+    `isActive()` ne comparait qu'un préfixe d'URL, donc toute la barre de nav s'éteignait sur l'annuaire
+    et sur `/joueurs/{slug}`. `NavLink` accepte désormais `alsoMatch`, la liste des routes rattachées à
+    la section - une section n'est pas toujours un préfixe d'URL unique.
 
 ### Gates
 
@@ -254,6 +258,11 @@ claude-opus-5 (Claude Code).
   amis », que le modèle par onglets rendait littéralement impossible. Un consommateur inattendu est
   ressorti au typecheck : `admin-achievements-dashboard.tsx` utilisait `fetchDirectory({mode:"top"})`
   pour son champ de recherche de membres.
+- **Retouches de relecture** : le filtre « Mes amis uniquement » utilise le composant partagé `Switch`
+  (`components/switch.tsx`) et non une case à cocher - son propre docblock dit « Use in place of a
+  boolean checkbox », la première version allait contre la convention maison. Et `isActive()` gagne
+  `alsoMatch` pour que « Communauté » reste allumée sur `/joueurs` (couvert par
+  `components/public-shell.test.ts`).
 - **Observation pour Jean, non traitée** : sur les données réelles, quatre grants partagent l'horodatage
   du backfill (2026-07-04T13:45), donc « succès récemment débloqués » affiche trois fois « Premier
   objectif » et quatre tuiles pour le même membre. La section est fidèle aux données ; si l'effet vitrine
