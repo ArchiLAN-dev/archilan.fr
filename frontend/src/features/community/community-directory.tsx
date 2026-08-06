@@ -2,29 +2,40 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, Search, Trophy, Users, Clock } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Loader2, Search } from "lucide-react";
 
+import { Switch } from "@/components/switch";
 import { useAuth } from "@/features/auth/auth-context";
-import {
-  fetchDirectory,
-  type DirectoryMode,
-  type DirectoryRow,
-} from "./community-directory-api";
+import { fetchDirectory, type DirectorySort } from "./community-directory-api";
+import { MemberCard } from "./member-card";
 
 const STALE_TIME = 20_000;
 
-const TABS: { mode: DirectoryMode; label: string; icon: typeof Trophy }[] = [
-  { mode: "top", label: "Top joueurs", icon: Trophy },
-  { mode: "recent", label: "Récemment actifs", icon: Clock },
-  { mode: "friends", label: "Mes amis", icon: Users },
+const SORTS: { value: DirectorySort; label: string }[] = [
+  { value: "xp", label: "Par XP" },
+  { value: "recent", label: "Activité récente" },
 ];
 
-export function CommunityDirectory() {
+type Props = {
+  /** Term handed over by the hub's search box (/joueurs?search=…). */
+  initialSearch?: string;
+};
+
+/**
+ * The members directory (story 30.38). One list, three controls that compose: a search, a sort and a
+ * friends filter.
+ *
+ * It used to be three exclusive tabs plus a search that silently replaced the active one - two sorts and
+ * a personal filter presented as if they were the same kind of choice. They are separated here, and the
+ * API composes them, so "chercher parmi mes amis" means what it says.
+ */
+export function CommunityDirectory({ initialSearch = "" }: Props) {
   const { user } = useAuth();
-  const [mode, setMode] = useState<DirectoryMode>("top");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<DirectorySort>("xp");
+  const [friendsOnly, setFriendsOnly] = useState(false);
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -32,13 +43,11 @@ export function CommunityDirectory() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
 
-  const searching = search.trim() !== "";
-
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["community-directory", mode, search, page],
-    queryFn: () => fetchDirectory({ mode, search, page }),
+    queryKey: ["community-directory", sort, search, friendsOnly, page],
+    queryFn: () => fetchDirectory({ sort, search, friendsOnly, page }),
+    placeholderData: keepPreviousData,
     staleTime: STALE_TIME,
-    enabled: !(mode === "friends" && user === null && !searching),
   });
 
   function onSearchChange(value: string): void {
@@ -50,88 +59,109 @@ export function CommunityDirectory() {
     }, 350);
   }
 
-  function selectTab(next: DirectoryMode): void {
-    setMode(next);
-    setSearch("");
-    setSearchInput("");
-    setPage(1);
-  }
-
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
   const perPage = data?.perPage ?? 24;
   const totalPages = perPage > 0 ? Math.max(1, Math.ceil(total / perPage)) : 1;
-  const needsLogin = mode === "friends" && user === null && !searching;
+  const searching = search.trim() !== "";
+  // A rank is only meaningful on the XP order; under "activité récente" the number would rank nothing.
+  const showRank = sort === "xp";
 
   return (
     <section className="grid gap-6">
       <header className="grid gap-2">
-        <h1 className="font-heading text-3xl font-bold text-foreground">Communauté</h1>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent-text">
+          <Link className="hover:underline" href="/communaute">
+            Communauté
+          </Link>
+        </p>
+        <h1 className="font-heading text-3xl font-bold text-foreground">Membres</h1>
         <p className="text-sm text-muted-foreground">
-          Parcoure les joueurs ArchiLAN, le classement et tes amis.
+          Tous les joueurs ArchiLAN. Chacun a son profil : niveau, succès et historique de runs.
         </p>
       </header>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2" role="tablist">
-          {TABS.map(({ mode: m, label, icon: Icon }) => (
-            <button
-              aria-selected={mode === m && !searching}
-              className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-semibold transition-colors ${
-                mode === m && !searching
-                  ? "border-accent bg-accent/10 text-accent-text"
-                  : "border-border text-muted-foreground hover:border-accent hover:text-foreground"
-              }`}
-              key={m}
-              onClick={() => selectTab(m)}
-              role="tab"
-              type="button"
-            >
-              <Icon aria-hidden className="size-4" /> {label}
-            </button>
-          ))}
-        </div>
-
-        <label className="relative block sm:w-64">
-          <Search aria-hidden className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="grid gap-3">
+        <label className="relative block">
+          <Search aria-hidden className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            aria-label="Rechercher un joueur"
-            className="min-h-9 w-full rounded-lg border border-border bg-surface pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
+            aria-label="Rechercher un membre"
+            className="min-h-11 w-full rounded-lg border border-border bg-surface pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Rechercher…"
+            placeholder="Rechercher un membre par pseudo…"
             type="search"
             value={searchInput}
           />
         </label>
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="directory-sort">
+              Trier :
+            </label>
+            <select
+              className="min-h-9 rounded-lg border border-border bg-surface px-3 text-sm text-foreground focus:border-accent focus:outline-none"
+              id="directory-sort"
+              onChange={(e) => {
+                setSort(e.target.value === "recent" ? "recent" : "xp");
+                setPage(1);
+              }}
+              value={sort}
+            >
+              {SORTS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {user !== null ? (
+            <span className="inline-flex items-center gap-2">
+              <Switch
+                ariaLabel="Mes amis uniquement"
+                checked={friendsOnly}
+                onChange={(checked) => {
+                  setFriendsOnly(checked);
+                  setPage(1);
+                }}
+              />
+              <span className={`text-sm ${friendsOnly ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                Mes amis uniquement
+              </span>
+            </span>
+          ) : null}
+
+          <p className="text-xs text-muted-foreground">
+            {isLoading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 aria-hidden className="size-3.5 animate-spin" /> Chargement…
+              </span>
+            ) : (
+              `${total} ${total === 1 ? "membre" : "membres"}`
+            )}
+          </p>
+        </div>
       </div>
 
-      {searching ? (
-        <p className="text-xs text-muted-foreground">Résultats pour « {search.trim()} »</p>
-      ) : null}
-
-      {needsLogin ? (
-        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-          <Link className="font-semibold text-accent-text hover:underline" href="/connexion">
-            Connecte-toi
-          </Link>{" "}
-          pour voir tes amis.
-        </p>
-      ) : isLoading ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement…
-        </p>
-      ) : isError || data === null ? (
+      {isError || data === null ? (
         <p className="text-sm text-muted-foreground">Impossible de charger l&apos;annuaire.</p>
-      ) : rows.length === 0 ? (
+      ) : rows.length === 0 && !isLoading ? (
         <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-          Aucun joueur à afficher.
+          {searching && friendsOnly
+            ? `Aucun de tes amis ne correspond à « ${search.trim()} ».`
+            : searching
+              ? `Aucun membre ne correspond à « ${search.trim()} ».`
+              : friendsOnly
+                ? "Tu n'as pas encore d'amis. Ajoute-les depuis leur profil."
+                : "Aucun membre à afficher."}
         </p>
       ) : (
         <>
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" role="list">
             {rows.map((row, i) => (
               <li key={row.slug}>
-                <PlayerCard rank={mode === "top" && !searching ? (page - 1) * perPage + i + 1 : null} row={row} />
+                <MemberCard rank={showRank ? (page - 1) * perPage + i + 1 : null} row={row} />
               </li>
             ))}
           </ul>
@@ -162,45 +192,5 @@ export function CommunityDirectory() {
         </>
       )}
     </section>
-  );
-}
-
-function PlayerCard({ row, rank }: { row: DirectoryRow; rank: number | null }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const name = row.displayName ?? row.slug;
-  const showImg = row.avatarUrl !== null && !imgFailed;
-
-  return (
-    <Link
-      className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-accent"
-      href={`/joueurs/${row.slug}`}
-    >
-      {rank !== null ? (
-        <span className="w-6 shrink-0 text-center font-heading text-sm font-bold text-muted-foreground">{rank}</span>
-      ) : null}
-      {/* Positioning context only (no clip) so the "En jeu" badge can overflow the avatar circle.
-          The avatar itself is clipped by the inner span; the badge is a sibling outside that clip. */}
-      <span className="relative inline-flex size-10 shrink-0">
-        <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-accent/15 text-sm font-bold text-accent-text">
-          {showImg ? (
-            // eslint-disable-next-line @next/next/no-img-element -- avatar URLs are external (Discord/Steam CDN), not statically known
-            <img alt="" className="size-full object-cover" onError={() => setImgFailed(true)} src={row.avatarUrl ?? ""} />
-          ) : (
-            name.slice(0, 1).toUpperCase()
-          )}
-        </span>
-        {row.playing ? (
-          <span
-            aria-label="En jeu"
-            className="absolute -bottom-0.5 -right-0.5 z-10 size-3 animate-pulse rounded-full border-2 border-surface bg-emerald-400"
-            title="En jeu"
-          />
-        ) : null}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{name}</span>
-        <span className="text-xs text-muted-foreground">Niv. {row.level}</span>
-      </span>
-    </Link>
   );
 }

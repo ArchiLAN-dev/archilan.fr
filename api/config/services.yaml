@@ -301,6 +301,7 @@ services:
     App\Identity\Application\Query\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\Dbal\DbalMemberDisplayNameQuery'
     App\Community\Application\Query\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityPresenceQuery'
     App\Community\Application\Query\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityDirectoryQuery'
+    App\Community\Application\Query\RecentAchievementGrantsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalRecentAchievementGrantsQuery'
     App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
     App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
     App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'

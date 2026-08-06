@@ -25,12 +25,13 @@ final readonly class CommunityDirectoryController
         $viewer = $this->apiAccessGuard->optionalUser($request);
         $viewerId = $viewer instanceof User ? $viewer->getId() : null;
 
-        $mode = $request->query->getString('mode', CommunityDirectory::MODE_TOP);
+        $sort = $request->query->getString('sort', CommunityDirectory::SORT_XP);
         $search = $request->query->getString('search');
 
         $result = $this->directory->browse(
-            $mode,
+            $sort,
             '' === $search ? null : $search,
+            $request->query->getBoolean('friendsOnly'),
             $viewerId,
             $request->query->getInt('page', 1),
             $request->query->getInt('perPage', 0),
