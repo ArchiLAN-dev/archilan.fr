@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 export type AdminUser = {
   id: string;
@@ -120,6 +120,77 @@ export async function fetchAdminUserActivity(userId: string): Promise<AdminUserA
     if (!Array.isArray(payload.data) || !payload.data.every(isActivityEntry)) return null;
 
     return payload.data;
+  } catch {
+    return null;
+  }
+}
+
+/** One membership row as the admin list serves it, admin-only fields included (story 36.3). */
+export type AdminUserMembership = {
+  id: string;
+  status: string;
+  startedAt: string;
+  expiresAt: string;
+  source: string;
+  helloassoOrderId: string | null;
+  adminNote: string | null;
+};
+
+export type AdminUserRegistration = {
+  registrationId: string;
+  eventSlug: string;
+  eventTitle: string;
+  eventStartDate: string | null;
+  registrationStatus: string;
+  slotCount: number;
+  sessionStatus: string | null;
+};
+
+export type AdminUserParticipation = {
+  memberships: AdminUserMembership[];
+  registrations: AdminUserRegistration[];
+};
+
+function isMembership(v: unknown): v is AdminUserMembership {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "status") &&
+    hasStringProp(v, "startedAt") &&
+    hasStringProp(v, "expiresAt") &&
+    hasStringProp(v, "source") &&
+    hasNullableStringProp(v, "helloassoOrderId") &&
+    hasNullableStringProp(v, "adminNote")
+  );
+}
+
+function isRegistration(v: unknown): v is AdminUserRegistration {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasStringProp(v, "registrationId") &&
+    hasStringProp(v, "eventSlug") &&
+    hasStringProp(v, "eventTitle") &&
+    hasNullableStringProp(v, "eventStartDate") &&
+    hasStringProp(v, "registrationStatus") &&
+    hasNumberProp(v, "slotCount") &&
+    hasNullableStringProp(v, "sessionStatus")
+  );
+}
+
+export async function fetchAdminUserParticipation(userId: string): Promise<AdminUserParticipation | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}/participation`);
+    if (!res.ok) return null;
+
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    const data: unknown = payload.data;
+    if (typeof data !== "object" || data === null) return null;
+    if (!("memberships" in data) || !Array.isArray(data.memberships)) return null;
+    if (!("registrations" in data) || !Array.isArray(data.registrations)) return null;
+    if (!data.memberships.every(isMembership) || !data.registrations.every(isRegistration)) return null;
+
+    return { memberships: data.memberships, registrations: data.registrations };
   } catch {
     return null;
   }

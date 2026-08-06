@@ -15,6 +15,7 @@ import {
 } from "./admin-users-api";
 import { useAuth } from "@/features/auth/auth-context";
 import { AdminUserActivity } from "./admin-user-activity";
+import { AdminUserParticipation } from "./admin-user-participation";
 
 const ROLE_LABELS: Record<AssignableRole, string> = {
   user: "Utilisateur",
@@ -126,6 +127,8 @@ export function AdminUserDetailPage({ userId }: Props) {
       <Section title="Rôles">
         <RolePanel isSelf={isSelf} onChanged={reload} user={user} />
       </Section>
+
+      <AdminUserParticipation userId={user.id} />
 
       <AdminUserActivity userId={user.id} />
     </div>
