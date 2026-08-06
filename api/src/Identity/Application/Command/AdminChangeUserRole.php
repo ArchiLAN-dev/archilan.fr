@@ -61,8 +61,16 @@ final readonly class AdminChangeUserRole
             throw new ValidationException('Le changement de rôle est invalide.', ['user' => ['Ce compte est supprimé et ne peut plus être modifié.']]);
         }
 
-        if ($target->getId() === $admin->getId() || in_array('ROLE_ADMIN', $target->getRoles(), true)) {
-            throw new ValidationException('Le changement de rôle est invalide.', ['role' => ['Les rôles admin ne sont pas modifiables dans cette action.']]);
+        // An admin never changes their own role: the only way back from a mistake would be another
+        // admin, and there may be none.
+        //
+        // This single rule is also what guarantees the site always keeps an administrator, so no
+        // separate "last admin" check is needed: demoting the last admin requires the last admin to be
+        // the target, and the last admin can only be the acting one - which this refuses. By induction,
+        // the admin count never reaches zero through this command. (Account *deletion* is a different
+        // path and does not go through here.)
+        if ($target->getId() === $admin->getId()) {
+            throw new ValidationException('Le changement de rôle est invalide.', ['role' => ['Tu ne peux pas modifier ton propre rôle.']]);
         }
 
         $previousRole = $this->primaryRole($target);
@@ -72,7 +80,15 @@ final readonly class AdminChangeUserRole
 
         $now = $this->clock->now();
 
-        if ('member' === $normalizedRole) {
+        // Admin rights are added and removed by their own transitions; promoteToMember/demoteToUser
+        // still refuse an admin account on purpose, so the order here matters.
+        if ('admin' === $previousRole) {
+            $target->demoteFromAdmin($now);
+        }
+
+        if ('admin' === $normalizedRole) {
+            $target->promoteToAdmin($now);
+        } elseif ('member' === $normalizedRole) {
             $target->promoteToMember($now);
         } else {
             $target->demoteToUser($now);
@@ -121,6 +137,7 @@ final readonly class AdminChangeUserRole
         return match (mb_strtolower(trim($targetRole))) {
             'user' => 'user',
             'member', 'membre' => 'member',
+            'admin' => 'admin',
             default => null,
         };
     }
