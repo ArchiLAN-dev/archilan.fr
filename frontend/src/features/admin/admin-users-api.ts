@@ -1,5 +1,6 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasBooleanProp, hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
 
 export type AdminUser = {
   id: string;
@@ -56,9 +57,57 @@ export async function fetchAdminUsers(
   }
 }
 
+/** Story 36.1: an existing account can now be promoted to (and demoted from) admin. */
+export type AssignableRole = "user" | "member" | "admin";
+
+/** The identity panel of a user's admin sheet (story 36.1). */
+export type AdminUserDetail = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  slug: string | null;
+  role: AssignableRole;
+  roles: string[];
+  status: string;
+  emailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type AdminUserDetailResult =
+  | { kind: "ready"; user: AdminUserDetail }
+  | { kind: "denied"; message: string }
+  | { kind: "notFound" }
+  | { kind: "error"; message: string };
+
+export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetailResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}`);
+
+    if (res.status === 401 || res.status === 403) {
+      return { kind: "denied", message: "Accès réservé aux admins ArchiLAN." };
+    }
+    if (res.status === 404) return { kind: "notFound" };
+    if (!res.ok) return { kind: "error", message: "Impossible de charger cette fiche utilisateur." };
+
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) {
+      return { kind: "error", message: "Réponse inattendue de l'API utilisateurs." };
+    }
+    if (!isAdminUserDetail(payload.data)) {
+      return { kind: "error", message: "Réponse inattendue de l'API utilisateurs." };
+    }
+
+    return { kind: "ready", user: payload.data };
+  } catch {
+    return { kind: "error", message: "Impossible de contacter l'API utilisateurs." };
+  }
+}
+
 export async function updateAdminUserRole(
   userId: string,
-  role: "user" | "member",
+  role: AssignableRole,
 ): Promise<AdminUser | null> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}/role`, {
@@ -99,6 +148,25 @@ export async function createAdminUser(input: {
 }
 
 // ─── Type guards & helpers ─────────────────────────────────────────────────────
+
+function isAdminUserDetail(v: unknown): v is AdminUserDetail {
+  if (typeof v !== "object" || v === null) return false;
+  const role = Reflect.get(v, "role");
+  return (
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "email") &&
+    hasNullableStringProp(v, "displayName") &&
+    hasNullableStringProp(v, "slug") &&
+    (role === "user" || role === "member" || role === "admin") &&
+    "roles" in v &&
+    Array.isArray(Reflect.get(v, "roles")) &&
+    hasBooleanProp(v, "emailVerified") &&
+    hasStringProp(v, "status") &&
+    hasStringProp(v, "createdAt") &&
+    hasStringProp(v, "updatedAt") &&
+    hasNullableStringProp(v, "deletedAt")
+  );
+}
 
 function isDirectoryPayload(payload: unknown): payload is { data: AdminUser[] } {
   if (typeof payload !== "object" || payload === null || !("data" in payload)) return false;

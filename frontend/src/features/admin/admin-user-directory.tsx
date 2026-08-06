@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {Search, ShieldAlert, UserPlus, Users} from "lucide-react";
 import type {FormEvent, ReactNode} from "react";
 import {useId, useState} from "react";
@@ -381,7 +382,12 @@ function DirectoryBody({
                 {state.users.map((user) => (
                     <tr className="border-b border-border last:border-b-0" key={user.id}>
                         <td className="px-4 py-4">
-                            <p className="font-semibold text-foreground">{user.email}</p>
+                            <Link
+                                className="font-semibold text-foreground transition-colors hover:text-accent-text"
+                                href={`/admin/utilisateurs/${user.id}`}
+                            >
+                                {user.email}
+                            </Link>
                             <p className="mt-1 text-muted-foreground">{user.displayName ?? "Nom affiché non renseigné"}</p>
                         </td>
                         <td className="px-4 py-4">

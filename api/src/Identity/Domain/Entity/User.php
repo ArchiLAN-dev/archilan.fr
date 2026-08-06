@@ -250,6 +250,42 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->updatedAt = $now;
     }
 
+    /**
+     * Administration rights are granted and revoked by their own transitions, deliberately separate
+     * from {@see promoteToMember} / {@see demoteToUser} (story 36.1). Those two keep refusing an admin
+     * account, which is what stops a stray "membre" click from silently destroying admin rights.
+     *
+     * Whether the LAST admin may be demoted is not decidable here - a single entity cannot count its
+     * peers - so that guard lives in the application command.
+     */
+    public function promoteToAdmin(\DateTimeImmutable $now): void
+    {
+        if ($this->isDeleted()) {
+            throw new \DomainException('This user role cannot be changed here.');
+        }
+
+        $this->roles = array_values(array_unique([...$this->roles, 'ROLE_USER', 'ROLE_ADMIN']));
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * Removes ONLY the admin role. Unlike {@see demoteToUser}, which resets the whole set, an existing
+     * membership role survives: demoting an admin must not cost them their member status as a side
+     * effect.
+     */
+    public function demoteFromAdmin(\DateTimeImmutable $now): void
+    {
+        if ($this->isDeleted()) {
+            throw new \DomainException('This user role cannot be changed here.');
+        }
+
+        $this->roles = array_values(array_filter(
+            array_unique([...$this->roles, 'ROLE_USER']),
+            static fn (string $role): bool => 'ROLE_ADMIN' !== $role,
+        ));
+        $this->updatedAt = $now;
+    }
+
     public function resetPassword(string $passwordHash, \DateTimeImmutable $now): void
     {
         $this->passwordHash = $passwordHash;
