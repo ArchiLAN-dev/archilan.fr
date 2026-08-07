@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation\Controller;
 
+use App\Community\Application\Query\AccountModerationOverviewQuery;
 use App\Community\Application\Service\AccountModerationService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
@@ -12,7 +13,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Admin account moderation endpoints (story 30.29): warn / suspend / ban / lift + action history. Admin-only.
+ * Admin account moderation endpoints (story 30.29): warn / suspend / ban / lift + action history, plus
+ * the sheet's consolidated moderation read (story 36.2). Admin-only.
  */
 final readonly class AccountModerationController
 {
@@ -21,6 +23,7 @@ final readonly class AccountModerationController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private AccountModerationService $moderation,
+        private AccountModerationOverviewQuery $moderationOverview,
     ) {
     }
 
@@ -87,6 +90,26 @@ final readonly class AccountModerationController
         }
 
         return new JsonResponse(['data' => $this->moderation->history($userId)]);
+    }
+
+    /**
+     * The whole moderation panel of a user's admin sheet in one read (story 36.2): current access state,
+     * sanction history with named actors, and report pressure.
+     */
+    #[Route('/api/v1/admin/community/accounts/{userId}/moderation', name: 'api_admin_community_account_moderation', methods: ['GET'])]
+    public function moderationOverview(Request $request, string $userId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $overview = $this->moderationOverview->forUser($userId);
+        if (null === $overview) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Compte introuvable.', 404);
+        }
+
+        return new JsonResponse(['data' => $overview]);
     }
 
     private function respond(string $result): JsonResponse
