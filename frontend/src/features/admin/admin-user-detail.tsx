@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/features/auth/auth-context";
 import { AdminUserActivity } from "./admin-user-activity";
 import { AdminUserParticipation } from "./admin-user-participation";
+import { AdminUserModeration } from "./admin-user-moderation";
 
 const ROLE_LABELS: Record<AssignableRole, string> = {
   user: "Utilisateur",
@@ -127,6 +128,8 @@ export function AdminUserDetailPage({ userId }: Props) {
       <Section title="Rôles">
         <RolePanel isSelf={isSelf} onChanged={reload} user={user} />
       </Section>
+
+      <AdminUserModeration isAdmin={user.role === "admin"} isSelf={isSelf} userId={user.id} />
 
       <AdminUserParticipation userId={user.id} />
 

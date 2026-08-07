@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Identity\Infrastructure\Adapter;
 
 use App\Community\Application\Port\MemberModerationGatewayInterface;
+use App\Community\Application\Port\MemberModerationState;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 
@@ -55,6 +56,20 @@ final readonly class IdentityMemberModerationGateway implements MemberModeration
         $this->users->flush();
 
         return true;
+    }
+
+    public function currentState(string $userId): ?MemberModerationState
+    {
+        $user = $this->load($userId);
+        if (null === $user) {
+            return null;
+        }
+
+        return new MemberModerationState(
+            $user->getSuspendedUntil()?->format(\DateTimeInterface::ATOM),
+            $user->getBannedAt()?->format(\DateTimeInterface::ATOM),
+            $user->getModerationReason(),
+        );
     }
 
     private function load(string $userId): ?User

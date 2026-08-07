@@ -36,6 +36,37 @@ final readonly class DbalCommunityUserDirectoryQuery implements CommunityUserDir
         return is_string($id) ? $id : null;
     }
 
+    public function namesFor(array $userIds): array
+    {
+        if ([] === $userIds) {
+            return [];
+        }
+
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select('u.id', 'COALESCE(cp.display_name, u.display_name) AS display_name')
+            ->from($this->userTable, 'u')
+            ->leftJoin('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
+            ->where($qb->expr()->in('u.id', ':ids'))
+            // No slug requirement and no moderation filter, unlike cards(): this names actors in audit
+            // trails, where a slug-less admin or a banned member must still be identifiable.
+            ->andWhere($qb->expr()->isNull('u.deleted_at'))
+            ->setParameter('ids', $userIds, ArrayParameterType::STRING)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $names = [];
+        foreach ($rows as $row) {
+            $id = $row['id'] ?? null;
+            $name = $row['display_name'] ?? null;
+            if (is_string($id) && is_string($name)) {
+                $names[$id] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     public function cards(array $userIds): array
     {
         if ([] === $userIds) {

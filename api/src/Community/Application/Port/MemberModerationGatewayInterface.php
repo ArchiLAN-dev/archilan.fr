@@ -20,4 +20,12 @@ interface MemberModerationGatewayInterface
     public function ban(string $userId, string $reason): bool;
 
     public function lift(string $userId): bool;
+
+    /**
+     * The member's current access state, or null when the account does not exist (or is deleted).
+     *
+     * Story 36.2: without this the port could only write. Community knew how to sanction a member and
+     * had no way to tell whether they already were - so the moderation panel had nothing to show.
+     */
+    public function currentState(string $userId): ?MemberModerationState;
 }

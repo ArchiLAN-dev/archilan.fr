@@ -196,6 +196,100 @@ export async function fetchAdminUserParticipation(userId: string): Promise<Admin
   }
 }
 
+/** The moderation panel's consolidated read (story 36.2). */
+export type AdminModerationAction = {
+  id: string;
+  action: string;
+  reason: string;
+  createdAt: string;
+  actorId: string;
+  actorName: string | null;
+  relatedReportId: string | null;
+};
+
+export type AdminUserModeration = {
+  state: { suspendedUntil: string | null; bannedAt: string | null; reason: string | null };
+  unresolvedReportCount: number;
+  severityScore: number;
+  actions: AdminModerationAction[];
+};
+
+function isModerationAction(v: unknown): v is AdminModerationAction {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "action") &&
+    hasStringProp(v, "reason") &&
+    hasStringProp(v, "createdAt") &&
+    hasStringProp(v, "actorId") &&
+    hasNullableStringProp(v, "actorName") &&
+    hasNullableStringProp(v, "relatedReportId")
+  );
+}
+
+export async function fetchAdminUserModeration(userId: string): Promise<AdminUserModeration | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/accounts/${userId}/moderation`);
+    if (!res.ok) return null;
+
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    const data: unknown = payload.data;
+    if (typeof data !== "object" || data === null) return null;
+    if (!hasNumberProp(data, "unresolvedReportCount") || !hasNumberProp(data, "severityScore")) return null;
+    if (!("actions" in data) || !Array.isArray(data.actions) || !data.actions.every(isModerationAction)) {
+      return null;
+    }
+    if (!("state" in data)) return null;
+    const state = data.state;
+    if (typeof state !== "object" || state === null) return null;
+    if (
+      !hasNullableStringProp(state, "suspendedUntil") ||
+      !hasNullableStringProp(state, "bannedAt") ||
+      !hasNullableStringProp(state, "reason")
+    ) {
+      return null;
+    }
+
+    return {
+      state: { suspendedUntil: state.suspendedUntil, bannedAt: state.bannedAt, reason: state.reason },
+      unresolvedReportCount: data.unresolvedReportCount,
+      severityScore: data.severityScore,
+      actions: data.actions,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export type ModerationCommand = "warn" | "suspend" | "ban" | "lift";
+
+/** Returns null on success, or a message to show. The server owns the rules; this only relays them. */
+export async function applyModerationAction(
+  userId: string,
+  command: ModerationCommand,
+  reason: string,
+  until?: string,
+): Promise<string | null> {
+  try {
+    const body: Record<string, string> = { reason };
+    if (command === "suspend" && until !== undefined) body.until = until;
+
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/accounts/${userId}/${command}`, {
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    if (res.status === 204) return null;
+    if (res.status === 403) return "Ce compte ne peut pas être modéré (administrateur, ou toi-même).";
+    if (res.status === 422) return "Action refusée : motif requis, et une suspension doit finir dans le futur.";
+    return "L'action de modération a échoué.";
+  } catch {
+    return "Impossible de contacter l'API de modération.";
+  }
+}
+
 export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetailResult> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}`);
