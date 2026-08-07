@@ -290,6 +290,94 @@ export async function applyModerationAction(
   }
 }
 
+/** The gaming panel's read (story 36.4). */
+export type AdminUserRun = { id: string; title: string; status: string };
+
+export type AdminUserHistoryEntry = {
+  sessionId: string | null;
+  context: string | null;
+  game: string | null;
+  finishedAt: string | null;
+};
+
+export type AdminUserGaming = {
+  progress: { level: number; xp: number; runsParticipated: number; goalCompletions: number; totalChecksDone: number; achievementsUnlocked: number };
+  accounts: { discordId: string | null; discordUsername: string | null; steamProfile: string | null };
+  ownedRuns: AdminUserRun[];
+  joinedRuns: AdminUserRun[];
+  history: AdminUserHistoryEntry[];
+};
+
+function isRun(v: unknown): v is AdminUserRun {
+  if (typeof v !== "object" || v === null) return false;
+  return hasStringProp(v, "id") && hasStringProp(v, "title") && hasStringProp(v, "status");
+}
+
+function isHistoryEntry(v: unknown): v is AdminUserHistoryEntry {
+  if (typeof v !== "object" || v === null) return false;
+  return (
+    hasNullableStringProp(v, "sessionId") &&
+    hasNullableStringProp(v, "context") &&
+    hasNullableStringProp(v, "game") &&
+    hasNullableStringProp(v, "finishedAt")
+  );
+}
+
+export async function fetchAdminUserGaming(userId: string): Promise<AdminUserGaming | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}/gaming`);
+    if (!res.ok) return null;
+
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    const data = payload.data;
+    if (typeof data !== "object" || data === null) return null;
+
+    if (!("progress" in data) || !("accounts" in data)) return null;
+    const progress = data.progress;
+    const accounts = data.accounts;
+    if (typeof progress !== "object" || progress === null) return null;
+    if (typeof accounts !== "object" || accounts === null) return null;
+    if (!hasNumberProp(progress, "level") || !hasNumberProp(progress, "xp")) return null;
+    if (
+      !hasNullableStringProp(accounts, "discordId") ||
+      !hasNullableStringProp(accounts, "discordUsername") ||
+      !hasNullableStringProp(accounts, "steamProfile")
+    ) {
+      return null;
+    }
+
+    for (const key of ["ownedRuns", "joinedRuns", "history"] as const) {
+      if (!(key in data) || !Array.isArray(Reflect.get(data, key))) return null;
+    }
+    const owned: unknown[] = Reflect.get(data, "ownedRuns");
+    const joined: unknown[] = Reflect.get(data, "joinedRuns");
+    const history: unknown[] = Reflect.get(data, "history");
+    if (!owned.every(isRun) || !joined.every(isRun) || !history.every(isHistoryEntry)) return null;
+
+    return {
+      progress: {
+        level: progress.level,
+        xp: progress.xp,
+        runsParticipated: hasNumberProp(progress, "runsParticipated") ? progress.runsParticipated : 0,
+        goalCompletions: hasNumberProp(progress, "goalCompletions") ? progress.goalCompletions : 0,
+        totalChecksDone: hasNumberProp(progress, "totalChecksDone") ? progress.totalChecksDone : 0,
+        achievementsUnlocked: hasNumberProp(progress, "achievementsUnlocked") ? progress.achievementsUnlocked : 0,
+      },
+      accounts: {
+        discordId: accounts.discordId,
+        discordUsername: accounts.discordUsername,
+        steamProfile: accounts.steamProfile,
+      },
+      ownedRuns: owned,
+      joinedRuns: joined,
+      history,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetailResult> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}`);
