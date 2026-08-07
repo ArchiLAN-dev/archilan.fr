@@ -303,6 +303,7 @@ services:
     App\Community\Application\Query\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityDirectoryQuery'
     App\Community\Application\Query\RecentAchievementGrantsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalRecentAchievementGrantsQuery'
     App\Identity\Application\Query\AdminUserActivityQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalAdminUserActivityQuery'
+    App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineAdminUserActionAuditRepository'
     App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
     App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
     App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'

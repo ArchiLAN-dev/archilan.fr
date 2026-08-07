@@ -39,6 +39,7 @@ final readonly class DbalAdminUserActivityQuery implements AdminUserActivityQuer
             ...$this->deletions($userId, $limit),
             ...$this->runActions($userId, $limit),
             ...$this->privateEventAccess($userId, $limit),
+            ...$this->adminActions($userId, $limit),
         ];
 
         // Newest first; the id tiebreak keeps the order stable between two calls when timestamps match
@@ -279,6 +280,59 @@ final readonly class DbalAdminUserActivityQuery implements AdminUserActivityQuer
                 'subject' => $this->string($row['event_title'] ?? null),
                 'subjectId' => $this->string($row['event_id'] ?? null),
                 'granted' => (bool) ($row['granted'] ?? false),
+                'sortId' => $id,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Both faces of an admin action on an account (story 36.6): what was done to this member, and what
+     * they did to others. Added as a sixth source so the trail written by story 36.6 is actually read -
+     * writing one the sheet never shows would repeat exactly what 36.5 set out to fix.
+     *
+     * @return list<array{type: string, occurredAt: string, counterpartId: string|null, previousRole: string|null, newRole: string|null, subject: string|null, subjectId: string|null, granted: bool|null, sortId: string}>
+     */
+    private function adminActions(string $userId, int $limit): array
+    {
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $qb
+            ->select('a.id', 'a.target_user_id', 'a.admin_user_id', 'a.action', 'a.created_at')
+            ->from('admin_user_action_audit', 'a')
+            ->where($qb->expr()->or(
+                $qb->expr()->eq('a.target_user_id', ':id'),
+                $qb->expr()->eq('a.admin_user_id', ':id'),
+            ))
+            ->setParameter('id', $userId)
+            ->orderBy('a.created_at', 'DESC')
+            ->setMaxResults($limit)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $occurredAt = $this->atom($row['created_at'] ?? null);
+            $id = $this->string($row['id'] ?? null);
+            if (null === $occurredAt || null === $id) {
+                continue;
+            }
+            $isTarget = $this->string($row['target_user_id'] ?? null) === $userId;
+            $out[] = [
+                'type' => $isTarget
+                    ? AdminUserActivityEntry::TYPE_ADMIN_ACTION_RECEIVED
+                    : AdminUserActivityEntry::TYPE_ADMIN_ACTION_PERFORMED,
+                'occurredAt' => $occurredAt,
+                'counterpartId' => $isTarget
+                    ? $this->string($row['admin_user_id'] ?? null)
+                    : $this->string($row['target_user_id'] ?? null),
+                'previousRole' => null,
+                // The action name rides in newRole, as it does for run_admin_action - the field is the
+                // row's "what happened" slot rather than a role-specific one.
+                'newRole' => $this->string($row['action'] ?? null),
+                'subject' => null,
+                'subjectId' => null,
+                'granted' => null,
                 'sortId' => $id,
             ];
         }

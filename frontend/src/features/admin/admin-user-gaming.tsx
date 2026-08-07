@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Square } from "lucide-react";
+import { useState } from "react";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   fetchAdminUserGaming,
+  stopAdminUserRun,
   type AdminUserGaming as Gaming,
   type AdminUserHistoryEntry,
   type AdminUserRun,
@@ -26,6 +28,7 @@ const RUN_STATUS: Record<string, string> = {
  * and finished-game history. Personal runs are the part that had no admin surface at all (issue #387).
  */
 export function AdminUserGaming({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
   const { data, isPending } = useQuery({
     queryKey: ["admin-user-gaming", userId],
     queryFn: () => fetchAdminUserGaming(userId),
@@ -61,7 +64,7 @@ export function AdminUserGaming({ userId }: { userId: string }) {
           <Empty>Ce membre n&apos;a ni créé ni rejoint de run personnelle.</Empty>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            <RunList runs={data.ownedRuns} title="Dont il est propriétaire" />
+            <RunList runs={data.ownedRuns} title="Dont il est propriétaire" userId={userId} onStopped={async () => { await queryClient.invalidateQueries({ queryKey: ["admin-user-gaming", userId] }); }} />
             <RunList runs={data.joinedRuns} title="Qu'il a rejointes" />
           </div>
         )}
@@ -138,7 +141,18 @@ function Accounts({ gaming }: { gaming: Gaming }) {
   );
 }
 
-function RunList({ title, runs }: { title: string; runs: AdminUserRun[] }) {
+function RunList({
+  title,
+  runs,
+  userId,
+  onStopped,
+}: {
+  title: string;
+  runs: AdminUserRun[];
+  /** Only the runs the member OWNS can be stopped from their sheet (story 36.6). */
+  userId?: string;
+  onStopped?: () => Promise<void>;
+}) {
   return (
     <div className="grid gap-2">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
@@ -152,11 +166,56 @@ function RunList({ title, runs }: { title: string; runs: AdminUserRun[] }) {
                 {run.title === "" ? "Sans titre" : run.title}
               </Link>
               <p className="text-xs text-muted-foreground">{RUN_STATUS[run.status] ?? run.status}</p>
+              {userId !== undefined && onStopped !== undefined && run.sessionId !== null ? (
+                <StopRunButton onStopped={onStopped} runId={run.id} userId={userId} />
+              ) : null}
             </li>
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+function StopRunButton({
+  userId,
+  runId,
+  onStopped,
+}: {
+  userId: string;
+  runId: string;
+  onStopped: () => Promise<void>;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function stop(): Promise<void> {
+    if (!window.confirm("Arrêter la partie en cours de cette run ? Elle sera terminée et archivée.")) return;
+
+    setPending(true);
+    setError(null);
+    const message = await stopAdminUserRun(userId, runId);
+    if (message === null) {
+      await onStopped();
+    } else {
+      setError(message);
+    }
+    setPending(false);
+  }
+
+  return (
+    <>
+      <button
+        className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded border border-border px-2 text-xs font-semibold text-foreground transition-colors hover:border-accent disabled:opacity-40"
+        disabled={pending}
+        onClick={() => void stop()}
+        type="button"
+      >
+        {pending ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <Square aria-hidden className="size-3.5" />}
+        Arrêter la partie
+      </button>
+      {error !== null ? <p className="mt-1 text-xs text-danger">{error}</p> : null}
+    </>
   );
 }
 

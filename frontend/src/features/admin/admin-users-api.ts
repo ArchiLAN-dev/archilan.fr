@@ -291,7 +291,7 @@ export async function applyModerationAction(
 }
 
 /** The gaming panel's read (story 36.4). */
-export type AdminUserRun = { id: string; title: string; status: string };
+export type AdminUserRun = { id: string; title: string; status: string; sessionId: string | null };
 
 export type AdminUserHistoryEntry = {
   sessionId: string | null;
@@ -310,7 +310,12 @@ export type AdminUserGaming = {
 
 function isRun(v: unknown): v is AdminUserRun {
   if (typeof v !== "object" || v === null) return false;
-  return hasStringProp(v, "id") && hasStringProp(v, "title") && hasStringProp(v, "status");
+  return (
+    hasStringProp(v, "id") &&
+    hasStringProp(v, "title") &&
+    hasStringProp(v, "status") &&
+    hasNullableStringProp(v, "sessionId")
+  );
 }
 
 function isHistoryEntry(v: unknown): v is AdminUserHistoryEntry {
@@ -375,6 +380,35 @@ export async function fetchAdminUserGaming(userId: string): Promise<AdminUserGam
     };
   } catch {
     return null;
+  }
+}
+
+/** The closed list of admin actions on a member's objects (story 36.6). */
+export type AdminUserActionKind = "revoke-sessions" | "verify-email";
+
+/** Returns null on success, or a message to show. The server owns the rules; this relays them. */
+export async function applyAdminUserAction(
+  userId: string,
+  action: AdminUserActionKind,
+): Promise<string | null> {
+  return postAdminAction(`${env.apiBaseUrl}/admin/users/${userId}/${action}`);
+}
+
+export async function stopAdminUserRun(userId: string, runId: string): Promise<string | null> {
+  return postAdminAction(`${env.apiBaseUrl}/admin/users/${userId}/runs/${runId}/stop`);
+}
+
+async function postAdminAction(url: string): Promise<string | null> {
+  try {
+    const res = await apiFetch(url, { method: "POST" });
+
+    if (res.status === 204) return null;
+    if (res.status === 403) return "Action refusée : tu ne peux pas l'appliquer à ton propre compte.";
+    if (res.status === 404) return "Compte introuvable.";
+    if (res.status === 422) return "Cette run n'a pas de partie en cours.";
+    return "L'action a échoué.";
+  } catch {
+    return "Impossible de contacter l'API.";
   }
 }
 
