@@ -81,6 +81,50 @@ export type AdminUserDetailResult =
   | { kind: "notFound" }
   | { kind: "error"; message: string };
 
+/** One line of the account's audit timeline (story 36.5). */
+export type AdminUserActivityEntry = {
+  type: string;
+  occurredAt: string;
+  counterpartId: string | null;
+  counterpartName: string | null;
+  previousRole: string | null;
+  newRole: string | null;
+  subject: string | null;
+  subjectId: string | null;
+  granted: boolean | null;
+};
+
+function isActivityEntry(v: unknown): v is AdminUserActivityEntry {
+  if (typeof v !== "object" || v === null) return false;
+  const granted = Reflect.get(v, "granted");
+  return (
+    hasStringProp(v, "type") &&
+    hasStringProp(v, "occurredAt") &&
+    hasNullableStringProp(v, "counterpartId") &&
+    hasNullableStringProp(v, "counterpartName") &&
+    hasNullableStringProp(v, "previousRole") &&
+    hasNullableStringProp(v, "newRole") &&
+    hasNullableStringProp(v, "subject") &&
+    hasNullableStringProp(v, "subjectId") &&
+    (granted === null || typeof granted === "boolean")
+  );
+}
+
+export async function fetchAdminUserActivity(userId: string): Promise<AdminUserActivityEntry[] | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}/activity`);
+    if (!res.ok) return null;
+
+    const payload: unknown = await res.json();
+    if (typeof payload !== "object" || payload === null || !("data" in payload)) return null;
+    if (!Array.isArray(payload.data) || !payload.data.every(isActivityEntry)) return null;
+
+    return payload.data;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetailResult> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/admin/users/${userId}`);
