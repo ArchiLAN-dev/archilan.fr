@@ -17,6 +17,9 @@ final readonly class AdminUserActivityEntry
     public const string TYPE_ACCOUNT_DELETED = 'account_deleted';
     public const string TYPE_RUN_ADMIN_ACTION = 'run_admin_action';
     public const string TYPE_PRIVATE_EVENT_ACCESS = 'private_event_access';
+    /** Story 36.6: an admin acted on this account (sessions revoked, email verified in their place). */
+    public const string TYPE_ADMIN_ACTION_RECEIVED = 'admin_action_received';
+    public const string TYPE_ADMIN_ACTION_PERFORMED = 'admin_action_performed';
 
     public function __construct(
         public string $type,

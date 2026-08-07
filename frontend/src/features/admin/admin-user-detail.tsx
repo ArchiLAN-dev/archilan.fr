@@ -18,6 +18,7 @@ import { AdminUserActivity } from "./admin-user-activity";
 import { AdminUserParticipation } from "./admin-user-participation";
 import { AdminUserModeration } from "./admin-user-moderation";
 import { AdminUserGaming } from "./admin-user-gaming";
+import { AdminUserActions } from "./admin-user-actions";
 
 const ROLE_LABELS: Record<AssignableRole, string> = {
   user: "Utilisateur",
@@ -124,6 +125,10 @@ export function AdminUserDetailPage({ userId }: Props) {
             <span className="font-mono text-xs text-muted-foreground">{user.roles.join(", ")}</span>
           </Field>
         </dl>
+      </Section>
+
+      <Section title="Actions">
+        <AdminUserActions emailVerified={user.emailVerified} isSelf={isSelf} userId={user.id} />
       </Section>
 
       <Section title="Rôles">

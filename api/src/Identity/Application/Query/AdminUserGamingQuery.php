@@ -62,7 +62,7 @@ final readonly class AdminUserGamingQuery
      *
      * @param list<array<string, mixed>> $runs
      *
-     * @return list<array{id: string, title: string, status: string}>
+     * @return list<array{id: string, title: string, status: string, sessionId: string|null}>
      */
     private function projectRuns(array $runs): array
     {
@@ -76,6 +76,9 @@ final readonly class AdminUserGamingQuery
                 'id' => $id,
                 'title' => is_string($run['title'] ?? null) ? $run['title'] : '',
                 'status' => is_string($run['status'] ?? null) ? $run['status'] : '',
+                // Story 36.6 stops a run through its live session; without the id the button would have
+                // nothing to act on.
+                'sessionId' => is_string($run['sessionId'] ?? null) ? $run['sessionId'] : null,
             ];
         }
 
