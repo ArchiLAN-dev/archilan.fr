@@ -70,8 +70,11 @@ C'est donc la story la moins chère de l'épic en valeur rendue : rien à instru
    contrepartie, événement). *Livré :* l'action admin sur une partie n'est **pas** liée - une session en
    cours n'a pas de page publique et une session terminée n'a de récap que s'il a été construit ; un
    lien mort vaut moins qu'un libellé.
-9. Panneau **masqué quand la frise est vide** - un compte sans historique tracé n'a pas besoin d'un bloc
-   « rien à afficher ».
+9. Panneau **visible même quand la frise est vide**, avec un état vide explicite.
+   *Révisé pendant la story 36.3 :* la première version masquait le panneau, règle reprise du hub public
+   où une section vide est du poids mort. Sur une fiche d'admin c'est l'inverse - « aucune entrée
+   enregistrée » est une réponse, et un panneau disparu se confond avec un panneau cassé. La fiche
+   applique désormais la même règle à tous ses panneaux.
 10. Chaque nature d'entrée a une icône et une formulation propre ; l'issue d'un accès à un événement
     privé (accordé / refusé) est visuellement distinguable.
 11. Dégradation : un échec de chargement affiche un message dans le panneau, sans casser le reste de la

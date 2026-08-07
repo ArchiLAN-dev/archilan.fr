@@ -46,8 +46,17 @@ export function AdminUserActivity({ userId }: { userId: string }) {
     );
   }
 
-  // The heading lives inside the panel precisely so an empty history hides it too.
-  if (data.length === 0) return null;
+  // Stated, not hidden. Every panel of this sheet stays visible when empty (story 36.3 fixed the rule):
+  // on an admin tool "nothing recorded" is an answer, and a vanished panel reads like a broken one.
+  if (data.length === 0) {
+    return (
+      <Panel>
+        <p className="rounded-lg border border-border bg-surface px-4 py-6 text-center text-sm text-muted-foreground">
+          Aucune entrée enregistrée pour ce compte.
+        </p>
+      </Panel>
+    );
+  }
 
   return (
     <Panel>
