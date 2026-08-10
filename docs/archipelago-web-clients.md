@@ -19,7 +19,11 @@ remplies **par observation sur le banc de test**, pas par déduction.
 Une page servie en HTTPS ne peut pas ouvrir un WebSocket en `ws://`. Les clients web Archipelago
 tiers ne peuvent donc joindre nos runs que si le serveur est exposé en `wss://` derrière un
 certificat réellement valide. L'architecture retenue expose chaque run sur
-`wss://archilan.fr:{port}`, avec un port de la plage `25000-25099`.
+`wss://{hôte}:{port}`, avec un port de la plage des serveurs Archipelago, `35000-35099`
+(`PORT_RANGE_*` du pool bridge + `AP_SERVER_PORT_OFFSET=10000`). Le nom d'hôte exact reste à
+trancher en 37.4 : `archilan.fr` (annoncé par l'epic) ou `orchestrateur.archilan.fr`
+(`RUNNER_PUBLIC_HOST`, ce que l'API surface aujourd'hui). **Tester avec celui qu'on compte
+retenir.**
 
 Ce que la matrice mesure : **comment chaque client interprète l'adresse qu'on lui donne**, et donc
 quelle chaîne exacte l'UI (37.5) doit afficher aux joueurs.
@@ -45,8 +49,8 @@ forme, donc il faut savoir à quoi ressemble l'erreur de son côté.
 
 | Forme | Chaîne exacte à coller |
 |---|---|
-| A - hôte + port, nu | `archilan.fr:25099` |
-| B - URI complète | `wss://archilan.fr:25099` |
+| A - hôte + port, nu | `archilan.fr:35099` |
+| B - URI complète | `wss://archilan.fr:35099` |
 | C - hôte seul, nu | `archilan.fr` |
 | D - URI sans port | `wss://archilan.fr` |
 
@@ -54,10 +58,10 @@ Pour les clients à **champs séparés** (hôte d'un côté, port de l'autre), t
 
 | Forme | Champ hôte | Champ port |
 |---|---|---|
-| E - champs séparés, hôte nu | `archilan.fr` | `25099` |
-| F - champs séparés, hôte préfixé | `wss://archilan.fr` | `25099` |
+| E - champs séparés, hôte nu | `archilan.fr` | `35099` |
+| F - champs séparés, hôte préfixé | `wss://archilan.fr` | `35099` |
 
-Remplacer `25099` par le port réellement ouvert sur le banc.
+Remplacer `35099` par le port réellement ouvert sur le banc.
 
 ## Candidats retenus
 
@@ -76,8 +80,8 @@ Résultats :
 
 | Forme | Chaîne collée | Verdict | Mode d'échec observé |
 |---|---|---|---|
-| A | `archilan.fr:25099` | à mesurer | |
-| B | `wss://archilan.fr:25099` | à mesurer | |
+| A | `archilan.fr:35099` | à mesurer | |
+| B | `wss://archilan.fr:35099` | à mesurer | |
 | C | `archilan.fr` | à mesurer | |
 | D | `wss://archilan.fr` | à mesurer | |
 
@@ -107,9 +111,9 @@ Résultats :
 
 | Forme | Champ hôte | Champ port | Verdict | Mode d'échec observé |
 |---|---|---|---|---|
-| E | `archilan.fr` | `25099` | à mesurer | |
-| F | `wss://archilan.fr` | `25099` | à mesurer | |
-| A (dans le champ hôte) | `archilan.fr:25099` | vide | à mesurer | |
+| E | `archilan.fr` | `35099` | à mesurer | |
+| F | `wss://archilan.fr` | `35099` | à mesurer | |
+| A (dans le champ hôte) | `archilan.fr:35099` | vide | à mesurer | |
 | C (port laissé vide) | `archilan.fr` | vide | à mesurer | |
 
 ### 3. WebHost Archipelago (implémentation de référence)
@@ -178,3 +182,4 @@ l'exposition en clair du port Archipelago de chaque run.
 | Date | Événement |
 |------|-----------|
 | 2026-08-10 | Trame préparée : critères d'inclusion, candidats qualifiés sur pièces, formes d'adresse à tester, runbook du banc. Aucune mesure effectuée. |
+| 2026-08-10 | Plage de ports corrigée après lecture du code de l'orchestrateur : les serveurs Archipelago écoutent sur `35000-35099` (pool bridge + `AP_SERVER_PORT_OFFSET`), pas sur `25000-25099`. Toutes les formes d'adresse à tester sont mises à jour. |

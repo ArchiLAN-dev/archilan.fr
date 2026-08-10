@@ -40,9 +40,12 @@ protocole à écrire** - uniquement de la terminaison TLS devant un endpoint qui
   Traefik servirait son certificat auto-signé - rejet immédiat côté navigateur.
 - Aucun enregistrement DNS `*.ws.archilan.fr` n'existe.
 
-**Le port du conteneur est publié en clair sur l'hôte.** `runner/app/docker_manager.py:104` mappe
-`{container_port}/tcp -> host_port` sur `0.0.0.0`. Chaque run ouvre donc un port public en clair, et
-c'est ce port que l'API surface aujourd'hui comme adresse de connexion.
+**Le port du conteneur est publié en clair sur l'hôte.** ~~`runner/app/docker_manager.py:104`~~
+**Correction 2026-08-10 :** le composant déployé est l'orchestrateur Go
+(`docker-compose.prod.yml:159`), et la publication se fait dans
+`orchestrateur/internal/docker/client.go` (`CreateAPServer`), qui mappe `38281/tcp -> {apPort}` sur
+`0.0.0.0`. Le runner Python n'est plus dans la compose de production. Chaque run ouvre donc un port
+public en clair, et c'est ce port que l'API surface aujourd'hui comme adresse de connexion.
 
 **Rien ne surface d'adresse chiffrée aux joueurs.** L'UI affiche hôte et port bruts
 (`frontend/src/features/personal-runs/connection-details.tsx:29-30`), et le contrat
@@ -51,6 +54,13 @@ d'événement.
 
 **Le pool de ports est borné et connu :** `PORT_RANGE_START=25000` / `PORT_RANGE_END=25099`
 (`.env.prod.example:50-51`), soit cent runs simultanés au maximum.
+
+**Correction 2026-08-10 - ce pool n'est pas celui des serveurs Archipelago.** Le pool alloue le port
+du **bridge** ; le port du serveur Archipelago vaut `bridgePort + AP_SERVER_PORT_OFFSET`, avec un
+offset de `10000` (`orchestrateur/internal/service/session.go:434`,
+`orchestrateur/internal/config/config.go:49`, `.env.prod.example:55`). **La plage réellement
+concernée par cet epic est donc `35000-35099`.** Partout où le présent document écrit
+« la plage du pool », lire la plage AP.
 
 ## Décisions d'architecture (Jean, 2026-08-08)
 
@@ -95,7 +105,7 @@ entrypoints statiques décrite ci-dessous.
 **Ferme :** l'exposition publique en clair du port Archipelago de chaque run. Traefik devient
 détenteur de la seule socket publique du run.
 
-**Ouvre :** la plage `25000-25099` doit être déclarée en **entrypoints statiques** dans `traefik.yml`.
+**Ouvre :** la plage `35000-35099` doit être déclarée en **entrypoints statiques** dans `traefik.yml`.
 Le plafond de runs simultanés, aujourd'hui souple côté orchestrateur, devient rigide : l'élargir
 imposera un redémarrage de Traefik.
 
@@ -113,9 +123,9 @@ récupérable sans revenir au routage par sous-domaine.
 
 | # | Story | Contenu |
 |---|---|---|
-| 37.1 | Entrypoints Traefik et provider HTTP | Génération des entrypoints depuis `PORT_RANGE_START`/`PORT_RANGE_END` (jamais à la main) + bloc `providers.http` vers `/api/v1/internal/traefik`. Une seule source de vérité pour la plage. |
+| 37.1 | Entrypoints Traefik et provider HTTP | Génération des entrypoints depuis `PORT_RANGE_START`/`PORT_RANGE_END` **et `AP_SERVER_PORT_OFFSET`** (jamais à la main) + bloc `providers.http` vers `/api/v1/internal/traefik`. Une seule source de vérité pour la plage. |
 | 37.2 | `TraefikConfigBuilder` - routage par port | Un routeur par run sur l'entrypoint de son port, TLS sur le certificat `archilan.fr` partagé. Suppression de `$wsDomain` et de `WS_DOMAIN` (`services.yaml:206`, `.env.prod.example:88`, `api/.env:77`). |
-| 37.3 | Runner - fin de l'exposition publique du port AP | `docker_manager.py:104` cesse de publier le port Archipelago sur `0.0.0.0`. Deux options à trancher dans la story : attacher les conteneurs de session au réseau `archilan-proxy`, ou binder sur `127.0.0.1`. |
+| 37.3 | Orchestrateur - fin de l'exposition publique du port AP | `CreateAPServer` (dépôt orchestrateur) cesse de publier le port Archipelago sur `0.0.0.0`. L'option « binder sur `127.0.0.1` » est écartée : une socket sur la loopback de l'hôte est injoignable depuis le conteneur Traefik. Reste l'attachement au réseau `archilan-proxy`. |
 | 37.4 | Contrat API - l'URI wss dans `connectionInfo` | L'adresse `wss://` propagée dans Sessions, PersonalRuns et WeeklyRuns. Le couple hôte/port brut est conservé pour l'admin et le diagnostic, pas comme adresse joueur. |
 | 37.5 | Surfacage UI et mails | `connection-details.tsx`, boutons copier, pages run perso et run hebdo, mails d'événement. Mention explicite de ce qu'un client tiers reçoit quand on l'y envoie. |
 | 37.6 | Matrice de compatibilité des clients web tiers | Clients nommés, versions testées, forme d'adresse à coller pour chacun. Accrochée aux tutoriels de l'epic 31. |
@@ -174,4 +184,5 @@ complète), puis 37.4 et 37.5.
 
 | Date | Description |
 |------|-------------|
+| 2026-08-10 | Stories 37.1 à 37.5 rédigées. Trois corrections de cadrage issues de la lecture du code : (1) la plage à ouvrir est `35000-35099` (pool + `AP_SERVER_PORT_OFFSET`), pas le pool lui-même ; (2) 37.3 se code dans le dépôt orchestrateur (`CreateAPServer`), pas dans `runner/app/docker_manager.py` qui n'est pas déployé ; (3) le backend du routeur est l'adresse interne `ap-server-{id}:38281`, ce qui est la condition pour refermer le port hôte, et l'option `127.0.0.1` tombe. |
 | 2026-08-08 | Créé (draft). Déclencheur : clients web tiers bloqués par la règle de contenu mixte. Architecture arbitrée avec Jean : routage par port sur le certificat `archilan.fr` partagé (abandon du wildcard et du sous-domaine par run du design 9.11), TLS uniquement après confirmation que le client desktop gère `wss://`. Découpage en 6 stories. |
