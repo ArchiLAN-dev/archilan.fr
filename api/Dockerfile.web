@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1.12.6-php8
+FROM dunglas/frankenphp:1.12.7-php8
 
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
