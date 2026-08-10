@@ -89,13 +89,16 @@ port Archipelago.
 
 - [ ] **Task 1** (AC 1-4). Monter le banc : un entrypoint temporaire sur un port du pool dans
   `traefik/traefik.yml`, un routeur TCP TLS via le file provider vers un run vivant, certificat réel.
-- [ ] **Task 2** (AC 6-8). Établir la liste des candidats selon les critères, en commençant par le
-  client WebHost.
+- [x] **Task 2** (AC 6-8). Établir la liste des candidats selon les critères, en commençant par le
+  client WebHost. *Fait le 2026-08-10 : critères écrits, trois candidats retenus (Topher's Web
+  Client, ap-tracker, WebHost), trois écartés avec motif, dans `docs/archipelago-web-clients.md`.*
 - [ ] **Task 3** (AC 9-11). Tester chaque client, sur chaque forme d'adresse plausible, et consigner
-  succès **et** échecs.
+  succès **et** échecs. *Tableaux de saisie prêts dans le document, colonnes de résultat vides.*
 - [ ] **Task 4** (AC 12). Observation de tenue sur connexion inactive longue.
-- [ ] **Task 5** (AC 13-15). Rédiger `docs/archipelago-web-clients.md` : matrice, verdict, conclusion
-  sur la forme d'adresse.
+- [x] **Task 5a** (AC 14-15). Créer `docs/archipelago-web-clients.md` : trame, critères, candidats,
+  formes d'adresse, note de péremption. *Fait le 2026-08-10.*
+- [ ] **Task 5b** (AC 13, 15). Remplir la matrice, écrire le verdict go/no-go et la conclusion sur la
+  forme d'adresse - **après mesure uniquement**.
 - [ ] **Task 6** (AC 5). Démonter le banc et vérifier que le port est refermé.
 
 ## Dev Notes
@@ -103,6 +106,14 @@ port Archipelago.
 - **Formes d'adresse à essayer systématiquement sur chaque client**, parce que c'est la variable
   mesurée : `archilan.fr:25099`, `wss://archilan.fr:25099`, `archilan.fr` seul, `wss://archilan.fr`.
   Consigner le comportement des quatre, pas seulement de celle qui marche.
+- **Ce que dit le code des candidats (lu le 2026-08-10, à confirmer par la mesure, pas à substituer
+  à elle).** Les clients retenus s'appuient sur `archipelago.js`, dont `SocketManager.connect()`
+  ajoute `wss://` quand aucun protocole n'est fourni et retombe sur `ws://` en cas d'échec, et
+  applique le port `38281` quand le port est absent. Deux conséquences à vérifier sur le banc : les
+  formes sans port (C et D) devraient viser `38281` et échouer, et la forme nue (A) devrait passer -
+  mais son repli `ws://` sera bloqué par la règle de contenu mixte, donc **le message d'erreur
+  affiché au joueur peut désigner le mauvais coupable**. C'est précisément ce genre d'écart entre le
+  code et l'observé que la story doit trancher par le test.
 - **Ne pas conclure sur un seul client.** Un client qui marche ne dit rien de la forme à afficher aux
   utilisateurs des autres.
 - **Ne pas « corriger » un client qui échoue.** Le but est de mesurer l'existant, pas de le faire
@@ -136,6 +147,145 @@ port Archipelago.
 - [Source: api/src/Sessions/Application/Support/TraefikConfigBuilder.php] - le générateur de routeurs
   que 37.2 adaptera au routage par port
 
+## Runbook du banc de test (préparé le 2026-08-10)
+
+Procédure à exécuter **sur le serveur de production**, par un opérateur. Elle touche à Traefik, qui
+porte aussi le site, l'API, Mercure, MinIO et l'orchestrateur : **toutes les connexions en cours
+tombent au redémarrage**. Créneau calme, annonce préalable.
+
+Constats vérifiés dans le dépôt le 2026-08-10, sur lesquels la procédure s'appuie :
+
+- Traefik tourne depuis son propre projet compose, `traefik/docker-compose.yml` (projet
+  `archilan-traefik`), et ne publie aujourd'hui que `80`, `443`, `8080`. **Ajouter un entrypoint ne
+  suffit pas : il faut aussi publier le port du conteneur.**
+- Les conteneurs de session sont lancés par le runner sur le réseau bridge par défaut, avec le port
+  Archipelago publié sur l'hôte (`runner/app/docker_manager.py:104`). Traefik, lui, n'est que sur
+  `archilan-proxy` : il ne les joint donc que **via l'hôte**, d'où le `host.docker.internal` ci-dessous.
+- L'orchestrateur tourne dans `docker-compose.prod.yml` sur la **même machine** que Traefik. Le port
+  hôte du run est donc bien joignable localement.
+- Le resolver `letsencrypt` est en DNS-01 OVH (`traefik/traefik.yml:24-32`), donc un certificat pour
+  `archilan.fr` s'obtient sans exposer le 80 pour la validation.
+
+### 1. Choisir le port et neutraliser la collision
+
+Le banc doit occuper un port **de la plage du pool** (AC 1), mais l'orchestrateur peut allouer ce
+même port à un vrai run pendant le test.
+
+```bash
+# le port est-il libre en ce moment ?
+docker ps --format '{{.Names}} {{.Ports}}' | grep 25099
+ss -lntp | grep 25099
+```
+
+Retenir `25099` (haut de plage) et, le temps du test, passer `PORT_RANGE_END=25098` dans le `.env`
+de prod puis redémarrer l'orchestrateur. Sans ça, une collision silencieuse est possible et le test
+mesurerait autre chose.
+
+### 2. Avoir un run vivant comme cible
+
+Lancer une run personnelle depuis le site. Noter :
+
+- le **port hôte** publié pour le serveur Archipelago (`docker ps`, ou la fiche admin de la run) ;
+- le **mot de passe** de la run ;
+- un **nom de slot** utilisable.
+
+### 3. Entrypoint statique
+
+Dans `traefik/traefik.yml`, sous `entryPoints` :
+
+```yaml
+  ap-test:
+    address: ":25099"
+```
+
+Dans `traefik/docker-compose.yml`, service `traefik` :
+
+```yaml
+    ports:
+      - "25099:25099"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+**Ces deux modifications sont temporaires et ne doivent pas être commitées.**
+
+### 4. Routeur TCP dans le provider fichier
+
+Nouveau fichier `traefik/dynamic/ap-test.yml` (répertoire déjà monté et surveillé, non commité) :
+
+```yaml
+tcp:
+  routers:
+    ap-test:
+      entryPoints:
+        - ap-test
+      rule: "HostSNI(`*`)"
+      service: ap-test
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: "archilan.fr"
+  services:
+    ap-test:
+      loadBalancer:
+        servers:
+          - address: "host.docker.internal:PORT_HOTE_DU_RUN"
+```
+
+Le SNI joker est possible **parce que le port identifie le run à lui seul** : un seul backend
+derrière l'entrypoint, donc aucun démultiplexage par SNI. Le bloc `domains` est nécessaire : avec un
+SNI joker, Traefik ne peut pas déduire pour quel nom demander le certificat.
+
+### 5. Redémarrer Traefik
+
+```bash
+cd traefik && docker compose up -d      # recréation obligatoire : la liste des ports a changé
+docker compose logs -f traefik | grep -iE "ap-test|error|certificate"
+```
+
+Noter tout ce qui coince : c'est exactement la contrainte que 37.1 devra industrialiser.
+
+### 6. Valider le banc avant de tester le moindre client
+
+Un banc faux produit des échecs indiscernables d'une incompatibilité client. Vérifier dans l'ordre :
+
+```bash
+# le certificat servi est-il le vrai ?
+openssl s_client -connect archilan.fr:25099 -servername archilan.fr </dev/null 2>/dev/null \
+  | openssl x509 -noout -issuer -subject -dates
+```
+
+Attendu : un émetteur Let's Encrypt et un sujet couvrant `archilan.fr`. **Si `TRAEFIK DEFAULT CERT`
+apparaît, s'arrêter là** : le certificat n'est pas valide, aucun navigateur ne se connectera, et
+toute mesure faite dans cet état est nulle.
+
+Puis un aller-retour applicatif, avant tout navigateur, avec le client desktop Archipelago sur
+`wss://archilan.fr:25099` : il doit rejoindre la run. Ce contrôle sépare « le banc est cassé » de
+« le client web est incompatible », et c'est la seule façon d'interpréter un échec silencieux.
+
+### 7. Mesurer
+
+Remplir `docs/archipelago-web-clients.md` : chaque client, chaque forme d'adresse, succès **et**
+échecs avec leur mode d'échec observé (erreur affichée, échec silencieux, timeout). Garder la console
+du navigateur ouverte : le rejet pour contenu mixte et l'échec TLS n'y produisent pas le même
+message, et cette distinction est utile à 37.5.
+
+Laisser ensuite une connexion ouverte et **inactive au moins 15 minutes** (AC 12), et noter si elle
+survit. Ne pas conclure d'avance : Traefik n'applique pas ses `respondingTimeouts` HTTP à un routeur
+TCP, mais c'est à observer, pas à supposer.
+
+### 8. Démonter
+
+1. Supprimer `traefik/dynamic/ap-test.yml`.
+2. Retirer l'entrypoint `ap-test` de `traefik.yml` et le mapping de port (et `extra_hosts`) du compose.
+3. `cd traefik && docker compose up -d` pour recréer le conteneur sans le port.
+4. Rétablir `PORT_RANGE_END=25099` et redémarrer l'orchestrateur.
+5. Vérifier la fermeture : `ss -lntp | grep 25099` ne doit rien renvoyer, et
+   `openssl s_client -connect archilan.fr:25099` doit échouer sur connexion refusée.
+6. `git status` doit être propre côté `traefik/` : **un entrypoint de test oublié, c'est un port
+   ouvert en production sans routeur pour le justifier**.
+7. Arrêter la run de test.
+
 ## Dev Agent Record
 
 ### Agent Model Used
@@ -148,4 +298,5 @@ port Archipelago.
 
 | Date | Change |
 |------|--------|
+| 2026-08-10 | Préparation sans mesure : `docs/archipelago-web-clients.md` créé (critères, candidats qualifiés sur pièces, formes d'adresse, note de péremption), runbook du banc ajouté à la story. Lecture du code des candidats : les deux familles d'adresse annoncées par l'epic sont confirmées sur pièces (Topher's = champ URL unique passé tel quel à `archipelago.js`; ap-tracker = champs hôte/port séparés, concaténés en `host:port`). Tasks 1, 3, 4 et 5b restent à exécuter en prod. |
 | 2026-08-08 | Créée. Story de mesure, à exécuter avant tout code de l'epic : elle décide la forme d'adresse à afficher en 37.4/37.5 et le go/no-go de l'epic. Banc de test contraint à reproduire l'architecture cible (port du pool + certificat réel), sans quoi il mesurerait autre chose. |
