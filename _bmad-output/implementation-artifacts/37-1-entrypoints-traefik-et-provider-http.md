@@ -88,15 +88,16 @@ Corollaire pour 37.6 : le banc de test doit occuper un port de la plage **AP**, 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3). Écrire le script de génération des entrypoints et la convention de
+- [x] **Task 1** (AC 1-3). Écrire le script de génération des entrypoints et la convention de
   nommage. Générer, commiter le résultat.
-- [ ] **Task 2** (AC 4). Publier la plage de ports sur le conteneur Traefik.
-- [ ] **Task 3** (AC 5-7). Ajouter `providers.http`, l'injection du token par l'environnement, le
-  `pollInterval`.
+- [x] **Task 2** (AC 4). Publier la plage de ports sur le conteneur Traefik.
+- [x] **Task 3** (AC 5-7). Ajouter `providers.http`, l'injection du token, le `pollInterval`.
 - [ ] **Task 4** (AC 8). Observer le comportement en cas d'API indisponible ou de token refusé.
+  **Exécution en production requise.**
 - [ ] **Task 5** (AC 9-10). Redémarrage réel, relevés, contrôle de non-régression des services
-  existants.
+  existants. **Exécution en production requise.**
 - [ ] **Task 6** (AC 11-12). Test de connexion longue, ajustement de timeout si nécessaire.
+  **Exécution en production requise.**
 
 ## Dev Notes
 
@@ -141,12 +142,63 @@ Corollaire pour 37.6 : le banc de test doit occuper un port de la plage **AP**, 
 
 ### Agent Model Used
 
+claude-opus-5[1m]
+
 ### Completion Notes List
 
+**Découverte qui a décidé la forme de la solution : Traefik n'interpole aucune variable dans sa
+configuration statique**, et fichier / arguments CLI / variables d'environnement sont trois sources
+**mutuellement exclusives** (documentation v3.3, `getting-started/configuration-overview`). Deux
+conséquences :
+
+1. Le token du provider HTTP **ne peut pas** être injecté par variable d'environnement à côté d'un
+   `traefik.yml` : les variables seraient purement ignorées. Il doit être substitué **avant** le
+   démarrage. D'où le passage à `traefik.yml.tpl` (commité) + `traefik.yml` (généré, gitignoré,
+   retiré du suivi git par `git rm --cached`).
+2. **Le `${ACME_EMAIL}` présent dans `traefik/traefik.yml` depuis l'origine n'a jamais été
+   substitué** : la chaîne littérale partait chez Let's Encrypt. À vérifier sur le serveur - si les
+   certificats sont valides aujourd'hui, c'est que la copie de production a été éditée à la main et
+   diverge du dépôt. **Comparer avant la première génération**, sinon le rendu écrase une
+   configuration qui, elle, fonctionne.
+
+**Écart assumé sur l'AC 5.** L'AC demandait un endpoint `https://{API_DOMAIN}/...`. L'implémentation
+vise `http://archilan-api-web/api/v1/internal/traefik`, en interne sur `archilan-proxy`. Passer par
+le nom public ferait dépendre Traefik de son propre routage pour aller chercher sa configuration -
+dépendance circulaire au démarrage, et TLS inutile sur un réseau interne. La valeur reste
+configurable (`TRAEFIK_HTTP_PROVIDER_ENDPOINT`).
+
+**Vérifications effectuées en local :**
+
+- rendu idempotent : deux générations successives, puis `--check` vert ;
+- YAML valide relu par un parseur : 102 entrypoints (`web`, `websecure`, `ap-35000` .. `ap-35099`),
+  `providers.http.headers`, email ACME et endpoint correctement substitués ;
+- `docker compose config` valide sur la compose modifiée ;
+- modes d'échec : dérive détectée par `--check` (sortie 1), token vide refusé, plage inversée
+  refusée, garde-fou à 512 ports, valeur non numérique refusée ;
+- **bug corrigé pendant le test** : depuis bash 5.2, un `&` dans la valeur de remplacement de
+  `${var//motif/valeur}` désigne le texte apparié. Un token contenant `&` était silencieusement
+  corrompu en `...${TRAEFIK_TOKEN}...`. La substitution se fait désormais par découpe explicite.
+- le fichier d'environnement est lu **littéralement** (sémantique `env_file` de docker compose) et
+  non sourcé : un token contenant `$`, `&` ou des espaces ne casse plus la lecture.
+
+**Restent à faire, en production uniquement** (AC 8 à 12) : comportement quand l'API est muette ou
+le token refusé, redémarrage réel avec relevés de démarrage et de mémoire, non-régression des
+services existants, et surtout la **tenue d'une connexion longue d'au moins une heure**. Tant que
+ces points ne sont pas faits, la story n'est pas complète, même si le code l'est.
+
 ### File List
+
+- `scripts/gen-traefik-config.sh` (nouveau) - générateur, mode `--check`, garde-fous
+- `traefik/traefik.yml.tpl` (nouveau) - source de la configuration statique
+- `traefik/traefik.yml` - **retiré du suivi git**, désormais généré
+- `traefik/docker-compose.yml` - bloc de ports entre marqueurs, commentaire sur le fichier généré
+- `traefik/.env.example` - plage de ports et variables du provider HTTP
+- `traefik/README.md` (nouveau) - procédure de génération, de déploiement et de vérification
+- `.gitignore` - `traefik/traefik.yml`
 
 ### Change Log
 
 | Date | Change |
 |------|--------|
+| 2026-08-10 | Implémentation : générateur, template, provider HTTP, publication de la plage. Passage à un `traefik.yml` généré non commité, imposé par l'absence d'interpolation dans la configuration statique de Traefik. ACs de validation en production (8-12) non exécutés. |
 | 2026-08-10 | Créée. Corrige la plage de ports annoncée par l'epic : les serveurs AP sont sur `35000-35099` (pool + `AP_SERVER_PORT_OFFSET`), pas sur le pool lui-même. |
