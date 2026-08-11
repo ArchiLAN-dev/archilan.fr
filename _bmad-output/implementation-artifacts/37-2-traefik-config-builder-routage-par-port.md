@@ -79,13 +79,13 @@ Traefik doit partager un réseau avec les conteneurs de session, ce que 37.3 met
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-6). Réécrire `TraefikConfigBuilder::build()` : sortie `tcp.routers` /
+- [x] **Task 1** (AC 1-6). Réécrire `TraefikConfigBuilder::build()` : sortie `tcp.routers` /
   `tcp.services`, entrypoint dérivé du port, TLS avec certresolver et domaine, backend interne.
-- [ ] **Task 2** (AC 7-8). Supprimer `$wsDomain` et `WS_DOMAIN` partout, y compris les fichiers
+- [x] **Task 2** (AC 7-8). Supprimer `$wsDomain` et `WS_DOMAIN` partout, y compris les fichiers
   d'environnement d'exemple et de test.
-- [ ] **Task 3** (AC 9-11). Mettre à jour les tests fonctionnels, ajouter les cas certresolver et
+- [x] **Task 3** (AC 9-11). Mettre à jour les tests fonctionnels, ajouter les cas certresolver et
   multi-ports.
-- [ ] **Task 4** (AC 12). `composer gates`.
+- [x] **Task 4** (AC 12). `composer gates`.
 
 ## Dev Notes
 
@@ -127,12 +127,55 @@ Traefik doit partager un réseau avec les conteneurs de session, ce que 37.3 met
 
 ### Agent Model Used
 
+claude-opus-5[1m]
+
 ### Completion Notes List
 
+**Écart assumé sur l'AC 3 : le domaine du certificat n'est pas codé en dur à `archilan.fr`.** Il
+vient de `RUNNER_PUBLIC_HOST` (`services.yaml`), c'est-à-dire de la variable qui décrit déjà
+« l'hôte public des runs » et vaut `orchestrateur.archilan.fr` en production. Raison : avec un SNI
+joker, le certificat servi doit correspondre **au nom que le joueur a tapé**, sinon le navigateur le
+rejette. Or ce nom est exactement ce que 37.4 doit surfacer. Les faire dériver d'une seule variable
+rend la divergence impossible ; les coder en dur des deux côtés la rendrait inévitable.
+
+**Décision qui reste ouverte pour 37.4** : si le choix se porte finalement sur `archilan.fr`, il
+suffit de changer `RUNNER_PUBLIC_HOST` - aucun code à toucher ici. Mais il faut alors le changer
+**avant** de mesurer quoi que ce soit en 37.6, sinon le banc mesure une adresse qui n'existera pas.
+
+**Ce que le builder ne fait plus :** il n'utilise plus `Session::getHost()`. Une session en cours
+sans port est toujours ignorée ; l'absence de host, elle, n'est plus un motif d'exclusion puisque le
+backend est désormais le nom du conteneur.
+
+**Tests ajoutés :**
+
+- fonctionnels (`TraefikAndPublisherTokenTest`) : forme `tcp` de la réponse, règle SNI joker,
+  entrypoint dérivé du port, adresse interne du backend, **certresolver et domaine** (l'oubli de
+  9.11, invisible côté serveur et fatal côté navigateur), et deux sessions sur deux ports produisant
+  deux entrypoints distincts ;
+- unitaires (`tests/Unit/Sessions/TraefikConfigBuilderTest.php`, nouveau) : les mêmes propriétés sur
+  le composant pur, plus le cas « aucune session » qui doit rendre des objets vides et non des
+  tableaux vides - Traefik refuse `"routers": []`.
+
+**Gates :** `composer gates` vert (phpstan level max, cs-fixer, DDD, rector, 1795 tests).
+
+**Non vérifiable en local :** que Traefik accepte réellement cette configuration et obtienne le
+certificat. Le contrat entre le nom d'entrypoint produit ici (`ap-{port}`) et celui généré par
+`scripts/gen-traefik-config.sh` (37.1) n'est tenu par aucun test - il est documenté des deux côtés,
+c'est tout ce qu'on peut faire depuis deux couches différentes. À vérifier au premier déploiement
+conjoint : un routeur qui référence un entrypoint inexistant est ignoré par Traefik **avec un
+simple message de log**, et le run reste silencieusement injoignable.
+
 ### File List
+
+- `api/src/Sessions/Application/Support/TraefikConfigBuilder.php` - routeurs TCP par port
+- `api/config/services.yaml` - `$publicHost` depuis `RUNNER_PUBLIC_HOST`, `$wsDomain` retiré
+- `api/tests/Functional/TraefikAndPublisherTokenTest.php` - cas mis à jour et deux cas ajoutés
+- `api/tests/Unit/Sessions/TraefikConfigBuilderTest.php` (nouveau)
+- `api/.env`, `api/.env.test`, `.env.prod.example`, `envs/api.env.example` - `WS_DOMAIN` supprimé
 
 ### Change Log
 
 | Date | Change |
 |------|--------|
+| 2026-08-10 | Implémentation : routeurs TCP par port, SNI joker, certresolver avec domaine explicite, backend `ap-server-{id}:38281`, suppression de `WS_DOMAIN`. Domaine du certificat pris sur `RUNNER_PUBLIC_HOST` plutôt que codé en dur, pour qu'il ne puisse pas diverger de l'adresse surfacée par 37.4. |
 | 2026-08-10 | Créée. Backend du routeur corrigé : adresse interne `ap-server-{id}:38281` au lieu du couple hôte/port publié, ce qui est la condition pour que 37.3 puisse refermer le port. |

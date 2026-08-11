@@ -48,10 +48,10 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
 
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse();
-        $http = $data['http'];
-        self::assertIsArray($http);
-        self::assertArrayHasKey('routers', $http);
-        self::assertArrayHasKey('services', $http);
+        $tcp = $data['tcp'];
+        self::assertIsArray($tcp);
+        self::assertArrayHasKey('routers', $tcp);
+        self::assertArrayHasKey('services', $tcp);
     }
 
     public function testTraefikEndpointExcludesNonRunningSessions(): void
@@ -70,9 +70,9 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
 
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse();
-        $http = $data['http'];
-        self::assertIsArray($http);
-        $routers = (array) $http['routers'];
+        $tcp = $data['tcp'];
+        self::assertIsArray($tcp);
+        $routers = (array) $tcp['routers'];
         self::assertArrayNotHasKey('run-'.$session->getId(), $routers);
     }
 
@@ -92,25 +92,89 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
 
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse();
-        $http = $data['http'];
-        self::assertIsArray($http);
+        $tcp = $data['tcp'];
+        self::assertIsArray($tcp);
         $routerKey = 'run-'.$session->getId();
-        $routers = (array) $http['routers'];
+        $routers = (array) $tcp['routers'];
         self::assertArrayHasKey($routerKey, $routers);
         $routerData = (array) $routers[$routerKey];
-        self::assertSame(
-            sprintf('Host(`%s.ws.archilan.fr`)', $session->getId()),
-            $routerData['rule'],
-        );
-        self::assertSame(['websecure'], $routerData['entryPoints']);
+        // SNI joker : le port identifie le run, il n'y a qu'un backend derrière l'entrypoint.
+        self::assertSame('HostSNI(`*`)', $routerData['rule']);
+        self::assertSame(['ap-38281'], $routerData['entryPoints']);
 
-        $services = (array) $http['services'];
+        $services = (array) $tcp['services'];
         self::assertArrayHasKey($routerKey, $services);
         $serviceData = (array) $services[$routerKey];
         $lb = (array) $serviceData['loadBalancer'];
         $servers = (array) $lb['servers'];
         $firstServer = (array) $servers[0];
-        self::assertSame('http://runner-local:38281', $firstServer['url']);
+        // Adresse interne du conteneur, pas le port publié sur l'hôte (story 37.3).
+        self::assertSame(
+            sprintf('ap-server-%s:38281', $session->getId()),
+            $firstServer['address'],
+        );
+    }
+
+    /**
+     * Le certificat est ce que 9.11 avait oublié : sans certresolver ni domaine explicite, Traefik
+     * sert son certificat auto-signé, et un navigateur refuse la connexion WebSocket sans le
+     * moindre interstitiel. La panne est invisible côté serveur, d'où ce test.
+     */
+    public function testTraefikRouterRequestsARealCertificateForThePublicHost(): void
+    {
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+        $session = $this->persistRunningSession();
+
+        $this->client->request(
+            'GET',
+            '/api/v1/internal/traefik',
+            [],
+            [],
+            ['HTTP_X_TRAEFIK_TOKEN' => 'test-traefik-token'],
+        );
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse();
+        $tcp = $data['tcp'];
+        self::assertIsArray($tcp);
+        $routers = (array) $tcp['routers'];
+        $routerData = (array) $routers['run-'.$session->getId()];
+        $tls = (array) $routerData['tls'];
+
+        self::assertSame('letsencrypt', $tls['certResolver']);
+        // RUNNER_PUBLIC_HOST vaut « localhost » dans api/.env.test.
+        self::assertSame([['main' => 'localhost']], $tls['domains']);
+    }
+
+    public function testTraefikRoutersUseOneEntrypointPerPort(): void
+    {
+        $admin = $this->createAdmin();
+        $this->loginAs($admin);
+        $session1 = $this->persistSessionInState(Session::STATUS_RUNNING, 35042);
+
+        $admin2 = $this->createUser('admin2@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin2');
+        $this->loginAs($admin2);
+        $session2 = $this->persistSessionInState(Session::STATUS_RUNNING, 35043);
+
+        $this->client->request(
+            'GET',
+            '/api/v1/internal/traefik',
+            [],
+            [],
+            ['HTTP_X_TRAEFIK_TOKEN' => 'test-traefik-token'],
+        );
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse();
+        $tcp = $data['tcp'];
+        self::assertIsArray($tcp);
+        $routers = (array) $tcp['routers'];
+
+        $router1 = (array) $routers['run-'.$session1->getId()];
+        $router2 = (array) $routers['run-'.$session2->getId()];
+        self::assertSame(['ap-35042'], $router1['entryPoints']);
+        self::assertSame(['ap-35043'], $router2['entryPoints']);
     }
 
     public function testTraefikEndpointHandlesMultipleRunningSessions(): void
@@ -133,9 +197,9 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
 
         self::assertResponseIsSuccessful();
         $data = $this->decodedJsonResponse();
-        $http = $data['http'];
-        self::assertIsArray($http);
-        $routers = (array) $http['routers'];
+        $tcp = $data['tcp'];
+        self::assertIsArray($tcp);
+        $routers = (array) $tcp['routers'];
         self::assertArrayHasKey('run-'.$session1->getId(), $routers);
         self::assertArrayHasKey('run-'.$session2->getId(), $routers);
     }
@@ -218,7 +282,7 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
         return $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Admin');
     }
 
-    private function persistSessionInState(string $targetStatus): Session
+    private function persistSessionInState(string $targetStatus, ?int $port = null): Session
     {
         $session = Session::create(bin2hex(random_bytes(8)), 'evt-001', new \DateTimeImmutable());
         $this->entityManager->persist($session);
@@ -227,6 +291,10 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
 
         $path = $this->transitionPath($targetStatus);
         foreach ($path as $status) {
+            if (null !== $port && Session::STATUS_RUNNING === $status) {
+                $this->patchStatus($id, $status, port: $port);
+                continue;
+            }
             $this->patchStatus($id, $status);
         }
 
