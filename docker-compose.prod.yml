@@ -1,3 +1,7 @@
+# Compose de production. Aligné sur la machine le 2026-08-13 (voir docs/deploiement-production.md).
+#
+# Le reverse proxy n'est PAS ici : il sert plusieurs projets de l'hôte et vit dans son propre
+# compose. Ce fichier ne fait que rejoindre son réseau externe `traefik` et poser des libellés.
 name: archilan-prod
 
 services:
@@ -9,6 +13,8 @@ services:
         container_name: archilan-postgres
         restart: always
         env_file: envs/postgres.env
+        ports:
+            - 5434:5432
         volumes:
             - postgres-data:/var/lib/postgresql/data
         healthcheck:
@@ -36,9 +42,6 @@ services:
         restart: always
         command: server /data --console-address ":9001"
         env_file: envs/minio.env
-        ports:
-            - "9000:9000"
-            - "9001:9001"
         volumes:
             - minio-data:/data
         healthcheck:
@@ -46,6 +49,26 @@ services:
             interval: 10s
             timeout: 5s
             retries: 10
+        networks:
+            - default
+            - traefik
+        labels:
+            - "traefik.enable=true"
+            - "traefik.docker.network=traefik"
+
+            # S3 API - utilisé par les URLs présignées (NE PAS changer le host)
+            - "traefik.http.routers.minio-web.rule=Host(`${MINIO_DOMAIN}`)"
+            - "traefik.http.routers.minio-web.entrypoints=websecure"
+            - "traefik.http.routers.minio-web.tls.certresolver=https"
+            - "traefik.http.routers.minio-web.service=minio-s3"
+            - "traefik.http.services.minio-s3.loadbalancer.server.port=9000"
+
+            # Console - sous-domaine séparé
+            - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_DOMAIN}`)"
+            - "traefik.http.routers.minio-console.entrypoints=websecure"
+            - "traefik.http.routers.minio-console.tls.certresolver=https"
+            - "traefik.http.routers.minio-console.service=minio-console"
+            - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
 
     createbuckets:
         image: minio/mc:latest
@@ -69,23 +92,24 @@ services:
         restart: always
         env_file: envs/mercure.env
         networks:
+            - traefik
             - default
-            - archilan-proxy
         labels:
             - "traefik.enable=true"
-            - "traefik.docker.network=archilan-proxy"
-            - "traefik.http.routers.mercure.rule=Host(`${MERCURE_DOMAIN}`)"
-            - "traefik.http.routers.mercure.entrypoints=websecure"
-            - "traefik.http.routers.mercure.tls.certresolver=letsencrypt"
-            - "traefik.http.services.mercure.loadbalancer.server.port=3001"
-            - "traefik.http.routers.mercure-http.rule=Host(`${MERCURE_DOMAIN}`)"
-            - "traefik.http.routers.mercure-http.entrypoints=web"
-            - "traefik.http.routers.mercure-http.middlewares=redirect-https"
+            - "traefik.docker.network=traefik"
+            - "traefik.http.routers.mercure-web.rule=Host(`${MERCURE_DOMAIN}`)"
+            - "traefik.http.routers.mercure-web.entrypoints=websecure"
+            - "traefik.http.routers.mercure-web.tls.certresolver=https"
+            - "traefik.http.services.mercure-web.loadbalancer.server.port=3001"
+            - "traefik.http.routers.mercure-web-http.rule=Host(`${MERCURE_DOMAIN}`)"
+            - "traefik.http.routers.mercure-web-http.entrypoints=web"
+            - "traefik.http.routers.mercure-web-http.middlewares=redirect-https"
+            - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
 
     # ─── Application ──────────────────────────────────────────────────────────
 
     api-web:
-        image: ghcr.io/archilan-dev/api-web:latest
+        image: ghcr.io/archilan-dev/api-web:${ARCHILAN_VERSION}
         container_name: archilan-api-web
         restart: always
         depends_on:
@@ -94,19 +118,15 @@ services:
             rabbitmq:
                 condition: service_healthy
         env_file: envs/api.env
-        # Reach the per-session bridge's host-published ports from inside the container
-        # (BRIDGE_HTTP_HOST=host.docker.internal in envs/api.env).
-        extra_hosts:
-            - "host.docker.internal:host-gateway"
         networks:
             - default
-            - archilan-proxy
+            - traefik
         labels:
             - "traefik.enable=true"
-            - "traefik.docker.network=archilan-proxy"
+            - "traefik.docker.network=traefik"
             - "traefik.http.routers.api-web.rule=Host(`${API_DOMAIN}`)"
             - "traefik.http.routers.api-web.entrypoints=websecure"
-            - "traefik.http.routers.api-web.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.api-web.tls.certresolver=https"
             - "traefik.http.services.api-web.loadbalancer.server.port=80"
             - "traefik.http.routers.api-web-http.rule=Host(`${API_DOMAIN}`)"
             - "traefik.http.routers.api-web-http.entrypoints=web"
@@ -115,73 +135,99 @@ services:
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
-            - api-logs:/app/var/log
 
-    api-worker:
-        image: ghcr.io/archilan-dev/api-worker:latest
-        container_name: archilan-api-worker
-        restart: always
-        group_add:
-            - "${DOCKER_GID}"
+    api-migrations:
+        image: ghcr.io/archilan-dev/api-web:${ARCHILAN_VERSION}
+        command: 'php bin/console doctrine:migrations:migrate --no-interaction'
+        container_name: archilan-api-migrations
+        restart: no
         depends_on:
             postgres:
                 condition: service_healthy
             rabbitmq:
                 condition: service_healthy
         env_file: envs/api.env
-        extra_hosts:
-            - "host.docker.internal:host-gateway"
         volumes:
             - api-workspace:/var/archilan/workspace
             - api-archives:/var/archilan/archives
-            - api-logs:/app/var/log
             - /var/run/docker.sock:/var/run/docker.sock
+        networks:
+            - default
+
+    api-worker:
+        image: ghcr.io/archilan-dev/api-worker:${ARCHILAN_VERSION}
+        container_name: archilan-api-worker
+        restart: always
+        depends_on:
+            postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_healthy
+        env_file: envs/api.env
+        volumes:
+            - api-workspace:/var/archilan/workspace
+            - api-archives:/var/archilan/archives
+            - /var/run/docker.sock:/var/run/docker.sock
+        networks:
+            - default
 
     frontend:
-        image: ghcr.io/archilan-dev/frontend:latest
+        image: ghcr.io/archilan-dev/frontend:${ARCHILAN_VERSION}
         container_name: archilan-frontend
         restart: always
         env_file: envs/frontend.env
         networks:
             - default
-            - archilan-proxy
+            - traefik
         labels:
             - "traefik.enable=true"
-            - "traefik.docker.network=archilan-proxy"
+            - "traefik.docker.network=traefik"
             - "traefik.http.routers.frontend.rule=Host(`${FRONTEND_DOMAIN}`)"
             - "traefik.http.routers.frontend.entrypoints=websecure"
-            - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.frontend.tls.certresolver=https"
             - "traefik.http.services.frontend.loadbalancer.server.port=3000"
             - "traefik.http.routers.frontend-http.rule=Host(`${FRONTEND_DOMAIN}`)"
             - "traefik.http.routers.frontend-http.entrypoints=web"
             - "traefik.http.routers.frontend-http.middlewares=redirect-https"
 
     orchestrateur:
-        image: ghcr.io/archilan-dev/orchestrateur:latest
+        image: ghcr.io/archilan-dev/orchestrateur:${ORCHESTRATEUR_VERSION}
         container_name: archilan-orchestrateur
         restart: always
         env_file: envs/orchestrateur.env
+        # GID du groupe docker de l'hôte : l'orchestrateur pilote le démon par sa socket.
         group_add:
-            - "${DOCKER_GID}"
+            - "${DOCKER_GID:-994}"
         networks:
             - default
-            - archilan-proxy
+            - traefik
         labels:
             - "traefik.enable=true"
-            - "traefik.docker.network=archilan-proxy"
+            - "traefik.docker.network=traefik"
             - "traefik.http.routers.orchestrateur.rule=Host(`${ORCHESTRATEUR_DOMAIN}`)"
             - "traefik.http.routers.orchestrateur.entrypoints=websecure"
-            - "traefik.http.routers.orchestrateur.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.orchestrateur.tls.certresolver=https"
             - "traefik.http.services.orchestrateur.loadbalancer.server.port=8000"
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - orchestrateur-data:/data
 
+    # Images tirées mais jamais démarrées comme services : l'orchestrateur crée les conteneurs
+    # lui-même. `docker compose --profile images pull` les met à jour.
+    archipelago-image:
+        image: ghcr.io/archilan-dev/archipelago:${ARCHIPELAGO_VERSION}
+        profiles: ["images"]
+
+    bridge-image:
+        image: ghcr.io/archilan-dev/bridge:${BRIDGE_VERSION}
+        profiles: ["images"]
+
 networks:
     default: {}
-    archilan-proxy:
+    # Réseau du reverse proxy, créé par son propre compose. C'est aussi celui que les conteneurs
+    # de session doivent rejoindre (PROXY_NETWORK côté orchestrateur).
+    traefik:
         external: true
-        name: archilan-proxy
 
 volumes:
     postgres-data:
@@ -190,4 +236,3 @@ volumes:
     orchestrateur-data:
     api-workspace:
     api-archives:
-    api-logs:

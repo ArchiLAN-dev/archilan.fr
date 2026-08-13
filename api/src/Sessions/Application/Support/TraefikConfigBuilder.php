@@ -18,7 +18,7 @@ final readonly class TraefikConfigBuilder
     /**
      * Préfixe des entrypoints Traefik dédiés aux serveurs Archipelago.
      *
-     * CONTRAT AVEC L'INFRA : `scripts/gen-traefik-config.sh` (story 37.1) génère un entrypoint
+     * CONTRAT AVEC L'INFRA : `scripts/gen-traefik-entrypoints.sh` (story 37.1) génère un entrypoint
      * `ap-{port}` par port de la plage. Changer la convention d'un côté sans l'autre produit des
      * routeurs qui référencent un entrypoint inexistant - Traefik les ignore en le journalisant,
      * et les runs deviennent silencieusement injoignables. Aucun test ne peut relier les deux :
@@ -29,6 +29,13 @@ final readonly class TraefikConfigBuilder
     public function __construct(
         private SessionRepositoryInterface $sessions,
         private string $publicHost,
+        /**
+         * Nom du certresolver **tel qu'il est déclaré dans le proxy**, qui n'est pas versionné ici
+         * et sert plusieurs projets. Un nom inconnu de Traefik ne provoque aucune erreur visible :
+         * il sert son certificat par défaut, et le navigateur refuse la connexion WebSocket sans
+         * interstitiel. D'où une valeur configurable plutôt qu'une constante optimiste.
+         */
+        private string $certResolver,
     ) {
     }
 
@@ -65,7 +72,7 @@ final readonly class TraefikConfigBuilder
                 // déduire de la règle et servirait son certificat par défaut, que tout navigateur
                 // rejette sans interstitiel sur une connexion WebSocket.
                 'tls' => [
-                    'certResolver' => 'letsencrypt',
+                    'certResolver' => $this->certResolver,
                     'domains' => [
                         ['main' => $this->publicHost],
                     ],

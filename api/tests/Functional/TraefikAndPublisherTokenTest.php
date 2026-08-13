@@ -142,7 +142,7 @@ final class TraefikAndPublisherTokenTest extends FunctionalTestCase
         $routerData = (array) $routers['run-'.$session->getId()];
         $tls = (array) $routerData['tls'];
 
-        self::assertSame('letsencrypt', $tls['certResolver']);
+        self::assertSame('https', $tls['certResolver']);
         // RUNNER_PUBLIC_HOST vaut « localhost » dans api/.env.test.
         self::assertSame([['main' => 'localhost']], $tls['domains']);
     }

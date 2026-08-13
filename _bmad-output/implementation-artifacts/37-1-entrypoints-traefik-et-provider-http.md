@@ -13,6 +13,36 @@ je veux que Traefik écoute sur toute la plage de ports des serveurs Archipelago
 configuration dynamique produite par l'API,
 afin que les routeurs générés par 37.2 soient réellement appliqués au lieu de partir dans le vide.
 
+## Correction majeure du 2026-08-13 : la story visait un proxy qui n'existe pas
+
+Le répertoire `traefik/` de ce dépôt **n'a jamais été déployé**. Le reverse proxy réel sert
+plusieurs projets de l'hôte, vit hors du dépôt, et est configuré **entièrement en arguments de
+ligne de commande** - pas de fichier statique du tout. Tout ce que la story décrit ci-dessous à
+propos de `traefik/traefik.yml` porte donc sur un artefact mort.
+
+Ce que cela change, vérifié le 2026-08-13 :
+
+| Hypothèse de la story | Réalité |
+|---|---|
+| Configuration par fichier statique | Arguments CLI, dans un compose hors dépôt |
+| Traefik v3.3 | **v2.11** |
+| Certresolver `letsencrypt` (DNS-01 OVH) | Certresolver `https` (TLS-ALPN sur 443) |
+| Réseau `archilan-proxy` | Réseau du proxy, à confirmer sur l'hôte |
+
+**Le point bloquant : l'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11
+elle est ignorée sans avertissement, l'API répond `401`, Traefik n'obtient aucun routeur et aucune
+run n'est joignable. Il n'y a pas de contournement propre : **le passage du proxy en v3 est un
+prérequis de la chaîne**, arbitré avec Jean le 2026-08-13.
+
+Décisions prises en conséquence : le proxy passe en v3 ; `traefik/` est **supprimé du dépôt** ; le
+générateur produit désormais un **fragment à coller** dans le compose du proxy, où qu'il vive ; le
+nom du certresolver devient configurable côté API. Le corollaire du `${ACME_EMAIL}` jamais
+interpolé est enfin expliqué : personne n'a jamais lu ce fichier.
+
+Ce qui reste valide de la story : la dérivation de la plage depuis `PORT_RANGE_*` +
+`AP_SERVER_PORT_OFFSET`, la convention `ap-{port}`, l'exigence d'un `pollInterval` explicite, et
+tous les ACs de validation en production.
+
 ## Context
 
 La story 9.11 a livré la moitié du chemin : `TraefikConfigBuilder` produit une configuration de
@@ -223,5 +253,6 @@ ces points ne sont pas faits, la story n'est pas complète, même si le code l'e
 
 | Date | Change |
 |------|--------|
+| 2026-08-13 | **Reimplementee sur l'infrastructure reelle.** Le proxy de production est en arguments CLI, en v2.11, avec le certresolver `https` : la generation d'un `traefik.yml` ne servait a rien. `traefik/` supprime du depot, `scripts/gen-traefik-config.sh` remplace par `scripts/gen-traefik-entrypoints.sh` qui imprime un fragment a coller, certresolver rendu configurable, documentation d'exploitation deplacee dans `docs/traefik-runs-archipelago.md`. Le passage du proxy en v3 devient un prerequis : l'option `headers` du provider HTTP n'existe pas en v2. |
 | 2026-08-10 | Implémentation : générateur, template, provider HTTP, publication de la plage. Passage à un `traefik.yml` généré non commité, imposé par l'absence d'interpolation dans la configuration statique de Traefik. ACs de validation en production (8-12) non exécutés. |
 | 2026-08-10 | Créée. Corrige la plage de ports annoncée par l'epic : les serveurs AP sont sur `35000-35099` (pool + `AP_SERVER_PORT_OFFSET`), pas sur le pool lui-même. |
