@@ -37,3 +37,25 @@ Nothing remains deferred from story 7.7.
   (`?\DateTimeImmutable $now = null`) touches conditionally.** Divergent timestamp contracts on the
   same field within one aggregate. `clearCoverImageKey` predates 33.16 and is out of AC-D5 scope
   (not set-prefixed); align its signature (require the clock) next time those entities are touched.
+
+## Deferred from: epic 37, bascule wss (2026-08-13)
+
+- **L'exposition publique du port du bridge reste ouverte.** L'epic 37 referme le port Archipelago
+  de chaque run, pas celui du bridge. Constat du 2026-08-13 : `BRIDGE_HTTP_HOST=archilan.fr` en
+  production, donc l'API appelle le bridge d'une session sur `http://archilan.fr:{bridgePort}` -
+  elle sort du conteneur vers l'IP publique et revient par le port publié. Les ports
+  `25000-25099` sont donc joignables depuis Internet, protégés par le seul token du bridge.
+
+  **Conséquence immédiate à ne pas oublier : ne pas filtrer cette plage au pare-feu.** Ça couperait
+  l'API de tous les bridges, donc la génération et le suivi des runs.
+
+  La sortie propre existe déjà : le conteneur s'appelle `archilan-bridge-{sessionId}`
+  (`orchestrateur/internal/docker/client.go`) et vit sur le même réseau que `api-web`. L'API
+  pourrait le joindre en interne sur `archilan-bridge-{sessionId}:5000`, exactement comme Traefik
+  joint `ap-server-{sessionId}:38281`. Ce n'est pas un changement de variable : l'API compose
+  aujourd'hui `{host}:{bridgePort}`, il faudrait qu'elle compose un nom par session sur un port
+  fixe.
+
+  **À faire après la bascule, pas avant** : c'est elle qui prouvera empiriquement que le routage par
+  nom de conteneur fonctionne sur cette machine - l'hypothèse centrale de ce travail. Story à
+  rédiger alors, sous le nom « 37.7 - fermer l'exposition publique du bridge ».
