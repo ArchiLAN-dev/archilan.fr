@@ -33,6 +33,27 @@ production, il ouvre **35000-35099**, soit cent runs simultanés. Un entrypoint 
 **Ne jamais écrire ces entrypoints à la main.** Deux sources de vérité pour une plage de ports,
 c'est une désynchronisation silencieuse qui attend le jour où quelqu'un élargit le pool.
 
+## ATTENTION - conflit de ports avec l'ancien orchestrateur
+
+Traefik publie **toute** la plage `35000-35099` sur l'hôte dès son démarrage. Or, tant que
+l'orchestrateur tourne avec `AP_PUBLISH_HOST_PORT=true`, chaque run publie *aussi* son port dans
+cette plage. Deux liaisons sur le même port de l'hôte ne peuvent pas coexister :
+
+- une run active sur `35042` au moment où Traefik démarre → **Traefik ne démarre pas**, et il porte
+  le site, l'API, Mercure, MinIO et l'orchestrateur ;
+- Traefik démarré d'abord → **plus aucune run ne peut se lancer** (`port is already allocated`).
+
+**Ordre imposé, dans une seule fenêtre calme et sans run active :**
+
+1. `AP_PUBLISH_HOST_PORT=false` + `PROXY_NETWORK=archilan-proxy` dans `envs/orchestrateur.env`,
+   puis redémarrage de l'orchestrateur. Les nouvelles runs cessent de réserver un port hôte.
+2. Vérifier qu'aucun port de la plage n'est encore lié : `ss -lntp | grep -c ':35[0-9][0-9][0-9]'`
+   doit renvoyer `0`. Les runs déjà lancées gardent leur liaison jusqu'à leur arrêt.
+3. Générer la configuration Traefik et redémarrer Traefik (ci-dessous).
+4. Lancer une run et vérifier qu'elle est joignable.
+
+Entre les étapes 1 et 3, une run lancée n'est joignable par personne. D'où la fenêtre unique.
+
 ## Déployer un changement de configuration
 
 ```bash

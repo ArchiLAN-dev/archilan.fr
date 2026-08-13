@@ -184,5 +184,6 @@ complète), puis 37.4 et 37.5.
 
 | Date | Description |
 |------|-------------|
+| 2026-08-13 | **Ordre de déploiement corrigé.** Traefik publie toute la plage sur l'hôte, l'ancien orchestrateur publie un port de cette plage par run : les deux liaisons ne peuvent pas coexister. Une run active au moment du redémarrage empêche Traefik de démarrer, donc coupe tout le site. Le basculement de l'orchestrateur (37.3) doit précéder Traefik (37.1), et non l'inverse comme écrit initialement. Procédure dans `traefik/README.md`. |
 | 2026-08-10 | Stories 37.1 à 37.5 rédigées. Trois corrections de cadrage issues de la lecture du code : (1) la plage à ouvrir est `35000-35099` (pool + `AP_SERVER_PORT_OFFSET`), pas le pool lui-même ; (2) 37.3 se code dans le dépôt orchestrateur (`CreateAPServer`), pas dans `runner/app/docker_manager.py` qui n'est pas déployé ; (3) le backend du routeur est l'adresse interne `ap-server-{id}:38281`, ce qui est la condition pour refermer le port hôte, et l'option `127.0.0.1` tombe. |
 | 2026-08-08 | Créé (draft). Déclencheur : clients web tiers bloqués par la règle de contenu mixte. Architecture arbitrée avec Jean : routage par port sur le certificat `archilan.fr` partagé (abandon du wildcard et du sous-domaine par run du design 9.11), TLS uniquement après confirmation que le client desktop gère `wss://`. Découpage en 6 stories. |

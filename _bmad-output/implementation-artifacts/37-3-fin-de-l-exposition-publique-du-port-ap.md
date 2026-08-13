@@ -95,8 +95,15 @@ Traefik ne pourrait plus l'atteindre. Le partage de réseau est la seule des deu
 
 ### Déploiement
 
-11. L'ordre de mise en production est écrit et respecté : **37.1 et 37.2 d'abord, vérifiées sur une
-    run réelle joignable en `wss://`, puis 37.3**. L'inverse coupe toutes les runs.
+11. ~~37.1 et 37.2 d'abord, puis 37.3.~~ **Corrigé le 2026-08-13 - l'ordre inverse est le bon.**
+    Traefik publie toute la plage `35000-35099` sur l'hôte, et l'ancien orchestrateur publie le port
+    de chaque run dans cette même plage : les deux liaisons ne peuvent pas coexister. Démarrer
+    Traefik pendant qu'une run occupe un port de la plage **empêche Traefik de démarrer**, donc
+    coupe le site entier. L'ordre imposé est : **(1)** basculer l'orchestrateur
+    (`AP_PUBLISH_HOST_PORT=false` + `PROXY_NETWORK`), **(2)** vérifier qu'aucun port de la plage
+    n'est plus lié, **(3)** générer la configuration et redémarrer Traefik, **(4)** lancer une run
+    et vérifier. Le tout dans une seule fenêtre calme, sans run active : entre (1) et (3), une run
+    lancée n'est joignable par personne.
 12. Le retour arrière est documenté : redéployer l'image précédente de l'orchestrateur restaure la
     publication du port. Le savoir avant, pas pendant.
 

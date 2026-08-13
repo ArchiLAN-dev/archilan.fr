@@ -116,6 +116,12 @@ Corollaire pour 37.6 : le banc de test doit occuper un port de la plage **AP**, 
 - **Le redémarrage de Traefik a un rayon d'action large** : il porte le site, l'API, Mercure, MinIO
   et l'orchestrateur (`docker-compose.prod.yml`). Créneau calme, et si 37.3 est déjà livrée, toutes
   les parties Archipelago en cours tombent aussi.
+- **Conflit de ports avec l'ancien orchestrateur (constaté le 2026-08-13).** Publier la plage
+  `35000-35099` sur le conteneur Traefik entre en collision frontale avec le comportement d'avant
+  37.3, où chaque run publie son propre port dans cette plage. Si une run occupe un port au moment
+  du redémarrage, **Traefik ne démarre pas** et tout le site tombe avec lui. Cette story ne peut
+  donc pas être déployée avant le basculement de l'orchestrateur : voir l'ordre corrigé dans
+  `traefik/README.md` et dans l'AC 11 de la story 37.3.
 - **Ne pas toucher à l'endpoint ni à son authentification.** `TraefikConfigController` et
   `TraefikAndPublisherTokenTest` sont valides et restent tels quels dans cette story. Ce qui change
   dans le contenu de la réponse appartient à 37.2.
