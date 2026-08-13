@@ -50,7 +50,9 @@ ports, c'est une désynchronisation silencieuse le jour où quelqu'un élargit l
 Il faut aussi :
 
 - que le conteneur du proxy **partage un réseau** avec les conteneurs de session, sinon il ne peut
-  pas joindre `ap-server-{sessionId}:38281`. C'est la valeur de `PROXY_NETWORK` côté orchestrateur ;
+  pas joindre `ap-server-{sessionId}:38281`. C'est la valeur de `PROXY_NETWORK` côté orchestrateur.
+  Vérifié sur l'hôte le 2026-08-13 : le proxy n'est que sur le réseau **`traefik`**, et sur aucun
+  autre. C'est donc celui que les conteneurs de session doivent rejoindre ;
 - que `TRAEFIK_CERT_RESOLVER` côté API porte le nom du certresolver **tel qu'il est déclaré dans le
   proxy**. Un nom inconnu ne provoque aucune erreur visible : Traefik sert son certificat par
   défaut et le navigateur refuse la connexion, sans interstitiel.
