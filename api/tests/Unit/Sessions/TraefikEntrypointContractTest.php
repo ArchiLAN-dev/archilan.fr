@@ -53,6 +53,27 @@ final class TraefikEntrypointContractTest extends TestCase
         );
     }
 
+    /**
+     * Le contrat se cite dans les deux sens, et une citation périmée est une fausse piste. Le
+     * builder a désigné `gen-traefik-config.sh` pendant une journée après que ce script a été
+     * renommé - personne ne l'aurait vu sans ce test.
+     */
+    public function testTheBuilderPointsAtTheGeneratorThatReallyExists(): void
+    {
+        $path = realpath(self::GENERATOR);
+        self::assertIsString($path);
+        $generatorName = basename($path);
+
+        $builderSource = file_get_contents((string) new \ReflectionClass(TraefikConfigBuilder::class)->getFileName());
+        self::assertIsString($builderSource);
+
+        self::assertStringContainsString(
+            $generatorName,
+            $builderSource,
+            sprintf('TraefikConfigBuilder doit citer %s, le script qui déclare réellement les entrypoints.', $generatorName),
+        );
+    }
+
     public function testTheGeneratorIsExecutableDocumentationOfTheContract(): void
     {
         // Le contrat n'est tenu par aucun mécanisme au déploiement : il doit au moins être écrit
