@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\WeeklyRuns\Infrastructure\Dbal;
 
+use App\Shared\Application\Support\ArchipelagoConnectionUri;
 use App\WeeklyRuns\Application\Query\CurrentWeeklyRunsQueryInterface;
 use Doctrine\DBAL\Connection;
 
@@ -99,6 +100,7 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                         ? [
                             'host' => $connectionHost,
                             'port' => $connectionPort,
+                            'uri' => ArchipelagoConnectionUri::build($connectionHost, $connectionPort),
                             'password' => $connectionPassword,
                         ]
                         : null,
@@ -130,6 +132,7 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                         $myEntry['connectionInfo'] = [
                             'host' => $connectionHost,
                             'port' => $connectionPort,
+                            'uri' => ArchipelagoConnectionUri::build($connectionHost, $connectionPort),
                             'password' => $connectionPassword,
                         ];
                     }

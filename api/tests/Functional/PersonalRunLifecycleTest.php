@@ -328,6 +328,8 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertSame('runner.example.com', $data['connectionHost']);
         self::assertSame(38281, $data['connectionPort']);
         self::assertSame('deadbeef12345678', $data['connectionPassword']);
+        // L'adresse chiffrée s'ajoute au couple brut, elle ne le remplace pas (epic 37).
+        self::assertSame('wss://runner.example.com:38281', $data['connectionUri']);
     }
 
     public function testGetConnectionDetailsWhenIdleAreNull(): void
@@ -343,6 +345,7 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         self::assertNull($data['connectionHost']);
         self::assertNull($data['connectionPort']);
         self::assertNull($data['connectionPassword']);
+        self::assertNull($data['connectionUri']);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

@@ -200,6 +200,20 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         self::assertSame('archipelago.archilan.fr', $connectionInfo['host']);
         self::assertSame(38281, $connectionInfo['port']);
         self::assertSame('secret', $connectionInfo['password']);
+        // L'adresse chiffrée accompagne le couple brut : les clients web se répartissent en deux
+        // familles, l'une veut l'URI complète, l'autre hôte et port séparés (epic 37).
+        self::assertSame('wss://archipelago.archilan.fr:38281', $connectionInfo['uri']);
+
+        // Deux chemins produisent ce bloc dans la même requête - la vue « ma run » et la liste des
+        // participants. S'ils divergeaient, la même run afficherait deux adresses selon la page,
+        // et rien ne le signalerait.
+        $participants = $item['participants'];
+        self::assertIsArray($participants);
+        $firstParticipant = $participants[0];
+        self::assertIsArray($firstParticipant);
+        $participantConnection = $firstParticipant['connectionInfo'];
+        self::assertIsArray($participantConnection);
+        self::assertSame($connectionInfo['uri'], $participantConnection['uri']);
     }
 
     public function testCurrentRunsWithGoalPopulatesLeaderboard(): void
