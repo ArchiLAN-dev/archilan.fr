@@ -173,6 +173,23 @@ le nom public ferait dépendre Traefik de son propre routage pour aller chercher
 dépendance circulaire au démarrage, et TLS inutile sur un réseau interne. La valeur reste
 configurable (`TRAEFIK_HTTP_PROVIDER_ENDPOINT`).
 
+**AC 11 (tenue d'une connexion longue) - mesure locale, 2026-08-13.** La chaîne complète a été
+montée (configuration générée par le script, provider HTTP servant la réponse de l'API, routeur TCP,
+backend joint par nom de conteneur), puis une connexion TLS a été établie sur un entrypoint `ap-` et
+laissée **totalement inactive** : aucun octet dans aucun sens.
+
+Résultat : **toujours ouverte après 31 minutes, et toujours utilisable** - une requête envoyée à la
+fin a reçu sa réponse du backend (`HTTP/1.0 200 OK`), ce qui exclut le cas d'une socket morte côté
+proxy mais encore ouverte côté client. Aucune mention de timeout dans les logs de Traefik.
+
+Ce que ça règle : l'`idleTimeout` de 180 s, nommé par l'epic comme « le genre de défaut qui passe
+les tests et casse en production au bout de trois minutes », **ne s'applique pas aux routeurs TCP**.
+Le risque principal de l'architecture tombe.
+
+Ce que ça ne règle pas, et qui reste à faire en production : la même mesure sur **une vraie partie
+Archipelago d'au moins une heure**, derrière un certificat réel et avec les cent entrypoints
+déclarés. Le test local porte sur une connexion, pas sur la charge.
+
 **Vérifications effectuées en local :**
 
 - rendu idempotent : deux générations successives, puis `--check` vert ;
