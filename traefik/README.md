@@ -61,3 +61,29 @@ ss -lntp | grep -c ':350[0-9][0-9]'                        # la plage écoute
 
 Le provider HTTP est visible dans le dashboard (`http://localhost:8080/dashboard/`) : un routeur
 `run-{sessionId}` doit apparaître par session en cours.
+
+## Diagnostiquer un run injoignable
+
+La chaîne a été validée de bout en bout en local le 2026-08-13 (Traefik v3.3, configuration générée
+par le script, provider HTTP servant la réponse de l'API, backend joint par nom de conteneur sur un
+réseau partagé). Le mode de défaillance le plus probable a été reproduit, et **il ne ressemble pas à
+une panne** :
+
+| Symptôme sur le port d'un run | Interprétation |
+|---|---|
+| Poignée TLS réussie, puis **HTTP 404** | Aucun routeur ne correspond à cet entrypoint. Le port écoute, Traefik répond lui-même. |
+| Poignée TLS réussie, réponse du serveur Archipelago | Tout va bien. |
+| Connexion refusée | L'entrypoint n'existe pas, ou le port n'est pas publié sur le conteneur. |
+
+Le cas du milieu est le piège : `curl` renvoie un code de sortie 0, la connexion « marche », et
+seul le contenu trahit le problème. Pour un client WebSocket, cela se présente comme un échec de
+négociation sans explication.
+
+```bash
+curl -sk -o /dev/null -w "%{http_code}\n" https://archilan.fr:35042/   # 404 = aucun routeur
+docker logs traefik | grep -i "entryPoint"                             # « EntryPoint doesn't exist »
+```
+
+Cause la plus probable d'un 404 : la plage des entrypoints et le port du run ne concordent plus -
+typiquement `PORT_RANGE_*` ou `AP_SERVER_PORT_OFFSET` modifié d'un côté sans régénérer de l'autre.
+`./scripts/gen-traefik-config.sh --check` le dit.
