@@ -102,13 +102,15 @@ Traefik ne pourrait plus l'atteindre. Le partage de réseau est la seule des deu
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3). Retirer `PortBindings` (et `ExposedPorts` si plus utile) de
+- [x] **Task 1** (AC 1-3). Retirer `PortBindings` (et `ExposedPorts` si plus utile) de
   `CreateAPServer`.
-- [ ] **Task 2** (AC 4-6). Attacher le conteneur au réseau du proxy, variable d'environnement
-  dédiée, vérification du chemin depuis Traefik.
+- [x] **Task 2** (AC 4-6). Attacher le conteneur au réseau du proxy, variable d'environnement
+  dédiée. *La vérification du chemin depuis Traefik reste à faire en production.*
 - [ ] **Task 3** (AC 8). Traiter `AP_SERVER_HOST_PORT` : retrait ou justification écrite.
-- [ ] **Task 4** (AC 7, 10). Cycle de vie complet sur une run réelle, tests Go verts.
-- [ ] **Task 5** (AC 11-12). Écrire la procédure de déploiement et de retour arrière.
+  *Reporté : voir les notes.*
+- [ ] **Task 4** (AC 7, 10). Cycle de vie complet sur une run réelle **(production)**. Tests Go
+  verts : fait.
+- [x] **Task 5** (AC 11-12). Écrire la procédure de déploiement et de retour arrière.
 
 ## Dev Notes
 
@@ -154,12 +156,58 @@ Traefik ne pourrait plus l'atteindre. Le partage de réseau est la seule des deu
 
 ### Agent Model Used
 
+claude-opus-5[1m]
+
 ### Completion Notes List
 
+Code livré dans le dépôt orchestrateur : **PR ArchiLAN-dev/archilan-orchestrateur#18**, branche
+`feature/epic-37-story-3-fin-exposition-port-ap`. Le présent dépôt ne porte que la configuration
+d'exemple et cette story.
+
+**Deux modes explicites plutôt qu'un retrait sec.** `AP_PUBLISH_HOST_PORT` (défaut `true`) et
+`PROXY_NETWORK` (défaut vide). Raison : le développement local n'a **pas** de reverse proxy - la
+compose de dev ne déclare ni Traefik ni réseau `archilan-proxy`. Retirer la publication sans
+condition aurait rendu toute run locale injoignable. La production met `false` + `archilan-proxy`.
+
+**Les deux désactivés à la fois sont refusés au démarrage.** Sans port hôte et sans réseau proxy,
+chaque run serait injoignable **tout en paraissant saine** : la session passe `running`, le webhook
+part, l'UI affiche une adresse, et personne ne peut se connecter. Aucun symptôme jusqu'à ce qu'un
+joueur se plaigne. D'où l'échec au démarrage.
+
+**Le connect réseau est un second appel API, pas un champ de création.** Attacher plusieurs réseaux
+dans un seul `/containers/create` n'est supporté que par les API Docker récentes ; ce code ne doit
+pas dépendre de la version du démon de la machine de prod. Si le connect échoue, le conteneur est
+supprimé et le lancement échoue bruyamment.
+
+**AC 8, deuxième moitié, non traitée.** Le contrôle « aucun autre composant ne dépend du port
+hôte » est fait : la sonde de démarrage et le bridge passent tous deux par le nom de conteneur, et
+`AP_SERVER_HOST_PORT` n'est lu nulle part dans `bridge/`. En revanche cette variable morte **n'a
+pas été retirée** : elle est transmise au conteneur bridge, la supprimer touche un autre composant
+que celui de cette story, et un retrait à l'aveugle sur un composant non testé ici est un risque
+gratuit. À traiter dans un ticket de nettoyage propre au bridge.
+
+**Restent à faire, en production uniquement** : le chemin réseau Traefik vers
+`ap-server-{sessionId}:38281` (AC 6), le cycle de vie complet dont la reprise depuis sauvegarde
+(AC 7), et le respect de l'ordre de déploiement (AC 11).
+
 ### File List
+
+Dépôt `orchestrateur` (PR #18) :
+
+- `internal/config/config.go` - `ProxyNetwork`, `PublishAPPort`, `Validate()`
+- `internal/config/config_test.go` (nouveau)
+- `internal/docker/client.go` - `apServerPortBindings`, `connectNetwork`, champs de config
+- `internal/docker/ap_server_test.go` (nouveau)
+- `internal/service/session.go` - passage des deux nouveaux réglages
+- `.env.example`
+
+Ce dépôt :
+
+- `envs/orchestrateur.env.example` - configuration de production
 
 ### Change Log
 
 | Date | Change |
 |------|--------|
+| 2026-08-11 | Implémentation (orchestrateur PR #18) : publication du port conditionnée, attachement au réseau du proxy après création, refus au démarrage de la combinaison injoignable. Le dev local garde la publication, faute de proxy. |
 | 2026-08-10 | Créée. Corrige la cible de l'epic : le composant déployé est l'orchestrateur Go (`CreateAPServer`), pas le runner Python. L'option « binder sur 127.0.0.1 » est écartée sur argument technique (inatteignable depuis le conteneur Traefik). |
