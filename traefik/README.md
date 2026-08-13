@@ -54,6 +54,30 @@ cette plage. Deux liaisons sur le même port de l'hôte ne peuvent pas coexister
 
 Entre les étapes 1 et 3, une run lancée n'est joignable par personne. D'où la fenêtre unique.
 
+### Si le démarrage échoue sur un port pris
+
+Message exact : `Bind for 0.0.0.0:35042 failed: port is already allocated`. Le conteneur est
+**créé mais pas démarré**.
+
+**Ne pas enchaîner sur `docker start traefik`.** Vérifié le 2026-08-13 : après cet échec, un
+`docker start` **réussit** et lance Traefik **sans aucune liaison de port** - `docker ps` affiche
+`Up`, et `docker inspect` montre des liaisons vides :
+
+```
+{"35040/tcp":[],"35041/tcp":[],"35042/tcp":[]}
+```
+
+Traefik a l'air sain et ne publie rien, 80 et 443 compris : le site entier est down pendant qu'on
+croit le problème réglé. La bonne réaction est de **supprimer le conteneur**, libérer le port en
+conflit, puis recréer :
+
+```bash
+docker compose down
+ss -lntp | grep ':35[0-9][0-9][0-9]'   # qui tient encore un port de la plage ?
+docker compose up -d
+docker inspect traefik --format '{{json .NetworkSettings.Ports}}'   # doit montrer des liaisons
+```
+
 ## Déployer un changement de configuration
 
 ```bash
