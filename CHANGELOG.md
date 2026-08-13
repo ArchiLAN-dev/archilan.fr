@@ -5,6 +5,43 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.14.0] - 2026-08-13
+
+Version de l'administration : la fiche d'un membre, jusqu'ici éclatée entre plusieurs écrans,
+devient un seul endroit d'où l'on voit et d'où l'on agit. Elle pose aussi, sans rien changer de
+visible, l'infrastructure qui rendra les serveurs Archipelago joignables depuis un navigateur.
+
+### Ajouté
+
+- **La fiche d'un membre, en un seul écran (stories 36.1 à 36.6)** : identité et rôles, adhésion et
+  inscriptions, modération, volet jeu, journal d'activité du compte, et les actions ciblées sur ses
+  objets. Répondre à « que se passe-t-il avec ce membre ? » demandait jusque-là d'ouvrir quatre
+  pages et de recouper soi-même.
+- **`/communaute` devient un hub (story 30.38)** : la page listait ; elle oriente désormais vers les
+  joueurs, les runs et les événements. La recherche, le tri et le filtre amis de `/joueurs` ont été
+  rendus composables au passage - ils s'excluaient mutuellement sans raison.
+
+### Infrastructure
+
+- **Accès `wss://` aux serveurs Archipelago, chaîne technique (epic 37, stories 37.1 à 37.4)** :
+  entrypoints Traefik générés depuis la plage de ports, provider HTTP branché sur l'API, un routeur
+  TCP par run avec certificat réel, fin de la publication en clair du port de chaque run, et
+  l'adresse chiffrée ajoutée au contrat de l'API. **Rien n'est visible pour un joueur tant que la
+  bascule n'a pas été faite en production**, et l'affichage de l'adresse (story 37.5) attend la
+  matrice de compatibilité des clients web tiers.
+
+  **Cette version demande une intervention manuelle au déploiement.** `traefik/traefik.yml` est
+  désormais **généré** depuis `traefik.yml.tpl` et n'est plus versionné : un `git pull` le supprime
+  du serveur. Il faut lancer `./scripts/gen-traefik-config.sh` **avant** tout redémarrage de
+  Traefik. La procédure complète, l'ordre imposé de bascule et les pièges constatés sont dans
+  `traefik/README.md`.
+
+### Corrigé
+
+- `js-yaml` épinglé en `>=4.3.1` pour purger la CVE-2026-59870.
+- Le sous-titre des événements décrit ce que la liste montre, au lieu de décrire l'interface.
+- `/joueurs` utilise le composant `Switch` partagé.
+
 ## [0.13.0] - 2026-08-05
 
 Version consacrée aux listes de jeux du joueur - ce qu'il possède, ce qu'il veut essayer - et à
