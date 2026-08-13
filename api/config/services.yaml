@@ -22,6 +22,8 @@ parameters:
     # published port is on localhost; in prod the API is containerised and must reach the host's
     # published port via the docker gateway → set BRIDGE_HTTP_HOST=host.docker.internal.
     default_bridge_http_host: 'localhost'
+    # Nom du certresolver déclaré dans le reverse proxy de production, qui n'est pas versionné ici.
+    default_traefik_cert_resolver: 'https'
     default_moderation_escalation_threshold: 10
     default_cleanup_token_consumed_grace_days: 7
     default_cleanup_helloasso_sync_log_retention_days: 90
@@ -208,6 +210,7 @@ services:
     App\Sessions\Application\Support\TraefikConfigBuilder:
         arguments:
             $publicHost: '%env(RUNNER_PUBLIC_HOST)%'
+            $certResolver: '%env(default:default_traefik_cert_resolver:TRAEFIK_CERT_RESOLVER)%'
 
     App\Sessions\Presentation\Controller\TraefikConfigController:
         arguments:

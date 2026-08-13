@@ -109,11 +109,14 @@ détenteur de la seule socket publique du run.
 Le plafond de runs simultanés, aujourd'hui souple côté orchestrateur, devient rigide : l'élargir
 imposera un redémarrage de Traefik.
 
-**N'adresse pas :** le port du bridge, lui aussi publié sur l'hôte
-(`runner/app/docker_manager.py:105-106`), parce que l'API le joint par port hôte
-(`docker-compose.prod.yml:97`). C'est une seconde exposition, réelle, mais qui demande de revoir le
-chemin API vers bridge. Elle est explicitement hors périmètre ici - l'epic ne doit pas laisser croire
-qu'il referme toute la surface publique d'un run.
+**N'adresse pas, dans son périmètre initial :** le port du bridge, lui aussi publié sur l'hôte,
+parce que l'API le joint par port hôte. C'est une seconde exposition, réelle, qui demande de revoir
+le chemin API vers bridge.
+
+> **Repris le 2026-08-13 par la story 37.7.** Le constat qui l'a déclenché :
+> `BRIDGE_HTTP_HOST=archilan.fr` en production, donc l'API **sort par l'adresse publique** pour
+> joindre un conteneur qui tourne sur la même machine. Tant que ce chemin existe, filtrer la plage
+> `25000-25099` au pare-feu couperait l'API de tous les bridges.
 
 **Renonce à :** la traversée de pare-feu par le 443. Un port haut sera bloqué là où le 443 passait.
 C'est cohérent avec le déclencheur (le navigateur, pas le réseau), mais l'option ne sera pas
@@ -128,12 +131,44 @@ récupérable sans revenir au routage par sous-domaine.
 | 37.3 | Orchestrateur - fin de l'exposition publique du port AP | `CreateAPServer` (dépôt orchestrateur) cesse de publier le port Archipelago sur `0.0.0.0`. L'option « binder sur `127.0.0.1` » est écartée : une socket sur la loopback de l'hôte est injoignable depuis le conteneur Traefik. Reste l'attachement au réseau `archilan-proxy`. |
 | 37.4 | Contrat API - l'URI wss dans `connectionInfo` | L'adresse `wss://` propagée dans Sessions, PersonalRuns et WeeklyRuns. Le couple hôte/port brut est conservé pour l'admin et le diagnostic, pas comme adresse joueur. |
 | 37.5 | Surfacage UI et mails | `connection-details.tsx`, boutons copier, pages run perso et run hebdo, mails d'événement. Mention explicite de ce qu'un client tiers reçoit quand on l'y envoie. |
+| 37.7 | Fermer l'exposition publique du bridge | L'API joint `archilan-bridge-{sessionId}:5000` par le réseau interne au lieu de sortir par l'adresse publique, puis l'orchestrateur cesse de publier ce port. Referme la seconde socket publique d'une run, laissée ouverte par cet epic. |
 | 37.6 | Matrice de compatibilité des clients web tiers | Clients nommés, versions testées, forme d'adresse à coller pour chacun. Accrochée aux tutoriels de l'epic 31. |
 
 Ordre conseillé : **37.6 en premier**, avant toute écriture de code. C'est elle qui détermine ce que
 37.4 et 37.5 doivent afficher, et si aucun client tiers exploitable ne supporte proprement le `wss` sur
 un port du pool, l'epic entier tombe. Ensuite 37.1 -> 37.3 (la chaîne technique, qui n'a de sens que
 complète), puis 37.4 et 37.5.
+
+## Surface publique d'une run : état et cible (posée le 2026-08-13)
+
+Inventaire de ce qu'une run expose à Internet, avant et après cet epic. Il existe parce que l'epic
+a été écrit en croyant ne traiter qu'un port, et que la machine en comptait deux - plus une base
+de données que personne n'avait regardée.
+
+| Surface | Avant l'epic | Après 37.1-37.3 | Cible | Par quoi |
+|---|---|---|---|---|
+| Serveur Archipelago (`35000-35099`) | ouvert **en clair** | TLS, terminé par le proxy | inchangé - c'est le but | 37.1 à 37.3 |
+| Bridge REST (`25000-25099`) | ouvert, token seul | **inchangé** | fermé, joint par nom de conteneur | **37.7** |
+| Postgres (`5434`) | publié sur l'hôte | inchangé | à trancher : filtrer ou dépublier | hors epic, voir `docs/deploiement-production.md` |
+| Dashboard Traefik | non publié dans le proxy réel | inchangé | inchangé | - |
+
+Ce que la cible **ne** referme **pas**, et qu'il faut assumer plutôt que croire réglé :
+
+- **Le mot de passe Archipelago reste la seule barrière réelle** d'une run. Les WebSockets échappent
+  au CORS : une fois le port exposé, n'importe quelle page peut ouvrir une connexion.
+- **Le port n'apporte aucune obscurité.** Une plage bornée sur un hôte connu se scanne en quelques
+  secondes.
+- **On envoie les joueurs coller leurs identifiants chez un tiers** dès que l'UI recommande un
+  client web. C'est le sujet de 37.5, pas de l'infrastructure.
+
+### Ordre général, appris à la dure
+
+Deux fois dans cet epic, l'ordre naturel s'est révélé être l'inverse du bon. La règle qui s'en
+dégage, et qui vaut pour 37.7 :
+
+> **Le consommateur cesse d'avoir besoin d'un chemin avant que le fournisseur ne le ferme.**
+> Traefik ne peut écouter sur la plage qu'une fois que l'orchestrateur a cessé d'y publier ; l'API
+> doit joindre le bridge en interne avant que l'orchestrateur ne cesse de publier son port.
 
 ## Risques et points de vigilance
 
@@ -184,6 +219,8 @@ complète), puis 37.4 et 37.5.
 
 | Date | Description |
 |------|-------------|
+| 2026-08-13 | **Story 37.7 ajoutée et cible de la surface publique posée.** `BRIDGE_HTTP_HOST=archilan.fr` en production : l'API sort par l'adresse publique pour joindre un conteneur voisin, donc la plage `25000-25099` est exposée et ne peut pas être filtrée sans casser l'API. Le chemin interne existe deja (`archilan-bridge-{sessionId}:5000`). Defaut decouvert en chemin : `ArchiveRunJobHandler` vise `localhost` depuis un conteneur, donc l'archivage perd l'etat des slots en silence. |
+| 2026-08-13 | **Le proxy de production n'est pas celui du depot.** Le repertoire `traefik/` n'a jamais ete deploye : le vrai proxy sert plusieurs projets, vit hors du depot, est configure en arguments CLI et tourne en v2.11 avec le certresolver `https`. L'option `headers` du provider HTTP n'existant qu'en v3, le passage du proxy en v3 devient un prerequis de l'epic. `traefik/` supprime, generateur transforme en fragment a coller, certresolver configurable. |
 | 2026-08-13 | **Ordre de déploiement corrigé.** Traefik publie toute la plage sur l'hôte, l'ancien orchestrateur publie un port de cette plage par run : les deux liaisons ne peuvent pas coexister. Une run active au moment du redémarrage empêche Traefik de démarrer, donc coupe tout le site. Le basculement de l'orchestrateur (37.3) doit précéder Traefik (37.1), et non l'inverse comme écrit initialement. Procédure dans `traefik/README.md`. |
 | 2026-08-10 | Stories 37.1 à 37.5 rédigées. Trois corrections de cadrage issues de la lecture du code : (1) la plage à ouvrir est `35000-35099` (pool + `AP_SERVER_PORT_OFFSET`), pas le pool lui-même ; (2) 37.3 se code dans le dépôt orchestrateur (`CreateAPServer`), pas dans `runner/app/docker_manager.py` qui n'est pas déployé ; (3) le backend du routeur est l'adresse interne `ap-server-{id}:38281`, ce qui est la condition pour refermer le port hôte, et l'option `127.0.0.1` tombe. |
 | 2026-08-08 | Créé (draft). Déclencheur : clients web tiers bloqués par la règle de contenu mixte. Architecture arbitrée avec Jean : routage par port sur le certificat `archilan.fr` partagé (abandon du wildcard et du sous-domaine par run du design 9.11), TLS uniquement après confirmation que le client desktop gère `wss://`. Découpage en 6 stories. |

@@ -29,6 +29,13 @@ final readonly class TraefikConfigBuilder
     public function __construct(
         private SessionRepositoryInterface $sessions,
         private string $publicHost,
+        /**
+         * Nom du certresolver **tel qu'il est déclaré dans le proxy**, qui n'est pas versionné ici
+         * et sert plusieurs projets. Un nom inconnu de Traefik ne provoque aucune erreur visible :
+         * il sert son certificat par défaut, et le navigateur refuse la connexion WebSocket sans
+         * interstitiel. D'où une valeur configurable plutôt qu'une constante optimiste.
+         */
+        private string $certResolver,
     ) {
     }
 
@@ -65,7 +72,7 @@ final readonly class TraefikConfigBuilder
                 // déduire de la règle et servirait son certificat par défaut, que tout navigateur
                 // rejette sans interstitiel sur une connexion WebSocket.
                 'tls' => [
-                    'certResolver' => 'letsencrypt',
+                    'certResolver' => $this->certResolver,
                     'domains' => [
                         ['main' => $this->publicHost],
                     ],

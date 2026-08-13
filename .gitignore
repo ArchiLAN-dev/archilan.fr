@@ -16,12 +16,7 @@ __pycache__/
 
 # Production secrets - never commit
 .env.prod
-traefik/.env
 envs/*.env
-
-# Généré par scripts/gen-traefik-config.sh depuis traefik/traefik.yml.tpl : contient le token
-# du provider HTTP. Éditer le .tpl, jamais le rendu.
-traefik/traefik.yml
 
 # Local Mercure dev TLS certs (generated with mkcert - never commit)
 /certs/*.pem
