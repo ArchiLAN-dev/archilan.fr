@@ -116,6 +116,12 @@ Corollaire pour 37.6 : le banc de test doit occuper un port de la plage **AP**, 
 - **Le redémarrage de Traefik a un rayon d'action large** : il porte le site, l'API, Mercure, MinIO
   et l'orchestrateur (`docker-compose.prod.yml`). Créneau calme, et si 37.3 est déjà livrée, toutes
   les parties Archipelago en cours tombent aussi.
+- **Conflit de ports avec l'ancien orchestrateur (constaté le 2026-08-13).** Publier la plage
+  `35000-35099` sur le conteneur Traefik entre en collision frontale avec le comportement d'avant
+  37.3, où chaque run publie son propre port dans cette plage. Si une run occupe un port au moment
+  du redémarrage, **Traefik ne démarre pas** et tout le site tombe avec lui. Cette story ne peut
+  donc pas être déployée avant le basculement de l'orchestrateur : voir l'ordre corrigé dans
+  `traefik/README.md` et dans l'AC 11 de la story 37.3.
 - **Ne pas toucher à l'endpoint ni à son authentification.** `TraefikConfigController` et
   `TraefikAndPublisherTokenTest` sont valides et restent tels quels dans cette story. Ce qui change
   dans le contenu de la réponse appartient à 37.2.
@@ -166,6 +172,23 @@ vise `http://archilan-api-web/api/v1/internal/traefik`, en interne sur `archilan
 le nom public ferait dépendre Traefik de son propre routage pour aller chercher sa configuration -
 dépendance circulaire au démarrage, et TLS inutile sur un réseau interne. La valeur reste
 configurable (`TRAEFIK_HTTP_PROVIDER_ENDPOINT`).
+
+**AC 11 (tenue d'une connexion longue) - mesure locale, 2026-08-13.** La chaîne complète a été
+montée (configuration générée par le script, provider HTTP servant la réponse de l'API, routeur TCP,
+backend joint par nom de conteneur), puis une connexion TLS a été établie sur un entrypoint `ap-` et
+laissée **totalement inactive** : aucun octet dans aucun sens.
+
+Résultat : **toujours ouverte après 31 minutes, et toujours utilisable** - une requête envoyée à la
+fin a reçu sa réponse du backend (`HTTP/1.0 200 OK`), ce qui exclut le cas d'une socket morte côté
+proxy mais encore ouverte côté client. Aucune mention de timeout dans les logs de Traefik.
+
+Ce que ça règle : l'`idleTimeout` de 180 s, nommé par l'epic comme « le genre de défaut qui passe
+les tests et casse en production au bout de trois minutes », **ne s'applique pas aux routeurs TCP**.
+Le risque principal de l'architecture tombe.
+
+Ce que ça ne règle pas, et qui reste à faire en production : la même mesure sur **une vraie partie
+Archipelago d'au moins une heure**, derrière un certificat réel et avec les cent entrypoints
+déclarés. Le test local porte sur une connexion, pas sur la charge.
 
 **Vérifications effectuées en local :**
 

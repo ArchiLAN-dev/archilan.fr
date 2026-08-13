@@ -33,6 +33,51 @@ production, il ouvre **35000-35099**, soit cent runs simultanés. Un entrypoint 
 **Ne jamais écrire ces entrypoints à la main.** Deux sources de vérité pour une plage de ports,
 c'est une désynchronisation silencieuse qui attend le jour où quelqu'un élargit le pool.
 
+## ATTENTION - conflit de ports avec l'ancien orchestrateur
+
+Traefik publie **toute** la plage `35000-35099` sur l'hôte dès son démarrage. Or, tant que
+l'orchestrateur tourne avec `AP_PUBLISH_HOST_PORT=true`, chaque run publie *aussi* son port dans
+cette plage. Deux liaisons sur le même port de l'hôte ne peuvent pas coexister :
+
+- une run active sur `35042` au moment où Traefik démarre → **Traefik ne démarre pas**, et il porte
+  le site, l'API, Mercure, MinIO et l'orchestrateur ;
+- Traefik démarré d'abord → **plus aucune run ne peut se lancer** (`port is already allocated`).
+
+**Ordre imposé, dans une seule fenêtre calme et sans run active :**
+
+1. `AP_PUBLISH_HOST_PORT=false` + `PROXY_NETWORK=archilan-proxy` dans `envs/orchestrateur.env`,
+   puis redémarrage de l'orchestrateur. Les nouvelles runs cessent de réserver un port hôte.
+2. Vérifier qu'aucun port de la plage n'est encore lié : `ss -lntp | grep -c ':35[0-9][0-9][0-9]'`
+   doit renvoyer `0`. Les runs déjà lancées gardent leur liaison jusqu'à leur arrêt.
+3. Générer la configuration Traefik et redémarrer Traefik (ci-dessous).
+4. Lancer une run et vérifier qu'elle est joignable.
+
+Entre les étapes 1 et 3, une run lancée n'est joignable par personne. D'où la fenêtre unique.
+
+### Si le démarrage échoue sur un port pris
+
+Message exact : `Bind for 0.0.0.0:35042 failed: port is already allocated`. Le conteneur est
+**créé mais pas démarré**.
+
+**Ne pas enchaîner sur `docker start traefik`.** Vérifié le 2026-08-13 : après cet échec, un
+`docker start` **réussit** et lance Traefik **sans aucune liaison de port** - `docker ps` affiche
+`Up`, et `docker inspect` montre des liaisons vides :
+
+```
+{"35040/tcp":[],"35041/tcp":[],"35042/tcp":[]}
+```
+
+Traefik a l'air sain et ne publie rien, 80 et 443 compris : le site entier est down pendant qu'on
+croit le problème réglé. La bonne réaction est de **supprimer le conteneur**, libérer le port en
+conflit, puis recréer :
+
+```bash
+docker compose down
+ss -lntp | grep ':35[0-9][0-9][0-9]'   # qui tient encore un port de la plage ?
+docker compose up -d
+docker inspect traefik --format '{{json .NetworkSettings.Ports}}'   # doit montrer des liaisons
+```
+
 ## Déployer un changement de configuration
 
 ```bash
