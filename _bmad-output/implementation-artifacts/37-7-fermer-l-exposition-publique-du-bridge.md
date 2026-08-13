@@ -6,6 +6,12 @@
 **Dépend de :** la bascule de 37.1-37.3 en production. Elle prouve sur cette machine que le routage
 par nom de conteneur fonctionne - l'hypothèse centrale de cette story.
 
+> **Arbitrage du 2026-08-13 :** le défaut de l'archivage (décrit plus bas) est corrigé **dans cette
+> story**, pas en hotfix séparé. Il est réel aujourd'hui et le restera jusqu'à son exécution ; c'est
+> assumé, parce que le corriger isolément signifierait toucher une seizième fois à une construction
+> d'adresse que cette story supprime. **Conséquence à ne pas perdre de vue : chaque run archivée
+> d'ici là perd l'état de ses slots**, définitivement - l'archive est écrite une fois.
+
 ## Story
 
 En tant que responsable de la plateforme,
