@@ -32,6 +32,36 @@ Migration v2.11 → v3, pour une configuration du type de la nôtre :
 d'être comprises, et on migre les libellés plus tard, projet par projet. Sans ça, un routeur d'un
 autre site peut cesser de correspondre en silence.
 
+### Avant de toucher au proxy : inventorier les libellés des autres projets
+
+```bash
+./scripts/traefik-v3-preflight.sh      # sur l'hôte du proxy
+```
+
+Il lit les libellés Traefik de **tous** les conteneurs de l'hôte et signale les formes que la v3
+ne comprend plus. Il ne modifie rien, et il sort en erreur s'il trouve quelque chose.
+
+Ses deux angles morts, à ne pas confondre avec un feu vert : les conteneurs **arrêtés** ne sont pas
+inspectés, et la configuration dynamique par fichier du proxy n'est pas lue.
+
+### Retour arrière du passage en v3
+
+À écrire avant, pas pendant. Le proxy est le point d'entrée unique de l'hôte : s'il ne repart pas,
+tout est down, y compris les autres projets.
+
+1. **Épingler l'image v2 avant de basculer** - noter le digest exact, pas seulement `traefik:v2.11` :
+   `docker inspect traefik --format '{{.Image}}'`.
+2. Pour revenir : remettre `image: traefik:v2.11` (ou le digest noté), **retirer le fragment**
+   collé (entrypoints `ap-*`, bloc `providers.http`, plage de ports), `docker compose up -d`.
+3. Le retour arrière du proxy **n'annule pas** le basculement de l'orchestrateur. Si les runs
+   doivent redevenir joignables, remettre aussi `AP_PUBLISH_HOST_PORT=true` et redémarrer
+   l'orchestrateur - sinon les serveurs Archipelago n'écoutent plus nulle part de public.
+4. Vérifier dans cet ordre : le site répond, l'API répond, une run se lance et publie son port.
+
+L'`acme.json` n'est pas migré par la bascule : la v3 lit le magasin de la v2. Le sauvegarder quand
+même avant (`cp letsencrypt/https-acme.json{,.avant-v3}`) coûte une seconde et évite de tout
+redemander à Let's Encrypt en cas de fausse manœuvre.
+
 ## Ce qu'il faut ajouter au proxy
 
 ```bash
