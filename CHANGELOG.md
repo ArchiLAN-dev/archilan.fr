@@ -5,6 +5,42 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.14.1] - 2026-08-13
+
+Version d'infrastructure, requise avant la bascule vers l'accès `wss://`. Elle corrige surtout une
+erreur de cible : le dépôt décrivait un reverse proxy qui n'a jamais été déployé.
+
+### Corrigé
+
+- **Le nom du certresolver n'est plus codé en dur.** L'API annonçait `letsencrypt` à Traefik, alors
+  que le proxy de production déclare `https`. Un nom inconnu ne provoque aucune erreur visible :
+  Traefik sert son certificat par défaut et le navigateur refuse la connexion **sans interstitiel**.
+  Le nom vient désormais de `TRAEFIK_CERT_RESOLVER` (défaut `https`). **Sans cette version, la
+  bascule échoue sur les certificats.**
+
+### Modifié
+
+- **`traefik/` supprimé du dépôt.** Ce répertoire décrivait une configuration jamais déployée - ce
+  qui explique le `${ACME_EMAIL}` qu'il contenait, jamais interpolé et que personne n'avait
+  remarqué. Le proxy réel sert plusieurs projets de l'hôte, vit hors du dépôt et se configure en
+  arguments de ligne de commande. **La manipulation annoncée dans la 0.14.0 (générer `traefik.yml`
+  avant de redémarrer) est donc caduque : il n'y a plus rien à générer sur le serveur.**
+- **`scripts/gen-traefik-entrypoints.sh`** remplace l'ancien générateur : il n'écrit aucun fichier,
+  il imprime le fragment à coller dans le compose du proxy.
+- **`docker-compose.prod.yml` remis en accord avec la machine** : réseau `traefik`, certresolver
+  `https`, images épinglées par version, `api-migrations`, routage MinIO, services d'images.
+
+### Ajouté
+
+- **Un test qui gate le contrat de nommage des entrypoints.** Le générateur et l'API doivent
+  s'accorder sur `ap-{port}` ; une divergence rend les runs injoignables en paraissant saines.
+  Vérifié en cassant volontairement la convention.
+- **`scripts/traefik-v3-preflight.sh`** : inventorie les libellés Traefik de tous les conteneurs de
+  l'hôte et signale les formes que Traefik v3 ne comprend plus. Le passage en v3 est un prérequis
+  de la chaîne, l'option `headers` du provider HTTP n'existant pas en v2.
+- **`docs/deploiement-production.md`** et **`docs/traefik-runs-archipelago.md`** : topologie réelle,
+  ordre de bascule, retour arrière, signatures de diagnostic, et les écarts dépôt/machine restants.
+
 ## [0.14.0] - 2026-08-13
 
 Version de l'administration : la fiche d'un membre, jusqu'ici éclatée entre plusieurs écrans,
