@@ -177,5 +177,6 @@ simple message de log**, et le run reste silencieusement injoignable.
 
 | Date | Change |
 |------|--------|
+| 2026-08-13 | Le nom du certresolver devient configurable (`TRAEFIK_CERT_RESOLVER`, defaut `https`) : il etait code en dur sur `letsencrypt`, qui n'existe pas dans le proxy reel. Un nom inconnu ne provoque aucune erreur visible - Traefik sert son certificat par defaut et le navigateur refuse sans interstitiel. |
 | 2026-08-10 | Implémentation : routeurs TCP par port, SNI joker, certresolver avec domaine explicite, backend `ap-server-{id}:38281`, suppression de `WS_DOMAIN`. Domaine du certificat pris sur `RUNNER_PUBLIC_HOST` plutôt que codé en dur, pour qu'il ne puisse pas diverger de l'adresse surfacée par 37.4. |
 | 2026-08-10 | Créée. Backend du routeur corrigé : adresse interne `ap-server-{id}:38281` au lieu du couple hôte/port publié, ce qui est la condition pour que 37.3 puisse refermer le port. |

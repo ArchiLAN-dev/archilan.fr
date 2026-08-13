@@ -46,7 +46,7 @@ final class TraefikConfigBuilderTest extends TestCase
 
         $tls = (array) $this->router($config, 'run-sess-1')['tls'];
 
-        self::assertSame('letsencrypt', $tls['certResolver']);
+        self::assertSame('https', $tls['certResolver']);
         self::assertSame([['main' => 'runs.example.org']], $tls['domains']);
     }
 
@@ -101,7 +101,7 @@ final class TraefikConfigBuilderTest extends TestCase
         $repository = self::createStub(SessionRepositoryInterface::class);
         $repository->method('findByStatus')->willReturn($sessions);
 
-        return new TraefikConfigBuilder($repository, 'runs.example.org')->build();
+        return new TraefikConfigBuilder($repository, 'runs.example.org', 'https')->build();
     }
 
     /**
