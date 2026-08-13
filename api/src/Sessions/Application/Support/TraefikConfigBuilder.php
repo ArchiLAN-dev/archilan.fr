@@ -18,7 +18,7 @@ final readonly class TraefikConfigBuilder
     /**
      * Préfixe des entrypoints Traefik dédiés aux serveurs Archipelago.
      *
-     * CONTRAT AVEC L'INFRA : `scripts/gen-traefik-config.sh` (story 37.1) génère un entrypoint
+     * CONTRAT AVEC L'INFRA : `scripts/gen-traefik-entrypoints.sh` (story 37.1) génère un entrypoint
      * `ap-{port}` par port de la plage. Changer la convention d'un côté sans l'autre produit des
      * routeurs qui référencent un entrypoint inexistant - Traefik les ignore en le journalisant,
      * et les runs deviennent silencieusement injoignables. Aucun test ne peut relier les deux :
