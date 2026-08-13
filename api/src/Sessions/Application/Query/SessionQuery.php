@@ -11,6 +11,7 @@ use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Shared\Application\Support\ArchipelagoConnectionUri;
 
 final readonly class SessionQuery
 {
@@ -51,6 +52,9 @@ final readonly class SessionQuery
             'status' => $session->getStatus(),
             'host' => $session->getHost(),
             'port' => $session->getPort(),
+            // Adresse à donner à un client ; hôte et port bruts restent exposés pour l'admin, le
+            // diagnostic, et les clients qui attendent les deux champs séparés (epic 37).
+            'connectionUri' => ArchipelagoConnectionUri::tryBuild($session->getHost(), $session->getPort()),
             'bridgePort' => $session->getBridgePort(),
             'lastLogs' => $session->getLastLogs(),
             'archivedSpoilerPath' => $session->getArchivedSpoilerPath(),

@@ -9,6 +9,9 @@ services:
       - "80:80"
       - "443:443"
       - "8080:8080"   # dashboard - restreindre en prod
+      # >>> plage Archipelago générée par scripts/gen-traefik-config.sh - ne pas éditer
+      - "35000-35099:35000-35099"
+      # <<< plage Archipelago générée
     environment:
       ACME_EMAIL: ${ACME_EMAIL}
       OVH_ENDPOINT: ${OVH_ENDPOINT:-ovh-eu}
@@ -17,6 +20,7 @@ services:
       OVH_CONSUMER_KEY: ${OVH_CONSUMER_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Fichier GÉNÉRÉ depuis traefik.yml.tpl par scripts/gen-traefik-config.sh, non commité.
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ./dynamic:/etc/traefik/dynamic:ro
       - traefik-certs:/certs

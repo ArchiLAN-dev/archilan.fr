@@ -55,7 +55,7 @@ const FEATURES: Feature[] = [
   },
   {
     title: "Classements & profils",
-    href: "/classements",
+    href: "/communaute",
     Icon: Trophy,
     description:
       "Ton profil joueur, l'historique de tes runs et les classements de la communauté.",

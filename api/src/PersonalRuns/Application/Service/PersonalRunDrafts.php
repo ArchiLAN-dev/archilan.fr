@@ -18,6 +18,7 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
+use App\Shared\Application\Support\ArchipelagoConnectionUri;
 use Psr\Clock\ClockInterface;
 
 final readonly class PersonalRunDrafts
@@ -482,6 +483,10 @@ final readonly class PersonalRunDrafts
             'gameSelectionConfig' => $run->getGameSelectionConfig(),
             'connectionHost' => $isActive ? $run->getConnectionHost() : null,
             'connectionPort' => $isActive ? $run->getConnectionPort() : null,
+            // Même condition de visibilité que les champs bruts : une run inactive n'expose rien.
+            'connectionUri' => $isActive
+                ? ArchipelagoConnectionUri::tryBuild($run->getConnectionHost(), $run->getConnectionPort())
+                : null,
             'connectionPassword' => $isActive ? $run->getConnectionPassword() : null,
             'isOwner' => $isOwner,
             'participants' => $participants,

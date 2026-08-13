@@ -201,9 +201,13 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
+    # Le nom d'hôte public des runs : c'est le certificat demandé pour les routeurs des serveurs
+    # Archipelago, et il doit être exactement celui que les joueurs voient dans leur adresse de
+    # connexion - sinon le navigateur rejette le certificat. Même variable des deux côtés, pour
+    # qu'ils ne puissent pas diverger.
     App\Sessions\Application\Support\TraefikConfigBuilder:
         arguments:
-            $wsDomain: '%env(WS_DOMAIN)%'
+            $publicHost: '%env(RUNNER_PUBLIC_HOST)%'
 
     App\Sessions\Presentation\Controller\TraefikConfigController:
         arguments:
@@ -301,6 +305,9 @@ services:
     App\Identity\Application\Query\MemberDisplayNameQueryInterface: '@App\Community\Infrastructure\Dbal\DbalMemberDisplayNameQuery'
     App\Community\Application\Query\CommunityPresenceQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityPresenceQuery'
     App\Community\Application\Query\CommunityDirectoryQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityDirectoryQuery'
+    App\Community\Application\Query\RecentAchievementGrantsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalRecentAchievementGrantsQuery'
+    App\Identity\Application\Query\AdminUserActivityQueryInterface: '@App\Identity\Infrastructure\Dbal\DbalAdminUserActivityQuery'
+    App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface: '@App\Identity\Infrastructure\Doctrine\DoctrineAdminUserActionAuditRepository'
     App\Community\Application\Query\AdminReportsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAdminReportsQuery'
     App\Community\Application\Query\AccountReportScoreQueryInterface: '@App\Community\Infrastructure\Dbal\DbalAccountReportScoreQuery'
     App\Community\Application\Query\CommunityAdminIdsQueryInterface: '@App\Community\Infrastructure\Dbal\DbalCommunityAdminIdsQuery'
