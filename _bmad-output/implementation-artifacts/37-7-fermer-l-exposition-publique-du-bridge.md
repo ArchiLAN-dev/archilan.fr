@@ -1,6 +1,6 @@
 # Story 37.7: Fermer l'exposition publique du bridge
 
-**Status:** phase 1 (API) livrée - phase 2 (fermeture des ports) après la bascule
+**Status:** phases 1 et 2 livrées - reste le déploiement et le filtrage pare-feu
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-13
 **Dépend de :** la bascule de 37.1-37.3 en production. Elle prouve sur cette machine que le routage
@@ -121,8 +121,8 @@ sans que personne le voie.
 - [x] **Task 3** (AC 12). `composer gates`.
 - [ ] **Task 4** (AC 7-8). Parcours complet en production, dont l'archivage. **Avant** toute
   fermeture.
-- [ ] **Task 5** (AC 9-11). Dépôt orchestrateur : fin de la publication du port du bridge, retrait
-  d'`AP_SERVER_HOST_PORT`.
+- [x] **Task 5** (AC 9-11). Dépôt orchestrateur : fin de la publication du port du bridge, retrait
+  d'`AP_SERVER_HOST_PORT`. *PR ArchiLAN-dev/archilan-orchestrateur#19, `BRIDGE_PUBLISH_HOST_PORT`.*
 - [ ] **Task 6** (AC 10). Fermeture vérifiée, puis filtrage de la plage au pare-feu.
 
 ## Dev Notes
