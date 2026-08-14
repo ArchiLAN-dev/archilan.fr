@@ -1,6 +1,6 @@
 # Epic 37: Accès WSS aux serveurs Archipelago
 
-**Statut :** draft
+**Statut :** en cours - chaîne d'infrastructure en production depuis le 2026-08-14 ; restent 37.5, 37.6 et la phase 2 de 37.7
 **Date :** 2026-08-08
 **Origine :** besoin remonté par Jean le 2026-08-08 - les clients web Archipelago tiers ne peuvent pas
 se connecter à nos runs.
