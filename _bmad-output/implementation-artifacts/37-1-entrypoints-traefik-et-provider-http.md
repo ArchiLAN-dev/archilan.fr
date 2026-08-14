@@ -25,14 +25,19 @@ Ce que cela change, vérifié le 2026-08-13 :
 | Hypothèse de la story | Réalité |
 |---|---|
 | Configuration par fichier statique | Arguments CLI, dans un compose hors dépôt |
-| Traefik v3.3 | **v2.11** |
+| Traefik v3.3 | **v2.11** (cible corrigée le 2026-08-14 : **v3.6.1 minimum**, la v3.3 ne parle pas à Docker 29) |
 | Certresolver `letsencrypt` (DNS-01 OVH) | Certresolver `https` (TLS-ALPN sur 443) |
 | Réseau `archilan-proxy` | Réseau du proxy, à confirmer sur l'hôte |
 
-**Le point bloquant : l'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11
-elle est ignorée sans avertissement, l'API répond `401`, Traefik n'obtient aucun routeur et aucune
-run n'est joignable. Il n'y a pas de contournement propre : **le passage du proxy en v3 est un
-prérequis de la chaîne**, arbitré avec Jean le 2026-08-13.
+**Le point bloquant : l'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11,
+Traefik **refuse de démarrer** (`failed to decode configuration from flags: field not found, node:
+headers`), vérifié le 2026-08-14. Le proxy portant tout le trafic entrant de l'hôte, une tentative
+sur une v2 ne rend pas les runs injoignables : elle met l'hôte entier à terre. Il n'y a pas de
+contournement propre : **le passage du proxy en v3 est un prérequis de la chaîne**, arbitré avec
+Jean le 2026-08-13.
+
+*Correction du 2026-08-14 : cette story a d'abord affirmé que l'option serait « ignorée sans
+avertissement ». C'était une supposition, jamais testée, et fausse - dans le sens le plus coûteux.*
 
 Décisions prises en conséquence : le proxy passe en v3 ; `traefik/` est **supprimé du dépôt** ; le
 générateur produit désormais un **fragment à coller** dans le compose du proxy, où qu'il vive ; le

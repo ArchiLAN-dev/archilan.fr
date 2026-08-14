@@ -12,13 +12,44 @@ dépôt. Ce document dit quoi y ajouter ; il ne le fait pas à ta place.
 > personne n'avait remarqué. Il a été supprimé pour que le dépôt cesse de décrire une
 > infrastructure imaginaire.
 
-## Prérequis : Traefik v3
+## Prérequis : Traefik v3.6.1 minimum
 
-**L'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11 elle est ignorée
-sans avertissement : l'API répond `401`, Traefik n'obtient aucun routeur, et aucune run n'est
-joignable. Il n'y a pas de contournement propre en v2 - c'est le prérequis de toute la chaîne.
+**Pas n'importe quelle v3 : v3.6.1 ou plus récente.** Constaté en production le 2026-08-14, sur
+une v3.3 : le provider Docker ne parvient plus à parler au démon.
 
-Migration v2.11 → v3, pour une configuration du type de la nôtre :
+```
+ERR Failed to retrieve information of the docker client and server host
+    error="Error response from daemon: client version 1.24 is too old.
+    Minimum supported API version is 1.40" providerName=docker
+```
+
+Traefik jusqu'à la 3.5 épingle l'API Docker à la version 1.24 ; Docker 29 a relevé le minimum. La
+négociation automatique de version est arrivée **en 3.6.1**. La v2.11, elle, négociait - d'où
+l'illusion que la migration ne changeait rien sur ce point.
+
+**Le symptôme est brutal et trompeur** : Traefik démarre, sert le TLS, et répond **404 à tout**.
+Sans provider Docker, il ne lit aucun libellé, donc ne connaît aucun service - les 27 du serveur,
+pas seulement ceux d'archilan. On croit à un problème de règles ou de certificats ; c'est le
+provider.
+
+Épingler une version exacte (`traefik:v3.6.25`), pas un tag flottant : `docker compose up -d` ne
+retire pas une image déjà en cache, et `restart` ne change même pas d'image.
+
+## Migration v2 vers v3
+
+**L'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11, Traefik **refuse
+de démarrer** - vérifié le 2026-08-14 :
+
+```
+command traefik error: failed to decode configuration from flags: field not found, node: headers
+```
+
+Le proxy porte **tout** le trafic entrant de l'hôte. Coller le fragment sans avoir migré ne rend pas
+les runs injoignables : ça met l'hôte entier à terre, les autres projets compris. Il n'y a pas de
+contournement propre en v2 - c'est le prérequis de toute la chaîne, et il se vérifie avant de coller
+quoi que ce soit.
+
+Pour une configuration du type de la nôtre :
 
 - `--providers.docker`, `--entrypoints.*`, les redirections `web` → `websecure`, et
   `--certificatesresolvers.<nom>.acme.tlschallenge` passent **inchangés** ;
@@ -26,6 +57,11 @@ Migration v2.11 → v3, pour une configuration du type de la nôtre :
 - la **syntaxe des règles de routeurs** change (`PathPrefix` n'interprète plus les expressions
   régulières, `Headers` devient `Header`, `IPWhiteList` devient `IPAllowList`). Les règles en
   `Host(...)` et les opérateurs `||` restent valides.
+
+**Migrer la v3 SEULE d'abord**, sans aucun flag de l'epic 37, et vérifier que les services
+répondent. Le 2026-08-14 les deux ont été faits d'un coup : le proxy s'est retrouvé avec un provider
+Docker muet **et** un token absent, soit deux pannes superposées sur un hôte qui porte 27 services.
+Séparées, chacune se diagnostique en une minute.
 
 **Filet de sécurité pour les autres projets de l'hôte** : ajouter
 `--core.defaultRuleSyntax=v2` au moment de la bascule. Les règles écrites pour la v2 continuent
