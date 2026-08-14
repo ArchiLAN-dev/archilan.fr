@@ -13,6 +13,7 @@ use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Shared\Application\Exception\ConflictException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ServiceUnavailableException;
+use App\Shared\Application\Support\BridgeEndpoint;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -24,7 +25,6 @@ final readonly class SendBridgeCommand
         private SessionSlotRepositoryInterface $slots,
         private HttpClientInterface $httpClient,
         private ClockInterface $clock,
-        private string $bridgeHttpHost,
     ) {
     }
 
@@ -44,7 +44,8 @@ final readonly class SendBridgeCommand
             throw new ConflictException('La session n\'est pas en cours.', 'session_not_running');
         }
 
-        $host = $this->bridgeHttpHost;
+        // Le port hôte n'est plus une adresse : il reste le marqueur qu'un bridge a été lancé
+        // pour cette session (story 37.7).
         $bridgePort = $session->getBridgePort();
 
         if (null === $bridgePort) {
@@ -56,7 +57,7 @@ final readonly class SendBridgeCommand
         try {
             $bridgeResponse = $this->httpClient->request(
                 'POST',
-                sprintf('http://%s:%d/commands', $host, $bridgePort),
+                BridgeEndpoint::url($sessionId, '/commands'),
                 [
                     'json' => ['command' => $command],
                     'headers' => null !== $adminPassword ? ['X-Ap-Admin-Password' => $adminPassword] : [],

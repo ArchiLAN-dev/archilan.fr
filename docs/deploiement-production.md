@@ -34,6 +34,12 @@ docker compose up -d
 `api-migrations` joue les migrations Doctrine et s'arrête ; c'est un service à cycle court, pas un
 démon.
 
+## Décisions explicites
+
+- **Postgres est publié sur l'hôte en `5434:5432`, et c'est voulu** (Jean, 2026-08-14). La base est
+  administrée depuis l'extérieur. Ce n'est pas un écart à corriger ; c'est un choix, avec ce qu'il
+  suppose de robustesse du mot de passe et de filtrage amont.
+
 ## Écarts connus entre le dépôt et la machine
 
 À arbitrer, pas à oublier. L'état ci-dessous est celui constaté le 2026-08-13.
@@ -42,9 +48,9 @@ démon.
 |---|---|---|---|
 | Bucket `media-public` + accès anonyme | créé par `createbuckets` | **absent** | Les URLs publiques d'images de l'epic 34 retombent sur des liens présignés qui tournent. C'est le handoff ops de cet epic, toujours ouvert. |
 | Volume `api-logs` | monté sur api-web et api-worker | absent | Les logs applicatifs restent dans la couche du conteneur et disparaissent à chaque `up -d`. |
-| `extra_hosts: host.docker.internal` | sur api-web et api-worker | absent | À vérifier : `BRIDGE_HTTP_HOST` doit alors pointer ailleurs, sinon l'API ne joint pas le bridge d'une session. |
+| `extra_hosts: host.docker.internal` | plus nécessaire | absent | **Résolu** : depuis la story 37.7 l'API joint le bridge par son nom de conteneur sur le réseau interne, sans passer par l'hôte ni par l'adresse publique. |
 | `group_add` de l'orchestrateur | `${DOCKER_GID}` | `994` en dur | Le dépôt utilise désormais `${DOCKER_GID:-994}` : les deux fonctionnent. |
-| Postgres | non publié | **`5434:5432` publié sur l'hôte** | La base est joignable depuis l'extérieur si le pare-feu ne la filtre pas. À confirmer. |
+
 | MinIO | ports 9000/9001 publiés | routé par le proxy sur deux domaines | La machine est plus propre que le dépôt ne l'était. |
 
 ## Pourquoi cette dérive coûte cher

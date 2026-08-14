@@ -1,11 +1,17 @@
 # Story 37.7: Fermer l'exposition publique du bridge
 
-**Status:** ready-for-dev
+**Status:** phase 1 (API) livrée - phase 2 (fermeture des ports) après la bascule
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-13
 **Dépend de :** la bascule de 37.1-37.3 en production. Elle prouve sur cette machine que le routage
 par nom de conteneur fonctionne - l'hypothèse centrale de cette story.
 
+> **Découpage arbitré le 2026-08-14 :** la moitié API ne dépend pas de la bascule - `api-web` et le
+> conteneur du bridge partagent déjà le réseau `archilan-prod_default`. Elle est donc livrée
+> **maintenant**, ce qui corrige l'archivage dès le prochain déploiement. La fermeture du port côté
+> orchestrateur (ACs 9 à 11) attend la bascule, parce qu'elle doit venir **après** que le
+> consommateur a cessé d'avoir besoin du chemin public.
+>
 > **Arbitrage du 2026-08-13 :** le défaut de l'archivage (décrit plus bas) est corrigé **dans cette
 > story**, pas en hotfix séparé. Il est réel aujourd'hui et le restera jusqu'à son exécution ; c'est
 > assumé, parce que le corriger isolément signifierait toucher une seizième fois à une construction
@@ -109,10 +115,10 @@ sans que personne le voie.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3). Écrire le composant d'adressage et ses tests ; router les quinze sites
+- [x] **Task 1** (AC 1-3). Écrire le composant d'adressage et ses tests ; router les quinze sites
   vers lui, `ArchiveRunJobHandler` compris.
-- [ ] **Task 2** (AC 4-6). Basculer sur le nom de conteneur, retirer `BRIDGE_HTTP_HOST`.
-- [ ] **Task 3** (AC 12). `composer gates`.
+- [x] **Task 2** (AC 4-6). Basculer sur le nom de conteneur, retirer `BRIDGE_HTTP_HOST`.
+- [x] **Task 3** (AC 12). `composer gates`.
 - [ ] **Task 4** (AC 7-8). Parcours complet en production, dont l'archivage. **Avant** toute
   fermeture.
 - [ ] **Task 5** (AC 9-11). Dépôt orchestrateur : fin de la publication du port du bridge, retrait
