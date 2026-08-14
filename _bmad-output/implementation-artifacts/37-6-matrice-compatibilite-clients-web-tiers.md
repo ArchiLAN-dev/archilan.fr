@@ -1,6 +1,6 @@
 # Story 37.6: Matrice de compatibilité des clients web Archipelago tiers
 
-**Status:** ready-for-dev
+**Status:** done - mesurée le 2026-08-14, verdict GO
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-08
 **Dépend de :** rien. C'est la story à faire **en premier**, avant toute écriture de code.
@@ -92,19 +92,25 @@ port Archipelago.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-4). Monter le banc : un entrypoint temporaire sur un port du pool dans
-  `traefik/traefik.yml`, un routeur TCP TLS via le file provider vers un run vivant, certificat réel.
+- [x] **Task 1** (AC 1-4). ~~Monter le banc temporaire.~~ **Devenu sans objet** : la bascule de
+  37.1-37.3 du 2026-08-14 a mis l'architecture cible en production. La mesure s'est donc faite sur
+  une run réelle, sur un port de la plage, avec le certificat réel - ce que le banc cherchait à
+  imiter.
 - [x] **Task 2** (AC 6-8). Établir la liste des candidats selon les critères, en commençant par le
   client WebHost. *Fait le 2026-08-10 : critères écrits, trois candidats retenus (Topher's Web
   Client, ap-tracker, WebHost), trois écartés avec motif, dans `docs/archipelago-web-clients.md`.*
-- [ ] **Task 3** (AC 9-11). Tester chaque client, sur chaque forme d'adresse plausible, et consigner
-  succès **et** échecs. *Tableaux de saisie prêts dans le document, colonnes de résultat vides.*
-- [ ] **Task 4** (AC 12). Observation de tenue sur connexion inactive longue.
+- [x] **Task 3** (AC 9-11). Tester chaque client, sur chaque forme d'adresse plausible, et consigner
+  succès **et** échecs. *Fait le 2026-08-14 : 7 essais sur 2 clients, succès et échecs consignés
+  avec leur message verbatim.*
+- [x] **Task 4** (AC 12). Observation de tenue sur connexion inactive longue. *16 minutes, toujours
+  utilisable - vérifié par un `!players` qui a reçu sa réponse.*
 - [x] **Task 5a** (AC 14-15). Créer `docs/archipelago-web-clients.md` : trame, critères, candidats,
   formes d'adresse, note de péremption. *Fait le 2026-08-10.*
-- [ ] **Task 5b** (AC 13, 15). Remplir la matrice, écrire le verdict go/no-go et la conclusion sur la
-  forme d'adresse - **après mesure uniquement**.
-- [ ] **Task 6** (AC 5). Démonter le banc et vérifier que le port est refermé.
+- [x] **Task 5b** (AC 13, 15). Remplir la matrice, écrire le verdict go/no-go et la conclusion sur la
+  forme d'adresse. *Verdict : **GO**.*
+- [x] **Task 6** (AC 5). ~~Démonter le banc.~~ Sans objet : aucun banc monté, aucune configuration
+  temporaire à retirer. Reste à la charge de Jean : **changer le mot de passe de la run de test ou
+  la supprimer** - il a transité par deux sites tiers.
 
 ## Dev Notes
 
@@ -314,6 +320,42 @@ TCP, mais c'est à observer, pas à supposer.
 
 ### Agent Model Used
 
+claude-opus-5[1m]
+
+### Completion Notes List
+
+**Verdict : GO.** Deux clients web tiers, publics et maintenus, se connectent à une run réelle.
+Résultats complets dans `docs/archipelago-web-clients.md`.
+
+**La mesure préalable qui valait le détour.** Avant de tester le moindre client, un
+`new WebSocket('wss://archilan.fr:35000')` exécuté depuis une page servie par `https://archilan.fr`
+s'ouvre en 245 ms, et l'échange protocolaire complet passe (`RoomInfo` 0.6.7, puis
+`ConnectionRefused: ["InvalidSlot"]` sur un slot volontairement faux). Le `InvalidSlot` **seul**,
+sans `InvalidPassword`, prouve que le serveur a compris la requête de bout en bout. Cette mesure
+répond à la question de fond de l'epic indépendamment de tout client tiers.
+
+**Le piège des deux familles est confirmé en conditions réelles**, ce n'était pas une hypothèse :
+`archilan.fr:35000` connecte Topher's Web Client et **casse** ap-tracker (`Connection failed`) si on
+le colle dans son champ « Host ». D'où la conclusion pour 37.5 : hôte et port séparés **et** adresse
+jointe, les deux.
+
+**Trouvaille imprévue, à traiter en 37.5 :** quand l'adresse manque de port, Topher's affiche
+« you may need to access this client from an insecure http connection ». **Ce conseil est faux chez
+nous et nuisible** - le joueur passerait sur une version HTTP qui ne joindrait pas davantage le
+serveur, en perdant le chiffrement. La vraie cause est l'absence de port. L'UI devra le dire.
+
+**Auto-login par paramètres d'URL vérifié** sur Topher's
+(`#/?url=...&slot=...&password=...`) : un lien en un clic est techniquement possible. Le mot de
+passe figure alors en clair dans une URL vers un tiers - décision explicite attendue en 37.5.
+
+**Tenue sur inactivité** : 16 minutes sans le moindre octet, puis un `!players` qui reçoit sa
+réponse. La connexion n'était pas seulement ouverte, elle était utilisable - c'est la distinction
+qui compte, une socket pouvant survivre côté client après que le proxy a lâché.
+
+### File List
+
+- `docs/archipelago-web-clients.md` - matrice mesurée, verdict, conclusion pour 37.4 et 37.5
+
 ### Completion Notes List
 
 ### File List
@@ -322,5 +364,6 @@ TCP, mais c'est à observer, pas à supposer.
 
 | Date | Change |
 |------|--------|
+| 2026-08-14 | **Mesurée. Verdict GO.** Sept essais sur deux clients, sur une run réelle derrière le proxy de production. Le banc temporaire est devenu sans objet : la bascule avait mis l'architecture cible en production. |
 | 2026-08-10 | Préparation sans mesure : `docs/archipelago-web-clients.md` créé (critères, candidats qualifiés sur pièces, formes d'adresse, note de péremption), runbook du banc ajouté à la story. Lecture du code des candidats : les deux familles d'adresse annoncées par l'epic sont confirmées sur pièces (Topher's = champ URL unique passé tel quel à `archipelago.js`; ap-tracker = champs hôte/port séparés, concaténés en `host:port`). Tasks 1, 3, 4 et 5b restent à exécuter en prod. |
 | 2026-08-08 | Créée. Story de mesure, à exécuter avant tout code de l'epic : elle décide la forme d'adresse à afficher en 37.4/37.5 et le go/no-go de l'epic. Banc de test contraint à reproduire l'architecture cible (port du pool + certificat réel), sans quoi il mesurerait autre chose. |
