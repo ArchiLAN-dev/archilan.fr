@@ -44,6 +44,15 @@ fournit la donnée et que 37.6 a dit **quoi** afficher.
 4. La copie fonctionne sur chaque nouvelle valeur, masquée comme révélée - le comportement
    « streamer-safe » de `SecretField` est conservé tel quel.
 
+### Masquage cohérent sur les quatre surfaces
+
+4bis. **Le panneau de la carte des runs hebdo masque ses valeurs, comme les trois autres.** Il
+   affiche aujourd'hui hôte, port et mot de passe **en clair**, avec de simples boutons copier :
+   la story 17.22 a traité les sessions d'événement et la page slot, mais pas ce panneau-là, qui a
+   son propre composant local. Un mot de passe de run hebdo est donc visible à l'écran d'un
+   streamer. Arbitré le 2026-08-14 : le correctif entre ici, puisque cette story touche les quatre
+   panneaux de toute façon.
+
 ### Aide en cas d'erreur
 
 5. Le mode d'échec le plus probable observé en 37.6 fait l'objet d'une aide courte à l'endroit où le

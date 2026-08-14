@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\WeeklyRuns\Presentation\Controller;
 
 use App\Identity\Domain\Entity\User;
+use App\Shared\Application\Support\BridgeEndpoint;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\WeeklyRuns\Application\Query\WeeklyRunSlotQuery;
@@ -26,7 +27,6 @@ final readonly class WeeklyRunSlotStateController
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
-        private string $bridgeHttpHost,
     ) {
     }
 
@@ -44,12 +44,10 @@ final readonly class WeeklyRunSlotStateController
             return $this->errorFromStatus($info['status']);
         }
 
-        $bridgeHost = $this->bridgeHost();
-
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://%s:%d/reachable/%d', $bridgeHost, $info['bridgePort'], $slotIndex),
+                BridgeEndpoint::url($info['externalSessionId'], sprintf('/reachable/%d', $slotIndex)),
                 ['timeout' => 130],
             );
             $data = $response->toArray();
@@ -76,12 +74,10 @@ final readonly class WeeklyRunSlotStateController
             return $this->errorFromStatus($info['status']);
         }
 
-        $bridgeHost = $this->bridgeHost();
-
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://%s:%d/hints/%d', $bridgeHost, $info['bridgePort'], $slotIndex),
+                BridgeEndpoint::url($info['externalSessionId'], sprintf('/hints/%d', $slotIndex)),
                 ['timeout' => 5],
             );
 
@@ -115,12 +111,10 @@ final readonly class WeeklyRunSlotStateController
             return $this->apiAccessGuard->errorResponse('validation_error', 'location_id (entier > 0) requis.', 422);
         }
 
-        $bridgeHost = $this->bridgeHost();
-
         try {
             $bridge = $this->bridgeClientPool->get(
                 $info['externalSessionId'],
-                sprintf('http://%s:%d', $bridgeHost, $info['bridgePort']),
+                BridgeEndpoint::baseUrl($info['externalSessionId']),
             );
             // Player surface: always a paid self-hint (free=false), charged to the slot's own points.
             $response = $bridge->slots()->requestHint($slotIndex, $locationId, false);
@@ -166,7 +160,7 @@ final readonly class WeeklyRunSlotStateController
         try {
             $bridge = $this->bridgeClientPool->get(
                 $info['externalSessionId'],
-                sprintf('http://%s:%d', $this->bridgeHost(), $info['bridgePort']),
+                BridgeEndpoint::baseUrl($info['externalSessionId']),
             );
             $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status);
 
@@ -206,12 +200,10 @@ final readonly class WeeklyRunSlotStateController
             return $this->apiAccessGuard->errorResponse('validation_error', 'itemName (non vide) requis.', 422);
         }
 
-        $bridgeHost = $this->bridgeHost();
-
         try {
             $bridge = $this->bridgeClientPool->get(
                 $info['externalSessionId'],
-                sprintf('http://%s:%d', $bridgeHost, $info['bridgePort']),
+                BridgeEndpoint::baseUrl($info['externalSessionId']),
             );
             // Player surface: always a paid self-hint (free=false), charged to the slot's own points.
             $response = $bridge->slots()->requestHintItem($slotIndex, $itemName, false);
@@ -241,12 +233,10 @@ final readonly class WeeklyRunSlotStateController
             return $this->errorFromStatus($info['status']);
         }
 
-        $bridgeHost = $this->bridgeHost();
-
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://%s:%d/item-locations/%d', $bridgeHost, $info['bridgePort'], $slotIndex),
+                BridgeEndpoint::url($info['externalSessionId'], sprintf('/item-locations/%d', $slotIndex)),
                 ['timeout' => 5],
             );
 
@@ -308,12 +298,10 @@ final readonly class WeeklyRunSlotStateController
             return $this->errorFromStatus($info['status']);
         }
 
-        $bridgeHost = $this->bridgeHost();
-
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://%s:%d/state', $bridgeHost, $info['bridgePort']),
+                BridgeEndpoint::url($info['externalSessionId'], '/state'),
                 ['timeout' => 3],
             );
 
@@ -373,11 +361,6 @@ final readonly class WeeklyRunSlotStateController
                 'topic' => $topic,
             ],
         ]);
-    }
-
-    private function bridgeHost(): string
-    {
-        return $this->bridgeHttpHost;
     }
 
     private function isAdmin(User $user): bool
