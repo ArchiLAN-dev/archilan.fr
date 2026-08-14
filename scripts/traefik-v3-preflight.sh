@@ -2,7 +2,8 @@
 #
 # Pre-vol avant le passage du reverse proxy de Traefik v2 a v3.
 #
-#   ./scripts/traefik-v3-preflight.sh
+#   ./scripts/traefik-v3-preflight.sh            # conteneurs en cours ET arretes
+#   ./scripts/traefik-v3-preflight.sh --running   # seulement ceux en cours
 #
 # A executer SUR L'HOTE du proxy, avant de toucher a quoi que ce soit.
 #
@@ -14,6 +15,13 @@
 # Il ne modifie rien. Il lit et il rapporte.
 
 set -euo pipefail
+
+ps_args="-a"
+case "${1:-}" in
+    --running) ps_args="" ;;
+    "") ;;
+    *) echo "option inconnue : $1" >&2; exit 2 ;;
+esac
 
 if ! command -v docker >/dev/null 2>&1; then
     echo "erreur : docker est introuvable. Ce script doit tourner sur l'hote du proxy." >&2
@@ -32,7 +40,9 @@ section() {
 # `hasPrefix`, et un template invalide echoue en silence - le script rapporterait alors
 # « aucun libelle » sur un hote qui en est plein.
 all_labels() {
-    docker ps --format '{{.Names}}' | while IFS= read -r name; do
+    # Les conteneurs ARRETES sont inspectes eux aussi : un service relance apres la bascule avec un
+    # libelle obsolete casserait en silence, des semaines plus tard, sans lien apparent.
+    docker ps $ps_args --format '{{.Names}}' | while IFS= read -r name; do
         docker inspect "$name" --format \
             '{{range $k, $v := .Config.Labels}}{{$k}}={{$v}}
 {{end}}' 2>/dev/null | while IFS= read -r label; do
@@ -45,7 +55,7 @@ all_labels() {
 
 labels="$(all_labels)"
 
-section "1. Conteneurs portant des libelles Traefik"
+section "1. Conteneurs portant des libelles Traefik (arretes compris)"
 if [ -z "$labels" ]; then
     echo "  aucun - verifie que tu es bien sur l'hote du proxy"
     exit 1
