@@ -14,9 +14,17 @@ dépôt. Ce document dit quoi y ajouter ; il ne le fait pas à ta place.
 
 ## Prérequis : Traefik v3
 
-**L'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11 elle est ignorée
-sans avertissement : l'API répond `401`, Traefik n'obtient aucun routeur, et aucune run n'est
-joignable. Il n'y a pas de contournement propre en v2 - c'est le prérequis de toute la chaîne.
+**L'option `headers` du provider HTTP n'existe qu'à partir de la v3.** En v2.11, Traefik **refuse
+de démarrer** - vérifié le 2026-08-14 :
+
+```
+command traefik error: failed to decode configuration from flags: field not found, node: headers
+```
+
+Le proxy porte **tout** le trafic entrant de l'hôte. Coller le fragment sans avoir migré ne rend pas
+les runs injoignables : ça met l'hôte entier à terre, les autres projets compris. Il n'y a pas de
+contournement propre en v2 - c'est le prérequis de toute la chaîne, et il se vérifie avant de coller
+quoi que ce soit.
 
 Migration v2.11 → v3, pour une configuration du type de la nôtre :
 
