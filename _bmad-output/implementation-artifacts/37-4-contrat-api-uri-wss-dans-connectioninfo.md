@@ -1,6 +1,6 @@
 # Story 37.4: Contrat API - l'URI wss dans connectionInfo
 
-**Status:** implémentée - forme à confirmer par 37.6
+**Status:** implémentée - nom d'hôte tranché (`archilan.fr`, 2026-08-14) ; forme d'affichage à confirmer par 37.6
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-10
 **Dépend de :** 37.6 (forme d'adresse à exposer) et 37.1-37.3 (l'adresse doit être vraie avant

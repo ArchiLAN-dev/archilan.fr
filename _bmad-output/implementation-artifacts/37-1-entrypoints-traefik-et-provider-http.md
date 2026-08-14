@@ -234,6 +234,15 @@ déclarés. Le test local porte sur une connexion, pas sur la charge.
 - le fichier d'environnement est lu **littéralement** (sémantique `env_file` de docker compose) et
   non sourcé : un token contenant `$`, `&` ou des espaces ne casse plus la lecture.
 
+**Bascule effectuée le 2026-08-14.** Les cent entrypoints tiennent la plage `35000-35099`, le
+provider HTTP délivre les routeurs, et une run est joignable en `wss://archilan.fr:{port}` avec un
+certificat valide. Deux incidents ont marqué l'opération, tous deux documentés depuis :
+
+1. **Traefik v3.3 ne parle pas à Docker 29** : le provider Docker muet, donc aucun libellé lu, donc
+   **404 sur les 27 services de l'hôte** - et pas seulement sur les runs. Corrigé en v3.6.1.
+2. La v3 et le fragment de l'epic ont été appliqués d'un coup, superposant cette panne à un token
+   absent. Séparés, chacun se diagnostiquait en une minute.
+
 **Restent à faire, en production uniquement** (AC 8 à 12) : comportement quand l'API est muette ou
 le token refusé, redémarrage réel avec relevés de démarrage et de mémoire, non-régression des
 services existants, et surtout la **tenue d'une connexion longue d'au moins une heure**. Tant que
