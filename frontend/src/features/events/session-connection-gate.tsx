@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Check, Clock, Copy, Download, XCircle } from "lucide-react";
 
 import { env } from "@/lib/env";
-import { SecretField } from "@/components/secret-field";
+import { ConnectionFields } from "@/components/connection-fields";
 import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
 import { isSessionStatusFrame, type SessionStatusFrame } from "@/features/realtime/realtime-api";
@@ -283,7 +283,14 @@ function RunningConnectionCard({ session }: { session: SessionPayload }) {
   const [copiedAll, setCopiedAll] = useState(false);
 
   function copyAll() {
-    const text = `Adresse: ${session.host}:${session.port ?? ""} | Mot de passe: ${session.password ?? ""}`;
+    // Les deux formes, parce qu'aucune ne marche partout : l'URI complète pour le client
+    // Archipelago, l'adresse jointe pour les clients web (mesuré, story 37.6).
+    const lignes = [
+      session.connectionUri != null ? `Adresse (client Archipelago): ${session.connectionUri}` : null,
+      `Adresse (client web): ${session.host}:${session.port ?? ""}`,
+      `Mot de passe: ${session.password ?? ""}`,
+    ].filter((l): l is string => l !== null);
+    const text = lignes.join("\n");
     void navigator.clipboard.writeText(text).then(() => {
       setCopiedAll(true);
       setTimeout(() => { setCopiedAll(false); }, 2000);
@@ -304,11 +311,12 @@ function RunningConnectionCard({ session }: { session: SessionPayload }) {
         Valeurs masquées pour le stream - la copie fonctionne sans les afficher.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <SecretField label="Adresse" value={session.host ?? ""} />
-        <SecretField label="Port" value={String(session.port ?? "")} />
-        <SecretField label="Mot de passe" value={session.password ?? "-"} />
-      </div>
+      <ConnectionFields
+        host={session.host ?? ""}
+        password={session.password}
+        port={session.port ?? 0}
+        uri={session.connectionUri}
+      />
 
       <button
         aria-label="Copier toutes les informations de connexion"
