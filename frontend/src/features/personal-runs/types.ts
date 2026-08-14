@@ -83,6 +83,8 @@ export type PersonalRun = {
   gameSelectionConfig: PersonalRunGame[] | null;
   connectionHost: string | null;
   connectionPort: number | null;
+  // Adresse chiffrée complète, dérivée par l'API (story 37.4). Absente d'une charge utile antérieure.
+  connectionUri?: string | null;
   connectionPassword: string | null;
   isOwner: boolean;
   participants: PersonalRunParticipant[];

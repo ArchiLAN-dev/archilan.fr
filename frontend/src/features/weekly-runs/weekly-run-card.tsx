@@ -1,5 +1,6 @@
 "use client";
 
+import { ConnectionFields } from "@/components/connection-fields";
 import { Download, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,63 +52,6 @@ function Countdown() {
 
 // ── Copy button ───────────────────────────────────────────────────────────────
 
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  function handleCopy() {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {});
-  }
-  return (
-    <button
-      className="ml-2 rounded border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-accent hover:text-foreground"
-      onClick={handleCopy}
-      type="button"
-    >
-      {copied ? "Copié !" : "Copier"}
-    </button>
-  );
-}
-
-// ── Connection panel ──────────────────────────────────────────────────────────
-
-function ConnectionPanel({
-  host,
-  port,
-  password,
-}: {
-  host: string;
-  port: number;
-  password: string | null;
-}) {
-  return (
-    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-      <p className="mb-3 text-sm font-semibold text-emerald-400">
-        Serveur Archipelago prêt
-      </p>
-      <div className="flex flex-col gap-2 font-mono text-sm">
-        <div className="flex items-center">
-          <span className="w-20 text-muted-foreground">Host</span>
-          <span className="text-foreground">{host}</span>
-          <CopyButton value={host} />
-        </div>
-        <div className="flex items-center">
-          <span className="w-20 text-muted-foreground">Port</span>
-          <span className="text-foreground">{port}</span>
-          <CopyButton value={String(port)} />
-        </div>
-        {password && (
-          <div className="flex items-center">
-            <span className="w-20 text-muted-foreground">Password</span>
-            <span className="text-foreground">{password}</span>
-            <CopyButton value={password} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── WeeklyRunCard ─────────────────────────────────────────────────────────────
 
@@ -297,11 +241,17 @@ export function WeeklyRunCard({ run, myUserId }: Props) {
 
           {myEntry !== null && myEntry.connectionInfo !== null && (
             <div className="flex flex-col gap-3">
-              <ConnectionPanel
-                host={myEntry.connectionInfo.host}
-                password={myEntry.connectionInfo.password}
-                port={myEntry.connectionInfo.port}
-              />
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <p className="mb-3 text-sm font-semibold text-emerald-400">
+                  Serveur Archipelago prêt
+                </p>
+                <ConnectionFields
+                  host={myEntry.connectionInfo.host}
+                  password={myEntry.connectionInfo.password}
+                  port={myEntry.connectionInfo.port}
+                  uri={myEntry.connectionInfo.uri ?? null}
+                />
+              </div>
               {patchSection}
               <Link
                 className="inline-flex w-fit items-center gap-1.5 rounded border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-accent hover:text-foreground"

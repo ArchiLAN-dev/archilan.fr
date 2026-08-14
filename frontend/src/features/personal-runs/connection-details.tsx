@@ -2,16 +2,18 @@
 
 import { Server } from "lucide-react";
 
-import { SecretField } from "@/components/secret-field";
+import { ConnectionFields } from "@/components/connection-fields";
 
 export function ConnectionDetails({
   host,
   port,
+  uri,
   password,
   adminPassword,
 }: {
   host: string;
   port: number;
+  uri: string | null;
   /** Null when the run was launched without a join password (story 16.13) - the row is then omitted. */
   password: string | null;
   adminPassword?: string | null;
@@ -25,18 +27,13 @@ export function ConnectionDetails({
       <p className="mb-3 text-xs text-muted-foreground">
         Valeurs masquées pour le stream - la copie fonctionne sans les afficher.
       </p>
-      <div className="grid grid-cols-1 gap-2">
-        <SecretField label="Hôte" value={host} />
-        <SecretField label="Port" value={String(port)} />
-        {password != null ? (
-          <SecretField label="Mot de passe" value={password} />
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Pas de mot de passe : le lien d&apos;invitation suffit pour rejoindre.
-          </p>
-        )}
-        {adminPassword != null && <SecretField label="Mot de passe admin" value={adminPassword} />}
-      </div>
+      <ConnectionFields
+        adminPassword={adminPassword}
+        host={host}
+        password={password}
+        port={port}
+        uri={uri}
+      />
     </div>
   );
 }
