@@ -8,6 +8,7 @@ use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Query\PlayersSnapshotQuery;
 use App\Sessions\Application\Query\SessionQuery;
 use App\Sessions\Domain\Entity\Session;
+use App\Shared\Application\Support\BridgeEndpoint;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Archilan\BridgeClient\Enum\HintStatus;
@@ -38,7 +39,6 @@ final readonly class PlayerStateController
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
         private LoggerInterface $logger,
-        private string $bridgeHttpHost,
     ) {
     }
 
@@ -77,7 +77,6 @@ final readonly class PlayerStateController
             );
         }
 
-        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
@@ -88,7 +87,7 @@ final readonly class PlayerStateController
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://%s:%d/state', $host, $bridgePort),
+                BridgeEndpoint::url($runId, '/state'),
                 ['timeout' => 3],
             );
             $data = $response->toArray();
@@ -215,7 +214,6 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
@@ -223,7 +221,7 @@ final readonly class PlayerStateController
         }
 
         try {
-            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $bridge = $this->bridgeClientPool->get($sessionId, BridgeEndpoint::baseUrl($sessionId));
             $response = $bridge->slots()->hints($slotIndex);
 
             $hints = array_map(static fn (Hint $h): array => [
@@ -319,7 +317,6 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
@@ -339,7 +336,7 @@ final readonly class PlayerStateController
         }
 
         try {
-            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $bridge = $this->bridgeClientPool->get($sessionId, BridgeEndpoint::baseUrl($sessionId));
             $response = $bridge->slots()->requestHint($slotIndex, $locationId, $free);
 
             return new JsonResponse(['data' => [
@@ -395,7 +392,7 @@ final readonly class PlayerStateController
         }
 
         try {
-            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $this->bridgeHttpHost, $bridgePort));
+            $bridge = $this->bridgeClientPool->get($sessionId, BridgeEndpoint::baseUrl($sessionId));
             $response = $bridge->slots()->updateHint($slotIndex, $locationId, $status);
 
             return new JsonResponse(['data' => [
@@ -433,7 +430,6 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
@@ -453,7 +449,7 @@ final readonly class PlayerStateController
         }
 
         try {
-            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $bridge = $this->bridgeClientPool->get($sessionId, BridgeEndpoint::baseUrl($sessionId));
             $response = $bridge->slots()->requestHintItem($slotIndex, $itemName, $free);
 
             return new JsonResponse(['data' => [
@@ -490,7 +486,6 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('session_not_running', 'La session n\'est pas en cours.', 409);
         }
 
-        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
@@ -498,7 +493,7 @@ final readonly class PlayerStateController
         }
 
         try {
-            $bridge = $this->bridgeClientPool->get($sessionId, sprintf('http://%s:%d', $host, $bridgePort));
+            $bridge = $this->bridgeClientPool->get($sessionId, BridgeEndpoint::baseUrl($sessionId));
             $response = $bridge->slots()->itemLocations($slotIndex);
 
             $locations = array_map(static fn (ItemLocation $loc): array => [
@@ -538,7 +533,6 @@ final readonly class PlayerStateController
             );
         }
 
-        $host = $this->bridgeHttpHost;
         $bridgePort = $session['bridgePort'];
 
         if (null === $bridgePort) {
@@ -548,7 +542,7 @@ final readonly class PlayerStateController
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://%s:%d/reachable/%d', $host, $bridgePort, $slotIndex),
+                BridgeEndpoint::url($sessionId, sprintf('/reachable/%d', $slotIndex)),
                 ['timeout' => 130],
             );
             $data = $response->toArray();

@@ -5,6 +5,30 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.14.2] - 2026-08-14
+
+Version courte, mais elle corrige une perte de données silencieuse.
+
+### Corrigé
+
+- **L'archivage d'une run ne perd plus l'état des slots.** Le job d'archivage appelait le bridge sur
+  `http://localhost:{port}` alors qu'il tourne dans le conteneur `api-worker`, où `localhost`
+  désigne le conteneur lui-même. L'appel ne pouvait pas aboutir ; il était avalé par un `catch` qui
+  journalisait un simple avertissement. **Chaque run terminée archivait donc une liste de slots
+  vide**, et l'archive n'étant écrite qu'une fois, la perte était définitive.
+
+### Modifié
+
+- **L'API joint le bridge d'une session par le réseau interne** (`archilan-bridge-{sessionId}:5000`)
+  au lieu de sortir vers l'adresse publique du serveur pour atteindre un conteneur voisin. Un seul
+  composant construit désormais cette adresse ; il y en avait quinze, et le seizième - celui de
+  l'archivage - avait divergé sans que personne le voie.
+- `BRIDGE_HTTP_HOST` disparaît, devenue inutile.
+
+Le port du bridge reste publié sur l'hôte : sa fermeture demande une modification de
+l'orchestrateur, prévue après la bascule vers l'accès `wss://`. **La plage `25000-25099` ne doit
+donc pas encore être filtrée au pare-feu.**
+
 ## [0.14.1] - 2026-08-13
 
 Version d'infrastructure, requise avant la bascule vers l'accès `wss://`. Elle corrige surtout une

@@ -6,6 +6,7 @@ namespace App\Sessions\Application\Handler;
 
 use App\Sessions\Application\Message\ArchiveRunJob;
 use App\Sessions\Application\Port\RunnerCallbackClientInterface;
+use App\Shared\Application\Support\BridgeEndpoint;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -85,7 +86,7 @@ final readonly class ArchiveRunJobHandler
         try {
             $response = $this->httpClient->request(
                 'GET',
-                sprintf('http://localhost:%d/state', $bridgePort),
+                BridgeEndpoint::url($sessionId, '/state'),
                 ['timeout' => 3],
             );
             $data = $response->toArray();
