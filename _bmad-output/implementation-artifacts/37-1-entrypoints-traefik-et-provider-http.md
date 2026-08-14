@@ -25,7 +25,7 @@ Ce que cela change, vérifié le 2026-08-13 :
 | Hypothèse de la story | Réalité |
 |---|---|
 | Configuration par fichier statique | Arguments CLI, dans un compose hors dépôt |
-| Traefik v3.3 | **v2.11** |
+| Traefik v3.3 | **v2.11** (cible corrigée le 2026-08-14 : **v3.6.1 minimum**, la v3.3 ne parle pas à Docker 29) |
 | Certresolver `letsencrypt` (DNS-01 OVH) | Certresolver `https` (TLS-ALPN sur 443) |
 | Réseau `archilan-proxy` | Réseau du proxy, à confirmer sur l'hôte |
 
