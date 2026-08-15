@@ -78,6 +78,69 @@ final class TraefikConfigBuilderTest extends TestCase
         self::assertSame(['ap-35043'], $this->router($config, 'run-sess-2')['entryPoints']);
     }
 
+    public function testEachSessionAlsoGetsAPlaintextRouterOnTheSameEntrypoint(): void
+    {
+        // Story 37.8 : les clients qui ne parlent pas TLS - des mods de jeu, notamment - doivent
+        // joindre la run sur le même port que les autres.
+        $config = $this->buildWith([$this->runningSession('sess-1', 35042)]);
+
+        $router = $this->router($config, 'plain-sess-1');
+
+        self::assertSame(['ap-35042'], $router['entryPoints']);
+        self::assertSame('HostSNI(`*`)', $router['rule']);
+    }
+
+    public function testThePlaintextRouterCarriesNoTlsConfiguration(): void
+    {
+        // C'est l'absence de cette clé, et rien d'autre, qui range le routeur dans le muxer
+        // non-TLS de Traefik. Un `'tls' => []` le ferait basculer côté chiffré.
+        $config = $this->buildWith([$this->runningSession('sess-1', 35042)]);
+
+        self::assertArrayNotHasKey('tls', $this->router($config, 'plain-sess-1'));
+    }
+
+    public function testBothRoutersOfASessionShareTheSameAndOnlyService(): void
+    {
+        $config = $this->buildWith([$this->runningSession('sess-1', 35042)]);
+
+        $tcp = $config['tcp'];
+        self::assertIsArray($tcp);
+        $services = (array) $tcp['services'];
+
+        // Deux portes d'entrée, un seul backend : le routeur clair ne duplique pas le service.
+        self::assertCount(1, $services);
+        self::assertArrayHasKey('run-sess-1', $services);
+        self::assertSame('run-sess-1', $this->router($config, 'run-sess-1')['service']);
+        self::assertSame('run-sess-1', $this->router($config, 'plain-sess-1')['service']);
+    }
+
+    public function testRouterKeysNeverCollideBetweenSchemes(): void
+    {
+        // Le cas adverse que le choix de deux préfixes rend impossible : avec un suffixe, la clé
+        // claire de `sess-1` vaudrait `run-sess-1-plain`, soit la clé chiffrée d'une session
+        // nommée `sess-1-plain`, et un run en écraserait silencieusement un autre.
+        $config = $this->buildWith([
+            $this->runningSession('sess-1', 35042),
+            $this->runningSession('plain-sess-1', 35043),
+        ]);
+
+        $keys = $this->routerKeys($config);
+
+        self::assertCount(4, $keys);
+        self::assertCount(4, array_unique($keys));
+        self::assertContains('run-sess-1', $keys);
+        self::assertContains('plain-sess-1', $keys);
+        self::assertContains('run-plain-sess-1', $keys);
+        self::assertContains('plain-plain-sess-1', $keys);
+    }
+
+    public function testASessionProducesExactlyTwoRoutersAndNothingMore(): void
+    {
+        $config = $this->buildWith([$this->runningSession('sess-1', 35042)]);
+
+        self::assertSame(['run-sess-1', 'plain-sess-1'], $this->routerKeys($config));
+    }
+
     private function runningSession(string $id, int $port): Session
     {
         return Session::createRunning(
@@ -102,6 +165,21 @@ final class TraefikConfigBuilderTest extends TestCase
         $repository->method('findByStatus')->willReturn($sessions);
 
         return new TraefikConfigBuilder($repository, 'runs.example.org', 'https')->build();
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     *
+     * @return list<array-key>
+     */
+    private function routerKeys(array $config): array
+    {
+        $tcp = $config['tcp'];
+        self::assertIsArray($tcp);
+        $routers = $tcp['routers'];
+        self::assertIsArray($routers);
+
+        return array_keys($routers);
     }
 
     /**

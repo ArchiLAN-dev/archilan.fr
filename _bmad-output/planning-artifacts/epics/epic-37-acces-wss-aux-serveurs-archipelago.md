@@ -68,7 +68,7 @@ concernée par cet epic est donc `35000-35099`.** Partout où le présent docume
 |---|---|
 | Clé de routage | **Le port**, un par run - pas le sous-domaine |
 | Certificat | Le certificat `archilan.fr` **existant**, partagé par tous les runs |
-| Schéma servi | **TLS uniquement** sur le port du pool |
+| Schéma servi | ~~**TLS uniquement** sur le port du pool~~ **Corrigé le 2026-08-15 : décision jamais prise** (voir ci-dessous). L'intention est de servir **`ws` et `wss` sur le même port**. |
 | Client web | **Tiers uniquement**, on n'en héberge pas |
 
 ### Pourquoi le port plutôt que le sous-domaine
@@ -84,14 +84,38 @@ la variable `WS_DOMAIN`. C'est une simplification majeure par rapport au design 
 Le corollaire est que **le port identifie le run à lui seul**, donc plus aucun démultiplexage par SNI
 n'est nécessaire : il n'y a qu'un backend derrière chaque port.
 
-### Pourquoi TLS uniquement, sans détection du trafic en clair
+### ~~Pourquoi TLS uniquement, sans détection du trafic en clair~~
 
-L'option envisagée était de sniffer le premier octet sur le port (`0x16` = ClientHello TLS, `G` =
+> **Section erronée, corrigée le 2026-08-15. Cette décision n'a jamais été prise.** Elle a été
+> écrite lors de la rédaction de l'epic, pas arbitrée. Ce qui a réellement été constaté le
+> 2026-08-08, c'est que le client Archipelago desktop se connecte en `wss://` sans difficulté - un
+> fait exact. La suite (« le chemin en clair n'a donc plus d'utilisateur », et l'abandon du double
+> schéma qui en découle) est une extrapolation ajoutée à la rédaction, que personne n'a validée.
+>
+> Le texte d'origine est conservé ci-dessous parce que l'infrastructure a réellement été construite
+> dessus : c'est lui qui explique pourquoi la story 37.3 a fermé le port en clair.
+
+~~L'option envisagée était de sniffer le premier octet sur le port (`0x16` = ClientHello TLS, `G` =
 `GET` en clair) pour servir les deux schémas sur la même socket. Test effectué par Jean le
-2026-08-08 : **le client Archipelago desktop se connecte en `wss://` sans difficulté**. Le chemin en
-clair n'a donc plus d'utilisateur, et le sniffing disparaît du périmètre avec lui.
+2026-08-08 : le client Archipelago desktop se connecte en `wss://` sans difficulté. Le chemin en
+clair n'a donc plus d'utilisateur, et le sniffing disparaît du périmètre avec lui.~~
 
-Une seule adresse, `wss://archilan.fr:{port}`, sert desktop et web.
+~~Une seule adresse, `wss://archilan.fr:{port}`, sert desktop et web.~~
+
+### La décision réelle : les deux schémas sur le même port
+
+**L'intention est de servir `ws` et `wss` simultanément sur le port de chaque run.** Le `wss` est le
+déclencheur de l'epic - sans lui, aucun client web tiers ne peut se connecter - mais il n'a jamais
+eu vocation à remplacer le `ws`, qui reste le seul schéma que sait parler une partie des clients
+Archipelago, notamment **des mods de jeu embarquant leur propre client**.
+
+Le sniffing du premier octet que la section erronée écartait n'a d'ailleurs pas à être écrit :
+Traefik le fait nativement, en dirigeant une connexion vers son muxer TCP TLS ou non-TLS selon
+qu'il reconnaît un ClientHello. Deux routeurs sur le même entrypoint suffisent.
+
+**Conséquence :** la story 37.3 a fermé une exposition qui devait rester ouverte. La remise en place
+est l'objet de la **story 37.8**, et le coût en est un routeur de plus dans la configuration
+générée - aucun changement d'orchestrateur, de plage de ports, de contrat API ni d'affichage.
 
 ### Pourquoi Traefik plutôt qu'un sidecar TLS par session
 
@@ -133,6 +157,7 @@ récupérable sans revenir au routage par sous-domaine.
 | 37.5 | Surfacage UI et mails | `connection-details.tsx`, boutons copier, pages run perso et run hebdo, mails d'événement. Mention explicite de ce qu'un client tiers reçoit quand on l'y envoie. |
 | 37.7 | Fermer l'exposition publique du bridge | L'API joint `archilan-bridge-{sessionId}:5000` par le réseau interne au lieu de sortir par l'adresse publique, puis l'orchestrateur cesse de publier ce port. Referme la seconde socket publique d'une run, laissée ouverte par cet epic. |
 | 37.6 | Matrice de compatibilité des clients web tiers | Clients nommés, versions testées, forme d'adresse à coller pour chacun. Accrochée aux tutoriels de l'epic 31. |
+| 37.8 | Double schéma - `ws` et `wss` sur le même port | Un second routeur TCP non-TLS par run, sur le même entrypoint et le même service. Rétablit l'accès des mods de jeu ws-only, exclus depuis 37.3. Met le code en conformité avec l'intention réelle de l'epic, la décision « TLS uniquement » n'ayant jamais été prise. |
 
 Ordre conseillé : **37.6 en premier**, avant toute écriture de code. C'est elle qui détermine ce que
 37.4 et 37.5 doivent afficher, et si aucun client tiers exploitable ne supporte proprement le `wss` sur
@@ -147,13 +172,18 @@ de données que personne n'avait regardée.
 
 | Surface | Avant l'epic | Après 37.1-37.3 | Cible | Par quoi |
 |---|---|---|---|---|
-| Serveur Archipelago (`35000-35099`) | ouvert **en clair** | TLS, terminé par le proxy | inchangé - c'est le but | 37.1 à 37.3 |
+| Serveur Archipelago (`35000-35099`) | ouvert **en clair** | TLS seul, terminé par le proxy | **TLS et clair sur le même port**, tous deux via le proxy | 37.1 à 37.3, puis **37.8** |
 | Bridge REST (`25000-25099`) | ouvert, token seul | **inchangé** | fermé, joint par nom de conteneur | **37.7** |
 | Postgres (`5434`) | publié sur l'hôte | inchangé | à trancher : filtrer ou dépublier | hors epic, voir `docs/deploiement-production.md` |
 | Dashboard Traefik | non publié dans le proxy réel | inchangé | inchangé | - |
 
 Ce que la cible **ne** referme **pas**, et qu'il faut assumer plutôt que croire réglé :
 
+- **Le trafic en clair reste possible, et c'est voulu** (story 37.8). Un client qui se connecte en
+  `ws://` fait transiter son nom de slot et le mot de passe de la run en clair. C'est le prix de la
+  compatibilité avec les clients qui ne savent pas parler TLS, dont des mods de jeu ; le déclencheur
+  de cet epic était la règle de contenu mixte des navigateurs, pas la confidentialité. Un joueur qui
+  veut le chiffrement utilise l'adresse `wss://`, servie sur le même port.
 - **Le mot de passe Archipelago reste la seule barrière réelle** d'une run. Les WebSockets échappent
   au CORS : une fois le port exposé, n'importe quelle page peut ouvrir une connexion.
 - **Le port n'apporte aucune obscurité.** Une plage bornée sur un hôte connu se scanne en quelques
@@ -219,8 +249,9 @@ dégage, et qui vaut pour 37.7 :
 
 | Date | Description |
 |------|-------------|
+| 2026-08-15 | **La décision « TLS uniquement » n'a jamais été prise - erreur de rédaction de l'epic, corrigée.** Le constat du 2026-08-08 (le client desktop gère le `wss`) est exact ; l'extrapolation qui en fait l'abandon du double schéma a été ajoutée à la rédaction et jamais arbitrée. L'intention réelle est de servir `ws` et `wss` sur le même port. Conséquence : la story 37.3 a fermé une exposition qui devait rester ouverte, et des mods de jeu ws-only sont exclus des runs depuis la bascule du 2026-08-14. La section fautive est barrée et remplacée, la ligne « Schéma servi » du tableau de décisions corrigée, et la **story 37.8** remet le chemin en clair - le sniffing que la section écartait étant natif dans Traefik, il ne coûte qu'un routeur de plus. |
 | 2026-08-13 | **Story 37.7 ajoutée et cible de la surface publique posée.** `BRIDGE_HTTP_HOST=archilan.fr` en production : l'API sort par l'adresse publique pour joindre un conteneur voisin, donc la plage `25000-25099` est exposée et ne peut pas être filtrée sans casser l'API. Le chemin interne existe deja (`archilan-bridge-{sessionId}:5000`). Defaut decouvert en chemin : `ArchiveRunJobHandler` vise `localhost` depuis un conteneur, donc l'archivage perd l'etat des slots en silence. |
 | 2026-08-13 | **Le proxy de production n'est pas celui du depot.** Le repertoire `traefik/` n'a jamais ete deploye : le vrai proxy sert plusieurs projets, vit hors du depot, est configure en arguments CLI et tourne en v2.11 avec le certresolver `https`. L'option `headers` du provider HTTP n'existant qu'en v3, le passage du proxy en v3 devient un prerequis de l'epic. `traefik/` supprime, generateur transforme en fragment a coller, certresolver configurable. |
 | 2026-08-13 | **Ordre de déploiement corrigé.** Traefik publie toute la plage sur l'hôte, l'ancien orchestrateur publie un port de cette plage par run : les deux liaisons ne peuvent pas coexister. Une run active au moment du redémarrage empêche Traefik de démarrer, donc coupe tout le site. Le basculement de l'orchestrateur (37.3) doit précéder Traefik (37.1), et non l'inverse comme écrit initialement. Procédure dans `traefik/README.md`. |
 | 2026-08-10 | Stories 37.1 à 37.5 rédigées. Trois corrections de cadrage issues de la lecture du code : (1) la plage à ouvrir est `35000-35099` (pool + `AP_SERVER_PORT_OFFSET`), pas le pool lui-même ; (2) 37.3 se code dans le dépôt orchestrateur (`CreateAPServer`), pas dans `runner/app/docker_manager.py` qui n'est pas déployé ; (3) le backend du routeur est l'adresse interne `ap-server-{id}:38281`, ce qui est la condition pour refermer le port hôte, et l'option `127.0.0.1` tombe. |
-| 2026-08-08 | Créé (draft). Déclencheur : clients web tiers bloqués par la règle de contenu mixte. Architecture arbitrée avec Jean : routage par port sur le certificat `archilan.fr` partagé (abandon du wildcard et du sous-domaine par run du design 9.11), TLS uniquement après confirmation que le client desktop gère `wss://`. Découpage en 6 stories. |
+| 2026-08-08 | Créé (draft). Déclencheur : clients web tiers bloqués par la règle de contenu mixte. Architecture arbitrée avec Jean : routage par port sur le certificat `archilan.fr` partagé (abandon du wildcard et du sous-domaine par run du design 9.11), ~~TLS uniquement après confirmation que le client desktop gère `wss://`~~ - **cette dernière partie n'a jamais été arbitrée, voir l'entrée du 2026-08-15**. Découpage en 6 stories. |
