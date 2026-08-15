@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
-import { getSessionRecap } from "@/features/recap/recap-api";
+import { getSessionRecap } from "@/features/recap/recap-api.server";
 import type { ShareCardPodiumEntry } from "@/features/recap/share-card-data";
 import { buildShareCardData } from "@/features/recap/share-card-data";
 

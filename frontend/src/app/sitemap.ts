@@ -4,7 +4,7 @@ import { getPublicPosts } from "@/features/content/public-posts-api";
 import { getPublicEvents } from "@/features/events/public-events-api";
 import { getAllPublicGames } from "@/features/games/public-games-api";
 import { getPublicProfileSlugs } from "@/features/players/player-profile-api";
-import { getEventRecapIndex } from "@/features/recap/recap-api";
+import { getEventRecapIndex } from "@/features/recap/recap-api.server";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { fetchCurrentWeeklyRuns } from "@/features/weekly-runs/weekly-runs-api";
 import { env } from "@/lib/env";

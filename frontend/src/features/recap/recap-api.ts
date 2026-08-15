@@ -1,5 +1,4 @@
-import { cache } from "react";
-import { cookies } from "next/headers";
+import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
@@ -179,49 +178,24 @@ export function isEventRecapIndexPayload(payload: unknown): payload is { data: E
   return payload.data.every(isEventRecapIndexEntry);
 }
 
-// Returns [] on any error or invalid shape: the event page must never break because of the index.
-export const getEventRecapIndex = cache(async (eventId: string): Promise<EventRecapIndexEntry[]> => {
+/** Validate a recap endpoint payload, returning the recap or null. Shared by the SSR and client fetches. */
+export function parseRecapPayload(payload: unknown): SessionRecap | null {
+  return isRecapPayload(payload) ? payload.data : null;
+}
+
+/**
+ * Client-side fetch of a session recap (browser -> API, story 32.5). Unlike the SSR path, this request
+ * carries the viewer's `__Host-archilan_session` cookie (same-host call via apiFetch's
+ * `credentials: "include"`), so an owner/participant loads their *private* run recap - which the
+ * frontend's server-side fetch structurally cannot, that cookie being host-bound to the API subdomain.
+ * Returns null on any failure (including a 404 for an anonymous or unauthorized viewer).
+ */
+export async function fetchSessionRecap(sessionId: string): Promise<SessionRecap | null> {
   try {
-    const response = await fetch(`${env.apiBaseUrl}/events/${encodeURIComponent(eventId)}/parties`, {
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const payload: unknown = await response.json();
-    if (!isEventRecapIndexPayload(payload)) {
-      return [];
-    }
-
-    return payload.data;
-  } catch {
-    return [];
-  }
-});
-
-export const getSessionRecap = cache(async (sessionId: string): Promise<SessionRecap | null> => {
-  try {
-    // Forward the viewer's cookies so the owner/participants of a private personal-run recap can load
-    // it (story 32.5); an event or published recap needs no auth and works without them.
-    const cookieHeader = (await cookies()).toString();
-    const response = await fetch(`${env.apiBaseUrl}/parties/${sessionId}/recap`, {
-      cache: "no-store",
-      headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const payload: unknown = await response.json();
-    if (!isRecapPayload(payload)) {
-      return null;
-    }
-
-    return payload.data;
+    const res = await apiFetch(`${env.apiBaseUrl}/parties/${sessionId}/recap`);
+    if (!res.ok) return null;
+    return parseRecapPayload(await res.json());
   } catch {
     return null;
   }
-});
+}

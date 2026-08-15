@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { env } from "@/lib/env";
-import { getSessionRecap } from "@/features/recap/recap-api";
+import { getSessionRecap } from "@/features/recap/recap-api.server";
 import { getSessionFeed } from "@/features/recap/feed-api.server";
-import { SessionRecapNotFound, SessionRecapView } from "@/features/recap/session-recap-page";
+import { PrivateRecapFallback } from "@/features/recap/private-recap-fallback";
+import { SessionRecapView } from "@/features/recap/session-recap-page";
 
 type Props = {
   params: Promise<{ sessionId: string }>;
@@ -46,7 +47,11 @@ export default async function SessionRecapRoute({ params }: Props) {
   const [recap, feed] = await Promise.all([getSessionRecap(sessionId), getSessionFeed(sessionId)]);
 
   if (!recap) {
-    return <SessionRecapNotFound />;
+    // The SSR fetch above can't authenticate the owner/participants of a private run - their session
+    // cookie is host-bound to the API subdomain and never reaches this frontend-host request. A null
+    // recap is therefore not necessarily "no access": retry in the browser, where the cookie is sent to
+    // the API directly, so an authenticated owner/participant loads their private recap (story 32.5).
+    return <PrivateRecapFallback sessionId={sessionId} />;
   }
 
   return <SessionRecapView feed={feed} recap={recap} />;
