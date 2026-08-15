@@ -98,6 +98,7 @@
             "@auto-scripts"
         ],
         "test": "php bin/phpunit",
+        "test:parallel": "php vendor/bin/paratest --processes=8",
         "phpstan": "php vendor/bin/phpstan analyse src tests",
         "cs-fixer": "php vendor/bin/php-cs-fixer fix --dry-run --diff",
         "arch": "php bin/console app:architecture:ddd",
@@ -120,6 +121,7 @@
         }
     },
     "require-dev": {
+        "brianium/paratest": "^7.22",
         "friendsofphp/php-cs-fixer": "^3.95.2",
         "phpstan/extension-installer": "^1.4.3",
         "phpstan/phpstan": "^2.1.54",

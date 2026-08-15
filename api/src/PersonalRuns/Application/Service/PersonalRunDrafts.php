@@ -79,7 +79,8 @@ final readonly class PersonalRunDrafts
             $this->gameAssignment->assignGameToCreator($run->getId(), $ownerId, $gameId);
         }
 
-        return ['run' => $this->payload($run, $ownerId, []), 'errors' => []];
+        // Le créateur est le propriétaire : jamais « participant » au sens du droit de reprise.
+        return ['run' => $this->payload($run, $ownerId, [], false), 'errors' => []];
     }
 
     /**
@@ -120,7 +121,8 @@ final readonly class PersonalRunDrafts
         return [
             'found' => true,
             'authorized' => true,
-            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId())),
+            // Renommage réservé au propriétaire (garde ci-dessus), donc jamais un participant.
+            'run' => $this->payload($run, $callerId, $this->getParticipants($run->getId()), false),
             'errors' => [],
         ];
     }
@@ -133,12 +135,14 @@ final readonly class PersonalRunDrafts
      */
     public function listMine(string $userId): array
     {
+        // La participation est portée par la branche elle-même : `owned` sont les runs possédées,
+        // `joined` celles rejointes. Aucune requête d'appartenance à faire, ce qui serait un N+1.
         $owned = array_map(
-            fn (Run $run): array => $this->payload($run, $userId, []),
+            fn (Run $run): array => $this->payload($run, $userId, [], false),
             $this->runs->findByOwnerId($userId),
         );
         $joined = array_map(
-            fn (Run $run): array => $this->payload($run, $userId, []),
+            fn (Run $run): array => $this->payload($run, $userId, [], true),
             $this->runs->findJoinedByUserId($userId),
         );
 
@@ -166,7 +170,7 @@ final readonly class PersonalRunDrafts
         return [
             'found' => true,
             'authorized' => true,
-            'payload' => $this->payload($run, $callerId, $participants),
+            'payload' => $this->payload($run, $callerId, $participants, $isParticipant),
         ];
     }
 
@@ -334,7 +338,11 @@ final readonly class PersonalRunDrafts
 
         $participants = $this->getParticipants($run->getId());
 
-        return ['status' => 'ok', 'payload' => $this->payload($run, $callerId, $participants)];
+        // Qui rejoint par lien est participant, sauf si c'est le propriétaire qui suit son propre lien.
+        return [
+            'status' => 'ok',
+            'payload' => $this->payload($run, $callerId, $participants, !$run->isOwnedBy($callerId)),
+        ];
     }
 
     /**
@@ -414,10 +422,11 @@ final readonly class PersonalRunDrafts
 
     /**
      * @param list<array{userId: string, slug: string|null, displayName: string|null, avatarUrl: string|null, joinedAt: string, slotCount: int, isMember: bool, isAdmin: bool, level: int, playing: bool}> $participants
+     * @param bool                                                                                                                                                                                         $isParticipant l'appelant est-il rattaché à la run sans en être propriétaire (story 16.14)
      *
      * @return array<string, mixed>
      */
-    private function payload(Run $run, ?string $callerId, array $participants): array
+    private function payload(Run $run, ?string $callerId, array $participants, bool $isParticipant): array
     {
         $isActive = Run::STATUS_ACTIVE === $run->getStatus();
         $isOwner = null !== $callerId && $run->isOwnedBy($callerId);
@@ -489,6 +498,11 @@ final readonly class PersonalRunDrafts
                 : null,
             'connectionPassword' => $isActive ? $run->getConnectionPassword() : null,
             'isOwner' => $isOwner,
+            // Droit de démarrer *dans l'état courant*, distinct de `isOwner` (story 16.14). Le front
+            // garde une dizaine d'éléments sur `isOwner` - réglages, override, lien d'invitation,
+            // renommage, spoiler : élargir ce booléen pour faire apparaître le bouton de reprise les
+            // ouvrirait tous d'un coup. D'où un drapeau séparé.
+            'canStart' => null !== $callerId && $run->isStartAllowedFor($callerId, $isParticipant),
             'participants' => $participants,
             'sessionId' => $sessionId,
             'recapPublic' => $run->isRecapPublic(),

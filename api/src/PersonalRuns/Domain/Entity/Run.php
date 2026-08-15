@@ -114,6 +114,30 @@ final class Run
         return $this->ownerId === $userId;
     }
 
+    /**
+     * Qui a le droit de démarrer cette run, dans l'état où elle est (story 16.14).
+     *
+     * Le propriétaire, toujours. Un participant, **uniquement pour reprendre une run en veille**.
+     *
+     * La distinction n'est pas cosmétique et c'est tout l'objet de la règle : `start()` couvre deux
+     * usages que rien ne sépare côté appelant. Depuis `draft`, démarrer fige la configuration et les
+     * slots de *tous* les participants - une décision qui engage autrui, donc réservée au
+     * propriétaire. Depuis `idle`, la run a déjà été lancée telle quelle : la relancer ne décide de
+     * rien, elle rallume ce qui existait. Sans ce droit, le propriétaire absent bloque la partie de
+     * tout le monde.
+     *
+     * `$isParticipant` est passé en paramètre plutôt que résolu ici : le Domaine ne lit pas la base
+     * (api/CLAUDE.md, AC-D3). L'appelant applicatif le calcule.
+     */
+    public function isStartAllowedFor(string $userId, bool $isParticipant): bool
+    {
+        if ($this->isOwnedBy($userId)) {
+            return true;
+        }
+
+        return $isParticipant && self::STATUS_IDLE === $this->status;
+    }
+
     /** Make the finished run's recap publicly shareable (story 32.5). */
     public function publishRecap(\DateTimeImmutable $now): void
     {

@@ -7,6 +7,7 @@ namespace App\PersonalRuns\Application\Command;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Sessions\Application\Command\ForceEndSessionCommand;
@@ -17,6 +18,7 @@ use App\Shared\Application\Exception\ForbiddenException;
 use App\Shared\Application\Exception\NotFoundException;
 use App\Shared\Application\Exception\ValidationException;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class PersonalRunLifecycle
@@ -27,6 +29,7 @@ final readonly class PersonalRunLifecycle
         private MessageBusInterface $messageBus,
         private ForceEndSessionCommand $forceEndSession,
         private ClockInterface $clock,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -57,8 +60,13 @@ final readonly class PersonalRunLifecycle
     }
 
     /**
+     * Démarre la run, ou la reprend si elle est en veille.
+     *
+     * Le propriétaire peut les deux. Un participant ne peut que **reprendre une run en veille**
+     * (story 16.14) : la règle vit dans `Run::isStartAllowedFor()`, avec sa justification.
+     *
      * @throws NotFoundException   when the run does not exist
-     * @throws ForbiddenException  when the caller does not own the run
+     * @throws ForbiddenException  when the caller may not start the run in its current state
      * @throws ValidationException when the run cannot be started in its current state
      */
     public function start(string $runId, string $callerId): RunLifecycleResult
@@ -68,7 +76,12 @@ final readonly class PersonalRunLifecycle
             throw new NotFoundException('Run introuvable.');
         }
 
-        if (!$run->isOwnedBy($callerId)) {
+        // L'appartenance n'est lue que pour un appelant qui n'est pas le propriétaire : inutile de
+        // payer la requête dans le cas courant.
+        $isParticipant = !$run->isOwnedBy($callerId)
+            && $this->participants->findByRunAndUser($runId, $callerId) instanceof RunParticipant;
+
+        if (!$run->isStartAllowedFor($callerId, $isParticipant)) {
             throw new ForbiddenException('Accès refusé.');
         }
 
@@ -89,6 +102,15 @@ final readonly class PersonalRunLifecycle
 
         $run->start($this->clock->now());
         $this->runs->flush();
+
+        if ($isParticipant) {
+            // Sans cette trace, un propriétaire retrouve son serveur rallumé sans savoir par qui.
+            $this->logger->info('Run reprise par un participant.', [
+                'run_id' => $run->getId(),
+                'caller_id' => $callerId,
+                'owner_id' => $run->getOwnerId(),
+            ]);
+        }
 
         $this->messageBus->dispatch(new LaunchPersonalRunJob($run->getId()));
 

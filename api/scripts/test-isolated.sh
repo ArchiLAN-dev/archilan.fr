@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Run the full phpunit suite against an ISOLATED Postgres test database.
 #
-# Why: FunctionalTestCase rebuilds the whole schema (DROP SCHEMA public CASCADE)
-# on every test. Two phpunit processes sharing one database therefore destroy
-# each other's schema mid-run - the "relation ... does not exist" mass-failure.
+# Why: every phpunit process rebuilds the whole schema at startup (DROP SCHEMA
+# public CASCADE, in BuildSchemaOnceSubscriber) and TRUNCATEs the tables between
+# tests. Two phpunit processes sharing one database therefore destroy each
+# other's data mid-run - the "relation ... does not exist" mass-failure.
 # Isolation is by database NAME via Symfony's TEST_TOKEN hook
 # (config/packages/doctrine.yaml: dbname_suffix '_test%env(default::TEST_TOKEN)%'),
 # same mechanism scripts/setup-worktree.sh uses per worktree.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Application\Message\LaunchPersonalRunJob;
 use App\PersonalRuns\Application\Message\StopPersonalRunJob;
 use App\PersonalRuns\Domain\Entity\Run;
@@ -97,6 +98,62 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSame('games_required', $this->errorCode());
+    }
+
+    // ─── Reprise par un participant (story 16.14) ─────────────────────────────
+
+    public function testParticipantCanRestartAnIdleRun(): void
+    {
+        [, $participant, $run] = $this->createIdleRunWithParticipant();
+        $this->loginAs($participant);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
+
+        self::assertResponseStatusCodeSame(202);
+        $this->entityManager->refresh($run);
+        self::assertSame(Run::STATUS_STARTING, $run->getStatus());
+    }
+
+    public function testParticipantCannotStartADraftRun(): void
+    {
+        // Le premier lancement fige la configuration et les slots de tous : il reste au
+        // propriétaire. C'est la garde qui saute si l'autorisation cesse de regarder le statut.
+        $owner = $this->createUser('alice@example.org');
+        $participant = $this->createUser('bob@example.org');
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $run = $this->createRunWithGames($owner->getId(), [['gameId' => $game->getId()]]);
+        $this->entityManager->persist(
+            RunParticipant::create($run->getId(), $participant->getId(), new \DateTimeImmutable('2026-05-12T10:00:00+00:00')),
+        );
+        $this->entityManager->flush();
+        $this->loginAs($participant);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
+
+        self::assertResponseStatusCodeSame(403);
+        $this->entityManager->refresh($run);
+        self::assertSame(Run::STATUS_DRAFT, $run->getStatus());
+    }
+
+    public function testStrangerCannotRestartAnIdleRun(): void
+    {
+        [, , $run] = $this->createIdleRunWithParticipant();
+        $stranger = $this->createUser('carol@example.org');
+        $this->loginAs($stranger);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testOwnerStillRestartsAnIdleRun(): void
+    {
+        [$owner, , $run] = $this->createIdleRunWithParticipant();
+        $this->loginAs($owner);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
+
+        self::assertResponseStatusCodeSame(202);
     }
 
     // ─── Callback /running ────────────────────────────────────────────────────
@@ -369,6 +426,28 @@ final class PersonalRunLifecycleTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         return $run;
+    }
+
+    /**
+     * Une run en veille, son propriétaire (qui porte les slots, faute de quoi `start` refuserait sur
+     * `games_required`) et un second participant sans slot - le droit de reprise ne dépend pas des
+     * slots, c'est la décision de cadrage de la story 16.14.
+     *
+     * @return array{0: User, 1: User, 2: Run}
+     */
+    private function createIdleRunWithParticipant(): array
+    {
+        $owner = $this->createUser('alice@example.org');
+        $participant = $this->createUser('bob@example.org');
+        $game = $this->createGame('Hollow Knight', 'hollow-knight');
+        $run = $this->createRunWithGames($owner->getId(), [['gameId' => $game->getId()]]);
+
+        $now = new \DateTimeImmutable('2026-05-12T10:00:00+00:00');
+        $this->entityManager->persist(RunParticipant::create($run->getId(), $participant->getId(), $now));
+        $run->markStopped($now);
+        $this->entityManager->flush();
+
+        return [$owner, $participant, $run];
     }
 
     private function createRunInStatus(string $ownerId, string $status): Run

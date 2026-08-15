@@ -13,9 +13,7 @@ use App\Identity\Application\Support\AuthSessionSigner;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
-use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\BrowserKit\Cookie;
@@ -34,24 +32,25 @@ abstract class FunctionalTestCase extends WebTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $entityManager);
         $this->entityManager = $entityManager;
 
-        // Build the FULL schema once per test (every mapped entity), so individual
-        // test classes never have to declare a partial entity subset. Subsets were
-        // fragile: on SQLite they relied on tables leaking between classes; on
-        // Postgres that leakage is gone and incomplete subsets fail with missing-table
-        // or FK errors. A clean full schema removes that whole class of problem.
-        $schemaTool = new SchemaTool($this->entityManager);
-        $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
-
+        // The FULL schema (every mapped entity) is built once per phpunit process by
+        // BuildSchemaOnceSubscriber, so individual test classes never have to declare a
+        // partial entity subset. Subsets were fragile: incomplete ones fail with
+        // missing-table or FK errors. A clean full schema removes that whole class of problem.
+        //
+        // A test only needs the ROWS gone, not the tables: rebuilding a byte-identical schema
+        // per test cost ~420 ms x 1029 tests, ~55% of this suite (story 33.25). TRUNCATE is
+        // FK-safe via CASCADE, and RESTART IDENTITY resets sequences, so a test still starts
+        // from exactly the state a freshly created schema gave it.
         $connection = $this->entityManager->getConnection();
-        if ($connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
-            // Fast, FK-safe wipe; SQLite has no schemas so fall back to SchemaTool.
-            $connection->executeStatement('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
-        } else {
-            $schemaTool->dropSchema($metadata);
+        $tables = [];
+        foreach ($connection->fetchFirstColumn("SELECT quote_ident(tablename) FROM pg_tables WHERE schemaname = 'public'") as $table) {
+            if (is_string($table)) {
+                $tables[] = $table;
+            }
         }
 
-        if ([] !== $metadata) {
-            $schemaTool->createSchema($metadata);
+        if ([] !== $tables) {
+            $connection->executeStatement('TRUNCATE TABLE '.implode(', ', $tables).' RESTART IDENTITY CASCADE');
         }
     }
 

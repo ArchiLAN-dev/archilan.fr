@@ -1,4 +1,8 @@
-FROM dunglas/frankenphp:1.12.6-php8
+# Alpine rather than the debian variant: the debian base carries 19 fixable HIGH (18 of them
+# linux-libc-dev kernel headers, which we never execute but Trivy counts), and clearing them is
+# what lets this image's scan be blocking like the other two. `install-php-extensions` builds
+# the same five extensions on musl. See #518.
+FROM dunglas/frankenphp:1.12.7-php8-alpine
 
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
