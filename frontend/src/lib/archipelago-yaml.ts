@@ -426,6 +426,41 @@ function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
 
 // ─── Option type detection ────────────────────────────────────────────────────
 
+/**
+ * Renders one freeform entry value as editable text without losing structure.
+ *
+ * Freeform entries are plain strings (one text input per row), so a nested value used to go
+ * through `String(...)` and come out as the literal "[object Object]" - the saved YAML then
+ * carried garbage and the apworld rejected it at generation (`schema.SchemaError`). Nested
+ * values are dumped as single-line YAML flow instead (`{ascension: 1, downfall: 0}`), which
+ * `parseFreeformValue` reads back to the original structure.
+ */
+function dumpFreeformValue(value: unknown): string {
+  if (typeof value !== "object" || value === null) return String(value ?? "");
+  return yaml.dump(value, { flowLevel: 0, schema: yaml.CORE_SCHEMA }).trim();
+}
+
+/** Inverse of `dumpFreeformValue` for dict entries: any scalar or flow collection. */
+function parseFreeformValue(text: string): unknown {
+  const trimmed = text.trim();
+  try {
+    return yaml.load(trimmed, { schema: yaml.CORE_SCHEMA }) ?? trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
+ * Inverse of `dumpFreeformValue` for list items, which are item/location names: only text that
+ * opens a YAML flow collection is parsed back. A bare name is returned verbatim, so a location
+ * called "12" stays the string "12" instead of being read back as a number.
+ */
+function parseFreeformItem(text: string): unknown {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return trimmed;
+  return parseFreeformValue(trimmed);
+}
+
 function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?: OptionTypesMap | null): GameOption {
   const label = labelFromKey(key);
   const description = extractDescription(yamlStr, key);
@@ -467,7 +502,7 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
   if (Array.isArray(value)) {
     return {
       type: "freeform", kind: "list", key, label,
-      items: value.map((i) => (typeof i === "string" ? i : String(i ?? ""))),
+      items: value.map((i) => (typeof i === "string" ? i : dumpFreeformValue(i))),
       description,
     };
   }
@@ -479,7 +514,7 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
   if (FREEFORM_DICT_KEYS.has(key) || keys.length === 0) {
     return {
       type: "freeform", kind: "dict", key, label,
-      entries: keys.map((k) => ({ id: uid(), k, v: String(obj[k] ?? "") })),
+      entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
       description,
     };
   }
@@ -491,10 +526,14 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
   // which coerces non-numbers to 0 - turning `default_player_name: player_name` into
   // `default_player_name: 0` (an int), which crashes apworld generation downstream
   // ("TypeError: 'int' object is not iterable").
+  //
+  // Sub-values are not necessarily scalars: Slay the Spire's `advanced_characters` maps a
+  // character name to a block of its own settings (story 4.20). `dumpFreeformValue` keeps
+  // those nested blocks intact across the round-trip.
   if (keys.some((k) => typeof obj[k] !== "number")) {
     return {
       type: "freeform", kind: "dict", key, label,
-      entries: keys.map((k) => ({ id: uid(), k, v: String(obj[k] ?? "") })),
+      entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
       fixedKeys: true,
       description,
     };
@@ -805,15 +844,13 @@ function serializeOption(opt: GameOption): unknown {
   }
 
   if (opt.type === "freeform") {
-    if (opt.kind === "list") return opt.items.filter((item) => item.trim() !== "");
+    if (opt.kind === "list") {
+      return opt.items.filter((item) => item.trim() !== "").map(parseFreeformItem);
+    }
     const result: Record<string, unknown> = {};
     for (const { k, v } of opt.entries) {
       if (!k.trim()) continue;
-      try {
-        result[k.trim()] = yaml.load(v.trim(), { schema: yaml.CORE_SCHEMA }) ?? v.trim();
-      } catch {
-        result[k.trim()] = v.trim();
-      }
+      result[k.trim()] = parseFreeformValue(v);
     }
     return result;
   }
