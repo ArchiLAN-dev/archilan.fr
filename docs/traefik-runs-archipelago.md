@@ -3,6 +3,12 @@
 Epic 37. Chaque run Archipelago doit être joignable en `wss://` pour qu'un client web puisse s'y
 connecter : une page servie en HTTPS ne peut pas ouvrir un WebSocket en clair.
 
+**Et en `ws://` sur le même port** (story 37.8). Le `wss` est le déclencheur de l'epic, pas un
+remplacement : une partie des clients Archipelago ne sait pas parler TLS, notamment des mods de jeu
+embarquant leur propre client. Le proxy sert donc **deux routeurs TCP par run sur le même
+entrypoint**, l'un chiffré et l'autre en clair, vers le même backend. Traefik oriente chaque
+connexion selon qu'il reconnaît ou non un ClientHello ; il n'y a aucune détection à configurer.
+
 **Le reverse proxy n'est pas versionné dans ce dépôt.** Il sert plusieurs projets de l'hôte, il est
 configuré en arguments de ligne de commande, et il vit dans son propre `docker-compose.yml` hors du
 dépôt. Ce document dit quoi y ajouter ; il ne le fait pas à ta place.
@@ -165,23 +171,33 @@ conflit, puis recréer.
 
 ## Diagnostiquer un run injoignable
 
+**Tester les deux schémas, pas seulement le chiffré.** Depuis 37.8 ils empruntent deux routeurs
+distincts : l'un peut être cassé pendant que l'autre répond, et ne tester que le `wss` laisserait
+passer une panne qui n'affecte que les mods.
+
 | Symptôme sur le port d'un run | Interprétation |
 |---|---|
-| Poignée TLS réussie, puis **HTTP 404** | Aucun routeur ne correspond à cet entrypoint. |
-| Poignée TLS réussie, réponse du serveur Archipelago | Tout va bien. |
+| **HTTP 404**, en TLS comme en clair | Aucun routeur ne correspond à cet entrypoint. |
+| **HTTP 404 en clair seulement**, le TLS répondant | Le routeur `plain-{sessionId}` manque dans la configuration produite par l'API. |
+| Réponse du serveur Archipelago | Tout va bien. |
 | Connexion refusée | L'entrypoint n'existe pas, ou le port n'est pas publié. |
 | Certificat invalide / `TRAEFIK DEFAULT CERT` | Le nom du certresolver ne correspond pas à celui du proxy, ou le certificat n'existe pas pour ce nom d'hôte. |
 
-Le premier cas est le piège : `curl` renvoie un code de sortie 0, la connexion « marche », et seul
-le contenu trahit le problème. Pour un client WebSocket, cela se présente comme un échec de
+Le 404 est le piège : `curl` renvoie un code de sortie 0, la connexion « marche », et seul le
+contenu trahit le problème. Pour un client WebSocket, cela se présente comme un échec de
 négociation sans explication.
 
 ```bash
-curl -sk -o /dev/null -w "%{http_code}\n" https://{hôte}:35042/   # 404 = aucun routeur
+curl -sk -o /dev/null -w "wss=%{http_code}\n" https://{hôte}:35042/   # 404 = aucun routeur TLS
+curl -s  -o /dev/null -w "ws=%{http_code}\n"  http://{hôte}:35042/    # 404 = aucun routeur clair
 openssl s_client -connect {hôte}:35042 -servername {hôte} </dev/null 2>/dev/null \
   | openssl x509 -noout -issuer -subject
-docker logs traefik | grep -i "entryPoint"                        # « EntryPoint doesn't exist »
+docker logs traefik | grep -i "entryPoint"                            # « EntryPoint doesn't exist »
+curl -s -H "X-Traefik-Token: $TRAEFIK_TOKEN" http://api-web/api/v1/internal/traefik | jq '.tcp.routers | keys'
 ```
+
+La dernière commande liste ce que l'API sert réellement au proxy : chaque run en cours doit y
+apparaître **deux fois**, en `run-{sessionId}` et en `plain-{sessionId}`.
 
 Cause la plus probable d'un 404 : la plage des entrypoints et le port du run ne concordent plus -
 typiquement `PORT_RANGE_*` ou `AP_SERVER_PORT_OFFSET` modifié d'un côté sans régénérer de l'autre.

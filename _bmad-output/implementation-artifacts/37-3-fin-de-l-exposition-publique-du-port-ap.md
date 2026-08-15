@@ -13,6 +13,14 @@ je veux que le serveur Archipelago d'une run ne soit plus publié en clair sur l
 afin que Traefik devienne la seule socket publique du run et que le trafic joueur soit chiffré de
 bout en bout.
 
+> **Amendé le 2026-08-15 par la story 37.8.** La première moitié tient : Traefik reste la seule
+> socket publique d'une run. La seconde est allée trop loin. Elle s'appuyait sur une section de
+> l'epic - « Pourquoi TLS uniquement » - qui décrivait une décision **jamais prise**, et le
+> chiffrement de bout en bout obligatoire a exclu des runs les clients Archipelago qui ne parlent
+> pas TLS, dont des mods de jeu. Du 2026-08-14 au correctif de 37.8, ces clients recevaient un HTTP
+> 404 sans explication. Le port reste dépublié - rien de cette story n'est à défaire ; c'est le
+> proxy qui accepte désormais les deux schémas sur le même port.
+
 ## Context
 
 Chaque run publie aujourd'hui son serveur Archipelago en clair sur `0.0.0.0` :
