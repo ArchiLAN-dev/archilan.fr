@@ -152,6 +152,11 @@ An earlier estimate in the session put the baseline near 13 min. It was extrapol
 `AccountDeletionTest` (4 tests) went **3.65 s → 1.42 s**. The extension's fixed cost (kernel boot
 171 ms + `doctrine:database:create` 146 ms) is repaid by the second test of any run.
 
+**CI got it for free.** The `Backend checks` job runs the *serial* `composer test` with coverage, and
+it still nearly halved: **11.9 min → 6.4 min** (-46%), comparing the two most recent full backend runs
+before this branch (`feature/epic-16-story-14`, `chore/api-web-alpine-cves`) with this PR's run. The
+schema rebuild was costing CI as much as it was costing us locally; no CI file was touched.
+
 ### AC2/AC4 - why an extension and not a static flag
 
 The obvious implementation is `private static bool $schemaBuilt` on `FunctionalTestCase`. Root
