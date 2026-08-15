@@ -5,6 +5,45 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.16.0] - 2026-08-15
+
+Cette version débloque les runs privées dont le propriétaire est absent, et ferme la publication
+d'images Docker portant des vulnérabilités corrigeables.
+
+### Ajouté
+
+- **Tout participant peut relancer une run privée mise en veille.** Un propriétaire absent bloquait
+  la partie de tout le monde : la reprise après le watchdog d'inactivité lui était réservée. Le
+  périmètre est volontairement limité à la reprise depuis l'état en veille. Le premier lancement fige
+  la configuration et les slots de tous les participants, et l'arrêt coupe la partie des autres :
+  ces deux actions engagent autrui et restent au propriétaire.
+
+### Sécurité
+
+- **Les trois images publiées sont désormais bloquées en cas de CVE corrigeable.** Le scan Trivy
+  passe de simple avertissement à gate sur `frontend`, `api-worker` et `api-web`, et il s'exécute
+  avant la publication. Aucune image ne peut plus partir sur le registre avec une vulnérabilité
+  HIGH ou CRITICAL pour laquelle un correctif existe.
+- **npm est retiré de l'image `frontend`.** Les trois HIGH signalés au build de la 0.15.0 ne
+  venaient pas de nos dépendances mais de l'arbre que npm embarque dans `node:26-alpine`, hors de
+  portée du lockfile comme des overrides. Le runtime n'appelle jamais npm.
+- **`api-web` bascule sur la variante Alpine de FrankenPHP** (1.12.7), ce qui élimine 19 HIGH hérités
+  de la base Debian et 8 des 10 CVE du binaire Go. Les 2 findings restants n'ont pas de correctif
+  amont et portent sur des chemins de code que l'application n'emprunte pas ; ils sont consignés en
+  exemptions datées, à réexaminer avant le 2026-10-01.
+
+### Modifié
+
+- **La suite de tests fonctionnels ne reconstruit plus le schéma avant chaque test.** Il est
+  construit une fois par process, les tests se contentant de vider les lignes. La suite passe de
+  8 min 36 à 2 min 17 sans qu'aucun test soit modifié, et le temps de CI backend de 11,9 min à
+  6,4 min.
+- **La boucle de test locale peut tourner en parallèle** (24,6 s sur huit processus), chacun sur sa
+  propre base. Le gate faisant autorité et la CI restent volontairement en série, à l'identique.
+- Montée des dépendances frontend, dont Next.js 16.3.0.
+
+Rien à faire au déploiement : cette version ne demande ni migration, ni changement de configuration.
+
 ## [0.15.0] - 2026-08-15
 
 Cette version rouvre l'accès en clair aux serveurs Archipelago, refermé par erreur, et livre le
