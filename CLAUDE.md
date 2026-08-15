@@ -130,11 +130,13 @@ Plusieurs agents/sessions peuvent travailler en parallèle sur ce poste. Par dé
 
 Le script crée `../archilan-<name>` (working tree + branche isolés) et une base de test Postgres dédiée (`archilan_test_<name>`) via le hook `TEST_TOKEN` de Doctrine. Postgres, Docker, MinIO et les serveurs dev restent **partagés**.
 
-**Pourquoi c'est obligatoire (pas juste conseillé) :** `FunctionalTestCase::setUp` reconstruit
-tout le schéma (`DROP SCHEMA public CASCADE`) à chaque test. Deux processus phpunit qui
-partagent `archilan_test` se détruisent mutuellement le schéma en plein run - c'est la cause
-racine des mass-failures locales `relation "..." does not exist`. L'isolation se fait par
-**nom de base**, pas par le code.
+**Pourquoi c'est obligatoire (pas juste conseillé) :** au démarrage de chaque process phpunit,
+`BuildSchemaOnceSubscriber` reconstruit tout le schéma (`DROP SCHEMA public CASCADE`), et
+`FunctionalTestCase::setUp` vide les tables (`TRUNCATE`) entre les tests. Deux processus phpunit
+qui partagent `archilan_test` se détruisent donc toujours mutuellement le schéma en plein run -
+c'est la cause racine des mass-failures locales `relation "..." does not exist`. Le passage à un
+build par process (story 33.25) a divisé la suite par 3,5 mais n'a rien changé à ce risque :
+l'isolation se fait par **nom de base**, pas par le code.
 
 - Avant tout `git checkout` dans un tree partagé : **commit ou stash *nommé* d'abord**.
 - Fin de session : `git worktree remove ../archilan-<name>`.

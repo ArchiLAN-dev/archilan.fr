@@ -191,8 +191,8 @@ Project convention, NOT enforced by the preset (the risky `declare_strict_types`
 ### Functional tests
 
 **AC-T6:** Functional tests extend `Symfony\Bundle\FrameworkBundle\Test\WebTestCase`.  
-**AC-T7:** Schema created per test class with `SchemaTool::createSchema([...entity classes...])`.  
-**AC-T8:** Include all entity classes needed by the feature being tested in the schema array - missing classes cause silent FK failures.  
+**AC-T7:** The schema is built **once per phpunit process**, with every mapped entity, by `BuildSchemaOnceSubscriber` (registered as a PHPUnit extension in `phpunit.xml.dist`). A test class never declares an entity subset and never calls `SchemaTool` itself.  
+**AC-T8:** `FunctionalTestCase::setUp()` wipes rows only (`TRUNCATE ... RESTART IDENTITY CASCADE`), so each test still starts from an empty database with reset sequences. Rebuilding the schema per test cost ~420 ms x 1029 tests, ~55% of the suite (story 33.25). Do not reintroduce a per-test `createSchema`.  
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
 
