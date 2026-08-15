@@ -1035,6 +1035,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                     host={run.connectionHost}
                     password={run.connectionPassword}
                     port={run.connectionPort}
+                    uri={run.connectionUri ?? null}
                   />
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
@@ -1198,6 +1199,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               host={run.connectionHost}
               password={run.connectionPassword}
               port={run.connectionPort}
+              uri={run.connectionUri ?? null}
             />
           )}
 

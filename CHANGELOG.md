@@ -5,6 +5,45 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.15.0] - 2026-08-15
+
+Cette version rouvre l'accès en clair aux serveurs Archipelago, refermé par erreur, et livre le
+surfaçage des adresses de connexion mesurées sur des clients réels.
+
+### Ajouté
+
+- **Les runs acceptent `ws://` et `wss://` sur le même port.** Un second routeur TCP non chiffré par
+  session, sur le même entrypoint et vers le même service que le routeur TLS. Traefik oriente chaque
+  connexion vers l'un ou l'autre selon qu'il reconnaît un ClientHello, sans détection à configurer.
+  L'adresse déjà affichée aux joueurs sert les deux schémas : ni le contrat de l'API ni l'interface
+  ne changent.
+- **Les pages de run affichent les formes d'adresse réellement testées** : hôte et port séparés,
+  adresse jointe, et URI complète, chacune étiquetée selon le type de client qui l'attend. Il
+  n'existe pas de chaîne unique qui fonctionne partout, et c'est un constat mesuré sur des clients
+  tiers, pas une précaution.
+
+### Corrigé
+
+- **Les clients Archipelago sans TLS étaient exclus des runs depuis le 2026-08-14.** La fermeture du
+  port en clair s'appuyait sur une décision d'architecture qui n'avait jamais été prise. Les clients
+  incapables de parler TLS, dont des mods de jeu embarquant leur propre client Archipelago,
+  recevaient un HTTP 404 sans explication : le proxy ne trouvait aucun routeur non chiffré et
+  repassait la connexion à son handler HTTP par défaut.
+- **L'éditeur YAML ne perd plus les blocs imbriqués** des options de type dictionnaire.
+- **Le récapitulatif privé d'une run redevient accessible** à son propriétaire et à ses
+  participants. Le rendu serveur restant anonyme, la reconnaissance se fait côté client.
+- **Le script de contrôle d'avant-migration Traefik inspecte aussi les conteneurs arrêtés**, angle
+  mort qui pouvait passer pour un feu vert.
+
+### Modifié
+
+- **Traefik v3.6.1 devient le minimum documenté**, et non plus « une v3 quelconque ». En deçà, le
+  provider Docker ne négocie pas la version d'API du démon : le proxy démarre, sert le TLS, et
+  répond 404 à tout - pour l'ensemble des services de l'hôte, pas seulement les nôtres.
+- Configuration de la phase 2 de la fermeture du port du bridge, côté orchestrateur. **Cette version
+  ne bascule rien** : le drapeau reste à tourner explicitement, et seulement après avoir vérifié
+  qu'une run existante répond toujours.
+
 ## [0.14.2] - 2026-08-14
 
 Version courte, mais elle corrige une perte de données silencieuse.

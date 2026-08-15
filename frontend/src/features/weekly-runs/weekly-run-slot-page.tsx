@@ -19,7 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
-import { SecretField } from "@/components/secret-field";
+import { ConnectionFields } from "@/components/connection-fields";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { isPlayersState } from "@/features/overlay/overlay-api";
@@ -673,12 +673,13 @@ export function WeeklyRunSlotPage({
 
           {/* Connection info: masked per field for streamers - copy works without revealing */}
           {myEntry.connectionInfo ? (
-            <div className="grid gap-2 rounded border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 sm:grid-cols-3">
-              <SecretField label="Hôte" value={myEntry.connectionInfo.host} />
-              <SecretField label="Port" value={String(myEntry.connectionInfo.port)} />
-              {myEntry.connectionInfo.password ? (
-                <SecretField label="Mot de passe" value={myEntry.connectionInfo.password} />
-              ) : null}
+            <div className="rounded border border-emerald-500/30 bg-emerald-500/5 px-4 py-3">
+              <ConnectionFields
+                host={myEntry.connectionInfo.host}
+                password={myEntry.connectionInfo.password}
+                port={myEntry.connectionInfo.port}
+                uri={myEntry.connectionInfo.uri ?? null}
+              />
             </div>
           ) : null}
 

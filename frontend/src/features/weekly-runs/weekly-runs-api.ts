@@ -20,7 +20,7 @@ export type WeeklyRunParticipant = {
   displayName: string | null;
   attemptNumber: number;
   goalReachedAt: string | null;
-  connectionInfo: { host: string; port: number; password: string | null } | null;
+  connectionInfo: { host: string; port: number; uri?: string | null; password: string | null } | null;
 };
 
 export type WeeklyRunMyEntry = {
@@ -31,7 +31,7 @@ export type WeeklyRunMyEntry = {
   // Live status of the entry's AP container, from the shared Session lifecycle (story 17.13).
   // null = never launched. "running" = up; idle/stopped/crashed = relaunchable; restarting = in progress.
   sessionStatus: string | null;
-  connectionInfo: { host: string; port: number; password: string | null } | null;
+  connectionInfo: { host: string; port: number; uri?: string | null; password: string | null } | null;
 };
 
 export type CurrentWeeklyRun = {
@@ -58,7 +58,7 @@ export type CurrentWeeklyRun = {
 export type LaunchResult = {
   entryId: string;
   externalSessionId: string;
-  connectionInfo: { host: string; port: number; password: string | null };
+  connectionInfo: { host: string; port: number; uri?: string | null; password: string | null };
 };
 
 // ── Fetch functions ────────────────────────────────────────────────────────────

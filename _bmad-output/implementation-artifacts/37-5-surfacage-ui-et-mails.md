@@ -1,6 +1,6 @@
 # Story 37.5: Surfaçage UI et mails
 
-**Status:** blocked - dépend du résultat de 37.6
+**Status:** done - 2026-08-14
 **Epic:** 37 - Accès WSS aux serveurs Archipelago
 **Date:** 2026-08-10
 **Dépend de :** 37.6 (quelles chaînes afficher) et 37.4 (le contrat qui les fournit).
@@ -82,12 +82,12 @@ fournit la donnée et que 37.6 a dit **quoi** afficher.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-4). Panneau des runs personnelles.
-- [ ] **Task 2** (AC 1-4). Panneau des sessions d'événement.
-- [ ] **Task 3** (AC 1-4). Les deux surfaces des runs hebdo.
-- [ ] **Task 4** (AC 5-7). Aide à l'erreur et mention des tiers, formulations validées.
-- [ ] **Task 5** (AC 8-9). Mail de session en cours.
-- [ ] **Task 6** (AC 10-11). Tests et `pnpm gates`.
+- [x] **Task 1** (AC 1-4). Panneau des runs personnelles.
+- [x] **Task 2** (AC 1-4). Panneau des sessions d'événement.
+- [x] **Task 3** (AC 1-4, 4bis). Les deux surfaces des runs hebdo, dont le panneau non masqué.
+- [x] **Task 4** (AC 5-7). Aide à l'erreur et mention des tiers.
+- [x] **Task 5** (AC 8-9). Mail de session en cours.
+- [x] **Task 6** (AC 10-11). Tests et `pnpm gates`.
 
 ## Dev Notes
 
@@ -133,6 +133,50 @@ fournit la donnée et que 37.6 a dit **quoi** afficher.
 
 ### Agent Model Used
 
+claude-opus-5[1m]
+
+### Completion Notes List
+
+**Un composant partagé, contre l'avis initial de la story.** Elle déconseillait l'extraction pour ne
+pas élargir le diff. Mais c'est précisément la dispersion en quatre panneaux qui a laissé le
+panneau des runs hebdo **afficher mot de passe et adresse en clair** pendant deux stories de
+masquage : 17.22 en a traité trois et oublié le quatrième, qui avait son propre composant local.
+Ajouter les nouvelles formes d'adresse à quatre endroits séparés aurait reproduit exactement ce
+mécanisme. `components/connection-fields.tsx` porte donc la décision une seule fois, et les quatre
+surfaces l'utilisent en gardant leur propre encadrement.
+
+**Ce qui est affiché, et pourquoi - tout vient de la mesure de 37.6 :**
+
+| Champ | Raison |
+|---|---|
+| `Adresse - client Archipelago` (URI complète) | forme explicite, sans ambiguïté de schéma |
+| `Adresse - client web` (`hôte:port`) | seule forme qui connecte les clients web à champ unique |
+| `Hôte` et `Port` séparés | les clients à deux champs **échouent** sur l'adresse jointe |
+
+**L'aide à l'erreur ne paraphrase pas, elle contredit.** Le client web le plus abouti conseille, quand
+l'adresse manque de port, de « passer sur une version non chiffrée ». Ce conseil est faux chez nous
+et envoie le joueur dans une impasse. Le texte dit donc explicitement que **le port fait partie de
+l'adresse**, et cite `38281` pour que le joueur reconnaisse le symptôme.
+
+**Décision sur le lien pré-rempli (AC 7) : non.** L'auto-login par paramètres d'URL fonctionne sur
+Topher's Web Client, mais y place le mot de passe en clair dans une URL vers un site tiers. Aucun
+lien de ce type n'est produit ; la valeur se copie, elle ne se transmet pas.
+
+**Le mail** annonce les trois formes, garde ses trois étapes pour le client desktop, et gagne un
+paragraphe pour le navigateur. Il reste lisible en texte brut.
+
+**Nettoyage :** `CopyButton`, local à la carte hebdo et non masqué, n'avait plus d'appelant - retiré.
+
+### File List
+
+- `frontend/src/components/connection-fields.tsx` (nouveau) + son test
+- `frontend/src/features/personal-runs/connection-details.tsx` (+ test mis à jour)
+- `frontend/src/features/events/session-connection-gate.tsx` (panneau et « tout copier »)
+- `frontend/src/features/weekly-runs/weekly-run-card.tsx` (panneau local supprimé)
+- `frontend/src/features/weekly-runs/weekly-run-slot-page.tsx`
+- `frontend/src/features/events/events-api.ts`, `weekly-runs/weekly-runs-api.ts`, `personal-runs/types.ts`
+- `api/src/Communications/Application/Email/SessionRunningEmail.php`
+
 ### Completion Notes List
 
 ### File List
@@ -141,4 +185,5 @@ fournit la donnée et que 37.6 a dit **quoi** afficher.
 
 | Date | Change |
 |------|--------|
+| 2026-08-14 | Implémentée. Composant partagé `ConnectionFields` : trois formes d'adresse étiquetées par usage, masquage sur les quatre surfaces (dont la carte hebdo, oubliée par 17.22), aide qui contredit le mauvais conseil d'un client tiers, et mention de ce qu'un tiers reçoit. Pas de lien pré-rempli. |
 | 2026-08-10 | Créée. Inventaire réel des surfaces : quatre panneaux, dont un `ConnectionPanel` local dupliqué dans `weekly-run-card`, là où l'epic n'en citait qu'un. Ajoute la décision à prendre sur les liens pré-remplis contenant le mot de passe. |

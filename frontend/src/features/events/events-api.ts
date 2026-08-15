@@ -469,6 +469,8 @@ export type SessionPayload = {
   status: string;
   host: string | null;
   port: number | null;
+  /** Adresse chiffrée dérivée par l'API (story 37.4). Absente d'une trame antérieure. */
+  connectionUri: string | null;
   password: string | null;
 };
 
@@ -502,6 +504,8 @@ export function parseSession(x: unknown): SessionPayload | null {
     status: x.status,
     host: "host" in x && typeof x.host === "string" ? x.host : null,
     port: "port" in x && typeof x.port === "number" ? x.port : null,
+    connectionUri:
+      "connectionUri" in x && typeof x.connectionUri === "string" ? x.connectionUri : null,
     password: "password" in x && typeof x.password === "string" ? x.password : null,
   };
 }

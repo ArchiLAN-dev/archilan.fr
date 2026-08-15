@@ -9,7 +9,8 @@ function render(node: React.ReactElement): string {
 describe("ConnectionDetails - per-field streamer masking (story 17.21)", () => {
   const props = {
     host: "archilan.fr",
-    port: 38281,
+    port: 35000,
+    uri: "wss://archilan.fr:35000",
     password: "s3cret-join",
     adminPassword: "s3cret-admin",
   };
@@ -21,7 +22,7 @@ describe("ConnectionDetails - per-field streamer masking (story 17.21)", () => {
     // not hidden with CSS. renderToStaticMarkup shows exactly what a stream capture
     // of the initial state could ever contain.
     expect(html).not.toContain("archilan.fr");
-    expect(html).not.toContain("38281");
+    expect(html).not.toContain("35000");
     expect(html).not.toContain("s3cret-join");
     expect(html).not.toContain("s3cret-admin");
     expect(html).toContain("••••••••");
@@ -30,7 +31,15 @@ describe("ConnectionDetails - per-field streamer masking (story 17.21)", () => {
   test("each field row is rendered with its own copy and reveal controls while masked", () => {
     const html = render(<ConnectionDetails {...props} />);
 
-    for (const label of ["hôte", "port", "mot de passe", "mot de passe admin"]) {
+    const labels = [
+      "adresse - client archipelago",
+      "adresse - client web",
+      "hôte",
+      "port",
+      "mot de passe",
+      "mot de passe admin",
+    ];
+    for (const label of labels) {
       expect(html).toContain(`aria-label="Copier ${label}"`);
       expect(html).toContain(`aria-label="Afficher ${label}"`);
     }

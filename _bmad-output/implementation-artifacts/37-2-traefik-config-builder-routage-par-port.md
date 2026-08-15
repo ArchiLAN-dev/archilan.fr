@@ -158,7 +158,22 @@ backend est désormais le nom du conteneur.
 
 **Gates :** `composer gates` vert (phpstan level max, cs-fixer, DDD, rector, 1795 tests).
 
-**Non vérifiable en local :** que Traefik accepte réellement cette configuration et obtienne le
+**Vérifié en production le 2026-08-14.** Traefik accepte la configuration, obtient le certificat et
+route jusqu'au conteneur :
+
+```
+$ openssl s_client -connect archilan.fr:35000 -servername archilan.fr </dev/null     | openssl x509 -noout -subject -issuer -dates
+subject=CN = archilan.fr
+issuer=C = US, O = Let's Encrypt, CN = YR2
+notBefore=Jun 16 18:45:28 2026 GMT
+notAfter=Sep 14 18:45:27 2026 GMT
+```
+
+Un certificat réel, pour le nom que le joueur tape - c'est exactement ce que 9.11 avait manqué et ce
+que l'AC 10 exigeait. Le nom d'hôte retenu est `archilan.fr` (`RUNNER_PUBLIC_HOST`), ce qui tranche
+la décision laissée ouverte par 37.4.
+
+**Ancienne réserve, levée :** que Traefik accepte cette configuration et obtienne le
 certificat. Le contrat entre le nom d'entrypoint produit ici (`ap-{port}`) et celui généré par
 `scripts/gen-traefik-config.sh` (37.1) n'est tenu par aucun test - il est documenté des deux côtés,
 c'est tout ce qu'on peut faire depuis deux couches différentes. À vérifier au premier déploiement

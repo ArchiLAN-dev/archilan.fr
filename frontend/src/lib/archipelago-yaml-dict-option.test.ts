@@ -58,6 +58,82 @@ describe("buildOption - literal dict options (game_options)", () => {
   });
 });
 
+// Slay the Spire's `advanced_characters` maps a character name to a block of its own settings.
+// The editor used to flatten each sub-block with `String(...)`, saving the literal
+// "[object Object]" - which js-yaml then re-read as the list `['object Object']`, and Archipelago
+// rejected at generation with "schema.SchemaError: Key 'ironclad' error:".
+const YAML_WITH_NESTED_DICT = `name: Player{number}
+game: Slay the Spire
+Slay the Spire:
+  advanced_characters:
+    ironclad:
+      ascension: 1
+      ascension_down: 0
+      downfall: 0
+      final_act: 1
+      key_sanity: 0
+  use_advanced_characters:
+    'false': 50
+    'true': 0
+`;
+
+describe("buildOption - dict options with nested block values", () => {
+  test("a nested sub-block is kept as editable YAML flow, never \"[object Object]\"", () => {
+    const opt = parse(YAML_WITH_NESTED_DICT).options.find((o) => o.key === "advanced_characters");
+    if (opt?.type !== "freeform" || opt.kind !== "dict") {
+      throw new Error(`expected freeform dict, got ${opt?.type}`);
+    }
+    const ironclad = opt.entries.find((e) => e.k === "ironclad")?.v ?? "";
+    expect(ironclad).not.toContain("[object Object]");
+    expect(yaml.load(ironclad, { schema: yaml.CORE_SCHEMA })).toEqual({
+      ascension: 1, ascension_down: 0, downfall: 0, final_act: 1, key_sanity: 0,
+    });
+  });
+
+  test("round-trip preserves the nested block as a mapping", () => {
+    const out = serializeToYaml(parse(YAML_WITH_NESTED_DICT));
+    const reparsed = yaml.load(out, { schema: yaml.CORE_SCHEMA }) as Record<string, unknown>;
+    const game = reparsed["Slay the Spire"] as Record<string, unknown>;
+    const advanced = game["advanced_characters"] as Record<string, unknown>;
+
+    expect(advanced["ironclad"]).toEqual({
+      ascension: 1, ascension_down: 0, downfall: 0, final_act: 1, key_sanity: 0,
+    });
+  });
+
+  test("an empty nested dict round-trips as an empty mapping", () => {
+    const out = serializeToYaml(parse(`name: t
+game: Slay the Spire
+Slay the Spire:
+  advanced_characters: {}
+`));
+    const reparsed = yaml.load(out, { schema: yaml.CORE_SCHEMA }) as Record<string, unknown>;
+    const game = reparsed["Slay the Spire"] as Record<string, unknown>;
+
+    expect(game["advanced_characters"]).toEqual({});
+  });
+});
+
+describe("buildOption - list options with nested item values", () => {
+  test("a list of blocks round-trips as mappings, and plain names stay strings", () => {
+    const out = serializeToYaml(parse(`name: t
+game: G
+G:
+  blocks:
+    - {name: a, weight: 1}
+  exclude_locations:
+    - '12'
+    - Floor 3
+`));
+    const reparsed = yaml.load(out, { schema: yaml.CORE_SCHEMA }) as Record<string, unknown>;
+    const game = reparsed["G"] as Record<string, unknown>;
+
+    expect(game["blocks"]).toEqual([{ name: "a", weight: 1 }]);
+    // A location name that looks numeric must not be read back as a number.
+    expect(game["exclude_locations"]).toEqual(["12", "Floor 3"]);
+  });
+});
+
 describe("buildOption - fixed-schema dict key locking", () => {
   test("a literal dict is flagged fixedKeys (keys locked in the editor)", () => {
     const opt = parse(YAML_WITH_GAME_OPTIONS).options.find((o) => o.key === "game_options");

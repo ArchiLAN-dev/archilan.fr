@@ -7,6 +7,16 @@ c'est ce document qui doit bouger.**
 
 Aligné sur la machine le **2026-08-13**.
 
+## État de la bascule wss
+
+**Effectuée le 2026-08-14.** Chaque run Archipelago est joignable en `wss://archilan.fr:{port}`,
+avec un certificat Let's Encrypt valide ; le port du serveur Archipelago n'est plus publié sur
+l'hôte. Le proxy tourne en **v3.6.1** (voir le prérequis dans
+[`traefik-runs-archipelago.md`](traefik-runs-archipelago.md)).
+
+Ce qui reste ouvert : le port du **bridge** (`25000-25099`) est toujours publié - ne pas le filtrer
+au pare-feu tant que la phase 2 de la story 37.7 n'est pas passée.
+
 ## Topologie
 
 - Le **reverse proxy n'est pas dans ce dépôt** : il sert plusieurs projets de l'hôte et vit dans son

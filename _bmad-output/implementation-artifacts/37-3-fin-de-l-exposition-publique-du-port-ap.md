@@ -13,6 +13,14 @@ je veux que le serveur Archipelago d'une run ne soit plus publié en clair sur l
 afin que Traefik devienne la seule socket publique du run et que le trafic joueur soit chiffré de
 bout en bout.
 
+> **Amendé le 2026-08-15 par la story 37.8.** La première moitié tient : Traefik reste la seule
+> socket publique d'une run. La seconde est allée trop loin. Elle s'appuyait sur une section de
+> l'epic - « Pourquoi TLS uniquement » - qui décrivait une décision **jamais prise**, et le
+> chiffrement de bout en bout obligatoire a exclu des runs les clients Archipelago qui ne parlent
+> pas TLS, dont des mods de jeu. Du 2026-08-14 au correctif de 37.8, ces clients recevaient un HTTP
+> 404 sans explication. Le port reste dépublié - rien de cette story n'est à défaire ; c'est le
+> proxy qui accepte désormais les deux schémas sur le même port.
+
 ## Context
 
 Chaque run publie aujourd'hui son serveur Archipelago en clair sur `0.0.0.0` :
@@ -115,8 +123,8 @@ Traefik ne pourrait plus l'atteindre. Le partage de réseau est la seule des deu
   dédiée. *La vérification du chemin depuis Traefik reste à faire en production.*
 - [ ] **Task 3** (AC 8). Traiter `AP_SERVER_HOST_PORT` : retrait ou justification écrite.
   *Reporté : voir les notes.*
-- [ ] **Task 4** (AC 7, 10). Cycle de vie complet sur une run réelle **(production)**. Tests Go
-  verts : fait.
+- [ ] **Task 4** (AC 7, 10). Tests Go verts : fait. Lancement et connexion valides en production
+  le 2026-08-14 ; **reste la reprise depuis sauvegarde**, non encore exercée.
 - [x] **Task 5** (AC 11-12). Écrire la procédure de déploiement et de retour arrière.
 
 ## Dev Notes
@@ -192,6 +200,25 @@ hôte » est fait : la sonde de démarrage et le bridge passent tous deux par le
 pas été retirée** : elle est transmise au conteneur bridge, la supprimer touche un autre composant
 que celui de cette story, et un retrait à l'aveugle sur un composant non testé ici est un risque
 gratuit. À traiter dans un ticket de nettoyage propre au bridge.
+
+**Vérifié en production le 2026-08-14.** ACs 1 et 6 fermés :
+
+```
+$ docker ps --format '{{.Names}}	{{.Ports}}' | grep ap-server
+ap-server-0a1f3a1733666c724914231c94acebe2      38281/tcp
+
+$ docker inspect $(docker ps -qf name=ap-server) --format '{{json .NetworkSettings.Networks}}'
+"archilan-prod_default":{ ... "traefik":{ ...
+```
+
+`38281/tcp` sans `0.0.0.0:` devant : le port est **exposé** dans le conteneur et **plus publié** sur
+l'hôte. Et le conteneur est bien sur les deux réseaux, dont celui du proxy.
+
+Incident utile au passage : la première tentative de lancement a échoué avec
+`Bind for 0.0.0.0:35000 failed: port is already allocated`, parce que l'image déployée était la
+0.13.0 mais que `AP_PUBLISH_HOST_PORT` et `PROXY_NETWORK` manquaient dans `envs/orchestrateur.env`.
+L'échec a été **bruyant et immédiat**, avec le port fautif dans le message - c'est le comportement
+recherché, et c'est ce qui a permis de trouver la cause en une commande.
 
 **Restent à faire, en production uniquement** : le chemin réseau Traefik vers
 `ap-server-{sessionId}:38281` (AC 6), le cycle de vie complet dont la reprise depuis sauvegarde

@@ -121,9 +121,11 @@ cat <<EOF
             - "--providers.http.headers.X-Traefik-Token=\${TRAEFIK_TOKEN}"
             - "--providers.http.pollinterval=5s"
 
-# L'option headers du provider HTTP n'existe qu'a partir de Traefik v3. En v2.11 elle est
-# silencieusement ignoree : l'API repond 401, Traefik n'obtient aucun routeur, et aucune run n'est
-# joignable. Verifier la version avant de coller ce bloc.
+# L'option headers du provider HTTP n'existe qu'a partir de Traefik v3. En v2.11, Traefik REFUSE
+# DE DEMARRER (verifie le 2026-08-14) :
+#   command traefik error: failed to decode configuration from flags: field not found, node: headers
+# Le proxy porte tout le trafic entrant de l'hote : coller ce bloc sans avoir migre en v3 met tout
+# l'hote a terre, pas seulement les runs. VERIFIER LA VERSION AVANT.
 
 # A ajouter dans la section « ports: » du meme service :
 $(printf '            - "%s-%s:%s-%s"\n' "$ap_start" "$ap_end" "$ap_start" "$ap_end")
