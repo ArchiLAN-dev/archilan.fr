@@ -14,7 +14,7 @@ import { EventRegistrationCta } from "@/features/events/event-registration-cta";
 import { LiveSeatCounter } from "@/features/events/live-seat-counter";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import type { EventRecapIndexEntry } from "@/features/recap/recap-api";
-import { getEventRecapIndex } from "@/features/recap/recap-api";
+import { getEventRecapIndex } from "@/features/recap/recap-api.server";
 import { formatDuration } from "@/features/recap/recap-format";
 
 type EventDetailPageProps = {
