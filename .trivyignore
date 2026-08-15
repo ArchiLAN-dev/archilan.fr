@@ -1,9 +1,9 @@
 # Trivy suppressions for the image scans in .github/workflows/docker-publish.yml.
 #
-# The frontend and api-worker scans are blocking: a fixable HIGH/CRITICAL stops the publish
-# before the image reaches GHCR. This file is the escape hatch when a release cannot wait for
-# an upstream base-image rebuild - use it instead of re-adding `continue-on-error`, which
-# silences every finding forever rather than one finding until a date.
+# All three scans are blocking: a fixable HIGH/CRITICAL stops the publish before the image
+# reaches GHCR. This file is the escape hatch when a release cannot wait for an upstream
+# base-image rebuild - use it instead of re-adding `continue-on-error`, which silences every
+# finding forever rather than one finding until a date.
 #
 # Format: one CVE per line, each with an expiry and a reason.
 #
@@ -16,5 +16,17 @@
 #   to re-check when the entry expires.
 #
 # Unfixed CVEs do not belong here: `ignore-unfixed: true` already excludes them.
+
+# --- api-web: compiled into the FrankenPHP binary, not reachable from our runtime ---
 #
-# (No active suppressions.)
+# Both live in Go modules linked into /usr/local/bin/frankenphp. We do not build that binary,
+# so the only real fix is an upstream release, and 1.12.7 (2026-08-07) is the latest one.
+# Tracked in #518; revisit when FrankenPHP ships a build with the bumped modules.
+#
+# kin-openapi: fail-open auth bypass in ValidationHandler.Load(). That handler is FrankenPHP's
+# optional OpenAPI request validation - we do not enable it, Symfony does our routing and auth.
+GHSA-r277-6w6q-xmqw exp:2026-10-01  # api-web: getkin/kin-openapi v0.140.0, ValidationHandler unused - #518
+#
+# grpc: xDS RBAC and HTTP/2 issues. We run FrankenPHP standalone behind Traefik, with no xDS
+# control plane and no gRPC listener.
+GHSA-hrxh-6v49-42gf exp:2026-10-01  # api-web: google.golang.org/grpc v1.81.1, no xDS/gRPC in use - #518
