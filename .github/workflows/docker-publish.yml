@@ -70,15 +70,22 @@ jobs:
           cache-from: type=gha,scope=api-web
           cache-to: type=gha,mode=max,scope=api-web
 
+      # TODO: the only scan still warn-only. As of v0.15.0 this image ships 29 fixable findings:
+      # 19 HIGH from the debian 13.6 base (libpq5 CVE-2026-6473, the rest linux-libc-dev kernel
+      # headers) and 10 more (9 HIGH + 1 CRITICAL) in the FrankenPHP Go binary. Clearing those
+      # means bumping dunglas/frankenphp and rebasing, which is its own change - until then,
+      # flipping this to blocking would wedge every publish. Do not close that gap by widening
+      # the exemption: fix the image, then drop `continue-on-error` like the other two jobs.
       - name: Trivy scan (api-web)
         uses: aquasecurity/trivy-action@v0.36.0
-        continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
+        continue-on-error: true
         with:
           image-ref: api-web:scan
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: table
           exit-code: '1'
+          trivyignores: .trivyignore
 
       - name: Push
         uses: docker/build-push-action@v7
@@ -135,15 +142,18 @@ jobs:
           cache-from: type=gha,scope=api-worker
           cache-to: type=gha,mode=max,scope=api-worker
 
+      # Blocking, and placed before the push so a vulnerable image is never published.
+      # `ignore-unfixed: true` keeps the gate honest: it only fires on CVEs we can actually act on.
+      # Escape hatch for an urgent release is a dated entry in .trivyignore, not `continue-on-error`.
       - name: Trivy scan (api-worker)
         uses: aquasecurity/trivy-action@v0.36.0
-        continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
         with:
           image-ref: api-worker:scan
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: table
           exit-code: '1'
+          trivyignores: .trivyignore
 
       - name: Push
         uses: docker/build-push-action@v7
@@ -203,15 +213,18 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+      # Blocking, and placed before the push so a vulnerable image is never published.
+      # `ignore-unfixed: true` keeps the gate honest: it only fires on CVEs we can actually act on.
+      # Escape hatch for an urgent release is a dated entry in .trivyignore, not `continue-on-error`.
       - name: Trivy scan (frontend)
         uses: aquasecurity/trivy-action@v0.36.0
-        continue-on-error: true  # warn-only: surfaces base-image CVEs without blocking (no GHAS/SARIF on this repo)
         with:
           image-ref: frontend:scan
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           format: table
           exit-code: '1'
+          trivyignores: .trivyignore
 
       - name: Push
         uses: docker/build-push-action@v7

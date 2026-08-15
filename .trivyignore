@@ -1,0 +1,20 @@
+# Trivy suppressions for the image scans in .github/workflows/docker-publish.yml.
+#
+# The frontend and api-worker scans are blocking: a fixable HIGH/CRITICAL stops the publish
+# before the image reaches GHCR. This file is the escape hatch when a release cannot wait for
+# an upstream base-image rebuild - use it instead of re-adding `continue-on-error`, which
+# silences every finding forever rather than one finding until a date.
+#
+# Format: one CVE per line, each with an expiry and a reason.
+#
+#   CVE-2026-12345 exp:2026-09-30  # <image>: <why we accept it> - tracked in #<issue>
+#
+# Rules:
+# - Always set `exp:`. An entry without one never comes back for review.
+# - Keep the window short (a few weeks). The expiry is a promise to revisit, not a deletion.
+# - Say which image and why. "Not reachable from our code" is a claim someone must be able
+#   to re-check when the entry expires.
+#
+# Unfixed CVEs do not belong here: `ignore-unfixed: true` already excludes them.
+#
+# (No active suppressions.)
