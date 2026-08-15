@@ -6,6 +6,7 @@ namespace App\Tests\Functional;
 
 use App\Identity\Domain\Entity\User;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\Sessions\Application\Message\ResumeRunJob;
 use App\Sessions\Domain\Entity\Session;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -67,6 +68,47 @@ final class SessionRestartTest extends FunctionalTestCase
         // No Run linking other to session
 
         $this->loginAs($other);
+        $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testParticipantCanRestartViaPersonalRun(): void
+    {
+        // Story 16.14 : c'est le chemin réel du bouton « Reprendre manuellement », qui passe par la
+        // session et non par `POST /runs/{id}/start`.
+        $owner = $this->createUser('owner@example.org');
+        $participant = $this->createUser('participant@example.org');
+        $session = $this->createIdleSessionWithSave('sessions/abc/saves/save.apsave');
+        $run = $this->linkPersonalRunToSession($owner->getId(), $session->getId());
+        $this->entityManager->persist(
+            RunParticipant::create($run->getId(), $participant->getId(), new \DateTimeImmutable()),
+        );
+        $this->entityManager->flush();
+
+        $this->loginAs($participant);
+        $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
+
+        self::assertResponseStatusCodeSame(202);
+        self::assertCount(1, $this->getResumeJobs($session->getId()));
+    }
+
+    public function testParticipantOfAnotherRunStillReturns403(): void
+    {
+        // Le droit vient de l'appartenance à *cette* run, pas du fait d'être participant quelque part.
+        $owner = $this->createUser('owner@example.org');
+        $outsider = $this->createUser('outsider@example.org');
+        $session = $this->createIdleSessionWithSave('sessions/abc/saves/save.apsave');
+        $this->linkPersonalRunToSession($owner->getId(), $session->getId());
+
+        $otherRun = Run::create($owner->getId(), 'Une autre run', new \DateTimeImmutable());
+        $this->entityManager->persist($otherRun);
+        $this->entityManager->persist(
+            RunParticipant::create($otherRun->getId(), $outsider->getId(), new \DateTimeImmutable()),
+        );
+        $this->entityManager->flush();
+
+        $this->loginAs($outsider);
         $this->client->jsonRequest('POST', '/api/v1/sessions/'.$session->getId().'/restart');
 
         self::assertResponseStatusCodeSame(403);

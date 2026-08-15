@@ -12,6 +12,8 @@ use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
@@ -43,6 +45,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private SessionRepositoryInterface $sessions,
         private SessionSlotRepositoryInterface $slots,
         private RunRepositoryInterface $runs,
+        private RunParticipantRepositoryInterface $runParticipants,
         private RegistrationRepositoryInterface $registrations,
         private UserRepositoryInterface $users,
         private EventRepositoryInterface $events,
@@ -779,14 +782,29 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         // seed (story 17.10). A missing save just means progress restarts from the beginning.
         $personalRun = $this->runs->findBySessionId($sessionId);
 
+        $resumedByParticipant = false;
+
         if (!$isAdmin) {
             // A session belongs either to a personal run or to a weekly entry (story 17.13): the owner
             // of either may relaunch it. The weekly session id equals the entry's external session id.
             $ownsPersonalRun = $personalRun instanceof Run && $personalRun->isOwnedBy($callerId);
+
+            // Story 16.14 : tout participant d'une run privée peut la reprendre, sans promotion ni
+            // rôle. Sans ce droit, un propriétaire absent bloque la partie de tout le monde.
+            //
+            // Aucune condition de statut à ajouter ici, contrairement à `Run::isStartAllowedFor()`
+            // qui garde le même droit sur `POST /runs/{id}/start` : les deux répondent à la même
+            // question - « un participant ne doit jamais *lancer*, seulement *reprendre* » - mais ce
+            // chemin-ci a déjà exclu le premier lancement plus haut, en exigeant une session dans un
+            // état relançable. Une session existe donc, et la partie a déjà tourné.
+            $resumedByParticipant = !$ownsPersonalRun
+                && $personalRun instanceof Run
+                && $this->runParticipants->findByRunAndUser($personalRun->getId(), $callerId) instanceof RunParticipant;
+
             $weeklyEntry = $this->weeklyEntries->findByExternalSessionId($sessionId);
             $ownsWeeklyEntry = $weeklyEntry instanceof WeeklyEntry && $weeklyEntry->getUserId() === $callerId;
 
-            if (!$ownsPersonalRun && !$ownsWeeklyEntry) {
+            if (!$ownsPersonalRun && !$resumedByParticipant && !$ownsWeeklyEntry) {
                 return ['found' => true, 'error' => 'forbidden', 'sessionId' => null, 'status' => null];
             }
         }
@@ -809,7 +827,13 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             $session->getBridgePort() ?? 0,
         ));
 
-        $this->logger->info('session.restart.initiated', ['sessionId' => $sessionId]);
+        // `byParticipant` (story 16.14) : sans cette trace, un propriétaire retrouve son serveur
+        // rallumé sans aucun moyen de savoir par qui.
+        $this->logger->info('session.restart.initiated', [
+            'sessionId' => $sessionId,
+            'callerId' => $callerId,
+            'byParticipant' => $resumedByParticipant,
+        ]);
 
         return ['found' => true, 'error' => null, 'sessionId' => $sessionId, 'status' => $session->getStatus()];
     }

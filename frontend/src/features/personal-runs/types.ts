@@ -87,6 +87,11 @@ export type PersonalRun = {
   connectionUri?: string | null;
   connectionPassword: string | null;
   isOwner: boolean;
+  // Droit de démarrer la run *dans son état courant* (story 16.14). Distinct de `isOwner` : un
+  // participant l'obtient sur une run en veille, et sur elle seule. Ne jamais s'en servir pour
+  // ouvrir autre chose que la reprise - le reste des actions reste gardé par `isOwner`.
+  // Falsy sur une charge utile d'API antérieure.
+  canStart: boolean;
   participants: PersonalRunParticipant[];
   sessionId: string | null;
   // Whether the finished run's recap is publicly shareable (story 32.5). Falsy on an older API payload.
