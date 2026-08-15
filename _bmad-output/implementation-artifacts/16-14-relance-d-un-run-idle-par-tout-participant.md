@@ -1,6 +1,6 @@
 # Story 16.14: Relance d'un run en veille par n'importe quel participant
 
-**Status:** draft
+**Status:** implémentée - PR #516 vers `develop`
 **Epic:** 16 - Personal runs (parties privées créées par un membre)
 **Date:** 2026-08-15
 **Issue liée :** [#387](https://github.com/ArchiLAN-dev/archilan.fr/issues/387) - **partiellement**, voir « Rapport à #387 »
@@ -115,7 +115,7 @@ qu'à la fermer.
 - [x] **Task 3** (AC 7-8). Carte de reprise extraite du bloc propriétaire, revue des autres panneaux.
 - [x] **Task 4** (AC 9). Journalisation, sur `session.restart.initiated` et sur la route `/runs`.
 - [x] **Task 5** (AC 10). Tests fonctionnels et gates des deux côtés.
-- [ ] **Task 6.** Commenter #387 pour dire ce que cette story couvre et ce qu'elle laisse ouvert.
+- [x] **Task 6.** Commenter #387 pour dire ce que cette story couvre et ce qu'elle laisse ouvert.
   **Ne pas fermer l'issue.**
 
 ## Dev Notes
@@ -195,7 +195,11 @@ La carte de reprise a été **sortie** du bloc propriétaire, en y laissant le b
 partie » qui s'y trouvait aussi. La bannière d'erreur a été remontée d'un cran pour que le
 participant voie l'échec de son action.
 
-**Reste la Task 6** : commenter #387 sans la fermer.
+**#387 commentée, pas fermée** ([commentaire](https://github.com/ArchiLAN-dev/archilan.fr/issues/387#issuecomment-5302335575)).
+Le commentaire délimite ce qui est couvert et ce qui reste entier, et signale au futur cadrage que le
+recensement des points gardés par `isOwnedBy` doit couvrir **deux** contextes : `PersonalRuns` et
+`Sessions`. L'issue ne mentionnait que le premier - c'est la même erreur qui a failli faire livrer
+cette story sur le mauvais endpoint.
 
 ### File List
 
