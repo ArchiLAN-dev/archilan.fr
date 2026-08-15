@@ -916,16 +916,44 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </section>
         )}
 
+        {/* Erreur d'action - commune au propriétaire et au participant qui reprend la run. */}
+        {activeTab === "overview" && actionError && (
+          <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 px-4 py-3 text-sm text-[color:var(--color-danger)]">
+            <X aria-hidden className="size-4 shrink-0" />
+            {actionError}
+          </div>
+        )}
+
+        {/* Reprise d'une run en veille, ouverte à tout participant (story 16.14) : un propriétaire
+            absent bloquait la partie de tout le monde. C'est la seule action de cycle de vie qui
+            sorte du bloc propriétaire ci-dessous - `canStart` n'est vrai pour un participant que
+            sur une run en veille, jamais sur un premier lancement. */}
+        {activeTab === "overview" && run.status === "idle" && run.canStart && (
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <p className="mb-3 rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+              {run.pausedWithoutSave
+                ? "La partie s'est mise en pause sans sauvegarde disponible. La relancer la redémarrera depuis le début, avec la même configuration et les mêmes slots."
+                : "La partie s'est mise en pause après une période d'inactivité. Reprends-la pour continuer : la dernière sauvegarde sera chargée automatiquement."}
+            </p>
+            <button
+              className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              disabled={actioning || !run.sessionId}
+              onClick={() => { if (run.sessionId) void handleRestart(run.sessionId); }}
+              type="button"
+            >
+              {actioning ? (
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+              ) : (
+                <RotateCcw aria-hidden className="size-4" />
+              )}
+              {run.pausedWithoutSave ? "Relancer depuis le début" : "Reprendre manuellement"}
+            </button>
+          </section>
+        )}
+
         {/* Status-conditional panels - owner actions */}
         {activeTab === "overview" && run.isOwner && (
           <section className="grid min-w-0 grid-cols-1 gap-4">
-            {actionError && (
-              <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 px-4 py-3 text-sm text-[color:var(--color-danger)]">
-                <X aria-hidden className="size-4 shrink-0" />
-                {actionError}
-              </div>
-            )}
-
             {/* DRAFT */}
             {run.status === "draft" && (
               <>
@@ -1071,29 +1099,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               </div>
             )}
 
-            {/* IDLE */}
+            {/* IDLE - la carte de reprise est rendue plus haut, parce qu'elle est ouverte aux
+                participants. Ne reste ici que la suppression, du seul ressort du propriétaire. */}
             {run.status === "idle" && (
-              <div className="grid gap-3">
-              <div className="rounded-lg border border-border bg-surface p-4">
-                <p className="mb-3 rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  {run.pausedWithoutSave
-                    ? "La partie s'est mise en pause sans sauvegarde disponible. La relancer la redémarrera depuis le début, avec la même configuration et les mêmes slots."
-                    : "La partie s'est mise en pause après une période d'inactivité. Reprends-la pour continuer : la dernière sauvegarde sera chargée automatiquement."}
-                </p>
-                <button
-                  className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-                  disabled={actioning || !run.sessionId}
-                  onClick={() => { if (run.sessionId) void handleRestart(run.sessionId); }}
-                  type="button"
-                >
-                  {actioning ? (
-                    <Loader2 aria-hidden className="size-4 animate-spin" />
-                  ) : (
-                    <RotateCcw aria-hidden className="size-4" />
-                  )}
-                  {run.pausedWithoutSave ? "Relancer depuis le début" : "Reprendre manuellement"}
-                </button>
-              </div>
               <button
                 className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
                 onClick={() => setShowDeleteDialog(true)}
@@ -1102,7 +1110,6 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
                 <Trash2 aria-hidden className="size-4" />
                 Supprimer la partie
               </button>
-              </div>
             )}
 
             {/* RESTARTING */}

@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Sessions;
 
 use App\Events\Domain\Repository\EventRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
+use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Message\NotifyGenerationFailureJob;
@@ -163,6 +164,7 @@ LOG;
             sessions: $sessions,
             slots: $slotRepository,
             runs: self::createStub(RunRepositoryInterface::class),
+            runParticipants: self::createStub(RunParticipantRepositoryInterface::class),
             registrations: self::createStub(RegistrationRepositoryInterface::class),
             users: self::createStub(UserRepositoryInterface::class),
             events: self::createStub(EventRepositoryInterface::class),
