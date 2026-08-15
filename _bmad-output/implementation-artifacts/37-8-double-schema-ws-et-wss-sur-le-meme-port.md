@@ -144,8 +144,12 @@ constructeur. À trancher avant Task 2, pas pendant.
   de l'API - un déploiement normal, effet en 5 s.
 - [x] **Task 3** (AC 2-5). Tests unitaires : deux routeurs par session, absence de clé `tls` sur le
   routeur clair, service partagé et unique, non-collision des clés, non-régression du routeur TLS.
-- [ ] **Task 4** (AC 6-7). Vérification en conditions réelles, mod nommé et versionné.
-  **Non faisable hors production - c'est le seul reste de la story.**
+- [ ] **Task 4** (AC 6-7). Vérification en conditions réelles, mod nommé et versionné. **Seul reste
+  de la story.** *Correction du 2026-08-15 : cette tâche avait été notée « non faisable hors
+  production », ce qui est faux. La story 37.1 a validé la chaîne complète en local le 2026-08-13
+  (config générée, provider HTTP servant la réponse de l'API, routeur TCP, backend par nom de
+  conteneur) ; ce banc se rejoue avec le code de cette story. Seuls le certificat réel et le proxy
+  de production, qui porte 27 services, exigent un déploiement.*
 - [x] **Task 5** (AC 8-10). Amendements de l'epic, de la story 37.3 et de
   `docs/traefik-runs-archipelago.md`.
 - [x] **Task 6** (AC 11). `composer gates` vert (1814 tests).
