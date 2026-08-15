@@ -47,6 +47,10 @@
         </deprecationTrigger>
     </source>
 
+    <!-- Builds the test schema once per process instead of once per test (story 33.25). It is lazy:
+         it touches Postgres only when a test extending FunctionalTestCase is about to run, so the
+         "unit" testsuite above stays DB-free. -->
     <extensions>
+        <bootstrap class="App\Tests\Functional\FunctionalSchemaExtension" />
     </extensions>
 </phpunit>

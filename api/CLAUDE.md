@@ -191,10 +191,18 @@ Project convention, NOT enforced by the preset (the risky `declare_strict_types`
 ### Functional tests
 
 **AC-T6:** Functional tests extend `Symfony\Bundle\FrameworkBundle\Test\WebTestCase`.  
-**AC-T7:** Schema created per test class with `SchemaTool::createSchema([...entity classes...])`.  
-**AC-T8:** Include all entity classes needed by the feature being tested in the schema array - missing classes cause silent FK failures.  
+**AC-T7:** The schema is built **once per phpunit process**, with every mapped entity, by `BuildSchemaOnceSubscriber` (registered as a PHPUnit extension in `phpunit.xml.dist`). A test class never declares an entity subset and never calls `SchemaTool` itself.  
+**AC-T8:** `FunctionalTestCase::setUp()` wipes rows only (`TRUNCATE ... RESTART IDENTITY CASCADE`), so each test still starts from an empty database with reset sequences. Rebuilding the schema per test cost ~420 ms x 1029 tests, ~55% of the suite (story 33.25). Do not reintroduce a per-test `createSchema`.  
 **AC-T9:** No `$this->markTestSkipped()` unless the feature is explicitly behind a feature flag.  
 **AC-T10:** Assert HTTP status codes explicitly before asserting body content.
+
+**Fast local loop (story 33.26):** `composer test:parallel` runs the suite on 8 ParaTest workers -
+~33 s for all 1814 tests, against ~2 min 20 serial. Override with
+`composer test:parallel -- --processes=16`. Each worker gets its own database
+(`archilan_test1`..`archilan_test8`, created automatically on first use); those databases persisting
+between runs is normal. **`composer test` and `composer gates` stay serial on purpose** - they must
+remain byte-identical to what CI runs. Parallel is stricter than serial, so it is a safe local
+addition, not a replacement.
 
 **Parallel sessions:** the test DB name is `archilan_test<TEST_TOKEN>` (Doctrine `dbname_suffix`). Parallel agents **must** isolate per worktree with `TEST_TOKEN` in `api/.env.test.local` - handled automatically by `scripts/setup-worktree.sh`. Full flow and rationale (why a shared DB causes the `relation "..." does not exist` mass-failures): root `CLAUDE.md` → "Sessions parallèles", the single authoritative description. For a one-off isolated run in the main tree (no worktree), use `api/scripts/test-isolated.sh [name]` - it exports `TEST_TOKEN` for its process only and runs the full suite against `archilan_test_<name>`.
 
