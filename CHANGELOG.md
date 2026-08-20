@@ -5,6 +5,20 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.16.2] - 2026-08-20
+
+Version de publication : la v0.16.1 n'a pu livrer que deux de ses trois images.
+
+### Sécurité
+
+- **L'image `api-worker` récupère les correctifs de sécurité de sa base Alpine.** Les paquets de
+  `php:8.5-cli-alpine` vieillissent avec le tag auquel l'image est épinglée, et le cache de couches
+  du workflow de publication gelait le résultat de `apk add` tant que le Dockerfile ne changeait
+  pas. Le worker est ainsi resté sur `postgresql-libs 18.4-r0`, et le gate Trivy a bloqué la
+  publication de la v0.16.1 sur la vague de CVE PostgreSQL 18.5 (36 HIGH, toutes corrigées en
+  amont). Un `apk upgrade` est ajouté en tête de l'image. **Sans cette version, `api-worker:0.16.1`
+  n'existe pas sur le registre et la prod ne peut pas quitter la 0.16.0.**
+
 ## [0.16.1] - 2026-08-20
 
 Correctif de la page de progression : les checks annoncés accessibles et le nombre d'items reçus
