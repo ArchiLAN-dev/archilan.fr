@@ -1,3 +1,4 @@
+import { receivedItemsPercent } from "@/features/reachability/item-progress";
 import { isReachabilityData } from "@/features/reachability/types";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -152,11 +153,10 @@ export async function fetchSlotGoalStats(sessionId: string, slotKey: string): Pr
     const payload: unknown = await res.json();
     const data: unknown = typeof payload === "object" && payload !== null && "data" in payload ? payload.data : payload;
     if (!isReachabilityData(data)) return null;
-    const itemsTotal = data.items_received.length + data.items_not_received.length;
     return {
       gameName: data.game,
       checksPercent: Math.round((data.counts.checked / Math.max(1, data.counts.total)) * 100),
-      itemsPercent: itemsTotal > 0 ? Math.round((data.items_received.length / itemsTotal) * 100) : 0,
+      itemsPercent: receivedItemsPercent(data.items_received, data.items_not_received),
     };
   } catch {
     return null;

@@ -32,6 +32,7 @@ import { hasStringProp } from "@/lib/type-guards";
 import { useAuth } from "@/features/auth/auth-context";
 import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
+import { countItems, receivedItemsPercent } from "@/features/reachability/item-progress";
 import { FanfarePicker } from "@/features/reachability/fanfare-picker";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
@@ -480,8 +481,7 @@ export function PersonalRunSlotDetailPage({
             const cur = stateRef.current;
             const d = cur.kind === "data" ? cur.data : null;
             const checksPercent = d ? Math.round((d.counts.checked / Math.max(1, d.counts.total)) * 100) : 0;
-            const itemsTotal = d ? d.items_received.length + d.items_not_received.length : 0;
-            const itemsPercent = d && itemsTotal > 0 ? Math.round((d.items_received.length / itemsTotal) * 100) : 0;
+            const itemsPercent = d ? receivedItemsPercent(d.items_received, d.items_not_received) : 0;
             setGoalInfo({
               slotName: d?.player ?? `Slot ${slotIndex}`,
               playerAlias: user?.displayName ?? undefined,
@@ -796,7 +796,7 @@ export function PersonalRunSlotDetailPage({
               tab.id === "checks" && data
                 ? { main: `${data.counts.checked} / ${data.counts.total}`, highlight: data.counts.reachable_now > 0 ? `${data.counts.reachable_now} faisables` : null }
                 : tab.id === "items" && data
-                  ? { main: String(data.items_received.length), highlight: null }
+                  ? { main: String(countItems(data.items_received)), highlight: null }
                   : tab.id === "spheres" && data?.spheres && data.spheres.length > 0
                     ? { main: `${data.spheres.filter((s) => s.status === "past").length} / ${data.spheres.length}`, highlight: null }
                   : tab.id === "indices" && hints != null && hints.hints.length > 0
@@ -867,8 +867,7 @@ export function PersonalRunSlotDetailPage({
                       className="inline-flex items-center gap-1.5 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20"
                       onClick={() => {
                         const checksPercent = Math.round((state.data.counts.checked / Math.max(1, state.data.counts.total)) * 100);
-                        const itemsTotal = state.data.items_received.length + state.data.items_not_received.length;
-                        const itemsPercent = itemsTotal > 0 ? Math.round((state.data.items_received.length / itemsTotal) * 100) : 0;
+                        const itemsPercent = receivedItemsPercent(state.data.items_received, state.data.items_not_received);
                         setGoalInfo({
                           slotName: state.data.player,
                           playerAlias: user?.displayName ?? undefined,

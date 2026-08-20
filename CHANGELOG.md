@@ -5,6 +5,27 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.16.1] - 2026-08-20
+
+Correctif de la page de progression : les checks annoncés accessibles et le nombre d'items reçus
+étaient tous deux faux, pour deux raisons indépendantes.
+
+### Corrigé
+
+- **Le tracker annonçait des checks accessibles qui ne l'étaient pas.** Une sauvegarde Archipelago
+  range les items reçus par un slot sous deux clés, `(team, slot, remote_items=True)` qui contient
+  tout et `(team, slot, remote_items=False)` qui ne contient que ce qui vient des autres joueurs.
+  La lecture concaténait les deux listes : chaque item reçu était compté deux fois, et toutes les
+  règles de logique à compteur (`state.has(item, joueur, n)`) devenaient trop permissives, pour
+  tous les jeux. Sur une run The Wind Waker, un unique `Progressive Bow` lu comme deux satisfaisait
+  les flèches de feu et de glace, et six locations injouables étaient présentées comme faisables.
+  **Nécessite les images `archipelago:0.12.3` et `bridge:0.11.1`.**
+- **Le compteur « items reçus » comptait les lignes de la liste, pas les items.** Le bridge groupe
+  les items par nom avec une quantité : cinq Pieces of Heart formaient une ligne. Un slot détenant
+  44 items sur 36 noms affichait 36. Le pourcentage de progression cumulait le même défaut et un
+  dénominateur qui comptait deux fois tout nom partiellement reçu, soit 22 % affichés pour 15 %
+  réels.
+
 ## [0.16.0] - 2026-08-15
 
 Cette version débloque les runs privées dont le propriétaire est absent, et ferme la publication
