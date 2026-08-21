@@ -9,6 +9,9 @@ use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
+use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Repository\SessionPlayersSnapshotRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Shared\Application\Support\ArchipelagoConnectionUri;
@@ -22,6 +25,7 @@ final readonly class SessionQuery
         private RunParticipantRepositoryInterface $participants,
         private RegistrationRepositoryInterface $registrations,
         private SessionSlotRepositoryInterface $slots,
+        private SessionPlayersSnapshotRepositoryInterface $snapshots,
     ) {
     }
 
@@ -89,11 +93,26 @@ final readonly class SessionQuery
     }
 
     /**
-     * True when the user owns the slot at $slotIndex in the session, i.e. the SessionSlot whose
-     * slotOrder equals $slotIndex belongs to the caller. Session-level authorization is NOT enough:
-     * a registrant/participant may only read or act on their own slots (issues #252 / #253). Admin
-     * bypass is the caller's responsibility. The reference pattern is the weekly-run path
-     * (WeeklyRunSlotQuery::findLaunchedEntryInfo), which already rejects foreign slots.
+     * True when the user owns the Archipelago slot numbered $slotIndex in the session. Session-level
+     * authorization is NOT enough: a registrant/participant may only read or act on their own slots
+     * (issues #252 / #253). Admin bypass is the caller's responsibility.
+     *
+     * $slotIndex is the *Archipelago* slot number, the key the bridge indexes its state by and the
+     * one the slot pages carry in their URL. It is decided at generation time, by Archipelago, from
+     * the casefolded yaml filenames - and the orchestrator injects a `_bridge_observer.yaml`
+     * spectator slot that sorts before every player name, so slot 1 is always the bridge and real
+     * players start at 2.
+     *
+     * This used to be compared against SessionSlot::getSlotOrder(), which is a different number
+     * entirely: the rank of a game inside *one* participant's own list (`$idx + 1`, see
+     * RunParticipant::replaceSlots / Registration::replaceSlots). Every player's first game carries
+     * slot_order 1, so the check pointed at the bridge's slot and denied every non-admin - hints,
+     * hint purchases, hint status and item locations were dead for players on both personal runs
+     * and event sessions. It only ever passed through the admin bypass.
+     *
+     * The Archipelago slot number is resolved to its generated slot name the same way the rest of
+     * the code joins the two worlds (RecordSlotGoal uses findBySessionAndSlotName), reading the last
+     * players state the bridge pushed. Fail-closed: no snapshot yet means no proof of ownership.
      */
     public function doesUserOwnSlot(string $userId, string $sessionId, int $slotIndex): bool
     {
@@ -107,7 +126,41 @@ final readonly class SessionQuery
             return false;
         }
 
-        return array_any($this->slots->findByRegistrationAndSession($ownerKey, $sessionId), fn ($slot) => $slot->getSlotOrder() === $slotIndex);
+        $slotName = $this->archipelagoSlotName($sessionId, $slotIndex);
+        if (null === $slotName) {
+            return false;
+        }
+
+        $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
+
+        return $slot instanceof SessionSlot && $slot->getRegistrationId() === $ownerKey;
+    }
+
+    /**
+     * The generated slot name Archipelago gave to $slotIndex, read from the last players state the
+     * bridge pushed (payload shape: {"slots": {"<archipelago slot>": {"slot_name": "..."}}}).
+     */
+    private function archipelagoSlotName(string $sessionId, int $slotIndex): ?string
+    {
+        $snapshot = $this->snapshots->findBySessionId($sessionId);
+        if (!$snapshot instanceof SessionPlayersSnapshot) {
+            return null;
+        }
+
+        $slots = $snapshot->getPayload()['slots'] ?? null;
+        if (!is_array($slots)) {
+            return null;
+        }
+
+        // json_decode canonicalizes the payload's numeric string keys ("2") to int offsets.
+        $slot = $slots[$slotIndex] ?? null;
+        if (!is_array($slot)) {
+            return null;
+        }
+
+        $slotName = $slot['slot_name'] ?? null;
+
+        return is_string($slotName) && '' !== $slotName ? $slotName : null;
     }
 
     /**
