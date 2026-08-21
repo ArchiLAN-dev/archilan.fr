@@ -35,6 +35,16 @@ const ROLE_HELP: Record<AssignableRole, string> = {
 type Props = { userId: string };
 
 /**
+ * The admin shell's `<main>` carries no gutter: every route brings its own, and this sheet was the
+ * only one that did not - it rendered flush against the sidebar and the top of the viewport. Mirrors
+ * the directory it is reached from (`admin-user-directory`), so both halves of the users section
+ * line up.
+ */
+function Shell({ children }: { children: React.ReactNode }) {
+  return <section className="grid w-full min-w-0 grid-cols-1 gap-8 px-4 py-10">{children}</section>;
+}
+
+/**
  * A user's admin sheet (story 36.1). Composed of autonomous sections so the epic's remaining panels
  * (moderation, adhesion, jeu, journal) can be added without touching this file's existing ones - the
  * lesson story 30.36 drew from the AccountTabs monolith.
@@ -56,9 +66,11 @@ export function AdminUserDetailPage({ userId }: Props) {
 
   if (isPending) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement de la fiche…
-      </p>
+      <Shell>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 aria-hidden className="size-4 animate-spin" /> Chargement de la fiche…
+        </p>
+      </Shell>
     );
   }
 
@@ -71,12 +83,14 @@ export function AdminUserDetailPage({ userId }: Props) {
           : data.message;
 
     return (
-      <div className="grid gap-4">
-        <BackLink />
-        <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
-          {message}
-        </p>
-      </div>
+      <Shell>
+        <div className="grid gap-4">
+          <BackLink />
+          <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted-foreground">
+            {message}
+          </p>
+        </div>
+      </Shell>
     );
   }
 
@@ -84,7 +98,7 @@ export function AdminUserDetailPage({ userId }: Props) {
   const isSelf = viewer?.id === user.id;
 
   return (
-    <div className="grid gap-8">
+    <Shell>
       <div className="grid gap-4">
         <BackLink />
         <header className="flex flex-wrap items-start justify-between gap-4">
@@ -142,7 +156,7 @@ export function AdminUserDetailPage({ userId }: Props) {
       <AdminUserGaming userId={user.id} />
 
       <AdminUserActivity userId={user.id} />
-    </div>
+    </Shell>
   );
 }
 
