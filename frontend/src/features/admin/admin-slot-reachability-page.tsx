@@ -8,10 +8,10 @@ import { type ElementType, use, useCallback, useEffect, useLayoutEffect, useRef,
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasStringProp } from "@/lib/type-guards";
-import { useAuth } from "@/features/auth/auth-context";
 import { isPlayersState } from "@/features/overlay/overlay-api";
 import { CheckListPanel, ItemListPanel } from "@/features/reachability/check-panels";
 import { countItems, receivedItemsPercent } from "@/features/reachability/item-progress";
+import { fetchSlotOwners, type SlotOwners } from "@/features/reachability/reachability-api";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
@@ -33,7 +33,6 @@ export function AdminSlotReachabilityPage({
   params: Promise<{ eventId: string; sessionId: string; slotIndex: string }>;
 }) {
   const { eventId, sessionId, slotIndex } = use(params);
-  const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -90,6 +89,9 @@ export function AdminSlotReachabilityPage({
   const hintsEsRef = useRef<EventSource | null>(null);
   const prevItemsRef = useRef<Map<number, number>>(new Map());
   const fetchReachabilityRef = useRef<(silent?: boolean) => Promise<void>>(() => Promise.resolve());
+  // Slot name -> pseudo of the member it belongs to. A ref so the long-lived SSE callback reads the
+  // latest map without re-subscribing, mirroring stateRef above.
+  const slotOwnersRef = useRef<SlotOwners>({});
 
   const fetchReachability = useCallback(async (silent = false) => {
     if (silent) {
@@ -131,6 +133,15 @@ export function AdminSlotReachabilityPage({
   useEffect(() => {
     void fetchReachabilityRef.current();
   }, [sessionId, slotIndex]);
+
+  // Who each slot belongs to, so a goal celebration names the player rather than the viewer.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSlotOwners(sessionId).then((owners) => {
+      if (!cancelled) slotOwnersRef.current = owners;
+    });
+    return () => { cancelled = true; };
+  }, [sessionId]);
 
   // Fetch hints once on mount
   useEffect(() => {
@@ -336,7 +347,7 @@ export function AdminSlotReachabilityPage({
             const itemsPercent = d ? receivedItemsPercent(d.items_received, d.items_not_received) : 0;
             setGoalInfo({
               slotName: d?.player ?? `Slot ${slotIndex}`,
-              playerAlias: user?.displayName ?? undefined,
+              playerAlias: slotOwnersRef.current[d?.player ?? ""] ?? undefined,
               gameName: d?.game ?? "",
               checksPercent,
               itemsPercent,
@@ -379,7 +390,7 @@ export function AdminSlotReachabilityPage({
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [sessionId, slotIndex]); // eslint-disable-line react-hooks/exhaustive-deps -- `user` is only read inside the SSE onmessage callback; listing it would tear down and re-open the EventSource on every auth refresh
+  }, [sessionId, slotIndex]);
 
   useEffect(() => {
     const id = setTimeout(() => { setShowDisconnected(!liveConnected); }, liveConnected ? 0 : 3_000);
@@ -651,7 +662,7 @@ export function AdminSlotReachabilityPage({
                         const itemsPercent = receivedItemsPercent(state.data.items_received, state.data.items_not_received);
                         setGoalInfo({
                           slotName: state.data.player,
-                          playerAlias: user?.displayName ?? undefined,
+                          playerAlias: slotOwnersRef.current[state.data.player] ?? undefined,
                           gameName: state.data.game,
                           checksPercent,
                           itemsPercent,

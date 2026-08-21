@@ -7,6 +7,7 @@ namespace App\Sessions\Presentation\Controller;
 use App\Identity\Domain\Entity\User;
 use App\Sessions\Application\Query\PlayersSnapshotQuery;
 use App\Sessions\Application\Query\SessionQuery;
+use App\Sessions\Application\Query\SessionSlotOwnersQuery;
 use App\Sessions\Domain\Entity\Session;
 use App\Shared\Application\Support\BridgeEndpoint;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -35,6 +36,7 @@ final readonly class PlayerStateController
         private ApiAccessGuard $apiAccessGuard,
         private SessionQuery $sessionQuery,
         private PlayersSnapshotQuery $playersSnapshotQuery,
+        private SessionSlotOwnersQuery $slotOwnersQuery,
         private HubInterface $mercureHub,
         private HttpClientInterface $httpClient,
         private BridgeClientPool $bridgeClientPool,
@@ -150,6 +152,33 @@ final readonly class PlayerStateController
                 'topic' => $topic,
             ],
         ]);
+    }
+
+    /**
+     * Who owns each slot of the session, by Archipelago slot name.
+     *
+     * Session-scoped rather than slot-scoped on purpose: a page shows the goal celebration of every
+     * slot it watches, not just the caller's. It carries no spoiler either - just the pseudo already
+     * public on the member's profile, for a session the caller is authorized on.
+     */
+    #[Route('/api/v1/sessions/{sessionId}/slot-owners', methods: ['GET'])]
+    public function slotOwners(Request $request, string $sessionId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $session = $this->sessionQuery->findById($sessionId);
+        if (null === $session) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        if (!$this->isAuthorized($user, $session['id'], $session['eventId'])) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
+        }
+
+        return new JsonResponse(['data' => ['slots' => $this->slotOwnersQuery->execute($session['id'])]]);
     }
 
     #[Route('/api/v1/sessions/{runId}/slots/{slotIndex}/reachable-token', methods: ['GET'])]

@@ -284,6 +284,40 @@ final class PlayerStateTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    // ─── slot owners (who each slot belongs to) ─────────────────────────────────
+
+    public function testSlotOwnersNamesEverySlotOfTheSession(): void
+    {
+        // The celebration used to label a slot with the viewer's own pseudo; it needs the pseudo of
+        // the member the slot belongs to, whichever slot it is watching.
+        $session = $this->createSession('run-slot-owners', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'owners');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slot-owners', $session->getId()));
+        self::assertResponseIsSuccessful();
+
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $slots = $data['slots'];
+        self::assertIsArray($slots);
+        self::assertSame(
+            [['slotName' => 'Slot0', 'playerName' => 'Alice'], ['slotName' => 'Slot1', 'playerName' => 'Bob']],
+            $slots,
+        );
+    }
+
+    public function testSlotOwnersForbidsNonRegistrant(): void
+    {
+        $session = $this->createSession('run-slot-owners-403', 'evt-001');
+        $this->twoRegistrantsWithSlots($session, 'evt-001', 'owners403');
+        $eve = $this->createPlayer('eve-owners@example.org', 'Eve');
+        $this->loginAs($eve);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slot-owners', $session->getId()));
+        self::assertResponseStatusCodeSame(403);
+    }
+
     // ─── helpers ────────────────────────────────────────────────────────────────
 
     /**
