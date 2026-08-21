@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\Identity\Domain\Entity\User;
 use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Domain\Entity\Session;
+use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -202,12 +203,12 @@ final class PlayerStateTest extends FunctionalTestCase
 
     public function testUpdateHintStatusForbidsForeignSlot(): void
     {
-        // Alice owns slot 0; she must not be able to change the hint priority of Bob's slot 1 (#253).
+        // Alice holds Archipelago slot 2; she must not change the hint priority of Bob's slot 3 (#253).
         $session = $this->createRunningSession('run-own-hint', 'evt-001');
         [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'aliceh');
         $this->loginAs($alice);
 
-        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/1/hints/123', $session->getId()), ['status' => 30]);
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/3/hints/123', $session->getId()), ['status' => 30]);
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -218,7 +219,7 @@ final class PlayerStateTest extends FunctionalTestCase
         [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'aliceok');
         $this->loginAs($alice);
 
-        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/0/hints/123', $session->getId()), ['status' => 40]);
+        $this->client->jsonRequest('PATCH', sprintf('/api/v1/sessions/%s/slots/2/hints/123', $session->getId()), ['status' => 40]);
         self::assertResponseStatusCodeSame(422);
     }
 
@@ -229,7 +230,7 @@ final class PlayerStateTest extends FunctionalTestCase
         [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilalice');
         $this->loginAs($alice);
 
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/1/item-locations', $session->getId()));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/3/item-locations', $session->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -243,7 +244,7 @@ final class PlayerStateTest extends FunctionalTestCase
         $this->makeRegistration($carol->getId(), 'evt-001', confirmed: true);
         $this->loginAs($carol);
 
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/0/item-locations', $session->getId()));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/item-locations', $session->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -255,7 +256,7 @@ final class PlayerStateTest extends FunctionalTestCase
         [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilok');
         $this->loginAs($alice);
 
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/0/item-locations', $session->getId()));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/2/item-locations', $session->getId()));
         self::assertResponseStatusCodeSame(409);
     }
 
@@ -266,14 +267,32 @@ final class PlayerStateTest extends FunctionalTestCase
         $admin = $this->createAdmin();
         $this->loginAs($admin);
 
-        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/1/item-locations', $session->getId()));
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/3/item-locations', $session->getId()));
         self::assertResponseStatusCodeSame(409);
+    }
+
+    public function testSlotItemLocationsForbidsTheBridgeSpectatorSlot(): void
+    {
+        // The regression: a player's only game ranks slot_order 1, and Archipelago slot 1 is the
+        // injected `_bridge_observer` spectator. Matching those two numbers is what denied every
+        // non-admin their own hints and item locations - and it would now hand them the bridge's.
+        $session = $this->createSession('run-bridge-il', 'evt-001');
+        [$alice] = $this->twoRegistrantsWithSlots($session, 'evt-001', 'ilbridge');
+        $this->loginAs($alice);
+
+        $this->client->jsonRequest('GET', sprintf('/api/v1/sessions/%s/slots/1/item-locations', $session->getId()));
+        self::assertResponseStatusCodeSame(403);
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────────
 
     /**
-     * Alice owns slot 0, Bob owns slot 1, both confirmed registrants of $eventId. Returns [alice, bob].
+     * Alice holds Archipelago slot 2, Bob slot 3, both confirmed registrants of $eventId.
+     *
+     * Archipelago numbers the slots at generation time: slot 1 is always the `_bridge_observer`
+     * spectator the orchestrator injects, real players start at 2. The ownership gate resolves that
+     * number to a slot name through the last players state the bridge pushed, so the fixture has to
+     * carry that snapshot. Returns [alice, bob].
      *
      * @return array{0: User, 1: User}
      */
@@ -285,8 +304,28 @@ final class PlayerStateTest extends FunctionalTestCase
         $regB = $this->makeRegistration($bob->getId(), $eventId, confirmed: true);
         $this->createSlot($session->getId(), $regA->getId(), 0);
         $this->createSlot($session->getId(), $regB->getId(), 1);
+        $this->createPlayersSnapshot($session->getId(), [1 => 'Bridge', 2 => 'Slot0', 3 => 'Slot1']);
 
         return [$alice, $bob];
+    }
+
+    /**
+     * The bridge pushes its state verbatim: slots keyed by Archipelago slot number, snake_case
+     * fields (story 17.21).
+     *
+     * @param array<int, string> $apSlotNames Archipelago slot number => generated slot name
+     */
+    private function createPlayersSnapshot(string $sessionId, array $apSlotNames): void
+    {
+        $slots = [];
+        foreach ($apSlotNames as $apSlot => $slotName) {
+            $slots[$apSlot] = ['slot_name' => $slotName, 'checks_done' => 0, 'checks_total' => 0];
+        }
+
+        $this->entityManager->persist(
+            new SessionPlayersSnapshot($sessionId, ['slots' => $slots], new \DateTimeImmutable()),
+        );
+        $this->entityManager->flush();
     }
 
     private function createSlot(string $sessionId, string $registrationId, int $slotOrder): void
