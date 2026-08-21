@@ -36,6 +36,7 @@ import { countItems, receivedItemsPercent } from "@/features/reachability/item-p
 import { FanfarePicker } from "@/features/reachability/fanfare-picker";
 import { GoalCelebration } from "@/features/reachability/goal-celebration";
 import { HintsPanel } from "@/features/reachability/hints-panel";
+import { fetchSlotOwners, type SlotOwners } from "@/features/reachability/reachability-api";
 import { ItemToast } from "@/features/reachability/item-toast";
 import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
@@ -223,6 +224,9 @@ export function PersonalRunSlotDetailPage({
   const hintsEsRef = useRef<EventSource | null>(null);
   const prevItemsRef = useRef<Map<number, number>>(new Map());
   const fetchReachabilityRef = useRef<(silent?: boolean) => Promise<void>>(() => Promise.resolve());
+  // Slot name -> pseudo of the member it belongs to. A ref so the long-lived SSE callback reads the
+  // latest map without re-subscribing, mirroring stateRef above.
+  const slotOwnersRef = useRef<SlotOwners>({});
 
   // ─── Reachability fetch ────────────────────────────────────────────────────
 
@@ -270,7 +274,16 @@ export function PersonalRunSlotDetailPage({
     if (sessionId) void fetchReachabilityRef.current();
   }, [sessionId, slotIndex]);
 
-  // ─── Fetch hints ───────────────────────────────────────────────────────────
+  // ─── Slot owners (who each slot belongs to) ────────────────────────────────
+
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    void fetchSlotOwners(sessionId).then((owners) => {
+      if (!cancelled) slotOwnersRef.current = owners;
+    });
+    return () => { cancelled = true; };
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -484,7 +497,7 @@ export function PersonalRunSlotDetailPage({
             const itemsPercent = d ? receivedItemsPercent(d.items_received, d.items_not_received) : 0;
             setGoalInfo({
               slotName: d?.player ?? `Slot ${slotIndex}`,
-              playerAlias: user?.displayName ?? undefined,
+              playerAlias: slotOwnersRef.current[d?.player ?? ""] ?? undefined,
               gameName: d?.game ?? "",
               checksPercent,
               itemsPercent,
@@ -526,7 +539,7 @@ export function PersonalRunSlotDetailPage({
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, [sessionId, slotIndex]); // eslint-disable-line react-hooks/exhaustive-deps -- `user` is only read inside the SSE onmessage callback; listing it would tear down and re-open the EventSource on every auth refresh
+  }, [sessionId, slotIndex]);
 
   // ─── Disconnected indicator debounce ─────────────────────────────────────
 
@@ -870,7 +883,7 @@ export function PersonalRunSlotDetailPage({
                         const itemsPercent = receivedItemsPercent(state.data.items_received, state.data.items_not_received);
                         setGoalInfo({
                           slotName: state.data.player,
-                          playerAlias: user?.displayName ?? undefined,
+                          playerAlias: slotOwnersRef.current[state.data.player] ?? undefined,
                           gameName: state.data.game,
                           checksPercent,
                           itemsPercent,
