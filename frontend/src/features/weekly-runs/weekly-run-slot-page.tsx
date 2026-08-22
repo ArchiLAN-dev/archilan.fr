@@ -31,7 +31,7 @@ import { HintsPanel } from "@/features/reachability/hints-panel";
 import { ItemToast } from "@/features/reachability/item-toast";
 import type { HintsData, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
-import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { fetchCurrentWeeklyRuns, fetchWeeklyEntryPlayerSlots, relaunchWeeklyEntry } from "./weekly-runs-api";
 
 type PageState =
@@ -262,7 +262,9 @@ export function WeeklyRunSlotPage({
         esRef.current = null;
         if (!cancelled) {
           setLiveConnected(false);
-          reconnectTimer = setTimeout(() => { connect(token, hubUrl, topic); }, 5_000);
+          reconnectTimer = setTimeout(() => {
+            reconnectWithFreshToken(`${entryPath}/slots/${slotIndex}/reachable-token`, { token, hubUrl, topic }, connect, () => cancelled);
+          }, 5_000);
         }
       };
     }
@@ -319,7 +321,9 @@ export function WeeklyRunSlotPage({
         es.close();
         hintsEsRef.current = null;
         if (!cancelled) {
-          reconnectTimer = setTimeout(() => { connectHints(token, hubUrl, topic); }, 5_000);
+          reconnectTimer = setTimeout(() => {
+            reconnectWithFreshToken(`${entryPath}/slots/${slotIndex}/hints-token`, { token, hubUrl, topic }, connectHints, () => cancelled);
+          }, 5_000);
         }
       };
     }
@@ -386,7 +390,9 @@ export function WeeklyRunSlotPage({
       es.onerror = () => {
         es.close();
         if (!cancelled) {
-          reconnectTimer = setTimeout(() => { connectPlayers(token, hubUrl, topic); }, 5_000);
+          reconnectTimer = setTimeout(() => {
+            reconnectWithFreshToken(`${entryPath}/players-token`, { token, hubUrl, topic }, connectPlayers, () => cancelled);
+          }, 5_000);
         }
       };
     }

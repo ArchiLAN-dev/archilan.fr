@@ -18,7 +18,7 @@ import { ItemToast } from "@/features/reachability/item-toast";
 import { SphereLine } from "@/features/reachability/sphere-line";
 import type { HintsData, ItemLocation, ReachabilityData, ToastItem } from "@/features/reachability/types";
 import { HINT_STATUS_NAMES, isHintsUpdate, isReachabilityData } from "@/features/reachability/types";
-import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { SlotSwitcher } from "./admin-slot-switcher";
 
 type PageState =
@@ -240,7 +240,9 @@ export function AdminSlotReachabilityPage({
         esRef.current = null;
         if (!cancelled) {
           setLiveConnected(false);
-          reconnectTimer = setTimeout(() => { connect(token, hubUrl, topic); }, 5_000);
+          reconnectTimer = setTimeout(() => {
+            reconnectWithFreshToken(`/sessions/${sessionId}/slots/${slotIndex}/reachable-token`, { token, hubUrl, topic }, connect, () => cancelled);
+          }, 5_000);
         }
       };
     }
@@ -295,7 +297,9 @@ export function AdminSlotReachabilityPage({
         es.close();
         hintsEsRef.current = null;
         if (!cancelled) {
-          reconnectTimer = setTimeout(() => { connectHints(token, hubUrl, topic); }, 5_000);
+          reconnectTimer = setTimeout(() => {
+            reconnectWithFreshToken(`/sessions/${sessionId}/slots/${slotIndex}/hints-token`, { token, hubUrl, topic }, connectHints, () => cancelled);
+          }, 5_000);
         }
       };
     }
@@ -359,7 +363,9 @@ export function AdminSlotReachabilityPage({
       es.onerror = () => {
         es.close();
         if (!cancelled) {
-          reconnectTimer = setTimeout(() => { connectPlayers(token, hubUrl, topic); }, 5_000);
+          reconnectTimer = setTimeout(() => {
+            reconnectWithFreshToken(`/sessions/${sessionId}/players-token`, { token, hubUrl, topic }, connectPlayers, () => cancelled);
+          }, 5_000);
         }
       };
     }
