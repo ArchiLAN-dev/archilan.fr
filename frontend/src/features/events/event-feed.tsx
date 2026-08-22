@@ -5,7 +5,7 @@ import { Gift, Info, Lightbulb, MapPin, MessageSquare, WifiOff } from "lucide-re
 
 import type { FeedEvent } from "@/features/overlay/overlay-api";
 import { isFeedEvent } from "@/features/overlay/overlay-api";
-import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -138,7 +138,9 @@ export function EventFeed({ runId }: { runId: string }) {
         });
         if (!cancelled) {
           reconnectTimerRef.current = setTimeout(
-            () => { connect(token, hubUrl, topic); },
+            () => {
+              reconnectWithFreshToken(`/sessions/${runId}/feed-token`, { token, hubUrl, topic }, connect, () => cancelled);
+            },
             5_000,
           );
         }

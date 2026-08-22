@@ -48,3 +48,32 @@ export async function fetchSubscribeToken(path: string): Promise<SubscribeTokenP
     return null;
   }
 }
+
+/** Signature of the per-page `connect(...)` that opens the EventSource for a topic. */
+export type ConnectWithToken = (token: string, hubUrl: string, topic: string) => void;
+
+/**
+ * Re-mints a subscribe token, then reconnects with it.
+ *
+ * The subscribe JWT lives one hour (see the `*-token` endpoints) and EventSource gives up for good
+ * on a 401 rather than retrying, so reconnecting with the token of the *first* connection turns
+ * every drop past that hour into an unrecoverable loop: the page keeps reopening a stream the hub
+ * has already rejected, and only a reload recovers. apiFetch also refreshes an expired access token
+ * on the way.
+ *
+ * Falls back to the current token when re-minting fails, so a transient API blip still gets its
+ * reconnection attempt instead of killing the stream outright.
+ */
+export function reconnectWithFreshToken(
+  tokenPath: string,
+  current: SubscribeTokenPayload,
+  connect: ConnectWithToken,
+  isCancelled: () => boolean = () => false,
+): void {
+  void (async () => {
+    const payload = await fetchSubscribeToken(tokenPath);
+    if (isCancelled()) return;
+    const next = payload ?? current;
+    connect(next.token, next.hubUrl, next.topic);
+  })();
+}
