@@ -33,7 +33,7 @@ import { DEFAULT_STALE_TIME, REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useSSE } from "@/hooks/use-sse";
 import { PlayerProgressGrid } from "@/components/session/PlayerProgressGrid";
 import { isFeedEvent } from "@/features/overlay/overlay-api";
-import { fetchSubscribeToken, isSessionStatusFrame } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, isSessionStatusFrame, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 import { OverlayLinksPanel } from "@/features/overlay/overlay-links-panel";
 import { SessionPipelineBar } from "@/components/session/SessionPipeline";
 import { clearOverride, fetchSessionConfig, loadOverride, saveOverride } from "@/features/admin/admin-session-config-api";
@@ -1517,7 +1517,9 @@ function AdminTerminal({
         esRef.current = null;
         setConnected(false);
         if (!cancelled) {
-          reconnectTimerRef.current = setTimeout(() => { connect(token, hubUrl, topic); }, 5_000);
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectWithFreshToken(`/sessions/${runId}/feed-token`, { token, hubUrl, topic }, connect, () => cancelled);
+          }, 5_000);
         }
       };
     }

@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import type { PlayersSlot } from "@/features/overlay/overlay-api";
 import { isPlayersState } from "@/features/overlay/overlay-api";
-import { fetchSubscribeToken } from "@/features/realtime/realtime-api";
+import { fetchSubscribeToken, reconnectWithFreshToken } from "@/features/realtime/realtime-api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -129,19 +129,7 @@ export function PlayerProgressGrid({
         );
         if (cancelled) return;
         reconnectTimerRef.current = setTimeout(() => {
-          // Re-mint a fresh subscriber token before reconnecting: the previous one may
-          // have expired (the old code looped forever on a stale token). apiFetch also
-          // recovers an expired access token here. Fall back to the old token on failure.
-          void (async () => {
-            const payload = await fetchSubscribeToken(`/sessions/${runId}/players-token`);
-            if (cancelled) return;
-            if (payload) {
-              connect(payload.token, payload.hubUrl, payload.topic);
-              return;
-            }
-            // Fall back to the existing token when re-minting fails.
-            connect(token, hubUrl, topic);
-          })();
+          reconnectWithFreshToken(`/sessions/${runId}/players-token`, { token, hubUrl, topic }, connect, () => cancelled);
         }, 5_000);
       };
     }
