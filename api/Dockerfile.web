@@ -4,6 +4,18 @@
 # the same five extensions on musl. See #518.
 FROM dunglas/frankenphp:1.12.7-php8-alpine
 
+# Les paquets Alpine de l'image de base vieillissent avec le tag FrankenPHP auquel elle est
+# épinglée. `apk upgrade` récupère les correctifs de sécurité publiés depuis.
+#
+# Attention : cette ligne ne se rejoue que si la couche est reconstruite. Le workflow de
+# publication met les couches en cache (`cache-from: type=gha,scope=api-web`), donc un Dockerfile
+# inchangé pendant des mois continue de servir une couche apk figée. C'est exactement ce qui est
+# arrivé à api-worker : bloqué sur postgresql-libs 18.4-r0 alors que 18.5-r0 était disponible,
+# jusqu'à ce que le gate Trivy empêche la publication de la v0.16.1. Quand une CVE corrigée
+# apparaît sans changement de code, forcer la reconstruction en touchant cette ligne (purger le
+# scope de cache buildx ne suffit pas, les runs main/develop le réalimentent aussitôt).
+RUN apk upgrade --no-cache
+
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
 
