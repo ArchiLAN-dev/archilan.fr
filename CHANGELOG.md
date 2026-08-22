@@ -5,6 +5,39 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.16.3] - 2026-08-22
+
+Trois correctifs de la zone slots : les indices étaient inaccessibles à tout non-admin, la carte de
+fin de partie nommait le mauvais joueur, et la fiche utilisateur du backoffice s'affichait sans
+marge.
+
+### Corrigé
+
+- **Les indices redeviennent accessibles aux joueurs.** Le contrôle de possession d'un slot
+  comparait le numéro de slot Archipelago de l'URL au rang du jeu dans la liste d'un participant.
+  Ce rang vaut 1 pour le premier jeu de *chaque* joueur, alors que le slot Archipelago n°1 est
+  toujours le spectateur `_bridge_observer` injecté à la génération : la condition ne pouvait donc
+  jamais être vraie. Six routes renvoyaient 403 à tout non-admin, sur les runs privées comme sur
+  les sessions d'événement - liste des indices, flux temps réel, achat d'un indice, changement de
+  priorité, indice sur un objet et locations d'un objet. Seul le contournement administrateur la
+  faisait passer, ce qui explique que le défaut soit passé inaperçu. Le numéro est désormais
+  résolu vers son nom de slot, la clé de correspondance que le reste du code utilise déjà.
+- **La carte de fin de partie nomme le joueur à qui le slot appartient**, et non plus le pseudo du
+  compte en train de regarder. Le nom de slot ne pouvait pas servir de repli : il vaut le `name:`
+  du YAML du joueur quand celui-ci en a posé un, et ne dérive du pseudo qu'à défaut. Une route
+  dédiée rend la correspondance nom de slot vers pseudo du propriétaire, avec le pseudo
+  communautaire et repli sur le nom de compte.
+- **La fiche utilisateur du backoffice retrouve ses marges.** Le shell d'administration n'en pose
+  aucune, chaque page apportant les siennes ; c'était la seule des dix-neuf routes à n'en poser
+  aucune, et elle s'affichait collée à la barre latérale et au haut de la fenêtre.
+
+### Sécurité
+
+- **L'image `api-web` récupère à son tour les correctifs de sa base Alpine.** Même garde que celle
+  posée sur `api-worker` en 0.16.2, appliquée avant que le piège ne se referme : sa base est
+  récente, donc l'effet est nul aujourd'hui, mais un rebuild déclenché pour une autre raison ne
+  repartira plus sur des paquets périmés.
+
 ## [0.16.2] - 2026-08-20
 
 Version de publication : la v0.16.1 n'a pu livrer que deux de ses trois images.
