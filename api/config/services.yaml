@@ -193,6 +193,10 @@ services:
         arguments:
             $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
 
+    App\Sessions\Presentation\Controller\PublicPatchDownloadController:
+        arguments:
+            $workspaceDir: '%env(resolve:WORKSPACE_DIR)%'
+
 
     App\WeeklyRuns\Application\Query\WeeklyEntryPatchQuery:
         arguments:

@@ -23,7 +23,7 @@ final readonly class WeeklyEntryPatchQuery
      * MinIO output archive) or a local filesystem context (legacy Docker sessions).
      *
      * @return array{type: 'durable', outputKey: string}
-     *                                                   | array{type: 'local', outputDir: string, slotName: string|null}
+     *                                                   | array{type: 'local', outputDir: string, slotName: string|null, sessionId: string|null}
      *                                                   | null
      */
     public function forEntry(string $weeklyRunId, string $entryId, string $userId): ?array
@@ -57,7 +57,7 @@ final readonly class WeeklyEntryPatchQuery
             // session id (no port-reuse hazard).
             $outputDir = $this->workspaceDir.'/'.$externalSessionId.'/output';
 
-            return ['type' => 'local', 'outputDir' => $outputDir, 'slotName' => null];
+            return ['type' => 'local', 'outputDir' => $outputDir, 'slotName' => null, 'sessionId' => $externalSessionId];
         }
 
         // Pre-launch: only possible with legacy Docker generator which writes a real
@@ -71,6 +71,7 @@ final readonly class WeeklyEntryPatchQuery
             return null;
         }
 
-        return ['type' => 'local', 'outputDir' => \dirname($seedPath), 'slotName' => null];
+        // Pas de session : le lien public ne peut pas être signé pour ce dossier (story 16.16).
+        return ['type' => 'local', 'outputDir' => \dirname($seedPath), 'slotName' => null, 'sessionId' => null];
     }
 }
