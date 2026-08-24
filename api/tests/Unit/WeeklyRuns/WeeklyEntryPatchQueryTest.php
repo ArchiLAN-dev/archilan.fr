@@ -76,7 +76,9 @@ final class WeeklyEntryPatchQueryTest extends TestCase
         $context = $query->forEntry(self::RUN_ID, self::ENTRY_ID, self::USER_ID);
 
         self::assertSame(
-            ['type' => 'local', 'outputDir' => self::WORKSPACE.'/sess-legacy/output', 'slotName' => null],
+            // `sessionId` accompagne le dossier depuis la story 16.16 : c'est la seule forme que la
+            // route publique sait résoudre, et sans lui aucun lien partageable n'est émis.
+            ['type' => 'local', 'outputDir' => self::WORKSPACE.'/sess-legacy/output', 'slotName' => null, 'sessionId' => 'sess-legacy'],
             $context,
         );
     }

@@ -11,7 +11,6 @@ import { getAccountMembership } from "@/features/payments/membership-api";
 import { slugify } from "@/features/weekly-runs/slugify";
 import { MembershipNotice } from "./weekly-runs-client-page";
 import {
-  downloadPatch,
   fetchCurrentWeeklyRuns,
   fetchWeeklyEntryPatches,
   isGoalReachedEvent,
@@ -423,16 +422,16 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
                 </button>
                 {patches.length > 0 && (
                   <div className="flex flex-wrap gap-3">
-                    {patches.map((filename) => (
-                      <button
+                    {patches.map((file) => (
+                      <a
                         className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline"
-                        key={filename}
-                        onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
-                        type="button"
+                        download={file.name}
+                        href={file.url ?? `${env.apiBaseUrl}/weekly-runs/${run.weeklyRunId}/entries/${myEntry.entryId}/patches/${encodeURIComponent(file.name)}`}
+                        key={file.name}
                       >
                         <Download aria-hidden className="size-3.5" />
-                        {filename}
-                      </button>
+                        {file.name}
+                      </a>
                     ))}
                   </div>
                 )}
@@ -510,16 +509,16 @@ function CategorySection({ run, myUserId, canParticipate }: CategorySectionProps
 
                 {patches.length > 0 && (
                   <div className="flex flex-wrap gap-3">
-                    {patches.map((filename) => (
-                      <button
+                    {patches.map((file) => (
+                      <a
                         className="inline-flex items-center gap-1.5 text-sm text-accent-text hover:underline"
-                        key={filename}
-                        onClick={() => { void downloadPatch(run.weeklyRunId, myEntry.entryId, filename); }}
-                        type="button"
+                        download={file.name}
+                        href={file.url ?? `${env.apiBaseUrl}/weekly-runs/${run.weeklyRunId}/entries/${myEntry.entryId}/patches/${encodeURIComponent(file.name)}`}
+                        key={file.name}
                       >
                         <Download aria-hidden className="size-3.5" />
-                        {filename}
-                      </button>
+                        {file.name}
+                      </a>
                     ))}
                   </div>
                 )}

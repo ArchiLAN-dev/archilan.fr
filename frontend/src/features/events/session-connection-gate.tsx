@@ -444,14 +444,14 @@ function PatchFilesSection({ registrationId }: { registrationId: string }) {
         Ces fichiers sont nécessaires pour patcher votre ROM avant de rejoindre la session.
       </p>
       <div className="grid gap-2">
-        {files.map((filename) => (
+        {files.map((file) => (
           <a
             className="flex items-center justify-between gap-3 rounded border border-border bg-surface px-4 py-3 hover:border-accent-text/40"
-            download={filename}
-            href={`${env.apiBaseUrl}/registrations/${registrationId}/patches/${encodeURIComponent(filename)}`}
-            key={filename}
+            download={file.name}
+            href={file.url ?? `${env.apiBaseUrl}/registrations/${registrationId}/patches/${encodeURIComponent(file.name)}`}
+            key={file.name}
           >
-            <span className="font-mono text-sm text-foreground">{filename}</span>
+            <span className="font-mono text-sm text-foreground">{file.name}</span>
             <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-accent-text">
               <Download aria-hidden="true" className="size-3.5" />
               Télécharger

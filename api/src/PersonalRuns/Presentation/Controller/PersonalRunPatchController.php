@@ -7,6 +7,7 @@ namespace App\PersonalRuns\Presentation\Controller;
 use App\PersonalRuns\Application\Query\PersonalRunPatchQuery;
 use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\PatchDownloadUrl;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -27,6 +28,7 @@ final readonly class PersonalRunPatchController
         private ApiAccessGuard $apiAccessGuard,
         private PersonalRunPatchQuery $patchQuery,
         private SessionOutputArtifactReaderInterface $reader,
+        private PatchDownloadUrl $signedUrl,
     ) {
     }
 
@@ -49,7 +51,16 @@ final readonly class PersonalRunPatchController
         ));
         sort($files);
 
-        return new JsonResponse(['data' => ['files' => $files]]);
+        // Chaque fichier part avec son lien public signé (story 16.16) : le joueur copie l'adresse
+        // et l'envoie à qui doit jouer ce slot, sans compte ArchiLAN. Seuls les fichiers déjà
+        // filtrés sur ses propres slots en reçoivent un.
+        return new JsonResponse(['data' => ['files' => array_map(
+            fn (string $filename): array => [
+                'name' => $filename,
+                'url' => $this->signedUrl->forArchive($context['outputKey'], $filename),
+            ],
+            $files,
+        )]]);
     }
 
     #[Route('/api/v1/runs/{runId}/patches/{filename}', name: 'api_runs_patches_download', methods: ['GET'])]
