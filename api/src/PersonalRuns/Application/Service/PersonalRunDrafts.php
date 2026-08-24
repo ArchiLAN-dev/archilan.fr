@@ -152,7 +152,7 @@ final readonly class PersonalRunDrafts
     /**
      * @return array{found: bool, authorized: bool, payload: array<string, mixed>|null}
      */
-    public function get(string $runId, string $callerId): array
+    public function get(string $runId, string $callerId, bool $isAdmin): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
@@ -163,7 +163,13 @@ final readonly class PersonalRunDrafts
         $isOwner = $run->isOwnedBy($callerId);
         $isParticipant = in_array($callerId, array_column($participants, 'userId'), true);
 
-        if (!$isOwner && !$isParticipant) {
+        // Un admin lit la run sans en devenir propriétaire : `isOwner` reste faux, donc le lien
+        // d'invitation, le mot de passe admin de session et l'extrait de log restent fermés. La
+        // fiche membre du backoffice liste et lie ces runs (story 36.4) et sait déjà en arrêter une
+        // (36.6) ; seule la lecture manquait, et le lien renvoyait « Run introuvable ». Le spoiler,
+        // lui, est ouvert aux admins depuis 16.8 : cette lecture est donc strictement en deçà de ce
+        // que le backoffice permet déjà.
+        if (!$isOwner && !$isParticipant && !$isAdmin) {
             return ['found' => true, 'authorized' => false, 'payload' => null];
         }
 
