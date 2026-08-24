@@ -6,6 +6,7 @@ namespace App\WeeklyRuns\Presentation\Controller;
 
 use App\Sessions\Application\Port\SessionOutputArtifactReaderInterface;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\PatchDownloadUrl;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use App\WeeklyRuns\Application\Query\WeeklyEntryPatchQuery;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -24,6 +25,7 @@ final readonly class WeeklyEntryPatchController
         private ApiAccessGuard $apiAccessGuard,
         private WeeklyEntryPatchQuery $patchQuery,
         private SessionOutputArtifactReaderInterface $reader,
+        private PatchDownloadUrl $signedUrl,
     ) {
     }
 
@@ -47,12 +49,28 @@ final readonly class WeeklyEntryPatchController
             ));
             sort($files);
 
-            return new JsonResponse(['data' => ['files' => $files]]);
+            return new JsonResponse(['data' => ['files' => array_map(
+                fn (string $filename): array => [
+                    'name' => $filename,
+                    'url' => $this->signedUrl->forArchive($context['outputKey'], $filename),
+                ],
+                $files,
+            )]]);
         }
 
+        // Branche héritée (générateur Docker) : le lien public n'est signé que si le dossier de
+        // sortie est bien celui d'une session, seule forme que la route publique sait résoudre.
+        // Sinon `url` est nul et le front retombe sur le téléchargement authentifié (story 16.16).
+        $sessionId = $context['sessionId'];
         $files = $this->findPatchFiles($context['outputDir'], $context['slotName']);
 
-        return new JsonResponse(['data' => ['files' => $files]]);
+        return new JsonResponse(['data' => ['files' => array_map(
+            fn (string $filename): array => [
+                'name' => $filename,
+                'url' => is_string($sessionId) ? $this->signedUrl->forWorkspace($sessionId, $filename) : null,
+            ],
+            $files,
+        )]]);
     }
 
     #[Route('/api/v1/weekly-runs/{weeklyRunId}/entries/{entryId}/patches/{filename}', methods: ['GET'])]

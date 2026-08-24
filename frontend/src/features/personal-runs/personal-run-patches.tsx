@@ -5,37 +5,15 @@ import { Download, Package } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { parsePatchFiles, type PatchFile } from "@/lib/patch-files";
 
-async function fetchPatches(runId: string): Promise<string[]> {
+async function fetchPatches(runId: string): Promise<PatchFile[]> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/patches`);
     if (!res.ok) return [];
-    const payload: unknown = await res.json();
-    if (typeof payload !== "object" || payload === null || !("data" in payload)) return [];
-    const data: unknown = (payload as { data: unknown }).data;
-    if (typeof data !== "object" || data === null || !("files" in data)) return [];
-    const files: unknown = (data as { files: unknown }).files;
-    return Array.isArray(files) ? files.filter((f): f is string => typeof f === "string") : [];
+    return parsePatchFiles(await res.json());
   } catch {
     return [];
-  }
-}
-
-async function downloadPatch(runId: string, filename: string): Promise<void> {
-  try {
-    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/patches/${encodeURIComponent(filename)}`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    // non-critical - the user will notice the file didn't arrive
   }
 }
 
@@ -64,20 +42,21 @@ export function PersonalRunPatchPanel({ runId, enabled }: { runId: string; enabl
         <h3 className="text-sm font-semibold text-foreground">Fichiers générés</h3>
       </div>
       <p className="mb-3 text-sm text-muted-foreground">
-        Le patch de ton slot pour cette partie - applique-le à ta ROM pour jouer.
+        Le patch de ton slot pour cette partie - applique-le à ta ROM pour jouer. Clic droit sur un
+        fichier pour copier son lien : il est téléchargeable sans compte, à envoyer tel quel.
       </p>
       <div className="flex flex-wrap gap-2">
-        {files.map((filename) => (
-          <button
+        {files.map((file) => (
+          <a
             className="inline-flex max-w-full items-center gap-1.5 rounded border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-accent"
-            key={filename}
-            onClick={() => { void downloadPatch(runId, filename); }}
-            title={filename}
-            type="button"
+            download={file.name}
+            href={file.url ?? `${env.apiBaseUrl}/runs/${runId}/patches/${encodeURIComponent(file.name)}`}
+            key={file.name}
+            title={file.name}
           >
             <Download aria-hidden className="size-3.5 shrink-0 text-accent-text" />
-            <span className="min-w-0 truncate">{filename}</span>
-          </button>
+            <span className="min-w-0 truncate">{file.name}</span>
+          </a>
         ))}
       </div>
     </div>

@@ -6,6 +6,7 @@ namespace App\Sessions\Presentation\Controller;
 
 use App\Sessions\Application\Query\PlayerSessionConnection;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
+use App\Shared\Presentation\Support\PatchDownloadUrl;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,6 +23,7 @@ final readonly class PlayerPatchController
     public function __construct(
         private ApiAccessGuard $apiAccessGuard,
         private PlayerSessionConnection $playerSessionConnection,
+        private PatchDownloadUrl $signedUrl,
         private string $workspaceDir,
     ) {
     }
@@ -51,7 +53,14 @@ final readonly class PlayerPatchController
 
         $files = $this->findPatchFiles($session->id, $slotNames);
 
-        return new JsonResponse(['data' => ['files' => $files]]);
+        // Lien public signé par fichier (story 16.16), pour que le joueur puisse l'envoyer.
+        return new JsonResponse(['data' => ['files' => array_map(
+            fn (string $filename): array => [
+                'name' => $filename,
+                'url' => $this->signedUrl->forWorkspace($session->id, $filename),
+            ],
+            $files,
+        )]]);
     }
 
     #[Route('/api/v1/registrations/{registrationId}/patches/{filename}', methods: ['GET'])]

@@ -97,7 +97,12 @@ final readonly class PersonalRunController
             return $user;
         }
 
-        $result = $this->drafts->get($runId, $user->getId());
+        // ROLE_ADMIN here is a display/role gate (not a membership gate), allowed per
+        // api/CLAUDE.md AC-M3: an admin may read any private run, as they already may retrieve its
+        // spoiler and stop it from the member's admin sheet.
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
+
+        $result = $this->drafts->get($runId, $user->getId(), $isAdmin);
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);

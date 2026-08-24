@@ -8,6 +8,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { asLocationNames, asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
+import { parsePatchFiles, type PatchFile } from "@/lib/patch-files";
 import { hasBooleanProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -559,22 +560,12 @@ export async function fetchSessionConnection(
 
 // ── Patch files ───────────────────────────────────────────────────────────────
 
-function extractPatchFiles(payload: unknown): string[] {
-  if (typeof payload !== "object" || payload === null) return [];
-  const data: unknown = Reflect.get(payload, "data");
-  if (typeof data !== "object" || data === null) return [];
-  const files: unknown = Reflect.get(data, "files");
-  if (!Array.isArray(files)) return [];
-  return files.filter((file): file is string => typeof file === "string");
-}
-
 /** Any failure (HTTP or network) yields an empty list, like the pre-TanStack effect. */
-export async function fetchRegistrationPatches(registrationId: string): Promise<string[]> {
+export async function fetchRegistrationPatches(registrationId: string): Promise<PatchFile[]> {
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/registrations/${registrationId}/patches`);
     if (!res.ok) return [];
-    const payload: unknown = await res.json();
-    return extractPatchFiles(payload);
+    return parsePatchFiles(await res.json());
   } catch {
     return [];
   }

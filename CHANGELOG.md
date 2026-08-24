@@ -5,6 +5,46 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.16.4] - 2026-08-24
+
+Deux correctifs et deux nouveautés autour des parties : le temps réel qui décrochait au bout d'une
+heure, l'accès admin aux parties privées, l'état « en veille » repensé, et des liens de
+téléchargement partageables pour les fichiers de sortie.
+
+### Corrigé
+
+- **La page de progression ne décroche plus au bout d'une heure.** Les jetons d'abonnement au temps
+  réel vivent une heure, et le hub ne les vérifie qu'à l'abonnement : un flux déjà ouvert survivait
+  donc à l'expiration du sien, et le problème n'apparaissait qu'à la première coupure passé ce
+  délai. À ce moment-là la page rouvrait le flux avec le jeton de sa toute première connexion, que
+  le hub rejetait ; le navigateur abandonne définitivement sur un refus, et la page relançait
+  indéfiniment le même jeton périmé. Seul un rechargement en sortait. Un jeton neuf est désormais
+  frappé avant chaque reconnexion, sur les onze flux concernés.
+- **Un administrateur peut ouvrir les parties privées listées dans la fiche d'un membre.** Le
+  backoffice listait ces parties, les liait, savait les arrêter et télécharger leur spoiler, mais la
+  lecture refusait tout appelant qui n'était ni propriétaire ni participant : le lien de sa propre
+  interface répondait « partie introuvable ». L'admin lit désormais la page sans en devenir
+  propriétaire - le lien d'invitation, le mot de passe de session et le journal de génération
+  restent fermés.
+
+### Ajouté
+
+- **Les fichiers de sortie ont un lien de téléchargement partageable.** Un clic droit sur un fichier
+  copie son adresse, et le destinataire le télécharge sans compte ArchiLAN : de quoi envoyer son
+  patch à qui doit jouer le slot. Le lien est signé et ne vaut que pour le fichier qu'il nomme ; la
+  multidata et le spoiler restent hors de portée. Il n'expire pas, pour qu'une partie reprise trois
+  semaines plus tard ne demande pas un nouveau lien.
+
+### Modifié
+
+- **L'état « en veille » d'une partie privée a été repensé.** Le bandeau de reprise remonte au-dessus
+  des onglets, puisque c'est la seule action utile dans cet état, et la suppression descend dans les
+  réglages où elle cesse de peser plus lourd à l'œil. Surtout, une partie sans sauvegarde exploitable
+  ne se relance plus d'un simple clic : relancer efface la progression de tous les participants, ce
+  que l'ancienne interface présentait exactement comme la reprise anodine. Elle demande désormais une
+  confirmation qui nomme la conséquence. Les durées d'inactivité passent en jours au-delà de la
+  journée, au lieu d'annoncer « inactif depuis 243h ».
+
 ## [0.16.3] - 2026-08-22
 
 Trois correctifs de la zone slots : les indices étaient inaccessibles à tout non-admin, la carte de

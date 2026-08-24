@@ -25,6 +25,7 @@ import { env } from "@/lib/env";
 import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchPersonalRun, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
+import { IdleBanner } from "./idle-banner";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
@@ -226,32 +227,6 @@ function ValidationErrorBanner({
 }
 
 // ─── Inactivity badge ─────────────────────────────────────────────────────────
-
-function InactivityBadge({ lastActivityAt }: { lastActivityAt: string }) {
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    const updateNow = () => setNow(Date.now());
-    updateNow();
-    const interval = setInterval(updateNow, 60_000);
-
-    return () => clearInterval(interval);
-  }, [lastActivityAt]);
-
-  if (now === null) {
-    return null;
-  }
-
-  const delta = now - new Date(lastActivityAt).getTime();
-  const totalMin = Math.floor(delta / 60_000);
-  const hours = Math.floor(totalMin / 60);
-  const minutes = totalMin % 60;
-  const label = hours > 0 ? `Inactif depuis ${hours}h ${minutes}min` : `Inactif depuis ${minutes}min`;
-
-  return (
-    <p className="mt-1 text-sm text-muted-foreground">{label}</p>
-  );
-}
 
 // ─── Stop confirmation dialog ─────────────────────────────────────────────────
 
@@ -833,9 +808,6 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1">
               <RunTitle canRename={run.isOwner} onRenamed={refreshRun} runId={run.id} title={run.title} />
-              {run.status === "idle" && run.lastActivityAt !== null && (
-                <InactivityBadge lastActivityAt={run.lastActivityAt} />
-              )}
             </div>
             <PersonalRunStatusBadge status={run.status} />
           </div>
@@ -860,6 +832,20 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
             </div>
           )}
         </header>
+
+        {/* Reprise d'une run en veille, ouverte à tout participant (story 16.14) : un propriétaire
+            absent bloquait la partie de tout le monde. Rendue avant les onglets (story 16.15) parce
+            qu'une run en veille n'a qu'une action utile, et que l'onglet ouvert ne devrait pas la
+            cacher. `canStart` n'est vrai pour un participant que sur une run en veille, jamais sur
+            un premier lancement. */}
+        {run.status === "idle" && run.canStart && (
+          <IdleBanner
+            busy={actioning || !run.sessionId}
+            lastActivityAt={run.lastActivityAt}
+            onResume={() => { if (run.sessionId) void handleRestart(run.sessionId); }}
+            pausedWithoutSave={run.pausedWithoutSave}
+          />
+        )}
 
         {/* Tabs: one row on every width - horizontal scroll on a phone (never a wrapped block),
             with a right-edge fade hinting at the overflow (story 16.12). */}
@@ -916,39 +902,33 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </section>
         )}
 
+        {/* La suppression d'une run en veille vivait sous le bandeau de reprise, en pleine largeur,
+            donc plus lourde à l'œil que la seule action utile de cet état (story 16.15). Elle reste
+            réservée au propriétaire : l'onglet Réglages n'existe que pour lui. */}
+        {activeTab === "settings" && run.isOwner && run.status === "idle" && (
+          <section className="rounded-lg border border-[color:var(--color-danger)]/30 bg-surface p-4">
+            <h2 className="mb-1 text-sm font-semibold text-foreground">Supprimer la partie</h2>
+            <p className="mb-3 text-sm text-muted-foreground">
+              La partie et toutes ses données sont retirées définitivement. Les fichiers déjà téléchargés ne sont pas
+              affectés.
+            </p>
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
+              onClick={() => setShowDeleteDialog(true)}
+              type="button"
+            >
+              <Trash2 aria-hidden className="size-4" />
+              Supprimer la partie
+            </button>
+          </section>
+        )}
+
         {/* Erreur d'action - commune au propriétaire et au participant qui reprend la run. */}
         {activeTab === "overview" && actionError && (
           <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/5 px-4 py-3 text-sm text-[color:var(--color-danger)]">
             <X aria-hidden className="size-4 shrink-0" />
             {actionError}
           </div>
-        )}
-
-        {/* Reprise d'une run en veille, ouverte à tout participant (story 16.14) : un propriétaire
-            absent bloquait la partie de tout le monde. C'est la seule action de cycle de vie qui
-            sorte du bloc propriétaire ci-dessous - `canStart` n'est vrai pour un participant que
-            sur une run en veille, jamais sur un premier lancement. */}
-        {activeTab === "overview" && run.status === "idle" && run.canStart && (
-          <section className="rounded-lg border border-border bg-surface p-4">
-            <p className="mb-3 rounded border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-              {run.pausedWithoutSave
-                ? "La partie s'est mise en pause sans sauvegarde disponible. La relancer la redémarrera depuis le début, avec la même configuration et les mêmes slots."
-                : "La partie s'est mise en pause après une période d'inactivité. Reprends-la pour continuer : la dernière sauvegarde sera chargée automatiquement."}
-            </p>
-            <button
-              className="inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-              disabled={actioning || !run.sessionId}
-              onClick={() => { if (run.sessionId) void handleRestart(run.sessionId); }}
-              type="button"
-            >
-              {actioning ? (
-                <Loader2 aria-hidden className="size-4 animate-spin" />
-              ) : (
-                <RotateCcw aria-hidden className="size-4" />
-              )}
-              {run.pausedWithoutSave ? "Relancer depuis le début" : "Reprendre manuellement"}
-            </button>
-          </section>
         )}
 
         {/* Status-conditional panels - owner actions */}
@@ -1099,18 +1079,8 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
               </div>
             )}
 
-            {/* IDLE - la carte de reprise est rendue plus haut, parce qu'elle est ouverte aux
-                participants. Ne reste ici que la suppression, du seul ressort du propriétaire. */}
-            {run.status === "idle" && (
-              <button
-                className="inline-flex w-full items-center justify-center gap-2 rounded border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/5 px-4 py-2 text-sm font-semibold text-[color:var(--color-danger)] transition-colors hover:bg-[color:var(--color-danger)]/15"
-                onClick={() => setShowDeleteDialog(true)}
-                type="button"
-              >
-                <Trash2 aria-hidden className="size-4" />
-                Supprimer la partie
-              </button>
-            )}
+            {/* IDLE - le bandeau de reprise est rendu au-dessus des onglets et la suppression a
+                rejoint l'onglet Réglages (story 16.15). Il ne reste rien ici. */}
 
             {/* RESTARTING */}
             {run.status === "restarting" && (
