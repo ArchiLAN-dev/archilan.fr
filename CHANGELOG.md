@@ -5,6 +5,22 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.16.5] - 2026-08-24
+
+Version de publication : la v0.16.4 n'a pu livrer que deux de ses trois images.
+
+### Sécurité
+
+- **Deux advisories de plus sur `kin-openapi` bloquaient la publication de `api-web`.** Elles portent
+  toutes deux sur `openapi3filter`, le validateur de requêtes OpenAPI de FrankenPHP : un déni de
+  service par corps `multipart/form-data` malformé, et une explosion mémoire par paramètre
+  `deepObject`. Aucun des deux chemins n'est atteignable ici, l'image tournant sur le Caddyfile livré
+  par FrankenPHP, qui n'active pas cette validation, et Symfony assurant routage et validation.
+  FrankenPHP 1.12.7 reste sa dernière version, donc aucun correctif amont n'existe : les deux CVE
+  rejoignent les exemptions datées de `.trivyignore`, à réexaminer avec les précédentes le
+  2026-10-01. **Sans cette version, `api-web:0.16.4` n'existe pas sur le registre et la prod ne peut
+  pas quitter la 0.16.3.**
+
 ## [0.16.4] - 2026-08-24
 
 Deux correctifs et deux nouveautés autour des parties : le temps réel qui décrochait au bout d'une
