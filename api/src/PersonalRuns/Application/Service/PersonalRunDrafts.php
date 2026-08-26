@@ -517,6 +517,11 @@ final readonly class PersonalRunDrafts
             'validationErrors' => $validationErrors,
             'generationLogExcerpt' => $generationLogExcerpt,
             'failedPreflightCount' => $failedPreflightCount,
+            // Story 16.18: this run hosts a seed generated elsewhere. The interface says so, and
+            // hides what reachability would have fed - the archive carries no yamls to rebuild the
+            // world from, so there is no detailed progression to show.
+            'importedSeed' => $run->isImportedSeed(),
+            'importedSlots' => $run->isImportedSeed() ? $run->playableImportedSlots() : null,
             'adminPassword' => $adminPassword,
             'createdAt' => $run->getCreatedAt()->format(\DateTimeInterface::ATOM),
             'updatedAt' => $run->getUpdatedAt()->format(\DateTimeInterface::ATOM),

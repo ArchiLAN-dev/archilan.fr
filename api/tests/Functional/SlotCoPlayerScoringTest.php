@@ -155,6 +155,28 @@ final class SlotCoPlayerScoringTest extends FunctionalTestCase
         self::assertSame(12, $this->leaderboardValue('checks', 'lmate'));
     }
 
+    /**
+     * Story 16.18: a slot of an imported archive that nobody was put on has no owner. Its empty
+     * owner key must stay out of the aggregates rather than become a phantom player.
+     */
+    public function testAnUnassignedImportedSlotScoresForNobody(): void
+    {
+        $owner = $this->createUser('unassigned@example.org', ['ROLE_USER'], 'Unassigned', 'unassigned');
+        $game = $this->createGame('Orphan Game', 'orphan-game');
+
+        $session = $this->finishedPersonalRunSession($owner->getId());
+        $orphan = $this->slot($session->getId(), '', $game->getId(), 'Nobody_A', 'game-slot-orphan');
+        $orphan->recordGoal($this->now->modify('+1 hour'));
+        $orphan->recordProgress(99, 99);
+        $this->entityManager->persist($orphan);
+        $this->entityManager->flush();
+
+        // The owner played nothing in this run, so nothing lands on them either.
+        $stats = $this->statsOf('unassigned');
+        self::assertSame(0, $stats['goalCompletions']);
+        self::assertSame(0, $stats['totalChecksDone']);
+    }
+
     // ─── helpers ────────────────────────────────────────────────────────────────
 
     /**

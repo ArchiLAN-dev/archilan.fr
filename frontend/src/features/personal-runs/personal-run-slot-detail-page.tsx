@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Gift,
+  Info,
   Lightbulb,
   ListChecks,
   Loader2,
@@ -51,6 +52,9 @@ type PageState =
   | { kind: "loading" }
   | { kind: "data"; data: ReachabilityData }
   | { kind: "paused" }
+  // Story 16.18: the seed was generated elsewhere, so there is no yaml to rebuild the world from
+  // and no detailed progression to compute. Said out loud, because hiding it looks like a fault.
+  | { kind: "imported" }
   | { kind: "error"; message: string };
 
 // ─── Inline slot switcher (navigates to /runs/[runId]/progression/[slot]) ────
@@ -244,11 +248,14 @@ export function PersonalRunSlotDetailPage({
         `${env.apiBaseUrl}/sessions/${sessionId}/slots/${slotIndex}/reachable`,
       );
       if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: string } };
         if (res.status === 409) {
-          if (!silent) setState({ kind: "paused" });
+          // Two different 409s: the party is asleep, or it hosts an imported seed and there is
+          // nothing to compute at all. They say very different things to the player.
+          const kind = body.error?.code === "detailed_progression_unavailable" ? "imported" : "paused";
+          if (!silent) setState({ kind });
           return;
         }
-        const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
         const msg = body.error?.message ?? `Erreur ${res.status}`;
         if (!silent) setState({ kind: "error", message: msg });
         return;
@@ -780,6 +787,24 @@ export function PersonalRunSlotDetailPage({
           </div>
         ) : null}
 
+        {state.kind === "imported" ? (
+          <div className="flex items-start gap-3 rounded border border-border bg-surface p-4 text-sm text-muted-foreground">
+            <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-text" />
+            <div>
+              <p className="font-medium text-foreground">Progression détaillée indisponible</p>
+              <p className="mt-0.5">
+                Cette partie a été créée depuis une seed générée ailleurs. Savoir quels checks sont
+                faisables demande de reconstruire le monde à partir des configurations des joueurs,
+                que l&apos;archive ne contient pas.
+              </p>
+              <p className="mt-1.5">
+                Le reste fonctionne normalement : checks faits, objets reçus, objectif, indices,
+                fichiers et récap de fin.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {state.kind === "paused" ? (
           <div className="flex items-start gap-3 rounded border border-border bg-surface p-4 text-sm text-muted-foreground">
             <WifiOff aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent-warm" />
@@ -808,7 +833,7 @@ export function PersonalRunSlotDetailPage({
         ) : null}
 
         {/* Tab bar */}
-        <div className={`-mx-4 flex items-stretch gap-0 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden${state.kind === "paused" ? " hidden" : ""}`}>
+        <div className={`-mx-4 flex items-stretch gap-0 overflow-x-auto border-b border-border bg-surface px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden${state.kind === "paused" || state.kind === "imported" ? " hidden" : ""}`}>
           {TABS.map((tab) => {
             const data = state.kind === "data" ? state.data : null;
             const sub =

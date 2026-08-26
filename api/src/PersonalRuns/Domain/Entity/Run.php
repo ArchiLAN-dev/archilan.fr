@@ -10,6 +10,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 final class Run
 {
+    /** Archipelago's SlotType: 0 spectator, 1 player, 2 item-link group. Only 1 is a seat. */
+    public const int IMPORTED_SLOT_TYPE_PLAYER = 1;
+
     public const string STATUS_DRAFT = 'draft';
     public const string STATUS_STARTING = 'starting';
     public const string STATUS_ACTIVE = 'active';
@@ -78,6 +81,23 @@ final class Run
         /** Whether the finished run's recap is publicly shareable (story 32.5). Private by default. */
         #[ORM\Column(name: 'recap_public', type: 'boolean', options: ['default' => false])]
         private bool $recapPublic = false,
+        /**
+         * Object-storage key of a seed generated somewhere else (story 16.18). When set, the run
+         * hosts that archive instead of generating one: no yamls are collected, no generation
+         * container runs, and the detailed progression is unavailable because reachability would
+         * need the yamls the archive does not carry.
+         */
+        #[ORM\Column(name: 'imported_output_key', type: 'string', length: 255, nullable: true)]
+        private ?string $importedOutputKey = null,
+        /**
+         * The archive's slot table, read out of its multidata at import, plus who the run owner
+         * assigned to each slot. Kept on the run rather than on the session because a relaunch
+         * throws the session away and rebuilds it from here.
+         *
+         * @var list<array{slot: int, name: string, game: string, type: int, slotId: string, assignedUserIds: list<string>}>|null
+         */
+        #[ORM\Column(name: 'imported_slots', type: Types::JSON, nullable: true)]
+        private ?array $importedSlots = null,
     ) {
     }
 
@@ -224,6 +244,95 @@ final class Run
         $this->connectionPassword = null;
         $this->status = self::STATUS_COMPLETED;
         $this->updatedAt = $now;
+    }
+
+    /** A run that hosts a seed generated elsewhere rather than one generated here (story 16.18). */
+    public function isImportedSeed(): bool
+    {
+        return null !== $this->importedOutputKey;
+    }
+
+    public function getImportedOutputKey(): ?string
+    {
+        return $this->importedOutputKey;
+    }
+
+    /**
+     * @return list<array{slot: int, name: string, game: string, type: int, slotId: string, assignedUserIds: list<string>}>
+     */
+    public function getImportedSlots(): array
+    {
+        return $this->importedSlots ?? [];
+    }
+
+    /**
+     * The slots of the imported archive a person can actually be put on: Archipelago's spectator
+     * slots (type 0) and item-link groups (type 2) are not seats.
+     *
+     * @return list<array{slotId: string, slot: int, name: string, game: string, assignedUserIds: list<string>}>
+     */
+    public function playableImportedSlots(): array
+    {
+        $out = [];
+        foreach ($this->importedSlots ?? [] as $slot) {
+            if (self::IMPORTED_SLOT_TYPE_PLAYER !== $slot['type']) {
+                continue;
+            }
+            $out[] = [
+                'slotId' => $slot['slotId'],
+                'slot' => $slot['slot'],
+                'name' => $slot['name'],
+                'game' => $slot['game'],
+                'assignedUserIds' => $slot['assignedUserIds'],
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Attach an imported seed to this run, replacing any previous one.
+     *
+     * @param list<array{slot: int, name: string, game: string, type: int, slotId: string, assignedUserIds: list<string>}> $slots
+     */
+    public function importSeed(string $outputKey, array $slots, \DateTimeImmutable $now): void
+    {
+        $this->importedOutputKey = $outputKey;
+        $this->importedSlots = $slots;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * Assign a slot of the imported archive to zero or more participants. The first of them owns
+     * the slot; the rest are its co-players (story 16.17). Returns false when the slot is not part
+     * of the archive.
+     *
+     * @param list<string> $userIds
+     */
+    public function assignImportedSlot(string $slotId, array $userIds, \DateTimeImmutable $now): bool
+    {
+        if (null === $this->importedSlots) {
+            return false;
+        }
+
+        $updated = [];
+        $found = false;
+        foreach ($this->importedSlots as $slot) {
+            if ($slot['slotId'] === $slotId) {
+                $slot['assignedUserIds'] = $userIds;
+                $found = true;
+            }
+            $updated[] = $slot;
+        }
+
+        if (!$found) {
+            return false;
+        }
+
+        $this->importedSlots = $updated;
+        $this->updatedAt = $now;
+
+        return true;
     }
 
     public function attachSession(string $sessionId): void

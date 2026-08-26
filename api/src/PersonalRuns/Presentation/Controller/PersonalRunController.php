@@ -8,9 +8,11 @@ use App\PersonalRuns\Application\Command\PersonalRunGameConfig;
 use App\PersonalRuns\Application\Command\PersonalRunLifecycle;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
+use App\PersonalRuns\Application\Service\PersonalRunSeedImport;
 use App\PersonalRuns\Application\Service\RunSlotCoPlayers;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -26,6 +28,7 @@ final readonly class PersonalRunController
         private PersonalRunGameSelection $gameSelection,
         private PersonalRunLifecycle $lifecycle,
         private RunSlotCoPlayers $coPlayers,
+        private PersonalRunSeedImport $seedImport,
     ) {
     }
 
@@ -419,6 +422,70 @@ final readonly class PersonalRunController
         }
 
         return new JsonResponse(['data' => ['coPlayers' => $result['coPlayers']]]);
+    }
+
+    /**
+     * Import a seed generated somewhere else (story 16.18). The archive becomes the party: no yamls
+     * are collected and no generation runs, at the price of the detailed progression.
+     */
+    #[Route('/api/v1/runs/{runId}/seed', name: 'api_runs_seed_import', methods: ['POST'])]
+    public function importSeed(Request $request, string $runId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $file = $request->files->get('file');
+        if (!$file instanceof UploadedFile || !$file->isValid()) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Fichier manquant ou invalide.', 422, ['file' => ['Fichier manquant ou invalide.']]);
+        }
+
+        $result = $this->seedImport->import($runId, $user->getId(), (string) file_get_contents($file->getPathname()), $file->getClientOriginalName());
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Seul le propriétaire de la partie peut importer une seed.', 403);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Seed invalide.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => ['slots' => $result['slots']]]);
+    }
+
+    /** Assign a slot of the imported archive to zero or more participants (story 16.18). */
+    #[Route('/api/v1/runs/{runId}/imported-slots/{slotId}', name: 'api_runs_imported_slot_assign', methods: ['PUT'])]
+    public function assignImportedSlot(Request $request, string $runId, string $slotId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = $this->jsonPayload($request);
+        $raw = is_array($payload['userIds'] ?? null) ? $payload['userIds'] : [];
+        $userIds = array_values(array_filter($raw, is_string(...)));
+
+        $result = $this->seedImport->assign($runId, $user->getId(), $slotId, $userIds);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Seul le propriétaire de la partie assigne les slots.', 403);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Assignation impossible.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => ['slots' => $result['slots']]]);
     }
 
     #[Route('/api/v1/runs/{runId}/unarchive', name: 'api_runs_unarchive', methods: ['POST'])]

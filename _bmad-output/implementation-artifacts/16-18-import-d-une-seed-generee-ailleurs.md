@@ -1,6 +1,6 @@
 # Story 16.18: Créer une partie privée à partir d'une seed déjà générée
 
-**Status:** à implémenter - en attente de relecture
+**Status:** implémentée - PR vers `develop`
 **Epic:** 16 - Personal runs (parties privées créées par un membre)
 **Date:** 2026-08-25
 **Dépend de :** [16.17](16-17-co-joueurs-sur-un-slot.md) - l'assignation des slots de l'archive aux
@@ -177,13 +177,13 @@ ne l'est pas.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-5). Téléversement, validation, lecture des slots de la multidata, création de
+- [x] **Task 1** (AC 1-5). Téléversement, validation, lecture des slots de la multidata, création de
   la session avec l'archive comme sortie et sans génération.
-- [ ] **Task 2** (AC 6-8). Assignation des slots aux participants, sur l'association de 16.17.
-- [ ] **Task 3** (AC 9-11). Connexion du bridge sans slot observateur, distinction de sa présence,
+- [x] **Task 2** (AC 6-8). Assignation des slots aux participants, sur l'association de 16.17.
+- [x] **Task 3** (AC 9-11). Connexion du bridge sans slot observateur, distinction de sa présence,
   cycle de vie, et vérification écran par écran de ce qui vient du bridge.
-- [ ] **Task 4** (AC 12-13). Désactivation explicite de la reachability et bandeau.
-- [ ] **Task 5** (AC 14-15). Points, tests et gates.
+- [x] **Task 4** (AC 12-13). Désactivation explicite de la reachability et bandeau.
+- [x] **Task 5** (AC 14-15). Points, tests et gates.
 
 ## Dev Notes
 
@@ -214,9 +214,80 @@ ne l'est pas.
   déjà à moitié câblée : `generateSession()` accepte un `$seed` transporté jusqu'au générateur, et
   `SessionOrchestrator` passe `null` en dur.
 
+## Écarts assumés
+
+### Le lancement n'a rien demandé (AC 4)
+
+L'orchestrateur savait déjà héberger une archive pré-générée : `LaunchFromFile` restaure le zip dans
+le volume de session, marque la session générée et lance, sans exécuter la moindre génération. Les
+runs hebdo s'en servent depuis toujours. La story n'a donc pas eu à ouvrir un chemin de lancement -
+seulement à l'emprunter.
+
+### Le vrai chantier était la présence, et il déborde de l'import
+
+En cherchant comment le bridge se connecterait sans slot observateur, une hypothèse de la story
+s'est révélée fausse dans les deux sens.
+
+`Connected.players` n'est **pas** la liste des clients connectés : c'est `get_players_package()`,
+tout le tableau des joueurs du multiworld. Le bridge la traitait comme une présence, donc **tous les
+slots passaient connectés dès que le bridge s'attachait**, et seul un `Part` en retirait un. Le
+commentaire du code disait déjà « populated from Join/Part PrintJSON » ; le code, lui, ne le faisait
+pas.
+
+La présence se calcule désormais uniquement sur `Join`/`Part`, en comptant les clients **par slot**
+et en excluant ceux dont les tags disent qu'ils regardent sans jouer (`TextOnly`, `Tracker`,
+`HintGame`). Trois conséquences : le bridge ne s'occupe plus le slot sur lequel il s'attache, un
+tracker ouvert à côté d'un jeu ne compte pas double, et un slot joué à deux (story 16.17) ne se
+libère qu'au départ du dernier.
+
+### Le bridge est renseigné, pas devin (AC 9)
+
+`SLOT_NAMES` existait dans la configuration du bridge et **personne ne le remplissait** : en
+production le bridge retombait sur le littéral `"Bridge"`, ce qui marche tant qu'un observateur est
+injecté. L'orchestrateur transmet maintenant le tableau des slots au conteneur bridge, et l'API le
+lui donne pour une seed importée. Une seed générée ici ne change pas de comportement.
+
+### L'archive n'est jamais dépicklée côté API (AC 2, AC 5)
+
+`read_multidata.py` lit `slot_info` avec `Utils.restricted_loads` d'Archipelago, dans le conteneur
+jetable `NetworkDisabled` que l'orchestrateur utilisait déjà pour l'introspection d'apworld. Vérifié
+sur une vraie archive : slot 1 `Bridge` (type 0), slot 2 le joueur (type 1). Le process PHP ne voit
+jamais autre chose que du JSON.
+
+### Les slots vivent sur la run, pas sur la session (AC 2, AC 8)
+
+Une relance jette la session et en reconstruit une. Le tableau des slots et leur assignation sont
+donc portés par la run (`imported_slots`), avec un identifiant de slot de jeu **frappé une fois à
+l'import** - le même que celui sur lequel la story 16.17 accroche les co-joueurs. L'assignation
+survit ainsi aux relances, et se fait avant le lancement.
+
+### Un slot non assigné n'appartient à personne (AC 6, AC 14)
+
+Une seed importée peut contenir des mondes que personne ici ne joue. Ces slots gardent une clé de
+propriétaire **vide** plutôt qu'un propriétaire par défaut. Le classement écartait déjà les clés
+vides ; l'agrégat de statistiques a reçu la même garde, et un test le fixe. Sans ça, les checks d'un
+monde que personne ne joue auraient atterri sur quelqu'un.
+
+### Assignation : le premier possède, les suivants co-jouent (AC 6, AC 7)
+
+`assignedUserIds` est ordonné. Au lancement, le premier devient le `registration_id` du
+`session_slot` - donc propriétaire au sens de la 16.17 - et les suivants deviennent des co-joueurs.
+Rien de neuf n'a été écrit pour les autorisations ni pour les points : les deux étaient déjà résolus
+par `SlotsPlayedBy` et `DbalSlotPlayerSource`.
+
+## Reste à faire
+
+- **AC 11, vérification en conditions réelles.** Les chemins bridge (progression chiffrée, feed,
+  timeline, indices, locations, patchs, récap) sont inchangés par construction, mais aucun banc n'a
+  été monté sur une vraie seed importée. C'est le premier test à faire en local.
+- **La connexion du bridge sur un slot joueur** n'a pas été observée en vrai non plus. Archipelago
+  accepte plusieurs clients par slot et le bridge se connecte en `TextOnly` avec `items_handling: 0`,
+  mais c'est une hypothèse à confirmer plutôt qu'un fait mesuré.
+
 ## Change Log
 
 | Date | Version | Description | Auteur |
 |---|---|---|---|
 | 2026-08-25 | 0.1 | Rédaction de la story | Claude |
 | 2026-08-25 | 0.2 | Connexion et présence du bridge, points assumés, multidata non exécutable | Claude |
+| 2026-08-26 | 1.0 | Implémentation sur 4 dépôts ; présence du bridge corrigée, SLOT_NAMES câblé | Claude |
