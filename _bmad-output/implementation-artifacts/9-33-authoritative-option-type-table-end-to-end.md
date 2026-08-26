@@ -1,6 +1,6 @@
 # Story 9.33: Authoritative option-type table end-to-end (dict/OptionDict support)
 
-**Status:** implémentée ; AC 1 et 2 prêts, en attente du tag `v1.7.0` du client Composer
+**Status:** implémentée - `v1.7.0` publiée, PR vers `develop`
 **Epic:** 9 - Multiworld generation pipeline & apworld introspection
 **Date:** 2026-06-27
 
@@ -144,17 +144,17 @@ serait une promesse vide qui ferait taire l'heuristique sans rien mettre à sa p
 
 ## Ce qui reste
 
-**Le tag `v1.7.0` du client Composer, et lui seul.**
+**Rien : `v1.7.0` est publiée et le lock la porte.**
 
-Le type `dict` est écrit dans les cinq couches, mais il ne peut pas être publié dans le désordre :
+Le type `dict` traverse cinq couches, et elles ne pouvaient pas partir dans le désordre :
 `TemplateOption::fromArray` route tout type inconnu vers `TextTemplateOption`, donc émettre `dict`
 avant que le paquet ne le modélise ferait passer `game_options` de « weights » à « text », soit de
 faux à plus faux.
 
 | # | couche | où | état |
 |---|---|---|---|
-| 1 | `DictTemplateOption` | archilan-orchestrateur-client PR #7 | à merger **et tagger** |
-| 2 | contrainte `>=1.7.0` + `composer update` | monorepo | écrit ; le lock attend le tag |
+| 1 | `DictTemplateOption` | archilan-orchestrateur-client | mergée, **taguée `v1.7.0`** |
+| 2 | contrainte `>=1.7.0` + lock | monorepo | fait |
 | 3 | `describeOption` mappe le dict | monorepo | écrit |
 | 4 | l'introspection émet `dict` | archipelago | écrit |
 | 4bis | l'orchestrateur transporte `defaults` / `validKeys` | orchestrateur | écrit |
@@ -163,8 +163,10 @@ faux à plus faux.
 L'étape 4bis n'était pas prévue par la story : `OptionTypeOverride` ne transportait que
 `defaultWeights`, et la réponse d'API n'avait pas de champ pour les clés valides.
 
-Vérifié en simulant le paquet publié dans `vendor/` : `composer gates` passe (1901 tests), puis le
-`vendor/` a été restauré. Il ne manque donc que la publication.
+`composer gates` vert avec le paquet réellement installé : 1901 tests.
+
+Reste l'ordre de **déploiement** : les images archipelago et orchestrateur ne doivent pas partir
+avant que l'API ne soit à jour, sinon `dict` retombe sur `text` faute d'être modélisé côté client.
 
 ### Une découverte au passage
 
