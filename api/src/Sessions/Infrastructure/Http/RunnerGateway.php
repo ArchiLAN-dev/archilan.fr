@@ -7,6 +7,7 @@ namespace App\Sessions\Infrastructure\Http;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Archilan\OrchestratorClient\Apworlds\Response\ApworldPreflight;
 use Archilan\OrchestratorClient\Apworlds\Response\ChoiceTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\DictTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\TemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\TextTemplateOption;
@@ -148,6 +149,13 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
 
         if ($option instanceof ToggleTemplateOption) {
             return ['type' => 'toggle', 'default' => $option->default];
+        }
+
+        if ($option instanceof DictTemplateOption) {
+            // A mapping of setting names to literal values, not a weighted distribution. Telling the
+            // editor which it is stops it from running a player name through a weight coercion
+            // (story 4.17, whose guard stays as the fallback for apworlds not re-introspected).
+            return ['type' => 'dict', 'values' => array_values($option->validKeys)];
         }
 
         if ($option instanceof WeightsTemplateOption) {

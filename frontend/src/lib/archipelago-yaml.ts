@@ -35,7 +35,7 @@ const FREEFORM_DICT_KEYS = new Set(["start_inventory", "start_inventory_from_poo
  * `type` is absent on games introspected before 9.33; the readers then fall back to the heuristics,
  * so nothing regresses while the catalogue is re-introspected.
  */
-export type OptionKind = "range" | "choice" | "toggle" | "weights" | "text" | "unknown";
+export type OptionKind = "range" | "choice" | "toggle" | "weights" | "dict" | "text" | "unknown";
 export type OptionSpec = {
   type?: OptionKind;
   min: number;
@@ -48,7 +48,7 @@ export type OptionSpec = {
 export type OptionBounds = OptionSpec;
 export type OptionTypesMap = Record<string, OptionSpec>;
 
-const OPTION_KINDS = new Set<string>(["range", "choice", "toggle", "weights", "text", "unknown"]);
+const OPTION_KINDS = new Set<string>(["range", "choice", "toggle", "weights", "dict", "text", "unknown"]);
 
 /** Validates an API `optionTypes` payload (unknown) into an OptionTypesMap, or null. */
 export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
@@ -602,6 +602,18 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
 
   if (declared === "range") {
     return buildRangeOption(key, label, obj, keys, yamlStr, optionTypes?.[key], description);
+  }
+
+  if (declared === "dict") {
+    // A literal dict of settings, said by the apworld rather than guessed from the values. The
+    // heuristic below reaches the same answer whenever one value is non-numeric (story 4.17); this
+    // also covers the dict whose settings happen to be all numbers, which the guess called a range.
+    return {
+      type: "freeform", kind: "dict", key, label,
+      entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
+      fixedKeys: true,
+      description,
+    };
   }
 
   if (declared === "toggle") {

@@ -77,6 +77,26 @@ G:
   });
 
   /**
+   * The case the heuristic cannot reach: a dict whose settings all happen to be numbers looks
+   * exactly like a weighted range, and only the apworld can say otherwise.
+   */
+  test("a declared dict of numeric settings is a dict, not a range", () => {
+    const yaml = `name: Alice
+game: G
+G:
+  game_options:
+    starter: 4
+    badges: 8
+`;
+
+    const [option] = optionsOf(yaml, { game_options: { type: "dict", min: 0, max: 0, default: null } });
+
+    expect(option.type).toBe("freeform");
+    if (option.type !== "freeform" || option.kind !== "dict") throw new Error("unreachable");
+    expect(option.entries.map((entry) => `${entry.k}=${entry.v}`)).toEqual(["starter=4", "badges=8"]);
+  });
+
+  /**
    * Story 4.17's guard has to stay reachable: it protects apworlds whose introspection has not been
    * backfilled, and a literal dict misread as a weighted choice crashes generation.
    */
