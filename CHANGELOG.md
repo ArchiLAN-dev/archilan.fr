@@ -5,6 +5,58 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.17.0] - 2026-08-27
+
+Quatre nouveautés autour des parties et des indices, et une correction de fond sur qui est
+réellement connecté à un slot.
+
+### Ajouté
+
+- **Un slot peut être joué à plusieurs.** Certains jeux ne se jouent pas seuls : un Minecraft, c'est
+  rarement une personne devant son écran, et Archipelago n'a qu'un slot par monde. Jusqu'ici un seul
+  des joueurs existait pour la plateforme - les autres n'avaient ni patch, ni indices, ni locations
+  d'objets, et ne marquaient aucun point. Le propriétaire d'une partie privée désigne désormais qui
+  joue chaque slot, sans limite de nombre, et **tout le monde marque pleinement** : la partie, les
+  objectifs et les checks comptent pour chacun, dans l'XP comme au classement et dans les succès. Un
+  slot partagé est nommé par tous ses joueurs, et non plus par un seul.
+- **Une partie privée peut héberger une seed générée ailleurs.** Une seed faite sur le site
+  Archipelago, par un membre en local ou par un autre groupe est un fait accompli : la regénérer
+  donnerait un autre multiworld. On peut maintenant l'importer, et l'archive devient la partie -
+  aucun YAML n'est demandé, aucune génération n'est lancée. Le créateur assigne les slots de
+  l'archive aux participants. Contrepartie dite explicitement par un bandeau : la progression
+  détaillée (checks faisables, sphères, détail des objets) n'est pas disponible, car la calculer
+  demande les configurations des joueurs, que l'archive ne contient pas. Tout le reste fonctionne :
+  progression chiffrée, feed, timeline, indices, fichiers et récap.
+- **Les indices se filtrent par priorité et par côté.** Un indice pouvait déjà être classé
+  prioritaire, faible ou à éviter, et ce classement remontait au serveur Archipelago - mais tout
+  retombait dans la même liste, si bien que sur une partie à quarante indices l'information qu'on
+  venait d'y ranger était celle qu'on ne retrouvait plus. Deux filtres s'ajoutent au tri existant et
+  se croisent avec lui : la priorité, et le côté - un objet qui vient vers moi, ou un objet caché
+  chez moi qu'un autre joueur attend. Rien n'est filtré à l'ouverture.
+
+### Corrigé
+
+- **La présence d'un slot dit enfin qui y joue.** Le paquet d'entrée d'Archipelago liste tous les
+  joueurs du multiworld, pas les clients connectés. Le bridge le lisait comme une présence : tous
+  les slots passaient « connecté » dès qu'il s'attachait, et seul un départ en retirait un. La
+  présence se calcule désormais sur les arrivées et départs réels, en excluant les clients qui
+  regardent sans jouer - le bridge lui-même, ou un tracker ouvert à côté du jeu. Un slot joué à deux
+  ne se libère qu'au départ du second.
+- **Une option `NamedRange` accepte une valeur numérique fixe.** L'éditeur ne recevait pas le type
+  des options et le devinait d'après la forme de la valeur ; une option offrant une valeur nommée à
+  côté de ses nombres échouait au test « toutes les clés sont numériques » et se retrouvait traitée
+  comme une liste de choix, sans champ numérique. Le type introspecté fait maintenant autorité, et
+  la valeur nommée survit à l'aller-retour au lieu d'être perdue. Les dictionnaires de réglages
+  littéraux, longtemps confondus avec des distributions pondérées, sont eux aussi reconnus pour ce
+  qu'ils sont.
+
+### Notes de déploiement
+
+- Les images `archipelago`, `orchestrateur` et `bridge` doivent partir **avant** l'API : l'import de
+  seed s'appuie sur une lecture de multidata que seul le conteneur Archipelago sait faire.
+- `php bin/console app:games:backfill-option-types` repeuple la table des types du catalogue existant
+  sans attendre le prochain téléversement de chaque apworld.
+
 ## [0.16.5] - 2026-08-24
 
 Version de publication : la v0.16.4 n'a pu livrer que deux de ses trois images.
