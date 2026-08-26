@@ -6,9 +6,10 @@ import { AlertCircle, ArrowLeft, ExternalLink, FileText, Gamepad2, ShieldCheck }
 import { useQuery } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
-import { fetchParticipantGameSelection } from "./personal-runs-api";
+import { fetchParticipantGameSelection, fetchPersonalRun } from "./personal-runs-api";
 import type { ParticipantGameSlot, ParticipantLevel, ParticipantStats } from "./types";
 import { PersonalRunYamlViewerDialog } from "./personal-run-yaml-viewer-dialog";
+import { SlotCoPlayers, type CoPlayerCandidate } from "./slot-co-players";
 
 const availabilityConfig: Record<string, { label: string; className: string }> = {
   available: { label: "Disponible", className: "border-success/50 bg-success/10 text-success" },
@@ -82,6 +83,21 @@ export function PersonalRunParticipantDetailPage({
 }) {
   const { runId, participantId } = use(params);
   const [openSlot, setOpenSlot] = useState<ParticipantGameSlot | null>(null);
+
+  // Story 16.17: the co-player controls need the run's roster (who may be added) and whether the
+  // viewer owns the run (who may add them). Both live on the run, not on this participant.
+  const runQuery = useQuery({
+    queryKey: ["personal-run", runId],
+    queryFn: () => fetchPersonalRun(runId),
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+  const run = runQuery.data?.kind === "ready" ? runQuery.data.run : null;
+  const canManageCoPlayers = run?.isOwner === true;
+  // Everyone in the party except the member whose slots these are: one cannot co-play one's own slot.
+  const coPlayerCandidates: CoPlayerCandidate[] = (run?.participants ?? [])
+    .filter((candidate) => candidate.userId !== participantId)
+    .map((candidate) => ({ userId: candidate.userId, displayName: candidate.displayName ?? "Joueur" }));
 
   // fetchParticipantGameSelection never throws - the tri-state access encoding (401 -> unauthorized,
   // 403 -> forbidden, 404 -> not_found) plus errors all live in the result's `kind`, so the query
@@ -301,6 +317,15 @@ export function PersonalRunParticipantDetailPage({
                     </p>
                   )
                 ) : null}
+                <SlotCoPlayers
+                  canManage={canManageCoPlayers}
+                  candidates={coPlayerCandidates}
+                  coPlayers={slot.coPlayers ?? []}
+                  onChanged={() => detailQuery.refetch()}
+                  runId={runId}
+                  slotId={slot.slotId}
+                />
+
                 {slot.playerYaml !== null ? (
                   <button
                     className="inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"

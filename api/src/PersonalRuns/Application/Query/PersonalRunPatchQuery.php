@@ -7,6 +7,7 @@ namespace App\PersonalRuns\Application\Query;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\PersonalRuns\Presentation\Controller\PersonalRunPatchController;
+use App\Sessions\Application\Support\SlotsPlayedBy;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
@@ -26,6 +27,7 @@ final readonly class PersonalRunPatchQuery
         private RunRepositoryInterface $runs,
         private SessionRepositoryInterface $sessions,
         private SessionSlotRepositoryInterface $slots,
+        private SlotsPlayedBy $playedSlots,
     ) {
     }
 
@@ -52,9 +54,10 @@ final readonly class PersonalRunPatchQuery
 
         // SessionSlot stores the participant's user id in its registration_id column for
         // personal runs, and the resolved slot name (SlotNameGenerator / the player's custom
-        // YAML name) used by the AP server to name the patch files.
+        // YAML name) used by the AP server to name the patch files. A slot played by several
+        // people yields its patch to all of them (story 16.17).
         $slotNames = [];
-        foreach ($this->slots->findByRegistrationAndSession($userId, $sessionId) as $slot) {
+        foreach ($this->playedSlots->inSession($sessionId, $userId, $userId) as $slot) {
             $slotNames[] = $slot->getSlotName();
         }
         if ([] === $slotNames) {

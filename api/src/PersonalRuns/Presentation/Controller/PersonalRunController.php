@@ -8,6 +8,7 @@ use App\PersonalRuns\Application\Command\PersonalRunGameConfig;
 use App\PersonalRuns\Application\Command\PersonalRunLifecycle;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
 use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
+use App\PersonalRuns\Application\Service\RunSlotCoPlayers;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,6 +25,7 @@ final readonly class PersonalRunController
         private PersonalRunGameConfig $gameConfig,
         private PersonalRunGameSelection $gameSelection,
         private PersonalRunLifecycle $lifecycle,
+        private RunSlotCoPlayers $coPlayers,
     ) {
     }
 
@@ -384,6 +386,39 @@ final readonly class PersonalRunController
         }
 
         return new JsonResponse(null, 204);
+    }
+
+    /**
+     * Replace the whole co-player roster of a slot (story 16.17). A full list rather than an
+     * add/remove pair: the same call adds, removes and reorders, and repeating it changes nothing.
+     */
+    #[Route('/api/v1/runs/{runId}/slots/{slotId}/co-players', name: 'api_runs_slot_co_players_replace', methods: ['PUT'])]
+    public function replaceSlotCoPlayers(Request $request, string $runId, string $slotId): JsonResponse
+    {
+        $user = $this->requireAuthenticatedUser($request);
+        if ($user instanceof JsonResponse) {
+            return $user;
+        }
+
+        $payload = $this->jsonPayload($request);
+        $raw = is_array($payload['userIds'] ?? null) ? $payload['userIds'] : [];
+        $userIds = array_values(array_filter($raw, is_string(...)));
+
+        $result = $this->coPlayers->replace($runId, $user->getId(), $slotId, $userIds);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
+        }
+
+        if (!$result['authorized']) {
+            return $this->apiAccessGuard->errorResponse('forbidden', 'Seul le propriétaire de la partie gère les co-joueurs.', 403);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Co-joueurs invalides.', 422, $result['errors']);
+        }
+
+        return new JsonResponse(['data' => ['coPlayers' => $result['coPlayers']]]);
     }
 
     #[Route('/api/v1/runs/{runId}/unarchive', name: 'api_runs_unarchive', methods: ['POST'])]

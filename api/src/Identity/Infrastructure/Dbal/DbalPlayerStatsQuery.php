@@ -6,6 +6,7 @@ namespace App\Identity\Infrastructure\Dbal;
 
 use App\Events\Domain\Entity\Event;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
+use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 
@@ -48,14 +49,14 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
 
         // Event sessions (slot -> registration -> user). Goals/games counted per slot (= per game) so a
         // multi-game run isn't undercounted (story 18.8).
-        foreach ($this->sessionRows('reg.user_id', true, $userIds) as $row) {
+        foreach ($this->sessionRows(true, $userIds) as $row) {
             $this->accumulateSession($out, $row);
         }
 
         // Personal runs (slot.registration_id = user). A personal run counts only when the player reached
         // a goal in it (story 17.15) - gated at the SESSION level so the other games of a counted run still
         // feed games_played and checks/items (story 18.8).
-        foreach ($this->sessionRows('slot.registration_id', false, $userIds) as $row) {
+        foreach ($this->sessionRows(false, $userIds) as $row) {
             $this->accumulateSession($out, $row);
         }
 
@@ -73,8 +74,13 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
      *
      * @return list<array<string, mixed>>
      */
-    private function sessionRows(string $userExpr, bool $eventPath, ?array $userIds): array
+    private function sessionRows(bool $eventPath, ?array $userIds): array
     {
+        // A slot counts for everyone who plays it, owner and co-players alike (story 16.17); the
+        // surface-scoping join below is what keeps the two passes from counting the same row twice.
+        $players = DbalSlotPlayerSource::expression(self::SLOT_TABLE, self::REGISTRATION_TABLE);
+        $userExpr = 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
+
         $qb = $this->connection->createQueryBuilder();
         $qb
             ->select(
@@ -86,6 +92,7 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
                 'COALESCE(SUM(CASE WHEN '.self::COUNTS.' THEN slot.items_received ELSE 0 END), 0) AS total_items_received',
             )
             ->from(self::SLOT_TABLE, 'slot')
+            ->join('slot', $players, 'sp', $qb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
             ->join('slot', self::SESSION_TABLE, 's', $qb->expr()->eq('s.id', 'slot.session_id'))
             ->where($qb->expr()->eq('s.status', ':status'))
             ->setParameter('status', 'finished')
@@ -94,8 +101,10 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
         if ($eventPath) {
             $qb->join('slot', self::REGISTRATION_TABLE, 'reg', $qb->expr()->eq('reg.id', 'slot.registration_id'));
         } else {
+            // The run-level goal gate applies to the player, not to the slot's owner: a co-player
+            // who finished a shared game has "reached a goal in this run" too.
             $qb->join('s', self::RUN_TABLE, 'pr', $qb->expr()->eq('pr.session_id', 's.id'))
-                ->andWhere('s.id IN (SELECT g.session_id FROM '.self::SLOT_TABLE.' g WHERE g.registration_id = slot.registration_id AND g.goal_reached_at IS NOT NULL)');
+                ->andWhere('s.id IN (SELECT g.session_id FROM '.self::SLOT_TABLE.' g JOIN '.$players.' gp ON gp.'.DbalSlotPlayerSource::SLOT_COLUMN.' = g.id WHERE gp.'.DbalSlotPlayerSource::USER_COLUMN.' = '.$userExpr.' AND g.goal_reached_at IS NOT NULL)');
         }
 
         if (null !== $userIds) {

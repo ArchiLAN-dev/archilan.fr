@@ -7,10 +7,10 @@ namespace App\Sessions\Application\Query;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Support\SlotsPlayedBy;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
-use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
 use App\Sessions\Domain\ValueObject\SessionView;
 
 final readonly class PlayerSessionConnection
@@ -19,7 +19,7 @@ final readonly class PlayerSessionConnection
         private RegistrationRepositoryInterface $registrations,
         private PlayerConnectionQueryInterface $playerConnectionQuery,
         private SessionRepositoryInterface $sessions,
-        private SessionSlotRepositoryInterface $slots,
+        private SlotsPlayedBy $playedSlots,
         private GameRepositoryInterface $games,
     ) {
     }
@@ -58,7 +58,9 @@ final readonly class PlayerSessionConnection
             return ['session' => null, 'slots' => []];
         }
 
-        $sessionSlots = $this->slots->findByRegistrationAndSession($registrationId, $session->getId());
+        // Owned slots plus the ones this member was added to as a co-player (story 16.17): a shared
+        // slot has to appear in the connection details of everyone who plays it.
+        $sessionSlots = $this->playedSlots->inSession($session->getId(), $registrationId, $userId);
 
         $gameIds = array_values(array_unique(
             array_map(static fn (SessionSlot $s) => $s->getGameId(), $sessionSlots),

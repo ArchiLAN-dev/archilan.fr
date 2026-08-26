@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
-import type { ParticipantGameSlot, ParticipantIdentity, PersonalRun } from "./types";
+import type { ParticipantGameSlot, ParticipantIdentity, PersonalRun, SlotCoPlayer } from "./types";
 
 export type RunInvitePreview = {
   title: string;
@@ -169,6 +169,8 @@ export type GameSelectionSlot = {
   playerYaml: string | null;
   apworldHash: string | null;
   preflight?: SlotPreflightVerdict | null;
+  // Story 16.17: who else plays this slot. Read-only here - only the run owner changes it.
+  coPlayers?: SlotCoPlayer[];
 };
 
 /** Story 9.42: queue a "Tester ma config" solo test generation for one slot. */
@@ -176,6 +178,29 @@ export async function requestSlotPreflight(runId: string, slotId: string): Promi
   try {
     const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/participants/me/slots/${slotId}/preflight`, {
       method: "POST",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Story 16.17: replace the whole co-player roster of a slot. A full list rather than an add/remove
+ * pair, so the call is idempotent and the caller never has to reason about a diff.
+ *
+ * Run owner only - the API answers 403 to anyone else.
+ */
+export async function replaceSlotCoPlayers(
+  runId: string,
+  slotId: string,
+  userIds: string[],
+): Promise<boolean> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/slots/${slotId}/co-players`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds }),
     });
     return res.ok;
   } catch {
