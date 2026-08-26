@@ -6,7 +6,12 @@ namespace App\Sessions\Infrastructure\Http;
 
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Archilan\OrchestratorClient\Apworlds\Response\ApworldPreflight;
+use Archilan\OrchestratorClient\Apworlds\Response\ChoiceTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\TemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\TextTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\ToggleTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\WeightsTemplateOption;
 use Archilan\OrchestratorClient\OrchestratorClient;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureRequest;
 use Archilan\OrchestratorClient\Sessions\Request\ConfigureSlot;
@@ -102,19 +107,61 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         $types = [];
         try {
             foreach ($this->client->apworlds()->getOptions($hash) as $option) {
-                if ($option instanceof RangeTemplateOption) {
-                    $types[$option->key] = [
-                        'min' => $option->rangeMin,
-                        'max' => $option->rangeMax,
-                        'default' => $option->default,
-                    ];
-                }
+                $types[$option->key] = self::describeOption($option);
             }
         } catch (\Throwable $e) {
             $this->logger->warning('runner.apworld_options_fetch_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
         }
 
         return $types;
+    }
+
+    /**
+     * Story 9.33: what the apworld actually says an option is.
+     *
+     * Only range bounds used to survive this method, so the editor had to guess every other option
+     * from the *shape of its value* - keys `true`/`false` mean toggle, numeric keys mean range, and
+     * everything else falls to choice. That heuristic is what mis-read Pokemon Platinum's literal
+     * `game_options` dict and coerced a player name to an int, crashing generation (story 4.17).
+     *
+     * The orchestrator already merges introspected types into this response; nothing upstream had to
+     * change, the type simply stopped being dropped here.
+     *
+     * @return array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}
+     */
+    private static function describeOption(TemplateOption $option): array
+    {
+        if ($option instanceof RangeTemplateOption) {
+            return [
+                'type' => 'range',
+                // Kept at the top level and unrenamed: the range-bounds consumers of stories 9.25
+                // and 4.16 read them exactly here.
+                'min' => $option->rangeMin,
+                'max' => $option->rangeMax,
+                'default' => $option->default,
+            ];
+        }
+
+        if ($option instanceof ChoiceTemplateOption) {
+            return ['type' => 'choice', 'default' => $option->default, 'values' => array_values(array_filter($option->validValues, is_string(...)))];
+        }
+
+        if ($option instanceof ToggleTemplateOption) {
+            return ['type' => 'toggle', 'default' => $option->default];
+        }
+
+        if ($option instanceof WeightsTemplateOption) {
+            return ['type' => 'weights', 'values' => array_values(array_filter($option->validValues, is_string(...)))];
+        }
+
+        if ($option instanceof TextTemplateOption) {
+            return ['type' => 'text', 'default' => $option->default];
+        }
+
+        // A type the vendored client does not model yet degrades to "unknown" rather than to a wrong
+        // answer: the editor then falls back to its value-shape heuristic, which is what it did for
+        // every option before this story.
+        return ['type' => 'unknown'];
     }
 
     public function fetchLocationNames(string $hash): array
