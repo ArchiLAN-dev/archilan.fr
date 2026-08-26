@@ -26,6 +26,7 @@ import { REALTIME_STALE_TIME } from "@/lib/query-client";
 import { useAuth } from "@/features/auth/auth-context";
 import { fetchPersonalRun, setRunRecapVisibility, type PersonalRunResult } from "./personal-runs-api";
 import { IdleBanner } from "./idle-banner";
+import { ImportedSeedPanel } from "./imported-seed-panel";
 import { PersonalRunStatusBadge } from "./personal-run-status-badge";
 import { clearOverride, loadOverride, loadOverrideProfile, saveOverride } from "@/features/admin/admin-session-config-api";
 import { SessionConfigOverrideForm } from "@/features/admin/session-config-override-form";
@@ -883,6 +884,19 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         {/* My games card - visible to owner + participants when configurable */}
         {activeTab === "overview" && (run.isOwner || myParticipant !== null) && (run.status === "draft" || run.status === "idle") && (
           <MyGamesCard mySlotCount={mySlotCount} run={run} />
+        )}
+
+        {activeTab === "settings" && run.isOwner && (
+          <section className="mb-4">
+            <ImportedSeedPanel
+              editable={run.status === "draft"}
+              importedSeed={run.importedSeed === true}
+              importedSlots={run.importedSlots ?? []}
+              onChanged={() => runQuery.refetch()}
+              participants={run.participants}
+              runId={run.id}
+            />
+          </section>
         )}
 
         {activeTab === "settings" && run.isOwner && (

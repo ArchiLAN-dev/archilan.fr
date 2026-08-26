@@ -2,7 +2,7 @@ import { apiFetch } from "@/lib/apiFetch";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
-import type { ParticipantGameSlot, ParticipantIdentity, PersonalRun, SlotCoPlayer } from "./types";
+import type { ImportedSlot, ParticipantGameSlot, ParticipantIdentity, PersonalRun, SlotCoPlayer } from "./types";
 
 export type RunInvitePreview = {
   title: string;
@@ -183,6 +183,105 @@ export async function requestSlotPreflight(runId: string, slotId: string): Promi
   } catch {
     return false;
   }
+}
+
+/**
+ * Story 16.18: attach a seed generated somewhere else to a run. The archive becomes the party.
+ *
+ * Returns the archive's playable slots on success, or the reason it was refused - "this is not a
+ * seed" is something the member can act on, so it is worth showing rather than swallowing.
+ */
+export async function importRunSeed(
+  runId: string,
+  file: File,
+): Promise<{ ok: true; slots: ImportedSlot[] } | { ok: false; message: string }> {
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/seed`, { method: "POST", body });
+    const payload: unknown = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      return { ok: false, message: importErrorMessage(payload) };
+    }
+
+    return { ok: true, slots: readImportedSlots(payload) };
+  } catch {
+    return { ok: false, message: "Impossible de contacter l'API." };
+  }
+}
+
+/** Story 16.18: put zero or more participants on a slot of the imported archive. */
+export async function assignImportedSlot(
+  runId: string,
+  slotId: string,
+  userIds: string[],
+): Promise<{ ok: true; slots: ImportedSlot[] } | { ok: false; message: string }> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/runs/${runId}/imported-slots/${slotId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds }),
+    });
+    const payload: unknown = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      return { ok: false, message: importErrorMessage(payload) };
+    }
+
+    return { ok: true, slots: readImportedSlots(payload) };
+  } catch {
+    return { ok: false, message: "Impossible de contacter l'API." };
+  }
+}
+
+function importErrorMessage(payload: unknown): string {
+  if (typeof payload === "object" && payload !== null && "error" in payload) {
+    const error = payload.error;
+    if (typeof error === "object" && error !== null && "details" in error) {
+      const details = error.details;
+      if (typeof details === "object" && details !== null) {
+        for (const value of Object.values(details)) {
+          if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+        }
+      }
+    }
+    if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+      return error.message;
+    }
+  }
+
+  return "Import impossible.";
+}
+
+function readImportedSlots(payload: unknown): ImportedSlot[] {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) return [];
+  const data = payload.data;
+  if (typeof data !== "object" || data === null || !("slots" in data) || !Array.isArray(data.slots)) return [];
+
+  const slots: ImportedSlot[] = [];
+  for (const slot of data.slots) {
+    if (
+      typeof slot === "object" &&
+      slot !== null &&
+      hasStringProp(slot, "slotId") &&
+      hasStringProp(slot, "name") &&
+      hasStringProp(slot, "game") &&
+      hasNumberProp(slot, "slot") &&
+      "assignedUserIds" in slot &&
+      Array.isArray(slot.assignedUserIds)
+    ) {
+      slots.push({
+        slotId: slot.slotId,
+        slot: slot.slot,
+        name: slot.name,
+        game: slot.game,
+        assignedUserIds: slot.assignedUserIds.filter((id: unknown): id is string => typeof id === "string"),
+      });
+    }
+  }
+
+  return slots;
 }
 
 /**

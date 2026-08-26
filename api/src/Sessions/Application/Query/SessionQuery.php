@@ -43,6 +43,7 @@ final readonly class SessionQuery
      *     archivedSpoilerPath: string|null,
      *     archivedSavePath: string|null,
      *     generatedOutputKey: string|null,
+     *     importedSeed: bool,
      * }|null
      */
     public function findById(string $id): ?array
@@ -66,6 +67,10 @@ final readonly class SessionQuery
             'archivedSpoilerPath' => $session->getArchivedSpoilerPath(),
             'archivedSavePath' => $session->getArchivedSavePath(),
             'generatedOutputKey' => $session->getGeneratedOutputKey(),
+            // Story 16.18: this session hosts a seed generated elsewhere, so there are no yamls to
+            // rebuild the world from and no detailed progression to compute. Exposed here rather
+            // than fetched again by every caller that has to refuse or hide it.
+            'importedSeed' => $this->runs->findBySessionId($id)?->isImportedSeed() ?? false,
         ];
     }
 

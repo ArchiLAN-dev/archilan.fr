@@ -147,7 +147,9 @@ final readonly class DbalPlayerStatsQuery implements PlayerStatsQueryInterface
     private function accumulateSession(array &$out, array $row): void
     {
         $uid = $row['uid'] ?? null;
-        if (!is_string($uid)) {
+        // An unassigned slot of an imported archive has no owner at all (story 16.18): its empty
+        // key belongs to nobody and must not become a phantom row in the aggregate.
+        if (!is_string($uid) || '' === $uid) {
             return;
         }
         $cur = $out[$uid] ?? $this->zero();

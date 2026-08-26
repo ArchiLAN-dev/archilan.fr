@@ -79,6 +79,16 @@ export type ParticipantGameSlot = {
   preflight?: { status: "pending" | "passed" | "failed"; error: string; checkedAt: string } | null;
 };
 
+/** A slot of an imported archive, and who the run owner put on it (story 16.18). */
+export type ImportedSlot = {
+  slotId: string;
+  slot: number;
+  name: string;
+  game: string;
+  // Ordered: the first owns the slot, the rest are its co-players (story 16.17).
+  assignedUserIds: string[];
+};
+
 export type ValidationSlotError = {
   slotName: string;
   errors: string[];
@@ -114,6 +124,10 @@ export type PersonalRun = {
   // Story 9.42: slots across all participants whose solo test generation failed (advisory
   // launch warning). Absent on older API payloads.
   failedPreflightCount?: number;
+  // Story 16.18: this run hosts a seed generated elsewhere. Falsy on an older API payload.
+  importedSeed?: boolean;
+  // Slots read out of the imported archive, null when the run was generated here.
+  importedSlots?: ImportedSlot[] | null;
   adminPassword: string | null;
   createdAt: string;
   updatedAt: string;

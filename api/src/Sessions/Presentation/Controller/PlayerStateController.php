@@ -198,6 +198,17 @@ final readonly class PlayerStateController
             return $this->apiAccessGuard->errorResponse('forbidden', 'Accès refusé.', 403);
         }
 
+        // Story 16.18: a seed generated elsewhere carries no yamls, so the world cannot be rebuilt
+        // and the detailed progression does not exist. Say so instead of letting the request fall
+        // into a generation error, and spend no container on it.
+        if ($session['importedSeed']) {
+            return $this->apiAccessGuard->errorResponse(
+                'detailed_progression_unavailable',
+                'La progression détaillée n\'est pas disponible sur une partie importée.',
+                409,
+            );
+        }
+
         $ttl = 3600;
         $expiresAt = new \DateTimeImmutable('+'.$ttl.' seconds');
         $topic = 'runs/'.$runId.'/slots/'.$slotIndex.'/reachable';
@@ -552,6 +563,17 @@ final readonly class PlayerStateController
         $session = $this->sessionQuery->findById($sessionId);
         if (null === $session) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
+        }
+
+        // Story 16.18: a seed generated elsewhere carries no yamls, so the world cannot be rebuilt
+        // and the detailed progression does not exist. Say so instead of letting the request fall
+        // into a generation error, and spend no container on it.
+        if ($session['importedSeed']) {
+            return $this->apiAccessGuard->errorResponse(
+                'detailed_progression_unavailable',
+                'La progression détaillée n\'est pas disponible sur une partie importée.',
+                409,
+            );
         }
 
         if (Session::STATUS_RUNNING !== $session['status']) {
