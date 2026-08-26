@@ -15,8 +15,10 @@ use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Sessions\Domain\Entity\SlotCoPlayer;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use App\Shared\Application\Support\SlotYamlNameReader;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -25,6 +27,9 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final readonly class LaunchPersonalRunJobHandler
 {
+    /** Archipelago's SlotType: 0 spectator, 1 player, 2 item-link group. Only 1 is a seat. */
+    private const int SLOT_TYPE_PLAYER = 1;
+
     public function __construct(
         private RunRepositoryInterface $runs,
         private RunParticipantRepositoryInterface $participants,
@@ -37,6 +42,7 @@ final readonly class LaunchPersonalRunJobHandler
         private PersonalRunAdvancerInterface $personalRunAdvancer,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private SlotCoPlayerRepositoryInterface $coPlayers,
     ) {
     }
 
@@ -45,6 +51,12 @@ final readonly class LaunchPersonalRunJobHandler
         $run = $this->runs->findById($job->personalRunId);
         if (!$run instanceof Run) {
             $this->logger->error('personal_run.launch.not_found', ['runId' => $job->personalRunId]);
+
+            return;
+        }
+
+        if ($run->isImportedSeed()) {
+            $this->launchImportedSeed($run);
 
             return;
         }
@@ -183,5 +195,78 @@ final readonly class LaunchPersonalRunJobHandler
             'sessionId' => $sessionId,
             'slotCount' => count($messageSlots),
         ]);
+    }
+
+    /**
+     * Launch a run whose seed was generated somewhere else (story 16.18).
+     *
+     * Nothing is generated and nothing is configured: the archive already exists, its slots were
+     * read out of its multidata at import, and the orchestrator's launch-from-file path puts it in
+     * the session volume. The session still walks the normal state machine, so everything
+     * downstream - webhooks, idle, resume, recap - stays on the one path it knows.
+     */
+    private function launchImportedSeed(Run $run): void
+    {
+        $slots = $run->getImportedSlots();
+        $outputKey = $run->getImportedOutputKey();
+        if ([] === $slots || null === $outputKey) {
+            $this->logger->error('personal_run.launch.imported_incomplete', ['runId' => $run->getId()]);
+
+            return;
+        }
+
+        $now = $this->clock->now();
+        $sessionId = bin2hex(random_bytes(16));
+        $session = Session::create($sessionId, $run->getId(), $now);
+        $this->sessions->persist($session);
+
+        $created = 0;
+        foreach ($slots as $slot) {
+            if (self::SLOT_TYPE_PLAYER !== $slot['type']) {
+                continue;
+            }
+
+            $assigned = $slot['assignedUserIds'];
+            $this->slots->persist(SessionSlot::create(
+                bin2hex(random_bytes(16)),
+                $sessionId,
+                // The first assignee owns the slot; an unassigned slot has no owner at all, and an
+                // empty key is what the aggregates already skip rather than mis-attribute.
+                $assigned[0] ?? '',
+                '',
+                $slot['name'],
+                $slot['slot'],
+                $slot['slotId'],
+            ));
+            ++$created;
+
+            // Everyone after the first plays the slot without owning it (story 16.17).
+            foreach (array_slice($assigned, 1) as $coPlayerId) {
+                $this->coPlayers->persist(SlotCoPlayer::create(
+                    bin2hex(random_bytes(16)),
+                    $slot['slotId'],
+                    $coPlayerId,
+                    $now,
+                ));
+            }
+        }
+
+        $session->transition(Session::STATUS_VALIDATING, $now);
+        $run->attachSession($sessionId);
+        $session->transition(Session::STATUS_READY, $now);
+        // No generation happens; the archive is the output, so the session walks through
+        // "generating" without a container behind it and lands on "generated".
+        $session->transition(Session::STATUS_GENERATING, $now);
+        $session->transition(Session::STATUS_GENERATED, $now);
+        $session->markGenerated($outputKey);
+        $this->sessions->flush();
+
+        $this->logger->info('personal_run.launch.imported', [
+            'runId' => $run->getId(),
+            'sessionId' => $sessionId,
+            'slotCount' => $created,
+        ]);
+
+        $this->personalRunAdvancer->autoAdvancePersonalRun($sessionId);
     }
 }

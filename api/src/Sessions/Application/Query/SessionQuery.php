@@ -8,6 +8,7 @@ use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
+use App\Sessions\Application\Support\SlotsPlayedBy;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -26,6 +27,7 @@ final readonly class SessionQuery
         private RegistrationRepositoryInterface $registrations,
         private SessionSlotRepositoryInterface $slots,
         private SessionPlayersSnapshotRepositoryInterface $snapshots,
+        private SlotsPlayedBy $playedSlots,
     ) {
     }
 
@@ -41,6 +43,7 @@ final readonly class SessionQuery
      *     archivedSpoilerPath: string|null,
      *     archivedSavePath: string|null,
      *     generatedOutputKey: string|null,
+     *     importedSeed: bool,
      * }|null
      */
     public function findById(string $id): ?array
@@ -64,6 +67,10 @@ final readonly class SessionQuery
             'archivedSpoilerPath' => $session->getArchivedSpoilerPath(),
             'archivedSavePath' => $session->getArchivedSavePath(),
             'generatedOutputKey' => $session->getGeneratedOutputKey(),
+            // Story 16.18: this session hosts a seed generated elsewhere, so there are no yamls to
+            // rebuild the world from and no detailed progression to compute. Exposed here rather
+            // than fetched again by every caller that has to refuse or hide it.
+            'importedSeed' => $this->runs->findBySessionId($id)?->isImportedSeed() ?? false,
         ];
     }
 
@@ -121,19 +128,19 @@ final readonly class SessionQuery
             return false;
         }
 
-        $ownerKey = $this->slotOwnerKey($userId, $sessionId, $session->getEventId());
-        if (null === $ownerKey) {
-            return false;
-        }
-
         $slotName = $this->archipelagoSlotName($sessionId, $slotIndex);
         if (null === $slotName) {
             return false;
         }
 
         $slot = $this->slots->findBySessionAndSlotName($sessionId, $slotName);
+        if (!$slot instanceof SessionSlot) {
+            return false;
+        }
 
-        return $slot instanceof SessionSlot && $slot->getRegistrationId() === $ownerKey;
+        // Owning the slot is one way in; being a co-player of it is the other (story 16.17). The
+        // owner key stays null for someone with no slots of their own, who may still co-play one.
+        return $this->playedSlots->plays($slot, $this->slotOwnerKey($userId, $sessionId, $session->getEventId()), $userId);
     }
 
     /**

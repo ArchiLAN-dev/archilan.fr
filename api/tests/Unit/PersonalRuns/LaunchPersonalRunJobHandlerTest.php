@@ -19,6 +19,7 @@ use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -95,6 +96,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             self::createStub(PersonalRunAdvancerInterface::class),
             self::createStub(LoggerInterface::class),
             new MockClock(),
+            self::createStub(SlotCoPlayerRepositoryInterface::class),
         );
 
         $handler(new LaunchPersonalRunJob($run->getId()));
@@ -121,6 +123,7 @@ final class LaunchPersonalRunJobHandlerTest extends TestCase
             self::createStub(PersonalRunAdvancerInterface::class),
             $logger ?? self::createStub(LoggerInterface::class),
             new MockClock(),
+            self::createStub(SlotCoPlayerRepositoryInterface::class),
         );
     }
 }

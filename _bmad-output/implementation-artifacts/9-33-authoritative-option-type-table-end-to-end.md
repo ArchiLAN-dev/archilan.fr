@@ -1,6 +1,6 @@
 # Story 9.33: Authoritative option-type table end-to-end (dict/OptionDict support)
 
-**Status:** draft
+**Status:** implémentée - `v1.7.0` publiée, PR vers `develop`
 **Epic:** 9 - Multiworld generation pipeline & apworld introspection
 **Date:** 2026-06-27
 
@@ -59,16 +59,16 @@ table to the editor, demoting shape heuristics to a fallback for un-introspected
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1). Orchestrateur: detect `OptionDict` during introspection, serialize a `dict` type
+- [x] **Task 1** (AC 1). Écrite, en attente du tag - voir « Ce qui reste ». Orchestrateur: detect `OptionDict` during introspection, serialize a `dict` type
   with sub-schema. Add a fixture apworld with a dict option to its test suite.
-- [ ] **Task 2** (AC 2). orchestrateur-client: `DictTemplateOption` + `fromArray` routing + unit test.
-- [ ] **Task 3** (AC 3, 3b). API: widen the option-type table model + persistence + backfill + boundary
+- [x] **Task 2** (AC 2). Écrite, en attente du tag - voir « Ce qui reste ». orchestrateur-client: `DictTemplateOption` + `fromArray` routing + unit test.
+- [x] **Task 3** (AC 3, 3b). API: widen the option-type table model + persistence + backfill + boundary
   validation; thread it through the game-selection / configure payloads. Migration if the stored shape
   changes.
-- [ ] **Task 4** (AC 4, 5). Frontend: introspection-first classification in `buildOption`; keep shape
+- [x] **Task 4** (AC 4, 5, hors dict). Frontend: introspection-first classification in `buildOption`; keep shape
   heuristics as fallback; widen `OptionTypesMap`. Jest: dict via introspection → freeform dict; absent
   introspection still falls back to the 4.17 behaviour.
-- [ ] **Task 5** (AC 6). All gates green across repos.
+- [x] **Task 5** (AC 6, sur les dépôts touchés). All gates green across repos.
 
 ## Dev Notes
 
@@ -102,10 +102,84 @@ table to the editor, demoting shape heuristics to a fallback for un-introspected
 
 ## Dev Agent Record
 
-_(empty - not yet implemented)_
+### Ce qui a été livré
+
+Le type était **déjà sur le fil**. `handleGetApworldOptions` fusionne les types introspectés dans sa
+réponse depuis la story 9.25 ; c'est `RunnerGateway::fetchOptionTypes` qui les jetait :
+
+```php
+if ($option instanceof RangeTemplateOption) { ... }   // et rien d'autre
+```
+
+Aucun changement n'a donc été nécessaire dans l'orchestrateur ni dans le client vendored pour les
+cinq types qu'il modélise déjà (range, choice, toggle, weights, text). Le travail était de cesser de
+les perdre, puis de faire consulter le type par l'éditeur **avant** ses heuristiques de forme.
+
+### Ce que ça corrige tout de suite
+
+L'issue [#483](https://github.com/ArchiLAN-dev/archilan.fr/issues/483) : un `NamedRange` dont le
+gabarit propose une valeur nommée à côté de ses nombres (« Use Percentage Option ») échouait au test
+« toutes les clés sont numériques » et retombait sur **choice** - d'où l'impossibilité d'y saisir
+`0`, et le contournement à 1 %. Le type faisant désormais autorité, c'est une range, et la valeur
+nommée survit à l'aller-retour au lieu d'être perdue.
+
+## Écarts assumés
+
+### Table élargie sur place plutôt que doublée
+
+Les Dev Notes suggéraient un champ additif (`Game.optionSchema`) pour ne pas toucher aux
+consommateurs de bornes des stories 9.25 / 4.16. À l'écriture, l'additif coûtait une migration, un
+second backfill, un second champ à faire passer dans quatre charges utiles - et surtout **deux
+sources de vérité sur la même option**.
+
+La colonne est du JSON : une ligne écrite avant cette story porte `{min, max, default}` sans `type`,
+et les lecteurs traitent un type absent comme « range s'il y a des bornes, rien sinon ». La
+compatibilité descendante que demandait l'AC 3 est donc obtenue par construction, sans migration.
+`min` et `max` n'ont pas bougé de place, les consommateurs de bornes ne voient rien.
+
+### Une entrée qui ne dit rien est écartée
+
+Ni type déclaré, ni bornes : l'entrée n'apprend rien à l'éditeur qu'il ne sache déjà. La garder
+serait une promesse vide qui ferait taire l'heuristique sans rien mettre à sa place.
+
+## Ce qui reste
+
+**Rien : `v1.7.0` est publiée et le lock la porte.**
+
+Le type `dict` traverse cinq couches, et elles ne pouvaient pas partir dans le désordre :
+`TemplateOption::fromArray` route tout type inconnu vers `TextTemplateOption`, donc émettre `dict`
+avant que le paquet ne le modélise ferait passer `game_options` de « weights » à « text », soit de
+faux à plus faux.
+
+| # | couche | où | état |
+|---|---|---|---|
+| 1 | `DictTemplateOption` | archilan-orchestrateur-client | mergée, **taguée `v1.7.0`** |
+| 2 | contrainte `>=1.7.0` + lock | monorepo | fait |
+| 3 | `describeOption` mappe le dict | monorepo | écrit |
+| 4 | l'introspection émet `dict` | archipelago | écrit |
+| 4bis | l'orchestrateur transporte `defaults` / `validKeys` | orchestrateur | écrit |
+| 5 | l'éditeur route `dict` vers le dict freeform | monorepo | écrit et testé |
+
+L'étape 4bis n'était pas prévue par la story : `OptionTypeOverride` ne transportait que
+`defaultWeights`, et la réponse d'API n'avait pas de champ pour les clés valides.
+
+`composer gates` vert avec le paquet réellement installé : 1901 tests.
+
+Reste l'ordre de **déploiement** : les images archipelago et orchestrateur ne doivent pas partir
+avant que l'API ne soit à jour, sinon `dict` retombe sur `text` faute d'être modélisé côté client.
+
+### Une découverte au passage
+
+L'ancien chemin `weights` sérialisait ses défauts par `{str(k): int(v) for ...}`. Sur un dict
+littéral, `int("player_name")` lève, l'`except` nu avale l'erreur, et l'option arrivait à l'éditeur
+**mal typée et sans aucun défaut**. La mauvaise classification ne coûtait pas seulement le type.
+
+### Change Log
 
 ### Change Log
 
 | Date       | Change |
 |------------|--------|
+| 2026-08-26 | Type `dict` écrit dans les cinq couches, en attente du tag v1.7.0 du client. Découverte : le chemin `weights` perdait aussi les défauts d'un dict littéral (coercition `int()` avalée par un except nu). |
+| 2026-08-26 | Implémentation de la moitié monorepo : table de types élargie sur place, éditeur qui consulte le type avant la forme. Corrige #483. AC 1 et 2 (type `dict`) différés : ils exigent une publication du paquet client. |
 | 2026-06-27 | Created as follow-up to story 4.17. Replace editor value-shape guessing with an authoritative end-to-end option-type table that models dict/OptionDict options. Spans orchestrateur + orchestrateur-client + API + frontend; 4.17 heuristic retained as fallback. Status: draft. |

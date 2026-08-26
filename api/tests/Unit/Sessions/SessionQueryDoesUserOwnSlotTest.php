@@ -11,12 +11,14 @@ use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Application\Query\ActiveRegistrationQueryInterface;
 use App\Sessions\Application\Query\SessionQuery;
+use App\Sessions\Application\Support\SlotsPlayedBy;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionPlayersSnapshot;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionPlayersSnapshotRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionRepositoryInterface;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -140,6 +142,38 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
         self::assertFalse($query->doesUserOwnSlot(self::USER_ID, self::SESSION_ID, 2));
     }
 
+    /**
+     * Story 16.17: someone added to a slot they do not own gets the same guard verdict as its owner.
+     * Without this they had no hints, no hint purchase, no priorities and no item locations on the
+     * game they were actually playing.
+     */
+    public function testCoPlayerOfASlotIsAllowed(): void
+    {
+        $query = $this->buildQuery(
+            personalRun: Run::create(self::USER_ID, 'Run', new \DateTimeImmutable()),
+            registration: null,
+            slots: [$this->slot('someone-else', 'Alice_A', 1, 'game-slot-1')],
+            apSlotNames: [2 => 'Alice_A'],
+            coPlayedSlotIds: ['game-slot-1'],
+        );
+
+        self::assertTrue($query->doesUserOwnSlot(self::USER_ID, self::SESSION_ID, 2));
+    }
+
+    /** Co-playing one slot opens that slot only, never the neighbouring one. */
+    public function testCoPlayerOfAnotherSlotIsDenied(): void
+    {
+        $query = $this->buildQuery(
+            personalRun: Run::create(self::USER_ID, 'Run', new \DateTimeImmutable()),
+            registration: null,
+            slots: [$this->slot('someone-else', 'Alice_A', 1, 'game-slot-1')],
+            apSlotNames: [2 => 'Alice_A'],
+            coPlayedSlotIds: ['game-slot-9'],
+        );
+
+        self::assertFalse($query->doesUserOwnSlot(self::USER_ID, self::SESSION_ID, 2));
+    }
+
     public function testUnknownSessionIsDenied(): void
     {
         $sessions = self::createStub(SessionRepositoryInterface::class);
@@ -153,6 +187,10 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
             self::createStub(RegistrationRepositoryInterface::class),
             self::createStub(SessionSlotRepositoryInterface::class),
             self::createStub(SessionPlayersSnapshotRepositoryInterface::class),
+            new SlotsPlayedBy(
+                self::createStub(SessionSlotRepositoryInterface::class),
+                self::createStub(SlotCoPlayerRepositoryInterface::class),
+            ),
         );
 
         self::assertFalse($query->doesUserOwnSlot(self::USER_ID, self::SESSION_ID, 2));
@@ -160,14 +198,16 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
 
     /**
      * @param list<SessionSlot>       $slots
-     * @param array<int, string>|null $apSlotNames Archipelago slot number => generated slot name,
-     *                                             null when the bridge never pushed a state
+     * @param array<int, string>|null $apSlotNames     Archipelago slot number => generated slot name,
+     *                                                 null when the bridge never pushed a state
+     * @param list<string>            $coPlayedSlotIds game slot ids the caller co-plays (story 16.17)
      */
     private function buildQuery(
         ?Run $personalRun,
         ?Registration $registration,
         array $slots,
         ?array $apSlotNames,
+        array $coPlayedSlotIds = [],
     ): SessionQuery {
         $sessions = self::createStub(SessionRepositoryInterface::class);
         $sessions->method('findById')->willReturn(
@@ -194,6 +234,9 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
             null === $apSlotNames ? null : $this->snapshot($apSlotNames),
         );
 
+        $coPlayers = self::createStub(SlotCoPlayerRepositoryInterface::class);
+        $coPlayers->method('findSlotIdsForUser')->willReturn($coPlayedSlotIds);
+
         return new SessionQuery(
             $sessions,
             self::createStub(ActiveRegistrationQueryInterface::class),
@@ -202,6 +245,7 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
             $registrations,
             $slotRepo,
             $snapshots,
+            new SlotsPlayedBy($slotRepo, $coPlayers),
         );
     }
 
@@ -228,7 +272,7 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
         return new Registration($id, self::EVENT_ID, self::USER_ID, Registration::STATUS_RESERVED, $now, $now, []);
     }
 
-    private function slot(string $registrationId, string $slotName, int $slotOrder = 1): SessionSlot
+    private function slot(string $registrationId, string $slotName, int $slotOrder = 1, ?string $gameSlotId = null): SessionSlot
     {
         return SessionSlot::create(
             'slot-'.$slotName,
@@ -237,6 +281,7 @@ final class SessionQueryDoesUserOwnSlotTest extends TestCase
             'game-'.$slotName,
             $slotName,
             $slotOrder,
+            $gameSlotId,
         );
     }
 }

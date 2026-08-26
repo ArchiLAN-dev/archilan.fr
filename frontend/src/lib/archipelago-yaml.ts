@@ -23,10 +23,32 @@ function isRandomAlias(k: string): boolean {
 // Keys always rendered as freeform dicts regardless of value shape
 const FREEFORM_DICT_KEYS = new Set(["start_inventory", "start_inventory_from_pool"]);
 
-// Authoritative range bounds + default per option key, from apworld introspection (story 9.25).
-// Supplied by the API; preferred over template-comment scraping when present.
-export type OptionBounds = { min: number; max: number; default: number | null };
-export type OptionTypesMap = Record<string, OptionBounds>;
+/**
+ * What the apworld says an option is, from introspection (stories 9.25 / 9.33).
+ *
+ * 9.25 carried range bounds only, so the editor still had to guess every other option from the
+ * *shape of its value*. That guess is wrong on two known families: a literal dict of settings reads
+ * as a weighted choice (story 4.17), and a `NamedRange` whose template offers a named value such as
+ * "Use Percentage Option" fails the "all keys are numeric" test and falls through to choice - which
+ * is why a fixed number could not be typed into it.
+ *
+ * `type` is absent on games introspected before 9.33; the readers then fall back to the heuristics,
+ * so nothing regresses while the catalogue is re-introspected.
+ */
+export type OptionKind = "range" | "choice" | "toggle" | "weights" | "dict" | "text" | "unknown";
+export type OptionSpec = {
+  type?: OptionKind;
+  min: number;
+  max: number;
+  default: number | null;
+  /** Named values a choice or a NamedRange accepts, when introspection knows them. */
+  values?: string[];
+};
+/** @deprecated Kept as the former name of {@link OptionSpec}; the bounds are still on it. */
+export type OptionBounds = OptionSpec;
+export type OptionTypesMap = Record<string, OptionSpec>;
+
+const OPTION_KINDS = new Set<string>(["range", "choice", "toggle", "weights", "dict", "text", "unknown"]);
 
 /** Validates an API `optionTypes` payload (unknown) into an OptionTypesMap, or null. */
 export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
@@ -35,11 +57,30 @@ export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
   for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
     if (typeof raw !== "object" || raw === null) continue;
     const b = raw as Record<string, unknown>;
-    if (typeof b.min === "number" && typeof b.max === "number") {
-      out[key] = { min: b.min, max: b.max, default: typeof b.default === "number" ? b.default : null };
-    }
+
+    const declared = typeof b.type === "string" && OPTION_KINDS.has(b.type) ? (b.type as OptionKind) : undefined;
+    const hasBounds = typeof b.min === "number" && typeof b.max === "number";
+    // An entry with neither a declared type nor bounds tells the editor nothing it did not already
+    // know, so it is dropped rather than kept as an empty promise.
+    if (declared === undefined && !hasBounds) continue;
+
+    out[key] = {
+      // A pre-9.33 row has bounds and no type: back then only ranges made it this far.
+      type: declared ?? "range",
+      min: hasBounds ? (b.min as number) : 0,
+      max: hasBounds ? (b.max as number) : 0,
+      default: typeof b.default === "number" ? b.default : null,
+      ...(Array.isArray(b.values)
+        ? { values: b.values.filter((v): v is string => typeof v === "string") }
+        : {}),
+    };
   }
   return Object.keys(out).length > 0 ? out : null;
+}
+
+/** Bounds are only meaningful once introspection actually reported them. */
+function hasUsableBounds(spec: OptionSpec | undefined): spec is OptionSpec {
+  return spec !== undefined && spec.max > spec.min;
 }
 
 /** Validates an API `locationNames` payload (unknown) into a string[], or null (story 4.14). */
@@ -461,6 +502,49 @@ function parseFreeformItem(text: string): unknown {
   return parseFreeformValue(trimmed);
 }
 
+/**
+ * A range option and its weighted entries.
+ *
+ * Every key of the mapping becomes an entry, including ones that are neither a number nor a random
+ * alias: a `NamedRange` offers named values such as "Use Percentage Option" beside its numbers, and
+ * dropping them used to lose them on the round-trip - the very reason the option fell through to
+ * `choice` and refused a plain number (issue #483).
+ */
+function buildRangeOption(
+  key: string,
+  label: string,
+  obj: Record<string, unknown>,
+  keys: string[],
+  yamlStr: string,
+  spec: OptionSpec | undefined,
+  description: string | undefined,
+): GameOption {
+  // Authoritative introspected bounds first; template-comment scraping is the fallback for apworlds
+  // not yet backfilled (story 9.25).
+  const bounds = hasUsableBounds(spec) ? spec : (extractRange(yamlStr, key) ?? { min: 0, max: 100 });
+  const valueComments = extractValueComments(yamlStr, key);
+  const entryFor = (k: string): RangeEntry => ({
+    id: uid(), key: k, weight: clampWeight(obj[k]), isCustom: false, description: valueComments.get(k),
+  });
+
+  const fixedAliasEntries = RANDOM_ALIASES.filter((r) => r.key in obj).map((r) => entryFor(r.key));
+  const paramAliasEntries = keys.filter((k) => RANGE_ALIAS_RE.test(k)).sort().map(entryFor);
+  const numericEntries = keys
+    .filter((k) => !isNaN(Number(k)))
+    .sort((a, b) => Number(a) - Number(b))
+    .map(entryFor);
+  const namedEntries = keys
+    .filter((k) => isNaN(Number(k)) && !isRandomAlias(k))
+    .map(entryFor);
+
+  return {
+    type: "range", key, label,
+    min: bounds.min, max: bounds.max,
+    entries: [...fixedAliasEntries, ...paramAliasEntries, ...numericEntries, ...namedEntries],
+    description,
+  };
+}
+
 function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?: OptionTypesMap | null): GameOption {
   const label = labelFromKey(key);
   const description = extractDescription(yamlStr, key);
@@ -469,7 +553,7 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
   // (covers e.g. progression_balancing); otherwise it's free text.
   if (typeof value !== "object" || value === null) {
     const introspected = optionTypes?.[key];
-    if (introspected && !isNaN(Number(value))) {
+    if (hasUsableBounds(introspected) && !isNaN(Number(value))) {
       return {
         type: "range", key, label,
         min: introspected.min, max: introspected.max,
@@ -509,6 +593,37 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
 
   const obj = value as Record<string, unknown>;
   const keys = Object.keys(obj);
+
+  // Story 9.33: what the apworld says wins over what the value looks like. Below this point every
+  // test reads the shape of the value, which is a guess - a good one for most options, and a wrong
+  // one for literal dicts (story 4.17) and for named ranges. The heuristics stay as the fallback for
+  // apworlds introspected before this story, or not introspected at all.
+  const declared = optionTypes?.[key]?.type;
+
+  if (declared === "range") {
+    return buildRangeOption(key, label, obj, keys, yamlStr, optionTypes?.[key], description);
+  }
+
+  if (declared === "dict") {
+    // A literal dict of settings, said by the apworld rather than guessed from the values. The
+    // heuristic below reaches the same answer whenever one value is non-numeric (story 4.17); this
+    // also covers the dict whose settings happen to be all numbers, which the guess called a range.
+    return {
+      type: "freeform", kind: "dict", key, label,
+      entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
+      fixedKeys: true,
+      description,
+    };
+  }
+
+  if (declared === "toggle") {
+    return {
+      type: "toggle", key, label,
+      weightFalse: clampWeight(obj["false"]),
+      weightTrue: clampWeight(obj["true"]),
+      description,
+    };
+  }
 
   // Known dict keys or empty object → freeform dict
   if (FREEFORM_DICT_KEYS.has(key) || keys.length === 0) {
@@ -551,28 +666,7 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
 
   // Range: all keys are numeric or random aliases
   if (keys.every((k) => !isNaN(Number(k)) || isRandomAlias(k))) {
-    // Authoritative introspected bounds first; template-comment scraping is the
-    // fallback for apworlds not yet backfilled (story 9.25).
-    const bounds = optionTypes?.[key] ?? extractRange(yamlStr, key) ?? { min: 0, max: 100 };
-    const valueComments = extractValueComments(yamlStr, key);
-    const fixedAliasEntries: RangeEntry[] = RANDOM_ALIASES.filter((r) => r.key in obj).map((r) => ({
-      id: uid(), key: r.key, weight: clampWeight(obj[r.key]), isCustom: false,
-      description: valueComments.get(r.key),
-    }));
-    const paramAliasEntries: RangeEntry[] = keys
-      .filter((k) => RANGE_ALIAS_RE.test(k))
-      .sort()
-      .map((k) => ({ id: uid(), key: k, weight: clampWeight(obj[k]), isCustom: false, description: valueComments.get(k) }));
-    const numericEntries: RangeEntry[] = keys
-      .filter((k) => !isNaN(Number(k)))
-      .sort((a, b) => Number(a) - Number(b))
-      .map((k) => ({ id: uid(), key: k, weight: clampWeight(obj[k]), isCustom: false, description: valueComments.get(k) }));
-    return {
-      type: "range", key, label,
-      min: bounds.min, max: bounds.max,
-      entries: [...fixedAliasEntries, ...paramAliasEntries, ...numericEntries],
-      description,
-    };
+    return buildRangeOption(key, label, obj, keys, yamlStr, optionTypes?.[key], description);
   }
 
   // Choice: string keys with weights

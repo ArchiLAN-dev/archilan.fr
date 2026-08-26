@@ -335,6 +335,23 @@ services:
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+
+    App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'
+
+    App\Sessions\Application\Port\SeedArchiveGatewayInterface: '@App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway'
+
+    App\Sessions\Infrastructure\Adapter\OrchestratorSeedArchiveGateway:
+        arguments:
+            $orchestrateurBaseUrl: '%env(RUNNER_BASE_URL)%'
+            $orchestrateurApiKey: '%env(ORCHESTRATEUR_API_KEY)%'
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
+
+    App\PersonalRuns\Application\Service\PersonalRunSeedImport:
+        arguments:
+            $minioSessionsBucket: '%env(default:default_minio_sessions_bucket:MINIO_BUCKET_SESSIONS)%'
+
+    # Pure domain rules (story 16.17) - excluded from autoregistration with the rest of Sessions/Domain.
+    App\Sessions\Domain\Service\SlotCoPlayerRoster: ~
     App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineRunAuditLogRepository'
     App\Sessions\Domain\Repository\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRecapRepository'
     App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionFeedEventRepository'
@@ -440,6 +457,9 @@ when@test:
 
         App\Sessions\Application\Port\RunnerGatewayInterface:
             class: App\Sessions\Infrastructure\Double\NullRunnerGateway
+
+        App\Sessions\Application\Port\SeedArchiveGatewayInterface:
+            class: App\Sessions\Infrastructure\Double\StubSeedArchiveGateway
 
         App\Shared\Infrastructure\Adapter\MinioStorageInterface: '@App\Shared\Infrastructure\Double\NullMinioStorage'
 

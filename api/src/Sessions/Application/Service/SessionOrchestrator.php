@@ -16,6 +16,7 @@ use App\SessionConfig\Application\Service\SessionConfigResolver;
 use App\SessionConfig\Domain\Enum\SessionType;
 use App\Sessions\Application\Port\PersonalRunAdvancerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Application\Port\SeedArchiveGatewayInterface;
 use App\Sessions\Application\Support\SlotNameGenerator;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
@@ -36,6 +37,7 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         private GameRepositoryInterface $games,
         private RunRepositoryInterface $runs,
         private RunnerGatewayInterface $runnerGateway,
+        private SeedArchiveGatewayInterface $seedArchives,
         private SessionLifecycleManager $sessionLifecycleManager,
         private SlotNameGenerator $slotNameGenerator,
         private LoggerInterface $logger,
@@ -387,11 +389,43 @@ final readonly class SessionOrchestrator implements PersonalRunAdvancerInterface
         $this->sessionLifecycleManager->storePendingCredentials($sessionId, host: $this->runnerPublicHost);
         $this->sessionLifecycleManager->applyJoinPassword($sessionId, $serverPassword);
 
-        $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword, $serverOptions);
+        // A run hosting a seed generated elsewhere has nothing in the session volume yet: its
+        // archive is pushed with the launch instead of having been produced by a generation
+        // (story 16.18).
+        $importedRun = $this->runs->findBySessionId($sessionId);
+        if ($importedRun instanceof Run && $importedRun->isImportedSeed()) {
+            $this->launchImported($sessionId, $importedRun, $adminPassword, $serverPassword, $serverOptions);
+        } else {
+            $this->runnerGateway->launchSession($sessionId, $adminPassword, $serverPassword, $serverOptions);
+        }
 
         $this->logger->info('session.orchestrate.launch', ['sessionId' => $sessionId, 'joinPassword' => null !== $serverPassword]);
 
         return ['found' => true, 'session' => $result['session']];
+    }
+
+    /**
+     * Push an imported archive to the orchestrator and launch on it.
+     *
+     * The bridge is handed the roster because an imported seed has no observer slot for it to
+     * attach to - our own generated seeds get one injected, and the bridge would otherwise ask for
+     * a slot that does not exist.
+     *
+     * @param array<string, scalar> $serverOptions
+     */
+    private function launchImported(string $sessionId, Run $run, string $adminPassword, ?string $serverPassword, array $serverOptions): void
+    {
+        $outputKey = $run->getImportedOutputKey();
+        if (null === $outputKey) {
+            return;
+        }
+
+        $slotNames = [];
+        foreach ($run->getImportedSlots() as $slot) {
+            $slotNames[] = ['name' => $slot['name'], 'game' => $slot['game']];
+        }
+
+        $this->seedArchives->launchFromArchive($sessionId, $outputKey, $adminPassword, $serverPassword, $slotNames, $serverOptions);
     }
 
     /**

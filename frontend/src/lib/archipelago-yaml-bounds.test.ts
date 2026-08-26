@@ -52,7 +52,12 @@ G:
 });
 
 describe("asOptionTypesMap", () => {
-  test("accepts a valid map and drops malformed entries", () => {
+  /**
+   * Story 9.33 widened the table to carry the option's real type. A row written before it has bounds
+   * and no type, and could only ever have been a range - that is what the reader assumes, so a game
+   * keeps working until its apworld is re-introspected.
+   */
+  test("a pre-9.33 row, bounds only, is read as a range", () => {
     expect(
       asOptionTypesMap({
         a: { min: 1, max: 11, default: 4 },
@@ -61,9 +66,26 @@ describe("asOptionTypesMap", () => {
         nope: 7,
       }),
     ).toEqual({
-      a: { min: 1, max: 11, default: 4 },
-      b: { min: 3, max: 10, default: null },
+      a: { type: "range", min: 1, max: 11, default: 4 },
+      b: { type: "range", min: 3, max: 10, default: null },
     });
+  });
+
+  test("a declared type is kept, with its named values", () => {
+    expect(
+      asOptionTypesMap({
+        goal: { type: "choice", default: "victory", values: ["victory", "defeat", 7] },
+        cheats: { type: "toggle", default: false },
+      }),
+    ).toEqual({
+      goal: { type: "choice", min: 0, max: 0, default: null, values: ["victory", "defeat"] },
+      cheats: { type: "toggle", min: 0, max: 0, default: null },
+    });
+  });
+
+  /** An entry with neither a type nor bounds tells the editor nothing it did not already know. */
+  test("an entry that says nothing is dropped", () => {
+    expect(asOptionTypesMap({ mystery: { default: 3 } })).toBeNull();
   });
 
   test("returns null for non-objects or empty", () => {

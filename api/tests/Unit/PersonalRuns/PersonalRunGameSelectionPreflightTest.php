@@ -13,11 +13,15 @@ use App\Identity\Application\Query\PlayerStatsQueryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Application\Query\RecentlyPlayedGamesQueryInterface;
 use App\PersonalRuns\Application\Service\PersonalRunGameSelection;
+use App\PersonalRuns\Application\Service\RunSlotCoPlayers;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
+use App\Sessions\Application\Port\AchievementRecomputeTriggerInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
+use App\Sessions\Domain\Service\SlotCoPlayerRoster;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
@@ -150,6 +154,16 @@ final class PersonalRunGameSelectionPreflightTest extends TestCase
             messageBus: $bus,
             logger: new NullLogger(),
             clock: $clock,
+            coPlayers: new RunSlotCoPlayers(
+                $runs,
+                $participants,
+                self::createStub(SlotCoPlayerRepositoryInterface::class),
+                self::createStub(CommunityUserDirectoryQueryInterface::class),
+                new SlotCoPlayerRoster(),
+                self::createStub(AchievementRecomputeTriggerInterface::class),
+                $clock,
+                new NullLogger(),
+            ),
         );
     }
 }

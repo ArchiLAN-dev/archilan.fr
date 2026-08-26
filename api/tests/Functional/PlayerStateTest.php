@@ -302,7 +302,7 @@ final class PlayerStateTest extends FunctionalTestCase
         $slots = $data['slots'];
         self::assertIsArray($slots);
         self::assertSame(
-            [['slotName' => 'Slot0', 'playerName' => 'Alice'], ['slotName' => 'Slot1', 'playerName' => 'Bob']],
+            [['slotName' => 'Slot0', 'playerNames' => ['Alice']], ['slotName' => 'Slot1', 'playerNames' => ['Bob']]],
             $slots,
         );
     }

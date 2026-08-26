@@ -60,9 +60,12 @@ final class Game
         #[ORM\Column(name: 'availability_locked', type: 'boolean', options: ['default' => false])]
         private bool $availabilityLocked = false,
         /**
-         * Authoritative range bounds per option key, from apworld introspection (story 9.25).
+         * What the apworld says each of its options is, from introspection (stories 9.25 / 9.33).
          *
-         * @var array<string, array{min: int, max: int, default: int|null}>|null
+         * Range bounds only at first, which is why the editor guessed every other type from the
+         * shape of the value. Rows written back then carry `{min, max, default}` with no `type`.
+         *
+         * @var array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>|null
          */
         #[ORM\Column(name: 'option_types', type: 'json', nullable: true)]
         private ?array $optionTypes = null,
@@ -283,7 +286,7 @@ final class Game
     }
 
     /**
-     * @return array<string, array{min: int, max: int, default: int|null}>|null
+     * @return array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>|null
      */
     public function getOptionTypes(): ?array
     {
@@ -291,7 +294,14 @@ final class Game
     }
 
     /**
-     * @param array<string, array{min: int, max: int, default: int|null}>|null $optionTypes
+     * The apworld's own answer about each of its options (story 9.33).
+     *
+     * Rows written before that story carry only `{min, max, default}` and no `type`: the readers
+     * treat a missing type as "range when there are bounds, unknown otherwise", so a game keeps
+     * working until its apworld is re-introspected. That is why the table was widened in place
+     * rather than doubled by a second column.
+     *
+     * @param array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>|null $optionTypes
      */
     public function recordOptionTypes(?array $optionTypes): void
     {
