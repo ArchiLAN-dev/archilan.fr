@@ -11,6 +11,7 @@ use App\Registrations\Domain\Entity\Registration;
 use App\Sessions\Application\Query\LeaderboardQueryInterface;
 use App\Sessions\Domain\Entity\Session;
 use App\Sessions\Domain\Entity\SessionSlot;
+use App\Shared\Infrastructure\Dbal\DbalSlotPlayerSource;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -34,6 +35,20 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $this->userTable = $connection->quoteSingleIdentifier($em->getClassMetadata(User::class)->getTableName());
     }
 
+    /**
+     * A slot scores for everyone who plays it, owner and co-players alike (story 16.17). Both
+     * boards join this instead of reading `registration_id` straight off the slot.
+     */
+    private function players(): string
+    {
+        return DbalSlotPlayerSource::expression($this->slotTable, $this->registrationTable);
+    }
+
+    private function userColumn(): string
+    {
+        return 'sp.'.DbalSlotPlayerSource::USER_COLUMN;
+    }
+
     public function computeAggregatePage(string $axis, ?string $eventId, int $limit, int $offset): array
     {
         $selectValue = 'goals' === $axis ? 'COUNT(slot.id)' : 'COALESCE(SUM(slot.checks_done), 0)';
@@ -42,14 +57,15 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
             : 'NOT (slot.was_released AND slot.goal_reached_at IS NULL)';
 
         $eventQb = $this->connection->createQueryBuilder();
-        $eventQb->select('reg.user_id AS user_id', $selectValue.' AS value')
+        $eventQb->select($this->userColumn().' AS user_id', $selectValue.' AS value')
             ->from($this->slotTable, 'slot')
+            ->join('slot', $this->players(), 'sp', $eventQb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
             ->join('slot', $this->registrationTable, 'reg', $eventQb->expr()->eq('reg.id', 'slot.registration_id'))
             ->join('slot', $this->sessionTable, 's', $eventQb->expr()->eq('s.id', 'slot.session_id'))
             ->where($eventQb->expr()->eq('s.status', ':status'))
             ->andWhere($axisFilter)
             ->setParameter('status', 'finished')
-            ->groupBy('reg.user_id');
+            ->groupBy($this->userColumn());
 
         if (null !== $eventId) {
             $eventQb->andWhere($eventQb->expr()->eq('s.event_id', ':eventId'))
@@ -61,14 +77,15 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         $prRows = [];
         if (null === $eventId) {
             $prQb = $this->connection->createQueryBuilder();
-            $prQb->select('slot.registration_id AS user_id', $selectValue.' AS value')
+            $prQb->select($this->userColumn().' AS user_id', $selectValue.' AS value')
                 ->from($this->slotTable, 'slot')
+                ->join('slot', $this->players(), 'sp', $prQb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
                 ->join('slot', $this->sessionTable, 's', $prQb->expr()->eq('s.id', 'slot.session_id'))
                 ->join('s', $this->runTable, 'pr', $prQb->expr()->eq('pr.session_id', 's.id'))
                 ->where($prQb->expr()->eq('s.status', ':status'))
                 ->andWhere($axisFilter)
                 ->setParameter('status', 'finished')
-                ->groupBy('slot.registration_id');
+                ->groupBy($this->userColumn());
             $prRows = $prQb->executeQuery()->fetchAllAssociative();
         }
 
@@ -173,17 +190,18 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
     {
         $eventQb = $this->connection->createQueryBuilder();
         $eventQb->select(
-            'reg.user_id AS user_id',
+            $this->userColumn().' AS user_id',
             'MIN(slot.goal_reached_at) AS earliest_goal_at',
             's.started_at',
         )
             ->from($this->slotTable, 'slot')
+            ->join('slot', $this->players(), 'sp', $eventQb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
             ->join('slot', $this->registrationTable, 'reg', $eventQb->expr()->eq('reg.id', 'slot.registration_id'))
             ->join('slot', $this->sessionTable, 's', $eventQb->expr()->eq('s.id', 'slot.session_id'))
             ->where($eventQb->expr()->eq('s.status', ':status'))
             ->andWhere($eventQb->expr()->isNotNull('slot.goal_reached_at'))
             ->setParameter('status', 'finished')
-            ->groupBy('reg.user_id', 's.id', 's.started_at');
+            ->groupBy($this->userColumn(), 's.id', 's.started_at');
 
         if (null !== $eventId) {
             $eventQb->andWhere($eventQb->expr()->eq('s.event_id', ':eventId'))
@@ -195,17 +213,18 @@ final readonly class DbalLeaderboardQuery implements LeaderboardQueryInterface
         if (null === $eventId) {
             $prQb = $this->connection->createQueryBuilder();
             $prQb->select(
-                'slot.registration_id AS user_id',
+                $this->userColumn().' AS user_id',
                 'MIN(slot.goal_reached_at) AS earliest_goal_at',
                 's.started_at',
             )
                 ->from($this->slotTable, 'slot')
+                ->join('slot', $this->players(), 'sp', $prQb->expr()->eq('sp.'.DbalSlotPlayerSource::SLOT_COLUMN, 'slot.id'))
                 ->join('slot', $this->sessionTable, 's', $prQb->expr()->eq('s.id', 'slot.session_id'))
                 ->join('s', $this->runTable, 'pr', $prQb->expr()->eq('pr.session_id', 's.id'))
                 ->where($prQb->expr()->eq('s.status', ':status'))
                 ->andWhere($prQb->expr()->isNotNull('slot.goal_reached_at'))
                 ->setParameter('status', 'finished')
-                ->groupBy('slot.registration_id', 's.id', 's.started_at');
+                ->groupBy($this->userColumn(), 's.id', 's.started_at');
             $allRows = array_merge($allRows, $prQb->executeQuery()->fetchAllAssociative());
         }
 

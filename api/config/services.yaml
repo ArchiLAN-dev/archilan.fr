@@ -335,6 +335,11 @@ services:
 
     App\Sessions\Domain\Repository\SessionRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRepository'
     App\Sessions\Domain\Repository\SessionSlotRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionSlotRepository'
+
+    App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSlotCoPlayerRepository'
+
+    # Pure domain rules (story 16.17) - excluded from autoregistration with the rest of Sessions/Domain.
+    App\Sessions\Domain\Service\SlotCoPlayerRoster: ~
     App\Sessions\Domain\Repository\RunAuditLogRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineRunAuditLogRepository'
     App\Sessions\Domain\Repository\SessionRecapRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionRecapRepository'
     App\Sessions\Domain\Repository\SessionFeedEventRepositoryInterface: '@App\Sessions\Infrastructure\Doctrine\DoctrineSessionFeedEventRepository'

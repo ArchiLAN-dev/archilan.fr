@@ -11,6 +11,7 @@ use App\Registrations\Domain\Entity\Registration;
 use App\Registrations\Domain\Repository\RegistrationRepositoryInterface;
 use App\Sessions\Domain\Entity\SessionSlot;
 use App\Sessions\Domain\Repository\SessionSlotRepositoryInterface;
+use App\Sessions\Domain\Repository\SlotCoPlayerRepositoryInterface;
 
 /**
  * Who owns each slot of a session, keyed by the Archipelago slot name.
@@ -30,12 +31,13 @@ final readonly class SessionSlotOwnersQuery
         private RunRepositoryInterface $runs,
         private RegistrationRepositoryInterface $registrations,
         private CommunityUserDirectoryQueryInterface $directory,
+        private SlotCoPlayerRepositoryInterface $coPlayers,
     ) {
     }
 
     /**
-     * @return list<array{slotName: string, playerName: string}> `playerName` is empty when the owner
-     *                                                           cannot be resolved (deleted account)
+     * @return list<array{slotName: string, playerNames: list<string>}> the list is empty when nobody
+     *                                                                  can be resolved (deleted account)
      */
     public function execute(string $sessionId): array
     {
@@ -46,17 +48,49 @@ final readonly class SessionSlotOwnersQuery
 
         $userIdByOwnerKey = $this->userIdByOwnerKey($sessionId, $slots);
 
+        // Story 16.17: a slot played by several people is named by all of them, owner first.
+        $gameSlotIds = [];
+        foreach ($slots as $slot) {
+            $gameSlotId = $slot->getSlotId();
+            if (null !== $gameSlotId) {
+                $gameSlotIds[] = $gameSlotId;
+            }
+        }
+
+        /** @var array<string, list<string>> $coPlayerIdsBySlot */
+        $coPlayerIdsBySlot = [];
+        foreach ($this->coPlayers->findBySlotIds(array_values(array_unique($gameSlotIds))) as $coPlayer) {
+            $coPlayerIdsBySlot[$coPlayer->getSlotId()][] = $coPlayer->getUserId();
+        }
+
+        $userIds = array_values($userIdByOwnerKey);
+        foreach ($coPlayerIdsBySlot as $ids) {
+            foreach ($ids as $id) {
+                $userIds[] = $id;
+            }
+        }
+
         // The community pseudo, falling back to the account display name - namesFor() resolves both,
         // and unlike cards() it does not require a public profile, so a slot is named whoever holds it.
-        $names = $this->directory->namesFor(array_values(array_unique(array_values($userIdByOwnerKey))));
+        $names = $this->directory->namesFor(array_values(array_unique($userIds)));
 
         $rows = [];
         foreach ($slots as $slot) {
-            $userId = $userIdByOwnerKey[$slot->getRegistrationId()] ?? null;
-            $rows[] = [
-                'slotName' => $slot->getSlotName(),
-                'playerName' => null !== $userId ? ($names[$userId] ?? '') : '',
-            ];
+            $gameSlotId = $slot->getSlotId();
+            $slotUserIds = [$userIdByOwnerKey[$slot->getRegistrationId()] ?? null];
+            foreach ((null !== $gameSlotId ? ($coPlayerIdsBySlot[$gameSlotId] ?? []) : []) as $coPlayerId) {
+                $slotUserIds[] = $coPlayerId;
+            }
+
+            $playerNames = [];
+            foreach ($slotUserIds as $userId) {
+                $name = null !== $userId ? ($names[$userId] ?? '') : '';
+                if ('' !== $name && !in_array($name, $playerNames, true)) {
+                    $playerNames[] = $name;
+                }
+            }
+
+            $rows[] = ['slotName' => $slot->getSlotName(), 'playerNames' => $playerNames];
         }
 
         return $rows;

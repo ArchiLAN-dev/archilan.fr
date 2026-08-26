@@ -40,6 +40,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         private MessageBusInterface $messageBus,
         private LoggerInterface $logger,
         private ClockInterface $clock,
+        private RunSlotCoPlayers $coPlayers,
     ) {
     }
 
@@ -71,6 +72,11 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             $gamesById[$game->getId()] = $game;
         }
 
+        $coPlayersBySlot = $this->coPlayers->forSlots(array_map(
+            static fn (array $slot): string => $slot['slotId'],
+            $existingSlots,
+        ));
+
         $slots = [];
         foreach ($existingSlots as $slot) {
             $game = $gamesById[$slot['gameId']] ?? null;
@@ -78,6 +84,9 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
                 'gameName' => $game?->getName() ?? $slot['gameId'],
                 'playerYaml' => $slot['playerYaml'] ?? null,
                 'apworldHash' => $slot['apworldHash'] ?? null,
+                // Story 16.17: the owner sees who else is on the slot, without being able to
+                // change it - that is the run owner's call.
+                'coPlayers' => $coPlayersBySlot[$slot['slotId']] ?? [],
             ]);
         }
 
@@ -145,12 +154,20 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             }
         }
 
+        $coPlayersBySlot = $this->coPlayers->forSlots(array_map(
+            static fn (array $slot): string => $slot['slotId'],
+            $existingSlots,
+        ));
+
         $slots = [];
         foreach ($existingSlots as $slot) {
             $game = $gamesById[$slot['gameId']] ?? null;
             $playerYaml = $slot['playerYaml'] ?? null;
             $slots[] = [
                 'slotId' => $slot['slotId'],
+                // Story 16.17: who else plays this slot, shown to every participant - playing
+                // together is not private information.
+                'coPlayers' => $coPlayersBySlot[$slot['slotId']] ?? [],
                 'gameId' => $slot['gameId'],
                 'slotOrder' => $slot['slotOrder'],
                 'gameName' => null !== $game ? $game->getName() : $slot['gameId'],
@@ -263,10 +280,17 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             return $this->resultWithErrors(found: true, errors: $preflightErrors);
         }
 
+        $slotIdsBefore = array_map(static fn (array $slot): string => $slot['slotId'], $participant->getGameSlots());
+
         $newSlots = $this->diffSlots($participant->getGameSlots(), $gameIds, $gamesById);
         $participant->replaceSlots($newSlots);
 
         $this->participants->flush();
+
+        // Dropping a game drops the people who were playing it with you (story 16.17): a roster
+        // attached to a slot that no longer exists would be invisible and un-removable.
+        $slotIdsAfter = array_map(static fn (array $slot): string => $slot['slotId'], $participant->getGameSlots());
+        $this->coPlayers->forget(array_values(array_diff($slotIdsBefore, $slotIdsAfter)));
 
         $this->logger->info('personal_run.game_selection_saved', ['runId' => $runId, 'userId' => $userId]);
 

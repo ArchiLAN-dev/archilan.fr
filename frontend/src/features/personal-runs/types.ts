@@ -51,8 +51,18 @@ export type ParticipantIdentity = {
   stats: ParticipantStats;
 };
 
+/** Someone who plays a slot they do not own (story 16.17). */
+export type SlotCoPlayer = {
+  userId: string;
+  displayName: string;
+  slug: string | null;
+  avatarUrl: string | null;
+};
+
 export type ParticipantGameSlot = {
   slotId: string;
+  // Story 16.17: who else plays this slot. Empty on a solo slot, absent on older API payloads.
+  coPlayers?: SlotCoPlayer[];
   gameId: string;
   slotOrder: number;
   gameName: string;

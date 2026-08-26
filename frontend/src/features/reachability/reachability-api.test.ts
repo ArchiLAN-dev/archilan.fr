@@ -16,8 +16,8 @@ describe("fetchSlotOwners", () => {
         HttpResponse.json({
           data: {
             slots: [
-              { slotName: "Alice_TWW", playerName: "Alice" },
-              { slotName: "TotallyOther", playerName: "Bob" },
+              { slotName: "Alice_TWW", playerNames: ["Alice"] },
+              { slotName: "TotallyOther", playerNames: ["Bob"] },
             ],
           },
         }),
@@ -31,13 +31,32 @@ describe("fetchSlotOwners", () => {
     server.use(
       http.get(`${BASE}/sessions/s1/slot-owners`, () =>
         HttpResponse.json({
-          data: { slots: [{ slotName: "Ghost_TWW", playerName: "" }, { slotName: "Alice_TWW", playerName: "Alice" }] },
+          data: { slots: [{ slotName: "Ghost_TWW", playerNames: [] }, { slotName: "Alice_TWW", playerNames: ["Alice"] }] },
         }),
       ),
     );
 
     // An unnamed slot falls back to the slot name on the card rather than showing an empty title.
     expect(await fetchSlotOwners("s1")).toEqual({ Alice_TWW: "Alice" });
+  });
+
+  // Story 16.17: a slot can be played by several people, and naming one of three would be as wrong
+  // as naming the viewer.
+  it("names a shared slot after all of its players", async () => {
+    server.use(
+      http.get(`${BASE}/sessions/s1/slot-owners`, () =>
+        HttpResponse.json({
+          data: {
+            slots: [
+              { slotName: "Duo_MC", playerNames: ["Alice", "Bob"] },
+              { slotName: "Trio_MC", playerNames: ["Alice", "Bob", "Carol"] },
+            ],
+          },
+        }),
+      ),
+    );
+
+    expect(await fetchSlotOwners("s1")).toEqual({ Duo_MC: "Alice et Bob", Trio_MC: "Alice, Bob et Carol" });
   });
 
   it("is empty on a malformed payload", async () => {

@@ -1,6 +1,6 @@
 # Story 16.17: Plusieurs joueurs sur un même slot
 
-**Status:** à implémenter - en attente de relecture
+**Status:** implémentée - PR vers `develop`
 **Epic:** 16 - Personal runs (parties privées créées par un membre)
 **Date:** 2026-08-25
 **Story suivante :** [16.18](16-18-import-d-une-seed-generee-ailleurs.md) - l'import d'une seed
@@ -124,15 +124,15 @@ une punition pour ceux qui rejoignent.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 1-3). Modèle et migration : association entre un slot de session et ses
+- [x] **Task 1** (AC 1-3). Modèle et migration : association entre un slot de session et ses
   co-joueurs, avec ses règles de domaine et leurs tests unitaires.
-- [ ] **Task 2** (AC 4-7). Les trois chemins d'autorisation par slot, et la revue écran par écran de
+- [x] **Task 2** (AC 4-7). Les trois chemins d'autorisation par slot, et la revue écran par écran de
   ce qui ne doit pas s'ouvrir.
-- [ ] **Task 3** (AC 8-11). Statistiques : le co-joueur entre dans l'agrégat, une fois. Vérifier la
+- [x] **Task 3** (AC 8-11). Statistiques : le co-joueur entre dans l'agrégat, une fois. Vérifier la
   propagation vers XP, niveau, classement et succès.
-- [ ] **Task 4** (AC 12-15). Interface de gestion côté run privée, affichage de tous les joueurs d'un
+- [x] **Task 4** (AC 12-15). Interface de gestion côté run privée, affichage de tous les joueurs d'un
   slot partagé, quotas.
-- [ ] **Task 5** (AC 16). Tests et gates des deux côtés.
+- [x] **Task 5** (AC 16). Tests et gates des deux côtés.
 
 ## Dev Notes
 
@@ -158,9 +158,56 @@ une punition pour ceux qui rejoignent.
   lancer ou d'arrêter la partie, de céder la propriété d'un slot, ni gérer des co-joueurs sur une
   session d'événement.
 
+## Écarts assumés
+
+### L'association pend au slot de jeu, pas au slot de session (AC 1)
+
+La story parlait d'une « association entre un slot de session et ses co-joueurs ». À
+l'implémentation, `SessionSlot` s'est révélé le mauvais point d'accroche : ces lignes n'existent
+qu'**après** le lancement, et un redémarrage les jette pour en recréer d'autres. Accrocher les
+co-joueurs là aurait rendu l'assignation impossible avant le lancement - alors qu'un Minecraft à
+trois se décide en choisissant les jeux - et l'aurait perdue à chaque relance.
+
+`slot_co_player` pointe donc vers l'**identifiant du slot de jeu**, celui que porte
+`SessionSlot.slot_id` et que gardent `RunParticipant.gameSlots` comme les slots d'inscription. Il
+existe avant la partie, survit aux relances, et vaut pour les deux surfaces.
+
+### Un seul endroit calcule qui joue un slot (AC 8)
+
+Les cinq lecteurs de `registration_id` recensés dans les Dev Notes ne changent pas chacun de leur
+côté. Deux abstractions portent le changement :
+
+- `DbalSlotPlayerSource` produit l'expression SQL « qui joue ce slot » que joignent les agrégats
+  (`DbalPlayerStatsQuery`, `DbalLeaderboardQuery`), donc XP, niveau, classement et succès d'un coup ;
+- `SlotsPlayedBy` répond à la même question côté autorisations, pour les trois gardes.
+
+Le garde-fou du run privé (« la partie ne compte qu'une fois un objectif atteint dedans ») a été
+déplacé du propriétaire vers **le joueur** : un co-joueur qui a fini son jeu franchit la porte tout
+seul.
+
+### Le classement « vitesse » suit aussi (AC 11)
+
+L'AC ne nommait que les objectifs et les checks. Le troisième axe partait du même
+`slot.registration_id` : le laisser en arrière aurait produit un co-joueur présent sur deux
+classements et absent du troisième, sans raison lisible.
+
+### Une réécriture de liste est un diff, pas un vider-recréer
+
+Premier jet : supprimer les lignes du slot puis réinsérer la liste demandée. Un test l'a cassé -
+Doctrine ordonne les INSERT avant les DELETE dans une même unité de travail, donc renvoyer une liste
+inchangée insérait une ligne que la suppression n'avait pas encore retirée, et l'index unique
+sautait. Le service compare donc l'existant au demandé et ne touche qu'aux différences, ce qui
+préserve au passage la date d'ajout de ceux qui ne bougent pas.
+
+### Ce qui n'a rien demandé (AC 15)
+
+Les quotas de sélection de jeux comptent les `gameSlots` d'un participant. Un co-joueur n'en déclare
+aucun, donc rien ne le compte : vérifié, pas modifié.
+
 ## Change Log
 
 | Date | Version | Description | Auteur |
 |---|---|---|---|
 | 2026-08-25 | 0.1 | Rédaction de la story | Claude |
 | 2026-08-25 | 0.2 | Portée runs privées, tous les pseudos sur un slot partagé | Claude |
+| 2026-08-26 | 1.0 | Implémentation ; association sur le slot de jeu, axe vitesse inclus | Claude |
