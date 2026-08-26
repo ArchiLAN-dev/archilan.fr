@@ -993,7 +993,13 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array<string, array{min: int, max: int, default: int|null}>
+     * Validate the apworld's option-type table at the boundary (story 9.33).
+     *
+     * It used to keep only entries carrying integer bounds, which is how every non-range option was
+     * lost on the way to the editor. It now keeps whatever type the apworld declared, and still
+     * refuses anything it cannot name - an option with neither a type nor bounds says nothing.
+     *
+     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>
      */
     private static function normalizeOptionTypes(mixed $raw): array
     {
@@ -1002,17 +1008,40 @@ final readonly class AdminGameLibrary
         }
 
         $types = [];
-        foreach ($raw as $key => $bounds) {
-            if (!is_string($key) || !is_array($bounds)) {
+        foreach ($raw as $key => $spec) {
+            if (!is_string($key) || !is_array($spec)) {
                 continue;
             }
-            $min = $bounds['min'] ?? null;
-            $max = $bounds['max'] ?? null;
-            if (!is_int($min) || !is_int($max)) {
+
+            $min = $spec['min'] ?? null;
+            $max = $spec['max'] ?? null;
+            $hasBounds = is_int($min) && is_int($max);
+
+            $declared = $spec['type'] ?? null;
+            // A row written before story 9.33 has bounds and no type: it could only ever have been a
+            // range, since that was the single type this method let through.
+            $type = is_string($declared) && '' !== $declared ? $declared : ($hasBounds ? 'range' : null);
+            if (null === $type) {
                 continue;
             }
-            $default = $bounds['default'] ?? null;
-            $types[$key] = ['min' => $min, 'max' => $max, 'default' => is_int($default) ? $default : null];
+
+            $entry = ['type' => $type];
+            if ($hasBounds) {
+                $entry['min'] = $min;
+                $entry['max'] = $max;
+            }
+
+            $default = $spec['default'] ?? null;
+            if (is_int($default) || is_string($default) || is_bool($default) || null === $default) {
+                $entry['default'] = $default;
+            }
+
+            $values = $spec['values'] ?? null;
+            if (is_array($values)) {
+                $entry['values'] = array_values(array_filter($values, is_string(...)));
+            }
+
+            $types[$key] = $entry;
         }
 
         return $types;

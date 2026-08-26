@@ -22,9 +22,13 @@ interface RunnerGatewayInterface
     public function uploadApworld(string $fileContents, string $filename): array;
 
     /**
-     * Authoritative range bounds per option key for an uploaded apworld (story 9.25).
+     * What the apworld says each of its options is, per option key.
      *
-     * @return array<string, array{min: int, max: int, default: int|null}>
+     * Started life as range bounds only (story 9.25); widened to the whole type table by story 9.33,
+     * so the editor can stop guessing an option's nature from the shape of its value. `min` / `max`
+     * stay where they were for the range consumers.
+     *
+     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>
      */
     public function fetchOptionTypes(string $hash): array;
 
