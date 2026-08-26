@@ -3,6 +3,17 @@
 import { Lightbulb, MapPin, Package, User } from "lucide-react";
 import { useState } from "react";
 
+import {
+  axisIsUseful,
+  filterHints,
+  isFiltering,
+  NO_FILTERS,
+  PRIORITY_FILTERS,
+  SIDE_FILTERS,
+  sideOf,
+  STATE_FILTERS,
+  type HintFilters,
+} from "./hint-filters";
 import type { HintEntry, HintsData } from "./types";
 import { SETTABLE_HINT_STATUSES } from "./types";
 
@@ -106,6 +117,36 @@ function HintRow({
   );
 }
 
+function FilterRow<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div aria-label={label} className="flex flex-wrap items-center gap-1 rounded border border-border bg-surface p-1" role="group">
+      {options.map((option) => (
+        <button
+          aria-pressed={value === option.value}
+          className={`min-h-8 rounded px-3 py-1 text-xs font-medium transition-colors ${
+            value === option.value ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+          key={option.value}
+          onClick={() => { onChange(option.value); }}
+          type="button"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function HintsPanel({
   data,
   hintFree,
@@ -118,16 +159,18 @@ export function HintsPanel({
   /** When provided, each pending hint shows a priority picker (AP hint status). */
   onSetStatus?: (locationId: number, status: number) => void;
 }) {
-  const [filter, setFilter] = useState<"all" | "pending" | "found">("all");
+  // Story 9.50: the player could already rank a hint (stories 9.34/9.35) but everything landed back
+  // in the same list. These axes are what finally make that ranking readable.
+  const [filters, setFilters] = useState<HintFilters>(NO_FILTERS);
 
   const totalPoints = data.hintsUsed * data.hintCost + data.hintPointsAvailable;
   const budgetPct = totalPoints > 0 ? Math.round((data.hintPointsAvailable / totalPoints) * 100) : 100;
 
-  const filtered = data.hints.filter((h) => {
-    if (filter === "found") return h.found;
-    if (filter === "pending") return !h.found;
-    return true;
-  });
+  const filtered = filterHints(data.hints, filters, data.slot);
+  const filtering = isFiltering(filters);
+
+  const showPriority = axisIsUseful(data.hints, (h) => h.statusName);
+  const showSide = axisIsUseful(data.hints, (h) => sideOf(h, data.slot));
 
   return (
     <div className="grid gap-4">
@@ -139,7 +182,8 @@ export function HintsPanel({
           </h2>
           {data.hints.length > 0 ? (
             <span className="rounded border border-border bg-surface-2 px-2 py-0.5 text-xs text-muted-foreground">
-              {data.hints.length}
+              {/* A total that does not match the list under the reader's eyes reads as a fault. */}
+              {filtering ? `${filtered.length} / ${data.hints.length}` : data.hints.length}
             </span>
           ) : null}
         </div>
@@ -162,25 +206,23 @@ export function HintsPanel({
           ) : null}
 
           {data.hints.length > 0 ? (
-            <div className="flex items-center gap-1 rounded border border-border bg-surface p-1">
-              {(["all", "pending", "found"] as const).map((f) => (
-                <button
-                  key={f}
-                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                    filter === f
-                      ? "bg-accent text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => { setFilter(f); }}
-                  type="button"
-                >
-                  {f === "all" ? "Tous" : f === "pending" ? "En attente" : "Trouvés"}
-                </button>
-              ))}
-            </div>
+            <FilterRow label="Statut des indices" onChange={(state) => { setFilters((f) => ({ ...f, state })); }} options={STATE_FILTERS} value={filters.state} />
           ) : null}
         </div>
       </div>
+
+      {/* Story 9.50: two more axes, combinable with the one above - "en attente" + "prioritaires"
+          is the question a player actually has mid-run, and one merged row would forbid it. */}
+      {data.hints.length > 0 && (showPriority || showSide) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {showPriority ? (
+            <FilterRow label="Priorité des indices" onChange={(priority) => { setFilters((f) => ({ ...f, priority })); }} options={PRIORITY_FILTERS} value={filters.priority} />
+          ) : null}
+          {showSide ? (
+            <FilterRow label="Côté des indices" onChange={(side) => { setFilters((f) => ({ ...f, side })); }} options={SIDE_FILTERS} value={filters.side} />
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Budget bar */}
       <div className="rounded border border-amber-500/20 bg-amber-500/5 p-4">
@@ -213,8 +255,16 @@ export function HintsPanel({
           Aucun indice demandé pour ce slot.
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded border border-border bg-surface p-4 text-center text-sm text-muted-foreground">
-          Aucun indice dans cette catégorie.
+        <div className="grid justify-items-center gap-2 rounded border border-border bg-surface p-4 text-center text-sm text-muted-foreground">
+          {/* Which of the three emptied the list is not the reader's puzzle to solve. */}
+          <p>Aucun indice ne correspond à ces filtres.</p>
+          <button
+            className="min-h-8 rounded border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-accent hover:text-accent-text"
+            onClick={() => { setFilters(NO_FILTERS); }}
+            type="button"
+          >
+            Réinitialiser les filtres
+          </button>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
