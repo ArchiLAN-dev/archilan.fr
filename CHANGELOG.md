@@ -5,6 +5,23 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.17.1] - 2026-08-28
+
+Correctif de la v0.17.0 : les valeurs nommées d'une option de plage étaient devenues invisibles.
+
+### Corrigé
+
+- **Les valeurs nommées d'une option de plage sont de nouveau visibles et modifiables.** Archipelago
+  écrit ce type d'option avec des valeurs nommées à côté de ses nombres - `the_end`, `use_percentage
+  _option` - et la v0.17.0 a commencé à les reconnaître pour ce qu'elles sont, ce qui a rendu la
+  saisie d'un nombre fixe enfin possible. Mais l'éditeur ne savait dessiner que les lignes numériques
+  et les quatre valeurs aléatoires : la valeur nommée disparaissait de l'écran tout en gardant le
+  poids du gabarit, et repartait telle quelle dans la configuration enregistrée. Le joueur modifiait
+  les nombres, la valeur nommée continuait d'être tirée, et rien à l'écran ne l'expliquait. Elles
+  ont désormais leur propre section, avec leur poids éditable. Au passage, les tirages aléatoires
+  paramétrés (`random-range-0-360`) souffraient du même angle mort depuis toujours et s'affichent
+  eux aussi.
+
 ## [0.17.0] - 2026-08-27
 
 Quatre nouveautés autour des parties et des indices, et une correction de fond sur qui est

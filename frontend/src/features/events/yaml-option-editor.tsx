@@ -904,6 +904,15 @@ function AdvancedRange({
 
   const numericRows = option.entries.filter((e) => !isNaN(Number(e.key)));
 
+  // Every other entry: a NamedRange's special values (`the_end`), and the parameterised random
+  // aliases (`random-range-0-360`). Neither was rendered anywhere, so they sat in the option with
+  // the weight the template gave them - invisible, unchangeable, and written back on save. On a
+  // NamedRange that means the player edits the numbers, the named value keeps rolling, and nothing
+  // on screen explains why (hotfix, after story 9.33 started carrying these keys to the model).
+  const namedRows = option.entries.filter(
+    (e) => isNaN(Number(e.key)) && !RANDOM_ALIASES.some((r) => r.key === e.key),
+  );
+
   function setAliasWeight(key: string, weight: number) {
     const existing = option.entries.findIndex((e) => e.key === key);
     if (existing >= 0) {
@@ -941,6 +950,32 @@ function AdvancedRange({
           ))}
         </div>
       </div>
+
+      {namedRows.length > 0 && (
+        <div className="grid gap-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Valeurs nommées
+          </p>
+          <div className="grid gap-2">
+            {namedRows.map((entry) => (
+              <WeightRow
+                key={entry.id}
+                description={entry.description}
+                label={labelFromAlias(entry.key) ?? labelFromKey(entry.key)}
+                readOnly={readOnly}
+                total={total}
+                weight={entry.weight}
+                onChange={(w) =>
+                  onChange({
+                    ...option,
+                    entries: option.entries.map((e) => (e.id === entry.id ? { ...e, weight: w } : e)),
+                  })
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
