@@ -5,6 +5,21 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.17.2] - 2026-08-28
+
+Version de publication : la v0.17.1 n'a livré aucune de ses trois images.
+
+### Sécurité
+
+- **Une advisory OpenSSL bloquait la publication des trois images.** `CVE-2026-14456` (déni de
+  service par consommation mémoire non bornée) touche `libcrypto3` et **est corrigée en amont** :
+  Alpine publie `3.5.8-r0`, les images embarquaient `3.5.7-r0`. Aucune exemption ici, donc, mais un
+  `apk upgrade` qui s'exécute réellement. Les deux images de l'API avaient déjà la ligne, servie
+  depuis une couche mise en cache par le workflow ; elle a été modifiée pour forcer la
+  reconstruction. L'image du frontend, elle, ne l'avait tout simplement pas : `node:26-alpine`
+  servait la version vulnérable et rien ne la mettait à jour. **Sans cette version, aucune image
+  `0.17.1` n'existe sur le registre et la prod ne peut pas quitter la 0.17.0.**
+
 ## [0.17.1] - 2026-08-28
 
 Correctif de la v0.17.0 : les valeurs nommées d'une option de plage étaient devenues invisibles.
