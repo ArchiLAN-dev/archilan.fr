@@ -1,5 +1,16 @@
 FROM node:26-alpine AS base
 
+# Les paquets Alpine de l'image de base vieillissent avec le tag Node auquel elle est épinglée,
+# et `node:26-alpine` a servi libcrypto3 3.5.7-r0 alors que 3.5.8-r0 corrigeait CVE-2026-14456 -
+# ce qui a bloqué la publication de la v0.17.1. Les deux images de l'API avaient déjà cette ligne ;
+# celle-ci ne l'avait pas.
+#
+# Attention : elle ne se rejoue que si la couche est reconstruite. Le workflow met les couches en
+# cache (`cache-from: type=gha`), donc un Dockerfile inchangé continue de servir une couche apk
+# figée. Quand une CVE corrigée apparaît sans changement de code, modifier la ligne elle-même
+# (un commentaire au-dessus ne suffit pas : il ne fait pas partie de l'instruction).
+RUN apk upgrade --no-cache  # rebuild 2026-08-28 : CVE-2026-14456
+
 # Node >= 25 no longer ships corepack; reinstall it so the packageManager pin in package.json keeps
 # working. Kept in its own stage rather than in `base` so the runner does not inherit the build
 # toolchain - see the npm strip in the runner stage.

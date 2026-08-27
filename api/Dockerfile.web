@@ -14,7 +14,7 @@ FROM dunglas/frankenphp:1.12.7-php8-alpine
 # jusqu'à ce que le gate Trivy empêche la publication de la v0.16.1. Quand une CVE corrigée
 # apparaît sans changement de code, forcer la reconstruction en touchant cette ligne (purger le
 # scope de cache buildx ne suffit pas, les runs main/develop le réalimentent aussitôt).
-RUN apk upgrade --no-cache
+RUN apk upgrade --no-cache  # rebuild 2026-08-28 : CVE-2026-14456 (libcrypto3 3.5.7-r0 -> 3.5.8-r0)
 
 RUN echo "upload_max_filesize = 200M" > /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 200M" >> /usr/local/etc/php/conf.d/uploads.ini
