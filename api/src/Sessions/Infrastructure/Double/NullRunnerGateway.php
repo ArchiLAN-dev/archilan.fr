@@ -103,6 +103,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return true;
     }
 
+    public function reintrospectApworld(string $hash): bool
+    {
+        return false;
+    }
+
     public function regenerateApworldTemplate(string $hash): array
     {
         return null !== self::$regeneratedTemplate

@@ -37,6 +37,18 @@ interface RunnerGatewayInterface
     public function fetchOptionTypes(string $hash): array;
 
     /**
+     * Re-runs option introspection on an apworld already in the runner's storage (story 9.53).
+     *
+     * Introspection otherwise happens exactly once, when the apworld is uploaded, so a world
+     * introspected by an older image keeps that answer for good. Before this, the only way to
+     * refresh it was to re-upload the very bytes the runner already holds.
+     *
+     * Returns false when the runner refused: the stored introspection is then left untouched, and
+     * the caller keeps serving the previous - stale but complete - answer.
+     */
+    public function reintrospectApworld(string $hash): bool;
+
+    /**
      * Static location names introspected from an uploaded apworld (the World class's
      * location_name_to_id keys); a free-text suggestion hint for location-typed YAML options
      * (story 4.14). Empty when the apworld has not been introspected yet.
