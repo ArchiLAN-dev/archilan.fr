@@ -16,6 +16,7 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   Square,
   Trash2,
   X,
@@ -744,7 +745,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
     { key: "participants", label: "Participants" },
     { key: "streams", label: "Streams" },
     ...(sessionLive && (run.isOwner || isAdmin) ? [{ key: "overlay" as const, label: "Overlay Stream" }] : []),
-    ...(run.isOwner ? [{ key: "settings" as const, label: "Réglages" }] : []),
+    ...(run.isOwner || isAdmin ? [{ key: "settings" as const, label: "Réglages" }] : []),
   ];
   const activeTab: RunTab = tabs.some((t) => t.key === tab) ? tab : "overview";
 
@@ -887,7 +888,20 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           <MyGamesCard mySlotCount={mySlotCount} run={run} />
         )}
 
-        {activeTab === "settings" && run.isOwner && (
+        {/* Story 16.19 : une interface identique à celle du propriétaire invite à oublier de qui est
+            la partie qu'on modifie. */}
+        {activeTab === "settings" && !run.isOwner && isAdmin && (
+          <section className="mb-4 flex items-start gap-2 rounded-lg border border-accent-warm/40 bg-accent-warm/5 p-4 text-sm">
+            <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-accent-warm" />
+            <p className="text-muted-foreground">
+              <span className="font-semibold text-foreground">Tu interviens en administrateur.</span>{" "}
+              Cette partie appartient à un autre membre, et chaque réglage que tu appliques ici est
+              consigné dans sa fiche.
+            </p>
+          </section>
+        )}
+
+        {activeTab === "settings" && (run.isOwner || isAdmin) && (
           <section className="mb-4">
             <ImportedSeedPanel
               editable={run.status === "draft"}
@@ -900,7 +914,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
           </section>
         )}
 
-        {activeTab === "settings" && run.isOwner && (
+        {activeTab === "settings" && (run.isOwner || isAdmin) && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-foreground">Configuration avancée (override)</h2>
             <SessionConfigOverrideForm
@@ -920,7 +934,7 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         {/* La suppression d'une run en veille vivait sous le bandeau de reprise, en pleine largeur,
             donc plus lourde à l'œil que la seule action utile de cet état (story 16.15). Elle reste
             réservée au propriétaire : l'onglet Réglages n'existe que pour lui. */}
-        {activeTab === "settings" && run.isOwner && run.status === "idle" && (
+        {activeTab === "settings" && (run.isOwner || isAdmin) && run.status === "idle" && (
           <section className="rounded-lg border border-[color:var(--color-danger)]/30 bg-surface p-4">
             <h2 className="mb-1 text-sm font-semibold text-foreground">Supprimer la partie</h2>
             <p className="mb-3 text-sm text-muted-foreground">

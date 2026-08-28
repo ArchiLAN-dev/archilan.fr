@@ -34,7 +34,9 @@ final readonly class PersonalRunConfigOverrideController
             return $user;
         }
 
-        $result = $this->configOverride->get($runId, $user->getId());
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
+
+        $result = $this->configOverride->get($runId, $user->getId(), $isAdmin);
 
         return $this->respond($result);
     }
@@ -47,13 +49,15 @@ final readonly class PersonalRunConfigOverrideController
             return $user;
         }
 
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
+
         $payload = json_decode($request->getContent(), true);
         if (!is_array($payload)) {
             return $this->apiAccessGuard->errorResponse('invalid_body', 'request body must be a JSON object', Response::HTTP_BAD_REQUEST);
         }
 
         try {
-            $result = $this->configOverride->set($runId, $user->getId(), $payload);
+            $result = $this->configOverride->set($runId, $user->getId(), $payload, $isAdmin);
         } catch (\DomainException $e) {
             return $this->apiAccessGuard->errorResponse($e->getMessage(), $e->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -69,7 +73,9 @@ final readonly class PersonalRunConfigOverrideController
             return $user;
         }
 
-        $result = $this->configOverride->clear($runId, $user->getId());
+        $isAdmin = in_array('ROLE_ADMIN', $user->getRoles(), true);
+
+        $result = $this->configOverride->clear($runId, $user->getId(), $isAdmin);
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', Response::HTTP_NOT_FOUND);
         }

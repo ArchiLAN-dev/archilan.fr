@@ -28,13 +28,21 @@ au pare-feu tant que la phase 2 de la story 37.7 n'est pas passée.
   inopérante : Traefik sert son certificat par défaut.
 - Les images sont **épinglées par version**, pas suivies en `latest` :
   `ARCHILAN_VERSION`, `ORCHESTRATEUR_VERSION`, `ARCHIPELAGO_VERSION`, `BRIDGE_VERSION`.
+- L'épinglage ne s'arrête pas aux images tirées : `AP_IMAGE`, `ARCHIPELAGO_GENERATE_IMAGE` et
+  `BRIDGE_IMAGE` (côté `envs/orchestrateur.env`) sont celles que l'orchestrateur **lance** par
+  session. Les laisser en `latest` pendant que `ARCHIPELAGO_VERSION` est épinglé fait tourner une
+  version différente de celle qu'on croit avoir déployée.
+- Les quatre dépôts ont des numéros **indépendants** : relever le dernier tag de chacun plutôt que
+  de supposer qu'ils avancent ensemble.
 
 ## Déployer une version
 
 ```bash
-# .env de production
-ARCHILAN_VERSION=0.14.0
-ORCHESTRATEUR_VERSION=...
+# .env de production - remplacer par le dernier tag de chaque dépôt
+ARCHILAN_VERSION=0.18.0
+ORCHESTRATEUR_VERSION=0.16.0
+ARCHIPELAGO_VERSION=0.14.0
+BRIDGE_VERSION=0.12.2
 
 docker compose pull
 docker compose --profile images pull      # images archipelago et bridge

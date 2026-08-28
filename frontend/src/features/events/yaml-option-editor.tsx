@@ -1152,12 +1152,13 @@ function DictField({
             value={entry.k}
             onChange={(e) => update(entry.id, "k", e.target.value)}
           />
-          <input
-            className={`min-h-9 ${valueWidthCls} rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60`}
-            disabled={readOnly}
+          <DictValueField
+            choices={option.entryChoices?.[entry.k]}
             placeholder={option.fixedKeys === true ? "valeur" : "0"}
+            readOnly={readOnly}
             value={entry.v}
-            onChange={(e) => update(entry.id, "v", e.target.value)}
+            widthCls={valueWidthCls}
+            onChange={(v) => update(entry.id, "v", v)}
           />
           {canEditStructure && (
             <button
@@ -1190,6 +1191,97 @@ function DictField({
       )}
       {option.entries.length === 0 && readOnly && (
         <p className="text-xs italic text-muted-foreground">Aucune entrée</p>
+      )}
+    </div>
+  );
+}
+
+// Sentinel for the "Autre…" entry. A declared vocabulary never contains it in practice, and if one
+// ever did the worst case is benign: that value routes to the free field, where the player types
+// the same string and the same YAML comes out.
+const DICT_CUSTOM_VALUE = "__archilan_custom__";
+
+/**
+ * The value of one dict sub-setting: a dropdown when the apworld declared what it accepts, the
+ * plain text field otherwise (story 9.51).
+ *
+ * The dropdown always keeps an "Autre…" escape. A declared vocabulary is authoritative about what
+ * it lists, not about what it excludes: Pokemon Platinum's `text_frame` takes 1-20 *or* `random`,
+ * and `default_player_name: custom` expects a name typed by hand. Closing the list on those would
+ * turn a correct declaration into a wrong constraint, with no way for the player to work around it.
+ */
+function DictValueField({
+  choices,
+  placeholder,
+  readOnly,
+  value,
+  widthCls,
+  onChange,
+}: {
+  choices: string[] | undefined;
+  placeholder: string;
+  readOnly: boolean;
+  value: string;
+  widthCls: string;
+  onChange: (value: string) => void;
+}) {
+  // Only "the player asked for a free value" is state. Whether the current value is off-list is
+  // derived, so a value replaced from the outside (a merge, a reset) never leaves a stale mode.
+  const [freeEntry, setFreeEntry] = useState(false);
+
+  const inputCls = `min-h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60`;
+
+  if (choices === undefined || choices.length < 2) {
+    return (
+      <div className={widthCls}>
+        <input
+          className={inputCls}
+          disabled={readOnly}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+
+  // A value saved before the apworld was introspected - or typed through "Autre…" - is kept as it
+  // is and shown in the free field. Never silently snapped back to a default.
+  const isCustom = freeEntry || (value !== "" && !choices.includes(value));
+
+  return (
+    <div className={`flex items-center gap-2 ${widthCls}`}>
+      <select
+        aria-label="Valeur"
+        className="min-h-9 flex-1 rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={readOnly}
+        value={isCustom ? DICT_CUSTOM_VALUE : value}
+        onChange={(e) => {
+          if (e.target.value === DICT_CUSTOM_VALUE) {
+            setFreeEntry(true);
+            return;
+          }
+          setFreeEntry(false);
+          onChange(e.target.value);
+        }}
+      >
+        {value === "" && !isCustom && <option value="">-</option>}
+        {choices.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+        <option value={DICT_CUSTOM_VALUE}>Autre…</option>
+      </select>
+      {isCustom && (
+        <input
+          aria-label="Valeur libre"
+          className={`${inputCls} flex-1`}
+          disabled={readOnly}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
       )}
     </div>
   );
