@@ -94,10 +94,14 @@ final readonly class PersonalRunLifecycle
             throw new ValidationException('Démarrage impossible dans l\'état actuel.', [], 'run_not_startable');
         }
 
-        $participants = $this->participants->findByRunId($run->getId());
-        $anyHasSlots = array_any($participants, fn ($participant) => $participant->hasSlots());
-        if (!$anyHasSlots) {
-            throw new ValidationException('Démarrage impossible dans l\'état actuel.', [], 'games_required');
+        // Une seed importée porte ses propres slots, lus dans son archive (story 16.18) : personne
+        // n'y déclare de jeu, et l'exiger rendait ces parties impossibles à lancer.
+        if (!$run->isImportedSeed()) {
+            $participants = $this->participants->findByRunId($run->getId());
+            $anyHasSlots = array_any($participants, fn ($participant) => $participant->hasSlots());
+            if (!$anyHasSlots) {
+                throw new ValidationException('Démarrage impossible dans l\'état actuel.', [], 'games_required');
+            }
         }
 
         $run->start($this->clock->now());

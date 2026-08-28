@@ -5,6 +5,19 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.17.3] - 2026-08-28
+
+Correctif de la v0.17.0 : une partie créée depuis une seed importée ne pouvait pas démarrer.
+
+### Corrigé
+
+- **Une partie hébergeant une seed importée démarre enfin.** Le lancement exigeait qu'au moins un
+  participant ait déclaré un jeu - ce qui est le fonctionnement normal d'une partie générée ici.
+  Mais sur une seed importée personne n'en déclare : les slots viennent de l'archive, c'est tout
+  l'intérêt. Le bouton restait donc grisé, et l'API refusait avec `games_required`. Les deux gardes
+  reconnaissent désormais une seed importée comme une source de slots légitime. Une partie
+  ordinaire, elle, garde son garde-fou.
+
 ## [0.17.2] - 2026-08-28
 
 Version de publication : la v0.17.1 n'a livré aucune de ses trois images.
