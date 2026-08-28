@@ -5,6 +5,37 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.0] - 2026-08-28
+
+Les réglages groupés d'un jeu peuvent enfin se choisir dans une liste, même quand l'apworld ne dit
+rien de ce qu'ils acceptent.
+
+### Ajouté
+
+- **Un administrateur déclare ce que les réglages groupés acceptent.** Certaines options Archipelago
+  rassemblent plusieurs réglages dans un même bloc - vitesse du texte, style de combat, mode des
+  boutons - et rien n'oblige un jeu à dire ce que chacun accepte. La plupart ne le disent pas : le
+  joueur se retrouvait devant une colonne de champs libres, à devoir savoir de tête qu'un style de
+  combat vaut `shift` ou `set`. La page d'administration d'un jeu permet désormais de saisir ces
+  valeurs une fois pour toutes, réglage par réglage, et les joueurs obtiennent des listes
+  déroulantes. Une case « Liste complète » indique que rien d'autre n'est accepté, ce qui retire
+  l'entrée « Autre… » du menu ; sans elle, la saisie libre reste possible. Une valeur déjà
+  enregistrée par un joueur est conservée dans tous les cas, y compris si elle sort de la liste :
+  une déclaration faite après coup ne réécrit jamais une configuration existante.
+- **La déclaration survit aux mises à jour du jeu.** Elle est rangée à part de ce que le fichier de
+  jeu raconte de lui-même, si bien qu'un nouveau téléversement ou une ré-introspection actualise
+  l'un sans effacer l'autre. Là où les deux se prononcent sur le même réglage, la déclaration
+  humaine l'emporte, réglage par réglage : renseigner le style de combat ne masque pas ce que le
+  jeu savait dire de la vitesse du texte dans le même bloc. Un bouton rend l'option au fichier de
+  jeu.
+
+### Notes de déploiement
+
+- Migration `Version20260828120000` : une colonne `dict_option_values` sur `game`. Jouée
+  automatiquement par le service `api-migrations` au démarrage.
+- Aucune autre image que celles du monorepo n'est concernée : orchestrateur, archipelago et bridge
+  restent où ils sont.
+
 ## [0.19.0] - 2026-08-28
 
 Une commande pour rafraîchir l'introspection d'un apworld sans avoir à le re-téléverser.
