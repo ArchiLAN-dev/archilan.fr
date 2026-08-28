@@ -5,6 +5,21 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.17.4] - 2026-08-28
+
+Correctif : les options valant `on` ou `off` arrivaient à Archipelago en `True` et `False`.
+
+### Corrigé
+
+- **Un réglage `on` / `off` reste ce qu'il est jusqu'à la génération.** L'éditeur écrit le YAML avec
+  une bibliothèque qui suit **YAML 1.2**, où `on`, `off`, `yes` et `no` sont des chaînes ordinaires,
+  donc écrites sans guillemets. Archipelago le relit avec PyYAML, resté en **YAML 1.1**, où ces
+  mêmes mots sont des booléens. Un `battle_scene: on` partait donc d'ici correct et arrivait là-bas
+  en `True` - d'où le `ValueError: invalid battle scene: "False"` sur Pokemon Platinum. Le fichier
+  était valide des deux côtés : ce sont les deux versions de la norme qui divergent, et c'est nous
+  qui écrivons. Ces scalaires sont désormais cités à la sortie, valeurs, clés et éléments de liste,
+  ce qui les fait lire comme du texte par les deux versions.
+
 ## [0.17.3] - 2026-08-28
 
 Correctif de la v0.17.0 : une partie créée depuis une seed importée ne pouvait pas démarrer.
