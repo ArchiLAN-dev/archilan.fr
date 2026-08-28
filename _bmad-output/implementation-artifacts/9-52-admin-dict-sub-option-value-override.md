@@ -1,6 +1,6 @@
 # Story 9.52: Surcharge admin des valeurs de sous-options d'un dict
 
-**Status:** draft
+**Status:** implementee
 **Epic:** 9 - Multiworld generation pipeline & apworld introspection
 **Date:** 2026-08-28
 **Dépend de :** [9.51](9-51-dict-sub-option-values-from-schema.md) - qui pose le transport, la
@@ -72,21 +72,21 @@ réécrit jamais en silence le YAML d'un joueur. Elle est signalée à l'admin, 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC1). Migration : colonne JSON nullable sur `game` pour la surcharge.
-- [ ] **Task 2** (AC1, AC2). Domaine : value object du spec surchargé (sous-clé → valeurs + fermé/ouvert),
+- [x] **Task 1** (AC1). Migration : colonne JSON nullable sur `game` pour la surcharge.
+- [x] **Task 2** (AC1, AC2). Domaine : value object du spec surchargé (sous-clé → valeurs + fermé/ouvert),
       `Game::overrideDictOptionValues()` / accesseur du spec effectif, et **le** résolveur partagé de
       précédence. Tests unitaires sur la fusion par sous-clé.
-- [ ] **Task 3** (AC2, AC6). Brancher le résolveur sur les lecteurs existants d'`optionTypes`
+- [x] **Task 3** (AC2, AC6). Brancher le résolveur sur les lecteurs existants d'`optionTypes`
       (`PersonalRunGameSelection`, `RegistrationGameSelection`, `AdminGameLibrary`, configure) plutôt
       que d'ajouter un champ parallèle dans chaque charge utile.
-- [ ] **Task 4** (AC3, AC4, AC5). Application + Presentation : commande d'enregistrement validée,
+- [x] **Task 4** (AC3, AC4, AC5). Application + Presentation : commande d'enregistrement validée,
       action de retrait, endpoint admin, détail exposant le spec effectif, ce qui est surchargé, et les
       sous-clés proposables. Tests.
-- [ ] **Task 5** (AC3, AC4, AC5). Frontend admin : éditeur de valeurs par sous-clé dans
+- [x] **Task 5** (AC3, AC4, AC5). Frontend admin : éditeur de valeurs par sous-clé dans
       `admin-game-editor.tsx`, drapeau fermé/ouvert, retour à l'introspection.
-- [ ] **Task 6** (AC4, AC7). Frontend éditeur : `DictField` respecte le drapeau (liste fermée = pas
+- [x] **Task 6** (AC4, AC7). Frontend éditeur : `DictField` respecte le drapeau (liste fermée = pas
       d'« Autre… »), et conserve quand même une valeur enregistrée hors liste. Jest.
-- [ ] **Task 7** (AC8). Gates verts.
+- [x] **Task 7** (AC8). Gates verts.
 
 ## Dev Notes
 
@@ -129,8 +129,61 @@ réécrit jamais en silence le YAML d'un joueur. Elle est signalée à l'admin, 
 - [Source: api/src/GameSelection/Application/Service/AdminGameLibrary.php:176 (`savePlatformFamilies`)]
 - [Source: https://github.com/ljtpetersen/platinum_archipelago/blob/master/options.py (`GameOptions` : ni `Schema`, ni `valid_keys`)]
 
+## Dev Agent Record
+
+### Ce qui a ete livre
+
+| Couche | Ou |
+|--------|-----|
+| colonne `dict_option_values` | `Version20260828120000` |
+| `overrideDictOptionValues()` + `getEffectiveOptionTypes()` | `Game` |
+| `saveDictOptionValues()` + `dictOptionValues` dans la charge utile | `AdminGameLibrary` |
+| `PUT /admin/games/{id}/dict-option-values` | `AdminGameLibraryController` |
+| ecran de curation | `admin-game-editor.tsx` |
+| drapeau `closed` de bout en bout | `archipelago-yaml.ts`, `yaml-option-editor.tsx` |
+
+### Une seule regle, et un seul endroit - plus simple que prevu
+
+L'AC2 craignait le scenario de la 9.47, ou la precedence devait etre reimplementee dans les requetes
+DBAL en plus de l'entite. Ce n'est pas le cas ici : les trois lecteurs d'`optionTypes`
+(`AdminGameLibrary`, `PersonalRunGameSelection`, `RegistrationGameSelection`) passent tous par
+l'entite, et le quatrieme - `DbalGameCatalogQuery` - ne lit du JSON que les **bornes de range**
+(`{key, min, max, default}`) pour le catalogue public. La curation ne touche jamais a ces bornes,
+donc ce lecteur n'avait rien a apprendre. `Game::getEffectiveOptionTypes()` suffit.
+
+### Ecarts assumes
+
+#### Une curation sans introspection est ignoree
+
+L'AC1 ne disait pas quoi faire quand l'admin curerait une option dont l'introspection n'a jamais rien
+dit. Le choix retenu : ne rien faire. Il n'y a pas d'entree sur laquelle se poser, et en fabriquer
+une reviendrait a affirmer sur parole que l'option est un dict - alors qu'une faute de frappe sur la
+cle suffirait a casser le rendu d'un `choice`. En pratique l'ecran ne propose que les blocs lus dans
+le gabarit du jeu, donc le cas ne se produit pas par l'interface.
+
+#### La valeur hors liste rejoint la liste, au lieu du champ libre
+
+L'AC7 demandait qu'une valeur enregistree hors d'une liste **fermee** soit conservee. Le champ libre
+ayant disparu, c'est la liste elle-meme qui l'accueille, en tete. C'est d'ailleurs ce que la 9.51
+avait ecrit dans son AC6 avant d'y renoncer pour les listes ouvertes : la ou il n'y a plus de champ
+libre, la liste est le seul endroit ou la valeur reste visible.
+
+### Ce que ca change pour Pokemon Platinum
+
+`GameOptions(OptionDict)` ne declare ni `schema` ni `valid_keys` : la 9.51 ne pouvait rien en tirer.
+Un admin peut desormais saisir, une fois pour toutes, ce que `battle_style`, `sound`, `text_speed` et
+leurs voisines acceptent - et les joueurs obtiennent des listes deroulantes la ou ils avaient onze
+champs texte. C'est la reponse a la question qui a lance tout ce fil.
+
+## Ce qui reste
+
+Rien cote code. La saisie est manuelle par construction : c'est le prix a payer pour etre juste quel
+que soit le style du developpeur de l'apworld, et c'est ce qui a fait ecarter le parsing de docstring
+au depart.
+
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
+| 2026-08-28 | Implementee. Resolution par entite seule (le lecteur DBAL ne lit que les bornes de range). Ecarts : curation sans introspection ignoree, valeur hors liste fermee rangee dans la liste. |
 | 2026-08-28 | Créée. Couche de curation admin par-dessus l'introspection de la 9.51, pour les apworlds qui ne déclarent aucune valeur autorisée. Status: draft. |

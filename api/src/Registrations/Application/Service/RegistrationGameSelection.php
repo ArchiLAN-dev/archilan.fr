@@ -86,7 +86,7 @@ final readonly class RegistrationGameSelection
                 'disabledMessage' => $game->getDisabledMessage(),
                 'isApworldReady' => $game->isApworldReady(),
                 'defaultYaml' => $game->getDefaultYaml(),
-                'optionTypes' => $game->getOptionTypes(),
+                'optionTypes' => $game->getEffectiveOptionTypes(),
                 'locationNames' => $game->getLocationNames(),
                 'coverImageUrl' => $game->getCoverImageUrl(),
                 'coverImageAlt' => $game->getCoverImageAlt(),

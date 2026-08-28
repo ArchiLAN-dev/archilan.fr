@@ -1,4 +1,5 @@
 import type { InstallStep } from "@/features/games/install-steps-editor";
+import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
@@ -42,7 +43,44 @@ export type AdminGame = {
   platformsOverridden?: boolean;
   // Curated families an admin can pick from. Absent on older payloads.
   selectablePlatforms?: string[];
+  // Story 9.51/9.52: the option table as the editor sees it - introspection with the admin
+  // curation already laid over it.
+  optionTypes?: OptionTypesMap | null;
+  // Story 9.52: the curation alone. What the admin decided, as opposed to what the apworld
+  // declared, so the screen can show which is which and offer to hand an option back.
+  dictOptionValues?: Record<string, Record<string, { values: string[]; closed: boolean }>> | null;
 };
+
+/**
+ * Story 9.52: declare what the sub-settings of one dict option accept.
+ *
+ * Most `OptionDict` classes declare no vocabulary at all, so introspection has nothing to report
+ * and the player gets free text fields. This is where a human says what the apworld does not.
+ * An empty map hands the option back to introspection.
+ */
+export async function saveDictOptionValues(
+  gameId: string,
+  option: string,
+  values: Record<string, { values: string[]; closed: boolean }>,
+): Promise<DefaultYamlResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${gameId}/dict-option-values`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ option, values }),
+    });
+    const payload: unknown = await res.json();
+    if (res.status === 422) {
+      return { kind: "invalid", message: readPlatformDetail(payload) };
+    }
+    if (!res.ok || !isAdminGamePayload(payload)) {
+      return { kind: "error", message: "L'enregistrement a échoué." };
+    }
+    return { kind: "saved", game: payload.data, warning: null };
+  } catch {
+    return { kind: "error", message: "Impossible de contacter le serveur." };
+  }
+}
 
 /**
  * Story 9.47: set the platforms shown for a game, or pass null to go back to the

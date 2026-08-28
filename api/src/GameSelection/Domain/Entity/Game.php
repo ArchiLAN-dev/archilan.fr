@@ -74,6 +74,21 @@ final class Game
         #[ORM\Column(name: 'option_types', type: 'json', nullable: true)]
         private ?array $optionTypes = null,
         /**
+         * What an admin says the sub-settings of a dict option accept (story 9.52).
+         *
+         * Kept apart from `optionTypes` rather than merged into it, for two reasons. The practical
+         * one: `recordOptionTypes()` replaces that column wholesale at every upload and every
+         * backfill, so a curation stored there would be erased by the next re-introspection. The
+         * one that matters more: what the apworld declares and what we decided are two different
+         * claims, and only keeping them apart makes the curation reversible.
+         *
+         * Shape: option key -> sub-setting -> {values, closed}.
+         *
+         * @var array<string, array<string, array{values: list<string>, closed: bool}>>|null
+         */
+        #[ORM\Column(name: 'dict_option_values', type: 'json', nullable: true)]
+        private ?array $dictOptionValues = null,
+        /**
          * Ordered per-game install tutorial steps (story 31.1).
          *
          * @var list<array{type: string, title: string, description: string}>|null
@@ -310,6 +325,76 @@ final class Game
     public function recordOptionTypes(?array $optionTypes): void
     {
         $this->optionTypes = null === $optionTypes || [] === $optionTypes ? null : $optionTypes;
+    }
+
+    /**
+     * The admin curation alone, without the introspected table (story 9.52).
+     *
+     * @return array<string, array<string, array{values: list<string>, closed: bool}>>|null
+     */
+    public function getDictOptionValues(): ?array
+    {
+        return $this->dictOptionValues;
+    }
+
+    public function hasDictOptionValues(string $optionKey): bool
+    {
+        return isset($this->dictOptionValues[$optionKey]) && [] !== $this->dictOptionValues[$optionKey];
+    }
+
+    /**
+     * Set or clear the curation for one dict option. Null - or an empty map - clears it, which
+     * hands that option back to whatever introspection had to say about it.
+     *
+     * @param array<string, array{values: list<string>, closed: bool}>|null $subOptions
+     */
+    public function overrideDictOptionValues(string $optionKey, ?array $subOptions, \DateTimeImmutable $now): void
+    {
+        $current = $this->dictOptionValues ?? [];
+
+        if (null === $subOptions || [] === $subOptions) {
+            unset($current[$optionKey]);
+        } else {
+            $current[$optionKey] = $subOptions;
+        }
+
+        $this->dictOptionValues = [] === $current ? null : $current;
+        $this->updatedAt = $now;
+    }
+
+    /**
+     * The option table as every reader should see it: introspection, with the admin curation laid
+     * over it per sub-setting (story 9.52).
+     *
+     * The merge is per sub-setting, not per option: curating `battle_style` must not hide what
+     * introspection knew about `text_speed` in the same block. And it happens on **read** - writing
+     * it back into `optionTypes` would lose the distinction at the first re-introspection.
+     *
+     * A curation for an option introspection never described is ignored: there is no entry to lay
+     * it over, and inventing one would assert on the admin's word that the option is a dict.
+     *
+     * @return array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>, closed?: bool}>}>|null
+     */
+    public function getEffectiveOptionTypes(): ?array
+    {
+        $types = $this->optionTypes;
+        if (null === $types || null === $this->dictOptionValues) {
+            return $types;
+        }
+
+        foreach ($this->dictOptionValues as $optionKey => $subOptions) {
+            if (!isset($types[$optionKey])) {
+                continue;
+            }
+
+            $keys = $types[$optionKey]['keys'] ?? [];
+            foreach ($subOptions as $subKey => $spec) {
+                $keys[$subKey] = $spec;
+            }
+            $types[$optionKey]['keys'] = $keys;
+        }
+
+        return $types;
     }
 
     /**

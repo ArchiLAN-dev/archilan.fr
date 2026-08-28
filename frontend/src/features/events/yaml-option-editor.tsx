@@ -1153,7 +1153,8 @@ function DictField({
             onChange={(e) => update(entry.id, "k", e.target.value)}
           />
           <DictValueField
-            choices={option.entryChoices?.[entry.k]}
+            choices={option.entryChoices?.[entry.k]?.values}
+            closed={option.entryChoices?.[entry.k]?.closed === true}
             placeholder={option.fixedKeys === true ? "valeur" : "0"}
             readOnly={readOnly}
             value={entry.v}
@@ -1205,13 +1206,15 @@ const DICT_CUSTOM_VALUE = "__archilan_custom__";
  * The value of one dict sub-setting: a dropdown when the apworld declared what it accepts, the
  * plain text field otherwise (story 9.51).
  *
- * The dropdown always keeps an "Autre…" escape. A declared vocabulary is authoritative about what
- * it lists, not about what it excludes: Pokemon Platinum's `text_frame` takes 1-20 *or* `random`,
- * and `default_player_name: custom` expects a name typed by hand. Closing the list on those would
- * turn a correct declaration into a wrong constraint, with no way for the player to work around it.
+ * The dropdown keeps an "Autre…" escape unless someone explicitly vouched for the list being
+ * exhaustive (story 9.52). A vocabulary read from an apworld's `schema` never does: it is
+ * authoritative about what it lists, not about what it excludes - Pokemon Platinum's `text_frame`
+ * takes 1-20 *or* `random`, and `default_player_name: custom` expects a name typed by hand.
+ * Closing those would turn a correct declaration into a wrong constraint.
  */
 function DictValueField({
   choices,
+  closed,
   placeholder,
   readOnly,
   value,
@@ -1219,6 +1222,7 @@ function DictValueField({
   onChange,
 }: {
   choices: string[] | undefined;
+  closed: boolean;
   placeholder: string;
   readOnly: boolean;
   value: string;
@@ -1245,9 +1249,17 @@ function DictValueField({
     );
   }
 
+  const offList = value !== "" && !choices.includes(value);
+
+  // A closed list is closed for *choosing*, not for what is already written down. A curation added
+  // after the fact must never rewrite a player's YAML in silence, so an off-list value joins the
+  // options rather than being replaced - it is the only place left to show it once the free field
+  // is gone.
+  const options = closed && offList ? [value, ...choices] : choices;
+
   // A value saved before the apworld was introspected - or typed through "Autre…" - is kept as it
   // is and shown in the free field. Never silently snapped back to a default.
-  const isCustom = freeEntry || (value !== "" && !choices.includes(value));
+  const isCustom = !closed && (freeEntry || offList);
 
   return (
     <div className={`flex items-center gap-2 ${widthCls}`}>
@@ -1266,12 +1278,14 @@ function DictValueField({
         }}
       >
         {value === "" && !isCustom && <option value="">-</option>}
-        {choices.map((c) => (
+        {options.map((c) => (
           <option key={c} value={c}>
             {c}
           </option>
         ))}
-        <option value={DICT_CUSTOM_VALUE}>Autre…</option>
+        {/* Only an admin curation ever closes a list. A vocabulary read from an apworld's `schema`
+            is authoritative about what it lists, not about what it leaves out. */}
+        {!closed && <option value={DICT_CUSTOM_VALUE}>Autre…</option>}
       </select>
       {isCustom && (
         <input
