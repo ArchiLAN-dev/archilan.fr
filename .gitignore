@@ -20,3 +20,8 @@ envs/*.env
 
 # Local Mercure dev TLS certs (generated with mkcert - never commit)
 /certs/*.pem
+
+# Local generation artefacts: the apworld under test, .apsave files, generated output and
+# yamls. None of it belongs to the repository, and an unignored binary here is one
+# absent-minded `git add` away from a release.
+/output-run/
