@@ -28,7 +28,11 @@ interface RunnerGatewayInterface
      * so the editor can stop guessing an option's nature from the shape of its value. `min` / `max`
      * stay where they were for the range consumers.
      *
-     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>
+     * On a `dict`, `values` holds the sub-setting NAMES and `keys` the values each of them accepts
+     * (story 9.51). The two are not interchangeable: reading one as the other offers key names in a
+     * dropdown as though they were values.
+     *
+     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>
      */
     public function fetchOptionTypes(string $hash): array;
 

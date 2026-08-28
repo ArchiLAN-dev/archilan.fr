@@ -999,7 +999,7 @@ final readonly class AdminGameLibrary
      * lost on the way to the editor. It now keeps whatever type the apworld declared, and still
      * refuses anything it cannot name - an option with neither a type nor bounds says nothing.
      *
-     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>
+     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>
      */
     private static function normalizeOptionTypes(mixed $raw): array
     {
@@ -1041,9 +1041,49 @@ final readonly class AdminGameLibrary
                 $entry['values'] = array_values(array_filter($values, is_string(...)));
             }
 
+            $subOptions = self::normalizeDictSubOptions($spec['keys'] ?? null);
+            if ([] !== $subOptions) {
+                $entry['keys'] = $subOptions;
+            }
+
             $types[$key] = $entry;
         }
 
         return $types;
+    }
+
+    /**
+     * What each sub-setting of a dict option accepts, when the apworld declared it (story 9.51).
+     *
+     * A sub-setting left with fewer than two values is dropped rather than stored. Half a vocabulary
+     * is the worst thing a dropdown can be given: it reads as authoritative while hiding the entries
+     * the world actually accepts, and the player cannot see what is missing.
+     *
+     * @return array<string, array{values: list<string>}>
+     */
+    private static function normalizeDictSubOptions(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $subOptions = [];
+        foreach ($raw as $subKey => $sub) {
+            if (!is_string($subKey) || !is_array($sub)) {
+                continue;
+            }
+
+            $values = $sub['values'] ?? null;
+            if (!is_array($values)) {
+                continue;
+            }
+
+            $clean = array_values(array_unique(array_filter($values, is_string(...))));
+            if (count($clean) > 1) {
+                $subOptions[$subKey] = ['values' => $clean];
+            }
+        }
+
+        return $subOptions;
     }
 }

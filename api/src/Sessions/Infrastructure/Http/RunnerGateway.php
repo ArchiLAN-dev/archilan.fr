@@ -7,6 +7,7 @@ namespace App\Sessions\Infrastructure\Http;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Archilan\OrchestratorClient\Apworlds\Response\ApworldPreflight;
 use Archilan\OrchestratorClient\Apworlds\Response\ChoiceTemplateOption;
+use Archilan\OrchestratorClient\Apworlds\Response\DictSubOption;
 use Archilan\OrchestratorClient\Apworlds\Response\DictTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\RangeTemplateOption;
 use Archilan\OrchestratorClient\Apworlds\Response\TemplateOption;
@@ -128,7 +129,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
      * The orchestrator already merges introspected types into this response; nothing upstream had to
      * change, the type simply stopped being dropped here.
      *
-     * @return array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}
+     * @return array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}
      */
     private static function describeOption(TemplateOption $option): array
     {
@@ -155,7 +156,19 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             // A mapping of setting names to literal values, not a weighted distribution. Telling the
             // editor which it is stops it from running a player name through a weight coercion
             // (story 4.17, whose guard stays as the fallback for apworlds not re-introspected).
-            return ['type' => 'dict', 'values' => array_values($option->validKeys)];
+            //
+            // Mind the two fields: `values` carries the sub-setting NAMES (`validKeys`), `keys`
+            // carries the values each of them accepts (story 9.51). They look alike on the wire and
+            // mean opposite things - swapping them puts key names in the player's dropdown.
+            $spec = ['type' => 'dict', 'values' => array_values($option->validKeys)];
+            if ([] !== $option->keys) {
+                $spec['keys'] = array_map(
+                    static fn (DictSubOption $sub): array => ['values' => $sub->values],
+                    $option->keys,
+                );
+            }
+
+            return $spec;
         }
 
         if ($option instanceof WeightsTemplateOption) {
