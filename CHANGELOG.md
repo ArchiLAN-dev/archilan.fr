@@ -5,6 +5,56 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.18.0] - 2026-08-28
+
+Trois nouveautés - une pour les administrateurs, une pour la communauté, une pour l'éditeur de
+configuration - et une correction d'épinglage sur le déploiement.
+
+### Ajouté
+
+- **Un administrateur peut régler la partie privée d'un autre membre.** Il pouvait déjà l'ouvrir,
+  mais l'onglet Réglages n'existait que pour le propriétaire : face à un membre bloqué, il ne
+  pouvait que lui demander de corriger lui-même, y compris quand ce membre est précisément celui
+  qui n'y arrive pas. Les trois blocs s'ouvrent : surcharge de configuration, seed importée avec
+  assignation des slots, et suppression. Les règles d'état ne changent pas - une partie lancée ne
+  change pas de seed, une partie active ne se supprime pas, pour l'administrateur comme pour le
+  propriétaire. Ce que l'accès en lecture avait fermé reste fermé : lien d'invitation, mot de passe
+  de session, journal de génération. Chaque geste est consigné dans le journal d'actions
+  administrateur, **rattaché au propriétaire de la partie** et non à l'administrateur : c'est dans
+  la fiche du membre qu'on cherchera qui a touché à sa run. Un bandeau prévient l'administrateur
+  qu'il intervient chez quelqu'un d'autre et que son action est tracée, parce qu'une interface
+  identique à celle du propriétaire invite à oublier de qui est la partie qu'on modifie.
+- **Un membre qui diffuse porte un badge Live sur sa carte.** L'annuaire savait dire qu'un membre
+  joue, pas qu'il diffuse, alors que le site le fait déjà pour les streams d'une partie. Les membres
+  en direct remontent en tête du tri courant - avant la pagination, donc sur l'ensemble des membres
+  listables et pas seulement sur la page affichée - et leur carte porte un badge cliquable vers leur
+  chaîne. Le badge coexiste avec l'indicateur « en jeu » : diffuser et jouer sont deux choses
+  différentes.
+- **Un réglage de jeu peut se choisir dans une liste plutôt que se taper de mémoire.** Certaines
+  options Archipelago regroupent plusieurs réglages dans un même bloc - vitesse du texte, style de
+  combat, mode des boutons - et l'éditeur n'avait que des champs libres à leur offrir : le joueur
+  devait savoir de tête que le style de combat accepte `shift` ou `set`. Quand l'apworld déclare
+  lui-même les valeurs acceptées, l'éditeur en fait une liste déroulante, et uniquement pour les
+  réglages réellement déclarés. La liste garde toujours une entrée « Autre… » : une déclaration
+  exacte n'est pas forcément exhaustive, et la fermer transformerait une information juste en
+  contrainte fausse. Une valeur déjà enregistrée hors liste est conservée telle quelle, jamais
+  ramenée à un défaut. Peu de jeux déclarent ces valeurs aujourd'hui ; ceux qui ne le font pas
+  gardent exactement l'éditeur qu'ils avaient.
+
+### Déploiement
+
+- **L'épinglage des images tient maintenant sur celles qui tournent, pas seulement sur celles qui
+  sont tirées.** Les exemples de configuration annonçaient « images épinglées, jamais suivies en
+  latest » puis laissaient `AP_IMAGE`, `ARCHIPELAGO_GENERATE_IMAGE` et `BRIDGE_IMAGE` en `latest`.
+  Or ce sont celles-là que l'orchestrateur instancie à chaque session : le service
+  `archipelago-image` du compose ne fait que *tirer* la version épinglée, il ne dit pas laquelle
+  sera exécutée. Épingler l'une sans l'autre faisait tourner en production une version
+  potentiellement différente de celle qu'on croyait avoir déployée. Les exemples et la
+  documentation de déploiement disent désormais la même chose. **Les fichiers `envs/*.env` du
+  serveur ne sont pas versionnés : la même correction est à y appliquer à la main.**
+- Le dossier `output-run/`, qui ne contient que des artefacts de génération locale, est désormais
+  ignoré par git.
+
 ## [0.17.4] - 2026-08-28
 
 Correctif : les options valant `on` ou `off` arrivaient à Archipelago en `True` et `False`.
