@@ -13,6 +13,8 @@ export type DirectoryRow = {
   xpIntoLevel: number;
   xpForNextLevel: number;
   playing: boolean;
+  /** Login Twitch du membre s'il diffuse en ce moment, sinon null (story 30.39). */
+  liveTwitchLogin: string | null;
 };
 
 export type DirectoryResult = { rows: DirectoryRow[]; total: number; page: number; perPage: number };
@@ -31,7 +33,8 @@ function isRow(v: unknown): v is DirectoryRow {
     hasNumberProp(v, "xp") &&
     hasNumberProp(v, "xpIntoLevel") &&
     hasNumberProp(v, "xpForNextLevel") &&
-    hasBooleanProp(v, "playing")
+    hasBooleanProp(v, "playing") &&
+    hasNullableStringProp(v, "liveTwitchLogin")
   );
 }
 

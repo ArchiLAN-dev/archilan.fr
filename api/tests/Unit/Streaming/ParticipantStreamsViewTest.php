@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Streaming;
 use App\Streaming\Application\Port\TwitchApiClientInterface;
 use App\Streaming\Application\Query\ParticipantStreamsView;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
+use App\Streaming\Application\Support\LiveTwitchLogins;
 use PHPUnit\Framework\TestCase;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
@@ -98,9 +99,9 @@ final class ParticipantStreamsViewTest extends TestCase
 
         $cache = self::createStub(CacheInterface::class);
         $cache->method('get')->willReturnCallback(
-            static fn (string $key, callable $callback): mixed => $callback(str_contains($key, '.live.') ? $liveItem : $avatarItem),
+            static fn (string $key, callable $callback): mixed => $callback(str_contains($key, 'live_logins') ? $liveItem : $avatarItem),
         );
 
-        return new ParticipantStreamsView($query, $client, $cache);
+        return new ParticipantStreamsView($query, new LiveTwitchLogins($client, $cache), $client, $cache);
     }
 }

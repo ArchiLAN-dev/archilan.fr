@@ -23,4 +23,17 @@ interface ParticipantTwitchLinksQueryInterface
 
     /** @return list<ParticipantLinkRow>|null */
     public function forWeeklyRun(string $weeklyRunId): ?array;
+
+    /**
+     * Les liens sociaux d'un ensemble de membres, pour la page communauté (story 30.39).
+     *
+     * Contrairement aux trois autres, aucune session ne borne l'ensemble : les identifiants viennent
+     * de l'appelant. Rend une liste vide plutôt que `null` - il n'y a pas ici de « ça n'existe pas »
+     * à distinguer d'un « personne n'a de lien ».
+     *
+     * @param list<string> $userIds
+     *
+     * @return list<ParticipantLinkRow>
+     */
+    public function forUserIds(array $userIds): array;
 }
