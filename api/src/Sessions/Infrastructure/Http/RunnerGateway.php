@@ -185,6 +185,21 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         return ['type' => 'unknown'];
     }
 
+    public function reintrospectApworld(string $hash): bool
+    {
+        try {
+            $this->client->apworlds()->reintrospect($hash);
+
+            return true;
+        } catch (\Throwable $e) {
+            // Warning, not error: one world that cannot be introspected must not abort a catalogue
+            // sweep, and the previous introspection is still there.
+            $this->logger->warning('runner.apworld_reintrospect_failed', ['hash' => $hash, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
     public function fetchLocationNames(string $hash): array
     {
         try {
