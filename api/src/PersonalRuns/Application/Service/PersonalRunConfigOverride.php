@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Service;
 
+use App\Identity\Domain\Entity\AdminUserActionAudit;
+use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
@@ -31,15 +33,16 @@ final readonly class PersonalRunConfigOverride
         private SetSessionConfigOverride $setOverride,
         private ClearSessionConfigOverride $clearOverride,
         private SessionConfigProfileRepositoryInterface $profiles,
+        private AdminRunActionTrace $trace,
     ) {
     }
 
     /**
      * @return array{found: bool, authorized: bool, override?: array<string, mixed>, profile?: array<string, mixed>}
      */
-    public function get(string $runId, string $userId): array
+    public function get(string $runId, string $userId, bool $isAdmin = false): array
     {
-        $run = $this->guard($runId, $userId);
+        $run = $this->guard($runId, $userId, $isAdmin);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
         }
@@ -54,9 +57,9 @@ final readonly class PersonalRunConfigOverride
      *
      * @throws \DomainException on an invalid override field
      */
-    public function set(string $runId, string $userId, array $override): array
+    public function set(string $runId, string $userId, array $override, bool $isAdmin = false): array
     {
-        $run = $this->guard($runId, $userId);
+        $run = $this->guard($runId, $userId, $isAdmin);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
         }
@@ -71,6 +74,7 @@ final readonly class PersonalRunConfigOverride
             unset($override[$field]);
         }
         $this->setOverride->execute($runId, $override);
+        $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
 
         return ['found' => true, 'authorized' => true, 'override' => $this->stripLocked($this->query->execute($runId)), 'profile' => $this->privateProfile()];
     }
@@ -78,9 +82,9 @@ final readonly class PersonalRunConfigOverride
     /**
      * @return array{found: bool, authorized: bool, blocked?: bool}
      */
-    public function clear(string $runId, string $userId): array
+    public function clear(string $runId, string $userId, bool $isAdmin = false): array
     {
-        $run = $this->guard($runId, $userId);
+        $run = $this->guard($runId, $userId, $isAdmin);
         if (!$run instanceof Run) {
             return $this->denial($runId, $userId);
         }
@@ -91,6 +95,7 @@ final readonly class PersonalRunConfigOverride
         }
 
         $this->clearOverride->execute($runId);
+        $this->trace->record($run, $userId, AdminUserActionAudit::ACTION_RUN_CONFIG_OVERRIDE);
 
         return ['found' => true, 'authorized' => true];
     }
@@ -121,11 +126,15 @@ final readonly class PersonalRunConfigOverride
         return $override;
     }
 
-    private function guard(string $runId, string $userId): ?Run
+    /**
+     * Story 16.19 : un administrateur règle la partie d'un autre membre pour le dépanner. Le rôle
+     * ouvre la porte, il ne lève pas les règles d'état - `isTerminal()` bloque les deux pareil.
+     */
+    private function guard(string $runId, string $userId, bool $isAdmin = false): ?Run
     {
         $run = $this->runs->findById($runId);
 
-        return $run instanceof Run && $run->isOwnedBy($userId) ? $run : null;
+        return $run instanceof Run && ($run->isOwnedBy($userId) || $isAdmin) ? $run : null;
     }
 
     /**

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface;
 use App\PersonalRuns\Application\Service\PersonalRunConfigOverride;
+use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
 use App\SessionConfig\Application\Command\ClearSessionConfigOverride;
@@ -16,6 +18,7 @@ use App\SessionConfig\Domain\Repository\SessionConfigProfileRepositoryInterface;
 use App\SessionConfig\Domain\ValueObject\SessionConfig;
 use App\SessionConfig\Domain\ValueObject\SessionConfigOverride;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 final class PersonalRunConfigOverrideTest extends TestCase
 {
@@ -33,6 +36,7 @@ final class PersonalRunConfigOverrideTest extends TestCase
             new SetSessionConfigOverride($overrides),
             new ClearSessionConfigOverride($overrides),
             $profiles,
+            new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
         );
     }
 

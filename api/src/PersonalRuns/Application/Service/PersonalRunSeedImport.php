@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\PersonalRuns\Application\Service;
 
+use App\Identity\Domain\Entity\AdminUserActionAudit;
+use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -37,6 +39,7 @@ final readonly class PersonalRunSeedImport
         private ClockInterface $clock,
         private LoggerInterface $logger,
         private string $minioSessionsBucket,
+        private AdminRunActionTrace $trace,
     ) {
     }
 
@@ -48,14 +51,16 @@ final readonly class PersonalRunSeedImport
      *
      * @return array{found: bool, authorized: bool, errors: array<string, list<string>>, slots: list<array<string, mixed>>|null}
      */
-    public function import(string $runId, string $callerId, string $contents, string $filename): array
+    public function import(string $runId, string $callerId, string $contents, string $filename, bool $isAdmin = false): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
-        if (!$run->isOwnedBy($callerId)) {
+        // Story 16.19 : un administrateur dépanne la partie d'un autre membre. Les règles d'état
+        // restent les mêmes pour lui - une partie lancée ne change pas de seed.
+        if (!$run->isOwnedBy($callerId) && !$isAdmin) {
             return $this->result(found: true, authorized: false);
         }
 
@@ -98,6 +103,7 @@ final readonly class PersonalRunSeedImport
         $this->minioStorage->upload($this->minioSessionsBucket, $outputKey, $contents);
 
         $run->importSeed($outputKey, $slots, $this->clock->now());
+        $this->trace->record($run, $callerId, AdminUserActionAudit::ACTION_RUN_SEED_IMPORT);
         $this->runs->flush();
 
         $this->logger->info('personal_run.seed_imported', [
@@ -118,14 +124,14 @@ final readonly class PersonalRunSeedImport
      *
      * @return array{found: bool, authorized: bool, errors: array<string, list<string>>, slots: list<array<string, mixed>>|null}
      */
-    public function assign(string $runId, string $callerId, string $slotId, array $userIds): array
+    public function assign(string $runId, string $callerId, string $slotId, array $userIds, bool $isAdmin = false): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
             return $this->result(found: false);
         }
 
-        if (!$run->isOwnedBy($callerId)) {
+        if (!$run->isOwnedBy($callerId) && !$isAdmin) {
             return $this->result(found: true, authorized: false);
         }
 
@@ -157,6 +163,7 @@ final readonly class PersonalRunSeedImport
             return $this->result(found: true, errors: ['slotId' => ['Slot introuvable dans cette archive.']]);
         }
 
+        $this->trace->record($run, $callerId, AdminUserActionAudit::ACTION_RUN_SLOT_ASSIGN);
         $this->runs->flush();
 
         $this->logger->info('personal_run.imported_slot_assigned', [

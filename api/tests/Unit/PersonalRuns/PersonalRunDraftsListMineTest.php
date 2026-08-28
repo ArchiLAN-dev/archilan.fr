@@ -9,10 +9,12 @@ use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Community\Domain\Repository\AchievementGrantRepositoryInterface;
 use App\Identity\Application\Query\PlayerStatsQueryInterface;
+use App\Identity\Domain\Repository\AdminUserActionAuditRepositoryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
 use App\PersonalRuns\Application\Service\PersonalRunDrafts;
+use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
@@ -39,6 +41,7 @@ final class PersonalRunDraftsListMineTest extends TestCase
             self::createStub(RunGameAssignmentInterface::class),
             new MockClock(),
             'https://archilan.test',
+            new AdminRunActionTrace(self::createStub(AdminUserActionAuditRepositoryInterface::class), new MockClock()),
         );
     }
 
