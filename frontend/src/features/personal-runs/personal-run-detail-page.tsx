@@ -40,6 +40,7 @@ import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { PlayerBadges } from "@/features/community/player-badges";
 import { RunTitle } from "./run-title";
+import { showsRunStatusLine } from "./run-overview-visibility";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -1167,15 +1168,28 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
         )}
 
         {/* Non-owner: show status message when not configurable */}
-        {activeTab === "overview" && !run.isOwner && !["draft", "idle"].includes(run.status) && (
-          <section className="rounded-lg border border-border bg-surface p-4">
+        {/* Ligne d'état pour qui ne pilote rien ici. Elle excluait draft et idle parce que la carte
+            « mes jeux » couvrait ces deux états - mais elle n'apparaît que pour le propriétaire ou un
+            participant. Un administrateur qui ouvre une partie dont il ne fait pas partie n'est ni
+            l'un ni l'autre : sur une partie en brouillon ou en veille, sa vue d'ensemble était
+            entièrement vide. */}
+        {activeTab === "overview"
+          && showsRunStatusLine(run.isOwner, myParticipant !== null, run.status) && (
+          <section className="grid gap-2 rounded-lg border border-border bg-surface p-4">
             <p className="text-sm text-muted-foreground">
+              {run.status === "draft" && "Cette partie n'est pas encore lancée."}
+              {run.status === "idle" && "Cette partie est en veille."}
               {run.status === "starting" && "La partie est en cours de démarrage…"}
               {run.status === "active" && "La partie est en cours."}
               {run.status === "stopping" && "La partie est en cours d'arrêt…"}
               {run.status === "restarting" && "La partie redémarre…"}
               {run.status === "completed" && "La partie est terminée."}
               {run.status === "cancelled" && "La partie a été annulée."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {run.participants.length} participant{run.participants.length > 1 ? "s" : ""}
+              {run.importedSeed === true && " · seed importée"}
+              {myParticipant === null && " · tu ne participes pas à cette partie"}
             </p>
           </section>
         )}

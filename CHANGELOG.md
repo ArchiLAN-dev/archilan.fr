@@ -11,6 +11,12 @@ Correctif de la v0.17.0 : une partie créée depuis une seed importée ne pouvai
 
 ### Corrigé
 
+- **Un administrateur voit enfin quelque chose sur la vue d'ensemble d'une partie privée.** Tous
+  les blocs de cet onglet sont réservés au propriétaire ou aux participants, et la ligne d'état qui
+  sert de repli excluait les parties en brouillon et en veille - parce que la carte « mes jeux »
+  couvre ces deux cas, pour ceux qui l'ont. Un administrateur n'étant ni l'un ni l'autre, son écran
+  était entièrement vide. Il voit désormais l'état de la partie, son nombre de participants, et le
+  fait qu'il n'y participe pas.
 - **Une partie hébergeant une seed importée démarre enfin.** Le lancement exigeait qu'au moins un
   participant ait déclaré un jeu - ce qui est le fonctionnement normal d'une partie générée ici.
   Mais sur une seed importée personne n'en déclare : les slots viennent de l'archive, c'est tout
