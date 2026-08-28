@@ -218,7 +218,7 @@ describe("asOptionTypesMap - dict sub-option values", () => {
     const map = asOptionTypesMap({
       game_options: { type: "dict", keys: { battle_style: { values: ["shift", "set"] } } },
     });
-    expect(map?.game_options.keys).toEqual({ battle_style: { values: ["shift", "set"] } });
+    expect(map?.game_options.keys).toEqual({ battle_style: { values: ["shift", "set"], closed: false } });
   });
 
   test("a sub-setting left with fewer than two values is dropped, not kept half-complete", () => {
@@ -257,8 +257,8 @@ describe("buildOption - dict sub-option choices", () => {
   test("only the sub-settings the apworld spoke about get a vocabulary", () => {
     const opt = dictOption(YAML_WITH_GAME_OPTIONS, WITH_SCHEMA);
     expect(opt.entryChoices).toEqual({
-      battle_style: ["shift", "set"],
-      text_speed: ["mid", "slow", "fast"],
+      battle_style: { values: ["shift", "set"], closed: false },
+      text_speed: { values: ["mid", "slow", "fast"], closed: false },
     });
     // The keys the schema said nothing about keep their free text field.
     expect(opt.entryChoices?.["default_player_name"]).toBeUndefined();
@@ -293,7 +293,29 @@ describe("buildOption - dict sub-option choices", () => {
     const merged = mergePlayerValues(base, player).options.find((o) => o.key === "game_options");
     if (merged?.type !== "freeform" || merged.kind !== "dict") throw new Error("expected a dict");
 
-    expect(merged.entryChoices?.["battle_style"]).toEqual(["shift", "set"]);
+    expect(merged.entryChoices?.["battle_style"]).toEqual({ values: ["shift", "set"], closed: false });
     expect(new Map(merged.entries.map((e) => [e.k, e.v])).get("battle_style")).toBe("set");
+  });
+});
+
+// ─── Story 9.52: a list an admin vouched for as exhaustive ────────────────────
+
+describe("asOptionTypesMap - closed sub-option lists", () => {
+  test("closed survives the boundary", () => {
+    const map = asOptionTypesMap({
+      game_options: { type: "dict", keys: { battle_style: { values: ["shift", "set"], closed: true } } },
+    });
+    expect(map?.game_options.keys?.battle_style.closed).toBe(true);
+  });
+
+  test("anything other than true reads as open", () => {
+    // Open is the safe default: a list nobody vouched for must not close the dropdown on a value
+    // the world actually accepts.
+    for (const closed of [undefined, false, "true", 1, null]) {
+      const map = asOptionTypesMap({
+        game_options: { type: "dict", keys: { k: { values: ["a", "b"], closed } } },
+      });
+      expect(map?.game_options.keys?.k.closed).toBe(false);
+    }
   });
 });

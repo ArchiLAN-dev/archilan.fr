@@ -100,7 +100,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
             'disabledMessage' => $g->getDisabledMessage(),
             'isApworldReady' => $g->isApworldReady(),
             'defaultYaml' => $g->getDefaultYaml(),
-            'optionTypes' => $g->getOptionTypes(),
+            'optionTypes' => $g->getEffectiveOptionTypes(),
             'locationNames' => $g->getLocationNames(),
             'coverImageUrl' => $g->getCoverImageUrl(),
             'coverImageAlt' => $g->getCoverImageAlt(),

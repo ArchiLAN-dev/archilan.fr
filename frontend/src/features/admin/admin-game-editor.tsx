@@ -3,7 +3,7 @@
 import {ArrowLeft, Info, RefreshCw, ShieldAlert} from "lucide-react";
 import Link from "next/link";
 import type {FormEvent} from "react";
-import {useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 
 import {
@@ -13,6 +13,7 @@ import {
     regenerateDefaultYaml,
     rerunApworldPreflight,
     saveDefaultYaml,
+    saveDictOptionValues,
     savePlatforms,
     type AdminGame,
     type AdminGameResult,
@@ -21,6 +22,7 @@ import {
     type GameAvailability,
 } from "@/features/admin/admin-games-api";
 import {IgdbGameSearch, type IgdbResult} from "@/features/admin/igdb-game-search";
+import {parseDefaultYaml, type FreeformDictOption} from "@/lib/archipelago-yaml";
 import {InstallStepsEditor, serializeStepsForSave, type InstallStep} from "@/features/games/install-steps-editor";
 import {MarkdownEditor} from "@/components/markdown/markdown-editor";
 import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
@@ -953,7 +955,165 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
 
             {/* ── 3. Le template servi aux joueurs, éditable (stories 9.45/9.46) ── */}
             {game.isApworldReady ? <DefaultYamlEditor game={game} onUpdate={onUpdate}/> : null}
+            {game.isApworldReady ? <DictOptionValuesEditor game={game} onUpdate={onUpdate}/> : null}
         </Section>
+    );
+}
+
+/**
+ * Story 9.52: what the sub-settings of a dict option accept, when the apworld will not say.
+ *
+ * Archipelago asks nothing of an `OptionDict`: no value typing, no enumeration, no schema. Most
+ * worlds declare nothing, so introspection has nothing to report and the player faces a column of
+ * free text fields - having to know from memory that a battle style is `shift` or `set`. This is
+ * where a human fills that gap.
+ *
+ * The sub-settings are read from the game's own template, parsed exactly as the player editor
+ * parses it, so this screen can never offer a key the editor will not show.
+ */
+function DictOptionValuesEditor({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const dictOptions = useMemo(() => {
+        const parsed = parseDefaultYaml(game.defaultYaml ?? "", game.optionTypes ?? null);
+        if (!parsed) return [];
+
+        return parsed.options.filter(
+            (o): o is FreeformDictOption =>
+                o.type === "freeform" && o.kind === "dict" && o.entries.length > 0,
+        );
+    }, [game.defaultYaml, game.optionTypes]);
+
+    if (dictOptions.length === 0) return null;
+
+    return (
+        <div className="mt-5 grid gap-3 border-t border-border pt-5">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                Valeurs des reglages groupes
+                <FieldTooltip text="Archipelago n'oblige pas un apworld a declarer ce que ces reglages acceptent. Quand il ne le fait pas, c'est ici qu'on le dit, et le joueur obtient une liste au lieu d'un champ libre."/>
+            </p>
+            {dictOptions.map((option) => (
+                <DictOptionCard game={game} key={option.key} option={option} onUpdate={onUpdate}/>
+            ))}
+        </div>
+    );
+}
+
+function DictOptionCard({game, option, onUpdate}: {
+    game: AdminGame;
+    option: FreeformDictOption;
+    onUpdate: (g: AdminGame) => void;
+}) {
+    const curated = game.dictOptionValues?.[option.key];
+
+    // The form holds values as the admin types them - one line, comma separated - rather than as
+    // the array they become. Parsing on every keystroke would fight the person mid-word.
+    const [rows, setRows] = useState<Record<string, { text: string; closed: boolean }>>(() =>
+        Object.fromEntries(option.entries.map((e) => {
+            const source = curated?.[e.k] ?? option.entryChoices?.[e.k];
+
+            return [e.k, {text: source?.values.join(", ") ?? "", closed: curated?.[e.k]?.closed ?? false}];
+        })),
+    );
+    const [saving, setSaving] = useState(false);
+    const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+
+    async function persist(values: Record<string, { values: string[]; closed: boolean }>): Promise<void> {
+        setSaving(true);
+        setMessage(null);
+        const result = await saveDictOptionValues(game.id, option.key, values);
+        if (result.kind === "saved") {
+            onUpdate(result.game);
+            setMessage({kind: "ok", text: "Valeurs enregistrees."});
+        } else {
+            setMessage({kind: "error", text: result.message});
+        }
+        setSaving(false);
+    }
+
+    function save(): void {
+        const values: Record<string, { values: string[]; closed: boolean }> = {};
+        for (const [subKey, row] of Object.entries(rows)) {
+            const list = [...new Set(row.text.split(",").map((v) => v.trim()).filter((v) => v !== ""))];
+            // A sub-setting left empty is simply not curated - that is how one row is dropped
+            // without needing a delete button.
+            if (list.length > 0) values[subKey] = {values: list, closed: row.closed};
+        }
+        void persist(values);
+    }
+
+    function reset(): void {
+        setRows(Object.fromEntries(option.entries.map((e) => [e.k, {text: "", closed: false}])));
+        void persist({});
+    }
+
+    return (
+        <div className="rounded border border-border p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="font-mono text-sm font-semibold text-foreground">{option.key}</p>
+                <p className="text-xs text-muted-foreground">
+                    {curated ? "Valeurs definies ici." : "Rien de defini : ce que l'apworld declare, ou rien."}
+                </p>
+            </div>
+
+            <div className="grid gap-2">
+                {option.entries.map((entry) => (
+                    <div className="grid gap-1 sm:grid-cols-[minmax(0,14rem)_1fr_auto] sm:items-center sm:gap-2" key={entry.id}>
+                        <span className="font-mono text-xs text-muted-foreground">{entry.k}</span>
+                        <input
+                            aria-label={`Valeurs de ${entry.k}`}
+                            className="min-h-9 w-full rounded border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-accent"
+                            disabled={saving}
+                            placeholder="valeurs separees par des virgules"
+                            value={rows[entry.k]?.text ?? ""}
+                            onChange={(e) => setRows((prev) => ({
+                                ...prev,
+                                [entry.k]: {text: e.target.value, closed: prev[entry.k]?.closed ?? false},
+                            }))}
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <input
+                                checked={rows[entry.k]?.closed ?? false}
+                                disabled={saving}
+                                type="checkbox"
+                                onChange={(e) => setRows((prev) => ({
+                                    ...prev,
+                                    [entry.k]: {text: prev[entry.k]?.text ?? "", closed: e.target.checked},
+                                }))}
+                            />
+                            Liste complete
+                        </label>
+                    </div>
+                ))}
+            </div>
+
+            <p className="mt-2 text-xs text-muted-foreground">
+                Liste complete retire la sortie Autre du menu du joueur. A ne cocher que si aucune autre valeur
+                n&apos;est acceptee : une valeur deja enregistree reste affichee dans tous les cas.
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                    className="inline-flex min-h-9 items-center rounded bg-accent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={saving}
+                    onClick={save}
+                    type="button"
+                >
+                    Enregistrer
+                </button>
+                <button
+                    className="inline-flex min-h-9 items-center rounded border border-border px-3 text-sm font-semibold text-foreground transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={saving || !curated}
+                    onClick={reset}
+                    type="button"
+                >
+                    Revenir a l&apos;apworld
+                </button>
+                {message ? (
+                    <span className={`text-xs ${message.kind === "ok" ? "text-muted-foreground" : "text-danger"}`}>
+                        {message.text}
+                    </span>
+                ) : null}
+            </div>
+        </div>
     );
 }
 

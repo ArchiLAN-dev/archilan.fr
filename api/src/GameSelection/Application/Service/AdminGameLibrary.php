@@ -165,6 +165,77 @@ final readonly class AdminGameLibrary
     private const int DEFAULT_YAML_MAX_BYTES = 65536;
 
     /**
+     * Curates what the sub-settings of one dict option accept (story 9.52).
+     *
+     * Most `OptionDict` classes declare no vocabulary at all - Archipelago does not ask them to -
+     * so introspection has nothing to report and the editor can only offer free text fields. This
+     * is where a human says what the apworld does not.
+     *
+     * The curation is stored apart from the introspected table and merged on read, so a later
+     * re-introspection refreshes what the apworld says without touching what we decided. Passing
+     * null - or an empty map - hands the option back to introspection.
+     *
+     * @param array<string, array{values: list<string>, closed: bool}>|null $subOptions
+     *
+     * @return array{found: bool, errors: array<string, list<string>>, game?: array<string, mixed>}
+     */
+    public function saveDictOptionValues(string $gameId, string $optionKey, ?array $subOptions): array
+    {
+        $game = $this->gameRepository->findById($gameId);
+        if (!$game instanceof Game) {
+            return ['found' => false, 'errors' => []];
+        }
+
+        $errors = new ValidationErrors();
+
+        if ('' === trim($optionKey)) {
+            $errors->add('option', 'Option manquante.');
+        }
+
+        $clean = [];
+        foreach ($subOptions ?? [] as $subKey => $spec) {
+            if ('' === trim($subKey)) {
+                $errors->add('values', 'Un réglage sans nom ne peut pas porter de valeurs.');
+                continue;
+            }
+
+            $values = [];
+            foreach ($spec['values'] as $value) {
+                $value = trim($value);
+                if ('' !== $value && !in_array($value, $values, true)) {
+                    $values[] = $value;
+                }
+            }
+
+            // One value is not a choice. Storing it would put a dropdown on screen that offers the
+            // player nothing to choose, which reads as a bug rather than as a curation.
+            if (count($values) < 2) {
+                $errors->add('values', sprintf('"%s" : indique au moins deux valeurs distinctes, ou retire le réglage.', $subKey));
+                continue;
+            }
+
+            $clean[$subKey] = ['values' => $values, 'closed' => $spec['closed']];
+        }
+
+        $errs = $errors->toArray();
+        if ([] !== $errs) {
+            return ['found' => true, 'errors' => $errs];
+        }
+
+        $game->overrideDictOptionValues($optionKey, [] === $clean ? null : $clean, $this->clock->now());
+        $this->gameRepository->save($game);
+
+        $this->logger->info('game.dict_option_values_saved', [
+            'gameId' => $gameId,
+            'option' => $optionKey,
+            'subOptions' => array_keys($clean),
+            'cleared' => [] === $clean,
+        ]);
+
+        return ['found' => true, 'errors' => [], 'game' => $this->detailPayload($game)];
+    }
+
+    /**
      * Set or clear the admin platform override (story 9.47). IGDB lists every platform the
      * game was released on; the Archipelago world often supports only one, and the catalog
      * should advertise the latter. Passing null restores the IGDB-derived list.
@@ -885,7 +956,10 @@ final readonly class AdminGameLibrary
 
         return array_merge($this->payload($game), [
             'defaultYaml' => $game->getDefaultYaml(),
-            'optionTypes' => $game->getOptionTypes(),
+            'optionTypes' => $game->getEffectiveOptionTypes(),
+            // The curation on its own, beside the merged table above: the admin screen has to show
+            // which sub-settings it decided, and which ones the apworld declared by itself.
+            'dictOptionValues' => $game->getDictOptionValues(),
             'locationNames' => $game->getLocationNames(),
             'adminNotes' => $game->getAdminNotes(),
             'catalogSheetName' => $sync?->getCatalogSheetName(),
