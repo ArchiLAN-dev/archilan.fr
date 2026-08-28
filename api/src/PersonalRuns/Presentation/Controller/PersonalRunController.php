@@ -441,7 +441,13 @@ final readonly class PersonalRunController
             return $this->apiAccessGuard->errorResponse('validation_failed', 'Fichier manquant ou invalide.', 422, ['file' => ['Fichier manquant ou invalide.']]);
         }
 
-        $result = $this->seedImport->import($runId, $user->getId(), (string) file_get_contents($file->getPathname()), $file->getClientOriginalName());
+        $result = $this->seedImport->import(
+            $runId,
+            $user->getId(),
+            (string) file_get_contents($file->getPathname()),
+            $file->getClientOriginalName(),
+            in_array('ROLE_ADMIN', $user->getRoles(), true),
+        );
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
@@ -471,7 +477,7 @@ final readonly class PersonalRunController
         $raw = is_array($payload['userIds'] ?? null) ? $payload['userIds'] : [];
         $userIds = array_values(array_filter($raw, is_string(...)));
 
-        $result = $this->seedImport->assign($runId, $user->getId(), $slotId, $userIds);
+        $result = $this->seedImport->assign($runId, $user->getId(), $slotId, $userIds, in_array('ROLE_ADMIN', $user->getRoles(), true));
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);
@@ -546,7 +552,7 @@ final readonly class PersonalRunController
             return $user;
         }
 
-        $result = $this->drafts->hardDelete($runId, $user->getId());
+        $result = $this->drafts->hardDelete($runId, $user->getId(), in_array('ROLE_ADMIN', $user->getRoles(), true));
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Run introuvable.', 404);

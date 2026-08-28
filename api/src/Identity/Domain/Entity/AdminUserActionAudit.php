@@ -22,6 +22,15 @@ final class AdminUserActionAudit
     public const string ACTION_REVOKE_SESSIONS = 'revoke_sessions';
     public const string ACTION_VERIFY_EMAIL = 'verify_email';
 
+    // Réglages d'une partie privée appliqués par un administrateur qui n'en est pas propriétaire
+    // (story 16.19). La cible est le propriétaire de la partie : c'est dans sa fiche qu'on ira
+    // chercher qui a touché à sa run. Nommées une par une, parce que « un admin a modifié cette
+    // partie » n'apprend rien à qui la retrouve changée.
+    public const string ACTION_RUN_CONFIG_OVERRIDE = 'run_config_override';
+    public const string ACTION_RUN_SEED_IMPORT = 'run_seed_import';
+    public const string ACTION_RUN_SLOT_ASSIGN = 'run_slot_assign';
+    public const string ACTION_RUN_DELETE = 'run_delete';
+
     public function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]

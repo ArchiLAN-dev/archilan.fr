@@ -8,10 +8,12 @@ use App\Community\Application\Query\CommunityLevelQuery;
 use App\Community\Application\Query\CommunityPresenceQueryInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
 use App\Identity\Application\Support\ValidationErrors;
+use App\Identity\Domain\Entity\AdminUserActionAudit;
 use App\Identity\Domain\Entity\User;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\Membership\Application\Query\ActiveMembershipQueryInterface;
 use App\PersonalRuns\Application\Port\RunGameAssignmentInterface;
+use App\PersonalRuns\Application\Support\AdminRunActionTrace;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
@@ -35,6 +37,7 @@ final readonly class PersonalRunDrafts
         private RunGameAssignmentInterface $gameAssignment,
         private ClockInterface $clock,
         private string $siteUrl,
+        private AdminRunActionTrace $trace,
     ) {
     }
 
@@ -265,14 +268,16 @@ final readonly class PersonalRunDrafts
     /**
      * @return array{found: bool, authorized: bool, blocked: bool, blockReason: string|null}
      */
-    public function hardDelete(string $runId, string $callerId): array
+    public function hardDelete(string $runId, string $callerId, bool $isAdmin = false): array
     {
         $run = $this->runs->findById($runId);
         if (!$run instanceof Run) {
             return ['found' => false, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
-        if (!$run->isOwnedBy($callerId)) {
+        // Story 16.19 : un administrateur supprime la partie d'un autre membre. Les états qui
+        // bloquent le propriétaire le bloquent aussi - le rôle ouvre la porte, pas les règles.
+        if (!$run->isOwnedBy($callerId) && !$isAdmin) {
             return ['found' => true, 'authorized' => false, 'blocked' => false, 'blockReason' => null];
         }
 
@@ -285,6 +290,8 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_deletable'];
         }
 
+        // Tracée avant la suppression : après, la partie n'existe plus pour porter son propriétaire.
+        $this->trace->record($run, $callerId, AdminUserActionAudit::ACTION_RUN_DELETE);
         $this->participants->deleteByRunId($run->getId());
         $this->runs->delete($run);
 
