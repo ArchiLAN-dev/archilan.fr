@@ -44,12 +44,43 @@ export type OptionSpec = {
   default: number | null;
   /** Named values a choice or a NamedRange accepts, when introspection knows them. */
   values?: string[];
+  /**
+   * For a dict option, what each sub-setting accepts (story 9.51).
+   *
+   * Not a second name for `values`: on a dict, `values` holds the sub-setting *names*
+   * (`validKeys`), this holds the *values* each of them accepts. Present only for the worlds
+   * whose `OptionDict` declares a `schema`, which is a minority - an absent entry means the
+   * apworld declared nothing, never that it declared an empty list.
+   */
+  keys?: Record<string, { values: string[] }>;
 };
 /** @deprecated Kept as the former name of {@link OptionSpec}; the bounds are still on it. */
 export type OptionBounds = OptionSpec;
 export type OptionTypesMap = Record<string, OptionSpec>;
 
 const OPTION_KINDS = new Set<string>(["range", "choice", "toggle", "weights", "dict", "text", "unknown"]);
+
+/**
+ * Validates a dict option's `keys` map: sub-setting -> the values it accepts.
+ *
+ * A sub-setting left with fewer than two usable values is dropped rather than kept. Half a
+ * vocabulary is the worst outcome a dropdown can have: it reads as authoritative while hiding the
+ * entries the world actually accepts, and the player has no way to see what is missing.
+ */
+function parseDictSubOptions(raw: unknown): Record<string, { values: string[] }> | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+
+  const out: Record<string, { values: string[] }> = {};
+  for (const [subKey, spec] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof spec !== "object" || spec === null) continue;
+    const values = (spec as Record<string, unknown>).values;
+    if (!Array.isArray(values)) continue;
+
+    const clean = [...new Set(values.filter((v): v is string => typeof v === "string" && v !== ""))];
+    if (clean.length > 1) out[subKey] = { values: clean };
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 /** Validates an API `optionTypes` payload (unknown) into an OptionTypesMap, or null. */
 export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
@@ -61,6 +92,7 @@ export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
 
     const declared = typeof b.type === "string" && OPTION_KINDS.has(b.type) ? (b.type as OptionKind) : undefined;
     const hasBounds = typeof b.min === "number" && typeof b.max === "number";
+    const subOptions = parseDictSubOptions(b.keys);
     // An entry with neither a declared type nor bounds tells the editor nothing it did not already
     // know, so it is dropped rather than kept as an empty promise.
     if (declared === undefined && !hasBounds) continue;
@@ -74,9 +106,18 @@ export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
       ...(Array.isArray(b.values)
         ? { values: b.values.filter((v): v is string => typeof v === "string") }
         : {}),
+      ...(subOptions !== null ? { keys: subOptions } : {}),
     };
   }
   return Object.keys(out).length > 0 ? out : null;
+}
+
+/** Flattens an introspected dict spec to what the editor renders: sub-setting -> its values. */
+function dictEntryChoices(spec: OptionSpec | undefined): Record<string, string[]> | undefined {
+  if (spec?.keys === undefined) return undefined;
+  const out: Record<string, string[]> = {};
+  for (const [subKey, sub] of Object.entries(spec.keys)) out[subKey] = sub.values;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /** Bounds are only meaningful once introspection actually reported them. */
@@ -178,6 +219,11 @@ export type FreeformDictOption = {
    * player composes (e.g. `start_inventory`) leave this unset.
    */
   fixedKeys?: boolean;
+  /**
+   * Per sub-setting, the values the apworld declared it accepts (story 9.51). Only the keys the
+   * apworld spoke about appear here; the rest keep their free text field.
+   */
+  entryChoices?: Record<string, string[]>;
   description?: string;
   category?: string;
 };
@@ -609,10 +655,12 @@ function buildOption(key: string, value: unknown, yamlStr: string, optionTypes?:
     // A literal dict of settings, said by the apworld rather than guessed from the values. The
     // heuristic below reaches the same answer whenever one value is non-numeric (story 4.17); this
     // also covers the dict whose settings happen to be all numbers, which the guess called a range.
+    const entryChoices = dictEntryChoices(optionTypes?.[key]);
     return {
       type: "freeform", kind: "dict", key, label,
       entries: keys.map((k) => ({ id: uid(), k, v: dumpFreeformValue(obj[k]) })),
       fixedKeys: true,
+      ...(entryChoices !== undefined ? { entryChoices } : {}),
       description,
     };
   }

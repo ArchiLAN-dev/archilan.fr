@@ -107,3 +107,79 @@ G:
     expect(html).toContain("Aléatoire [0–360]");
   });
 });
+
+/**
+ * Story 9.51. A sub-setting of an `OptionDict` used to be eleven free text fields in a row, with
+ * the accepted vocabulary living only in the option's prose. When the apworld declares a `schema`,
+ * the editor can offer it - but only for the sub-settings it actually declared, and never as a
+ * closed list: `text_frame` takes 1-20 *or* `random`, and `default_player_name: custom` expects a
+ * name typed by hand.
+ */
+const DICT_YAML = `name: Alice
+game: Pokemon Platinum
+Pokemon Platinum:
+  game_options:
+    battle_style: shift
+    default_player_name: player_name
+    text_speed: turbo
+`;
+
+const DICT_SCHEMA: OptionTypesMap = {
+  game_options: {
+    type: "dict",
+    min: 0,
+    max: 0,
+    default: null,
+    keys: {
+      battle_style: { values: ["shift", "set"] },
+      text_speed: { values: ["mid", "fast"] },
+    },
+  },
+};
+
+describe("YamlOptionEditor - valeurs déclarées d'une sous-option de dict", () => {
+  test("une sous-option déclarée devient une liste, sur sa valeur courante", () => {
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={DICT_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain('<option value="shift" selected="">shift</option>');
+    expect(html).toContain('<option value="set">set</option>');
+  });
+
+  test("la liste garde toujours une sortie libre", () => {
+    // Une déclaration exacte n'est pas forcément exhaustive. Fermer la liste transformerait une
+    // information juste en contrainte fausse, sans recours pour le joueur.
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={DICT_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain("Autre…");
+  });
+
+  test("une sous-option non déclarée garde son champ texte", () => {
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={DICT_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain('value="player_name"');
+    expect(html).not.toContain('<option value="player_name"');
+  });
+
+  test("une valeur enregistrée hors liste est conservée, pas ramenée au défaut", () => {
+    // `text_speed: turbo` n'est dans aucune liste - un YAML écrit avant l'introspection, ou saisi
+    // à la main. Il reste tel quel, dans le champ libre, avec « Autre… » sélectionné.
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={DICT_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain('value="turbo"');
+    expect(html).toContain('<option value="__archilan_custom__" selected="">Autre…</option>');
+    expect(html).not.toContain('<option value="mid" selected=""');
+  });
+
+  test("sans déclaration, le dict rend exactement ce qu'il rendait avant", () => {
+    const html = render(
+      <YamlOptionEditor
+        defaultYaml={DICT_YAML}
+        optionTypes={{ game_options: { type: "dict", min: 0, max: 0, default: null } }}
+        playerYaml={null}
+      />,
+    );
+
+    expect(html).not.toContain("Autre…");
+    expect(html).toContain('value="shift"');
+  });
+});

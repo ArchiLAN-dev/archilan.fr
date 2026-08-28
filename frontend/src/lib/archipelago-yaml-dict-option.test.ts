@@ -1,6 +1,6 @@
 import * as yaml from "js-yaml";
 
-import { mergePlayerValues, parseDefaultYaml, serializeToYaml, type ParsedYaml } from "./archipelago-yaml";
+import { asOptionTypesMap, mergePlayerValues, parseDefaultYaml, serializeToYaml, type OptionTypesMap, type ParsedYaml } from "./archipelago-yaml";
 
 function parse(input: string): ParsedYaml {
   const parsed = parseDefaultYaml(input);
@@ -183,5 +183,117 @@ Pokemon Platinum:
     expect(byKey.get("text_speed")).toBe("fast");
     // untouched key keeps the base default
     expect(byKey.get("battle_style")).toBe("shift");
+  });
+});
+
+// ─── Story 9.51: declared sub-option vocabularies ─────────────────────────────
+//
+// An OptionDict declares no value vocabulary of its own; only a world that sets a `schema` on it
+// says what each sub-setting accepts. When it does, that reaches the editor as `keys` - which is
+// NOT the same field as a dict's `values` (those are the sub-setting *names*, `validKeys`).
+
+const WITH_SCHEMA: OptionTypesMap = {
+  game_options: {
+    type: "dict",
+    min: 0,
+    max: 0,
+    default: null,
+    values: ["battle_scene", "battle_style", "default_player_name", "text_frame", "text_speed"],
+    keys: {
+      battle_style: { values: ["shift", "set"] },
+      text_speed: { values: ["mid", "slow", "fast"] },
+    },
+  },
+};
+
+function dictOption(yamlStr: string, optionTypes?: OptionTypesMap) {
+  const parsed = parseDefaultYaml(yamlStr, optionTypes);
+  const opt = parsed?.options.find((o) => o.key === "game_options");
+  if (opt?.type !== "freeform" || opt.kind !== "dict") throw new Error("expected a freeform dict");
+  return opt;
+}
+
+describe("asOptionTypesMap - dict sub-option values", () => {
+  test("a declared vocabulary survives the boundary", () => {
+    const map = asOptionTypesMap({
+      game_options: { type: "dict", keys: { battle_style: { values: ["shift", "set"] } } },
+    });
+    expect(map?.game_options.keys).toEqual({ battle_style: { values: ["shift", "set"] } });
+  });
+
+  test("a sub-setting left with fewer than two values is dropped, not kept half-complete", () => {
+    // Half a vocabulary is the worst case for a dropdown: authoritative-looking and incomplete.
+    const map = asOptionTypesMap({
+      game_options: {
+        type: "dict",
+        keys: {
+          single: { values: ["only"] },
+          empty: { values: [] },
+          duplicated: { values: ["a", "a"] },
+          mixed: { values: ["a", 2, null] },
+          malformed: { values: "not-a-list" },
+          missing: {},
+        },
+      },
+    });
+    expect(map?.game_options.keys).toBeUndefined();
+  });
+
+  test("non-strings are dropped and duplicates collapsed, in order", () => {
+    const map = asOptionTypesMap({
+      game_options: { type: "dict", keys: { k: { values: ["b", 1, "a", "b", ""] } } },
+    });
+    expect(map?.game_options.keys?.k.values).toEqual(["b", "a"]);
+  });
+
+  test("a payload with no keys at all reads exactly as before", () => {
+    const map = asOptionTypesMap({ game_options: { type: "dict", values: ["battle_style"] } });
+    expect(map?.game_options.keys).toBeUndefined();
+    expect(map?.game_options.values).toEqual(["battle_style"]);
+  });
+});
+
+describe("buildOption - dict sub-option choices", () => {
+  test("only the sub-settings the apworld spoke about get a vocabulary", () => {
+    const opt = dictOption(YAML_WITH_GAME_OPTIONS, WITH_SCHEMA);
+    expect(opt.entryChoices).toEqual({
+      battle_style: ["shift", "set"],
+      text_speed: ["mid", "slow", "fast"],
+    });
+    // The keys the schema said nothing about keep their free text field.
+    expect(opt.entryChoices?.["default_player_name"]).toBeUndefined();
+  });
+
+  test("a world that declares nothing renders exactly as it did before", () => {
+    const opt = dictOption(YAML_WITH_GAME_OPTIONS, {
+      game_options: { type: "dict", min: 0, max: 0, default: null },
+    });
+    expect(opt.entryChoices).toBeUndefined();
+    expect(opt.fixedKeys).toBe(true);
+    expect(opt.entries.map((e) => e.k)).toContain("default_player_name");
+  });
+
+  test("the round-trip is untouched by the vocabularies", () => {
+    // A declared list changes what the editor offers, never what it writes.
+    const withSchema = serializeToYaml(
+      (() => {
+        const p = parseDefaultYaml(YAML_WITH_GAME_OPTIONS, WITH_SCHEMA);
+        if (!p) throw new Error("parse failed");
+        return p;
+      })(),
+    );
+    expect(withSchema).toBe(serializeToYaml(parse(YAML_WITH_GAME_OPTIONS)));
+  });
+
+  test("merging a player's values keeps the vocabularies", () => {
+    const base = parseDefaultYaml(YAML_WITH_GAME_OPTIONS, WITH_SCHEMA);
+    const player = parseDefaultYaml(YAML_WITH_GAME_OPTIONS.replace("battle_style: shift", "battle_style: set"), WITH_SCHEMA);
+    if (!base || !player) throw new Error("parse failed");
+
+    const merged = mergePlayerValues(base, player).options.find((o) => o.key === "game_options");
+    if (merged?.type !== "freeform" || merged.kind !== "dict") throw new Error("expected a dict");
+
+    expect(merged.entryChoices?.["battle_style"]).toEqual(["shift", "set"]);
+    expect(new Map(merged.entries.map((e) => [e.k, e.v])).get("battle_style")).toBe("set");
   });
 });
