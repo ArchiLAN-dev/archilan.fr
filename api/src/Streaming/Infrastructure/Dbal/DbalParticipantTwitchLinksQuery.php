@@ -6,6 +6,7 @@ namespace App\Streaming\Infrastructure\Dbal;
 
 use App\Identity\Domain\Entity\User;
 use App\Streaming\Application\Query\ParticipantTwitchLinksQueryInterface;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 
@@ -101,6 +102,25 @@ final readonly class DbalParticipantTwitchLinksQuery implements ParticipantTwitc
             ->fetchAllAssociative();
 
         // A member may have several weekly entries (attempts) for the same run; mapRows de-duplicates by user.
+        return $this->mapRows($rows);
+    }
+
+    public function forUserIds(array $userIds): array
+    {
+        if ([] === $userIds) {
+            return [];
+        }
+
+        $qb = $this->connection->createQueryBuilder();
+        $rows = $this->select($qb)
+            ->from($this->userTable, 'u')
+            ->join('u', 'community_profile', 'cp', $qb->expr()->eq('cp.user_id', 'u.id'))
+            ->where($qb->expr()->in('u.id', ':ids'))
+            ->andWhere($qb->expr()->isNull('u.deleted_at'))
+            ->setParameter('ids', $userIds, ArrayParameterType::STRING)
+            ->executeQuery()
+            ->fetchAllAssociative();
+
         return $this->mapRows($rows);
     }
 
