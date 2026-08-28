@@ -5,6 +5,31 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.19.0] - 2026-08-28
+
+Une commande pour rafraîchir l'introspection d'un apworld sans avoir à le re-téléverser.
+
+### Ajouté
+
+- **Ré-introspecter un jeu sans retrouver son fichier.** L'introspection d'un apworld - ce qui donne
+  à l'éditeur les types d'options, les bornes des plages numériques et la liste des locations - ne
+  tournait qu'une seule fois, au téléversement. Quand l'introspection elle-même évolue, comme en
+  `v0.18.0`, les jeux déjà en base gardent donc l'ancienne réponse pour toujours, et le seul recours
+  était de remettre la main sur le `.apworld` d'origine pour le téléverser à nouveau - alors que le
+  serveur le détient déjà, à l'octet près. `app:games:backfill-option-types --reintrospect` demande
+  désormais au serveur de régénérer l'introspection à partir de sa propre copie, puis de la relire.
+  `--game=<slug>` limite l'opération à un seul jeu. L'option n'est pas active par défaut : chaque
+  ré-introspection lance un conteneur qui charge tout Archipelago, donc un passage sur le catalogue
+  entier est long. Un jeu qui échoue est signalé et le balayage continue avec les suivants - le
+  serveur laisse alors son introspection précédente intacte, ce qui vaut mieux que de la perdre.
+
+### Notes de déploiement
+
+- Nécessite l'orchestrateur en `0.17.0` : la commande s'appuie sur un point d'entrée qui n'existe
+  pas dans les versions antérieures.
+- C'est cette commande qui remplace le re-téléversement manuel annoncé dans les notes de la
+  `v0.18.0` pour faire apparaître les listes de valeurs de l'éditeur.
+
 ## [0.18.0] - 2026-08-28
 
 Trois nouveautés - une pour les administrateurs, une pour la communauté, une pour l'éditeur de
