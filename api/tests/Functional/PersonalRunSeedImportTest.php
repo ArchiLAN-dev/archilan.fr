@@ -231,6 +231,38 @@ final class PersonalRunSeedImportTest extends FunctionalTestCase
         self::assertNotSame('detailed_progression_unavailable', $code);
     }
 
+    /**
+     * AC 9, par le chemin que le joueur emprunte vraiment.
+     *
+     * Le lancement exigeait qu'un participant ait déclaré au moins un jeu. Sur une seed importée
+     * personne n'en déclare - les slots viennent de l'archive - donc le bouton restait mort et
+     * l'API refusait avec `games_required`. La story avait testé le handler de lancement isolément,
+     * pas la porte qui y mène.
+     */
+    public function testAnImportedRunStartsWithoutAnyoneDeclaringAGame(): void
+    {
+        [$owner, , $run] = $this->importedRun();
+        $this->loginAs($owner);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
+
+        self::assertResponseStatusCodeSame(202);
+    }
+
+    /** Une partie ordinaire garde son garde-fou : sans jeu déclaré, elle ne part pas. */
+    public function testAnOrdinaryRunStillNeedsADeclaredGame(): void
+    {
+        [$owner, , $run] = $this->party();
+        $this->loginAs($owner);
+
+        $this->client->jsonRequest('POST', '/api/v1/runs/'.$run->getId().'/start');
+
+        self::assertResponseStatusCodeSame(422);
+        $error = $this->decodedJsonResponse()['error'] ?? null;
+        self::assertIsArray($error);
+        self::assertSame('games_required', $error['code']);
+    }
+
     // ─── helpers ────────────────────────────────────────────────────────────────
 
     private function runningSessionFor(Run $run): Session
