@@ -296,6 +296,69 @@ final readonly class AdminGameLibraryController
             : 'Plateformes enregistrées.']]);
     }
 
+    /**
+     * Curates what the sub-settings of one dict option accept (story 9.52).
+     *
+     * Body: `{"option": "game_options", "values": {"battle_style": {"values": ["shift", "set"], "closed": true}}}`.
+     * An absent or empty `values` clears the curation for that option.
+     */
+    #[Route('/api/v1/admin/games/{gameId}/dict-option-values', name: 'api_admin_game_save_dict_option_values', methods: ['PUT'])]
+    public function saveDictOptionValues(Request $request, string $gameId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $payload = json_decode($request->getContent() ?: '{}', true);
+        $payload = is_array($payload) ? $payload : [];
+
+        $optionKey = $payload['option'] ?? null;
+        $optionKey = is_string($optionKey) ? $optionKey : '';
+
+        $raw = $payload['values'] ?? null;
+        $subOptions = null;
+        if (is_array($raw)) {
+            $subOptions = [];
+            foreach ($raw as $subKey => $spec) {
+                if (!is_string($subKey) || !is_array($spec)) {
+                    continue;
+                }
+
+                $values = [];
+                foreach (is_array($spec['values'] ?? null) ? $spec['values'] : [] as $value) {
+                    if (is_string($value)) {
+                        $values[] = $value;
+                    }
+                }
+
+                // Open unless the admin says otherwise: a list nobody vouched for as exhaustive
+                // must not close the dropdown on a value the world accepts.
+                $subOptions[$subKey] = ['values' => $values, 'closed' => true === ($spec['closed'] ?? false)];
+            }
+        }
+
+        $result = $this->adminGameLibrary->saveDictOptionValues($gameId, $optionKey, $subOptions);
+
+        if (!$result['found']) {
+            return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
+        }
+
+        if ([] !== $result['errors']) {
+            return $this->apiAccessGuard->errorResponse('validation_failed', 'Valeurs invalides.', 422, $result['errors']);
+        }
+
+        $game = $result['game'] ?? null;
+        if (null === $game) {
+            return $this->apiAccessGuard->errorResponse('dict_option_values_save_failed', "L'enregistrement a échoué.", 500);
+        }
+
+        return new JsonResponse(['data' => $game, 'meta' => ['message' => null === $subOptions || [] === $subOptions
+            ? "Valeurs rendues à l'introspection."
+            : 'Valeurs enregistrées.']]);
+    }
+
     #[Route('/api/v1/admin/games/{gameId}/default-yaml', name: 'api_admin_game_save_default_yaml', methods: ['PUT'])]
     public function saveDefaultYaml(Request $request, string $gameId): JsonResponse
     {

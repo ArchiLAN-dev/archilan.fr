@@ -91,6 +91,89 @@ final class AdminGameLibraryDictOptionValuesTest extends TestCase
         self::assertArrayNotHasKey('keys', ($game->getOptionTypes() ?? [])['game_options'] ?? []);
     }
 
+    // ── Story 9.52: what an admin declares when the apworld declares nothing ──
+
+    public function testAnAdminCurationIsStoredApartAndSurfacesInTheEffectiveTable(): void
+    {
+        $game = $this->game();
+        $game->recordOptionTypes(['game_options' => ['type' => 'dict', 'values' => ['battle_style']]]);
+
+        $result = $this->library($game, self::createStub(RunnerGatewayInterface::class))
+            ->saveDictOptionValues($game->getId(), 'game_options', [
+                'battle_style' => ['values' => ['shift', 'set'], 'closed' => true],
+            ]);
+
+        self::assertSame([], $result['errors']);
+        // Stored on its own, so the next re-introspection cannot erase it...
+        self::assertSame(
+            ['battle_style' => ['values' => ['shift', 'set'], 'closed' => true]],
+            $game->getDictOptionValues()['game_options'] ?? null,
+        );
+        // ...and merged for everyone who reads the table.
+        self::assertSame(
+            ['values' => ['shift', 'set'], 'closed' => true],
+            $game->getEffectiveOptionTypes()['game_options']['keys']['battle_style'] ?? null,
+        );
+    }
+
+    public function testASingleValueIsRefused(): void
+    {
+        // A dropdown with one entry offers the player nothing to choose; it reads as a bug rather
+        // than as a curation.
+        $game = $this->game();
+
+        $result = $this->library($game, self::createStub(RunnerGatewayInterface::class))
+            ->saveDictOptionValues($game->getId(), 'game_options', [
+                'battle_style' => ['values' => ['shift'], 'closed' => false],
+            ]);
+
+        self::assertArrayHasKey('values', $result['errors']);
+        self::assertNull($game->getDictOptionValues());
+    }
+
+    public function testValuesAreTrimmedAndDeduplicated(): void
+    {
+        $game = $this->game();
+        $game->recordOptionTypes(['game_options' => ['type' => 'dict']]);
+
+        $this->library($game, self::createStub(RunnerGatewayInterface::class))
+            ->saveDictOptionValues($game->getId(), 'game_options', [
+                'battle_style' => ['values' => ['  shift ', 'set', 'shift', '   '], 'closed' => false],
+            ]);
+
+        self::assertSame(
+            ['values' => ['shift', 'set'], 'closed' => false],
+            $game->getDictOptionValues()['game_options']['battle_style'] ?? null,
+        );
+    }
+
+    public function testAnEmptyMapHandsTheOptionBackToIntrospection(): void
+    {
+        $game = $this->game();
+        $game->recordOptionTypes(['game_options' => ['type' => 'dict']]);
+        $now = new \DateTimeImmutable('2026-08-28T10:00:00+00:00');
+        $game->overrideDictOptionValues('game_options', ['k' => ['values' => ['a', 'b'], 'closed' => true]], $now);
+
+        $result = $this->library($game, self::createStub(RunnerGatewayInterface::class))
+            ->saveDictOptionValues($game->getId(), 'game_options', []);
+
+        self::assertSame([], $result['errors']);
+        self::assertNull($game->getDictOptionValues());
+    }
+
+    public function testAnUnknownGameIsReportedAsNotFound(): void
+    {
+        $repository = self::createStub(GameRepositoryInterface::class);
+        $repository->method('findById')->willReturn(null);
+
+        $game = $this->game();
+        $result = $this->libraryWith($repository, self::createStub(RunnerGatewayInterface::class))
+            ->saveDictOptionValues('missing', 'game_options', []);
+
+        self::assertFalse($result['found']);
+        self::assertNull($game->getDictOptionValues());
+    }
+
     /** @param array<string, mixed> $optionTypes */
     private function runnerReturning(array $optionTypes): RunnerGatewayInterface
     {
@@ -120,6 +203,11 @@ final class AdminGameLibraryDictOptionValuesTest extends TestCase
         $repository = self::createStub(GameRepositoryInterface::class);
         $repository->method('findById')->willReturn($game);
 
+        return $this->libraryWith($repository, $runner);
+    }
+
+    private function libraryWith(GameRepositoryInterface $repository, RunnerGatewayInterface $runner): AdminGameLibrary
+    {
         $usage = self::createStub(GameUsageCounterInterface::class);
         $usage->method('count')->willReturn(0);
 

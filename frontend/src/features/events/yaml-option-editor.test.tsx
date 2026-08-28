@@ -183,3 +183,46 @@ describe("YamlOptionEditor - valeurs déclarées d'une sous-option de dict", () 
     expect(html).toContain('value="shift"');
   });
 });
+
+/**
+ * Story 9.52. Une liste que quelqu'un a certifiée exhaustive ferme le select - mais jamais au
+ * point de réécrire ce qui est déjà enregistré.
+ */
+const CLOSED_SCHEMA: OptionTypesMap = {
+  game_options: {
+    type: "dict",
+    min: 0,
+    max: 0,
+    default: null,
+    keys: {
+      battle_style: { values: ["shift", "set"], closed: true },
+      text_speed: { values: ["mid", "fast"], closed: true },
+    },
+  },
+};
+
+describe("YamlOptionEditor - liste fermée par une curation admin", () => {
+  test("une liste fermée n'offre plus de sortie libre", () => {
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={CLOSED_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain('<option value="shift" selected="">shift</option>');
+    expect(html).not.toContain("Autre…");
+  });
+
+  test("une valeur enregistrée hors liste survit quand même, dans la liste", () => {
+    // `text_speed: turbo` n'est pas dans la liste fermée. Le champ libre a disparu, donc c'est la
+    // liste elle-même qui doit l'accueillir : sinon une curation faite après coup réécrirait en
+    // silence le YAML d'un joueur.
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={CLOSED_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain('<option value="turbo" selected="">turbo</option>');
+    expect(html).not.toContain('<option value="mid" selected=""');
+  });
+
+  test("le défaut reste ouvert : seule une curation ferme", () => {
+    // DICT_SCHEMA ne porte pas `closed`, donc la sortie libre reste.
+    const html = render(<YamlOptionEditor defaultYaml={DICT_YAML} optionTypes={DICT_SCHEMA} playerYaml={null} />);
+
+    expect(html).toContain("Autre…");
+  });
+});

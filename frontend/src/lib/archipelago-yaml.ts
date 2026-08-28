@@ -51,8 +51,11 @@ export type OptionSpec = {
    * (`validKeys`), this holds the *values* each of them accepts. Present only for the worlds
    * whose `OptionDict` declares a `schema`, which is a minority - an absent entry means the
    * apworld declared nothing, never that it declared an empty list.
+   *
+   * `closed` (story 9.52) says the list is exhaustive. Only an admin curation ever sets it: a
+   * `schema` is authoritative about what it lists, not about what it leaves out.
    */
-  keys?: Record<string, { values: string[] }>;
+  keys?: Record<string, { values: string[]; closed?: boolean }>;
 };
 /** @deprecated Kept as the former name of {@link OptionSpec}; the bounds are still on it. */
 export type OptionBounds = OptionSpec;
@@ -67,17 +70,18 @@ const OPTION_KINDS = new Set<string>(["range", "choice", "toggle", "weights", "d
  * vocabulary is the worst outcome a dropdown can have: it reads as authoritative while hiding the
  * entries the world actually accepts, and the player has no way to see what is missing.
  */
-function parseDictSubOptions(raw: unknown): Record<string, { values: string[] }> | null {
+function parseDictSubOptions(raw: unknown): Record<string, { values: string[]; closed: boolean }> | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
 
-  const out: Record<string, { values: string[] }> = {};
+  const out: Record<string, { values: string[]; closed: boolean }> = {};
   for (const [subKey, spec] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof spec !== "object" || spec === null) continue;
     const values = (spec as Record<string, unknown>).values;
     if (!Array.isArray(values)) continue;
 
     const clean = [...new Set(values.filter((v): v is string => typeof v === "string" && v !== ""))];
-    if (clean.length > 1) out[subKey] = { values: clean };
+    // Open unless something explicitly vouched for the list being exhaustive.
+    if (clean.length > 1) out[subKey] = { values: clean, closed: (spec as Record<string, unknown>).closed === true };
   }
   return Object.keys(out).length > 0 ? out : null;
 }
@@ -112,11 +116,13 @@ export function asOptionTypesMap(value: unknown): OptionTypesMap | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
-/** Flattens an introspected dict spec to what the editor renders: sub-setting -> its values. */
-function dictEntryChoices(spec: OptionSpec | undefined): Record<string, string[]> | undefined {
+/** What the editor renders per sub-setting: the values it accepts, and whether that list is closed. */
+function dictEntryChoices(spec: OptionSpec | undefined): Record<string, { values: string[]; closed: boolean }> | undefined {
   if (spec?.keys === undefined) return undefined;
-  const out: Record<string, string[]> = {};
-  for (const [subKey, sub] of Object.entries(spec.keys)) out[subKey] = sub.values;
+  const out: Record<string, { values: string[]; closed: boolean }> = {};
+  for (const [subKey, sub] of Object.entries(spec.keys)) {
+    out[subKey] = { values: sub.values, closed: sub.closed === true };
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -223,7 +229,7 @@ export type FreeformDictOption = {
    * Per sub-setting, the values the apworld declared it accepts (story 9.51). Only the keys the
    * apworld spoke about appear here; the rest keep their free text field.
    */
-  entryChoices?: Record<string, string[]>;
+  entryChoices?: Record<string, { values: string[]; closed: boolean }>;
   description?: string;
   category?: string;
 };
