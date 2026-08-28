@@ -1,6 +1,6 @@
 # Story 9.54: Les six apworlds que l'introspection n'a jamais reussi a charger
 
-**Status:** draft
+**Status:** implementee - archipelago `v0.15.0`
 **Epic:** 9 - Multiworld generation pipeline & apworld introspection
 **Date:** 2026-08-28
 **Vient de :** [9.53](9-53-reintrospect-apworld-options-command.md) - le premier balayage complet du
@@ -123,12 +123,12 @@ scripts doivent preparer l'environnement d'import de facon identique.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC1). Relever la disposition des trois archives depuis MinIO et la consigner ici.
-- [ ] **Task 2** (AC2, AC7). Attacher `worlds.Files` aux deux stubs + test de non-divergence.
-- [ ] **Task 3** (AC3). Creer les dossiers canoniques manquants dans le Dockerfile.
-- [ ] **Task 4** (AC4). Ajouter `protobuf` aux dependances de l'image.
-- [ ] **Task 5** (AC5, AC6). Detection de paquet par profondeur + tests sur les dispositions reelles.
-- [ ] **Task 6** (AC8). Gates verts, tag, et re-balayage pour confirmer 668/672.
+- [~] **Task 1** (AC1). Non faite - voir l'ecart assume. Relever la disposition des trois archives depuis MinIO et la consigner ici.
+- [x] **Task 2** (AC2, AC7). Attacher `worlds.Files` aux deux stubs + test de non-divergence.
+- [x] **Task 3** (AC3). Creer les dossiers canoniques manquants dans le Dockerfile.
+- [x] **Task 4** (AC4). Ajouter `protobuf` aux dependances de l'image.
+- [x] **Task 5** (AC5). AC6 se verifie au prochain balayage. Detection de paquet par profondeur + tests sur les dispositions reelles.
+- [x] **Task 6** (AC8). Tag `v0.15.0` pose. Gates verts, tag, et re-balayage pour confirmer 668/672.
 
 ## Dev Notes
 
@@ -167,8 +167,62 @@ Ils restent en echec apres cette story, et c'est assume.
 - [Source: archilan-archipelago PR #23 (le meme motif de divergence, pour `orjson`)]
 - [Source: balayage du 2026-08-28 : 672 traites, 662 reussis, 10 echecs]
 
+## Dev Agent Record
+
+### Ce qui a ete livre
+
+| Cas | Correctif |
+|-----|-----------|
+| `fez`, `dungeon_clawler`, `nrftw` | `_detect_pkg` retient le `__init__.py` le moins profond et pose son parent sur `worlds.__path__` |
+| `jurassic_park` | `worlds.Files` attache au stub, dans les deux scripts |
+| `gtfo` | `Players` et `output` crees dans l'image |
+| `mindustry` | `protobuf` installe |
+
+Plus `tests/test_detect_pkg.py` (9 cas) et `tests/test_worlds_stub_parity.py` (AC7). 71 tests verts.
+
+### Ecart assume : corrige par principe, pas sur diagnostic
+
+**L'AC1 n'est pas tenue.** Elle exigeait de relever la disposition reelle des trois archives avant
+d'ecrire la detection. Je n'y ai pas acces : le MinIO local appartient a un autre projet, celui de
+production est sur le serveur et ses identifiants ne sont pas ici.
+
+Plutot que de bloquer, la detection a ete rendue robuste **par principe** : chercher le `__init__.py`
+le moins profond couvre les dispositions plausibles (`fez/fez/`, `worlds/fez/`, autres) sans avoir a
+savoir laquelle correspond a quel jeu.
+
+La contrepartie est explicite : **la verification se fait par le resultat, pas par l'analyse**. Si le
+prochain balayage complet ne donne pas 668/672, l'hypothese etait fausse et il faudra les archives.
+C'est un ecart methodologique reel, pas un raccourci gratuit - et il est ici pour qu'on s'en
+souvienne si le chiffre ne tombe pas juste.
+
+### Deux divergences en une journee
+
+`jurassic_park` est la deuxieme divergence entre `introspect_options.py` et `generate_multiworld.py`
+trouvee le meme jour, apres `orjson`. La forme ne change pas : la generation charge tout le
+catalogue et herite gratuitement des imports d'un world voisin, l'introspection charge un world
+isole et n'herite de rien.
+
+D'ou le test de parite par AST sur le stub `worlds`, avec ses deux exceptions listees explicitement
+(`__file__`, `network_data_package`) plutot que tolerees en silence. C'est le deuxieme filet de ce
+genre apres celui d'`orjson` ; s'il en faut un troisieme, il vaudra mieux se demander pourquoi ces
+deux scripts ne partagent pas leur preparation d'environnement.
+
+### Le bouchon peut nuire
+
+`mindustry` merite d'etre retenu : bouchonner `google` a transforme une dependance manquante en
+`KeyError: '_RACE'` au fond d'un module genere. Sans le bouchon, l'erreur aurait ete un `ImportError`
+qui nommait le probleme. La liste des modules qu'on accepte de bouchonner meriterait peut-etre
+d'etre fermee - non traite ici.
+
+## Ce qui reste
+
+Deployer `archipelago v0.15.0` et relancer le balayage complet. Le chiffre attendu est **668/672** ;
+c'est lui qui valide ou invalide l'ecart ci-dessus.
+
+
 ## Change Log
 
 | Date       | Change |
 |------------|--------|
+| 2026-08-28 | Implementee en `v0.15.0`. AC1 non tenue : detection corrigee par principe faute d'acces aux archives, verification reportee sur le chiffre du prochain balayage. |
 | 2026-08-28 | Creee apres le premier balayage complet du catalogue, qui a revele dix echecs d'introspection jamais rapportes. Six sont a nous, quatre ne le sont pas. Status: draft. |
