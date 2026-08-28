@@ -1,6 +1,6 @@
 # Story 9.51: Valeurs autorisées des sous-options d'un dict, depuis le Schema de l'apworld
 
-**Status:** en cours - couches 1 a 3 ecrites, moitie API bloquee sur le tag v1.8.0 du client
+**Status:** implementee - 5 couches livrees, `v1.8.0` du client publiee
 **Epic:** 9 - Multiworld generation pipeline & apworld introspection
 **Date:** 2026-08-28
 **Stories liées :** [9.33](9-33-authoritative-option-type-table-end-to-end.md) (table de types
@@ -97,10 +97,10 @@ orchestrateur / archipelago touchés.
 - [x] **Task 1** (AC1). `archipelago/introspect_options.py` : extraction du `Schema` dans la branche
       `dict`, avec un walker qui ne reconnaît que les validateurs littéraux et ignore le reste.
       Fixture apworld portant un `OptionDict` avec `Schema` dans sa suite de tests.
-- [~] **Task 2** (AC2). Ecrite dans les deux depots ; le tag reste a poser. Orchestrateur + `archilan/orchestrateur-client` : champ `keys` sur
+- [x] **Task 2** (AC2). Tag `v1.8.0` pose le 2026-08-28. Orchestrateur + `archilan/orchestrateur-client` : champ `keys` sur
       `DictTemplateOption`, routé par `TemplateOption::fromArray`. Tag du paquet client **avant** que
       l'API ne le lise (voir Dev Notes, ordre de déploiement).
-- [ ] **Task 3** (AC2, AC3). API : `describeOption()` reporte `keys` ; `Game::recordOptionTypes` et
+- [x] **Task 3** (AC2, AC3). API : `describeOption()` reporte `keys` ; `Game::recordOptionTypes` et
       `BackfillGameOptionTypes` le persistent ; il traverse les quatre charges utiles existantes.
       Tests unitaires sur la forme.
 - [x] **Task 4** (AC4). Frontend : élargir `OptionSpec` / `asOptionTypesMap` avec gardes de type ;
@@ -108,7 +108,7 @@ orchestrateur / archipelago touchés.
 - [x] **Task 5** (AC5, AC6, AC7). Frontend : `entryChoices` sur `FreeformDictOption`, select +
       « Autre… » dans `DictField`, conservation de la valeur hors liste. Jest : rendu select,
       valeur inconnue préservée, aller-retour YAML d'un `game_options` complet.
-- [ ] **Task 6** (AC8). Gates verts sur les dépôts touchés.
+- [x] **Task 6** (AC8). Gates verts sur les dépôts touchés.
 
 ## Dev Notes
 
@@ -166,7 +166,7 @@ Quatre couches, dans l'ordre ou elles pouvaient partir :
 | 2 | `OptionTypeOverride.Keys` + reponse `/apworlds/{hash}/options` | orchestrateur | ecrite, `go test ./...` vert |
 | 3 | `DictSubOption` + `DictTemplateOption::$keys`, bump 1.8.0 | orchestrateur-client | ecrite, phpstan + 82 tests verts |
 | 4 | `OptionSpec.keys`, `entryChoices`, `DictValueField` | monorepo (frontend) | ecrite, gates verts |
-| 5 | `describeOption()` reporte `keys` | monorepo (api) | **bloquee**, voir « Ce qui reste » |
+| 5 | `describeOption()` + persistance + normalisation | monorepo (api) | ecrite, `composer gates` vert |
 
 Le cas Platinum est confirme sur pieces plutot que suppose : `GameOptions(OptionDict)` de
 [platinum_archipelago](https://github.com/ljtpetersen/platinum_archipelago/blob/master/options.py)
@@ -224,26 +224,41 @@ D'ou le champ `keys`, distinct, et le commentaire qui dit la difference dans les
 
 ## Ce qui reste
 
-**Le tag `v1.8.0` de `archilan/orchestrateur-client`.**
+**Rien cote code.** Le tag `v1.8.0` est pose, les cinq couches sont livrees, `composer gates` et
+`pnpm gates` sont verts.
 
-`TemplateOption::fromArray` route tout ce qu'il ne modelise pas vers `TextTemplateOption` : tant
-que le paquet ne porte pas `DictSubOption`, l'API ne peut pas lire `keys`, et `composer gates`
-echouerait sur une propriete inexistante. La branche `feature/dict-sub-option-values` est ecrite
-et verte dans le depot du client ; il manque la publication.
+Mais la fonctionnalite n'est pas encore visible en jeu, et ce n'est pas un oubli : c'est une
+propriete du pipeline qu'il vaut mieux connaitre avant de la chercher a l'ecran.
 
-Une fois le tag pose :
+### L'introspection ne tourne qu'a l'upload
 
-1. `composer require archilan/orchestrateur-client:>=1.8.0` dans `api/`
-2. `describeOption()` reporte `keys` (AC2, moitie monorepo)
-3. `Game.optionTypes` le persiste, `BackfillGameOptionTypes` le repeuple (AC3)
-4. re-introspection du catalogue pour que les jeux existants remontent leurs vocabulaires
+`Service.UploadApworld` lance `IntrospectOptions` en tache de fond et ecrit un sidecar JSON. **Rien
+d'autre ne le regenere** : `regenerateApworldTemplate` (story 9.46) reconstruit le gabarit YAML, pas
+le sidecar, et `app:games:backfill-option-types` ne fait que **relire** ce sidecar depuis le runner.
 
-Ordre de **deploiement** ensuite, identique a 9.33 : l'API avant les images archipelago et
-orchestrateur, sinon `keys` est jete en silence faute d'etre modelise cote client.
+Consequence directe : pour un apworld deja en base, le sidecar a ete ecrit par l'ancienne image
+archipelago et ne contient aucun `keys`. Le backfill le relira sans rien y trouver. Le seul chemin
+qui produit `keys` sur un jeu existant est un **re-upload de l'apworld** avec la nouvelle image.
+
+Pour rendre la story visible :
+
+1. deployer les images archipelago et orchestrateur (elles portent les couches 1 et 2) ;
+2. re-uploader depuis l'admin les apworlds concernes, ce qui relance l'introspection ;
+3. `app:games:backfill-option-types` ne sert qu'aux jeux dont le sidecar est deja a jour.
+
+Un endpoint de re-introspection sans re-upload serait le vrai correctif, mais il traverse
+l'orchestrateur et le client : hors perimetre ici, candidat pour une suite.
+
+### Et surtout : peu de worlds declarent un `schema`
+
+Meme apres re-introspection, seuls les worlds qui declarent un `Schema` sur leur `OptionDict`
+remontent quelque chose. Pokemon Platinum n'en fait pas partie. C'est la 9.52 qui couvre ce cas, et
+elle reutilise telle quelle toute la chaine livree ici.
 
 ### Change Log
 
 | Date       | Change |
 |------------|--------|
+| 2026-08-28 | Couche API livree : `describeOption()` reporte `keys`, normalisation a la persistance, contrainte composer `>=1.8.0`, tag `v1.8.0` pose. Constat au passage : l'introspection ne tourne qu'a l'upload, donc un jeu existant a besoin d'un re-upload, pas d'un backfill. |
 | 2026-08-28 | Couches 1 a 4 ecrites (introspection, orchestrateur, client, frontend). Ecarts : `values` seul sur le fil, valeur hors liste au champ libre, extracteur sorti dans `option_schema.py`. Couche API differee, en attente du tag v1.8.0 du client. |
 | 2026-08-28 | Creee. Extraire les valeurs autorisees des sous-options de dict depuis le `Schema` declare par l'apworld, jusqu'au select dans l'editeur. Parsing de docstring explicitement ecarte. Status: draft. |

@@ -65,7 +65,11 @@ final class Game
          * Range bounds only at first, which is why the editor guessed every other type from the
          * shape of the value. Rows written back then carry `{min, max, default}` with no `type`.
          *
-         * @var array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>|null
+         * A `dict` row may also carry `keys` (story 9.51): per sub-setting, the values it accepts,
+         * for the worlds whose `OptionDict` declares a `schema`. Absent for all the others, which is
+         * the majority - and absent means "nothing was declared", not "an empty list was".
+         *
+         * @var array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>|null
          */
         #[ORM\Column(name: 'option_types', type: 'json', nullable: true)]
         private ?array $optionTypes = null,
@@ -286,7 +290,7 @@ final class Game
     }
 
     /**
-     * @return array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>|null
+     * @return array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>|null
      */
     public function getOptionTypes(): ?array
     {
@@ -301,7 +305,7 @@ final class Game
      * working until its apworld is re-introspected. That is why the table was widened in place
      * rather than doubled by a second column.
      *
-     * @param array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>}>|null $optionTypes
+     * @param array<string, array{type?: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>|null $optionTypes
      */
     public function recordOptionTypes(?array $optionTypes): void
     {
