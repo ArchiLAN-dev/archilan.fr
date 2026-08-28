@@ -1,4 +1,5 @@
 import * as yaml from "js-yaml";
+import { quoteYaml11Booleans } from "./yaml-11-booleans";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -478,7 +479,7 @@ function parseItemLinkEntries(value: unknown): ItemLinkEntry[] {
  */
 function dumpFreeformValue(value: unknown): string {
   if (typeof value !== "object" || value === null) return String(value ?? "");
-  return yaml.dump(value, { flowLevel: 0, schema: yaml.CORE_SCHEMA }).trim();
+  return quoteYaml11Booleans(yaml.dump(value, { flowLevel: 0, schema: yaml.CORE_SCHEMA })).trim();
 }
 
 /** Inverse of `dumpFreeformValue` for dict entries: any scalar or flow collection. */
@@ -840,7 +841,9 @@ export function serializeToYaml(parsed: ParsedYaml): string {
 
   doc[parsed.gameName] = gameBlock;
 
-  return yaml.dump(doc, { lineWidth: -1, noRefs: true, schema: yaml.CORE_SCHEMA });
+  // js-yaml écrit du YAML 1.2 ; Archipelago relit avec PyYAML, resté en 1.1, où `on`/`off`/`yes`/`no`
+  // sont des booléens. Sans cette passe, un `battle_scene: on` arrive chez l'apworld en `True`.
+  return quoteYaml11Booleans(yaml.dump(doc, { lineWidth: -1, noRefs: true, schema: yaml.CORE_SCHEMA }));
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
