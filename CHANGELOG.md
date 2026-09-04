@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.1] - 2026-09-05
+
+Correctif : la synchronisation des paiements HelloAsso ne repartait plus dès qu'une commande
+contenait plusieurs lignes.
+
+### Corrigé
+
+- **Une commande à plusieurs lignes ne bloque plus la synchronisation HelloAsso.** HelloAsso renvoie
+  une ligne par article commandé : une adhésion accompagnée d'un don, ou plusieurs billets pris
+  ensemble, remontent sous un même numéro de commande. La synchronisation créait alors un
+  enregistrement par ligne, se heurtait à l'unicité du numéro de commande et abandonnait tout le
+  lot. L'erreur se reproduisant à l'identique à chaque tentative, plus aucune synchronisation du
+  formulaire n'aboutissait tant que la commande fautive existait : les adhésions payées depuis le
+  21 août n'étaient plus enregistrées. Les lignes d'une même commande sont désormais regroupées
+  avant l'enregistrement.
+- **Le montant enregistré est celui de la commande entière.** Sur une commande à plusieurs lignes,
+  seul le montant de la dernière ligne lue était conservé, ce qui minorait les recettes affichées
+  sur le tableau de bord. Les lignes sont maintenant additionnées ; le montant se corrige tout seul
+  à la prochaine synchronisation.
+
 ## [0.20.0] - 2026-08-28
 
 Les réglages groupés d'un jeu peuvent enfin se choisir dans une liste, même quand l'apworld ne dit
