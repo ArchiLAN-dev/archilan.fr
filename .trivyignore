@@ -41,3 +41,12 @@ GHSA-hrxh-6v49-42gf exp:2026-10-01  # api-web: google.golang.org/grpc v1.81.1, n
 # aucun correctif amont n'existe à ce jour.
 CVE-2026-76905 exp:2026-10-01  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
 CVE-2026-77354 exp:2026-10-01  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
+
+# --- api-web: dependances Go compilees dans le binaire FrankenPHP, non atteignables ---
+# `golang.org/x/crypto/ssh` : la faille porte sur les restrictions de `authorized_keys` cote serveur
+# SSH. L'image n'expose aucun serveur SSH et FrankenPHP n'en demarre pas. `google.golang.org/grpc` :
+# rien n'est expose en gRPC ici, l'API parle HTTP via Symfony. FrankenPHP 1.12.7 reste sa derniere
+# version publiee, donc aucun correctif amont n'existe a ce jour : sans ces deux entrees, l'image
+# api-web n'atteint plus GHCR et aucune version n'est deployable.
+CVE-2026-56854 exp:2026-09-26  # api-web: golang.org/x/crypto/ssh, aucun serveur SSH dans l'image - #585
+CVE-2026-84304 exp:2026-09-26  # api-web: google.golang.org/grpc, rien d'expose en gRPC - #585
