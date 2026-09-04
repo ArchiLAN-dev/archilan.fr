@@ -5,6 +5,20 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.2] - 2026-09-05
+
+Version de republication : la 0.20.1 n'a pas pu publier son image `api-web`, le correctif de
+synchronisation HelloAsso n'était donc pas déployable.
+
+### Corrigé
+
+- **L'image `api-web` est de nouveau publiable.** Le scan de vulnérabilités qui précède la
+  publication refusait l'image sur deux failles des bibliothèques Go compilées dans le binaire
+  FrankenPHP : l'une dans le client SSH, l'autre dans gRPC. Ni l'une ni l'autre n'est atteignable
+  ici - l'image n'expose aucun serveur SSH et l'API parle HTTP via Symfony - et FrankenPHP 1.12.7
+  reste sa dernière version publiée, donc aucune image corrigée n'existe en amont. Deux suppressions
+  datées, qui expirent le 26 septembre, débloquent la publication ; le suivi est ouvert en #585.
+
 ## [0.20.1] - 2026-09-05
 
 Correctif : la synchronisation des paiements HelloAsso ne repartait plus dès qu'une commande
