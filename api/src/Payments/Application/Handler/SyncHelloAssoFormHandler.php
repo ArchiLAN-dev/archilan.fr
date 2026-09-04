@@ -17,6 +17,9 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * @phpstan-type HelloAssoItem array{orderId: int, status: string, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null}
+ */
 #[AsMessageHandler]
 final readonly class SyncHelloAssoFormHandler
 {
@@ -63,9 +66,11 @@ final readonly class SyncHelloAssoFormHandler
             throw $e;
         }
 
+        $orders = $this->aggregateItemsByOrder($items);
+
         $pendingMessages = [];
-        foreach ($items as $item) {
-            $pending = $this->upsertOrder($item, $message->formType, $message->formSlug, $now);
+        foreach ($orders as $order) {
+            $pending = $this->upsertOrder($order, $message->formType, $message->formSlug, $now);
             if (null !== $pending) {
                 $pendingMessages[] = $pending;
             }
@@ -83,6 +88,7 @@ final readonly class SyncHelloAssoFormHandler
             'formType' => $message->formType,
             'formSlug' => $message->formSlug,
             'itemCount' => count($items),
+            'orderCount' => count($orders),
         ]);
     }
 
@@ -96,7 +102,47 @@ final readonly class SyncHelloAssoFormHandler
     }
 
     /**
-     * @param array{orderId: int, status: string, amountCents: int, payerEmail: string|null, payerFirstName: string|null, payerLastName: string|null, paidAt: \DateTimeImmutable|null} $item
+     * The HelloAsso items endpoint returns one row per ordered line: an order holding
+     * several lines (membership + donation, several tickets) shows up as many items
+     * sharing the same order id. Merging them before the upsert keeps one row per order -
+     * persisting twice would violate the unique constraint on helloasso_order_id, and the
+     * whole sync would then be rolled back and retried forever - and stores the order
+     * total rather than whichever line happened to come last.
+     *
+     * @param list<HelloAssoItem> $items
+     *
+     * @return list<HelloAssoItem>
+     */
+    private function aggregateItemsByOrder(array $items): array
+    {
+        /** @var array<int, HelloAssoItem> $byOrderId */
+        $byOrderId = [];
+
+        foreach ($items as $item) {
+            $previous = $byOrderId[$item['orderId']] ?? null;
+
+            if (null === $previous) {
+                $byOrderId[$item['orderId']] = $item;
+
+                continue;
+            }
+
+            $byOrderId[$item['orderId']] = [
+                'orderId' => $item['orderId'],
+                'status' => '' !== $previous['status'] ? $previous['status'] : $item['status'],
+                'amountCents' => $previous['amountCents'] + $item['amountCents'],
+                'payerEmail' => $previous['payerEmail'] ?? $item['payerEmail'],
+                'payerFirstName' => $previous['payerFirstName'] ?? $item['payerFirstName'],
+                'payerLastName' => $previous['payerLastName'] ?? $item['payerLastName'],
+                'paidAt' => $previous['paidAt'] ?? $item['paidAt'],
+            ];
+        }
+
+        return array_values($byOrderId);
+    }
+
+    /**
+     * @param HelloAssoItem $item
      */
     private function upsertOrder(array $item, string $formType, string $formSlug, \DateTimeImmutable $now): ?HelloAssoOrderPaidMessage
     {

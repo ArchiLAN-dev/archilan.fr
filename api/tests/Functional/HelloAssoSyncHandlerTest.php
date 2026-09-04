@@ -171,6 +171,68 @@ final class HelloAssoSyncHandlerTest extends FunctionalTestCase
         }
     }
 
+    public function testSyncMergesItemsSharingTheSameOrderIntoASingleRow(): void
+    {
+        $handler = $this->handler([
+            new MockResponse('{"access_token":"server-token"}'),
+            $this->multiItemOrderResponse(),
+        ]);
+
+        $handler(new SyncHelloAssoFormMessage(HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-archilan-annuelle'));
+
+        $orders = $this->entityManager->getRepository(HelloAssoOrder::class)->findAll();
+        self::assertCount(1, $orders);
+        self::assertInstanceOf(HelloAssoOrder::class, $orders[0]);
+        self::assertSame(189471600, $orders[0]->getHelloassoOrderId());
+        self::assertSame(3000, $orders[0]->getAmountCents());
+        self::assertSame('Processed', $orders[0]->getStatus());
+        self::assertSame('payer@example.org', $orders[0]->getPayerEmail());
+        self::assertSame('Ada', $orders[0]->getPayerFirstName());
+    }
+
+    public function testSyncDispatchesASinglePaidMessageForAMultiItemOrder(): void
+    {
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())
+            ->method('dispatch')
+            ->with(self::isInstanceOf(HelloAssoOrderPaidMessage::class))
+            ->willReturn(new Envelope(new \stdClass()));
+        $handler = $this->handler([
+            new MockResponse('{"access_token":"server-token"}'),
+            $this->multiItemOrderResponse(),
+        ], $bus);
+
+        $handler(new SyncHelloAssoFormMessage(HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-archilan-annuelle'));
+    }
+
+    /**
+     * Two lines of a single order - a 20 EUR membership plus a 10 EUR donation - the way the
+     * HelloAsso items endpoint returns them: same order id, one line carrying no payer block.
+     */
+    private function multiItemOrderResponse(): MockResponse
+    {
+        return new MockResponse(json_encode([
+            'data' => [
+                [
+                    'order' => ['id' => 189471600, 'date' => '2026-08-21T22:44:18+02:00'],
+                    'state' => 'Processed',
+                    'amount' => 1000,
+                ],
+                [
+                    'order' => ['id' => 189471600, 'date' => '2026-08-21T22:44:18+02:00'],
+                    'state' => 'Processed',
+                    'amount' => 2000,
+                    'payer' => [
+                        'email' => 'payer@example.org',
+                        'firstName' => 'Ada',
+                        'lastName' => 'Lovelace',
+                    ],
+                ],
+            ],
+            'pagination' => ['totalCount' => 2],
+        ], JSON_THROW_ON_ERROR));
+    }
+
     /**
      * @param list<MockResponse> $responses
      */
