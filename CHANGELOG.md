@@ -27,6 +27,16 @@ Correctif : plus aucune partie comportant un slot Starcraft 2 ne pouvait être g
   Les deux formes sont désormais distinguées de bout en bout, du fichier du joueur jusqu'au
   générateur.
 
+### Sécurité
+
+- **Dépendances frontend signalées par l'audit remises à niveau.** Next.js passe en 16.3.3, qui
+  clôt deux exécutions de code à distance sans authentification classées critiques, et sharp en
+  0.35.4. Les chaînes transitives `js-yaml` (via eslint et jest) et `@tiptap/core` (via
+  l'extension image) sont contraintes par override, selon le mécanisme déjà en place. L'audit ne
+  remonte plus aucune faille haute ou critique. Ces avis étaient apparus depuis la 0.20.2 sans
+  être vus : les contrôles frontend ne se déclenchent que lorsqu'un fichier frontend change, ce
+  qu'aucun correctif de cette version n'avait fait avant le numéro de version lui-même.
+
 ## [0.20.2] - 2026-09-05
 
 Version de republication : la 0.20.1 n'a pas pu publier son image `api-web`, le correctif de
