@@ -5,6 +5,28 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.3] - 2026-09-12
+
+Correctif : plus aucune partie comportant un slot Starcraft 2 ne pouvait être générée.
+
+### Corrigé
+
+- **Les listes vides d'un fichier joueur ne sont plus réécrites en dictionnaires.** Le YAML d'un
+  slot est relu puis réécrit par l'API avant d'atteindre le générateur, pour y inscrire le nom du
+  slot. PHP ne faisant pas la différence entre une liste vide et un dictionnaire vide, cette
+  réécriture transformait toute liste vide en `{}`. Starcraft 2 est le premier jeu à en mourir : son
+  option « Custom Mission Order » reconnaît une disposition de missions au fait que la valeur soit
+  un dictionnaire, si bien qu'un `entry_rules: []` devenu `entry_rules: {}` était pris pour une
+  disposition, fusionné avec les réglages globaux de la campagne, puis rejeté par le jeu sur
+  `should be instance of 'list'`. Le fichier téléchargé par le joueur était pourtant correct : la
+  déformation n'existait que côté serveur, ce qui rendait le diagnostic trompeur. Tout jeu
+  imbriquant une liste vide dans une option était exposé ; les listes vides de premier niveau,
+  déjà supprimées à l'enregistrement, avaient masqué le problème jusqu'ici.
+- **Un dictionnaire légitimement vide reste un dictionnaire.** Le sens inverse compte autant :
+  Archipelago refuse un `start_inventory: []` aussi catégoriquement qu'un `entry_rules: {}`.
+  Les deux formes sont désormais distinguées de bout en bout, du fichier du joueur jusqu'au
+  générateur.
+
 ## [0.20.2] - 2026-09-05
 
 Version de republication : la 0.20.1 n'a pas pu publier son image `api-web`, le correctif de
