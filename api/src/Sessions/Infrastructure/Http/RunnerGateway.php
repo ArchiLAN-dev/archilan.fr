@@ -448,7 +448,9 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
 
         try {
-            $parsed = Yaml::parse($rawYaml);
+            // PARSE_OBJECT_FOR_MAP, then collapse back: the only thing kept as an object is the
+            // *empty* mapping, which PHP arrays cannot express. See preserveEmptyMappings().
+            $parsed = $this->preserveEmptyMappings(Yaml::parse($rawYaml, Yaml::PARSE_OBJECT_FOR_MAP));
         } catch (ParseException $e) {
             $this->logger->error('runner.player_yaml_parse_failed', [
                 'slotName' => $slotName,
@@ -479,5 +481,37 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
 
         return new PlayerYaml($slotName, $game, $options);
+    }
+
+    /**
+     * Turns the parsed tree back into plain arrays, keeping only the *empty* mappings as objects.
+     *
+     * A player YAML is parsed here and re-dumped by `PlayerYaml::toYamlString()` before it reaches
+     * the generator. PHP has one empty value for both YAML shapes, so a plain `Yaml::parse()` loses
+     * which one was written and the dumper has to pick: it picks the mapping, and every empty list
+     * in the player's file silently becomes `{}`.
+     *
+     * That is not cosmetic. Starcraft 2 tells a `custom_mission_order` layout from a plain setting
+     * by `type(val) == dict`, so an `entry_rules: []` arriving as `entry_rules: {}` was promoted to
+     * a layout and generation died on `should be instance of 'list'`.
+     *
+     * `PARSE_OBJECT_FOR_MAP` keeps the distinction, at the cost of turning every mapping into a
+     * `stdClass`. Only the empty ones carry information the arrays cannot, so the rest is collapsed
+     * back: callers keep working on arrays, and the empty objects ride through to the dumper, which
+     * writes them as mappings again (see the dump flags on `PlayerYaml`).
+     */
+    private function preserveEmptyMappings(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $properties = get_object_vars($value);
+
+            return [] === $properties ? $value : array_map($this->preserveEmptyMappings(...), $properties);
+        }
+
+        if (is_array($value)) {
+            return array_map($this->preserveEmptyMappings(...), $value);
+        }
+
+        return $value;
     }
 }
