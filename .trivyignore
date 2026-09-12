@@ -50,3 +50,11 @@ CVE-2026-77354 exp:2026-10-01  # api-web: kin-openapi openapi3filter, validation
 # api-web n'atteint plus GHCR et aucune version n'est deployable.
 CVE-2026-56854 exp:2026-09-26  # api-web: golang.org/x/crypto/ssh, aucun serveur SSH dans l'image - #585
 CVE-2026-84304 exp:2026-09-26  # api-web: google.golang.org/grpc, rien d'expose en gRPC - #585
+
+# Troisieme advisory sur le meme module grpc, apparue apres la 0.20.3 et bloquant a son tour la
+# publication de api-web. Deni de service des serveurs xDS de gRPC-Go : l'image ne demarre aucun
+# serveur gRPC ni plan de controle xDS, FrankenPHP tourne en autonome derriere Traefik et c'est
+# Symfony qui sert l'API en HTTP. Meme raisonnement et meme echeance que CVE-2026-84304 ci-dessus,
+# pour que les trois entrees soient revues ensemble. FrankenPHP 1.12.7 (2026-08-20) reste sa
+# derniere version publiee : aucun correctif amont n'existe.
+CVE-2026-84445 exp:2026-09-26  # api-web: google.golang.org/grpc xDS, aucun serveur gRPC dans l'image - #585
