@@ -5,6 +5,22 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.4] - 2026-09-12
+
+Version de republication : la 0.20.3 n'a pas pu publier son image `api-web`, le correctif Starcraft 2
+n'était donc pas déployable.
+
+### Corrigé
+
+- **L'image `api-web` est de nouveau publiable.** Une troisième faille du module gRPC compilé dans
+  le binaire FrankenPHP est apparue après la 0.20.3 et a bloqué la publication à son tour : un déni
+  de service visant les serveurs xDS de gRPC-Go. L'image ne démarre ni serveur gRPC ni plan de
+  contrôle xDS - FrankenPHP tourne en autonome derrière Traefik et c'est Symfony qui sert l'API en
+  HTTP - et FrankenPHP 1.12.7 reste sa dernière version publiée, donc aucune image corrigée n'existe
+  en amont. Une suppression datée, calée sur la même échéance du 26 septembre que les deux entrées
+  voisines pour qu'elles soient revues ensemble, débloque la publication ; le suivi reste ouvert
+  en #585.
+
 ## [0.20.3] - 2026-09-12
 
 Correctif : plus aucune partie comportant un slot Starcraft 2 ne pouvait être générée.
