@@ -1,6 +1,6 @@
 # Epic 38: Santé et mise à jour automatique des apworlds
 
-**Statut :** backlog - stories rédigées le 2026-09-24, 38.1 en cours
+**Statut :** en cours - stories rédigées le 2026-09-24, 38.1 en review
 **Date :** 2026-09-24
 **Origine :** incident Crystal Project du 2026-09-24 - tout slot Crystal Project en YAML vierge échouait
 au test de génération, et personne ne l'avait vu.
