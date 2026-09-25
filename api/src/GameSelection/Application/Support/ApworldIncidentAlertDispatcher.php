@@ -55,6 +55,14 @@ final readonly class ApworldIncidentAlertDispatcher
     }
 
     /**
+     * Story 38.4: an incident opened outside a reconciliation, by a real generation that failed.
+     */
+    public function dispatchOpened(string $incidentId): void
+    {
+        $this->dispatchTransitions([$incidentId], [], []);
+    }
+
+    /**
      * @param list<string> $opened
      * @param list<string> $resolved
      * @param list<string> $ignored

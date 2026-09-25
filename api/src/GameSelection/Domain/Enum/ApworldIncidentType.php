@@ -27,6 +27,12 @@ enum ApworldIncidentType: string
     case UpdateAmbiguous = 'update_ambiguous';
 
     /**
+     * A real generation failed with the game's default YAML on the apworld the game serves (story
+     * 38.4): a player's solo config test or a run generation. The import test can pass on a lucky seed.
+     */
+    case DefaultYamlFailure = 'default_yaml_failure';
+
+    /**
      * Whether the incident is about the apworld the game serves, and so closes by itself once the
      * game serves another hash. False for a type keyed on an apworld the game never served, such as
      * a rejected update candidate (story 38.6).
@@ -34,7 +40,7 @@ enum ApworldIncidentType: string
     public function followsServedApworld(): bool
     {
         return match ($this) {
-            self::PreflightFailed => true,
+            self::PreflightFailed, self::DefaultYamlFailure => true,
             self::UpdateRejected, self::UpdateAmbiguous => false,
         };
     }
@@ -46,7 +52,7 @@ enum ApworldIncidentType: string
     public function isSettledByAPromotion(): bool
     {
         return match ($this) {
-            self::PreflightFailed => false,
+            self::PreflightFailed, self::DefaultYamlFailure => false,
             self::UpdateRejected, self::UpdateAmbiguous => true,
         };
     }

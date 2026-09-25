@@ -113,6 +113,7 @@ final readonly class StaffAlertFactory
             ApworldIncidentType::PreflightFailed => 'Test de génération en échec',
             ApworldIncidentType::UpdateRejected => 'Mise à jour rejetée : la nouvelle version échoue à son test',
             ApworldIncidentType::UpdateAmbiguous => 'Mise à jour à arbitrer : plusieurs apworlds dans la release',
+            ApworldIncidentType::DefaultYamlFailure => 'Échec avec le YAML par défaut : une vraie génération a échoué',
         };
     }
 
