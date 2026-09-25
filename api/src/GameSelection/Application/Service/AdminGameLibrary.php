@@ -18,6 +18,7 @@ use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
@@ -159,7 +160,16 @@ final readonly class AdminGameLibrary
         }
 
         $payload = $this->detailPayload($game);
-        $payload['apworldPreflight'] = $this->preflightForGame($game);
+        $preflight = $this->preflightForGame($game);
+        $payload['apworldPreflight'] = $preflight;
+
+        // Story 38.8: the image in use, and whether the verdict was produced on it. Null when either
+        // is unknown: the page says nothing rather than something false.
+        $runtime = null !== $preflight ? $this->runnerGateway->fetchRuntime() : null;
+        $payload['archipelagoRuntime'] = $runtime;
+        $payload['apworldPreflightOnCurrentImage'] = null !== $preflight && null !== $runtime
+            ? ArchipelagoImageFreshness::isCurrent($preflight['image'] ?? null, $preflight['imageId'] ?? null, $runtime['apImage'], $runtime['apImageId'])
+            : null;
 
         return $payload;
     }
@@ -446,7 +456,7 @@ final readonly class AdminGameLibrary
     /**
      * Toggle the "force allow" override on this game's apworld preflight verdict (story 9.38 AC4).
      *
-     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}}
+     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}}
      */
     public function overrideApworldPreflight(string $gameId, bool $overridden): array
     {
@@ -471,7 +481,7 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
      */
     private function preflightForGame(Game $game): ?array
     {

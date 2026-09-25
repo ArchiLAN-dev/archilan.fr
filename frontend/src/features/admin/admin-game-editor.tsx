@@ -34,6 +34,7 @@ import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
 import {ApworldCandidateStatus} from "./apworld-candidate-status";
+import {ApworldPreflightImage} from "./apworld-preflight-image";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
@@ -1667,6 +1668,14 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                     ) : null}
                 </div>
             </div>
+
+            {preflight !== null && preflight.status !== "pending" ? (
+                <ApworldPreflightImage
+                    image={preflight.image ?? null}
+                    onCurrentImage={game.apworldPreflightOnCurrentImage ?? null}
+                    runtimeImage={game.archipelagoRuntime?.apImage ?? null}
+                />
+            ) : null}
 
             <p className="text-xs text-muted-foreground">
                 Généré seul, avec les options par défaut du template et une seule seed : un échec signale un apworld

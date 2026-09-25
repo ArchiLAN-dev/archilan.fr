@@ -1,6 +1,6 @@
 # Story 38.8: Version de l'image dans les verdicts
 
-**Status:** ready-for-dev
+**Status:** in-progress
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** rien. Prérequis de 38.9.
@@ -89,11 +89,11 @@ local, c'est `archipelago:latest`, qui ne dit rien. L'**identifiant** de l'image
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 5-8) - Orchestrateur : image dans le verdict, `ImageID`, `/runtime`. Branche et PR dans
+- [x] **Task 1** (AC 5-8) - Orchestrateur : image dans le verdict, `ImageID`, `/runtime`. Branche et PR dans
   le dépôt `orchestrateur`, image publiée.
-- [ ] **Task 2** (AC 9-11) - Client PHP, tag `v1.10.0`.
-- [ ] **Task 3** (AC 12-14) - API.
-- [ ] **Task 4** (AC 15) - Frontend.
+- [x] **Task 2** (AC 9-11) - Client PHP, tag `v1.10.0`.
+- [x] **Task 3** (AC 12-14) - API.
+- [x] **Task 4** (AC 15) - Frontend.
 - [ ] **Task 5** (AC 16) - Gates des trois dépôts.
 
 ## Dev Notes
@@ -112,3 +112,53 @@ local, c'est `archipelago:latest`, qui ne dit rien. L'**identifiant** de l'image
 - [Source: orchestrateur/internal/config/config.go] - `APImage`
 - [Source: packages/orchestrateur-client/src/Apworlds/Response/ApworldPreflight.php]
 - [Source: .env.prod.example] - `AP_IMAGE` versionnée en prod
+
+## Dev Agent Record
+
+### PR
+
+- Orchestrateur : ArchiLAN-dev/archilan-orchestrateur#25 (branche `feature/image-dans-les-verdicts`).
+- Client PHP : ArchiLAN-dev/archilan-orchestrateur-client#11, bump `1.10.0` (tag à poser sur le commit de merge).
+- Monorepo : en attente du tag `v1.10.0` pour relever `archilan/orchestrateur-client` dans `composer.json`/`composer.lock`.
+
+### Écarts à la rédaction initiale
+
+- **AC 6 : cache de 5 minutes**, pas pour la durée du process. La référence seule ne fixe pas l'image
+  (`archipelago:latest` reconstruite en local, tag re-poussé) : un cache à vie garderait un id faux
+  jusqu'au redémarrage. L'inspection est locale au daemon, donc peu coûteuse.
+- **AC 10 : `OrchestratorClient::runtime()` rend un `RuntimeClient`** dont `get()` rend le `RuntimeInfo`,
+  selon la convention du package (un sous-client par groupe d'endpoints, voir `HttpTransport`). Une
+  réponse sans image lève une `OrchestratorException` ; un id vide devient `null`.
+- **AC 13 : `image` et `imageId` sont des clés optionnelles** du payload de verdict
+  (`image?: string|null`), ce qui évite de réécrire toutes les fixtures qui construisent ce payload.
+  `RunnerGateway` les pose toujours.
+- **AC 14 : la règle « testé sur l'image courante » est une fonction pure du domaine**,
+  `ArchipelagoImageFreshness::isCurrent()`, que la 38.9 réutilisera : les ids décident quand les deux
+  côtés les connaissent, sinon les références ; un verdict sans image compte comme ancien (AC 4).
+  `detail()` expose `archipelagoRuntime` et `apworldPreflightOnCurrentImage` (`null` si l'image
+  courante est inconnue : la page ne dit rien plutôt que quelque chose de faux).
+- **Le DTO `api.ApworldPreflight` de l'orchestrateur** devait aussi porter l'image : sans son mapping,
+  les champs stockés ne sortaient jamais de l'orchestrateur. Couvert par un test.
+- **Swagger régénéré** : il rattrape aussi des ajouts antérieurs absents de la doc (ajouts uniquement).
+
+### Déroulé TDD
+
+| Dépôt | Étape | Rouge | Vert |
+|---|---|---|---|
+| orchestrateur | `docker.Client.ImageID` | 4 tests, stub : 4 échecs | verts |
+| orchestrateur | `Runtime()`, `applyVerdict` | 3 tests, squelette : 3 échecs | verts |
+| orchestrateur | sidecar ancien, sérialisation | **rouge non observé** : champs déclaratifs, tests écrits avec eux | verts |
+| orchestrateur | handler et route `/runtime` | 2 tests : handler vide, route absente (404) | verts |
+| orchestrateur | mapping du DTO | 1 test : 1 échec | vert |
+| client | image du verdict, `RuntimeClient` | 5 tests : 4 échecs (le verdict ancien passait déjà) | 94 verts |
+| API | `RunnerGateway` | 3 tests : 2 échecs (runner down passait déjà) | verts |
+| API | `ArchipelagoImageFreshness` | 5 tests : 2 échecs | verts |
+| API | `AdminGameLibrary::detail()` | 4 tests : 4 échecs | verts |
+| front | `ApworldPreflightImage` | 4 tests : 4 échecs | verts |
+
+### Vérifications
+
+- `go vet ./...`, `go test ./...` verts. Client : PHPUnit 94, PHPStan niveau 9.
+- `composer gates` vert (2202 tests) **avec le client 1.10.0 copié dans le vendor local** du worktree,
+  en attendant le tag. `pnpm gates` vert (536 tests, les 10 warnings de develop).
+- Pas d'e2e sur une stack locale.
