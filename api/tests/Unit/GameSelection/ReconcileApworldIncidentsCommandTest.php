@@ -8,6 +8,7 @@ use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Command\RecordApworldIncident;
+use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
@@ -74,7 +75,11 @@ final class ReconcileApworldIncidentsCommandTest extends TestCase
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('Apworld candidates: 1 promoted, 0 rejected.', $tester->getDisplay());
         self::assertSame('hash-new', $game->getApworldHash());
-        self::assertContainsOnlyInstancesOf(PostApworldPromotionToStaffChannelJob::class, $bus->messages());
+        // The staff announcement, then the slots of runs not yet launched follow the game (story 38.7).
+        self::assertSame(
+            [PostApworldPromotionToStaffChannelJob::class, ApworldPromoted::class],
+            array_map(static fn (object $m): string => $m::class, $bus->messages()),
+        );
     }
 
     /**

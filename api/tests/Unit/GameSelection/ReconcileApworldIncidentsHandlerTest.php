@@ -9,6 +9,7 @@ use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Command\RecordApworldIncident;
 use App\GameSelection\Application\Handler\ReconcileApworldIncidentsHandler;
+use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
@@ -138,7 +139,12 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         $bus = $this->reconcileOnce([new ServedApworld($game->getId(), 'hash-old')], ['hash-new' => $this->verdict('passed')], $game);
 
         self::assertEquals(
-            [new PostApworldPromotionToStaffChannelJob($candidate->getId(), 'CrystalProject-v0.17.0')],
+            [
+                new PostApworldPromotionToStaffChannelJob($candidate->getId(), 'CrystalProject-v0.17.0'),
+                // Story 38.7: the slots of runs not yet launched follow the game.
+                new ApworldPromoted($game->getId(), 'hash-old', 'hash-new', 'game: Crystal Project
+'),
+            ],
             $bus->messages(),
         );
     }

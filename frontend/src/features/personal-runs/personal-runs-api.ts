@@ -169,6 +169,8 @@ export type GameSelectionSlot = {
   playerYaml: string | null;
   apworldHash: string | null;
   preflight?: SlotPreflightVerdict | null;
+  // Story 38.7: why the slot is to review after its game switched apworld (absent when it holds).
+  needsReview?: string[];
   // Story 16.17: who else plays this slot. Read-only here - only the run owner changes it.
   coPlayers?: SlotCoPlayer[];
 };

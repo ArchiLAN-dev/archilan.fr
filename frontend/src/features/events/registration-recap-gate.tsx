@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle, Settings, XCircle } from "lucide-react";
 
 import { RegistrationStepper } from "@/features/events/registration-stepper";
+import { SlotNeedsReview } from "@/features/games/slot-needs-review";
 
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -246,6 +247,7 @@ export function RegistrationRecapGate({
                       <div className="mt-1">
                         <YamlStatusBadge status={yamlStatus} />
                       </div>
+                      <SlotNeedsReview reasons={slot.needsReview} />
                     </div>
                     {game?.isApworldReady ? (
                       <Link

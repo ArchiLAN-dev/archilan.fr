@@ -182,6 +182,8 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
                 // Story 9.42 review fix: the owner's per-participant view shows the solo
                 // test-generation verdict too, not just the aggregated launch warning.
                 'preflight' => $slot['preflight'] ?? null,
+                // Story 38.7: the owner sees a slot to review like its player does.
+                'needsReview' => $slot['needsReview'] ?? [],
             ];
         }
 

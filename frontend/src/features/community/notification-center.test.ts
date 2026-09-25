@@ -41,3 +41,40 @@ describe("apworld incident notification (story 38.2)", () => {
     expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });
 });
+
+describe("slot to review notification (story 38.7)", () => {
+  const onRun = item("slot_yaml_needs_review", {
+    runId: "run-1",
+    runTitle: "Soirée Crystal",
+    gameId: "game-1",
+    gameName: "Crystal Project",
+    slotId: "slot-1",
+    reasons: ["« goal » : la valeur « moon » n'est plus acceptée."],
+  });
+  const onEvent = item("slot_yaml_needs_review", {
+    eventId: "event-1",
+    eventTitle: "LAN d'automne",
+    registrationId: "reg-1",
+    gameId: "game-1",
+    gameName: "Crystal Project",
+    slotId: "slot-1",
+    reasons: ["« goal » : la valeur « moon » n'est plus acceptée."],
+  });
+
+  it("says which game changed and where", () => {
+    expect(messageFor(onRun)).toBe("Crystal Project a changé de version : ton YAML est à revoir (« Soirée Crystal »)");
+    expect(messageFor(onEvent)).toBe("Crystal Project a changé de version : ton YAML est à revoir (« LAN d'automne »)");
+  });
+
+  it("leads to the run game selection, or to the registration recap where the event slots are configured", () => {
+    expect(hrefFor(onRun)).toBe("/runs/run-1/jeux");
+    expect(hrefFor(onEvent)).toBe("/evenements/event-1/inscription/reg-1/recap");
+  });
+
+  it("stays readable without any detail", () => {
+    const bare = item("slot_yaml_needs_review", {});
+
+    expect(messageFor(bare)).toBe("Un jeu a changé de version : ton YAML est à revoir");
+    expect(hrefFor(bare)).toBe("/compte");
+  });
+});
