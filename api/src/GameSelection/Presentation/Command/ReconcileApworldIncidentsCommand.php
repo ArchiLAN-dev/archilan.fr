@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Presentation\Command;
 
+use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Support\ApworldIncidentAlertDispatcher;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -11,10 +12,15 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-#[AsCommand(name: 'app:apworlds:incidents-reconcile', description: 'Open and resolve apworld incidents from the orchestrator test verdicts, and alert on them (stories 38.1, 38.2).')]
+/**
+ * The five-minute apworld pass, by hand: decide the candidates in test, reconcile the incidents, and
+ * alert exactly like the scheduled run does (stories 38.1, 38.2, 38.6).
+ */
+#[AsCommand(name: 'app:apworlds:incidents-reconcile', description: 'Decide apworld candidates in test, open and resolve apworld incidents, and alert on them (stories 38.1, 38.2, 38.6).')]
 final class ReconcileApworldIncidentsCommand extends Command
 {
     public function __construct(
+        private readonly DecideApworldCandidates $decideCandidates,
         private readonly ReconcileApworldIncidents $reconcile,
         private readonly ApworldIncidentAlertDispatcher $alerts,
     ) {
@@ -23,6 +29,14 @@ final class ReconcileApworldIncidentsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $decisions = $this->decideCandidates->decide();
+        $this->alerts->dispatchForDecisions($decisions);
+        $output->writeln(sprintf(
+            'Apworld candidates: %d promoted, %d rejected.',
+            \count($decisions->promotions),
+            \count($decisions->rejectedCandidateIds),
+        ));
+
         $result = $this->reconcile->reconcile();
 
         if ($result->alreadyRunning) {

@@ -60,6 +60,14 @@ final readonly class DoctrineApworldIncidentRepository implements ApworldInciden
         );
     }
 
+    public function findActiveForGame(string $gameId): array
+    {
+        return $this->entityManager->getRepository(ApworldIncident::class)->findBy(
+            ['gameId' => $gameId, 'status' => self::ACTIVE_STATUSES],
+            ['openedAt' => 'ASC'],
+        );
+    }
+
     public function flush(): void
     {
         $this->entityManager->flush();

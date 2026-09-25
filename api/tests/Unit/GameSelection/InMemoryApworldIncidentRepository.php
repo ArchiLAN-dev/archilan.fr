@@ -61,6 +61,14 @@ final class InMemoryApworldIncidentRepository implements ApworldIncidentReposito
         return array_values(array_filter($this->incidents, static fn (ApworldIncident $i): bool => $i->isActive()));
     }
 
+    public function findActiveForGame(string $gameId): array
+    {
+        return array_values(array_filter(
+            $this->incidents,
+            static fn (ApworldIncident $i): bool => $i->isActive() && $i->getGameId() === $gameId,
+        ));
+    }
+
     public function flush(): void
     {
         ++$this->flushes;

@@ -62,6 +62,8 @@ framework:
             'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
+            'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async
+            'App\CatalogSync\Application\Message\SubmitAutoApworldUpdateJob': async
             'App\PersonalRuns\Application\Message\RunSlotPreflightJob': run_server
 
 when@test:

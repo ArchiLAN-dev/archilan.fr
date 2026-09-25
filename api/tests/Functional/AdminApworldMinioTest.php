@@ -32,7 +32,7 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         parent::tearDown();
     }
 
-    public function testApworldUploadStoresInMinioAndSetsMinioKey(): void
+    public function testApworldUploadStoresInMinioAndCreatesACandidateInTest(): void
     {
         $sha256 = hash('sha256', 'fake apworld content');
 
@@ -58,9 +58,16 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         $minioKey = $sha256.'.apworld';
         self::assertTrue($this->minioStorage->exists('apworlds', $minioKey), 'APWorld should be stored in MinIO');
 
+        // Story 38.6: uploading is not serving. The game switches on promotion, after its test passes.
+        $candidate = $this->candidateFromResponse();
+        self::assertIsArray($candidate);
+        self::assertSame('testing', $candidate['status'] ?? null);
+        self::assertSame($sha256, $candidate['apworldHash'] ?? null);
+
         $game = $this->entityManager->find(Game::class, $gameId);
         self::assertInstanceOf(Game::class, $game);
-        self::assertSame($minioKey, $game->getApworldMinioKey());
+        self::assertNull($game->getApworldMinioKey(), 'the game does not serve the upload before its verdict');
+        self::assertNull($game->getApworldHash());
     }
 
     public function testApworldUploadDeduplicatesIfAlreadyInMinio(): void
@@ -94,9 +101,9 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         // Store count must not have increased (deduplication)
         self::assertCount($storeBefore, $this->minioStorage->getStore());
 
-        $game = $this->entityManager->find(Game::class, $gameId);
-        self::assertInstanceOf(Game::class, $game);
-        self::assertSame($minioKey, $game->getApworldMinioKey());
+        $candidate = $this->candidateFromResponse();
+        self::assertIsArray($candidate);
+        self::assertSame('testing', $candidate['status'] ?? null);
     }
 
     public function testDownloadUrlEndpointReturnsPresignedUrl(): void
@@ -177,5 +184,19 @@ final class AdminApworldMinioTest extends FunctionalTestCase
         self::assertIsString($id);
 
         return $id;
+    }
+
+    /**
+     * Story 38.6: the candidate the upload created, from the game payload of the response.
+     *
+     * @return array<mixed>|null
+     */
+    private function candidateFromResponse(): ?array
+    {
+        $data = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($data);
+        $candidate = $data['apworldCandidate'] ?? null;
+
+        return is_array($candidate) ? $candidate : null;
     }
 }

@@ -210,10 +210,18 @@ export function messageFor(item: NotificationItem): string {
       }
       return `La génération de la partie${runTitle} a échoué`;
     }
-    case "apworld_incident_opened":
+    case "apworld_incident_opened": {
+      // Story 38.6: an update that could not go through is not a broken apworld: say which it is.
+      const problem =
+        hasStringProp(item.data, "incidentType") && item.data.incidentType === "update_rejected"
+          ? "Mise à jour rejetée"
+          : hasStringProp(item.data, "incidentType") && item.data.incidentType === "update_ambiguous"
+            ? "Mise à jour à arbitrer"
+            : "Apworld en échec";
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
-        ? `Apworld en échec : ${item.data.gameName}`
+        ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";
+    }
     default:
       return "Nouvelle notification";
   }

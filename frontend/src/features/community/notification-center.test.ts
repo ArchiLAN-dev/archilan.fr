@@ -28,6 +28,15 @@ describe("apworld incident notification (story 38.2)", () => {
     expect(hrefFor(bare)).toBe("/admin/sante-apworlds");
   });
 
+  it("names an update problem for what it is (story 38.6)", () => {
+    expect(messageFor(item("apworld_incident_opened", { gameName: "Crystal Project", incidentType: "update_rejected" }))).toBe(
+      "Mise à jour rejetée : Crystal Project",
+    );
+    expect(messageFor(item("apworld_incident_opened", { gameName: "Crystal Project", incidentType: "update_ambiguous" }))).toBe(
+      "Mise à jour à arbitrer : Crystal Project",
+    );
+  });
+
   it("leads to the health page even without any detail", () => {
     expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });

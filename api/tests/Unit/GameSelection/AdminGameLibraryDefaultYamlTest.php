@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\GameSelection;
 
 use App\CatalogSync\Application\Service\ApworldVersionChecker;
+use App\GameSelection\Application\Command\SubmitApworldCandidate;
 use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
 use App\GameSelection\Application\Port\GameUsageCounterInterface;
 use App\GameSelection\Application\Port\IgdbHttpClientInterface;
@@ -161,15 +162,15 @@ final class AdminGameLibraryDefaultYamlTest extends TestCase
             self::createStub(AdminGameListQueryInterface::class),
             new NullLogger(),
             $runner ?? self::createStub(RunnerGatewayInterface::class),
-            self::createStub(MinioStorageInterface::class),
             new MockClock(),
-            'apworlds',
             new ApworldVersionChecker(new MockHttpClient([]), new NullLogger(), 'token'),
             $usage,
             new GamePlatformResolver(self::createStub(IgdbHttpClientInterface::class), new NullLogger()),
             $normalizer,
             new GameTutorialSeeder(self::createStub(GameCatalogLinksProviderInterface::class), $normalizer),
             new InstallStepsReader(),
+            new SubmitApworldCandidate(self::createStub(GameRepositoryInterface::class), new InMemoryApworldCandidateRepository(), self::createStub(RunnerGatewayInterface::class), self::createStub(MinioStorageInterface::class), new MockClock(), new NullLogger(), 'apworlds'),
+            new InMemoryApworldCandidateRepository(),
         );
     }
 }

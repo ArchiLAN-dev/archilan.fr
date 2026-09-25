@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Support;
 
 use App\GameSelection\Domain\Entity\ApworldIncident;
+use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldIncidentStatus;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\Sessions\Application\Support\GenerationFailureParser;
@@ -62,15 +63,46 @@ final readonly class StaffAlertFactory
     }
 
     /**
+     * A game switched to a new apworld (story 38.6 AC 11). There is no freeze window around events: the
+     * staff hears about every switch, because the client mod the players need may change with it.
+     * Links to the release when known, the game's admin page otherwise.
+     */
+    public function promoted(
+        string $gameName,
+        string $gameId,
+        ?string $previousVersion,
+        ?string $newVersion,
+        ApworldCandidateOrigin $origin,
+        ?string $forcedByName,
+        ?string $releaseUrl,
+    ): StaffAlert {
+        $lines = [
+            match (true) {
+                null !== $forcedByName => sprintf('Forcée par %s malgré le test.', $forcedByName),
+                ApworldCandidateOrigin::Auto === $origin => 'Mise à jour automatique : la nouvelle version a passé son test de génération.',
+                default => 'Import manuel : la nouvelle version a passé son test de génération.',
+            },
+            'Si le mod client a changé, les joueurs doivent le mettre à jour avant leur prochaine partie.',
+        ];
+
+        return $this->alert(
+            sprintf('%s mis à jour : %s → %s', $gameName, $previousVersion ?? 'version inconnue', $newVersion ?? 'nouvelle version'),
+            $lines,
+            StaffAlertLevel::Info,
+            $releaseUrl ?? sprintf('%s/admin/jeux/%s', rtrim($this->siteUrl, '/'), $gameId),
+        );
+    }
+
+    /**
      * @param list<string> $lines
      */
-    private function alert(string $title, array $lines, StaffAlertLevel $level): StaffAlert
+    private function alert(string $title, array $lines, StaffAlertLevel $level, ?string $url = null): StaffAlert
     {
         return new StaffAlert(
             self::bounded($title, self::TITLE_MAX),
             self::bounded(implode("\n", $lines), self::DESCRIPTION_MAX),
-            // The health page (story 38.3): it shows who holds the incident, and takes the actions.
-            sprintf('%s/admin/sante-apworlds', rtrim($this->siteUrl, '/')),
+            // The health page (story 38.3) by default: it shows who holds the incident, and takes the actions.
+            $url ?? sprintf('%s/admin/sante-apworlds', rtrim($this->siteUrl, '/')),
             $level,
         );
     }
@@ -79,6 +111,8 @@ final readonly class StaffAlertFactory
     {
         return match ($type) {
             ApworldIncidentType::PreflightFailed => 'Test de génération en échec',
+            ApworldIncidentType::UpdateRejected => 'Mise à jour rejetée : la nouvelle version échoue à son test',
+            ApworldIncidentType::UpdateAmbiguous => 'Mise à jour à arbitrer : plusieurs apworlds dans la release',
         };
     }
 

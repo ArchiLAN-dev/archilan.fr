@@ -40,6 +40,10 @@ export type ApworldIncidentActionResult = { ok: true } | { ok: false; message: s
 
 export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   preflight_failed: "Test de génération en échec",
+  // Story 38.6: a new version failed its test, the game kept its current one.
+  update_rejected: "Mise à jour rejetée",
+  // Story 38.6: several apworld files in one release, an admin has to pick.
+  update_ambiguous: "Mise à jour à arbitrer",
 };
 
 export const INCIDENT_STATUS_LABELS: Record<string, string> = {

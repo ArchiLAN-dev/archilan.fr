@@ -101,6 +101,14 @@ describe("ApworldIncidentList", () => {
     expect(html).not.toMatch(/<button(?![^>]*disabled)[^>]*>(?:(?!<\/button>)[\s\S])*Résoudre/);
   });
 
+  test("update incidents are named for what they are (story 38.6)", () => {
+    const html = render([incident({ id: "a", type: "update_rejected" }), incident({ id: "b", type: "update_ambiguous" })]);
+
+    expect(html).toContain("Mise à jour rejetée");
+    expect(html).toContain("Mise à jour à arbitrer");
+    expect(html).not.toContain("update_rejected");
+  });
+
   test("an empty list says so plainly", () => {
     expect(render([])).toContain("Aucun apworld en échec");
   });
