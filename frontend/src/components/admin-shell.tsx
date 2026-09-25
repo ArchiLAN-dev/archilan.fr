@@ -4,7 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, Bot, Calendar, CreditCard, Gamepad2, LayoutDashboard, Library, LogOut, Menu, Newspaper, ShieldAlert, SlidersHorizontal, Timer, Trophy, Users, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, BookOpen, Bot, Calendar, CreditCard, Gamepad2, HeartPulse, LayoutDashboard, Library, LogOut, Menu, Newspaper, ShieldAlert, SlidersHorizontal, Timer, Trophy, Users, X } from "lucide-react";
+import { APWORLD_INCIDENT_SUMMARY_QUERY_KEY, fetchApworldIncidentSummary } from "@/features/admin/admin-apworld-health-api";
 import { AuthProvider, useAuth } from "@/features/auth/auth-context";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
@@ -38,6 +40,7 @@ const navGroups = [
     label: "Archipelago",
     items: [
       { href: "/admin/catalogue", icon: Library, label: "Catalogue", shortLabel: "Catalogue", exact: false },
+      { href: "/admin/sante-apworlds", icon: HeartPulse, label: "Santé apworlds", shortLabel: "Santé", exact: false },
       { href: "/admin/aide-archipelago", icon: BookOpen, label: "Aide Archipelago", shortLabel: "Aide", exact: false },
       { href: "/admin/weekly-runs", icon: Timer, label: "Runs hebdos", shortLabel: "Runs", exact: false },
       { href: "/admin/sessions/config", icon: SlidersHorizontal, label: "Config sessions", shortLabel: "Config", exact: false },
@@ -53,6 +56,19 @@ const navGroups = [
 
 function isItemActive(pathname: string, href: string, exact: boolean): boolean {
   return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Count of items waiting for someone, next to a menu entry. Nothing when there are none. */
+function NavBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      aria-label={`${count} à prendre en charge`}
+      className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[11px] font-bold text-white"
+    >
+      {count}
+    </span>
+  );
 }
 
 function AdminShellSkeleton() {
@@ -99,6 +115,17 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [menuState, setMenuState] = useState({ open: false, pathname });
   const mobileMenuOpen = menuState.open && menuState.pathname === pathname;
+
+  // Story 38.3: apworld incidents nobody has taken yet, as a badge on the health page entry. Declared
+  // before the early returns (rules of hooks), and only fetched for an admin.
+  const isAdmin = user?.roles.includes("ROLE_ADMIN") ?? false;
+  const { data: apworldSummary } = useQuery({
+    queryKey: APWORLD_INCIDENT_SUMMARY_QUERY_KEY,
+    queryFn: fetchApworldIncidentSummary,
+    enabled: isAdmin,
+    staleTime: 60_000,
+  });
+  const badges: Record<string, number> = { "/admin/sante-apworlds": apworldSummary?.unacknowledged ?? 0 };
 
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", mobileMenuOpen);
@@ -170,6 +197,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                   >
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
                     {label}
+                    <NavBadge count={badges[href] ?? 0} />
                   </Link>
                 );
               })}
@@ -221,7 +249,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                 return (
                   <Link
                     className={[
-                      "flex size-10 items-center justify-center rounded transition-colors",
+                      "relative flex size-10 items-center justify-center rounded transition-colors",
                       active
                         ? "bg-surface-2 text-foreground"
                         : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
@@ -231,6 +259,9 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                     title={label}
                   >
                     <Icon aria-hidden="true" className="size-5" />
+                    {(badges[href] ?? 0) > 0 ? (
+                      <span aria-hidden="true" className="absolute right-1.5 top-1.5 size-2 rounded-full bg-danger" />
+                    ) : null}
                   </Link>
                 );
               })}
@@ -319,6 +350,7 @@ function AdminShellInner({ children }: { children: React.ReactNode }) {
                     >
                       <Icon aria-hidden="true" className="size-5 shrink-0" />
                       {label}
+                      <NavBadge count={badges[href] ?? 0} />
                     </Link>
                   );
                 })}

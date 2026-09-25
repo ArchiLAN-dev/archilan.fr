@@ -34,12 +34,12 @@ final readonly class StaffAlertFactory
             sprintf('**Erreur :** %s', GenerationFailureParser::summarize($incident->getError())),
         ];
 
-        return $this->alert(sprintf('Apworld en échec : %s', $gameName), $lines, $incident, StaffAlertLevel::Alert);
+        return $this->alert(sprintf('Apworld en échec : %s', $gameName), $lines, StaffAlertLevel::Alert);
     }
 
     public function acknowledged(ApworldIncident $incident, string $gameName, string $adminName): StaffAlert
     {
-        return $this->alert(sprintf("%s s'occupe de %s", $adminName, $gameName), [], $incident, StaffAlertLevel::Info);
+        return $this->alert(sprintf("%s s'occupe de %s", $adminName, $gameName), [], StaffAlertLevel::Info);
     }
 
     /**
@@ -58,18 +58,19 @@ final readonly class StaffAlertFactory
             ApworldIncidentStatus::Open, ApworldIncidentStatus::Acknowledged => throw new \LogicException(sprintf('Incident %s is still active.', $incident->getId())),
         };
 
-        return $this->alert(sprintf('%s : %s', $gameName, $outcome), [], $incident, StaffAlertLevel::Resolved);
+        return $this->alert(sprintf('%s : %s', $gameName, $outcome), [], StaffAlertLevel::Resolved);
     }
 
     /**
      * @param list<string> $lines
      */
-    private function alert(string $title, array $lines, ApworldIncident $incident, StaffAlertLevel $level): StaffAlert
+    private function alert(string $title, array $lines, StaffAlertLevel $level): StaffAlert
     {
         return new StaffAlert(
             self::bounded($title, self::TITLE_MAX),
             self::bounded(implode("\n", $lines), self::DESCRIPTION_MAX),
-            sprintf('%s/admin/jeux/%s', rtrim($this->siteUrl, '/'), $incident->getGameId()),
+            // The health page (story 38.3): it shows who holds the incident, and takes the actions.
+            sprintf('%s/admin/sante-apworlds', rtrim($this->siteUrl, '/')),
             $level,
         );
     }

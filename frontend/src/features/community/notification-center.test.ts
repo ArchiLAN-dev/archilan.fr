@@ -17,18 +17,18 @@ describe("apworld incident notification (story 38.2)", () => {
     expect(messageFor(opened)).toBe("Apworld en échec : Crystal Project");
   });
 
-  it("leads to the admin page of the game", () => {
-    expect(hrefFor(opened)).toBe("/admin/jeux/game-1");
+  it("leads to the apworld health page", () => {
+    expect(hrefFor(opened)).toBe("/admin/sante-apworlds");
   });
 
   it("stays readable without a game name", () => {
     const bare = item("apworld_incident_opened", { gameId: "game-1" });
 
     expect(messageFor(bare)).toBe("Un apworld est en échec");
-    expect(hrefFor(bare)).toBe("/admin/jeux/game-1");
+    expect(hrefFor(bare)).toBe("/admin/sante-apworlds");
   });
 
-  it("falls back to the games admin list without a game id", () => {
-    expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/jeux");
+  it("leads to the health page even without any detail", () => {
+    expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });
 });

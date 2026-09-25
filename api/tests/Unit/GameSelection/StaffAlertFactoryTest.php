@@ -34,7 +34,7 @@ final class StaffAlertFactoryTest extends TestCase
 
         self::assertSame('Apworld en échec : Crystal Project', $alert->title);
         self::assertSame(StaffAlertLevel::Alert, $alert->level);
-        self::assertSame('https://archilan.fr/admin/jeux/game-1', $alert->url);
+        self::assertSame('https://archilan.fr/admin/sante-apworlds', $alert->url);
         self::assertStringContainsString('Test de génération en échec', $alert->description);
         self::assertStringContainsString('6d1ef721c1b0', $alert->description);
         self::assertStringNotContainsString(self::HASH, $alert->description, 'never the full hash');
@@ -51,7 +51,7 @@ final class StaffAlertFactoryTest extends TestCase
 
         self::assertSame("Jean s'occupe de Crystal Project", $alert->title);
         self::assertSame(StaffAlertLevel::Info, $alert->level);
-        self::assertSame('https://archilan.fr/admin/jeux/game-1', $alert->url);
+        self::assertSame('https://archilan.fr/admin/sante-apworlds', $alert->url);
     }
 
     public function testResolvedAutomaticallySaysSoWithoutAnAdmin(): void
@@ -115,7 +115,7 @@ final class StaffAlertFactoryTest extends TestCase
     {
         $alert = new StaffAlertFactory('https://archilan.fr/')->opened($this->incident('boom'), 'Crystal Project');
 
-        self::assertSame('https://archilan.fr/admin/jeux/game-1', $alert->url);
+        self::assertSame('https://archilan.fr/admin/sante-apworlds', $alert->url);
     }
 
     private function incident(string $error): ApworldIncident
