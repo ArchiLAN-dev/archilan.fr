@@ -19,6 +19,8 @@ final class Game
     public const string UPDATE_STATUS_UNKNOWN = 'unknown';
     public const string UPDATE_STATUS_UP_TO_DATE = 'up_to_date';
     public const string UPDATE_STATUS_UPDATE_AVAILABLE = 'update_available';
+    /** A version number could not be read from a tag (story 38.5): shown, never acted upon. */
+    public const string UPDATE_STATUS_UNDETERMINED = 'undetermined';
 
     #[ORM\OneToOne(mappedBy: 'game', cascade: ['persist', 'remove'])]
     private ?GameCatalogSync $catalogSync = null;

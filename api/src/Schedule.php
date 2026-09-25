@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
@@ -64,6 +65,11 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Backstop côté run : tourne juste après le watchdog session, pour avancer une run dont
                 // le webhook de cycle de vie s'est perdu une fois la session résolue (story 17.14).
                 RecurringMessage::every('2 minutes', new ReconcileStuckRunsMessage()),
+            )
+            ->add(
+                // Story 38.5: the apworld version tracker only ever ran by hand. Nightly, before the
+                // players are up; the automatic update of story 38.6 hangs off its report.
+                RecurringMessage::cron('0 4 * * *', new CheckApworldUpdatesMessage(), new \DateTimeZone('Europe/Paris')),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),

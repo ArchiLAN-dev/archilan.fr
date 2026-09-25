@@ -29,6 +29,7 @@ import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
+import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -504,26 +505,19 @@ function CatalogSyncSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: A
         }
     }
 
-    const statusLabel: Record<string, string> = {
-        up_to_date: "À jour",
-        update_available: "Mise à jour disponible",
-        unknown: "Version inconnue",
-        not_tracked: "Non suivi",
-    };
-
-    const statusColor: Record<string, string> = {
-        up_to_date: "text-success",
-        update_available: "text-warning",
-        unknown: "text-muted-foreground",
-        not_tracked: "text-muted-foreground",
+    const statusColor: Record<ApworldUpdateStatusTone, string> = {
+        warning: "text-warning",
+        success: "text-success",
+        muted: "text-muted-foreground",
+        faint: "text-muted-foreground",
     };
 
     return (
         <Section title="Catalogue & APWorld source">
             {game.updateStatus !== "not_tracked" && (
                 <div className="mb-5 flex flex-wrap gap-4 rounded border border-border bg-surface-2 px-4 py-3 text-sm">
-          <span className={`font-semibold ${statusColor[game.updateStatus] ?? "text-muted-foreground"}`}>
-            {statusLabel[game.updateStatus] ?? game.updateStatus}
+          <span className={`font-semibold ${statusColor[updateStatusTone(game.updateStatus)]}`}>
+            {updateStatusLabel(game.updateStatus)}
           </span>
                     {game.apworldDeployedVersion && (
                         <span className="text-muted-foreground">Déployé : <span
