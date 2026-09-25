@@ -175,7 +175,7 @@ function actorName(item: NotificationItem): string {
   return item.actor?.displayName ?? item.actor?.slug ?? "Quelqu'un";
 }
 
-function messageFor(item: NotificationItem): string {
+export function messageFor(item: NotificationItem): string {
   switch (item.type) {
     case "friend_request_received":
       return `${actorName(item)} t'a envoyé une demande d'ami`;
@@ -210,14 +210,23 @@ function messageFor(item: NotificationItem): string {
       }
       return `La génération de la partie${runTitle} a échoué`;
     }
+    case "apworld_incident_opened":
+      return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
+        ? `Apworld en échec : ${item.data.gameName}`
+        : "Un apworld est en échec";
     default:
       return "Nouvelle notification";
   }
 }
 
-function hrefFor(item: NotificationItem): string {
+export function hrefFor(item: NotificationItem): string {
   if (item.type === "account_flagged") {
     return "/admin/moderation";
+  }
+  if (item.type === "apworld_incident_opened") {
+    // Story 38.2: the game's admin page shows the failing verdict. Story 38.3 will point this at the
+    // apworld health page instead.
+    return hasStringProp(item.data, "gameId") && item.data.gameId !== "" ? `/admin/jeux/${item.data.gameId}` : "/admin/jeux";
   }
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";

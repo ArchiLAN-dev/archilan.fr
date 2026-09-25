@@ -390,6 +390,13 @@ services:
     App\GameSelection\Application\Port\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameUsageCounter'
     App\GameSelection\Domain\Repository\ApworldIncidentRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineApworldIncidentRepository'
     App\GameSelection\Application\Query\ServedApworldsQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalServedApworldsQuery'
+    # Story 38.2: Discord when a staff webhook is configured, nothing otherwise - chosen here, never
+    # by a branch in a handler.
+    App\GameSelection\Application\Port\StaffAlertChannelInterface:
+        factory: ['App\GameSelection\Infrastructure\Adapter\StaffAlertChannelFactory', 'create']
+        arguments:
+            $httpClient: '@http_client'
+            $discordStaffWebhookUrl: '%env(default:default_empty_string:DISCORD_STAFF_WEBHOOK_URL)%'
 
     App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\Dbal\DbalImportedCatalogNamesQuery'
 
