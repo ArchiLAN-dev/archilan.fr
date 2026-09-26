@@ -423,6 +423,14 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false];
         }
 
+        // Checked before anything is written: a portless report used to flush the intermediate
+        // idle->restarting step, then fail on RUNNING and leave the session stuck (story 17.26).
+        if ($apPort <= 0) {
+            $this->logger->warning('session.ready.missing_port', ['sessionId' => $sessionId, 'status' => $session->getStatus()]);
+
+            return ['found' => true, 'error' => 'invalid_port', 'errors' => ['Port invalide pour passer la session en running.']];
+        }
+
         $now = $this->clock->now();
         $host = $this->runnerPublicHost;
         $password = $session->getPassword() ?? '';
@@ -434,10 +442,6 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         // RUNNING->RUNNING transition is illegal, so without this the webhook would be dropped and the
         // API would keep pointing players at the stale, now-freed port.
         if (Session::STATUS_RUNNING === $session->getStatus()) {
-            if ($apPort <= 0) {
-                return ['found' => true, 'errors' => ['Port invalide pour la mise à jour du endpoint.']];
-            }
-
             $session->updateRunningEndpoint($host, $apPort, $bridgePort, $now);
 
             $personalRun = $this->runs->findBySessionId($sessionId);
@@ -870,7 +874,24 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => false, 'status' => null];
         }
 
+        // Never fall back on the stored endpoint: a relaunch always gets a fresh port from the
+        // orchestrateur, and the previous one may already belong to another session (story 17.26).
+        $effectiveHost = '' !== trim($host) ? $host : $this->runnerPublicHost;
+        $effectiveBridgePort = $bridgePort > 0 ? $bridgePort : null;
+        $now = $this->clock->now();
+
         if (Session::STATUS_RUNNING === $session->getStatus()) {
+            if ($port <= 0) {
+                return ['found' => true, 'status' => 'already_running'];
+            }
+
+            // Same rule as session.ready: a running session adopts the endpoint it is reported on.
+            $session->updateRunningEndpoint($effectiveHost, $port, $effectiveBridgePort, $now);
+            $this->runs->findBySessionId($sessionId)?->markRunning($effectiveHost, $port, $now, $session->getPassword());
+            $this->sessions->flush();
+            $this->publish($session);
+            $this->logger->info('session.endpoint_updated', ['sessionId' => $sessionId, 'port' => $port, 'bridgePort' => $effectiveBridgePort]);
+
             return ['found' => true, 'status' => 'already_running'];
         }
 
@@ -878,23 +899,23 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
             return ['found' => true, 'status' => 'unexpected_status'];
         }
 
-        $now = $this->clock->now();
+        if ($port <= 0) {
+            $this->logger->warning('session.restarted.missing_port', ['sessionId' => $sessionId]);
 
-        $effectiveHost = '' !== $host ? $host : ($session->getHost() ?? '');
-        $effectivePort = $port > 0 ? $port : ($session->getPort() ?? 0);
-        $effectiveBridgePort = $bridgePort > 0 ? $bridgePort : ($session->getBridgePort() ?? 0);
+            return ['found' => true, 'status' => 'invalid_endpoint'];
+        }
 
-        $session->resumeRunning($effectiveHost, $effectivePort, $effectiveBridgePort, $now);
+        $session->resumeRunning($effectiveHost, $port, $effectiveBridgePort, $now);
 
         $personalRun = $this->runs->findBySessionId($sessionId);
         if ($personalRun instanceof Run) {
-            $personalRun->markRunning($effectiveHost, $effectivePort, $now, $session->getPassword());
+            $personalRun->markRunning($effectiveHost, $port, $now, $session->getPassword());
         }
 
         $this->sessions->flush();
         $this->publish($session);
 
-        $this->logger->info('session.restarted', ['sessionId' => $sessionId, 'host' => $effectiveHost, 'port' => $effectivePort]);
+        $this->logger->info('session.restarted', ['sessionId' => $sessionId, 'host' => $effectiveHost, 'port' => $port]);
 
         return ['found' => true, 'status' => 'running'];
     }
