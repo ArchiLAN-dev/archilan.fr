@@ -51,11 +51,6 @@ Jean a tranché : le circuit s'applique **à tous les jeux** suivis sur GitHub, 
 11. **Annonce.** Chaque promotion automatique est annoncée sur le salon Discord staff (38.2) : jeu,
     ancienne et nouvelle version, lien vers la release. Le staff peut ainsi prévenir les joueurs si le
     mod client change.
-11 bis. **Plafond par nuit** (ajouté le 2026-09-25, après le premier passage réel de la veille de 38.5 :
-    **233** mises à jour en attente, la veille n'ayant pas tourné depuis mai). Au plus N candidats
-    automatiques par nuit, réglable (`APWORLD_AUTO_UPDATE_BATCH_SIZE`, défaut à décider avec Jean), les
-    jeux qui attendent depuis le plus longtemps d'abord. Le reste passe les nuits suivantes. Sans ce
-    plafond, la première nuit enverrait 233 tests à l'orchestrateur et 233 annonces sur Discord.
 
 ## Critères d'acceptation techniques
 
