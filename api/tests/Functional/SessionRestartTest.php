@@ -250,6 +250,57 @@ final class SessionRestartTest extends FunctionalTestCase
         self::assertResponseStatusCodeSame(200);
     }
 
+    public function testRestartedCallbackOnARunningSessionAdoptsTheNewEndpoint(): void
+    {
+        // Story 17.26: like session.ready, a report of a fresh port for a session the API already
+        // considers running replaces the old endpoint instead of being dropped.
+        $session = $this->createRunningSession();
+
+        $this->postRestarted($session, ['connectionHost' => '10.0.0.1', 'connectionPort' => 35012, 'bridgePort' => 25012]);
+
+        self::assertResponseStatusCodeSame(200);
+        $reloaded = $this->reload($session);
+        self::assertSame(Session::STATUS_RUNNING, $reloaded->getStatus());
+        self::assertSame(35012, $reloaded->getPort());
+        self::assertSame(25012, $reloaded->getBridgePort());
+    }
+
+    public function testRestartedCallbackWithoutAPortIsRefusedInsteadOfReusingTheOldOne(): void
+    {
+        // Story 17.26: the old port was released by the orchestrateur and may belong to another
+        // session by now; writing it back as current would send players to that other server.
+        $session = $this->createRestartingSession();
+
+        $this->postRestarted($session, ['connectionHost' => '10.0.0.1', 'bridgePort' => 25012]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('invalid_endpoint', $this->responseErrorCode());
+        self::assertSame(Session::STATUS_RESTARTING, $this->reload($session)->getStatus());
+    }
+
+    public function testRestartedCallbackWithoutABridgePortClearsTheOldOne(): void
+    {
+        $session = $this->createRestartingSession();
+
+        $this->postRestarted($session, ['connectionHost' => '10.0.0.1', 'connectionPort' => 35012]);
+
+        self::assertResponseStatusCodeSame(200);
+        $reloaded = $this->reload($session);
+        self::assertSame(35012, $reloaded->getPort());
+        self::assertNull($reloaded->getBridgePort(), 'a relaunch never keeps the previous bridge port');
+    }
+
+    public function testRestartedCallbackWithoutAHostUsesThePublicHost(): void
+    {
+        $session = $this->createRestartingSession();
+
+        $this->postRestarted($session, ['connectionPort' => 35012, 'bridgePort' => 25012]);
+
+        self::assertResponseStatusCodeSame(200);
+        $reloaded = $this->reload($session);
+        self::assertSame('localhost', $reloaded->getHost(), 'RUNNER_PUBLIC_HOST in the test env');
+    }
+
     public function testRestartedCallbackUnexpectedStatusReturns422(): void
     {
         $session = $this->createIdleSessionWithSave('sessions/abc/saves/save.apsave');
@@ -339,6 +390,28 @@ final class SessionRestartTest extends FunctionalTestCase
         $this->entityManager->flush();
 
         return $session;
+    }
+
+    /** @param array<string, mixed> $body */
+    private function postRestarted(Session $session, array $body): void
+    {
+        $this->client->request(
+            'POST',
+            '/api/v1/sessions/'.$session->getId().'/restarted',
+            [],
+            [],
+            ['HTTP_AUTHORIZATION' => 'Bearer test-bridge-token', 'CONTENT_TYPE' => 'application/json'],
+            json_encode($body, JSON_THROW_ON_ERROR),
+        );
+    }
+
+    private function reload(Session $session): Session
+    {
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $reloaded);
+
+        return $reloaded;
     }
 
     private function createRestartingSession(): Session

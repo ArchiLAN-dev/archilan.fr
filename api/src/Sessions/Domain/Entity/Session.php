@@ -313,7 +313,7 @@ final class Session
         $this->restartFailed = false;
     }
 
-    public function resumeRunning(string $host, int $port, int $bridgePort, \DateTimeImmutable $now): void
+    public function resumeRunning(string $host, int $port, ?int $bridgePort, \DateTimeImmutable $now): void
     {
         $allowed = self::ALLOWED_TRANSITIONS[$this->status] ?? [];
 
@@ -581,14 +581,33 @@ final class Session
         return $this->validationErrors;
     }
 
+    /**
+     * The address players connect to, only while the session runs. A stopped, idle or crashed session
+     * keeps its last host and port on record, but the orchestrateur released that port when the server
+     * stopped and may have handed it to another session since: serving it would send a player to
+     * someone else's server (story 17.26).
+     *
+     * @return array{host: string, port: int}|null
+     */
+    public function liveEndpoint(): ?array
+    {
+        if (self::STATUS_RUNNING !== $this->status || null === $this->host || null === $this->port) {
+            return null;
+        }
+
+        return ['host' => $this->host, 'port' => $this->port];
+    }
+
     public function payload(): SessionView
     {
+        $endpoint = $this->liveEndpoint();
+
         return new SessionView(
             $this->id,
             $this->eventId,
             $this->status,
-            $this->host,
-            $this->port,
+            $endpoint['host'] ?? null,
+            $endpoint['port'] ?? null,
             $this->password,
             $this->serverPassword,
             $this->bridgePort,

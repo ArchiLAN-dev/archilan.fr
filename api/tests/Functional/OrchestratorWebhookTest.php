@@ -290,6 +290,24 @@ final class OrchestratorWebhookTest extends FunctionalTestCase
         self::assertSame(40000, $refreshed->getPort());
     }
 
+    public function testSessionReadyWithoutAPortIsRefusedBeforeAnyStateChange(): void
+    {
+        // Story 17.26: the idle->restarting step used to be written before RUNNING failed on the
+        // missing port, leaving the session stuck in `restarting` behind a 200.
+        $session = $this->createSessionInStatus(Session::STATUS_RUNNING);
+        $session->markIdle(null, false, new \DateTimeImmutable());
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $this->sendWebhook(['event' => 'session.ready', 'sessionId' => $session->getId(), 'bridgePort' => 25012]);
+
+        self::assertResponseStatusCodeSame(422);
+        $this->entityManager->clear();
+        $refreshed = $this->entityManager->find(Session::class, $session->getId());
+        self::assertInstanceOf(Session::class, $refreshed);
+        self::assertSame(Session::STATUS_IDLE, $refreshed->getStatus());
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private function createSessionInStatus(string $status): Session

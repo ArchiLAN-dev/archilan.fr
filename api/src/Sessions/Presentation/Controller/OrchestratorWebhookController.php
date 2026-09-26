@@ -98,6 +98,9 @@ final readonly class OrchestratorWebhookController
             if (true !== ($result['found'] ?? false)) {
                 return $this->apiAccessGuard->errorResponse('not_found', 'Session introuvable.', 404);
             }
+            if ('invalid_port' === ($result['error'] ?? null)) {
+                return $this->apiAccessGuard->errorResponse('invalid_port', 'Port de connexion manquant.', 422);
+            }
 
             return new JsonResponse(['data' => ['ok' => true]]);
         }
