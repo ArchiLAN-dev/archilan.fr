@@ -54,6 +54,16 @@ final readonly class DbalApworldIncidentListQuery implements ApworldIncidentList
             $qb->andWhere($qb->expr()->eq('i.game_id', ':gameId'))
                 ->setParameter('gameId', $gameId);
         }
+        // The history only grows: it shows its most recently closed part. Every active incident stays.
+        if (ApworldIncidentListScope::Active !== $scope) {
+            $qb->andWhere(sprintf(
+                'i.status IN (:activeStatuses) OR i.id IN (SELECT h.id FROM apworld_incident h WHERE h.status IN (:closedStatuses)%s ORDER BY h.closed_at DESC, h.id ASC LIMIT %d)',
+                null !== $gameId ? ' AND h.game_id = :gameId' : '',
+                self::HISTORY_LIMIT,
+            ))
+                ->setParameter('activeStatuses', self::ACTIVE_STATUSES, ArrayParameterType::STRING)
+                ->setParameter('closedStatuses', self::CLOSED_STATUSES, ArrayParameterType::STRING);
+        }
 
         $items = [];
         foreach ($qb->executeQuery()->fetchAllAssociative() as $row) {

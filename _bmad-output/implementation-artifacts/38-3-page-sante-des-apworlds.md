@@ -147,3 +147,9 @@ destination des alertes de 38.2 et l'outil du « un tel s'en occupe ».
 - Composant d'erreur non extrait de `admin-game-editor.tsx` : l'erreur complète tient dans un `<details>`
   natif, sans composant à partager.
 - AC 8 : pas de date de dernière réconciliation, comme autorisé par les Dev Notes.
+
+## Corrections de revue (2026-09-26)
+
+- **Historique borné** : les portées « fermés » et « tous » ne rendent que les 200 incidents fermés les plus
+  récents (`ApworldIncidentListQueryInterface::HISTORY_LIMIT`), tous les incidents actifs restant listés.
+  L historique ne fait que grandir, et chaque ligne porte une trace de plusieurs Ko.
