@@ -2,6 +2,7 @@ import type { InstallStep } from "@/features/games/install-steps-editor";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import type { ApworldUpdateStatus } from "./apworld-update-status";
 
 export type GameAvailability = "available" | "unavailable" | "experimental";
 
@@ -33,7 +34,7 @@ export type AdminGame = {
   igdbId: number | null;
   platforms: string[];
   installSteps: InstallStep[];
-  updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
+  updateStatus: ApworldUpdateStatus;
   // Admin-only free-text notes (story 3.12). Present only in the admin detail payload, never public.
   adminNotes: string | null;
   // Story 9.38: upload-time solo test-generation verdict of the apworld. Null when never

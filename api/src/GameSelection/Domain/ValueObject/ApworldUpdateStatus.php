@@ -37,11 +37,16 @@ final readonly class ApworldUpdateStatus
             return Game::UPDATE_STATUS_UNKNOWN;
         }
 
-        $latest = ltrim($latestVersion, 'vV');
-        $deployed = ltrim($deployedVersion, 'vV');
+        // Story 38.5: ordered like semver, so an older release is never an update. Anything that does not
+        // read as a version number is "undetermined": shown to admins, never used to update.
+        $latest = ApworldVersion::parse($latestVersion);
+        $deployed = ApworldVersion::parse($deployedVersion);
+        if (null === $latest || null === $deployed) {
+            return Game::UPDATE_STATUS_UNDETERMINED;
+        }
 
-        return $latest === $deployed
-            ? Game::UPDATE_STATUS_UP_TO_DATE
-            : Game::UPDATE_STATUS_UPDATE_AVAILABLE;
+        return $latest->isNewerThan($deployed)
+            ? Game::UPDATE_STATUS_UPDATE_AVAILABLE
+            : Game::UPDATE_STATUS_UP_TO_DATE;
     }
 }

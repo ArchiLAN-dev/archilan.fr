@@ -26,6 +26,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
+import { updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone } from "./apworld-update-status";
 import {
   checkApworldUpdates,
   fetchAdminGameBase,
@@ -931,31 +932,17 @@ function AvailabilityBadge({ availability }: { availability: string }) {
   );
 }
 
+const UPDATE_STATUS_BADGE_CLASSES: Record<ApworldUpdateStatusTone, string> = {
+  warning: "border-warning/50 bg-warning/10 text-warning",
+  success: "border-success/50 bg-success/10 text-success",
+  muted: "border-border bg-surface-2 text-muted-foreground",
+  faint: "border-border bg-surface-2 text-muted-foreground/60",
+};
+
 function UpdateStatusBadge({ status }: { status: ApworldUpdate["updateStatus"] }) {
-  if (status === "update_available") {
-    return (
-      <span className="inline-flex items-center rounded border border-warning/50 bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">
-        Mise à jour disponible
-      </span>
-    );
-  }
-  if (status === "up_to_date") {
-    return (
-      <span className="inline-flex items-center rounded border border-success/50 bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
-        À jour
-      </span>
-    );
-  }
-  if (status === "unknown") {
-    return (
-      <span className="inline-flex items-center rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-        Non vérifié
-      </span>
-    );
-  }
   return (
-    <span className="inline-flex items-center rounded border border-border bg-surface-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground/60">
-      Non suivi
+    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${UPDATE_STATUS_BADGE_CLASSES[updateStatusTone(status)]}`}>
+      {updateStatusLabel(status)}
     </span>
   );
 }

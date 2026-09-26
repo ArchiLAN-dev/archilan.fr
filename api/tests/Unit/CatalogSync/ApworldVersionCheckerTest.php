@@ -227,6 +227,98 @@ final class ApworldVersionCheckerTest extends TestCase
 
         self::assertSame([], $checker->mapApworldAssetHashesByTag($game));
     }
+
+    public function testCheckSkipsPreReleases(): void
+    {
+        // Story 38.5: a pre-release must never become "the latest version", or the daily update would
+        // ship a beta to every player.
+        $game = $this->makeGame('https://github.com/owner/repo', '1.8.0');
+        $checker = new ApworldVersionChecker(new MockHttpClient($this->releasesResponse([
+            $this->release('v2.0.0-beta.1', prerelease: true),
+            $this->release('v1.9.0'),
+        ])), new NullLogger(), 'ghp_test_token');
+
+        $info = $checker->check($game);
+
+        self::assertSame('1.9.0', $info?->latestTag);
+        self::assertSame(Game::UPDATE_STATUS_UPDATE_AVAILABLE, $info->updateStatus);
+    }
+
+    public function testCheckStillSkipsDrafts(): void
+    {
+        $game = $this->makeGame('https://github.com/owner/repo', '1.8.0');
+        $checker = new ApworldVersionChecker(new MockHttpClient($this->releasesResponse([
+            $this->release('v2.0.0', draft: true),
+            $this->release('v1.9.0'),
+        ])), new NullLogger(), 'ghp_test_token');
+
+        self::assertSame('1.9.0', $checker->check($game)?->latestTag);
+    }
+
+    public function testListAssetsSkipsPreReleases(): void
+    {
+        $game = $this->makeGame('https://github.com/owner/repo');
+        $checker = new ApworldVersionChecker(new MockHttpClient($this->releasesResponse([
+            $this->release('v2.0.0-rc.1', prerelease: true),
+            $this->release('v1.9.0'),
+        ])), new NullLogger(), 'ghp_test_token');
+
+        self::assertSame(['1.9.0'], array_column($checker->listAssets($game) ?? [], 'tag'));
+    }
+
+    public function testAnOlderLatestReleaseIsNotAnUpdate(): void
+    {
+        $game = $this->makeGame('https://github.com/owner/repo', 'CrystalProject-v0.17.0');
+        $checker = new ApworldVersionChecker(new MockHttpClient($this->releasesResponse([
+            $this->release('CrystalProject-v0.16.0'),
+        ])), new NullLogger(), 'ghp_test_token');
+
+        $info = $checker->check($game);
+
+        self::assertSame(Game::UPDATE_STATUS_UP_TO_DATE, $info?->updateStatus);
+        self::assertFalse($info->isNewer);
+    }
+
+    public function testAPrefixedTagIsComparedByItsNumber(): void
+    {
+        $game = $this->makeGame('https://github.com/owner/repo', 'CrystalProject-v0.17.0');
+        $checker = new ApworldVersionChecker(new MockHttpClient($this->releasesResponse([
+            $this->release('CrystalProject-v0.18.2'),
+        ])), new NullLogger(), 'ghp_test_token');
+
+        $info = $checker->check($game);
+
+        self::assertSame(Game::UPDATE_STATUS_UPDATE_AVAILABLE, $info?->updateStatus);
+        self::assertTrue($info->isNewer);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function release(string $tag, bool $draft = false, bool $prerelease = false): array
+    {
+        return [
+            'tag_name' => $tag,
+            'name' => $tag,
+            'published_at' => '2026-09-11T22:15:28Z',
+            'html_url' => 'https://github.com/owner/repo/releases/tag/'.$tag,
+            'draft' => $draft,
+            'prerelease' => $prerelease,
+            'assets' => [[
+                'name' => 'world.apworld',
+                'browser_download_url' => 'https://github.com/owner/repo/releases/download/'.$tag.'/world.apworld',
+                'size' => 1024,
+            ]],
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $releases
+     */
+    private function releasesResponse(array $releases): MockResponse
+    {
+        return new MockResponse((string) json_encode($releases), ['response_headers' => ['x-ratelimit-remaining' => ['50']]]);
+    }
 }
 
 final class ApworldSpyLogger extends AbstractLogger
