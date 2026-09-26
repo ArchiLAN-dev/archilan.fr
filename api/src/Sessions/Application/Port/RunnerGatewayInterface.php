@@ -64,9 +64,17 @@ interface RunnerGatewayInterface
      * Returns an empty array when the runner is unreachable - callers MUST fail open (never
      * block on missing data).
      *
-     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}>
+     * @return array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}>
      */
     public function fetchApworldPreflights(): array;
+
+    /**
+     * The Archipelago image the orchestrator runs (story 38.8): its reference and the id of the local
+     * image, null when not inspected. Null when the orchestrator does not answer.
+     *
+     * @return array{apImage: string, apImageId: string|null}|null
+     */
+    public function fetchRuntime(): ?array;
 
     /**
      * Re-run the upload-time preflight for one apworld (asynchronous on the orchestrator).
@@ -78,7 +86,7 @@ interface RunnerGatewayInterface
      * Toggle the admin "force allow" override on a preflight verdict (story 9.38 AC4).
      * Returns the updated verdict, or null when the runner is unreachable.
      *
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}|null
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): ?array;
 

@@ -41,6 +41,10 @@ export type AdminGame = {
   // Story 9.38: upload-time solo test-generation verdict of the apworld. Null when never
   // checked or when the runner is unreachable. Absent on older payloads.
   apworldPreflight?: ApworldPreflight | null;
+  // Story 38.8: the Archipelago image in use, and whether the verdict was produced on it. Null when
+  // either is unknown.
+  archipelagoRuntime?: { apImage: string; apImageId: string | null } | null;
+  apworldPreflightOnCurrentImage?: boolean | null;
   apworldCandidate?: ApworldCandidate | null;
   // Story 9.47: true when `platforms` comes from an admin choice instead of IGDB.
   platformsOverridden?: boolean;
@@ -131,6 +135,9 @@ export type ApworldPreflight = {
   overridden: boolean;
   // True only for failed + non-overridden: the game cannot be newly added to a run.
   blocks: boolean;
+  // Story 38.8: the Archipelago image the verdict was produced on; absent before that story.
+  image?: string | null;
+  imageId?: string | null;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {

@@ -18,6 +18,7 @@ use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
@@ -158,10 +159,7 @@ final readonly class AdminGameLibrary
             return null;
         }
 
-        $payload = $this->detailPayload($game);
-        $payload['apworldPreflight'] = $this->preflightForGame($game);
-
-        return $payload;
+        return $this->detailPayload($game);
     }
 
     /** A template is a whole YAML file with comments: 64 KB is generous and still bounded. */
@@ -446,7 +444,7 @@ final readonly class AdminGameLibrary
     /**
      * Toggle the "force allow" override on this game's apworld preflight verdict (story 9.38 AC4).
      *
-     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}}
+     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}}
      */
     public function overrideApworldPreflight(string $gameId, bool $overridden): array
     {
@@ -471,7 +469,31 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}|null
+     * The verdict of the apworld the game serves, the image in use and whether the verdict was produced on
+     * it (stories 9.38, 38.8). Part of every game payload - the detail and every save answer - so a save
+     * never hands the page a game without its verdict. The image in use is only asked for a verdict that
+     * ran (passed or failed): pending and skipped ones claim no image. Null when unknown: the page says
+     * nothing rather than something false.
+     *
+     * @return array{apworldPreflight: array<string, mixed>|null, archipelagoRuntime: array{apImage: string, apImageId: string|null}|null, apworldPreflightOnCurrentImage: bool|null}
+     */
+    private function preflightPayload(Game $game): array
+    {
+        $preflight = $this->preflightForGame($game);
+        $ran = null !== $preflight && \in_array($preflight['status'], ['passed', 'failed'], true);
+        $runtime = $ran ? $this->runnerGateway->fetchRuntime() : null;
+
+        return [
+            'apworldPreflight' => $preflight,
+            'archipelagoRuntime' => $runtime,
+            'apworldPreflightOnCurrentImage' => null !== $preflight && null !== $runtime
+                ? ArchipelagoImageFreshness::isCurrent($preflight['image'] ?? null, $preflight['imageId'] ?? null, $runtime['apImage'], $runtime['apImageId'])
+                : null,
+        ];
+    }
+
+    /**
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
      */
     private function preflightForGame(Game $game): ?array
     {
@@ -920,7 +942,7 @@ final readonly class AdminGameLibrary
             'installSteps' => $this->stepsReader->present($game->getInstallSteps()),
             'updateStatus' => $game->computeApworldUpdateStatus(),
             'apworldCandidate' => $this->candidatePayload($game),
-        ]);
+        ], $this->preflightPayload($game));
     }
 
     /**
