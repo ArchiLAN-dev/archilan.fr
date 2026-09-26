@@ -224,3 +224,12 @@ couvre l'aller-retour de `needsReview` dans le JSON en base.
 - `frontend/src/features/personal-runs/personal-run-game-selection-page.tsx`,
   `personal-run-participant-detail-page.tsx`, `personal-runs-api.ts`, `types.ts`
 - `frontend/src/features/events/events-api.ts`, `registration-recap-gate.tsx`
+
+## Corrections de revue (2026-09-26)
+
+- **Une vraie unité de travail par run et par event**, en deux temps : chaque slot est d'abord décidé sans
+  rien toucher, puis tout est appliqué et enregistré d'un coup. Une erreur de classement ne laisse plus
+  de modification à moitié faite en mémoire, qu'un flush suivant écrirait ; et un slot qui change
+  d'apworld sans test ni avis (pas de YAML, pas de défaut) est bien enregistré.
+- **Une seule lecture de YAML** : `Shared\Application\Support\YamlDocumentReader` (BOM, document illisible
+  ou vide, document qui n'est pas un mapping), partagée avec la 38.4.

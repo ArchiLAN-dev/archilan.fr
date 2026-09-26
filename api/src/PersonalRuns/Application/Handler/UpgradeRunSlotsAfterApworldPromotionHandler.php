@@ -67,44 +67,48 @@ final readonly class UpgradeRunSlotsAfterApworldPromotionHandler
         }
     }
 
+    /**
+     * Two steps (story 38.7 review): every slot of the run is decided first, touching nothing, so a
+     * failure leaves nothing half applied in memory for a later flush to write; then everything is
+     * applied and saved at once, even a slot that changed apworld without any test or review.
+     */
     private function upgradeRun(Run $run, Game $game, PromotedSlotYaml $plan): void
     {
-        $preflights = [];
-        $notifications = [];
-        $now = $this->clock->now();
-
+        $upgrades = [];
         foreach ($this->participants->findByRunId($run->getId()) as $participant) {
             foreach ($participant->getGameSlots() as $slot) {
-                if (!$plan->concerns($slot['gameId'], $slot['apworldHash'] ?? null)) {
-                    continue;
-                }
-
-                $playerYaml = $slot['playerYaml'] ?? null;
-                $decision = $plan->decide($playerYaml);
-                $participant->upgradeSlotApworld($slot['slotId'], $plan->promotion->newHash, $decision->replacementYaml, $decision->reviewReasons);
-
-                // Every upgraded slot is tested again, like a saved YAML (story 9.42).
-                $effectiveYaml = $decision->replacementYaml ?? $playerYaml;
-                if (null !== $effectiveYaml && '' !== $effectiveYaml) {
-                    $yamlSha = hash('sha256', $effectiveYaml);
-                    $participant->recordSlotPreflight($slot['slotId'], 'pending', '', $yamlSha, $now);
-                    $preflights[] = new RunSlotPreflightJob($run->getId(), $participant->getUserId(), $slot['slotId'], $yamlSha);
-                }
-                if ($decision->needsReview()) {
-                    $notifications[] = [$participant->getUserId(), [
-                        'runId' => $run->getId(),
-                        'runTitle' => $run->getTitle(),
-                        'gameId' => $game->getId(),
-                        'gameName' => $game->getName(),
-                        'slotId' => $slot['slotId'],
-                        'reasons' => $decision->reviewReasons,
-                    ]];
+                if ($plan->concerns($slot['gameId'], $slot['apworldHash'] ?? null)) {
+                    $upgrades[] = [$participant, $slot['slotId'], $slot['playerYaml'] ?? null, $plan->decide($slot['playerYaml'] ?? null)];
                 }
             }
         }
-
-        if ([] === $preflights && [] === $notifications) {
+        if ([] === $upgrades) {
             return;
+        }
+
+        $preflights = [];
+        $notifications = [];
+        $now = $this->clock->now();
+        foreach ($upgrades as [$participant, $slotId, $playerYaml, $decision]) {
+            $participant->upgradeSlotApworld($slotId, $plan->promotion->newHash, $decision->replacementYaml, $decision->reviewReasons);
+
+            // Every upgraded slot is tested again, like a saved YAML (story 9.42).
+            $effectiveYaml = $decision->replacementYaml ?? $playerYaml;
+            if (null !== $effectiveYaml && '' !== $effectiveYaml) {
+                $yamlSha = hash('sha256', $effectiveYaml);
+                $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $now);
+                $preflights[] = new RunSlotPreflightJob($run->getId(), $participant->getUserId(), $slotId, $yamlSha);
+            }
+            if ($decision->needsReview()) {
+                $notifications[] = [$participant->getUserId(), [
+                    'runId' => $run->getId(),
+                    'runTitle' => $run->getTitle(),
+                    'gameId' => $game->getId(),
+                    'gameName' => $game->getName(),
+                    'slotId' => $slotId,
+                    'reasons' => $decision->reviewReasons,
+                ]];
+            }
         }
 
         // The run's unit of work, then what it triggers.
@@ -119,7 +123,8 @@ final readonly class UpgradeRunSlotsAfterApworldPromotionHandler
         $this->logger->info('personal_run.slots_upgraded', [
             'runId' => $run->getId(),
             'gameId' => $game->getId(),
-            'upgraded' => \count($preflights),
+            'upgraded' => \count($upgrades),
+            'tested' => \count($preflights),
             'needsReview' => \count($notifications),
         ]);
     }

@@ -126,6 +126,20 @@ final class UpgradeRunSlotsAfterApworldPromotionHandlerTest extends TestCase
         self::assertSame([], $this->dispatched);
     }
 
+    public function testASlotUpgradedWithoutTestNorReviewIsStillSaved(): void
+    {
+        // Story 38.7 review: no YAML on the slot and none in the new version - nothing to test, nothing to
+        // review, but the slot did change apworld and must be saved.
+        $this->game->configureApworld('hash-new.apworld', 'hash-new', 'Crystal Project', '', new \DateTimeImmutable());
+        $this->slots(['slot-1' => '']);
+
+        $this->handle();
+
+        self::assertSame('hash-new', $this->participant->getSlot('slot-1')['apworldHash'] ?? null);
+        self::assertSame([], $this->dispatched);
+        self::assertSame(1, $this->flushes);
+    }
+
     public function testALaunchedRunIsNeverTouched(): void
     {
         $this->slots(['slot-1' => "name: Jean\ngame: Crystal Project\nCrystal Project:\n  goal: moon\n"]);

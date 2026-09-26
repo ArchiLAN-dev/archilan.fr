@@ -66,43 +66,40 @@ final readonly class UpgradeRegistrationSlotsAfterApworldPromotionHandler
 
     private function upgradeEvent(Event $event, Game $game, PromotedSlotYaml $plan): void
     {
-        $upgraded = 0;
-        $notifications = [];
-        $now = $this->clock->now();
-
+        // Two steps (story 38.7 review): decide every slot of the event first, touching nothing, then apply.
+        $upgrades = [];
         foreach ($this->registrations->findBy(['eventId' => $event->getId(), 'status' => Registration::STATUS_RESERVED]) as $registration) {
             foreach ($registration->getGameSlots() as $slot) {
                 if (!$plan->concerns($slot['gameId'], $slot['apworldHash'] ?? null)) {
                     continue;
                 }
                 $playerYaml = $slot['playerYaml'] ?? null;
-                if (null === $playerYaml || '' === trim($playerYaml)) {
-                    $registration->upgradeSlotApworld($slot['slotId'], $plan->promotion->newHash, null, [], $now);
-                    ++$upgraded;
-
-                    continue;
-                }
-
-                $decision = $plan->decide($playerYaml);
-                $registration->upgradeSlotApworld($slot['slotId'], $plan->promotion->newHash, $decision->replacementYaml, $decision->reviewReasons, $now);
-                ++$upgraded;
-                if ($decision->needsReview()) {
-                    $notifications[] = [$registration->getUserId(), [
-                        'eventId' => $event->getId(),
-                        'eventTitle' => $event->getTitle(),
-                        'registrationId' => $registration->getId(),
-                        'gameId' => $game->getId(),
-                        'gameName' => $game->getName(),
-                        'slotId' => $slot['slotId'],
-                        'reasons' => $decision->reviewReasons,
-                    ]];
-                }
+                // A slot without YAML stays without: the default is resolved at generation.
+                $decision = null === $playerYaml || '' === trim($playerYaml) ? null : $plan->decide($playerYaml);
+                $upgrades[] = [$registration, $slot['slotId'], $decision];
             }
         }
-
-        if (0 === $upgraded) {
+        if ([] === $upgrades) {
             return;
         }
+
+        $notifications = [];
+        $now = $this->clock->now();
+        foreach ($upgrades as [$registration, $slotId, $decision]) {
+            $registration->upgradeSlotApworld($slotId, $plan->promotion->newHash, $decision?->replacementYaml, $decision->reviewReasons ?? [], $now);
+            if (null !== $decision && $decision->needsReview()) {
+                $notifications[] = [$registration->getUserId(), [
+                    'eventId' => $event->getId(),
+                    'eventTitle' => $event->getTitle(),
+                    'registrationId' => $registration->getId(),
+                    'gameId' => $game->getId(),
+                    'gameName' => $game->getName(),
+                    'slotId' => $slotId,
+                    'reasons' => $decision->reviewReasons,
+                ]];
+            }
+        }
+        $upgraded = \count($upgrades);
 
         // The event's unit of work, then what it triggers.
         $this->registrations->flush();

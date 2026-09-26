@@ -9,8 +9,7 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Enum\SlotYamlCase;
 use App\GameSelection\Domain\Service\SlotYamlCompatibility;
 use App\GameSelection\Domain\ValueObject\SlotYamlIssue;
-use Symfony\Component\Yaml\Exception\ParseException;
-use Symfony\Component\Yaml\Yaml;
+use App\Shared\Application\Support\YamlDocumentReader;
 
 /**
  * What an apworld promotion means for one player slot (story 38.7), shared by the personal runs and the
@@ -39,8 +38,8 @@ final readonly class PromotedSlotYaml
         return new self(
             $promotion,
             $newDefaultYaml,
-            self::parse($promotion->previousDefaultYaml) ?? [],
-            self::parse($newDefaultYaml) ?? [],
+            YamlDocumentReader::read($promotion->previousDefaultYaml) ?? [],
+            YamlDocumentReader::read($newDefaultYaml) ?? [],
             $game->getEffectiveOptionTypes() ?? [],
         );
     }
@@ -70,7 +69,7 @@ final readonly class PromotedSlotYaml
         if (null === $playerYaml || '' === trim($playerYaml)) {
             $verdict = SlotYamlCompatibility::classify(null, $this->oldDefault, $this->newDefault, $this->newTypes);
         } else {
-            $parsed = self::parse($playerYaml);
+            $parsed = YamlDocumentReader::read($playerYaml);
             $verdict = null === $parsed
                 ? SlotYamlCompatibility::unreadable()
                 : SlotYamlCompatibility::classify($parsed, $this->oldDefault, $this->newDefault, $this->newTypes);
@@ -80,22 +79,5 @@ final readonly class PromotedSlotYaml
             SlotYamlCase::ReplaceWithDefault === $verdict->case ? $this->newDefaultYaml : null,
             array_map(static fn (SlotYamlIssue $issue): string => $issue->message(), $verdict->issues),
         );
-    }
-
-    /**
-     * @return array<mixed>|null null when absent or unreadable
-     */
-    private static function parse(?string $yaml): ?array
-    {
-        if (null === $yaml || '' === trim($yaml)) {
-            return null;
-        }
-        try {
-            $parsed = Yaml::parse(str_starts_with($yaml, "\u{FEFF}") ? substr($yaml, 3) : $yaml);
-        } catch (ParseException) {
-            return null;
-        }
-
-        return is_array($parsed) ? $parsed : null;
     }
 }
