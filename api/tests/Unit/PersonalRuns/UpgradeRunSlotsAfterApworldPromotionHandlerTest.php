@@ -56,7 +56,7 @@ final class UpgradeRunSlotsAfterApworldPromotionHandlerTest extends TestCase
         self::assertSame(self::NEW_DEFAULT, $slot['playerYaml'] ?? null);
         self::assertSame('hash-new', $slot['apworldHash'] ?? null);
         self::assertSame('pending', $slot['preflight']['status'] ?? null);
-        self::assertEquals([new RunSlotPreflightJob($this->run->getId(), 'player-1', 'slot-1', hash('sha256', self::NEW_DEFAULT))], $this->dispatched);
+        self::assertEquals([new RunSlotPreflightJob($this->run->getId(), 'player-1', 'slot-1', hash('sha256', self::NEW_DEFAULT), apworldHash: 'hash-new')], $this->dispatched);
         self::assertSame([], $this->notifier->sent);
         self::assertSame(1, $this->flushes);
     }
@@ -72,7 +72,7 @@ final class UpgradeRunSlotsAfterApworldPromotionHandlerTest extends TestCase
         self::assertSame($custom, $slot['playerYaml'] ?? null, 'never rewritten, not even re-dumped');
         self::assertSame('hash-new', $slot['apworldHash'] ?? null);
         self::assertArrayNotHasKey('needsReview', $slot);
-        self::assertEquals([new RunSlotPreflightJob($this->run->getId(), 'player-1', 'slot-1', hash('sha256', $custom))], $this->dispatched);
+        self::assertEquals([new RunSlotPreflightJob($this->run->getId(), 'player-1', 'slot-1', hash('sha256', $custom), apworldHash: 'hash-new')], $this->dispatched);
         self::assertSame([], $this->notifier->sent);
     }
 

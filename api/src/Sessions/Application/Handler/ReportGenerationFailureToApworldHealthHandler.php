@@ -72,7 +72,7 @@ final readonly class ReportGenerationFailureToApworldHealthHandler
 
             $report = $run instanceof Run
                 ? $this->personalRunReport($run, $slot, $slotId, $finding['message'])
-                : $this->eventReport($slot, $slotId, $finding['message']);
+                : $this->eventReport($slot, $slotId, $finding['message'], $job->servedApworldHashByGameId[$slot->getGameId()] ?? null);
             if (null !== $report) {
                 $reported[$slotId] = true;
                 $this->messageBus->dispatch($report);
@@ -90,13 +90,14 @@ final readonly class ReportGenerationFailureToApworldHealthHandler
         return new ReportDefaultYamlFailureJob($slot->getGameId(), $runSlot['apworldHash'] ?? null, $runSlot['playerYaml'] ?? '', $error);
     }
 
-    private function eventReport(SessionSlot $slot, string $slotId, string $error): ?ReportDefaultYamlFailureJob
+    private function eventReport(SessionSlot $slot, string $slotId, string $error, ?string $servedAtCrash): ?ReportDefaultYamlFailureJob
     {
         $registrationSlot = $this->registrations->findById($slot->getRegistrationId())?->getSlot($slotId);
         if (null === $registrationSlot) {
             return null;
         }
 
-        return new ReportDefaultYamlFailureJob($slot->getGameId(), null, $registrationSlot['playerYaml'] ?? '', $error);
+        // The apworld served at the crash; null for a job queued before it was captured (served now).
+        return new ReportDefaultYamlFailureJob($slot->getGameId(), $servedAtCrash, $registrationSlot['playerYaml'] ?? '', $error);
     }
 }

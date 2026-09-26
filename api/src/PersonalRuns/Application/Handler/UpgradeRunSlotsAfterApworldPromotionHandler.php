@@ -97,7 +97,7 @@ final readonly class UpgradeRunSlotsAfterApworldPromotionHandler
             if (null !== $effectiveYaml && '' !== $effectiveYaml) {
                 $yamlSha = hash('sha256', $effectiveYaml);
                 $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $now);
-                $preflights[] = new RunSlotPreflightJob($run->getId(), $participant->getUserId(), $slotId, $yamlSha);
+                $preflights[] = new RunSlotPreflightJob($run->getId(), $participant->getUserId(), $slotId, $yamlSha, apworldHash: $plan->promotion->newHash);
             }
             if ($decision->needsReview()) {
                 $notifications[] = [$participant->getUserId(), [

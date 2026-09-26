@@ -65,6 +65,24 @@ final class ReportGenerationFailureToApworldHealthHandlerTest extends TestCase
         self::assertEquals([new ReportDefaultYamlFailureJob('game-1', null, '', 'boom')], $this->dispatched);
     }
 
+    public function testAnEventSlotIsReportedOnTheApworldServedAtTheCrash(): void
+    {
+        // Story 38.4 review: a promotion between the crash and this job must not take the blame.
+        $now = new \DateTimeImmutable('2026-09-20');
+        $registration = new Registration('reg-1', 'event-1', 'user-1', Registration::STATUS_RESERVED, $now, $now, [
+            ['slotId' => 'slot-1', 'gameId' => 'game-1', 'slotOrder' => 1, 'playerYaml' => null],
+        ]);
+
+        $this->handle(
+            [SessionSlot::create('ss-1', 'session-1', 'reg-1', 'game-1', 'Jean', 0, 'slot-1')],
+            [['slotName' => 'Jean', 'message' => 'boom']],
+            registration: $registration,
+            servedAtCrash: ['game-1' => 'hash-at-crash'],
+        );
+
+        self::assertEquals([new ReportDefaultYamlFailureJob('game-1', 'hash-at-crash', '', 'boom')], $this->dispatched);
+    }
+
     public function testAnUnattributedFailureReportsNothing(): void
     {
         $this->handle(
@@ -110,8 +128,9 @@ final class ReportGenerationFailureToApworldHealthHandlerTest extends TestCase
     /**
      * @param list<SessionSlot>                                   $slots
      * @param list<array{slotName: string|null, message: string}> $findings
+     * @param array<string, string>                               $servedAtCrash
      */
-    private function handle(array $slots, array $findings, ?Run $run = null, ?RunParticipant $participant = null, ?Registration $registration = null): void
+    private function handle(array $slots, array $findings, ?Run $run = null, ?RunParticipant $participant = null, ?Registration $registration = null, array $servedAtCrash = []): void
     {
         $sessionSlots = self::createStub(SessionSlotRepositoryInterface::class);
         $sessionSlots->method('findBySessionId')->willReturn($slots);
@@ -129,7 +148,7 @@ final class ReportGenerationFailureToApworldHealthHandlerTest extends TestCase
         });
 
         new ReportGenerationFailureToApworldHealthHandler($sessionSlots, $runs, $participants, $registrations, $bus, new NullLogger())(
-            new NotifyGenerationFailureJob('session-1', $findings),
+            new NotifyGenerationFailureJob('session-1', $findings, $servedAtCrash),
         );
     }
 }

@@ -46,9 +46,9 @@ final readonly class RunSlotPreflightJobHandler
 
         $slot = $participant->getSlot($job->slotId);
         $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
-        if (null === $slot || '' === $yaml || hash('sha256', $yaml) !== $job->yamlSha) {
-            // Slot removed or yaml edited since the check was requested: the result would
-            // describe a config that no longer exists.
+        if (null === $slot || '' === $yaml || self::isStale($job, $slot)) {
+            // Slot removed, yaml edited or apworld changed since the check was requested: the result
+            // would describe a config that no longer exists.
             return;
         }
 
@@ -67,7 +67,7 @@ final readonly class RunSlotPreflightJobHandler
     private function start(RunSlotPreflightJob $job, array $slot): void
     {
         $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
-        $apworldHash = is_string($slot['apworldHash'] ?? null) && '' !== $slot['apworldHash'] ? $slot['apworldHash'] : null;
+        $apworldHash = $job->apworldHash ?? (is_string($slot['apworldHash'] ?? null) && '' !== $slot['apworldHash'] ? $slot['apworldHash'] : null);
 
         $orchestratorJobId = $this->runnerGateway->startSlotPreflight($yaml, $apworldHash);
         if (null === $orchestratorJobId) {
@@ -77,7 +77,7 @@ final readonly class RunSlotPreflightJobHandler
         }
 
         $this->messageBus->dispatch(
-            new RunSlotPreflightJob($job->runId, $job->userId, $job->slotId, $job->yamlSha, $orchestratorJobId, 0),
+            new RunSlotPreflightJob($job->runId, $job->userId, $job->slotId, $job->yamlSha, $orchestratorJobId, 0, $apworldHash),
             [new DelayStamp(self::POLL_DELAY_MS)],
         );
     }
@@ -115,7 +115,7 @@ final readonly class RunSlotPreflightJobHandler
         }
 
         $this->messageBus->dispatch(
-            new RunSlotPreflightJob($job->runId, $job->userId, $job->slotId, $job->yamlSha, $jobId, $job->polls + 1),
+            new RunSlotPreflightJob($job->runId, $job->userId, $job->slotId, $job->yamlSha, $jobId, $job->polls + 1, $job->apworldHash),
             [new DelayStamp(self::POLL_DELAY_MS)],
         );
     }
@@ -129,7 +129,7 @@ final readonly class RunSlotPreflightJobHandler
         }
         $slot = $participant->getSlot($job->slotId);
         $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
-        if (null === $slot || hash('sha256', $yaml) !== $job->yamlSha) {
+        if (null === $slot || self::isStale($job, $slot)) {
             return;
         }
 
@@ -143,9 +143,20 @@ final readonly class RunSlotPreflightJobHandler
 
             // After the flush: whether the apworld is at fault is judged off this transaction (story 38.4).
             if ($reportFailure && 'failed' === $status) {
-                $apworldHash = $slot['apworldHash'] ?? null;
-                $this->messageBus->dispatch(new ReportDefaultYamlFailureJob($slot['gameId'], $apworldHash, $yaml, $error));
+                // The apworld actually tested, not whatever the slot holds now.
+                $this->messageBus->dispatch(new ReportDefaultYamlFailureJob($slot['gameId'], $job->apworldHash ?? $slot['apworldHash'] ?? null, $yaml, $error));
             }
         }
+    }
+
+    /**
+     * @param array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null} $slot
+     */
+    private static function isStale(RunSlotPreflightJob $job, array $slot): bool
+    {
+        $yaml = is_string($slot['playerYaml'] ?? null) ? $slot['playerYaml'] : '';
+
+        return hash('sha256', $yaml) !== $job->yamlSha
+            || (null !== $job->apworldHash && ($slot['apworldHash'] ?? '') !== $job->apworldHash);
     }
 }

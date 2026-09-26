@@ -9,9 +9,8 @@ use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\GameSelection\Domain\Repository\ApworldIncidentRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Domain\Service\DefaultYamlEquivalence;
+use App\Shared\Application\Support\YamlDocumentReader;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Yaml\Exception\ParseException;
-use Symfony\Component\Yaml\Yaml;
 
 /**
  * A real generation failed for one slot (story 38.4): a player's solo config test, or a run generation
@@ -51,13 +50,13 @@ final readonly class ReportDefaultYamlFailure
         }
 
         if ('' !== trim($playerYaml)) {
-            $player = self::parse($playerYaml);
+            $player = YamlDocumentReader::read($playerYaml);
             if (null === $player) {
                 $this->logger->warning('apworld_incident.default_yaml_failure.unreadable_yaml', ['gameId' => $gameId]);
 
                 return new DefaultYamlFailureReport(DefaultYamlFailureVerdict::UnreadableYaml);
             }
-            if (!DefaultYamlEquivalence::isEquivalent($player, self::parse($game->getDefaultYaml() ?? '') ?? [])) {
+            if (!DefaultYamlEquivalence::isEquivalent($player, YamlDocumentReader::read($game->getDefaultYaml() ?? '') ?? [])) {
                 return new DefaultYamlFailureReport(DefaultYamlFailureVerdict::CustomYaml);
             }
         }
@@ -66,19 +65,5 @@ final readonly class ReportDefaultYamlFailure
         $this->incidents->flush();
 
         return new DefaultYamlFailureReport(DefaultYamlFailureVerdict::ApworldAccused, $recording);
-    }
-
-    /**
-     * @return array<mixed>|null null when unreadable
-     */
-    private static function parse(string $yaml): ?array
-    {
-        try {
-            $parsed = Yaml::parse(str_starts_with($yaml, "\u{FEFF}") ? substr($yaml, 3) : $yaml);
-        } catch (ParseException) {
-            return null;
-        }
-
-        return is_array($parsed) ? $parsed : null;
     }
 }

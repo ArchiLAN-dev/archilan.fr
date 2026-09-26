@@ -138,6 +138,31 @@ FillError: No more spots to place items.']);
         self::assertSame([], $this->dispatched);
     }
 
+    public function testAResultOnAnotherApworldThanTheSlotsIsDropped(): void
+    {
+        // Story 38.4 review: a test started on the old apworld and finished after the slot moved to the new
+        // one (story 38.7) - same YAML, so the same sha - must not land on the new apworld.
+        $participant = $this->participant();
+        $handler = $this->handler($participant, pollResult: ['status' => 'failed', 'error' => 'FillError: boom']);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 3, apworldHash: 'hash-0'));
+
+        self::assertArrayNotHasKey('preflight', $participant->getSlot('slot-1') ?? []);
+        self::assertSame([], $this->dispatched);
+    }
+
+    public function testTheTestedApworldFollowsTheJob(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), apworldHash: 'hash-1'));
+
+        $message = $this->dispatched[0]->getMessage();
+        self::assertInstanceOf(RunSlotPreflightJob::class, $message);
+        self::assertSame('hash-1', $message->apworldHash);
+    }
+
     public function testAPassedTestReportsNothing(): void
     {
         $this->handler($this->participant(), pollResult: ['status' => 'passed', 'error' => ''])(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 0));

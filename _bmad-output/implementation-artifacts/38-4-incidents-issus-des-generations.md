@@ -181,3 +181,15 @@ Un slot d'archive importée (story 16.18) a un `gameId` vide : il est ignoré.
   `ReportGenerationFailureToApworldHealthHandlerTest`, `StaffAlertFactoryTest`
 - `frontend/src/features/admin/admin-apworld-health-api.ts`, `apworld-incident-list.test.tsx`
 - `frontend/src/features/community/notification-center.tsx` (+ test)
+
+## Corrections de revue (2026-09-26)
+
+- **Un résultat de test porte l'apworld qu'il a testé.** `RunSlotPreflightJob` gagne `apworldHash`, fixé à
+  l'envoi et gardé à chaque relance. Un résultat obtenu sur un autre apworld que celui du slot est écarté :
+  un test lancé sur l'ancienne version et fini après la bascule de la 38.7 (même YAML, donc même `yamlSha`)
+  n'arrive plus sur la nouvelle, ni n'ouvre d'incident contre elle. Règle aussi la limite connue notée en 38.7.
+  Un job mis en file avant ce champ (null) reste traité comme avant.
+- **Pour un event, l'apworld servi au moment du crash** : `SessionLifecycleManager` le capture pour chaque jeu
+  de la session et le passe dans `NotifyGenerationFailureJob`. Une promotion entre le crash et le job
+  n'endosse plus l'échec.
+- **Lecture de YAML partagée** avec la 38.7 (`YamlDocumentReader`).

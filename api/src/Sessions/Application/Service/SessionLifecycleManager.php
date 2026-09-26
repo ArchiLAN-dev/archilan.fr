@@ -10,6 +10,7 @@ use App\Communications\Application\Message\SessionRunningMessage;
 use App\Content\Domain\Entity\Post;
 use App\Events\Domain\Entity\Event;
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Entity\Run;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
@@ -56,6 +57,7 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
         private WeeklyEntryRepositoryInterface $weeklyEntries,
         private AchievementRecomputeTriggerInterface $achievementRecomputeTrigger,
         private ClockInterface $clock,
+        private ServedApworldsQueryInterface $servedApworlds,
         private string $runnerPublicHost = 'localhost',
     ) {
     }
@@ -266,11 +268,31 @@ final readonly class SessionLifecycleManager implements SessionReconcilerInterfa
                 ],
                 $report->findings,
             ),
+            $this->servedApworldHashes($sessionId),
         ));
 
         $this->logger->error('session.crash.failed', ['sessionId' => $sessionId, 'from' => $from, 'reason' => $reason]);
 
         return ['found' => true];
+    }
+
+    /**
+     * The apworld each game of the session serves now, at the crash (story 38.4 review): the apworld
+     * health reads it later, and an event slot records no hash of its own.
+     *
+     * @return array<string, string>
+     */
+    private function servedApworldHashes(string $sessionId): array
+    {
+        $gameIds = array_map(static fn (SessionSlot $slot): string => $slot->getGameId(), $this->slots->findBySessionId($sessionId));
+        $hashes = [];
+        foreach ($this->servedApworlds->servedApworlds() as $served) {
+            if (\in_array($served->gameId, $gameIds, true)) {
+                $hashes[$served->gameId] = $served->apworldHash;
+            }
+        }
+
+        return $hashes;
     }
 
     /**
