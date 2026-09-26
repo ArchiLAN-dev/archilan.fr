@@ -46,6 +46,23 @@ final class GameCatalogSync
         $game->attachCatalogSync($this);
     }
 
+    /**
+     * When the nightly check last tried this game (story 38.5 review), whatever the outcome. Distinct
+     * from `apworldCheckedAt`, which holds the publication date of the latest release.
+     */
+    #[ORM\Column(name: 'apworld_last_checked_at', type: 'datetimetz_immutable', nullable: true)]
+    private ?\DateTimeImmutable $apworldLastCheckedAt = null;
+
+    public function markApworldChecked(\DateTimeImmutable $at): void
+    {
+        $this->apworldLastCheckedAt = $at;
+    }
+
+    public function getApworldLastCheckedAt(): ?\DateTimeImmutable
+    {
+        return $this->apworldLastCheckedAt;
+    }
+
     public function update(
         ?string $catalogSheetName,
         ?string $apworldSourceUrl,
