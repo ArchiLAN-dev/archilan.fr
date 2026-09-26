@@ -224,9 +224,8 @@ export function hrefFor(item: NotificationItem): string {
     return "/admin/moderation";
   }
   if (item.type === "apworld_incident_opened") {
-    // Story 38.2: the game's admin page shows the failing verdict. Story 38.3 will point this at the
-    // apworld health page instead.
-    return hasStringProp(item.data, "gameId") && item.data.gameId !== "" ? `/admin/jeux/${item.data.gameId}` : "/admin/jeux";
+    // The apworld health page (story 38.3): the incident, who holds it, and the actions.
+    return "/admin/sante-apworlds";
   }
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";

@@ -29,6 +29,8 @@ import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
+import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
+import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -68,6 +70,14 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
         },
     });
     const loadState: LoadState = data ?? {kind: "loading"};
+
+    // Story 38.3 AC6: the active incidents of this game's apworld, as a banner. Shares the incident
+    // query prefix, so an action on the health page refreshes it.
+    const {data: activeIncidents} = useQuery({
+        queryKey: [...APWORLD_INCIDENTS_QUERY_KEY, "game", gameId],
+        queryFn: () => fetchApworldIncidents("active", gameId),
+        staleTime: DEFAULT_STALE_TIME,
+    });
 
     // Mutation handlers push the PATCH/POST response straight into the cache: no refetch, the
     // sections keep their no-flash update semantics.
@@ -119,6 +129,8 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 </div>
                 <p className="font-mono text-sm text-muted-foreground">{game.slug}</p>
             </header>
+
+            <ApworldIncidentBanner incidents={activeIncidents ?? []}/>
 
             <div
                 aria-label="Sections de configuration du jeu"
