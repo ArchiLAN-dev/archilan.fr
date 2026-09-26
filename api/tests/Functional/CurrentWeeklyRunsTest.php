@@ -204,16 +204,43 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         // familles, l'une veut l'URI complète, l'autre hôte et port séparés (epic 37).
         self::assertSame('wss://archipelago.archilan.fr:38281', $connectionInfo['uri']);
 
-        // Deux chemins produisent ce bloc dans la même requête - la vue « ma run » et la liste des
-        // participants. S'ils divergeaient, la même run afficherait deux adresses selon la page,
-        // et rien ne le signalerait.
+        // L'adresse et le mot de passe ne passent que par « ma run » : la liste des participants ne les
+        // porte plus, pas même pour sa propre ligne.
         $participants = $item['participants'];
         self::assertIsArray($participants);
         $firstParticipant = $participants[0];
         self::assertIsArray($firstParticipant);
-        $participantConnection = $firstParticipant['connectionInfo'];
-        self::assertIsArray($participantConnection);
-        self::assertSame($connectionInfo['uri'], $participantConnection['uri']);
+        self::assertArrayNotHasKey('connectionInfo', $firstParticipant);
+    }
+
+    public function testCurrentRunsNeverExposesAnotherPlayersServer(): void
+    {
+        // La liste est publique (visiteur anonyme compris) et donnait, pour chaque participant, l'hôte,
+        // le port et le mot de passe de son serveur : n'importe qui pouvait rejoindre la partie hebdo
+        // d'un autre joueur et y valider des checks à sa place.
+        $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
+        $run = $this->createRun($this->template->getId(), WeeklyRun::STATUS_ACTIVE, $now);
+
+        $alice = $this->createUser('alice@test.com', ['ROLE_USER'], 'Alice');
+        $bob = $this->createUser('bob@test.com', ['ROLE_USER'], 'Bob');
+        $this->createMembership($alice->getId());
+        $this->createMembership($bob->getId());
+        $entry = $this->createEntry($run->getId(), $alice->getId(), 1, $now);
+        $entry->launch('ext-alice', $now, ['host' => 'archipelago.archilan.fr', 'port' => 35001, 'password' => 'alice-secret']);
+        $this->entityManager->flush();
+
+        foreach ([null, $bob] as $viewer) {
+            if (null !== $viewer) {
+                $this->loginAs($viewer);
+            }
+            $this->client->request('GET', '/api/v1/weekly-runs/current');
+
+            self::assertResponseIsSuccessful();
+            $body = $this->client->getResponse()->getContent();
+            self::assertIsString($body);
+            self::assertStringNotContainsString('alice-secret', $body);
+            self::assertStringNotContainsString('35001', $body);
+        }
     }
 
     public function testCurrentRunsWithGoalPopulatesLeaderboard(): void
