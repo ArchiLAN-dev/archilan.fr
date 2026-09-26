@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\CatalogSync\Application\Service;
 
+use App\CatalogSync\Application\Support\CatalogSheetColumns;
 use App\CatalogSync\Domain\ValueObject\CatalogEntry;
 use App\GameSelection\Domain\Entity\Game;
 use App\PersonalRuns\Domain\Entity\Run;
@@ -130,17 +131,20 @@ final readonly class CatalogSyncService
             $grid = is_array($gridData[0] ?? null) ? $gridData[0] : [];
             $rows = is_array($grid['rowData'] ?? null) ? $grid['rowData'] : [];
 
-            foreach ($rows as $i => $row) {
-                if (0 === $i) {
-                    continue; // skip header row
-                }
+            $rowCells = [];
+            foreach ($rows as $row) {
+                $rowCells[] = is_array($row) && is_array($row['values'] ?? null) ? array_values($row['values']) : [];
+            }
+            $columns = $this->columnsOf(
+                array_map(fn (array $cells): array => array_map(fn (mixed $cell): string => is_array($cell) ? $this->getCellText($cell) : '', $cells), $rowCells),
+                $bundled,
+            );
+            if (null === $columns) {
+                continue;
+            }
 
-                if (!is_array($row)) {
-                    continue;
-                }
-
-                $cells = is_array($row['values'] ?? null) ? array_values($row['values']) : [];
-                $entry = $this->parseApiRow($cells, $bundled);
+            foreach (\array_slice($rowCells, $columns->headerRow + 1) as $cells) {
+                $entry = $this->parseApiRow($cells, $bundled, $columns);
 
                 if (null !== $entry) {
                     $entries[] = $entry;
@@ -154,9 +158,11 @@ final readonly class CatalogSyncService
     /**
      * @param list<mixed> $cells
      */
-    private function parseApiRow(array $cells, bool $bundled): ?CatalogEntry
+    private function parseApiRow(array $cells, bool $bundled, CatalogSheetColumns $columns): ?CatalogEntry
     {
-        $nameCell = is_array($cells[0] ?? null) ? $cells[0] : [];
+        $cellAt = static fn (?int $index): array => null !== $index && is_array($cells[$index] ?? null) ? $cells[$index] : [];
+
+        $nameCell = $cellAt($columns->name);
         $name = $this->getCellText($nameCell);
 
         if ('' === $name) {
@@ -175,22 +181,22 @@ final readonly class CatalogSyncService
             );
         }
 
-        $stabilityCell = is_array($cells[1] ?? null) ? $cells[1] : [];
+        $stabilityCell = $cellAt($columns->stability);
         $stability = $this->getCellText($stabilityCell);
         $availability = self::STABILITY_MAP[$stability] ?? null;
         if (null === $availability) {
             return null;
         }
 
-        $prCell = is_array($cells[2] ?? null) ? $cells[2] : [];
+        $prCell = $cellAt($columns->prStatus);
         $prStatus = $this->getCellText($prCell) ?: null;
 
-        // col 3: Links & Downloads - extract hyperlinks from text runs
-        $linksCell = is_array($cells[3] ?? null) ? $cells[3] : [];
+        // Links & Downloads - extract hyperlinks from text runs
+        $linksCell = $cellAt($columns->links);
         $links = $this->extractLinksFromCell($linksCell);
 
-        // col 4: 18+ / Unrated
-        $adultCell = is_array($cells[4] ?? null) ? $cells[4] : [];
+        // 18+ / Unrated
+        $adultCell = $cellAt($columns->adult);
         $adultUev = is_array($adultCell['userEnteredValue'] ?? null) ? $adultCell['userEnteredValue'] : [];
         $adultBool = $adultUev['boolValue'] ?? null;
         if (is_bool($adultBool)) {
@@ -200,8 +206,8 @@ final readonly class CatalogSyncService
             $adultContent = in_array($adultRaw, ['yes', 'oui', 'true', '1'], true);
         }
 
-        // col 5: Notes
-        $notesCell = is_array($cells[5] ?? null) ? $cells[5] : [];
+        // Notes
+        $notesCell = $cellAt($columns->notes);
         $notes = $this->getCellText($notesCell) ?: null;
 
         return new CatalogEntry(
@@ -313,6 +319,29 @@ final readonly class CatalogSyncService
     }
 
     /**
+     * Finds the columns of a tab by its header row (story 14.11). A tab without its required columns - the
+     * game name, and the stability on the main tab - is skipped rather than read from the wrong columns; a
+     * missing optional column leaves its value empty.
+     *
+     * @param list<list<string>> $rows the texts of the tab's rows
+     */
+    private function columnsOf(array $rows, bool $bundled): ?CatalogSheetColumns
+    {
+        $tab = $bundled ? 'bundled' : 'main';
+        $columns = CatalogSheetColumns::locate($rows);
+        if (null === $columns || (!$bundled && null === $columns->stability)) {
+            $this->logger->error('catalog_sync.sheet_header_missing', ['tab' => $tab, 'required' => $bundled ? ['Game'] : ['Game', 'Stability']]);
+
+            return null;
+        }
+        if (!$bundled && [] !== $columns->missingOptionalColumns()) {
+            $this->logger->warning('catalog_sync.sheet_column_missing', ['tab' => $tab, 'columns' => $columns->missingOptionalColumns()]);
+        }
+
+        return $columns;
+    }
+
+    /**
      * @return list<CatalogEntry>
      */
     private function fetchViaCsv(): array
@@ -347,28 +376,25 @@ final readonly class CatalogSyncService
         fwrite($handle, $csv);
         rewind($handle);
 
-        $entries = [];
-        $firstRow = true;
-
+        $rows = [];
         while (false !== ($row = fgetcsv($handle, 0, ',', '"', ''))) {
-            if ($firstRow) {
-                $firstRow = false;
-                continue;
-            }
+            $rows[] = [null] === $row ? [] : array_map(static fn (mixed $v): string => is_string($v) ? $v : '', $row);
+        }
+        fclose($handle);
 
-            if ([null] === $row) {
-                continue;
-            }
+        $columns = $this->columnsOf($rows, $bundled);
+        if (null === $columns) {
+            return [];
+        }
 
-            $cols = array_map(static fn (mixed $v): string => is_string($v) ? $v : '', $row);
-            $entry = $this->parseCsvRow($cols, $bundled);
+        $entries = [];
+        foreach (\array_slice($rows, $columns->headerRow + 1) as $cols) {
+            $entry = $this->parseCsvRow($cols, $bundled, $columns);
 
             if (null !== $entry) {
                 $entries[] = $entry;
             }
         }
-
-        fclose($handle);
 
         return $entries;
     }
@@ -376,9 +402,10 @@ final readonly class CatalogSyncService
     /**
      * @param list<string> $cols
      */
-    private function parseCsvRow(array $cols, bool $bundled): ?CatalogEntry
+    private function parseCsvRow(array $cols, bool $bundled, CatalogSheetColumns $columns): ?CatalogEntry
     {
-        $name = trim($cols[0] ?? '');
+        $at = static fn (?int $index): string => null !== $index ? trim($cols[$index] ?? '') : '';
+        $name = $at($columns->name);
 
         if ('' === $name) {
             return null;
@@ -396,24 +423,24 @@ final readonly class CatalogSyncService
             );
         }
 
-        $stability = trim($cols[1] ?? '');
+        $stability = $at($columns->stability);
         $availability = self::STABILITY_MAP[$stability] ?? null;
         if (null === $availability) {
             return null;
         }
 
-        $prStatus = trim($cols[2] ?? '') ?: null;
+        $prStatus = $at($columns->prStatus) ?: null;
 
-        // col 3: Links & Downloads - labels only, no URLs in CSV export
-        $linksText = trim($cols[3] ?? '');
+        // Links & Downloads - labels only, no URLs in CSV export
+        $linksText = $at($columns->links);
         $links = '' !== $linksText ? [['label' => $linksText, 'url' => null]] : [];
 
-        // col 4: 18+ / Unrated
-        $adultRaw = strtolower(trim($cols[4] ?? ''));
+        // 18+ / Unrated
+        $adultRaw = strtolower($at($columns->adult));
         $adultContent = in_array($adultRaw, ['yes', 'oui', 'true', '1'], true);
 
-        // col 5: Notes
-        $notes = trim($cols[5] ?? '') ?: null;
+        // Notes
+        $notes = $at($columns->notes) ?: null;
 
         return new CatalogEntry(
             name: $name,
