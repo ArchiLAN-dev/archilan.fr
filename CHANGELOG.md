@@ -5,6 +5,20 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.5] - 2026-09-27
+
+Correctif de sécurité : la liste des runs hebdo exposait le serveur de chaque participant.
+
+### Sécurité
+
+- **La liste publique des runs hebdo ne donne plus l'accès au serveur des autres joueurs.**
+  `GET /api/v1/weekly-runs/current` est accessible sans connexion et renvoyait, pour chaque
+  participant, l'hôte, le port et le mot de passe de son serveur Archipelago : n'importe qui pouvait
+  rejoindre la partie hebdo d'un autre joueur et y valider des checks à sa place. La liste des
+  participants ne porte plus ces informations ; un joueur ne reçoit que celles de sa propre
+  participation. Les mots de passe déjà exposés restent valables tant que les parties en cours
+  tournent.
+
 ## [0.20.4] - 2026-09-12
 
 Version de republication : la 0.20.3 n'a pas pu publier son image `api-web`, le correctif Starcraft 2
