@@ -100,14 +100,8 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                     'displayName' => $displayName,
                     'attemptNumber' => $attemptNumber,
                     'goalReachedAt' => $goalReachedAt,
-                    'connectionInfo' => null !== $externalSessionId && null !== $connectionHost && null !== $connectionPort
-                        ? [
-                            'host' => $connectionHost,
-                            'port' => $connectionPort,
-                            'uri' => ArchipelagoConnectionUri::build($connectionHost, $connectionPort),
-                            'password' => $connectionPassword,
-                        ]
-                        : null,
+                    // Pas d'adresse ni de mot de passe ici : la liste est publique, et ils ouvraient à
+                    // n'importe qui le serveur de chaque participant. Ils ne passent que par `myEntry`.
                 ];
 
                 if (null !== $goalReachedAt) {
