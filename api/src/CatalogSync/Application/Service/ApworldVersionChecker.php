@@ -103,9 +103,8 @@ final readonly class ApworldVersionChecker
             isNewer: Game::UPDATE_STATUS_UPDATE_AVAILABLE === $updateStatus,
         );
 
-        // Rate limit check after persisting the version - mirrors the old behaviour where
-        // the game state was recorded before the exception was raised.
-        $this->checkRateLimit($remaining);
+        // Rate limit check after persisting the version: the exception carries this completed check.
+        $this->checkRateLimit($remaining, $info);
 
         return $info;
     }
@@ -449,13 +448,13 @@ final readonly class ApworldVersionChecker
         return ['release' => null, 'remaining' => $remaining];
     }
 
-    private function checkRateLimit(?int $remaining): void
+    private function checkRateLimit(?int $remaining, ?ApworldVersionInfo $completedCheck = null): void
     {
         if (null === $remaining || $remaining > 10) {
             return;
         }
 
         $this->logger->warning('github.rate_limit_low', ['remaining' => $remaining]);
-        throw new GithubRateLimitException(sprintf('GitHub API rate limit low: %d requests remaining', $remaining));
+        throw new GithubRateLimitException(sprintf('GitHub API rate limit low: %d requests remaining', $remaining), $completedCheck);
     }
 }

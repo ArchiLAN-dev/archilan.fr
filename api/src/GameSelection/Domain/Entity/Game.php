@@ -618,6 +618,16 @@ final class Game
         $this->catalogSync?->recordApworldCheck($latestVersion, $checkedAt, $releaseUrl);
     }
 
+    public function markApworldChecked(\DateTimeImmutable $at): void
+    {
+        $this->catalogSync?->markApworldChecked($at);
+    }
+
+    public function getApworldLastCheckedAt(): ?\DateTimeImmutable
+    {
+        return $this->catalogSync?->getApworldLastCheckedAt();
+    }
+
     public function computeApworldUpdateStatus(): string
     {
         return $this->catalogSync?->computeApworldUpdateStatus() ?? self::UPDATE_STATUS_NOT_TRACKED;

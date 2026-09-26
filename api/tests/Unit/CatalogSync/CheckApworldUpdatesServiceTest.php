@@ -11,11 +11,14 @@ use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class CheckApworldUpdatesServiceTest extends TestCase
 {
+    private const string NOW = '2026-09-26 04:00:00+02:00';
+
     /** @var list<string> repos requested, in order */
     private array $requestedRepos = [];
     private int $flushes = 0;
@@ -32,6 +35,46 @@ final class CheckApworldUpdatesServiceTest extends TestCase
         $this->service($games, fn (string $repo): MockResponse => $this->release('v1.0.0', $repo))->checkAll();
 
         self::assertSame(['bbb', 'ccc', 'aaa'], $this->requestedRepos, 'never checked first, then the oldest check');
+    }
+
+    public function testTheOrderFollowsTheLastCheckNotTheReleaseDate(): void
+    {
+        // Story 38.5 review: the release date used to be read as the check date, so a rate-limited pass
+        // resumed with the same old-release games every night and never reached the recent ones.
+        $recentReleaseCheckedLongAgo = $this->game('Aaa', 'aaa', '1.0.0', new \DateTimeImmutable('2026-09-01'));
+        $recentReleaseCheckedLongAgo->recordApworldCheck('1.0.0', new \DateTimeImmutable('2026-09-24'));
+        $oldReleaseCheckedYesterday = $this->game('Bbb', 'bbb', '1.0.0', new \DateTimeImmutable('2026-09-25'));
+        $oldReleaseCheckedYesterday->recordApworldCheck('1.0.0', new \DateTimeImmutable('2020-01-01'));
+
+        $this->service([$oldReleaseCheckedYesterday, $recentReleaseCheckedLongAgo], fn (string $repo): MockResponse => $this->release('v1.0.0', $repo))->checkAll();
+
+        self::assertSame(['aaa', 'bbb'], $this->requestedRepos);
+    }
+
+    public function testEveryGameTriedIsMarkedCheckedNow(): void
+    {
+        // A failing repository is marked too: otherwise it would stay at the head of the queue forever.
+        $games = [$this->game('Aaa', 'aaa', '1.0.0', null), $this->game('Bbb', 'bbb', '1.0.0', null)];
+
+        $this->service($games, fn (string $repo): MockResponse => 'bbb' === $repo
+            ? new MockResponse('', ['error' => 'Recv failure: Connection was reset'])
+            : $this->release('v1.0.0', $repo))->checkAll();
+
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $games[0]->getApworldLastCheckedAt());
+        self::assertEquals(new \DateTimeImmutable(self::NOW), $games[1]->getApworldLastCheckedAt());
+    }
+
+    public function testTheGameThatHitTheRateLimitIsStillReported(): void
+    {
+        // Its new release is already recorded on the game: the report must not leave it out.
+        $games = [$this->game('Aaa', 'aaa', '1.0.0', null), $this->game('Bbb', 'bbb', '1.0.0', null)];
+
+        $report = $this->service($games, fn (string $repo): MockResponse => $this->release('v1.1.0', $repo, remaining: 3))->checkAll();
+
+        self::assertTrue($report->rateLimitHit);
+        self::assertSame(1, $report->checked);
+        self::assertCount(1, $report->updatesAvailable);
+        self::assertSame($games[0]->getId(), $report->updatesAvailable[0]->gameId);
     }
 
     public function testReportListsGamesWithAnUpdateAvailable(): void
@@ -109,15 +152,15 @@ final class CheckApworldUpdatesServiceTest extends TestCase
             return $respond($repo);
         });
 
-        return new CheckApworldUpdatesService(new ApworldVersionChecker($client, new NullLogger(), 'ghp_test_token'), $repository, new NullLogger());
+        return new CheckApworldUpdatesService(new ApworldVersionChecker($client, new NullLogger(), 'ghp_test_token'), $repository, new NullLogger(), new MockClock(self::NOW));
     }
 
-    private function game(string $name, string $repo, string $deployedVersion, ?\DateTimeImmutable $checkedAt): Game
+    private function game(string $name, string $repo, string $deployedVersion, ?\DateTimeImmutable $lastCheckedAt): Game
     {
         $game = Game::create($name, strtolower($name), 'A game.', null, 'alt', '', Game::AVAILABILITY_AVAILABLE, new \DateTimeImmutable());
         $game->updateCatalogueMetadata(sourceUrl: 'https://github.com/owner/'.$repo, deployedVersion: $deployedVersion);
-        if (null !== $checkedAt) {
-            $game->recordApworldCheck('0.0.1', $checkedAt);
+        if (null !== $lastCheckedAt) {
+            $game->markApworldChecked($lastCheckedAt);
         }
 
         return $game;
