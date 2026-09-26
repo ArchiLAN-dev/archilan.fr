@@ -161,4 +161,14 @@ local, c'est `archipelago:latest`, qui ne dit rien. L'**identifiant** de l'image
 - `go vet ./...`, `go test ./...` verts. Client : PHPUnit 94, PHPStan niveau 9.
 - `composer gates` vert (2202 tests) **avec le client 1.10.0 copié dans le vendor local** du worktree,
   en attendant le tag. `pnpm gates` vert (536 tests, les 10 warnings de develop).
-- Pas d'e2e sur une stack locale.
+- **E2e local (2026-09-26)**, orchestrateur reconstruit depuis la branche, vrai daemon Docker, API du
+  worktree sur une copie de la base :
+  - `GET /runtime` rend l'id identique à `docker image inspect`, et 401 sans clé ;
+  - référence au format prod (`ghcr.io/archilan-dev/archipelago:0.16.1-e2e`, avec `/` et `:`) inspectée sans erreur ;
+  - image introuvable : `apImageId` vide et warning `could not inspect the archipelago image` ;
+  - test relancé sur Crystal Project 0.18.2 : le sidecar porte `image` et `imageId` ;
+  - page admin du jeu : « Testé sur … » sur l'image courante ; avertissement une fois l'orchestrateur
+    basculé sur une autre image ; disparu après un nouveau test lancé depuis la page ; « Image inconnue »
+    pour un verdict antérieur (Castlevania: Aria of Sorrow).
+  - Constat hors périmètre : un onglet caché ne rafraîchit pas le verdict « en cours » (TanStack Query
+    ne relance pas son polling en arrière-plan) ; il s'actualise au retour sur la page.
