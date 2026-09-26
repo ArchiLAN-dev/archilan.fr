@@ -493,7 +493,7 @@ final readonly class AdminGameLibraryController
             return $this->apiAccessGuard->errorResponse('validation_failed', 'Le fichier est illisible.', 422, ['file' => ['Le fichier est illisible.']]);
         }
 
-        $result = $this->adminGameLibrary->configureApworld($gameId, $contents, $file->getClientOriginalName());
+        $result = $this->adminGameLibrary->configureApworld($gameId, $contents, $file->getClientOriginalName(), null, $admin->getId());
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);
@@ -549,7 +549,7 @@ final readonly class AdminGameLibraryController
         $assetName = is_string($body['assetName'] ?? null) && '' !== $body['assetName'] ? $body['assetName'] : null;
         $assetTag = is_string($body['assetTag'] ?? null) && '' !== $body['assetTag'] ? $body['assetTag'] : null;
 
-        $result = $this->adminGameLibrary->importFromGithub($gameId, $assetDownloadUrl, $assetName, $assetTag);
+        $result = $this->adminGameLibrary->importFromGithub($gameId, $assetDownloadUrl, $assetName, $assetTag, $admin->getId());
 
         if (!$result['found']) {
             return $this->apiAccessGuard->errorResponse('not_found', 'Jeu introuvable.', 404);

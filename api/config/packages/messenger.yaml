@@ -43,6 +43,12 @@ framework:
             'App\PersonalRuns\Application\Message\StopPersonalRunJob': run_server
             'App\Community\Application\Message\RecomputeAchievementsForUserMessage': async
             'App\Community\Application\Message\RecomputeAllAchievementsMessage': async
+            # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
+            # so the two-minute stuck-run reconciliation is never held up behind it.
+            'App\CatalogSync\Application\Message\CheckApworldUpdatesMessage': async
+            'App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage': async
+            # Story 38.9: the nightly sweep queues its tests from the async worker, not the scheduler.
+            'App\GameSelection\Application\Message\SweepApworldCatalogMessage': async
             'App\Identity\Application\Message\SyncDiscordRoleMessage': async
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
             'App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage': async
@@ -60,6 +66,14 @@ framework:
             'App\Communications\Application\Message\SessionRestartFailedMessage': async
             'App\Sessions\Application\Message\BuildSessionRecapJob': async
             'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
+            'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
+            'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
+            'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async
+            # Story 38.7: runs and registrations bring their not-yet-launched slots along.
+            'App\GameSelection\Application\Message\ApworldPromoted': async
+            # Story 38.4: a real generation failure is judged off the source's transaction.
+            'App\GameSelection\Application\Message\ReportDefaultYamlFailureJob': async
+            'App\CatalogSync\Application\Message\SubmitAutoApworldUpdateJob': async
             'App\PersonalRuns\Application\Message\RunSlotPreflightJob': run_server
 
 when@test:

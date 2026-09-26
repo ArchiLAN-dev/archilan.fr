@@ -5,6 +5,66 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.21.0] - 2026-09-27
+
+Les apworlds se surveillent et se mettent à jour tout seuls, sans jamais remplacer une version qui
+marche par une version cassée. Les adhésions payées s'appliquent sans intervention, et plusieurs
+défauts de lancement et de relance de partie sont corrigés.
+
+### Ajouté
+
+- **Incidents apworld.** Un apworld qui échoue à sa génération par défaut, à l'import ou lors d'une
+  vraie génération de joueur avec son YAML par défaut, ouvre un incident qui reste ouvert jusqu'à ce
+  que le problème soit réglé. Les admins sont prévenus dans le site et sur le salon Discord du staff,
+  qui suit aussi qui s'en occupe et quand c'est réglé.
+- **Page « Santé des apworlds ».** Elle liste les incidents en cours, qui s'en occupe et depuis quand,
+  et permet de les prendre en charge, de les résoudre ou de les ignorer.
+- **Veille quotidienne des versions.** La dernière version de chaque apworld est vérifiée chaque nuit
+  (04:00), et une version n'est dite « plus récente » que si elle l'est vraiment.
+- **Mise à jour en trois temps.** Une nouvelle version d'apworld, importée à la main ou trouvée par la
+  veille, ne devient la version servie aux joueurs qu'après avoir passé le test de génération. Les
+  slots des runs pas encore lancées passent à la nouvelle version en gardant leur configuration, et le
+  joueur est prévenu si elle n'est plus valable.
+- **Test tournant du catalogue.** Chaque nuit (05:00), un petit lot d'apworlds est retesté, en
+  commençant par ceux qui n'ont pas encore été testés sur l'image Archipelago actuelle. Chaque
+  verdict indique l'image sur laquelle il a été rendu.
+
+### Corrigé
+
+- **Une adhésion payée s'applique sans intervention.** Le webhook HelloAsso était le seul
+  déclencheur automatique et abandonnait en silence quand il ne pouvait pas vérifier la commande :
+  l'adhésion attendait alors qu'un admin clique sur « Synchroniser HelloAsso ». Une synchronisation
+  de secours tourne désormais toutes les heures, et le webhook la déclenche dans tous les cas. Un
+  même paiement ne prolonge plus l'adhésion deux fois, une commande remboursée, annulée ou contestée
+  n'active plus rien, et l'espace compte affiche « Membre » d'après l'adhésion active.
+- **L'adresse de connexion est toujours celle du serveur qui tourne.** Une run hebdo relancée
+  affichait le port de son premier lancement, que l'orchestrateur avait pu redonner à une autre
+  session. Une session arrêtée, en veille ou plantée ne donne plus d'adresse, et une relance ne
+  retombe plus sur l'ancien port.
+- **Une seed importée reste suivie après une pause** (avec l'orchestrateur 0.18.1), et une partie
+  terminée sur une seed importée peut être supprimée par son propriétaire.
+- **Le lien GitHub des jeux est repris du catalogue.** La feuille « Archipelago Games Sheet » est lue
+  d'après le nom de ses colonnes, et non plus leur position : sa réorganisation faisait perdre le
+  lien, le drapeau 18+ et les notes.
+
+### Notes de déploiement
+
+- **Orchestrateur `v0.18.1` avant l'API** : l'API s'appuie sur le runtime exposé par la `v0.18.0`
+  (image des verdicts), et la `v0.18.1` corrige la reprise des ports au redémarrage et le suivi des
+  seeds importées après relance.
+- **Image Archipelago `v0.16.2`** (suivi exact des parties, dont Hollow Knight) ; la parité de
+  préparation du suivi (story 9.55) attend son tag `v0.16.3`.
+- **Migrations**, jouées automatiquement par `api-migrations` : `Version20260924120000`
+  (`apworld_incident`), `Version20260925120000` (`apworld_candidate`), `Version20260926100000`
+  (`game_catalog_sync.apworld_last_checked_at`) et `Version20260926120000` (`apworld_health`).
+- **Réglages facultatifs** : `DISCORD_STAFF_WEBHOOK_URL` (alertes d'incident, vide = pas d'alerte
+  Discord), `APWORLD_AUTO_UPDATE_BATCH_SIZE` (10 par nuit, 0 coupe la mise à jour automatique),
+  `APWORLD_SWEEP_BATCH_SIZE` (25 par nuit).
+- **Après déploiement** : rattacher une fois les adhésions payées restées en attente depuis
+  `/admin/adhesions/paiements-non-rattaches`, la synchronisation horaire ne rattrapant que les
+  nouveaux paiements. Les verdicts existants s'affichent « Image inconnue » jusqu'à leur prochain
+  test.
+
 ## [0.20.6] - 2026-09-27
 
 Version de republication : la 0.20.5 n'a pas pu publier son image `api-web`, son correctif de

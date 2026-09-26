@@ -358,6 +358,25 @@ final class PersonalRunTest extends FunctionalTestCase
         self::assertSame('run_not_deletable', $this->errorCode());
     }
 
+    public function testDeleteCompletedImportedSeedRunReturns204(): void
+    {
+        // Story 16.20: a run on a seed generated elsewhere is the exception. Its tracking is partial
+        // by nature (no detailed progression), and deleting the run leaves its session and slots, so
+        // the profile stats computed from them are untouched either way.
+        $user = $this->createUser('alice@example.org');
+        $this->loginAs($user);
+
+        $run = $this->createRunDirectly($user->getId(), 'Imported Run', Run::STATUS_COMPLETED);
+        $run->importSeed('runs/imported/AP_1.zip', [], new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $this->entityManager->flush();
+
+        $this->client->jsonRequest('DELETE', '/api/v1/runs/'.$run->getId());
+        self::assertResponseStatusCodeSame(204);
+
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId());
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testDeleteRunAsNonOwnerReturns403(): void
     {
         $alice = $this->createUser('alice@example.org');

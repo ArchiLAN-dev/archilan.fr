@@ -5,6 +5,7 @@
 // Every endpoint goes through apiFetch so the 401 refresh-and-retry flow applies uniformly
 // (the pre-TanStack eligibility gate used raw fetch and silently lost that behaviour).
 
+import { parseNeedsReview } from "@/features/games/slot-needs-review";
 import { apiFetch } from "@/lib/apiFetch";
 import { asLocationNames, asOptionTypesMap, type OptionTypesMap } from "@/lib/archipelago-yaml";
 import { env } from "@/lib/env";
@@ -261,6 +262,8 @@ export type RecapSlot = {
   gameName: string;
   playerYaml: string | null;
   apworldHash: string | null;
+  // Story 38.7: why the slot is to review after its game switched apworld (empty when it holds).
+  needsReview: string[];
 };
 
 export type RecapGame = {
@@ -296,6 +299,7 @@ function parseRecapSlot(v: unknown): RecapSlot | null {
     gameName: v.gameName,
     playerYaml: optionalString(v, "playerYaml"),
     apworldHash: optionalString(v, "apworldHash"),
+    needsReview: parseNeedsReview(v),
   };
 }
 

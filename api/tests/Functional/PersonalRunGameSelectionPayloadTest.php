@@ -6,9 +6,37 @@ namespace App\Tests\Functional;
 
 use App\GameSelection\Domain\Entity\GameCatalogSync;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\PersonalRuns\Domain\Entity\RunParticipant;
 
 final class PersonalRunGameSelectionPayloadTest extends FunctionalTestCase
 {
+    public function testASlotToReviewCarriesItsReasons(): void
+    {
+        // Story 38.7: a slot whose YAML no longer holds after an apworld switch is shown "à revoir".
+        $user = $this->createUser('alice@example.org');
+        $game = $this->createGame('Crystal Project', 'crystal-project');
+        $run = Run::create($user->getId(), 'My Run', new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $participant = RunParticipant::create($run->getId(), $user->getId(), new \DateTimeImmutable('2026-05-12T10:00:00+00:00'));
+        $participant->replaceSlots([['slotId' => 'slot-1', 'gameId' => $game->getId(), 'playerYaml' => "goal: moon\n", 'apworldHash' => 'hash-old']]);
+        $participant->upgradeSlotApworld('slot-1', 'hash-new', null, ['« goal » : la valeur « moon » n\'est plus acceptée.']);
+        $this->entityManager->persist($run);
+        $this->entityManager->persist($participant);
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $this->loginAs($user);
+        $this->client->jsonRequest('GET', '/api/v1/runs/'.$run->getId().'/participants/me/game-selection');
+
+        self::assertResponseIsSuccessful();
+        $payload = $this->decodedJsonResponse()['data'] ?? null;
+        self::assertIsArray($payload);
+        $slots = $payload['slots'] ?? null;
+        self::assertIsArray($slots);
+        self::assertIsArray($slots[0] ?? null);
+        self::assertSame(['« goal » : la valeur « moon » n\'est plus acceptée.'], $slots[0]['needsReview'] ?? null);
+        self::assertSame('hash-new', $slots[0]['apworldHash'] ?? null);
+    }
+
     public function testAvailableGamesExposePlatformsAndSteamAppId(): void
     {
         $user = $this->createUser('alice@example.org');

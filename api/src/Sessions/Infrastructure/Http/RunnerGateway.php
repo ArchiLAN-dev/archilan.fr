@@ -276,6 +276,19 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
         }
     }
 
+    public function fetchRuntime(): ?array
+    {
+        try {
+            $runtime = $this->client->runtime()->get();
+
+            return ['apImage' => $runtime->apImage, 'apImageId' => $runtime->apImageId];
+        } catch (\Throwable $e) {
+            $this->logger->warning('runner.runtime_fetch_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function runApworldPreflight(string $hash): bool
     {
         try {
@@ -301,7 +314,7 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image: string|null, imageId: string|null}
      */
     private function preflightPayload(ApworldPreflight $preflight): array
     {
@@ -311,6 +324,9 @@ final readonly class RunnerGateway implements RunnerGatewayInterface
             'checkedAt' => $preflight->checkedAt,
             'overridden' => $preflight->overridden,
             'blocks' => $preflight->blocksUsage(),
+            // Story 38.8: the Archipelago image the verdict was produced with, null before that story.
+            'image' => $preflight->image,
+            'imageId' => $preflight->imageId,
         ];
     }
 

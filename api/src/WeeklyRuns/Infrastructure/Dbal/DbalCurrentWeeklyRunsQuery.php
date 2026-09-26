@@ -55,8 +55,12 @@ final readonly class DbalCurrentWeeklyRunsQuery implements CurrentWeeklyRunsQuer
                     'we.items_total',
                     'we.external_session_id',
                     'we.launched_at',
-                    'we.connection_host',
-                    'we.connection_port',
+                    // The session holds the live endpoint: a relaunch moves it to a fresh port while
+                    // the entry keeps its first launch's, since freed and possibly reassigned to another
+                    // session (story 17.26). The entry's copy only serves an entry with no session row
+                    // (pre-17.13).
+                    'COALESCE(s.host, we.connection_host) AS connection_host',
+                    'COALESCE(s.port, we.connection_port) AS connection_port',
                     'we.connection_password',
                     'COALESCE(cp.display_name, u.display_name) AS display_name',
                     's.status AS session_status',

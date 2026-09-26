@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react";
 import { AlertCircle, ArrowLeft, ExternalLink, FileText, Gamepad2, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
+import { SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchParticipantGameSelection, fetchPersonalRun } from "./personal-runs-api";
 import type { ParticipantGameSlot, ParticipantLevel, ParticipantStats } from "./types";
@@ -317,6 +318,7 @@ export function PersonalRunParticipantDetailPage({
                     </p>
                   )
                 ) : null}
+                <SlotNeedsReview reasons={slot.needsReview ?? []} />
                 <SlotCoPlayers
                   canManage={canManageCoPlayers}
                   candidates={coPlayerCandidates}

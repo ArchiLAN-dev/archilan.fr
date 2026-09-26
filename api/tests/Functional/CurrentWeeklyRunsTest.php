@@ -7,6 +7,7 @@ namespace App\Tests\Functional;
 use App\GameSelection\Domain\Entity\Game;
 use App\Membership\Domain\Entity\Membership;
 use App\PersonalRuns\Domain\Entity\Run;
+use App\Sessions\Domain\Entity\Session;
 use App\WeeklyRuns\Domain\Entity\WeeklyEntry;
 use App\WeeklyRuns\Domain\Entity\WeeklyRun;
 use App\WeeklyRuns\Domain\Entity\WeeklyTemplate;
@@ -241,6 +242,39 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
             self::assertStringNotContainsString('alice-secret', $body);
             self::assertStringNotContainsString('35001', $body);
         }
+    }
+
+    public function testCurrentRunsRelaunchedEntryShowsTheSessionsCurrentPort(): void
+    {
+        // Story 17.26: a weekly entry that went idle and was relaunched the next day runs on a fresh
+        // port. The entry still holds its first launch's port, which the orchestrateur has since freed
+        // and may have handed to another session - the listing must follow the session.
+        $now = new \DateTimeImmutable('2026-05-11T00:00:00+00:00');
+        $run = $this->createRun($this->template->getId(), WeeklyRun::STATUS_ACTIVE, $now);
+
+        $member = $this->createUser('member@test.com', ['ROLE_USER']);
+        $this->createMembership($member->getId());
+        $entry = $this->createEntry($run->getId(), $member->getId(), 1, $now);
+        $sessionId = bin2hex(random_bytes(8));
+        $entry->launch($sessionId, $now, ['host' => 'archipelago.archilan.fr', 'port' => 35001, 'password' => 'secret'], 25001);
+        $this->entityManager->persist(Session::createRunning($sessionId, $run->getId(), 'archipelago.archilan.fr', 35007, 'secret', 25007, $now));
+        $this->entityManager->flush();
+
+        $this->loginAs($member);
+        $this->client->request('GET', '/api/v1/weekly-runs/current');
+
+        self::assertResponseIsSuccessful();
+        $data = $this->decodedJsonResponse()['data'];
+        self::assertIsArray($data);
+        $item = $data[0];
+        self::assertIsArray($item);
+
+        $myEntry = $item['myEntry'];
+        self::assertIsArray($myEntry);
+        $connectionInfo = $myEntry['connectionInfo'];
+        self::assertIsArray($connectionInfo);
+        self::assertSame(35007, $connectionInfo['port']);
+        self::assertSame('wss://archipelago.archilan.fr:35007', $connectionInfo['uri']);
     }
 
     public function testCurrentRunsWithGoalPopulatesLeaderboard(): void

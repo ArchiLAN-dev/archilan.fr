@@ -119,6 +119,10 @@ final readonly class SessionRestartController
             return $this->apiAccessGuard->errorResponse('unexpected_status', 'Statut de session inattendu.', 422);
         }
 
+        if ('invalid_endpoint' === $result['status']) {
+            return $this->apiAccessGuard->errorResponse('invalid_endpoint', 'Port de connexion manquant.', 422);
+        }
+
         return new JsonResponse(['data' => ['ok' => true]]);
     }
 

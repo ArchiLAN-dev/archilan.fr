@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Service;
 
 use App\CatalogSync\Application\Service\ApworldVersionChecker;
+use App\GameSelection\Application\Command\SubmitApworldCandidate;
 use App\GameSelection\Application\Port\GameUsageCounterInterface;
 use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Application\Support\GamePlatformResolver;
@@ -13,12 +14,15 @@ use App\GameSelection\Application\Support\InstallStepsNormalizer;
 use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Entity\GameCatalogSync;
+use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
+use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
+use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
+use App\GameSelection\Domain\Service\ArchipelagoImageFreshness;
 use App\GameSelection\Domain\ValueObject\PlatformCategory;
 use App\Identity\Application\Support\ValidationErrors;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use App\Sessions\Application\Support\GenerationFailureParser;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -34,15 +38,15 @@ final readonly class AdminGameLibrary
         private AdminGameListQueryInterface $adminGameListQuery,
         private LoggerInterface $logger,
         private RunnerGatewayInterface $runnerGateway,
-        private MinioStorageInterface $minioStorage,
         private ClockInterface $clock,
-        private string $minioApworldsBucket,
         private ApworldVersionChecker $apworldVersionChecker,
         private GameUsageCounterInterface $gameUsageCounter,
         private GamePlatformResolver $platformResolver,
         private InstallStepsNormalizer $stepsNormalizer,
         private GameTutorialSeeder $tutorialSeeder,
         private InstallStepsReader $stepsReader,
+        private SubmitApworldCandidate $submitCandidate,
+        private ApworldCandidateRepositoryInterface $candidates,
     ) {
     }
 
@@ -155,10 +159,7 @@ final readonly class AdminGameLibrary
             return null;
         }
 
-        $payload = $this->detailPayload($game);
-        $payload['apworldPreflight'] = $this->preflightForGame($game);
-
-        return $payload;
+        return $this->detailPayload($game);
     }
 
     /** A template is a whole YAML file with comments: 64 KB is generous and still bounded. */
@@ -443,7 +444,7 @@ final readonly class AdminGameLibrary
     /**
      * Toggle the "force allow" override on this game's apworld preflight verdict (story 9.38 AC4).
      *
-     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}}
+     * @return array{found: bool, errors: array<string, list<string>>, preflight?: array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}}
      */
     public function overrideApworldPreflight(string $gameId, bool $overridden): array
     {
@@ -468,7 +469,31 @@ final readonly class AdminGameLibrary
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}|null
+     * The verdict of the apworld the game serves, the image in use and whether the verdict was produced on
+     * it (stories 9.38, 38.8). Part of every game payload - the detail and every save answer - so a save
+     * never hands the page a game without its verdict. The image in use is only asked for a verdict that
+     * ran (passed or failed): pending and skipped ones claim no image. Null when unknown: the page says
+     * nothing rather than something false.
+     *
+     * @return array{apworldPreflight: array<string, mixed>|null, archipelagoRuntime: array{apImage: string, apImageId: string|null}|null, apworldPreflightOnCurrentImage: bool|null}
+     */
+    private function preflightPayload(Game $game): array
+    {
+        $preflight = $this->preflightForGame($game);
+        $ran = null !== $preflight && \in_array($preflight['status'], ['passed', 'failed'], true);
+        $runtime = $ran ? $this->runnerGateway->fetchRuntime() : null;
+
+        return [
+            'apworldPreflight' => $preflight,
+            'archipelagoRuntime' => $runtime,
+            'apworldPreflightOnCurrentImage' => null !== $preflight && null !== $runtime
+                ? ArchipelagoImageFreshness::isCurrent($preflight['image'] ?? null, $preflight['imageId'] ?? null, $runtime['apImage'], $runtime['apImageId'])
+                : null,
+        ];
+    }
+
+    /**
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}|null
      */
     private function preflightForGame(Game $game): ?array
     {
@@ -622,80 +647,26 @@ final readonly class AdminGameLibrary
     }
 
     /**
+     * An admin brings a new apworld (file or GitHub import). Since story 38.6 it becomes a candidate
+     * in test: the game keeps serving its current apworld until the verdict promotes the candidate,
+     * which the five-minute apworld pass decides. The returned payload shows the candidate.
+     *
      * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
      */
-    public function configureApworld(string $gameId, string $fileContents, string $filename): array
+    public function configureApworld(string $gameId, string $fileContents, string $filename, ?string $versionTag = null, ?string $adminId = null): array
     {
+        $submission = $this->submitCandidate->submit($gameId, $fileContents, $filename, $versionTag, ApworldCandidateOrigin::Manual, $adminId);
+        if (!$submission->gameFound) {
+            return ['found' => false, 'errors' => []];
+        }
+        if ([] !== $submission->errors) {
+            return ['found' => true, 'errors' => ['file' => $submission->errors]];
+        }
+
         $game = $this->gameRepository->findById($gameId);
         if (!$game instanceof Game) {
             return ['found' => false, 'errors' => []];
         }
-
-        $errors = new ValidationErrors();
-
-        if ('apworld' !== pathinfo($filename, PATHINFO_EXTENSION)) {
-            $errors->add('file', 'Le fichier doit avoir l\'extension .apworld.');
-        }
-
-        if ('' === $fileContents) {
-            $errors->add('file', 'Le fichier est vide.');
-        }
-
-        if ([] !== $errors->toArray()) {
-            return ['found' => true, 'errors' => $errors->toArray()];
-        }
-
-        $result = $this->runnerGateway->uploadApworld($fileContents, $filename);
-
-        if (isset($result['error'])) {
-            $detail = is_string($result['detail'] ?? null) ? $result['detail'] : null;
-            $message = match ($result['error']) {
-                'runner_unavailable' => 'Le runner est indisponible.',
-                'invalid_file' => 'Le fichier n\'est pas un .apworld valide.',
-                'invalid_apworld' => $detail ?? 'Le fichier .apworld est invalide (archipelago.json manquant ou corrompu).',
-                'template_timeout' => 'La génération du template a expiré - le runner est peut-être surchargé.',
-                'template_failed' => 'ArchipelagoGenerate a échoué'.(null !== $detail && '' !== $detail ? " : {$detail}" : '.'),
-                'archigenerate_not_found' => 'ArchipelagoGenerate est introuvable dans le runner. Configurez ARCHIPELAGO_GENERATE_CMD.',
-                default => $detail ?? 'Erreur runner : '.(is_string($result['error']) ? $result['error'] : ''),
-            };
-            $this->logger->error('runner.apworld_upload_failed', ['gameId' => $gameId, 'error' => $result['error'], 'detail' => $detail]);
-
-            return ['found' => true, 'errors' => ['file' => [$message]]];
-        }
-
-        $storageKey = is_string($result['storageKey'] ?? null) ? $result['storageKey'] : '';
-        $hash = is_string($result['hash'] ?? null) ? $result['hash'] : '';
-        $archipelagoGameName = is_string($result['archipelagoGameName'] ?? null) ? $result['archipelagoGameName'] : '';
-        $defaultYaml = is_string($result['defaultYaml'] ?? null) ? $result['defaultYaml'] : '';
-
-        if ('' === $storageKey || '' === $hash || '' === $archipelagoGameName) {
-            return ['found' => true, 'errors' => ['file' => ['Le runner est indisponible ou le fichier .apworld est invalide.']]];
-        }
-
-        $minioKey = $hash.'.apworld';
-
-        try {
-            if (!$this->minioStorage->exists($this->minioApworldsBucket, $minioKey)) {
-                $this->minioStorage->upload($this->minioApworldsBucket, $minioKey, $fileContents);
-            }
-        } catch (\Throwable $e) {
-            $this->logger->error('minio.apworld_upload_failed', [
-                'gameId' => $gameId,
-                'hash' => $hash,
-                'exception' => $e::class,
-                'message' => $e->getMessage(),
-            ]);
-
-            return ['found' => true, 'errors' => ['file' => ['storage_unavailable']]];
-        }
-
-        $game->configureApworld($storageKey, $hash, $archipelagoGameName, $defaultYaml, $this->clock->now());
-        $game->recordApworldMinioUpload($minioKey);
-        $game->recordOptionTypes(self::normalizeOptionTypes($result['optionTypes'] ?? null));
-        $game->recordLocationNames(self::normalizeLocationNames($result['locationNames'] ?? null));
-        $this->gameRepository->save($game);
-
-        $this->logger->info('game.apworld_configured', ['gameId' => $gameId, 'hash' => $hash, 'archipelagoGameName' => $archipelagoGameName]);
 
         return ['found' => true, 'game' => $this->detailPayload($game), 'errors' => []];
     }
@@ -736,7 +707,7 @@ final readonly class AdminGameLibrary
     /**
      * @return array{found: bool, game?: array<string, mixed>, errors: array<string, list<string>>}
      */
-    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null, ?string $assetTag = null): array
+    public function importFromGithub(string $gameId, ?string $assetDownloadUrl = null, ?string $assetName = null, ?string $assetTag = null, ?string $adminId = null): array
     {
         $game = $this->gameRepository->findById($gameId);
         if (!$game instanceof Game) {
@@ -791,18 +762,12 @@ final readonly class AdminGameLibrary
             return ['found' => true, 'errors' => ['github' => ['Échec du téléchargement de l\'asset : '.$e->getMessage()]]];
         }
 
-        $result = $this->configureApworld($gameId, $fileContents, $resolvedAssetName);
+        // The tag travels with the candidate and becomes the deployed version on promotion (story
+        // 38.6): recording it now would claim a version the game does not serve yet.
+        $result = $this->configureApworld($gameId, $fileContents, $resolvedAssetName, $latestTag, $adminId);
 
         if ([] !== $result['errors']) {
             return $result;
-        }
-
-        if (null !== $latestTag) {
-            $game->getCatalogSync()?->recordApworldDeployment($latestTag);
-            $this->gameRepository->save($game);
-            // configureApworld built the returned payload before the deployed version was set;
-            // rebuild it so the response reflects the freshly recorded version.
-            $result['game'] = $this->detailPayload($game);
         }
 
         $this->logger->info('game.apworld_imported_from_github', [
@@ -976,7 +941,33 @@ final readonly class AdminGameLibrary
             'selectablePlatforms' => PlatformCategory::selectableFamilies(),
             'installSteps' => $this->stepsReader->present($game->getInstallSteps()),
             'updateStatus' => $game->computeApworldUpdateStatus(),
-        ]);
+            'apworldCandidate' => $this->candidatePayload($game),
+        ], $this->preflightPayload($game));
+    }
+
+    /**
+     * The new apworld version waiting for, or refused by, its test (story 38.6). A promoted or
+     * superseded candidate is history: the page shows the served apworld instead.
+     *
+     * @return array{id: string, status: string, apworldHash: string, versionTag: ?string, origin: string, submittedAt: string, decidedAt: ?string, rejectionReason: ?string}|null
+     */
+    private function candidatePayload(Game $game): ?array
+    {
+        $candidate = $this->candidates->findLatestForGame($game->getId());
+        if (null === $candidate || !\in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)) {
+            return null;
+        }
+
+        return [
+            'id' => $candidate->getId(),
+            'status' => $candidate->getStatus()->value,
+            'apworldHash' => $candidate->getApworldHash(),
+            'versionTag' => $candidate->getVersionTag(),
+            'origin' => $candidate->getOrigin()->value,
+            'submittedAt' => $candidate->getSubmittedAt()->format(\DateTimeInterface::ATOM),
+            'decidedAt' => $candidate->getDecidedAt()?->format(\DateTimeInterface::ATOM),
+            'rejectionReason' => null === $candidate->getRejectionReason() ? null : GenerationFailureParser::summarize($candidate->getRejectionReason()),
+        ];
     }
 
     /**
@@ -1045,119 +1036,5 @@ final readonly class AdminGameLibrary
         return null !== $parsed['catalogSheetName']
             || null !== $parsed['apworldSourceUrl']
             || null !== $parsed['igdbId'];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function normalizeLocationNames(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-
-        $names = [];
-        foreach ($raw as $name) {
-            if (is_string($name) && '' !== $name) {
-                $names[] = $name;
-            }
-        }
-
-        return $names;
-    }
-
-    /**
-     * Validate the apworld's option-type table at the boundary (story 9.33).
-     *
-     * It used to keep only entries carrying integer bounds, which is how every non-range option was
-     * lost on the way to the editor. It now keeps whatever type the apworld declared, and still
-     * refuses anything it cannot name - an option with neither a type nor bounds says nothing.
-     *
-     * @return array<string, array{type: string, min?: int, max?: int, default?: int|string|bool|null, values?: list<string>, keys?: array<string, array{values: list<string>}>}>
-     */
-    private static function normalizeOptionTypes(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-
-        $types = [];
-        foreach ($raw as $key => $spec) {
-            if (!is_string($key) || !is_array($spec)) {
-                continue;
-            }
-
-            $min = $spec['min'] ?? null;
-            $max = $spec['max'] ?? null;
-            $hasBounds = is_int($min) && is_int($max);
-
-            $declared = $spec['type'] ?? null;
-            // A row written before story 9.33 has bounds and no type: it could only ever have been a
-            // range, since that was the single type this method let through.
-            $type = is_string($declared) && '' !== $declared ? $declared : ($hasBounds ? 'range' : null);
-            if (null === $type) {
-                continue;
-            }
-
-            $entry = ['type' => $type];
-            if ($hasBounds) {
-                $entry['min'] = $min;
-                $entry['max'] = $max;
-            }
-
-            $default = $spec['default'] ?? null;
-            if (is_int($default) || is_string($default) || is_bool($default) || null === $default) {
-                $entry['default'] = $default;
-            }
-
-            $values = $spec['values'] ?? null;
-            if (is_array($values)) {
-                $entry['values'] = array_values(array_filter($values, is_string(...)));
-            }
-
-            $subOptions = self::normalizeDictSubOptions($spec['keys'] ?? null);
-            if ([] !== $subOptions) {
-                $entry['keys'] = $subOptions;
-            }
-
-            $types[$key] = $entry;
-        }
-
-        return $types;
-    }
-
-    /**
-     * What each sub-setting of a dict option accepts, when the apworld declared it (story 9.51).
-     *
-     * A sub-setting left with fewer than two values is dropped rather than stored. Half a vocabulary
-     * is the worst thing a dropdown can be given: it reads as authoritative while hiding the entries
-     * the world actually accepts, and the player cannot see what is missing.
-     *
-     * @return array<string, array{values: list<string>}>
-     */
-    private static function normalizeDictSubOptions(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
-        }
-
-        $subOptions = [];
-        foreach ($raw as $subKey => $sub) {
-            if (!is_string($subKey) || !is_array($sub)) {
-                continue;
-            }
-
-            $values = $sub['values'] ?? null;
-            if (!is_array($values)) {
-                continue;
-            }
-
-            $clean = array_values(array_unique(array_filter($values, is_string(...))));
-            if (count($clean) > 1) {
-                $subOptions[$subKey] = ['values' => $clean];
-            }
-        }
-
-        return $subOptions;
     }
 }

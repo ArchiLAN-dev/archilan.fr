@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\PersonalRuns;
 
+use App\GameSelection\Application\Message\ReportDefaultYamlFailureJob;
 use App\PersonalRuns\Application\Handler\RunSlotPreflightJobHandler;
 use App\PersonalRuns\Application\Message\RunSlotPreflightJob;
 use App\PersonalRuns\Domain\Entity\RunParticipant;
@@ -23,6 +24,9 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
 
     /** @var list<Envelope> */
     private array $dispatched = [];
+    private int $flushes = 0;
+    /** @var list<int> */
+    private array $flushesBeforeDispatch = [];
 
     public function testStartQueuesOrchestratorJobAndRedispatchesDelayed(): void
     {
@@ -112,6 +116,60 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
         self::assertSame([], $this->dispatched);
     }
 
+    public function testASettledFailureIsReportedToTheApworldHealthAfterItsFlush(): void
+    {
+        // Story 38.4: the generator failed on this config; whether the apworld is at fault is judged elsewhere.
+        $participant = $this->participant();
+        $handler = $this->handler($participant, pollResult: ['status' => 'failed', 'error' => 'Traceback (most recent call last):
+FillError: No more spots to place items.']);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 3));
+
+        self::assertEquals([new ReportDefaultYamlFailureJob('game-1', 'hash-1', self::YAML, 'FillError: No more spots to place items.')], array_map(static fn (Envelope $e): object => $e->getMessage(), $this->dispatched));
+        self::assertSame([1], $this->flushesBeforeDispatch);
+    }
+
+    public function testAFailureThatIsNotTheGeneratorsReportsNothing(): void
+    {
+        // A runner down or a test past its deadline says nothing about the apworld.
+        $this->handler($this->participant(), pollResult: null)(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 84));
+        $this->handler($this->participant(), startResult: null)(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha()));
+
+        self::assertSame([], $this->dispatched);
+    }
+
+    public function testAResultOnAnotherApworldThanTheSlotsIsDropped(): void
+    {
+        // Story 38.4 review: a test started on the old apworld and finished after the slot moved to the new
+        // one (story 38.7) - same YAML, so the same sha - must not land on the new apworld.
+        $participant = $this->participant();
+        $handler = $this->handler($participant, pollResult: ['status' => 'failed', 'error' => 'FillError: boom']);
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 3, apworldHash: 'hash-0'));
+
+        self::assertArrayNotHasKey('preflight', $participant->getSlot('slot-1') ?? []);
+        self::assertSame([], $this->dispatched);
+    }
+
+    public function testTheTestedApworldFollowsTheJob(): void
+    {
+        $participant = $this->participant();
+        $handler = $this->handler($participant, startResult: 'orch-1');
+
+        $handler(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), apworldHash: 'hash-1'));
+
+        $message = $this->dispatched[0]->getMessage();
+        self::assertInstanceOf(RunSlotPreflightJob::class, $message);
+        self::assertSame('hash-1', $message->apworldHash);
+    }
+
+    public function testAPassedTestReportsNothing(): void
+    {
+        $this->handler($this->participant(), pollResult: ['status' => 'passed', 'error' => ''])(new RunSlotPreflightJob('run-1', 'user-1', 'slot-1', $this->sha(), 'orch-1', 0));
+
+        self::assertSame([], $this->dispatched);
+    }
+
     private function sha(): string
     {
         return hash('sha256', self::YAML);
@@ -133,6 +191,9 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
     {
         $participants = self::createStub(RunParticipantRepositoryInterface::class);
         $participants->method('findByRunAndUser')->willReturn($participant);
+        $participants->method('flush')->willReturnCallback(function (): void {
+            ++$this->flushes;
+        });
 
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('startSlotPreflight')->willReturn($startResult);
@@ -143,6 +204,7 @@ final class RunSlotPreflightJobHandlerTest extends TestCase
             $onlyStamps = array_values(array_filter($stamps, static fn (mixed $stamp): bool => $stamp instanceof StampInterface));
             $envelope = new Envelope($message, $onlyStamps);
             $this->dispatched[] = $envelope;
+            $this->flushesBeforeDispatch[] = $this->flushes;
 
             return $envelope;
         });

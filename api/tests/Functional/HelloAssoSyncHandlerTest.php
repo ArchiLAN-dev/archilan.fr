@@ -234,6 +234,67 @@ final class HelloAssoSyncHandlerTest extends FunctionalTestCase
     }
 
     /**
+     * @return iterable<string, array{string}>
+     */
+    public static function unconfirmedStates(): iterable
+    {
+        yield 'refunded' => ['Refunded'];
+        yield 'canceled' => ['Canceled'];
+        yield 'contested' => ['Contested'];
+        yield 'waiting' => ['Waiting'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unconfirmedStates')]
+    public function testAnOrderWithADateButNoConfirmedPaymentIsNotReportedPaid(string $state): void
+    {
+        // Story 22.7: a date alone is not a payment. A refunded, canceled or contested order carries one
+        // too, and used to activate a membership.
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
+        $handler = $this->handler([
+            new MockResponse('{"access_token":"server-token"}'),
+            $this->itemsResponse(123456, 'payer@example.org', '2026-05-02T10:15:00+00:00', $state),
+        ], $bus);
+
+        $handler(new SyncHelloAssoFormMessage(HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-2026'));
+    }
+
+    public function testAnOrderIsReportedPaidOnceWhenItsPaymentIsConfirmed(): void
+    {
+        // Dated but not yet processed at the previous sync: reported when it turns Processed, not before,
+        // and never again after.
+        $now = new \DateTimeImmutable('2026-05-01T10:00:00+00:00');
+        $this->entityManager->persist(HelloAssoOrder::fromHelloAsso(
+            123456,
+            HelloAssoConfig::FORM_TYPE_MEMBERSHIP,
+            'adhesion-2026',
+            'Waiting',
+            2500,
+            'payer@example.org',
+            'Ada',
+            'Lovelace',
+            $now,
+            $now,
+        ));
+        $this->entityManager->flush();
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())
+            ->method('dispatch')
+            ->with(self::isInstanceOf(HelloAssoOrderPaidMessage::class))
+            ->willReturn(new Envelope(new \stdClass()));
+
+        $this->handler([
+            new MockResponse('{"access_token":"server-token"}'),
+            $this->itemsResponse(123456, 'payer@example.org', '2026-05-01T10:00:00+00:00', 'Processed'),
+        ], $bus)(new SyncHelloAssoFormMessage(HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-2026'));
+
+        $this->handler([
+            new MockResponse('{"access_token":"server-token"}'),
+            $this->itemsResponse(123456, 'payer@example.org', '2026-05-01T10:00:00+00:00', 'Processed'),
+        ], $bus)(new SyncHelloAssoFormMessage(HelloAssoConfig::FORM_TYPE_MEMBERSHIP, 'adhesion-2026'));
+    }
+
+    /**
      * @param list<MockResponse> $responses
      */
     private function handler(array $responses, ?MessageBusInterface $bus = null): SyncHelloAssoFormHandler
@@ -254,12 +315,12 @@ final class HelloAssoSyncHandlerTest extends FunctionalTestCase
         }, new NullLogger(), new MockClock());
     }
 
-    private function itemsResponse(int $orderId, ?string $payerEmail, ?string $paidAt): MockResponse
+    private function itemsResponse(int $orderId, ?string $payerEmail, ?string $paidAt, ?string $state = null): MockResponse
     {
         return new MockResponse(json_encode([
             'data' => [[
                 'order' => ['id' => $orderId, 'date' => $paidAt],
-                'state' => null !== $paidAt ? 'Processed' : 'Pending',
+                'state' => $state ?? (null !== $paidAt ? 'Processed' : 'Pending'),
                 'amount' => 2500,
                 'payer' => [
                     'email' => $payerEmail,

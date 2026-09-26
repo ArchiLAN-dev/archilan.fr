@@ -39,6 +39,28 @@ final class ActivateMembershipTest extends TestCase
         $service->activate(self::USER_ID, new \DateTimeImmutable('2026-01-01'), 'admin');
     }
 
+    public function testAnOrderAlreadyAppliedIsNotAppliedAgain(): void
+    {
+        // Story 22.7: the webhook applies the order, then the form sync it triggers finds the same order
+        // new in its own table and reports it paid again. Renewing twice gave 24 months for one payment.
+        $expiresAt = new \DateTimeImmutable('2027-01-01');
+        $existing = Membership::create(self::USER_ID, new \DateTimeImmutable('2026-01-01'), $expiresAt, 'helloasso', 'order-42', null, new \DateTimeImmutable('2026-01-01'));
+
+        $memberships = $this->createMock(MembershipRepositoryInterface::class);
+        $memberships->method('findByHelloassoOrderId')->willReturnMap([['order-42', $existing]]);
+        $memberships->method('findActiveByUserId')->willReturn($existing);
+        $memberships->expects(self::never())->method('flush');
+        $memberships->expects(self::never())->method('save');
+
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::never())->method('dispatch');
+
+        $service = new ActivateMembership($memberships, self::createStub(UserRoleGatewayInterface::class), $bus, self::createStub(LoggerInterface::class), new MockClock());
+        $service->activate(self::USER_ID, new \DateTimeImmutable('2026-01-01'), 'helloasso', 'order-42');
+
+        self::assertSame('2027-01-01', $existing->getExpiresAt()->format('Y-m-d'));
+    }
+
     public function testActivateRenewsExistingMembershipUpdatesExpiresAt(): void
     {
         $expiresAt = new \DateTimeImmutable('2027-01-01');

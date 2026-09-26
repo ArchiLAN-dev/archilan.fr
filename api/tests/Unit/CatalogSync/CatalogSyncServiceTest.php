@@ -216,7 +216,13 @@ final class CatalogSyncServiceTest extends TestCase
                     'data' => [
                         [
                             'rowData' => [
-                                ['values' => [['userEnteredValue' => ['stringValue' => 'Game']]]],
+                                // Story 14.11: the header names the columns the row is read by.
+                                ['values' => [
+                                    ['userEnteredValue' => ['stringValue' => 'Game']],
+                                    ['userEnteredValue' => ['stringValue' => 'Stability']],
+                                    ['userEnteredValue' => ['stringValue' => 'PR Status']],
+                                    ['userEnteredValue' => ['stringValue' => 'Links & Downloads']],
+                                ]],
                                 ['values' => [
                                     // col 0: name (plain text)
                                     ['userEnteredValue' => ['stringValue' => 'Hollow Knight']],
@@ -262,7 +268,7 @@ final class CatalogSyncServiceTest extends TestCase
                 [
                     'properties' => ['sheetId' => 58422002],
                     'data' => [['rowData' => [
-                        ['values' => [['userEnteredValue' => ['stringValue' => 'Name']]]],
+                        ['values' => [['userEnteredValue' => ['stringValue' => 'Name']], ['userEnteredValue' => ['stringValue' => 'Stability']]]],
                         ['values' => [
                             ['userEnteredValue' => ['stringValue' => 'Hollow Knight']],
                             ['userEnteredValue' => ['stringValue' => 'Stable']],

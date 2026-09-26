@@ -25,6 +25,8 @@ final readonly class SyncHelloAssoFormHandler
 {
     use LogsHandlerErrors;
 
+    private const string STATUS_PROCESSED = 'Processed';
+
     public function __construct(
         private HelloAssoClientInterface $httpClient,
         private HelloAssoOrderRepositoryInterface $orderRepository,
@@ -149,7 +151,7 @@ final readonly class SyncHelloAssoFormHandler
         $found = $this->orderRepository->findByHelloAssoOrderId($item['orderId']);
 
         if ($found instanceof HelloAssoOrder) {
-            $wasUnpaid = null === $found->getPaidAt();
+            $wasPaid = self::isPaid($found->getStatus(), $found->getPaidAt());
 
             $found->updateFromSync(
                 $item['status'],
@@ -161,7 +163,7 @@ final readonly class SyncHelloAssoFormHandler
                 $now,
             );
 
-            if ($wasUnpaid && null !== $item['paidAt']) {
+            if (!$wasPaid && self::isPaid($item['status'], $item['paidAt'])) {
                 return new HelloAssoOrderPaidMessage(
                     (string) $item['orderId'],
                     $formSlug,
@@ -188,7 +190,7 @@ final readonly class SyncHelloAssoFormHandler
 
         $this->orderRepository->persist($order);
 
-        if (null !== $item['paidAt']) {
+        if (self::isPaid($item['status'], $item['paidAt'])) {
             return new HelloAssoOrderPaidMessage(
                 (string) $item['orderId'],
                 $formSlug,
@@ -198,5 +200,15 @@ final readonly class SyncHelloAssoFormHandler
         }
 
         return null;
+    }
+
+    /**
+     * A date alone is not a payment: a refunded, canceled or contested order carries one too, and used to
+     * activate a membership (story 22.7). Only a processed order is paid, as the admin reconcile and the
+     * unmatched-orders list already required.
+     */
+    private static function isPaid(string $status, ?\DateTimeImmutable $paidAt): bool
+    {
+        return self::STATUS_PROCESSED === $status && null !== $paidAt;
     }
 }

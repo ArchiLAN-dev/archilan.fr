@@ -77,6 +77,8 @@ export type ParticipantGameSlot = {
   // Story 9.42: solo test-generation verdict of the slot's current yaml (advisory).
   // Absent on older API payloads.
   preflight?: { status: "pending" | "passed" | "failed"; error: string; checkedAt: string } | null;
+  // Story 38.7: why the slot is to review after its game switched apworld.
+  needsReview?: string[];
 };
 
 /** A slot of an imported archive, and who the run owner put on it (story 16.18). */

@@ -173,7 +173,7 @@ final class PlayerSessionConnectionTest extends FunctionalTestCase
         self::assertSame('Jean_HK_new', $firstSlot['slotName']);
     }
 
-    public function testStoppedSessionKeepsConnectionDataForHistory(): void
+    public function testStoppedSessionNoLongerHandsOutItsAddress(): void
     {
         $user = $this->createUser('user@example.org');
         $registration = $this->createConfirmedRegistration($user->getId(), 'evt-001');
@@ -194,8 +194,10 @@ final class PlayerSessionConnectionTest extends FunctionalTestCase
         $session = $data['session'];
         self::assertIsArray($session);
         self::assertSame('stopped', $session['status']);
-        self::assertSame('10.0.0.1', $session['host']);
-        self::assertSame(38281, $session['port']);
+        // Story 17.26: the orchestrateur released the port when the server stopped and may have handed
+        // it to another session since - the last address is no longer this session's to give out.
+        self::assertNull($session['host']);
+        self::assertNull($session['port']);
         self::assertSame('archipelago', $session['password']);
     }
 

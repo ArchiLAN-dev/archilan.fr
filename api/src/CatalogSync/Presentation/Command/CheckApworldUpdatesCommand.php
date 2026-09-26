@@ -25,8 +25,17 @@ final class CheckApworldUpdatesCommand extends Command
 
         $output->writeln(sprintf('Checked %d APWorld(s).', $result->checked));
 
+        if ($result->failed > 0) {
+            $output->writeln(sprintf('%d check(s) failed (network or unreadable answer) and were skipped, see the logs.', $result->failed));
+        }
+
         if ($result->rateLimitHit) {
             $output->writeln('GitHub rate limit reached, batch stopped early.');
+        }
+
+        $output->writeln(sprintf('%d update(s) available:', \count($result->updatesAvailable)));
+        foreach ($result->updatesAvailable as $update) {
+            $output->writeln(sprintf('  - %s -> %s', $update->gameName, $update->latestTag));
         }
 
         return Command::SUCCESS;

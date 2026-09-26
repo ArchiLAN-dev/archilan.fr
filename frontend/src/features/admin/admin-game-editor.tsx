@@ -8,15 +8,18 @@ import {useQuery, useQueryClient} from "@tanstack/react-query";
 
 import {
     fetchAdminGame,
+    forceApworldCandidate,
     isAdminGamePayload as isGamePayload,
     overrideApworldPreflight,
     regenerateDefaultYaml,
     rerunApworldPreflight,
+    retryApworldCandidate,
     saveDefaultYaml,
     saveDictOptionValues,
     savePlatforms,
     type AdminGame,
     type AdminGameResult,
+    type ApworldCandidateActionResult,
     type ApworldPreflight,
     type DefaultYamlResult,
     type GameAvailability,
@@ -29,6 +32,11 @@ import {GAME_DESCRIPTION_MAX} from "@/lib/content-limits";
 import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
+import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
+import {ApworldCandidateStatus} from "./apworld-candidate-status";
+import {ApworldPreflightImage} from "./apworld-preflight-image";
+import {ApworldIncidentBanner} from "./apworld-incident-banner";
+import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,12 +69,24 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
         retry: false,
         // Story 9.38: the apworld test generation runs asynchronously on the orchestrator,
         // so poll while its verdict is pending instead of making the admin reload the page.
+        // Story 38.6: same while a new version is in test - the page shows the switch when it happens.
         refetchInterval: (query) => {
             const result = query.state.data;
-            return result?.kind === "ready" && result.game.apworldPreflight?.status === "pending" ? 10_000 : false;
+            return result?.kind === "ready"
+                && (result.game.apworldPreflight?.status === "pending" || result.game.apworldCandidate?.status === "testing")
+                ? 10_000
+                : false;
         },
     });
     const loadState: LoadState = data ?? {kind: "loading"};
+
+    // Story 38.3 AC6: the active incidents of this game's apworld, as a banner. Shares the incident
+    // query prefix, so an action on the health page refreshes it.
+    const {data: activeIncidents} = useQuery({
+        queryKey: [...APWORLD_INCIDENTS_QUERY_KEY, "game", gameId],
+        queryFn: () => fetchApworldIncidents("active", gameId),
+        staleTime: DEFAULT_STALE_TIME,
+    });
 
     // Mutation handlers push the PATCH/POST response straight into the cache: no refetch, the
     // sections keep their no-flash update semantics.
@@ -118,6 +138,8 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
                 </div>
                 <p className="font-mono text-sm text-muted-foreground">{game.slug}</p>
             </header>
+
+            <ApworldIncidentBanner incidents={activeIncidents ?? []}/>
 
             <div
                 aria-label="Sections de configuration du jeu"
@@ -504,26 +526,19 @@ function CatalogSyncSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: A
         }
     }
 
-    const statusLabel: Record<string, string> = {
-        up_to_date: "À jour",
-        update_available: "Mise à jour disponible",
-        unknown: "Version inconnue",
-        not_tracked: "Non suivi",
-    };
-
-    const statusColor: Record<string, string> = {
-        up_to_date: "text-success",
-        update_available: "text-warning",
-        unknown: "text-muted-foreground",
-        not_tracked: "text-muted-foreground",
+    const statusColor: Record<ApworldUpdateStatusTone, string> = {
+        warning: "text-warning",
+        success: "text-success",
+        muted: "text-muted-foreground",
+        faint: "text-muted-foreground",
     };
 
     return (
         <Section title="Catalogue & APWorld source">
             {game.updateStatus !== "not_tracked" && (
                 <div className="mb-5 flex flex-wrap gap-4 rounded border border-border bg-surface-2 px-4 py-3 text-sm">
-          <span className={`font-semibold ${statusColor[game.updateStatus] ?? "text-muted-foreground"}`}>
-            {statusLabel[game.updateStatus] ?? game.updateStatus}
+          <span className={`font-semibold ${statusColor[updateStatusTone(game.updateStatus)]}`}>
+            {updateStatusLabel(game.updateStatus)}
           </span>
                     {game.apworldDeployedVersion && (
                         <span className="text-muted-foreground">Déployé : <span
@@ -873,6 +888,9 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
                     Aucun fichier .apworld configuré : les joueurs ne peuvent pas personnaliser leur YAML pour ce jeu.
                 </p>
             )}
+
+            {/* ── 1 bis. La nouvelle version en attente de son test, ou refusée par lui (story 38.6) ── */}
+            <ApworldCandidateBlock game={game} onUpdate={onUpdate}/>
 
             {/* ── 2. Mettre à jour le fichier : les deux sources, au même niveau ── */}
             <div className="mt-5 grid gap-3">
@@ -1534,6 +1552,36 @@ function fieldErrorsFromPayload(payload: unknown): BasicInfoErrors {
     };
 }
 
+// ─── Apworld candidate (story 38.6) ─────────────────────────────────────────
+
+function ApworldCandidateBlock({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function run(action: (gameId: string) => Promise<ApworldCandidateActionResult>) {
+        setBusy(true);
+        setError(null);
+        const result = await action(game.id);
+        if (!result.ok) setError(result.message);
+        // The action changed the game (forced) or its candidate (retried): read both back.
+        const refreshed = await fetchAdminGame(game.id);
+        if (refreshed.kind === "ready") onUpdate(refreshed.game);
+        setBusy(false);
+    }
+
+    return (
+        <>
+            <ApworldCandidateStatus
+                busy={busy}
+                candidate={game.apworldCandidate ?? null}
+                onForce={() => void run(forceApworldCandidate)}
+                onRetry={() => void run(retryApworldCandidate)}
+            />
+            {error !== null && <p className="mt-2 text-sm text-danger" role="alert">{error}</p>}
+        </>
+    );
+}
+
 // ─── Apworld preflight verdict (story 9.38) ──────────────────────────────────
 
 const preflightLabels: Record<ApworldPreflight["status"], { label: string; className: string }> = {
@@ -1620,6 +1668,17 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                     ) : null}
                 </div>
             </div>
+
+            {/* Only a verdict that ran names an image: pending and skipped ones claim none (story 38.8 review). */}
+            {preflight !== null && (preflight.status === "passed" || preflight.status === "failed") ? (
+                <ApworldPreflightImage
+                    image={preflight.image ?? null}
+                    imageId={preflight.imageId ?? null}
+                    onCurrentImage={game.apworldPreflightOnCurrentImage ?? null}
+                    runtimeImage={game.archipelagoRuntime?.apImage ?? null}
+                    runtimeImageId={game.archipelagoRuntime?.apImageId ?? null}
+                />
+            ) : null}
 
             <p className="text-xs text-muted-foreground">
                 Généré seul, avec les options par défaut du template et une seule seed : un échec signale un apworld

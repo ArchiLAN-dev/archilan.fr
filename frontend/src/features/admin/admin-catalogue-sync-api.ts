@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 import { hasBooleanProp, hasNullableStringProp, hasNumberProp, hasStringProp } from "@/lib/type-guards";
+import type { ApworldUpdateStatus } from "./apworld-update-status";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ export type ApworldUpdate = {
   latestVersion: string | null;
   releaseUrl: string | null;
   publishedAt: string | null;
-  updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
+  updateStatus: ApworldUpdateStatus;
 };
 
 export type IgnoredGame = {

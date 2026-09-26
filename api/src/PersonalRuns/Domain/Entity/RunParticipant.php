@@ -24,7 +24,7 @@ final class RunParticipant
          * test-generation verdict of the slot's CURRENT yaml (story 9.42): keyed by yamlSha
          * so an edit invalidates it, advisory only (never blocks a launch).
          *
-         * @var list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null}>
+         * @var list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null, needsReview?: list<string>}>
          */
         #[ORM\Column(name: 'game_slots', type: Types::JSON)]
         private array $gameSlots = [],
@@ -52,7 +52,7 @@ final class RunParticipant
     }
 
     /**
-     * @return list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null}>
+     * @return list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null, needsReview?: list<string>}>
      */
     public function getGameSlots(): array
     {
@@ -70,9 +70,13 @@ final class RunParticipant
     public function replaceSlots(array $slots): void
     {
         $preflightBySlotId = [];
+        $reviewBySlotId = [];
         foreach ($this->gameSlots as $existing) {
             if (isset($existing['preflight'])) {
                 $preflightBySlotId[$existing['slotId']] = $existing['preflight'];
+            }
+            if (isset($existing['needsReview'])) {
+                $reviewBySlotId[$existing['slotId']] = $existing['needsReview'];
             }
         }
 
@@ -93,6 +97,10 @@ final class RunParticipant
             if (isset($preflightBySlotId[$slot['slotId']])) {
                 $entry['preflight'] = $preflightBySlotId[$slot['slotId']];
             }
+            // Reordering the selection is not reviewing the slot (story 38.7).
+            if (isset($reviewBySlotId[$slot['slotId']])) {
+                $entry['needsReview'] = $reviewBySlotId[$slot['slotId']];
+            }
 
             $orderedSlots[] = $entry;
         }
@@ -108,9 +116,42 @@ final class RunParticipant
                 $slot['apworldHash'] = $apworldHash;
                 // The verdict was for the previous yaml - a stale badge must not survive.
                 unset($slot['preflight']);
+                // Saving the slot is reviewing it (story 38.7).
+                unset($slot['needsReview']);
 
                 return;
             }
+        }
+
+        throw new \DomainException(sprintf('Slot "%s" not found in participant game slots.', $slotId));
+    }
+
+    /**
+     * The slot follows its game to a new apworld while the run is not launched (story 38.7). `$playerYaml`
+     * replaces the YAML only when the player never touched it (null keeps theirs); `$reviewReasons`, when
+     * not empty, marks the slot for review until the player saves it again. The test verdict was for the
+     * previous apworld: it goes.
+     *
+     * @param list<string> $reviewReasons
+     */
+    public function upgradeSlotApworld(string $slotId, string $apworldHash, ?string $playerYaml, array $reviewReasons): void
+    {
+        foreach ($this->gameSlots as &$slot) {
+            if ($slot['slotId'] !== $slotId) {
+                continue;
+            }
+            $slot['apworldHash'] = $apworldHash;
+            if (null !== $playerYaml) {
+                $slot['playerYaml'] = $playerYaml;
+            }
+            unset($slot['preflight']);
+            if ([] === $reviewReasons) {
+                unset($slot['needsReview']);
+            } else {
+                $slot['needsReview'] = $reviewReasons;
+            }
+
+            return;
         }
 
         throw new \DomainException(sprintf('Slot "%s" not found in participant game slots.', $slotId));
@@ -139,7 +180,7 @@ final class RunParticipant
     }
 
     /**
-     * @return array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null}|null
+     * @return array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, preflight?: array{status: string, error: string, checkedAt: string, yamlSha: string}|null, needsReview?: list<string>}|null
      */
     public function getSlot(string $slotId): ?array
     {

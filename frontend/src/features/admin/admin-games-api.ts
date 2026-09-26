@@ -2,6 +2,8 @@ import type { InstallStep } from "@/features/games/install-steps-editor";
 import type { OptionTypesMap } from "@/lib/archipelago-yaml";
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
+import { hasNullableStringProp, hasStringProp } from "@/lib/type-guards";
+import type { ApworldUpdateStatus } from "./apworld-update-status";
 
 export type GameAvailability = "available" | "unavailable" | "experimental";
 
@@ -33,12 +35,17 @@ export type AdminGame = {
   igdbId: number | null;
   platforms: string[];
   installSteps: InstallStep[];
-  updateStatus: "update_available" | "up_to_date" | "unknown" | "not_tracked";
+  updateStatus: ApworldUpdateStatus;
   // Admin-only free-text notes (story 3.12). Present only in the admin detail payload, never public.
   adminNotes: string | null;
   // Story 9.38: upload-time solo test-generation verdict of the apworld. Null when never
   // checked or when the runner is unreachable. Absent on older payloads.
   apworldPreflight?: ApworldPreflight | null;
+  // Story 38.8: the Archipelago image in use, and whether the verdict was produced on it. Null when
+  // either is unknown.
+  archipelagoRuntime?: { apImage: string; apImageId: string | null } | null;
+  apworldPreflightOnCurrentImage?: boolean | null;
+  apworldCandidate?: ApworldCandidate | null;
   // Story 9.47: true when `platforms` comes from an admin choice instead of IGDB.
   platformsOverridden?: boolean;
   // Curated families an admin can pick from. Absent on older payloads.
@@ -128,6 +135,9 @@ export type ApworldPreflight = {
   overridden: boolean;
   // True only for failed + non-overridden: the game cannot be newly added to a run.
   blocks: boolean;
+  // Story 38.8: the Archipelago image the verdict was produced on; absent before that story.
+  image?: string | null;
+  imageId?: string | null;
 };
 
 export function isApworldPreflight(v: unknown): v is ApworldPreflight {
@@ -242,6 +252,54 @@ export async function overrideApworldPreflight(gameId: string, overridden: boole
   } catch {
     return null;
   }
+}
+
+// Story 38.6: a new apworld version is tested before it serves players. The candidate is that version
+// while it waits for its verdict, or once its test refused it.
+export type ApworldCandidate = {
+  id: string;
+  // Story 38.6 review: "expired" = no verdict in time; the release is tried again, not rejected.
+  status: "testing" | "rejected" | "expired";
+  apworldHash: string;
+  versionTag: string | null;
+  origin: "manual" | "auto";
+  submittedAt: string;
+  decidedAt: string | null;
+  rejectionReason: string | null;
+};
+
+export function isApworldCandidate(v: unknown): v is ApworldCandidate {
+  if (typeof v !== "object" || v === null) return false;
+  if (!hasStringProp(v, "id") || !hasStringProp(v, "apworldHash") || !hasStringProp(v, "submittedAt")) return false;
+  if (!("status" in v) || (v.status !== "testing" && v.status !== "rejected" && v.status !== "expired")) return false;
+  if (!("origin" in v) || (v.origin !== "manual" && v.origin !== "auto")) return false;
+  return hasNullableStringProp(v, "versionTag") && hasNullableStringProp(v, "decidedAt") && hasNullableStringProp(v, "rejectionReason");
+}
+
+export type ApworldCandidateActionResult = { ok: true } | { ok: false; message: string };
+
+const CANDIDATE_ACTION_ERROR = "L'action n'a pas pu être appliquée. Réessaie dans un instant.";
+
+async function candidateAction(gameId: string, action: "promote" | "retry"): Promise<ApworldCandidateActionResult> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/games/${encodeURIComponent(gameId)}/apworld-candidate/${action}`, { method: "POST" });
+    if (res.ok) return { ok: true };
+    const json: unknown = await res.json().catch(() => null);
+    const error: unknown = typeof json === "object" && json !== null && "error" in json ? json.error : null;
+    return { ok: false, message: typeof error === "object" && error !== null && hasStringProp(error, "message") ? error.message : CANDIDATE_ACTION_ERROR };
+  } catch {
+    return { ok: false, message: CANDIDATE_ACTION_ERROR };
+  }
+}
+
+/** Put the candidate into service despite its test (after confirmation in the UI). */
+export function forceApworldCandidate(gameId: string): Promise<ApworldCandidateActionResult> {
+  return candidateAction(gameId, "promote");
+}
+
+/** Run the test of a rejected candidate again, typically after a transient failure. */
+export function retryApworldCandidate(gameId: string): Promise<ApworldCandidateActionResult> {
+  return candidateAction(gameId, "retry");
 }
 
 // Discriminated result: keeps the editor's four failure screens distinct. Never throws

@@ -48,11 +48,48 @@ final class ApworldUpdateStatusTest extends TestCase
         );
     }
 
-    public function testUpdateAvailableWhenVersionsDiffer(): void
+    public function testUpdateAvailableWhenTheLatestIsNewer(): void
     {
         self::assertSame(
             Game::UPDATE_STATUS_UPDATE_AVAILABLE,
             ApworldUpdateStatus::compute('https://github.com/owner/repo', new \DateTimeImmutable(), '1.3.0', '1.2.0'),
+        );
+    }
+
+    public function testAnOlderLatestIsNeverAnUpdate(): void
+    {
+        // Story 38.5: the tracker saw 0.16.0 while 0.17.0 was deployed, and called it an update.
+        self::assertSame(
+            Game::UPDATE_STATUS_UP_TO_DATE,
+            ApworldUpdateStatus::compute('https://github.com/owner/repo', new \DateTimeImmutable(), 'CrystalProject-v0.16.0', 'CrystalProject-v0.17.0'),
+        );
+    }
+
+    public function testTheSameVersionWrittenDifferentlyIsUpToDate(): void
+    {
+        self::assertSame(
+            Game::UPDATE_STATUS_UP_TO_DATE,
+            ApworldUpdateStatus::compute('https://github.com/owner/repo', new \DateTimeImmutable(), 'CrystalProject-v0.18.2', '0.18.2'),
+        );
+    }
+
+    public function testVersionsAreOrderedNumerically(): void
+    {
+        self::assertSame(
+            Game::UPDATE_STATUS_UPDATE_AVAILABLE,
+            ApworldUpdateStatus::compute('https://github.com/owner/repo', new \DateTimeImmutable(), '0.10.0', '0.9.0'),
+        );
+    }
+
+    public function testAnUnreadableVersionIsUndetermined(): void
+    {
+        self::assertSame(
+            Game::UPDATE_STATUS_UNDETERMINED,
+            ApworldUpdateStatus::compute('https://github.com/owner/repo', new \DateTimeImmutable(), 'latest', '1.2.0'),
+        );
+        self::assertSame(
+            Game::UPDATE_STATUS_UNDETERMINED,
+            ApworldUpdateStatus::compute('https://github.com/owner/repo', new \DateTimeImmutable(), '1.2.0', 'nightly'),
         );
     }
 }

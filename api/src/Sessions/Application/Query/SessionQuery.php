@@ -38,6 +38,7 @@ final readonly class SessionQuery
      *     status: string,
      *     host: string|null,
      *     port: int|null,
+     *     connectionUri: string|null,
      *     bridgePort: int|null,
      *     lastLogs: string|null,
      *     archivedSpoilerPath: string|null,
@@ -53,15 +54,19 @@ final readonly class SessionQuery
             return null;
         }
 
+        // Hors `running`, le dernier port connu a été rendu par l'orchestrateur et peut appartenir à
+        // une autre session : aucune adresse n'est donnée (story 17.26).
+        $endpoint = $session->liveEndpoint();
+
         return [
             'id' => $session->getId(),
             'eventId' => $session->getEventId(),
             'status' => $session->getStatus(),
-            'host' => $session->getHost(),
-            'port' => $session->getPort(),
+            'host' => $endpoint['host'] ?? null,
+            'port' => $endpoint['port'] ?? null,
             // Adresse à donner à un client ; hôte et port bruts restent exposés pour l'admin, le
             // diagnostic, et les clients qui attendent les deux champs séparés (epic 37).
-            'connectionUri' => ArchipelagoConnectionUri::tryBuild($session->getHost(), $session->getPort()),
+            'connectionUri' => ArchipelagoConnectionUri::tryBuild($endpoint['host'] ?? null, $endpoint['port'] ?? null),
             'bridgePort' => $session->getBridgePort(),
             'lastLogs' => $session->getLastLogs(),
             'archivedSpoilerPath' => $session->getArchivedSpoilerPath(),

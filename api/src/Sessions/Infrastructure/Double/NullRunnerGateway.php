@@ -17,8 +17,11 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array{status: string, bridgePort: ?int, apPort: ?int}|null Canned getSessionInfo() return for reconciliation tests. */
     public static ?array $nextSessionInfo = null;
 
-    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}> Canned preflight verdicts by hash (story 9.38 tests). */
+    /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}> Canned preflight verdicts by hash (story 9.38 tests). */
     public static array $apworldPreflights = [];
+
+    /** @var array{apImage: string, apImageId: string|null}|null Canned image in use (story 38.8 tests); null = runner silent. */
+    public static ?array $runtime = null;
 
     public static function reset(): void
     {
@@ -26,6 +29,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         self::$lastConfigureSlots = null;
         self::$nextSessionInfo = null;
         self::$apworldPreflights = [];
+        self::$runtime = null;
     }
 
     public function uploadApworld(string $fileContents, string $filename): array
@@ -37,14 +41,15 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return ['error' => 'runner_unavailable'];
     }
 
+    /** A plain world (story 38.6 review): an empty introspection reads as an orchestrator that did not answer. */
     public function fetchOptionTypes(string $hash): array
     {
-        return [];
+        return ['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]];
     }
 
     public function fetchLocationNames(string $hash): array
     {
-        return [];
+        return ['Null Location'];
     }
 
     public function preflight(string $sessionId, array $slots): array
@@ -77,13 +82,18 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return self::$apworldPreflights;
     }
 
+    public function fetchRuntime(): ?array
+    {
+        return self::$runtime;
+    }
+
     public function runApworldPreflight(string $hash): bool
     {
         return true;
     }
 
     /**
-     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}
+     * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}
      */
     public function overrideApworldPreflight(string $hash, bool $overridden): array
     {

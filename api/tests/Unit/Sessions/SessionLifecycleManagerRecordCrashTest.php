@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Sessions;
 
 use App\Events\Domain\Repository\EventRepositoryInterface;
+use App\GameSelection\Application\Query\ServedApworld;
+use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\Identity\Domain\Repository\UserRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunParticipantRepositoryInterface;
 use App\PersonalRuns\Domain\Repository\RunRepositoryInterface;
@@ -103,6 +105,9 @@ LOG;
             'slotName' => 'masterkafey_ABL',
             'message' => 'Exception: Too many upgrade items based on LEVEL_CAPS: 141 items for 16 locations. Disable some location categories/options or verify cap data.',
         ]], $job->findings);
+        // Story 38.4 review: the apworld each game served when it crashed, for an event whose slots carry
+        // no hash; the health report runs later, maybe after a promotion.
+        self::assertSame(['game-1' => 'hash-served'], $job->servedApworldHashByGameId);
     }
 
     public function testRecordCrashDispatchesNotificationJobWithoutFindings(): void
@@ -154,6 +159,8 @@ LOG;
 
         $clock = self::createStub(ClockInterface::class);
         $clock->method('now')->willReturn(new \DateTimeImmutable('2026-07-30T12:34:56+00:00'));
+        $served = self::createStub(ServedApworldsQueryInterface::class);
+        $served->method('servedApworlds')->willReturn([new ServedApworld('game-1', 'hash-served'), new ServedApworld('game-other', 'hash-other')]);
 
         if (null === $bus) {
             $bus = self::createStub(MessageBusInterface::class);
@@ -175,6 +182,7 @@ LOG;
             weeklyEntries: self::createStub(WeeklyEntryRepositoryInterface::class),
             achievementRecomputeTrigger: self::createStub(AchievementRecomputeTriggerInterface::class),
             clock: $clock,
+            servedApworlds: $served,
         );
     }
 }
