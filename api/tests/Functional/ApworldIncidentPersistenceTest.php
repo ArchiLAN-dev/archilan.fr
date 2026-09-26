@@ -119,6 +119,20 @@ final class ApworldIncidentPersistenceTest extends FunctionalTestCase
         );
     }
 
+    public function testServedApworldsSayWhichGameIsDisabled(): void
+    {
+        // Story 38.9: the rolling test leaves a disabled game alone.
+        $disabled = $this->createGame('Old Game', 'old-game');
+        $disabled->configureApworld('key.apworld', 'hash-old', 'Old Game', "game: Old Game\n", new \DateTimeImmutable());
+        $disabled->disable('Retiré du catalogue.', new \DateTimeImmutable());
+        $this->entityManager->flush();
+
+        $query = self::getContainer()->get(ServedApworldsQueryInterface::class);
+        self::assertInstanceOf(ServedApworldsQueryInterface::class, $query);
+
+        self::assertEquals([new ServedApworld($disabled->getId(), 'hash-old', disabled: true)], $query->servedApworlds());
+    }
+
     private function incident(string $id, string $openedAt): ApworldIncident
     {
         return ApworldIncident::open(

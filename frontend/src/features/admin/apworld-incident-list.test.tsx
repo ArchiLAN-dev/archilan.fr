@@ -116,6 +116,12 @@ describe("ApworldIncidentList", () => {
     expect(html).not.toContain("default_yaml_failure");
   });
 
+  test("an image regression is named for what it is (story 38.9)", () => {
+    const html = render([incident({ id: "a", type: "image_regression" })]);
+
+    expect(html).toContain("Régression après changement d'image".replace("'", "&#x27;"));
+  });
+
   test("an empty list says so plainly", () => {
     expect(render([])).toContain("Aucun apworld en échec");
   });

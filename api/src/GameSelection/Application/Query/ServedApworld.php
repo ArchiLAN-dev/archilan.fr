@@ -12,6 +12,8 @@ final readonly class ServedApworld
     public function __construct(
         public string $gameId,
         public string $apworldHash,
+        // Story 38.9: a disabled game is left out of the rolling test.
+        public bool $disabled = false,
     ) {
     }
 }

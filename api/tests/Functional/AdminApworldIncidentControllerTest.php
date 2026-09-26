@@ -10,6 +10,7 @@ use App\GameSelection\Domain\Entity\ApworldIncident;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\Identity\Domain\Entity\User;
+use App\Sessions\Infrastructure\Double\NullRunnerGateway;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
@@ -30,6 +31,12 @@ final class AdminApworldIncidentControllerTest extends FunctionalTestCase
         $this->admin = $this->createUser('admin@example.org', ['ROLE_USER', 'ROLE_ADMIN'], 'Jean', slug: 'jean');
         $this->crystal = $this->createGame('Crystal Project', 'crystal-project');
         $this->beatSaber = $this->createGame('Beat Saber', 'beat-saber');
+    }
+
+    protected function tearDown(): void
+    {
+        NullRunnerGateway::reset();
+        parent::tearDown();
     }
 
     public function testListReturnsActiveIncidentsOldestFirstWithGameAndAdminNames(): void
@@ -105,6 +112,36 @@ final class AdminApworldIncidentControllerTest extends FunctionalTestCase
 
         self::assertResponseStatusCodeSame(200);
         self::assertSame(['active' => 2, 'unacknowledged' => 1], $this->decodedJsonResponse()['data'] ?? null);
+    }
+
+    public function testSweepProgressSaysHowManyApworldsWereTestedOnTheCurrentImage(): void
+    {
+        // Story 38.9: how far the rolling test has come after a new image.
+        $this->crystal->configureApworld('a.apworld', 'hash-crystal', 'Crystal Project', "game: Crystal Project\n", new \DateTimeImmutable());
+        $this->beatSaber->configureApworld('b.apworld', 'hash-beat', 'Beat Saber', "game: Beat Saber\n", new \DateTimeImmutable());
+        $this->entityManager->flush();
+        NullRunnerGateway::$runtime = ['apImage' => 'ghcr.io/archilan-dev/archipelago:0.16.1', 'apImageId' => 'sha256:current'];
+        NullRunnerGateway::$apworldPreflights = [
+            'hash-crystal' => ['status' => 'passed', 'error' => '', 'checkedAt' => '2026-09-26T05:00:00Z', 'overridden' => false, 'blocks' => false, 'image' => 'ghcr.io/archilan-dev/archipelago:0.16.1', 'imageId' => 'sha256:current'],
+        ];
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', '/api/v1/admin/apworld-incidents/sweep-progress');
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['currentImage' => 'ghcr.io/archilan-dev/archipelago:0.16.1', 'testedOnCurrentImage' => 1, 'total' => 2], $this->decodedJsonResponse()['data'] ?? null);
+    }
+
+    public function testSweepProgressIsNullWhenTheRunnerDoesNotSay(): void
+    {
+        $this->loginAs($this->admin);
+
+        $this->client->request('GET', '/api/v1/admin/apworld-incidents/sweep-progress');
+
+        self::assertResponseStatusCodeSame(200);
+        $body = $this->decodedJsonResponse();
+        self::assertArrayHasKey('data', $body);
+        self::assertNull($body['data']);
     }
 
     public function testAcknowledgeRecordsTheCurrentAdminAndQueuesTheStaffAlert(): void

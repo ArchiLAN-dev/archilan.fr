@@ -19,12 +19,77 @@ use Symfony\Component\Clock\MockClock;
 final class ReconcileApworldIncidentsTest extends TestCase
 {
     private InMemoryApworldIncidentRepository $incidents;
+    private InMemoryApworldHealthRepository $health;
     private MockClock $clock;
+    /** @var list<string> */
+    private array $retriedHashes = [];
 
     protected function setUp(): void
     {
         $this->incidents = new InMemoryApworldIncidentRepository();
+        $this->health = new InMemoryApworldHealthRepository();
         $this->clock = new MockClock('2026-09-24 10:00:00+00:00');
+    }
+
+    public function testFirstFailureOfAHashThatPassedRetriesWithoutIncident(): void
+    {
+        // Story 38.9: a seed can be unlucky. A hash that passed is retested at once, not reported yet.
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-20T05:00:00Z', image: 'archipelago:0.16.0', imageId: 'sha256:old')]);
+
+        $result = $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'FillError', checkedAt: '2026-09-27T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+
+        self::assertSame([], $result->openedIncidentIds);
+        self::assertSame([], $this->incidents->all());
+        self::assertSame(['hash-1'], $this->retriedHashes);
+    }
+
+    public function testSecondConsecutiveFailureOpensAnImageRegressionWhenTheImageChanged(): void
+    {
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-20T05:00:00Z', image: 'archipelago:0.16.0', imageId: 'sha256:old')]);
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'FillError', checkedAt: '2026-09-27T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+
+        $result = $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'FillError: again', checkedAt: '2026-09-27T05:10:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+
+        self::assertCount(1, $result->openedIncidentIds);
+        $incident = $this->incidents->all()[0];
+        self::assertSame(ApworldIncidentType::ImageRegression, $incident->getType());
+        self::assertStringContainsString('archipelago:0.16.0', $incident->getError());
+        self::assertStringContainsString('archipelago:0.16.1', $incident->getError());
+        self::assertStringContainsString('FillError: again', $incident->getError());
+        self::assertSame(['hash-1'], $this->retriedHashes, 'retried once, not twice');
+    }
+
+    public function testSecondConsecutiveFailureOnTheSameImageOpensAPreflightFailed(): void
+    {
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-20T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:same')]);
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom', checkedAt: '2026-09-27T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:same')]);
+
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom', checkedAt: '2026-09-27T05:10:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:same')]);
+
+        self::assertSame(ApworldIncidentType::PreflightFailed, $this->incidents->all()[0]->getType());
+    }
+
+    public function testFirstFailureOfAHashThatNeverPassedOpensAnIncidentImmediately(): void
+    {
+        $result = $this->reconcile([new ServedApworld('game-1', 'hash-1')], ['hash-1' => $this->verdict('failed', 'boom')]);
+
+        self::assertCount(1, $result->openedIncidentIds);
+        self::assertSame([], $this->retriedHashes);
+    }
+
+    public function testASuccessResolvesAnImageRegression(): void
+    {
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-20T05:00:00Z', image: 'archipelago:0.16.0', imageId: 'sha256:old')]);
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom', checkedAt: '2026-09-27T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom', checkedAt: '2026-09-27T05:10:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+
+        $result = $this->reconcile($served, ['hash-1' => $this->verdict('passed', checkedAt: '2026-09-28T05:00:00Z', image: 'archipelago:0.16.1', imageId: 'sha256:new')]);
+
+        self::assertCount(1, $result->resolvedIncidentIds);
     }
 
     public function testFailedVerdictOnServedHashOpensAnIncident(): void
@@ -240,6 +305,11 @@ final class ReconcileApworldIncidentsTest extends TestCase
         $servedQuery->method('servedApworlds')->willReturn($served);
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchApworldPreflights')->willReturn($verdicts);
+        $runner->method('runApworldPreflight')->willReturnCallback(function (string $hash): bool {
+            $this->retriedHashes[] = $hash;
+
+            return true;
+        });
 
         $reconcile = new ReconcileApworldIncidents(
             $servedQuery,
@@ -248,6 +318,7 @@ final class ReconcileApworldIncidentsTest extends TestCase
             new RecordApworldIncident($this->incidents, $this->clock),
             $this->clock,
             new InMemoryExclusivePassLock(held: $lockHeld),
+            $this->health,
         );
 
         return $reconcile->reconcile();
@@ -256,7 +327,7 @@ final class ReconcileApworldIncidentsTest extends TestCase
     /**
      * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}
      */
-    private function verdict(string $status, string $error = '', bool $overridden = false, string $checkedAt = '2026-09-24T09:55:00Z'): array
+    private function verdict(string $status, string $error = '', bool $overridden = false, string $checkedAt = '2026-09-24T09:55:00Z', ?string $image = null, ?string $imageId = null): array
     {
         return [
             'status' => $status,
@@ -264,6 +335,8 @@ final class ReconcileApworldIncidentsTest extends TestCase
             'checkedAt' => $checkedAt,
             'overridden' => $overridden,
             'blocks' => 'failed' === $status && !$overridden,
+            'image' => $image,
+            'imageId' => $imageId,
         ];
     }
 }

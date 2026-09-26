@@ -101,7 +101,7 @@ final class ReconcileApworldIncidentsCommandTest extends TestCase
         return new ReconcileApworldIncidentsCommand(
             new DecideApworldCandidates($candidates ?? new InMemoryApworldCandidateRepository(), $runner, new PromoteApworldCandidate($games, $incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
             $runner,
-            new ReconcileApworldIncidents($served, $runner, $incidents, $record, $clock, new InMemoryExclusivePassLock()),
+            new ReconcileApworldIncidents($served, $runner, $incidents, $record, $clock, new InMemoryExclusivePassLock(), new InMemoryApworldHealthRepository()),
             new ApworldIncidentAlertDispatcher($bus),
         );
     }

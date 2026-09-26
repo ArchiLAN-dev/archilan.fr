@@ -34,6 +34,7 @@ final class ReconcileApworldIncidentsAlreadyRunningTest extends TestCase
             new RecordApworldIncident($incidents, $clock),
             $clock,
             new InMemoryExclusivePassLock(held: true),
+            new InMemoryApworldHealthRepository(),
         );
         $runner = self::createStub(RunnerGatewayInterface::class);
         $decide = new DecideApworldCandidates(

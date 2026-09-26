@@ -9,6 +9,7 @@ use App\GameSelection\Application\Command\TriageApworldIncident;
 use App\GameSelection\Application\Query\ApworldIncidentListItem;
 use App\GameSelection\Application\Query\ApworldIncidentListQueryInterface;
 use App\GameSelection\Application\Query\ApworldIncidentListScope;
+use App\GameSelection\Application\Query\CatalogSweepProgress;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
 use App\Shared\Presentation\Support\RequiresAuthTrait;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -27,6 +28,7 @@ final readonly class AdminApworldIncidentController
         private ApiAccessGuard $apiAccessGuard,
         private ApworldIncidentListQueryInterface $incidentList,
         private TriageApworldIncident $triage,
+        private CatalogSweepProgress $sweepProgress,
     ) {
     }
 
@@ -60,6 +62,27 @@ final readonly class AdminApworldIncidentController
         $summary = $this->incidentList->summary();
 
         return new JsonResponse(['data' => ['active' => $summary->active, 'unacknowledged' => $summary->unacknowledged]]);
+    }
+
+    /**
+     * Story 38.9: how far the rolling test has come on the image in use. Null data when the runner
+     * does not say which image runs.
+     */
+    #[Route('/api/v1/admin/apworld-incidents/sweep-progress', name: 'api_admin_apworld_incidents_sweep_progress', methods: ['GET'])]
+    public function sweepProgress(Request $request): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $progress = $this->sweepProgress->progress();
+
+        return new JsonResponse(['data' => null === $progress ? null : [
+            'currentImage' => $progress->currentImage,
+            'testedOnCurrentImage' => $progress->testedOnCurrentImage,
+            'total' => $progress->total,
+        ]]);
     }
 
     #[Route('/api/v1/admin/apworld-incidents/{incidentId}/acknowledge', name: 'api_admin_apworld_incidents_acknowledge', methods: ['POST'])]

@@ -128,6 +128,14 @@ final class StaffAlertFactoryTest extends TestCase
         self::assertStringContainsString('Mise à jour à arbitrer', $this->factory->opened($ambiguous, 'Crystal Project')->description);
     }
 
+    public function testAnImageRegressionIsNamedForWhatItIs(): void
+    {
+        // Story 38.9: our image broke an apworld that passed before.
+        $incident = ApworldIncident::open('i-1', 'game-1', self::HASH, ApworldIncidentType::ImageRegression, 'Passait sur a, échoue sur b.', new \DateTimeImmutable());
+
+        self::assertStringContainsString('Régression après changement d\'image', $this->factory->opened($incident, 'Crystal Project')->description);
+    }
+
     public function testAFailureOfARealGenerationIsToldApartFromTheImportTest(): void
     {
         // Story 38.4: players failed with the default YAML although the import test passed.
