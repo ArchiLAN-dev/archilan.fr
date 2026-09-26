@@ -5,6 +5,18 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.20.6] - 2026-09-27
+
+Version de republication : la 0.20.5 n'a pas pu publier son image `api-web`, son correctif de
+sécurité n'était donc pas déployable.
+
+### Corrigé
+
+- **L'image `api-web` est de nouveau publiable.** Les exclusions Trivy des trois failles Go
+  compilées dans le binaire FrankenPHP (x/crypto/ssh et gRPC) ont expiré le 26 septembre et
+  bloquaient la publication. L'image ne démarre ni serveur SSH ni serveur gRPC, et FrankenPHP n'a
+  rien publié après la 1.12.7 : l'échéance est repoussée au 10 octobre, suivi en #585.
+
 ## [0.20.5] - 2026-09-27
 
 Correctif de sécurité : la liste des runs hebdo exposait le serveur de chaque participant.
