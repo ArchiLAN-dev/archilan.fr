@@ -41,7 +41,7 @@ import { PersonalRunSpoilerPanel } from "./personal-run-spoiler";
 import { ParticipantStreams } from "@/features/streaming/participant-streams";
 import { PlayerBadges } from "@/features/community/player-badges";
 import { RunTitle } from "./run-title";
-import { showsRunStatusLine } from "./run-overview-visibility";
+import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibility";
 import type { PersonalRun, PersonalRunParticipant, ValidationSlotError } from "./types";
 
 const POLLING_STATUSES = ["starting", "stopping", "restarting"] as const;
@@ -933,8 +933,9 @@ export function PersonalRunDetailPage({ params }: { params: Promise<{ runId: str
 
         {/* La suppression d'une run en veille vivait sous le bandeau de reprise, en pleine largeur,
             donc plus lourde à l'œil que la seule action utile de cet état (story 16.15). Elle reste
-            réservée au propriétaire : l'onglet Réglages n'existe que pour lui. */}
-        {activeTab === "settings" && (run.isOwner || isAdmin) && run.status === "idle" && (
+            réservée au propriétaire : l'onglet Réglages n'existe que pour lui. Une partie terminée
+            sur une seed importée se supprime aussi (story 16.20). */}
+        {activeTab === "settings" && (run.isOwner || isAdmin) && showsSettingsDelete(run.status, run.importedSeed === true) && (
           <section className="rounded-lg border border-[color:var(--color-danger)]/30 bg-surface p-4">
             <h2 className="mb-1 text-sm font-semibold text-foreground">Supprimer la partie</h2>
             <p className="mb-3 text-sm text-muted-foreground">

@@ -286,7 +286,10 @@ final readonly class PersonalRunDrafts
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_active'];
         }
 
-        if (Run::STATUS_COMPLETED === $run->getStatus()) {
+        // Une partie terminée reste, sauf sur une seed importée (story 16.20) : son suivi est partiel
+        // par nature, et supprimer la partie laisse sa session et ses slots, donc les stats de profil
+        // qui en sont calculées.
+        if (Run::STATUS_COMPLETED === $run->getStatus() && !$run->isImportedSeed()) {
             return ['found' => true, 'authorized' => true, 'blocked' => true, 'blockReason' => 'run_not_deletable'];
         }
 

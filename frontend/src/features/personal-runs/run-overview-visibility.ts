@@ -25,3 +25,15 @@ export function showsRunStatusLine(
 
   return !isParticipant || !OWN_CARD_STATUSES.includes(status);
 }
+
+/**
+ * Faut-il proposer « Supprimer la partie » dans l'onglet Réglages ?
+ *
+ * Une partie en veille, oui. Une partie terminée reste, sauf sur une seed importée (story 16.20) :
+ * son suivi est partiel par nature, et la supprimer laisse la session dont les stats de profil sont
+ * calculées. Une partie archivée a son propre bouton dans la vue d'ensemble. Même règle que
+ * `PersonalRunDrafts::hardDelete` côté API.
+ */
+export function showsSettingsDelete(status: PersonalRunStatus, importedSeed: boolean): boolean {
+  return status === "idle" || (status === "completed" && importedSeed);
+}
