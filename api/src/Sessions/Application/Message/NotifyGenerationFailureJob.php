@@ -15,10 +15,12 @@ final readonly class NotifyGenerationFailureJob
 
     /**
      * @param list<array{slotName: string|null, message: string}> $findings
+     * @param array<string, string>                               $servedApworldHashByGameId the apworld each game of the session served at the crash (story 38.4 review)
      */
     public function __construct(
         public string $sessionId,
         public array $findings,
+        public array $servedApworldHashByGameId = [],
     ) {
     }
 }

@@ -1,6 +1,6 @@
 # Story 38.4: Incidents issus des vraies générations
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** 38.1 (`RecordApworldIncident`).
@@ -89,13 +89,13 @@ Project : « YAML vierge, test en échec ».
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0** - Vérifier comment retrouver YAML et hash d'un slot attribué pour chaque type de session
+- [x] **Task 0** - Vérifier comment retrouver YAML et hash d'un slot attribué pour chaque type de session
   (run perso, event, hebdo). Consigner la réponse dans les Dev Notes avant de coder la source 2.
-- [ ] **Task 1** (AC 7, 8) - Type d'incident et règle d'équivalence.
-- [ ] **Task 2** (AC 9, 12) - `ReportDefaultYamlFailure` et son message asynchrone.
-- [ ] **Task 3** (AC 10) - Branchement du test de config de slot.
-- [ ] **Task 4** (AC 11) - Branchement des vraies générations.
-- [ ] **Task 5** (AC 13) - Gates.
+- [x] **Task 1** (AC 7, 8) - Type d'incident et règle d'équivalence.
+- [x] **Task 2** (AC 9, 12) - `ReportDefaultYamlFailure` et son message asynchrone.
+- [x] **Task 3** (AC 10) - Branchement du test de config de slot.
+- [x] **Task 4** (AC 11) - Branchement des vraies générations.
+- [x] **Task 5** (AC 13) - Gates.
 
 ## Dev Notes
 
@@ -113,3 +113,83 @@ Project : « YAML vierge, test en échec ».
 - [Source: api/src/Sessions/Application/Service/SessionLifecycleManager.php] - crash, parsing et dispatch
 - [Source: api/src/Sessions/Application/Handler/NotifyGenerationFailureJobHandler.php] - résolution slot vers joueur
 - [Source: _bmad-output/implementation-artifacts/9-40-generation-failure-parsing-per-slot-attribution.md]
+
+## Dev Agent Record
+
+### Task 0 : retrouver le YAML et le hash d'un slot attribué
+
+| Session | `SessionSlot.registrationId` | YAML | Hash |
+|---|---|---|---|
+| Run perso | id du joueur | slot du `RunParticipant` (par `slotId`) | hash du slot : celui avec lequel la run a été générée |
+| Event | id de l'inscription | slot de la `Registration` (par `slotId`) | aucun : un event génère avec le hash que sert le jeu (`SessionOrchestrator`) |
+| Hebdo | - | - | hors périmètre : générée depuis le template admin par `WeeklyRuns`, sans slot joueur, et ses échecs ne passent pas par `recordCrash` |
+
+Un slot d'archive importée (story 16.18) a un `gameId` vide : il est ignoré.
+
+### Écarts à la rédaction initiale
+
+- **`DefaultYamlEquivalence` existait déjà**, créée par la 38.7. Ses tests couvrent l'AC 8.
+- **Source 2 : un second handler sur `NotifyGenerationFailureJob`** (`ReportGenerationFailureToApworldHealthHandler`,
+  contexte `Sessions`) plutôt qu'un ajout dans `SessionLifecycleManager`. Le job part déjà après le flush
+  du crash et porte les slots attribués. `recordCrash()` reste inchangé.
+- **Source 1 : seul le verdict du générateur accuse.** `RunSlotPreflightJobHandler` enregistre aussi en
+  `failed` un runner indisponible et un test hors délai : ces deux cas ne disent rien de l'apworld et
+  n'envoient rien.
+- **Un YAML vide vaut le YAML par défaut**, puisque c'est avec lui que la génération tourne ; un slot sans
+  hash est sur le hash servi.
+- **La commande flushe elle-même** (`ReportDefaultYamlFailure` est l'unité de travail) et rend un
+  `DefaultYamlFailureReport` (verdict + enregistrement). Le handler du message
+  `ReportDefaultYamlFailureJob` déclenche ensuite les alertes 38.2 par `ApworldIncidentAlertDispatcher::dispatchOpened()`.
+  Une récurrence n'alerte personne.
+- **Cycle de vie du type** : `default_yaml_failure` suit l'apworld servi (fermé automatiquement quand le
+  jeu change de hash, comme `preflight_failed`) et n'est pas refermé par un test d'import qui passe : un
+  apworld qui échoue une seed sur dix passe justement ce test.
+
+### Défaut trouvé en route
+
+- **`StaffAlertFactory::typeLabel()`** est un `match` exhaustif sans branche par défaut : le nouveau type
+  aurait levé une `UnhandledMatchError` à la première alerte Discord. Couvert par un test, puis corrigé.
+
+### Déroulé TDD
+
+| Étape | Rouge | Vert |
+|---|---|---|
+| `ReportDefaultYamlFailure` | 8 tests, commande qui rend toujours `UnknownGame` : 8 échecs | 8 verts |
+| `ReportDefaultYamlFailureHandler` | 3 tests, `__invoke` vide : 2 erreurs (aucun incident) | 3 verts |
+| Source 1 (`RunSlotPreflightJobHandler`) | 3 tests ajoutés : 1 échec (les 2 cas « rien » passent déjà) | 9 verts |
+| Source 2 | 5 tests, `__invoke` vide : 3 échecs | 5 verts |
+| Libellé Discord | 1 test : `UnhandledMatchError` | vert |
+| Front (page Santé, notification) | 2 tests : 2 échecs | verts |
+
+### Vérifications
+
+- `composer gates` vert (2190 tests), `pnpm gates` vert (532 tests, les 10 warnings de develop).
+- `debug:messenger` : `NotifyGenerationFailureJob` a ses deux handlers ; `ReportDefaultYamlFailureJob` est routé sur `async`.
+- Pas d'e2e sur une stack locale.
+
+### File List
+
+- `api/src/GameSelection/Domain/Enum/ApworldIncidentType.php`
+- `api/src/GameSelection/Application/Command/ReportDefaultYamlFailure.php`, `DefaultYamlFailureReport.php`, `DefaultYamlFailureVerdict.php` (nouveaux)
+- `api/src/GameSelection/Application/Message/ReportDefaultYamlFailureJob.php` (nouveau)
+- `api/src/GameSelection/Application/Handler/ReportDefaultYamlFailureHandler.php` (nouveau)
+- `api/src/GameSelection/Application/Support/ApworldIncidentAlertDispatcher.php`, `StaffAlertFactory.php`
+- `api/src/PersonalRuns/Application/Handler/RunSlotPreflightJobHandler.php`
+- `api/src/Sessions/Application/Handler/ReportGenerationFailureToApworldHealthHandler.php` (nouveau)
+- `api/config/packages/messenger.yaml`
+- tests : `ReportDefaultYamlFailureTest`, `ReportDefaultYamlFailureHandlerTest`, `RunSlotPreflightJobHandlerTest`,
+  `ReportGenerationFailureToApworldHealthHandlerTest`, `StaffAlertFactoryTest`
+- `frontend/src/features/admin/admin-apworld-health-api.ts`, `apworld-incident-list.test.tsx`
+- `frontend/src/features/community/notification-center.tsx` (+ test)
+
+## Corrections de revue (2026-09-26)
+
+- **Un résultat de test porte l'apworld qu'il a testé.** `RunSlotPreflightJob` gagne `apworldHash`, fixé à
+  l'envoi et gardé à chaque relance. Un résultat obtenu sur un autre apworld que celui du slot est écarté :
+  un test lancé sur l'ancienne version et fini après la bascule de la 38.7 (même YAML, donc même `yamlSha`)
+  n'arrive plus sur la nouvelle, ni n'ouvre d'incident contre elle. Règle aussi la limite connue notée en 38.7.
+  Un job mis en file avant ce champ (null) reste traité comme avant.
+- **Pour un event, l'apworld servi au moment du crash** : `SessionLifecycleManager` le capture pour chaque jeu
+  de la session et le passe dans `NotifyGenerationFailureJob`. Une promotion entre le crash et le job
+  n'endosse plus l'échec.
+- **Lecture de YAML partagée** avec la 38.7 (`YamlDocumentReader`).

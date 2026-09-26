@@ -211,13 +211,17 @@ export function messageFor(item: NotificationItem): string {
       return `La génération de la partie${runTitle} a échoué`;
     }
     case "apworld_incident_opened": {
-      // Story 38.6: an update that could not go through is not a broken apworld: say which it is.
+      // Stories 38.4 and 38.6: say which problem it is - an update that could not go through is not a
+      // broken apworld, and a real generation failing is not the import test.
+      const incidentType = hasStringProp(item.data, "incidentType") ? item.data.incidentType : "";
       const problem =
-        hasStringProp(item.data, "incidentType") && item.data.incidentType === "update_rejected"
+        incidentType === "update_rejected"
           ? "Mise à jour rejetée"
-          : hasStringProp(item.data, "incidentType") && item.data.incidentType === "update_ambiguous"
+          : incidentType === "update_ambiguous"
             ? "Mise à jour à arbitrer"
-            : "Apworld en échec";
+            : incidentType === "default_yaml_failure"
+              ? "Échec avec le YAML par défaut"
+              : "Apworld en échec";
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";

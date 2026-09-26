@@ -37,6 +37,12 @@ describe("apworld incident notification (story 38.2)", () => {
     );
   });
 
+  it("names a failure of a real generation for what it is (story 38.4)", () => {
+    expect(messageFor(item("apworld_incident_opened", { gameName: "Crystal Project", incidentType: "default_yaml_failure" }))).toBe(
+      "Échec avec le YAML par défaut : Crystal Project",
+    );
+  });
+
   it("leads to the health page even without any detail", () => {
     expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });

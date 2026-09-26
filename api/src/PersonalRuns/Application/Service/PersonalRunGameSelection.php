@@ -387,7 +387,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
 
         $this->participants->flush();
 
-        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha));
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $participant->getSlot($slotId)['apworldHash'] ?? null));
 
         $this->logger->info('personal_run.slot_yaml_saved', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 
@@ -425,7 +425,7 @@ final readonly class PersonalRunGameSelection implements RunGameAssignmentInterf
         $participant->recordSlotPreflight($slotId, 'pending', '', $yamlSha, $this->clock->now());
         $this->participants->flush();
 
-        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha));
+        $this->messageBus->dispatch(new RunSlotPreflightJob($runId, $userId, $slotId, $yamlSha, apworldHash: $slot['apworldHash'] ?? null));
 
         $this->logger->info('personal_run.slot_preflight_requested', ['runId' => $runId, 'userId' => $userId, 'slotId' => $slotId]);
 

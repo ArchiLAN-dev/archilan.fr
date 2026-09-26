@@ -44,6 +44,8 @@ export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   update_rejected: "Mise à jour rejetée",
   // Story 38.6: several apworld files in one release, an admin has to pick.
   update_ambiguous: "Mise à jour à arbitrer",
+  // Story 38.4: a real generation (a player's config test or a run) failed with the default YAML.
+  default_yaml_failure: "Échec avec le YAML par défaut",
 };
 
 export const INCIDENT_STATUS_LABELS: Record<string, string> = {

@@ -128,6 +128,14 @@ final class StaffAlertFactoryTest extends TestCase
         self::assertStringContainsString('Mise à jour à arbitrer', $this->factory->opened($ambiguous, 'Crystal Project')->description);
     }
 
+    public function testAFailureOfARealGenerationIsToldApartFromTheImportTest(): void
+    {
+        // Story 38.4: players failed with the default YAML although the import test passed.
+        $incident = ApworldIncident::open('i-1', 'game-1', self::HASH, ApworldIncidentType::DefaultYamlFailure, 'boom', new \DateTimeImmutable());
+
+        self::assertStringContainsString('Échec avec le YAML par défaut', $this->factory->opened($incident, 'Crystal Project')->description);
+    }
+
     public function testAnAutomaticPromotionAnnouncesBothVersionsAndTheRelease(): void
     {
         // Story 38.6 AC 11: without a freeze window, the staff must hear about every automatic switch -

@@ -109,6 +109,13 @@ describe("ApworldIncidentList", () => {
     expect(html).not.toContain("update_rejected");
   });
 
+  test("a failure of a real generation is told apart from the import test (story 38.4)", () => {
+    const html = render([incident({ id: "a", type: "default_yaml_failure" })]);
+
+    expect(html).toContain("Échec avec le YAML par défaut");
+    expect(html).not.toContain("default_yaml_failure");
+  });
+
   test("an empty list says so plainly", () => {
     expect(render([])).toContain("Aucun apworld en échec");
   });
