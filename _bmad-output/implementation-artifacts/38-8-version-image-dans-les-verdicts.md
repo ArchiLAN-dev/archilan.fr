@@ -1,6 +1,6 @@
 # Story 38.8: Version de l'image dans les verdicts
 
-**Status:** in-progress
+**Status:** review
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** rien. Prérequis de 38.9.
@@ -94,7 +94,7 @@ local, c'est `archipelago:latest`, qui ne dit rien. L'**identifiant** de l'image
 - [x] **Task 2** (AC 9-11) - Client PHP, tag `v1.10.0`.
 - [x] **Task 3** (AC 12-14) - API.
 - [x] **Task 4** (AC 15) - Frontend.
-- [ ] **Task 5** (AC 16) - Gates des trois dépôts.
+- [x] **Task 5** (AC 16) - Gates des trois dépôts.
 
 ## Dev Notes
 
@@ -119,7 +119,7 @@ local, c'est `archipelago:latest`, qui ne dit rien. L'**identifiant** de l'image
 
 - Orchestrateur : ArchiLAN-dev/archilan-orchestrateur#25 (branche `feature/image-dans-les-verdicts`).
 - Client PHP : ArchiLAN-dev/archilan-orchestrateur-client#11, bump `1.10.0` (tag à poser sur le commit de merge).
-- Monorepo : en attente du tag `v1.10.0` pour relever `archilan/orchestrateur-client` dans `composer.json`/`composer.lock`.
+- Orchestrateur mergé et tagué `v0.18.0`, client mergé et tagué `v1.10.0` (2026-09-26). Le monorepo exige maintenant `archilan/orchestrateur-client >=1.10.0`, installé depuis le tag : plus de copie locale dans le vendor, gates verts (2235 tests API, 538 front).
 
 ### Écarts à la rédaction initiale
 
