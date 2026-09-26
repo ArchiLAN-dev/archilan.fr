@@ -388,6 +388,8 @@ services:
     App\GameSelection\Application\Query\GameRequestListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameRequestListQuery'
     App\GameSelection\Application\Query\AdminGameListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalAdminGameListQuery'
     App\GameSelection\Application\Port\GameUsageCounterInterface: '@App\GameSelection\Infrastructure\Dbal\DbalGameUsageCounter'
+    App\GameSelection\Domain\Repository\ApworldIncidentRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineApworldIncidentRepository'
+    App\GameSelection\Application\Query\ServedApworldsQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalServedApworldsQuery'
 
     App\CatalogSync\Application\Query\ImportedCatalogNamesQueryInterface: '@App\CatalogSync\Infrastructure\Dbal\DbalImportedCatalogNamesQuery'
 

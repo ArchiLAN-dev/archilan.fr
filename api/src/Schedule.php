@@ -6,6 +6,7 @@ namespace App;
 
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
+use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
 use App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage;
 use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
@@ -64,6 +65,11 @@ final readonly class Schedule implements ScheduleProviderInterface
                 // Backstop côté run : tourne juste après le watchdog session, pour avancer une run dont
                 // le webhook de cycle de vie s'est perdu une fois la session résolue (story 17.14).
                 RecurringMessage::every('2 minutes', new ReconcileStuckRunsMessage()),
+            )
+            ->add(
+                // Derive apworld incidents from the orchestrator's test verdicts (story 38.1). A pull,
+                // not a webhook: orchestrator webhooks have no retry, a lost one would be a lost alert.
+                RecurringMessage::every('5 minutes', new ReconcileApworldIncidentsMessage()),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),
