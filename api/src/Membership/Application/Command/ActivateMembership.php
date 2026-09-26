@@ -33,6 +33,19 @@ final readonly class ActivateMembership implements ActivateMembershipInterface
         ?string $helloassoOrderId = null,
         ?string $adminNote = null,
     ): void {
+        // One payment, one year. The webhook applies an order, then the form sync it triggers finds the
+        // same order new in its own table and reports it paid again: without this, a single payment
+        // renewed twice (story 22.7). An expired membership still carrying the order counts too - applying
+        // it anew would hit the unique constraint and close the EntityManager for the rest of the sync.
+        if (null !== $helloassoOrderId && null !== $this->memberships->findByHelloassoOrderId($helloassoOrderId)) {
+            $this->logger->info('membership.order_already_applied', [
+                'userId' => $userId,
+                'helloassoOrderId' => $helloassoOrderId,
+            ]);
+
+            return;
+        }
+
         $existing = $this->memberships->findActiveByUserId($userId);
         $now = $this->clock->now();
         $notificationExpiresAt = null;

@@ -28,6 +28,14 @@ final readonly class DoctrineMembershipRepository implements MembershipRepositor
         ]);
     }
 
+    public function findByHelloassoOrderId(string $helloassoOrderId): ?Membership
+    {
+        /* @var Membership|null */
+        return $this->entityManager->getRepository(Membership::class)->findOneBy([
+            'helloassoOrderId' => $helloassoOrderId,
+        ]);
+    }
+
     public function save(Membership $membership): void
     {
         $this->entityManager->persist($membership);

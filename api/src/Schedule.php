@@ -14,6 +14,7 @@ use App\Identity\Application\Message\CleanupPasswordResetTokensMessage;
 use App\Identity\Application\Message\CleanupRefreshTokensMessage;
 use App\Membership\Application\Message\CheckMembershipExpiryMessage;
 use App\Payments\Application\Message\CleanupHelloAssoSyncLogMessage;
+use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\PersonalRuns\Application\Message\ReconcileStuckRunsMessage;
 use App\Sessions\Application\ScheduledTask\CleanupStaleSessionsTask;
 use App\WeeklyRuns\Application\Message\GenerateWeeklyRunsMessage;
@@ -51,6 +52,11 @@ final readonly class Schedule implements ScheduleProviderInterface
             )
             ->add(
                 RecurringMessage::cron('25 3 * * *', new CleanupHelloAssoSyncLogMessage()),
+            )
+            ->add(
+                // Backstop for the HelloAsso webhook (story 22.7): a membership payment it missed used to
+                // wait for an admin click. Hourly, so a paid membership applies within the hour.
+                RecurringMessage::cron('10 * * * *', new SyncHelloAssoMembershipFormMessage()),
             )
             ->add(
                 RecurringMessage::cron('30 3 * * *', new CleanupEventPrivateAccessLogMessage()),

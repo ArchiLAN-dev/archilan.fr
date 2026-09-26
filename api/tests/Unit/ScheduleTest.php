@@ -6,6 +6,7 @@ namespace App\Tests\Unit;
 
 use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
+use App\Payments\Application\Message\SyncHelloAssoMembershipFormMessage;
 use App\Schedule;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -34,6 +35,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-09-26 05:00', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testTheMembershipPaymentsAreSyncedEveryHour(): void
+    {
+        // Story 22.7: the webhook was the only automatic path; a missed one waited for an admin click.
+        $recurring = $this->recurringMessageFor(SyncHelloAssoMembershipFormMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-09-27 12:30:00', new \DateTimeZone('UTC')));
+
+        self::assertNotNull($next);
+        self::assertSame('2026-09-27 13:10', $next->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i'));
     }
 
     /**

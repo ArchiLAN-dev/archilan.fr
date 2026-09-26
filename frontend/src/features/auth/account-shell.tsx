@@ -6,7 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import { fetchMyCommunityProfile } from "@/features/community/community-profile-api";
 import { fetchFriends } from "@/features/community/community-friends-api";
+import { getAccountMembership } from "@/features/payments/membership-api";
 import { fetchAccountProfile, fetchAccountRegistrations } from "./auth-api";
+import { accountRoleLabel } from "./account-role";
 import { AccountNav } from "./account-nav";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import type { Profile } from "./account-profile";
@@ -26,6 +28,14 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
   const { data: communityProfile, isLoading: loadingCommunity } = useQuery({
     queryKey: ["community-my-profile"],
     queryFn: fetchMyCommunityProfile,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: false,
+  });
+
+  // Same key as the membership section, so the label and the section never disagree (story 22.7).
+  const { data: membership } = useQuery({
+    queryKey: ["account-membership"],
+    queryFn: getAccountMembership,
     staleTime: DEFAULT_STALE_TIME,
     retry: false,
   });
@@ -83,7 +93,7 @@ export function AccountShell({ children }: { children: React.ReactNode }) {
         </div>
         {!loading && profile && (
           <span className="shrink-0 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-            {formatRole(profile.roles)}
+            {accountRoleLabel(profile.roles, membership?.status)}
           </span>
         )}
       </div>
@@ -135,10 +145,4 @@ function getInitials(profile: Profile | null): string {
       .join("");
   }
   return (profile.email[0] ?? "?").toUpperCase();
-}
-
-function formatRole(roles: string[]): string {
-  if (roles.includes("ROLE_ADMIN")) return "Admin";
-  if (roles.includes("ROLE_MEMBER")) return "Membre";
-  return "Utilisateur";
 }
