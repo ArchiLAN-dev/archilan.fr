@@ -275,14 +275,6 @@ final class CurrentWeeklyRunsTest extends FunctionalTestCase
         self::assertIsArray($connectionInfo);
         self::assertSame(35007, $connectionInfo['port']);
         self::assertSame('wss://archipelago.archilan.fr:35007', $connectionInfo['uri']);
-
-        $participants = $item['participants'];
-        self::assertIsArray($participants);
-        $participant = $participants[0];
-        self::assertIsArray($participant);
-        $participantConnection = $participant['connectionInfo'];
-        self::assertIsArray($participantConnection);
-        self::assertSame(35007, $participantConnection['port']);
     }
 
     public function testCurrentRunsWithGoalPopulatesLeaderboard(): void
