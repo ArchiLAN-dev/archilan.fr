@@ -21,7 +21,6 @@ export type WeeklyRunParticipant = {
   displayName: string | null;
   attemptNumber: number;
   goalReachedAt: string | null;
-  connectionInfo: { host: string; port: number; uri?: string | null; password: string | null } | null;
 };
 
 export type WeeklyRunMyEntry = {
