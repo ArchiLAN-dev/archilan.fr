@@ -1,6 +1,6 @@
 # Story 38.2: Canaux d'alerte - admins in-app et Discord
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** 38.1 (les incidents et les ids renvoyés par la réconciliation).
@@ -50,24 +50,29 @@ et la clôture y apparaissent, dans l'ordre, là où le staff discute déjà.
    `acknowledged`, `resolved`, `ignored`. Deux jobs séparés : un retry de l'un ne rejoue pas l'autre.
 9. **Relecture.** Chaque handler relit l'incident par son id et construit le message à partir de son état
    au moment de l'envoi. Un incident introuvable est ignoré sans erreur.
-10. **Type de notification** `Notification::TYPE_APWORLD_INCIDENT_OPENED = 'apworld_incident_opened'`,
-    payload `{incidentId, gameId, gameName, type}`. Rendu dans
-    `frontend/src/features/community/notification-center.tsx` (`messageFor`, `hrefFor`).
+10. **Type de notification** `apworld_incident_opened`, déclaré sur le job
+    (`NotifyApworldIncidentAdminsJob::NOTIFICATION_TYPE`), comme `generation_failed` (9.41) et
+    `tutorial_contribution_reviewed` le sont sur leur émetteur. Payload
+    `{incidentId, gameId, gameName, incidentType}` (`incidentType` plutôt que `type`, qui désigne déjà
+    le type de notification). Rendu dans `frontend/src/features/community/notification-center.tsx`
+    (`messageFor`, `hrefFor`, exportées pour être testées).
 11. **Port** `StaffAlertChannelInterface` (`GameSelection/Application/Port/`) avec
-    `post(StaffAlert $alert): void`. `StaffAlert` est un record (titre, lignes, lien, niveau).
+    `post(StaffAlert $alert): void`. `StaffAlert` est un record (titre, description, lien, niveau).
     Implémentations :
     - `DiscordWebhookStaffAlertChannel` (`Infrastructure/Http/`) : `POST` d'un embed Discord sur
-      `DISCORD_STAFF_WEBHOOK_URL`, via `HttpClientInterface`, timeout court ;
-    - `NullStaffAlertChannel` (`Infrastructure/Double/`) quand la variable est vide, choisi par la
-      configuration de services et non par un `if` dans le handler.
+      `DISCORD_STAFF_WEBHOOK_URL`, via `HttpClientInterface`, timeout court, `allowed_mentions` vide ;
+    - `DisabledStaffAlertChannel` (`Infrastructure/Adapter/`, pas `Double/` : c'est un adaptateur de
+      production) quand la variable est vide. Le choix est fait par `StaffAlertChannelFactory`, déclarée
+      comme factory du service, et non par un `if` dans le handler.
 12. **Contenu borné.** Le résumé d'erreur passe par `GenerationFailureParser::summarize()` et respecte les
     limites Discord (4096 caractères de description, 256 de titre). Aucun hash complet, aucun secret,
     aucune URL interne dans le message.
 13. **Variable d'environnement** `DISCORD_STAFF_WEBHOOK_URL` documentée dans `.env.prod.example` et
     `api/.env` (vide), jamais commitée avec une vraie valeur.
-14. **Origine des transitions.** La réconciliation (38.1) dispatche après son flush pour chaque incident
-    ouvert et chaque incident résolu. La prise en charge, la résolution et l'ignorer manuels (38.3)
-    dispatchent de la même façon : un seul point d'envoi par transition.
+14. **Origine des transitions.** `ApworldIncidentAlertDispatcher` (`Application/Support/`) envoie les
+    alertes d'un résultat de réconciliation : ouverts, résolus, ignorés. Le handler planifié **et** la
+    commande console l'utilisent, pour qu'un passage manuel alerte comme le passage planifié. La prise en
+    charge, la résolution et l'ignorer manuels (38.3) dispatcheront de la même façon.
 15. `composer gates` et `pnpm gates` passent.
 
 ## Ordre TDD
@@ -89,16 +94,19 @@ et la clôture y apparaissent, dans l'ordre, là où le staff discute déjà.
 5. `tests/Unit/GameSelection/ReconcileApworldIncidentsHandlerTest.php`
    - `testDispatchesOneAdminAndOneStaffJobPerOpenedIncidentAfterFlush`
    - `testRecurrenceDispatchesNothing`
-6. Frontend : `notification-center.test.tsx`
-   - rendu du message et du lien de `apworld_incident_opened`.
+6. `tests/Unit/GameSelection/ReconcileApworldIncidentsCommandTest.php` (ajouté en cours de route)
+   - `testAManualRunSendsTheSameAlertsAsTheScheduledOne`
+   - `testRunnerUnavailableFailsAndSendsNothing`
+7. Frontend : `notification-center.test.ts` (logique pure, pas de rendu)
+   - message et lien de `apworld_incident_opened`, avec et sans nom de jeu, avec et sans id de jeu.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 11, 12) - `StaffAlert`, fabrique de messages, port et implémentations.
-- [ ] **Task 2** (AC 8, 9, 14) - Les deux jobs et leurs handlers, dispatch depuis la réconciliation.
-- [ ] **Task 3** (AC 10) - Type de notification côté API et rendu frontend.
-- [ ] **Task 4** (AC 13) - Variable d'environnement et câblage des services.
-- [ ] **Task 5** (AC 15) - Gates des deux côtés.
+- [x] **Task 1** (AC 11, 12) - `StaffAlert`, fabrique de messages, port et implémentations.
+- [x] **Task 2** (AC 8, 9, 14) - Les deux jobs et leurs handlers, dispatch depuis la réconciliation.
+- [x] **Task 3** (AC 10) - Type de notification côté API et rendu frontend.
+- [x] **Task 4** (AC 13) - Variable d'environnement et câblage des services.
+- [x] **Task 5** (AC 15) - Gates des deux côtés.
 
 ## Dev Notes
 
@@ -109,19 +117,27 @@ et la clôture y apparaissent, dans l'ordre, là où le staff discute déjà.
 - **Discord.** Un webhook entrant accepte `{"embeds": [{"title", "description", "url", "color"}]}`.
   Le `username` peut être forcé (« ArchiLAN - santé des apworlds »). Répond `204` en cas de succès.
   Limites : 30 requêtes par minute par webhook, largement suffisant ici.
-- **Retry.** Laisser le retry Messenger standard : un job Discord qui échoue trois fois part en
-  `failed` sans rien casser d'autre (AC 7). L'AC 7 impose seulement qu'aucune transition ne soit
-  annulée, ce que garantit l'envoi après commit.
+- **Pas de retry.** Retenu à l'implémentation : le handler Discord attrape l'échec, le journalise
+  (`apworld_incidents.staff_alert_not_posted`) et s'arrête, comme `NotifyGenerationFailureJobHandler`
+  (9.41). Un job qui repasse trois fois puis finit dans `async_failed` pour une panne Discord
+  n'apporterait rien : l'incident, lui, est déjà enregistré et visible.
+- **Mentions.** `allowed_mentions: {"parse": []}` : le texte d'erreur vient du code d'apworlds tiers, un
+  `@everyone` qui s'y glisserait doit rester du texte.
+- **Secret.** L'URL du webhook est le secret : elle n'apparaît jamais dans un message d'exception ni
+  dans un log.
 
 ### Project Structure Notes
 
 - `api/src/GameSelection/Application/Port/StaffAlertChannelInterface.php`
 - `api/src/GameSelection/Application/Support/StaffAlert.php`, `StaffAlertFactory.php`
 - `api/src/GameSelection/Application/Message/NotifyApworldIncidentAdminsJob.php`, `PostApworldIncidentToStaffChannelJob.php`
+- `api/src/GameSelection/Application/Message/StaffAlertEvent.php`
 - `api/src/GameSelection/Application/Handler/…Handler.php` (les deux)
+- `api/src/GameSelection/Application/Support/StaffAlertLevel.php`, `ApworldIncidentAlertDispatcher.php`
+- `api/src/GameSelection/Application/Exception/StaffAlertDeliveryException.php`
 - `api/src/GameSelection/Infrastructure/Http/DiscordWebhookStaffAlertChannel.php`
-- `api/src/GameSelection/Infrastructure/Double/NullStaffAlertChannel.php`
-- `api/src/Community/Domain/Entity/Notification.php` - nouvelle constante de type
+- `api/src/GameSelection/Infrastructure/Adapter/DisabledStaffAlertChannel.php`, `StaffAlertChannelFactory.php`
+- `api/config/services.yaml`, `api/config/packages/messenger.yaml` (routage `async` des deux jobs)
 - `frontend/src/features/community/notification-center.tsx`
 
 ### References
@@ -129,3 +145,56 @@ et la clôture y apparaissent, dans l'ordre, là où le staff discute déjà.
 - [Source: api/src/Community/Application/Command/EvaluateAccountEscalation.php] - notification des admins
 - [Source: api/src/Sessions/Application/Handler/NotifyGenerationFailureJobHandler.php] - notification post-commit depuis un autre contexte
 - [Source: _bmad-output/implementation-artifacts/38-1-incidents-apworld.md]
+
+## Dev Agent Record
+
+### Déroulé TDD
+
+| Étape | Rouge | Vert |
+|---|---|---|
+| `StaffAlertFactory` | 8 échecs sur 9 | 9 tests |
+| `NotifyApworldIncidentAdminsHandler` | 2 échecs sur 3 | 3 tests |
+| `PostApworldIncidentToStaffChannelHandler` | 6 échecs sur 7 | 7 tests |
+| `DiscordWebhookStaffAlertChannel` et sa factory | 7 échecs sur 9 | 9 tests |
+| Dispatch après commit (handler planifié) | constructeur sans bus | 5 tests |
+| Commande console (extraction du dispatcher) | classe absente, refactor d'un comportement déjà couvert | 2 tests |
+| Frontend `messageFor` / `hrefFor` | 4 échecs, messages par défaut | 4 tests |
+
+PHPStan a refusé les premiers espions (classes anonymes à propriété par référence) : remplacés par des
+espions nommés (`SpyNotifier`, `SpyStaffAlertChannel`, `SpyMessageBus`, `WarningCollectingLogger`).
+
+### Vérifications
+
+- `composer gates` : vert, 2018 tests. `pnpm gates` : vert, 486 tests, build OK.
+- `pnpm lint` remonte 10 avertissements `no-location-assign-relative-destination`, **tous dans des fichiers
+  non touchés** par cette story (déjà présents sur `develop`, probablement depuis la montée de Next de
+  `c4e150fb`).
+- **Scénario de bout en bout** sur une copie de la base locale, jobs en `sync://` (pour ne pas pousser
+  des messages inconnus au worker de `develop` via RabbitMQ), et un faux serveur Discord local :
+  1. Crystal Project sur v0.17.0 : 2 incidents ouverts (Crystal Project et Beat Saber), **12
+     notifications in-app** (6 admins x 2), **2 messages Discord** rouges avec jeu, version courte,
+     résumé d'une ligne, lien, et `allowed_mentions` vide.
+  2. Passage en v0.18.2 : **un seul** message Discord vert « Crystal Project : incident résolu
+     automatiquement », aucune nouvelle notification in-app.
+  3. Passage suivant sans changement : rien n'est envoyé (Beat Saber est une récurrence).
+- Le résumé d'une ligne a donné la cause de Beat Saber sans ouvrir de log :
+  `FileNotFoundError: [Errno 2] No such file or directory: '/Archipelago/data/ranked_maps.json'`.
+
+### Écarts à la rédaction initiale
+
+- Constante de type sur le job, clé `incidentType` dans le payload (AC 10).
+- `DisabledStaffAlertChannel` dans `Adapter/`, choisi par `StaffAlertChannelFactory` (AC 11).
+- Pas de retry Messenger sur Discord : échec journalisé et absorbé (Dev Notes).
+- `ApworldIncidentAlertDispatcher`, ajouté pour que la commande console alerte aussi (AC 14).
+- Le lien des alertes mène à la page admin du jeu : la story 38.3 le fera pointer sur la page Santé.
+
+## Corrections de revue (2026-09-26)
+
+- **Une panne Discord passagère n'efface plus d'alerte.** Le canal distingue l'erreur passagère (429, 5xx,
+  Discord injoignable) du refus définitif. La première est rendue au transport
+  (`StaffAlertTemporarilyUnavailableException`), qui la relance 3 fois avec un délai croissant puis la
+  range dans le transport d'échec. Un refus reste journalisé et abandonné. Pas de
+  `RecoverableExceptionInterface`, qui relancerait sans fin.
+- **Les posts d'une même passe sont espacés** de 500 ms (`DelayStamp`) : la première passe après un
+  déploiement peut ouvrir des dizaines d'incidents d'un coup, et un webhook Discord accepte environ cinq
+  posts par deux secondes.

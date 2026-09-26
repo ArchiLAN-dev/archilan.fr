@@ -6,14 +6,20 @@ namespace App\GameSelection\Application\Handler;
 
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
+use App\GameSelection\Application\Support\ApworldIncidentAlertDispatcher;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
+/**
+ * Runs the incident reconciliation (story 38.1), then sends the alerts of story 38.2 for what it
+ * changed. The reconciliation has flushed when it returns, so every alert leaves after the commit.
+ */
 #[AsMessageHandler]
 final readonly class ReconcileApworldIncidentsHandler
 {
     public function __construct(
         private ReconcileApworldIncidents $reconcile,
+        private ApworldIncidentAlertDispatcher $alerts,
         private LoggerInterface $logger,
     ) {
     }
@@ -32,6 +38,8 @@ final readonly class ReconcileApworldIncidentsHandler
 
             return;
         }
+
+        $this->alerts->dispatchFor($result);
 
         if ([] !== $result->openedIncidentIds || [] !== $result->resolvedIncidentIds || [] !== $result->ignoredIncidentIds) {
             $this->logger->info('apworld_incidents.reconciled', [
