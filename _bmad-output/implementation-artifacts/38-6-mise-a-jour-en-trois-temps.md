@@ -1,6 +1,6 @@
 # Story 38.6: Mise à jour en trois temps
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** 38.1 (réconciliation et incidents), 38.5 (liste des mises à jour disponibles).
@@ -51,6 +51,11 @@ Jean a tranché : le circuit s'applique **à tous les jeux** suivis sur GitHub, 
 11. **Annonce.** Chaque promotion automatique est annoncée sur le salon Discord staff (38.2) : jeu,
     ancienne et nouvelle version, lien vers la release. Le staff peut ainsi prévenir les joueurs si le
     mod client change.
+11 bis. **Plafond par nuit** (ajouté le 2026-09-25, après le premier passage réel de la veille de 38.5 :
+    **233** mises à jour en attente, la veille n'ayant pas tourné depuis mai). Au plus N candidats
+    automatiques par nuit, réglable (`APWORLD_AUTO_UPDATE_BATCH_SIZE`, **10 par défaut**, décision de Jean le 2026-09-25), les
+    jeux qui attendent depuis le plus longtemps d'abord. Le reste passe les nuits suivantes. Sans ce
+    plafond, la première nuit enverrait 233 tests à l'orchestrateur et 233 annonces sur Discord.
 
 ## Critères d'acceptation techniques
 
@@ -111,14 +116,14 @@ Jean a tranché : le circuit s'applique **à tous les jeux** suivis sur GitHub, 
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 12, 13, 21) - `ApworldCandidate`, `ApworldPromotion`, méthodes de `Game`, migration.
-- [ ] **Task 2** (AC 1, 5, 9, 14) - Import manuel et GitHub vers candidat.
-- [ ] **Task 3** (AC 2, 3, 10, 15, 16, 18) - Décision dans la réconciliation.
-- [ ] **Task 4** (AC 4, 19) - Forçage et relance.
-- [ ] **Task 5** (AC 6-8, 17) - Soumission automatique après la veille.
-- [ ] **Task 6** (AC 11) - Annonce Discord des promotions.
-- [ ] **Task 7** (AC 20) - Frontend.
-- [ ] **Task 8** (AC 22) - Gates.
+- [x] **Task 1** (AC 12, 13, 21) - `ApworldCandidate`, `ApworldPromotion`, méthodes de `Game`, migration.
+- [x] **Task 2** (AC 1, 5, 9, 14) - Import manuel et GitHub vers candidat.
+- [x] **Task 3** (AC 2, 3, 10, 15, 16, 18) - Décision dans la réconciliation.
+- [x] **Task 4** (AC 4, 19) - Forçage et relance.
+- [x] **Task 5** (AC 6-8, 17) - Soumission automatique après la veille.
+- [x] **Task 6** (AC 11) - Annonce Discord des promotions.
+- [x] **Task 7** (AC 20) - Frontend.
+- [x] **Task 8** (AC 22) - Gates.
 
 ## Dev Notes
 
@@ -138,3 +143,93 @@ Jean a tranché : le circuit s'applique **à tous les jeux** suivis sur GitHub, 
 - [Source: api/src/GameSelection/Domain/Entity/Game.php] - `configureApworld()`
 - [Source: _bmad-output/implementation-artifacts/38-1-incidents-apworld.md]
 - [Source: _bmad-output/implementation-artifacts/38-5-veille-quotidienne-des-versions.md]
+
+## Dev Agent Record
+
+### Écarts à la rédaction initiale (décidés à l'implémentation)
+
+- **AC 12, 13, 21 : un agrégat à part, pas un value object embarqué dans `Game`.** `ApworldCandidate`
+  (`Domain/Entity/`, table `apworld_candidate`) plutôt que des colonnes `candidate_*` sur `game`. L'AC 7
+  (« une version rejetée n'est pas re-tentée ») exige de se souvenir des candidats passés : un objet
+  embarqué ne garde que le dernier. La table garde l'historique, et `hasRejectedVersion()` s'appuie dessus.
+- **Types d'options et noms de lieux lus à la promotion**, pas au téléversement : l'introspection de
+  l'orchestrateur tourne en arrière-plan après l'upload, ses valeurs peuvent y être incomplètes.
+- **AC 15 : une commande dédiée**, `DecideApworldCandidates`, appelée par le handler de la passe des
+  5 minutes **avant** la réconciliation des incidents : un jeu promu dans le passage est ensuite vu avec
+  son nouvel apworld, et l'incident de la version quittée se ferme dans le même passage.
+- **AC 16 : `ApworldPromotedEvent` n'est pas encore émis.** Un message sans handler échouerait dans le
+  worker ; la 38.7 l'ajoutera avec son consommateur. `ApworldPromotion` (record) porte déjà ce qu'il lui
+  faut : ancien hash, ancien YAML par défaut.
+- **AC 17 : un job par jeu** (`SubmitAutoApworldUpdateJob`), pas un téléversement en série dans le
+  scheduler : chaque upload prend des dizaines de secondes, et un échec n'arrête pas les autres. Le job
+  n'écrase jamais un candidat soumis entre-temps par un admin.
+- **AC 11 bis : plafond de 10 par nuit.** L'ordre est celui du rapport de la veille (le jeu vérifié le
+  plus anciennement d'abord), pas « qui attend depuis le plus longtemps » : la veille ne garde pas la
+  date d'apparition d'une mise à jour. Une release ambiguë ne consomme pas de place. `0` désactive la
+  mise à jour automatique.
+- **Seule la veille de nuit soumet** : le bouton « Vérifier les mises à jour » de la page catalogue reste
+  une vérification.
+
+### Deux défauts trouvés en route
+
+- **Régression évitée sur la story 9.51.** La règle qui écarte un vocabulaire de dict à moins de deux
+  valeurs ne tournait qu'au téléversement. En déplaçant la bascule à la promotion, elle aurait disparu
+  sans bruit. Elle vit maintenant dans `ApworldIntrospectionNormalizer`, appliquée à la promotion ; ses
+  trois tests ont été déplacés tels quels, et un test de promotion la couvre.
+- **Annonce de promotion non routée.** Le test fonctionnel du forçage a montré que
+  `PostApworldPromotionToStaffChannelJob` partait en synchrone, dans la requête HTTP de l'admin : routé
+  sur `async`.
+
+### Déroulé TDD
+
+| Étape | Rouge | Vert |
+|---|---|---|
+| Agrégat `ApworldCandidate` | 9 échecs sur 11 | 11 tests |
+| Types d'incident de mise à jour | constantes absentes, puis `match` non exhaustif signalé par PHPStan | 3 + 3 tests |
+| Annonce de promotion (fabrique) | méthode absente | 12 tests |
+| `SubmitApworldCandidate` | 6 échecs sur 6 | 6 tests |
+| `DecideApworldCandidates` et `PromoteApworldCandidate` | 8 échecs sur 8, puis la règle 9.51 | 9 tests |
+| Passe des 5 minutes et commande console | constructeurs sans la décision | 7 + 3 tests |
+| Handler d'annonce | 3 échecs sur 4 | 4 tests |
+| Upload fonctionnel (contrat changé) | « le jeu bascule » devenu « un candidat en test » | 2 tests |
+| Persistance des candidats | service absent | 4 tests |
+| `TriageApworldCandidate` | 6 échecs sur 7, puis un défaut d'ordre (entité modifiée avant l'accord du runner) | 7 tests |
+| Endpoints forcer / relancer | routes absentes, puis routage manquant | 5 tests |
+| Mise à jour automatique (sélection, plafond, ambiguïté) | 6 échecs sur 6, puis normalisation des tags | 6 tests |
+| Job de soumission automatique | 2 échecs sur 3 | 3 tests |
+| Veille de nuit vers mise à jour | constructeur sans la soumission | 1 test |
+| Frontend (client, composant, libellés) | tests rouges puis verts | 4 + 7 + 3 tests |
+
+### Vérifications
+
+- `composer gates` : vert, 2127 tests. `pnpm gates` : vert, 523 tests, build OK (les 10 avertissements
+  de lint sont ceux de `develop`).
+- Migration rejouée sur une base vierge : aucune différence avec le mapping.
+- **Scénario de bout en bout** sur l'orchestrateur local et une copie de la base locale, par le vrai
+  endpoint d'upload :
+  1. Crystal Project servi en v0.17.0 ; réimport de la v0.17.0 : candidat en test, le jeu ne bascule pas.
+  2. Verdict en échec : candidat **rejeté**, incident « mise à jour rejetée » ouvert, jeu inchangé.
+  3. Import de la v0.18.2 : candidat en test, puis **promu** au passage suivant. Le jeu sert
+     `3bf11e98…`, et dans le même passage l'incident « mise à jour rejetée » (réglé par la promotion) et
+     l'incident « test en échec » de la v0.17.0 (plus servie) se ferment.
+- **Non vérifié de bout en bout :** la mise à jour automatique de nuit contre le vrai GitHub. Son handler
+  n'est joignable que par le scheduler de 4 h, et aucune commande ne le déclenche sans ajouter un point
+  d'entrée de débogage. Ses étapes sont couvertes par des tests à GitHub simulé ; sa source, la veille,
+  a été lancée en réel en 38.5.
+
+## Corrections de revue (2026-09-26)
+
+- **Une introspection muette ne vide plus les tables du jeu.** Le gateway lit une panne de l'orchestrateur
+  comme une liste vide. Tout monde Archipelago ayant au moins les options communes et un lieu, une réponse
+  vide veut dire « pas de réponse » : la promotion est reportée à la passe suivante, sans rien toucher
+  (`ApworldIntrospectionUnavailableException`). Écart au plan de revue : les types ne sont **pas** stockés
+  sur le candidat à l'import, l'introspection n'y étant pas encore finie (voir plus haut).
+- **Le forçage lit l'introspection avant de forcer le verdict** sur l'orchestrateur, pour ne jamais laisser
+  un verdict forcé sur un apworld non basculé. Il annonce aussi au salon staff les incidents de mise à jour
+  qu'il ferme, comme le chemin automatique.
+- **Pas de verdict en 30 minutes = candidat `expired`, pas `rejected`.** Un incident prévient toujours les
+  admins, mais la version reste éligible : la nuit suivante la retente. Relancer et forcer marchent aussi
+  sur un candidat expiré ; le front affiche « Test sans verdict ».
+- **Une lecture des verdicts par passe**, partagée par la décision et la réconciliation (même instantané),
+  et le verrou de passe de la 38.1 couvre aussi la décision.
+- **La réconciliation tourne sur le worker `async`**, plus dans le scheduler.

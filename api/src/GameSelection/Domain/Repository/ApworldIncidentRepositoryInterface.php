@@ -28,5 +28,12 @@ interface ApworldIncidentRepositoryInterface
      */
     public function findAllActive(): array;
 
+    /**
+     * Every open or acknowledged incident of one game, whatever its hash and type.
+     *
+     * @return list<ApworldIncident>
+     */
+    public function findActiveForGame(string $gameId): array;
+
     public function flush(): void;
 }

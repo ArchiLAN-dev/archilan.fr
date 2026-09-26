@@ -46,6 +46,7 @@ framework:
             # Story 38.5 review: the nightly GitHub pass runs on the async worker, not in the scheduler,
             # so the two-minute stuck-run reconciliation is never held up behind it.
             'App\CatalogSync\Application\Message\CheckApworldUpdatesMessage': async
+            'App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage': async
             'App\Identity\Application\Message\SyncDiscordRoleMessage': async
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
             'App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage': async
@@ -65,6 +66,8 @@ framework:
             'App\Sessions\Application\Message\NotifyGenerationFailureJob': async
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
+            'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async
+            'App\CatalogSync\Application\Message\SubmitAutoApworldUpdateJob': async
             'App\PersonalRuns\Application\Message\RunSlotPreflightJob': run_server
 
 when@test:

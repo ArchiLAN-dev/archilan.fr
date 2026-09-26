@@ -37,14 +37,15 @@ final class NullRunnerGateway implements RunnerGatewayInterface
         return ['error' => 'runner_unavailable'];
     }
 
+    /** A plain world (story 38.6 review): an empty introspection reads as an orchestrator that did not answer. */
     public function fetchOptionTypes(string $hash): array
     {
-        return [];
+        return ['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]];
     }
 
     public function fetchLocationNames(string $hash): array
     {
-        return [];
+        return ['Null Location'];
     }
 
     public function preflight(string $sessionId, array $slots): array

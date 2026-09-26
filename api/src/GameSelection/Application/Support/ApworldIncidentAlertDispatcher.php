@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Support;
 
+use App\GameSelection\Application\Command\DecideApworldCandidatesResult;
 use App\GameSelection\Application\Command\ReconcileApworldIncidentsResult;
 use App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
+use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -33,20 +35,42 @@ final readonly class ApworldIncidentAlertDispatcher
 
     public function dispatchFor(ReconcileApworldIncidentsResult $result): void
     {
+        $this->dispatchTransitions($result->openedIncidentIds, $result->resolvedIncidentIds, $result->ignoredIncidentIds);
+    }
+
+    /**
+     * Story 38.6: a promotion is announced to the staff; a rejection opened an "update rejected"
+     * incident, which alerts like any other; the update incidents a promotion settled are closed.
+     */
+    public function dispatchForDecisions(DecideApworldCandidatesResult $result): void
+    {
         $staffPosts = 0;
-        foreach ($result->openedIncidentIds as $incidentId) {
+        foreach ($result->promotions as $promotion) {
+            $this->postToStaff(new PostApworldPromotionToStaffChannelJob($promotion->candidateId, $promotion->previousVersion), $staffPosts++);
+        }
+        $this->dispatchTransitions($result->openedIncidentIds, $result->resolvedIncidentIds, [], $staffPosts);
+    }
+
+    /**
+     * @param list<string> $opened
+     * @param list<string> $resolved
+     * @param list<string> $ignored
+     */
+    private function dispatchTransitions(array $opened, array $resolved, array $ignored, int $staffPosts = 0): void
+    {
+        foreach ($opened as $incidentId) {
             $this->messageBus->dispatch(new NotifyApworldIncidentAdminsJob($incidentId));
             $this->postToStaff(new PostApworldIncidentToStaffChannelJob($incidentId, StaffAlertEvent::Opened), $staffPosts++);
         }
-        foreach ($result->resolvedIncidentIds as $incidentId) {
+        foreach ($resolved as $incidentId) {
             $this->postToStaff(new PostApworldIncidentToStaffChannelJob($incidentId, StaffAlertEvent::Resolved), $staffPosts++);
         }
-        foreach ($result->ignoredIncidentIds as $incidentId) {
+        foreach ($ignored as $incidentId) {
             $this->postToStaff(new PostApworldIncidentToStaffChannelJob($incidentId, StaffAlertEvent::Ignored), $staffPosts++);
         }
     }
 
-    private function postToStaff(PostApworldIncidentToStaffChannelJob $job, int $rank): void
+    private function postToStaff(object $job, int $rank): void
     {
         $this->messageBus->dispatch($job, 0 === $rank ? [] : [new DelayStamp($rank * self::STAFF_POST_SPACING_MS)]);
     }

@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
+use App\GameSelection\Application\Command\DecideApworldCandidates;
+use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Command\RecordApworldIncident;
 use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\GameSelection\Application\Support\ApworldIncidentAlertDispatcher;
+use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\GameSelection\Presentation\Command\ReconcileApworldIncidentsCommand;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +35,16 @@ final class ReconcileApworldIncidentsAlreadyRunningTest extends TestCase
             $clock,
             new InMemoryExclusivePassLock(held: true),
         );
-        $tester = new CommandTester(new ReconcileApworldIncidentsCommand($reconcile, new ApworldIncidentAlertDispatcher(new SpyMessageBus($incidents))));
+        $runner = self::createStub(RunnerGatewayInterface::class);
+        $decide = new DecideApworldCandidates(
+            new InMemoryApworldCandidateRepository(),
+            $runner,
+            new PromoteApworldCandidate(self::createStub(GameRepositoryInterface::class), $incidents, $runner, $clock),
+            new RecordApworldIncident($incidents, $clock),
+            $clock,
+            new InMemoryExclusivePassLock(held: true),
+        );
+        $tester = new CommandTester(new ReconcileApworldIncidentsCommand($decide, $runner, $reconcile, new ApworldIncidentAlertDispatcher(new SpyMessageBus($incidents))));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('A reconciliation is already running: skipped.', $tester->getDisplay());

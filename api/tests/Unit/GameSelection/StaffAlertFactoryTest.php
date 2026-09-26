@@ -7,6 +7,7 @@ namespace App\Tests\Unit\GameSelection;
 use App\GameSelection\Application\Support\StaffAlertFactory;
 use App\GameSelection\Application\Support\StaffAlertLevel;
 use App\GameSelection\Domain\Entity\ApworldIncident;
+use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\Sessions\Application\Support\GenerationFailureParser;
 use PHPUnit\Framework\TestCase;
@@ -116,6 +117,45 @@ final class StaffAlertFactoryTest extends TestCase
         $alert = new StaffAlertFactory('https://archilan.fr/')->opened($this->incident('boom'), 'Crystal Project');
 
         self::assertSame('https://archilan.fr/admin/sante-apworlds', $alert->url);
+    }
+
+    public function testAnUpdateIncidentIsNamedForWhatItIs(): void
+    {
+        $rejected = ApworldIncident::open('i-1', 'game-1', self::HASH, ApworldIncidentType::UpdateRejected, 'boom', new \DateTimeImmutable());
+        $ambiguous = ApworldIncident::open('i-2', 'game-1', 'release:v2.0.0', ApworldIncidentType::UpdateAmbiguous, 'two apworlds', new \DateTimeImmutable());
+
+        self::assertStringContainsString('Mise à jour rejetée', $this->factory->opened($rejected, 'Crystal Project')->description);
+        self::assertStringContainsString('Mise à jour à arbitrer', $this->factory->opened($ambiguous, 'Crystal Project')->description);
+    }
+
+    public function testAnAutomaticPromotionAnnouncesBothVersionsAndTheRelease(): void
+    {
+        // Story 38.6 AC 11: without a freeze window, the staff must hear about every automatic switch -
+        // the client mod the players need may have changed with it.
+        $alert = $this->factory->promoted(
+            'Crystal Project',
+            'game-1',
+            'CrystalProject-v0.17.0',
+            'CrystalProject-v0.18.2',
+            ApworldCandidateOrigin::Auto,
+            null,
+            'https://github.com/Emerassi/CrystalProjectAPWorld/releases/tag/CrystalProject-v0.18.2',
+        );
+
+        self::assertSame('Crystal Project mis à jour : CrystalProject-v0.17.0 → CrystalProject-v0.18.2', $alert->title);
+        self::assertStringContainsString('Mise à jour automatique', $alert->description);
+        self::assertStringContainsString('mod client', $alert->description);
+        self::assertSame('https://github.com/Emerassi/CrystalProjectAPWorld/releases/tag/CrystalProject-v0.18.2', $alert->url);
+        self::assertSame(StaffAlertLevel::Info, $alert->level);
+    }
+
+    public function testAForcedPromotionNamesTheAdminAndFallsBackToTheGamePage(): void
+    {
+        $alert = $this->factory->promoted('Crystal Project', 'game-1', null, null, ApworldCandidateOrigin::Manual, 'Jean', null);
+
+        self::assertSame('Crystal Project mis à jour : version inconnue → nouvelle version', $alert->title);
+        self::assertStringContainsString('Forcée par Jean malgré le test', $alert->description);
+        self::assertSame('https://archilan.fr/admin/jeux/game-1', $alert->url);
     }
 
     private function incident(string $error): ApworldIncident

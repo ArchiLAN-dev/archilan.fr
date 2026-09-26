@@ -8,15 +8,18 @@ import {useQuery, useQueryClient} from "@tanstack/react-query";
 
 import {
     fetchAdminGame,
+    forceApworldCandidate,
     isAdminGamePayload as isGamePayload,
     overrideApworldPreflight,
     regenerateDefaultYaml,
     rerunApworldPreflight,
+    retryApworldCandidate,
     saveDefaultYaml,
     saveDictOptionValues,
     savePlatforms,
     type AdminGame,
     type AdminGameResult,
+    type ApworldCandidateActionResult,
     type ApworldPreflight,
     type DefaultYamlResult,
     type GameAvailability,
@@ -30,6 +33,7 @@ import {apiFetch} from "@/lib/apiFetch";
 import {env} from "@/lib/env";
 import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
+import {ApworldCandidateStatus} from "./apworld-candidate-status";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
@@ -64,9 +68,13 @@ export function AdminGameEditor({gameId}: { gameId: string }) {
         retry: false,
         // Story 9.38: the apworld test generation runs asynchronously on the orchestrator,
         // so poll while its verdict is pending instead of making the admin reload the page.
+        // Story 38.6: same while a new version is in test - the page shows the switch when it happens.
         refetchInterval: (query) => {
             const result = query.state.data;
-            return result?.kind === "ready" && result.game.apworldPreflight?.status === "pending" ? 10_000 : false;
+            return result?.kind === "ready"
+                && (result.game.apworldPreflight?.status === "pending" || result.game.apworldCandidate?.status === "testing")
+                ? 10_000
+                : false;
         },
     });
     const loadState: LoadState = data ?? {kind: "loading"};
@@ -880,6 +888,9 @@ function ApworldSection({game, onUpdate}: { game: AdminGame; onUpdate: (g: Admin
                 </p>
             )}
 
+            {/* ── 1 bis. La nouvelle version en attente de son test, ou refusée par lui (story 38.6) ── */}
+            <ApworldCandidateBlock game={game} onUpdate={onUpdate}/>
+
             {/* ── 2. Mettre à jour le fichier : les deux sources, au même niveau ── */}
             <div className="mt-5 grid gap-3">
                 <p className="text-sm font-semibold text-foreground">
@@ -1538,6 +1549,36 @@ function fieldErrorsFromPayload(payload: unknown): BasicInfoErrors {
         coverImageCredit: first("coverImageCredit"),
         availability: first("availability"),
     };
+}
+
+// ─── Apworld candidate (story 38.6) ─────────────────────────────────────────
+
+function ApworldCandidateBlock({game, onUpdate}: { game: AdminGame; onUpdate: (g: AdminGame) => void }) {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function run(action: (gameId: string) => Promise<ApworldCandidateActionResult>) {
+        setBusy(true);
+        setError(null);
+        const result = await action(game.id);
+        if (!result.ok) setError(result.message);
+        // The action changed the game (forced) or its candidate (retried): read both back.
+        const refreshed = await fetchAdminGame(game.id);
+        if (refreshed.kind === "ready") onUpdate(refreshed.game);
+        setBusy(false);
+    }
+
+    return (
+        <>
+            <ApworldCandidateStatus
+                busy={busy}
+                candidate={game.apworldCandidate ?? null}
+                onForce={() => void run(forceApworldCandidate)}
+                onRetry={() => void run(retryApworldCandidate)}
+            />
+            {error !== null && <p className="mt-2 text-sm text-danger" role="alert">{error}</p>}
+        </>
+    );
 }
 
 // ─── Apworld preflight verdict (story 9.38) ──────────────────────────────────
