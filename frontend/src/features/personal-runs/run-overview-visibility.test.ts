@@ -1,4 +1,4 @@
-import { showsRunStatusLine } from "./run-overview-visibility";
+import { showsRunStatusLine, showsSettingsDelete } from "./run-overview-visibility";
 
 /**
  * Un administrateur qui ouvre une partie privée dont il ne fait pas partie n'est ni propriétaire ni
@@ -27,4 +27,29 @@ describe("showsRunStatusLine", () => {
   test.each(["draft", "active"] as const)("le propriétaire ne la voit jamais : %s", (status) => {
     expect(showsRunStatusLine(true, true, status)).toBe(false);
   });
+});
+
+/**
+ * Story 16.20 : une partie terminée ne se supprime pas, sauf sur une seed importée - son suivi est
+ * partiel par nature, et la supprimer laisse la session dont les stats de profil sont calculées.
+ */
+describe("showsSettingsDelete", () => {
+  test("une partie en veille se supprime", () => {
+    expect(showsSettingsDelete("idle", false)).toBe(true);
+  });
+
+  test("une partie terminée sur une seed importée se supprime", () => {
+    expect(showsSettingsDelete("completed", true)).toBe(true);
+  });
+
+  test("une partie terminée générée sur le site reste", () => {
+    expect(showsSettingsDelete("completed", false)).toBe(false);
+  });
+
+  test.each(["draft", "starting", "active", "stopping", "restarting", "cancelled"] as const)(
+    "pas depuis les réglages : %s",
+    (status) => {
+      expect(showsSettingsDelete(status, true)).toBe(false);
+    },
+  );
 });
