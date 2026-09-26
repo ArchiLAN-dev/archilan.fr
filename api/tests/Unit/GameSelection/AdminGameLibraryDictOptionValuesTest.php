@@ -4,25 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
-use App\CatalogSync\Application\Service\ApworldVersionChecker;
-use App\GameSelection\Application\Command\SubmitApworldCandidate;
-use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
 use App\GameSelection\Application\Port\GameUsageCounterInterface;
-use App\GameSelection\Application\Port\IgdbHttpClientInterface;
-use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Application\Service\AdminGameLibrary;
-use App\GameSelection\Application\Support\GamePlatformResolver;
-use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
-use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
-use App\Shared\Infrastructure\Adapter\MinioStorageInterface;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
-use Symfony\Component\Clock\MockClock;
-use Symfony\Component\HttpClient\MockHttpClient;
 
 /**
  * Story 9.52: the dict sub-option values an admin declares when the apworld declares none.
@@ -32,6 +20,8 @@ use Symfony\Component\HttpClient\MockHttpClient;
  */
 final class AdminGameLibraryDictOptionValuesTest extends TestCase
 {
+    use BuildsAdminGameLibrary;
+
     // ── Story 9.52: what an admin declares when the apworld declares nothing ──
 
     public function testAnAdminCurationIsStoredApartAndSurfacesInTheEffectiveTable(): void
@@ -138,20 +128,6 @@ final class AdminGameLibraryDictOptionValuesTest extends TestCase
 
         $normalizer = new InstallStepsNormalizer();
 
-        return new AdminGameLibrary(
-            $repository,
-            self::createStub(AdminGameListQueryInterface::class),
-            new NullLogger(),
-            $runner,
-            new MockClock(),
-            new ApworldVersionChecker(new MockHttpClient([]), new NullLogger(), 'token'),
-            $usage,
-            new GamePlatformResolver(self::createStub(IgdbHttpClientInterface::class), new NullLogger()),
-            $normalizer,
-            new GameTutorialSeeder(self::createStub(GameCatalogLinksProviderInterface::class), $normalizer),
-            new InstallStepsReader(),
-            new SubmitApworldCandidate(self::createStub(GameRepositoryInterface::class), new InMemoryApworldCandidateRepository(), self::createStub(RunnerGatewayInterface::class), self::createStub(MinioStorageInterface::class), new MockClock(), new NullLogger(), 'apworlds'),
-            new InMemoryApworldCandidateRepository(),
-        );
+        return $this->buildAdminGameLibrary($repository, $runner);
     }
 }

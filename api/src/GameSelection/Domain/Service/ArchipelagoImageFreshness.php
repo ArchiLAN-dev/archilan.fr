@@ -8,15 +8,17 @@ namespace App\GameSelection\Domain\Service;
  * Whether an apworld verdict was produced on the Archipelago image that runs now (story 38.8).
  *
  * The image id decides when both sides know it: it tells apart `archipelago:latest` rebuilt locally,
- * or a tag pushed again, where the reference alone stays the same. Without an id on either side, the
- * references decide. A verdict without image predates the story: it counts as tested on an older
- * image, so the rolling test (story 38.9) checks it first.
+ * or a tag pushed again, where the reference alone stays the same. Another reference is another
+ * image. The same reference with an id missing on either side proves nothing - the tag may have been
+ * rebuilt - so the answer is unknown (null), never "current" (story 38.8 review). A verdict without
+ * image predates the story: it counts as tested on an older image, so the rolling test (story 38.9)
+ * checks it first.
  *
  * Pure: works on the values the orchestrator reported.
  */
 final class ArchipelagoImageFreshness
 {
-    public static function isCurrent(?string $verdictImage, ?string $verdictImageId, string $currentImage, ?string $currentImageId): bool
+    public static function isCurrent(?string $verdictImage, ?string $verdictImageId, string $currentImage, ?string $currentImageId): ?bool
     {
         if (null === $verdictImage || '' === $verdictImage) {
             return false;
@@ -26,6 +28,6 @@ final class ArchipelagoImageFreshness
             return $verdictImageId === $currentImageId;
         }
 
-        return $verdictImage === $currentImage;
+        return $verdictImage === $currentImage ? null : false;
     }
 }

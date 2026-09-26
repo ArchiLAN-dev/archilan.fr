@@ -6,15 +6,9 @@ namespace App\Tests\Unit\GameSelection;
 
 use App\CatalogSync\Application\Service\ApworldVersionChecker;
 use App\GameSelection\Application\Command\SubmitApworldCandidate;
-use App\GameSelection\Application\Port\GameCatalogLinksProviderInterface;
 use App\GameSelection\Application\Port\GameUsageCounterInterface;
-use App\GameSelection\Application\Port\IgdbHttpClientInterface;
-use App\GameSelection\Application\Query\AdminGameListQueryInterface;
 use App\GameSelection\Application\Service\AdminGameLibrary;
-use App\GameSelection\Application\Support\GamePlatformResolver;
-use App\GameSelection\Application\Support\GameTutorialSeeder;
 use App\GameSelection\Application\Support\InstallStepsNormalizer;
-use App\GameSelection\Application\Support\InstallStepsReader;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
@@ -32,6 +26,8 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  */
 final class AdminGameLibraryImportFromGithubTest extends TestCase
 {
+    use BuildsAdminGameLibrary;
+
     private InMemoryApworldCandidateRepository $candidates;
 
     protected function setUp(): void
@@ -134,18 +130,10 @@ final class AdminGameLibraryImportFromGithubTest extends TestCase
 
         $normalizer = new InstallStepsNormalizer();
 
-        return new AdminGameLibrary(
+        return $this->buildAdminGameLibrary(
             $repository,
-            self::createStub(AdminGameListQueryInterface::class),
-            new NullLogger(),
             $runner,
-            new MockClock(),
             $checker,
-            $usage,
-            new GamePlatformResolver(self::createStub(IgdbHttpClientInterface::class), new NullLogger()),
-            $normalizer,
-            new GameTutorialSeeder(self::createStub(GameCatalogLinksProviderInterface::class), $normalizer),
-            new InstallStepsReader(),
             new SubmitApworldCandidate($repository, $this->candidates, $runner, $minio, new MockClock(), new NullLogger(), 'apworlds'),
             $this->candidates,
         );

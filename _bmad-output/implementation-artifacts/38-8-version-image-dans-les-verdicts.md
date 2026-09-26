@@ -172,3 +172,33 @@ local, c'est `archipelago:latest`, qui ne dit rien. L'**identifiant** de l'image
     pour un verdict antérieur (Castlevania: Aria of Sorrow).
   - Constat hors périmètre : un onglet caché ne rafraîchit pas le verdict « en cours » (TanStack Query
     ne relance pas son polling en arrière-plan) ; il s'actualise au retour sur la page.
+
+## Corrections de revue (2026-09-26)
+
+**Orchestrateur** (commit `c3b21ea` sur la PR #25)
+- Le verdict nomme l'image **du conteneur qui a tourné** : `PreflightGenerate` lit son identifiant juste
+  après la création. Un tag re-poussé pendant un test ne fausse plus le verdict ; le cache d'`ImageID`
+  ne sert plus qu'à `GET /runtime`.
+- Un verdict `skipped` ne porte pas d'image ; un verdict `pending` oublie celle de la passe précédente.
+- L'inspection a son propre délai (5 s) et le verrou ne couvre plus l'appel HTTP ; plus de panic sans
+  inspecteur ; tests sans course de données (`-race` indisponible sur ce poste : pas de cgo).
+- Revérifié en local : le verdict de Crystal Project 0.18.2 porte l'identifiant de `docker image inspect`.
+
+**Client** (commit `42de2e5` sur la PR #11)
+- `NotFoundException` générique, dont hérite `SessionNotFoundException` : un 404 sur `GET /runtime`
+  (orchestrateur plus ancien) n'est plus rapporté comme une session introuvable.
+- `RuntimeInfo::fromArray` refuse une réponse sans image ; doc de `ApworldPreflight` complétée ; un seul
+  helper `ResponseFields::optionalString` ; `composer.lock` resynchronisé.
+- Hors périmètre : `composer audit` signale un avis préexistant, de sévérité faible, sur
+  `symfony/polyfill-intl-idn` (CVE-2026-46644).
+
+**API et page**
+- `ArchipelagoImageFreshness::isCurrent()` rend `?bool` : même référence sans les deux identifiants =
+  inconnu, jamais « à jour » (un tag mutable a pu être reconstruit).
+- Les champs du verdict font partie du payload commun (`preflightPayload()`), renvoyé aussi par chaque
+  sauvegarde : le panneau ne retombe plus sur « Jamais testée » après une sauvegarde (défaut datant de la
+  9.38). `/runtime` n'est appelé que pour un verdict `passed` ou `failed`.
+- La page n'affiche rien pour un verdict en cours ou sauté, et montre les identifiants courts quand la même
+  référence a été reconstruite.
+- Fixture `NullRunnerGateway::$runtime` et test fonctionnel du contrôleur ; un seul builder de test
+  (`BuildsAdminGameLibrary`) au lieu de quatre copies du constructeur.

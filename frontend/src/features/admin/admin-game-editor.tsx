@@ -1669,11 +1669,14 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                 </div>
             </div>
 
-            {preflight !== null && preflight.status !== "pending" ? (
+            {/* Only a verdict that ran names an image: pending and skipped ones claim none (story 38.8 review). */}
+            {preflight !== null && (preflight.status === "passed" || preflight.status === "failed") ? (
                 <ApworldPreflightImage
                     image={preflight.image ?? null}
+                    imageId={preflight.imageId ?? null}
                     onCurrentImage={game.apworldPreflightOnCurrentImage ?? null}
                     runtimeImage={game.archipelagoRuntime?.apImage ?? null}
+                    runtimeImageId={game.archipelagoRuntime?.apImageId ?? null}
                 />
             ) : null}
 

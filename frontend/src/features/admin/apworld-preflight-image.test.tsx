@@ -31,6 +31,22 @@ describe("ApworldPreflightImage", () => {
     expect(html).toContain("Ce n&#x27;est plus l&#x27;image en service");
   });
 
+  test("a rebuilt tag shows the short ids, not the same reference twice (story 38.8 review)", () => {
+    const html = renderToStaticMarkup(
+      <ApworldPreflightImage
+        image="archipelago:latest"
+        imageId="sha256:aaaaaaaaaaaaaaaa"
+        onCurrentImage={false}
+        runtimeImage="archipelago:latest"
+        runtimeImageId="sha256:bbbbbbbbbbbbbbbb"
+      />,
+    );
+
+    expect(html).toContain("reconstruite");
+    expect(html).toContain("aaaaaaaaaaaa");
+    expect(html).toContain("bbbbbbbbbbbb");
+  });
+
   test("claims nothing about freshness when the image in use is unknown", () => {
     const html = renderToStaticMarkup(<ApworldPreflightImage image={CURRENT} onCurrentImage={null} runtimeImage={null} />);
 

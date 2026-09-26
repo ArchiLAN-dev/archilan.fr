@@ -159,19 +159,7 @@ final readonly class AdminGameLibrary
             return null;
         }
 
-        $payload = $this->detailPayload($game);
-        $preflight = $this->preflightForGame($game);
-        $payload['apworldPreflight'] = $preflight;
-
-        // Story 38.8: the image in use, and whether the verdict was produced on it. Null when either
-        // is unknown: the page says nothing rather than something false.
-        $runtime = null !== $preflight ? $this->runnerGateway->fetchRuntime() : null;
-        $payload['archipelagoRuntime'] = $runtime;
-        $payload['apworldPreflightOnCurrentImage'] = null !== $preflight && null !== $runtime
-            ? ArchipelagoImageFreshness::isCurrent($preflight['image'] ?? null, $preflight['imageId'] ?? null, $runtime['apImage'], $runtime['apImageId'])
-            : null;
-
-        return $payload;
+        return $this->detailPayload($game);
     }
 
     /** A template is a whole YAML file with comments: 64 KB is generous and still bounded. */
@@ -478,6 +466,30 @@ final readonly class AdminGameLibrary
         $this->logger->info('game.apworld_preflight_override', ['gameId' => $gameId, 'hash' => $hash, 'overridden' => $overridden]);
 
         return ['found' => true, 'errors' => [], 'preflight' => $verdict];
+    }
+
+    /**
+     * The verdict of the apworld the game serves, the image in use and whether the verdict was produced on
+     * it (stories 9.38, 38.8). Part of every game payload - the detail and every save answer - so a save
+     * never hands the page a game without its verdict. The image in use is only asked for a verdict that
+     * ran (passed or failed): pending and skipped ones claim no image. Null when unknown: the page says
+     * nothing rather than something false.
+     *
+     * @return array{apworldPreflight: array<string, mixed>|null, archipelagoRuntime: array{apImage: string, apImageId: string|null}|null, apworldPreflightOnCurrentImage: bool|null}
+     */
+    private function preflightPayload(Game $game): array
+    {
+        $preflight = $this->preflightForGame($game);
+        $ran = null !== $preflight && \in_array($preflight['status'], ['passed', 'failed'], true);
+        $runtime = $ran ? $this->runnerGateway->fetchRuntime() : null;
+
+        return [
+            'apworldPreflight' => $preflight,
+            'archipelagoRuntime' => $runtime,
+            'apworldPreflightOnCurrentImage' => null !== $preflight && null !== $runtime
+                ? ArchipelagoImageFreshness::isCurrent($preflight['image'] ?? null, $preflight['imageId'] ?? null, $runtime['apImage'], $runtime['apImageId'])
+                : null,
+        ];
     }
 
     /**
@@ -930,7 +942,7 @@ final readonly class AdminGameLibrary
             'installSteps' => $this->stepsReader->present($game->getInstallSteps()),
             'updateStatus' => $game->computeApworldUpdateStatus(),
             'apworldCandidate' => $this->candidatePayload($game),
-        ]);
+        ], $this->preflightPayload($game));
     }
 
     /**

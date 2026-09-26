@@ -20,12 +20,16 @@ final class NullRunnerGateway implements RunnerGatewayInterface
     /** @var array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool, image?: string|null, imageId?: string|null}> Canned preflight verdicts by hash (story 9.38 tests). */
     public static array $apworldPreflights = [];
 
+    /** @var array{apImage: string, apImageId: string|null}|null Canned image in use (story 38.8 tests); null = runner silent. */
+    public static ?array $runtime = null;
+
     public static function reset(): void
     {
         self::$apworldUploadResult = null;
         self::$lastConfigureSlots = null;
         self::$nextSessionInfo = null;
         self::$apworldPreflights = [];
+        self::$runtime = null;
     }
 
     public function uploadApworld(string $fileContents, string $filename): array
@@ -80,7 +84,7 @@ final class NullRunnerGateway implements RunnerGatewayInterface
 
     public function fetchRuntime(): ?array
     {
-        return null;
+        return self::$runtime;
     }
 
     public function runApworldPreflight(string $hash): bool

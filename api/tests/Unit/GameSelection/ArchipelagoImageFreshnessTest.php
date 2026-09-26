@@ -30,10 +30,18 @@ final class ArchipelagoImageFreshnessTest extends TestCase
         self::assertFalse(ArchipelagoImageFreshness::isCurrent('ghcr.io/archilan-dev/archipelago:0.16.0', null, self::REF, 'sha256:b'));
     }
 
-    public function testWithoutAnIdOnEitherSideTheReferencesDecide(): void
+    public function testTheSameReferenceWithoutBothIdsIsUnknown(): void
     {
-        self::assertTrue(ArchipelagoImageFreshness::isCurrent(self::REF, null, self::REF, 'sha256:a'));
-        self::assertTrue(ArchipelagoImageFreshness::isCurrent(self::REF, 'sha256:a', self::REF, null));
+        // Story 38.8 review: a mutable tag (archipelago:latest, a re-pushed one) may have been rebuilt;
+        // without both ids nothing says the image is the same. Unknown, not current.
+        self::assertNull(ArchipelagoImageFreshness::isCurrent(self::REF, null, self::REF, 'sha256:a'));
+        self::assertNull(ArchipelagoImageFreshness::isCurrent(self::REF, 'sha256:a', self::REF, null));
+        self::assertNull(ArchipelagoImageFreshness::isCurrent(self::REF, null, self::REF, null));
+    }
+
+    public function testAnotherReferenceIsNotCurrentEvenWithoutIds(): void
+    {
+        self::assertFalse(ArchipelagoImageFreshness::isCurrent('ghcr.io/archilan-dev/archipelago:0.16.0', null, self::REF, null));
     }
 
     public function testAVerdictWithoutImageCountsAsAnOlderOne(): void
