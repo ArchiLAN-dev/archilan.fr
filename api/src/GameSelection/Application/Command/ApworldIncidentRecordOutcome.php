@@ -15,4 +15,6 @@ enum ApworldIncidentRecordOutcome: string
     case Recurred = 'recurred';
     /** An admin ignored this key for this apworld hash: nothing recorded. */
     case Suppressed = 'suppressed';
+    /** This very observation was already counted, or an incident was closed on it: nothing changed. */
+    case AlreadySeen = 'already_seen';
 }

@@ -222,3 +222,15 @@ contrôler sa résolution.
   hash candidat, pour lesquels elle sera fausse.
 - Faux de test en mémoire `InMemoryApworldIncidentRepository` (dans `tests/`), plutôt que des stubs :
   les règles portent sur le contenu du dépôt.
+
+## Corrections de revue (2026-09-26)
+
+- **Un verdict relu n'est pas un nouvel échec.** L'incident garde sa dernière observation (le `checkedAt` du
+  verdict, colonne `last_observation`). Relire le même verdict à chaque passe ne compte plus de récurrence
+  (il y en avait environ 288 par jour), et un incident résolu à la main sur ce verdict ne se rouvre plus :
+  seul un nouveau test en échec le rouvre. Nouvelle issue `AlreadySeen` dans `RecordApworldIncident`.
+- **Une passe à la fois** : `ExclusivePassLockInterface`, implémenté par un advisory lock PostgreSQL
+  (`PostgresAdvisoryPassLock`). Une seconde passe (console, ou passe lente) s'arrête et le dit, au lieu de
+  planter sur l'index unique.
+- **Plus de N+1** : les incidents actifs sont chargés une fois par passe. `reconcile()` accepte les verdicts
+  déjà lus, pour la lecture unique de la passe (voir 38.6).

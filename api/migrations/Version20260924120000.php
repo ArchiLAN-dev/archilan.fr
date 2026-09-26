@@ -40,6 +40,7 @@ final class Version20260924120000 extends AbstractMigration
             acknowledged_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL,
             closed_at TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL,
             closed_by VARCHAR(32) DEFAULT NULL,
+            last_observation VARCHAR(64) DEFAULT NULL,
             PRIMARY KEY(id)
         )');
         $this->addSql('CREATE INDEX idx_apworld_incident_status ON apworld_incident (status)');

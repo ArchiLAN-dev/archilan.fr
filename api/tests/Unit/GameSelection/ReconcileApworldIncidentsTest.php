@@ -44,17 +44,52 @@ final class ReconcileApworldIncidentsTest extends TestCase
         self::assertSame(1, $this->incidents->flushes);
     }
 
-    public function testFailedVerdictSeenAgainIsARecurrenceAndOpensNothing(): void
+    public function testANewFailedVerdictIsARecurrenceAndOpensNothing(): void
     {
         $served = [new ServedApworld('game-1', 'hash-1')];
-        $verdicts = ['hash-1' => $this->verdict('failed', 'boom')];
-        $this->reconcile($served, $verdicts);
+        $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom')]);
 
-        $second = $this->reconcile($served, $verdicts);
+        $second = $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom again', checkedAt: '2026-09-25T09:55:00Z')]);
 
         self::assertSame([], $second->openedIncidentIds);
         self::assertCount(1, $this->incidents->all());
         self::assertSame(2, $this->incidents->all()[0]->getOccurrences());
+    }
+
+    public function testTheSameVerdictReadAgainIsNotARecurrence(): void
+    {
+        // The verdict is computed once, then read every five minutes: reading it is not seeing it fail.
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $verdicts = ['hash-1' => $this->verdict('failed', 'boom')];
+        $this->reconcile($served, $verdicts);
+        $firstSeenAt = $this->clock->now();
+        $this->clock->sleep(300);
+
+        $this->reconcile($served, $verdicts);
+
+        self::assertSame(1, $this->incidents->all()[0]->getOccurrences());
+        self::assertEquals($firstSeenAt, $this->incidents->all()[0]->getLastSeenAt());
+    }
+
+    public function testAnIncidentResolvedByHandStaysClosedUntilANewVerdict(): void
+    {
+        $served = [new ServedApworld('game-1', 'hash-1')];
+        $first = $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom')]);
+        $this->incidents->findById($first->openedIncidentIds[0])?->resolve($this->clock->now(), 'admin-1');
+
+        $sameVerdict = $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom')]);
+        $newVerdict = $this->reconcile($served, ['hash-1' => $this->verdict('failed', 'boom', checkedAt: '2026-09-25T09:55:00Z')]);
+
+        self::assertSame([], $sameVerdict->openedIncidentIds, 'the admin closed it on this very verdict');
+        self::assertCount(1, $newVerdict->openedIncidentIds, 'a new test failed again: that is a relapse');
+    }
+
+    public function testAPassAlreadyRunningChangesNothing(): void
+    {
+        $result = $this->reconcile([new ServedApworld('game-1', 'hash-1')], ['hash-1' => $this->verdict('failed', 'boom')], lockHeld: true);
+
+        self::assertTrue($result->alreadyRunning);
+        self::assertSame([], $this->incidents->all());
     }
 
     public function testPassedVerdictResolvesTheActiveIncident(): void
@@ -199,7 +234,7 @@ final class ReconcileApworldIncidentsTest extends TestCase
      * @param list<ServedApworld>                                                                                    $served
      * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}> $verdicts
      */
-    private function reconcile(array $served, array $verdicts): ReconcileApworldIncidentsResult
+    private function reconcile(array $served, array $verdicts, bool $lockHeld = false): ReconcileApworldIncidentsResult
     {
         $servedQuery = self::createStub(ServedApworldsQueryInterface::class);
         $servedQuery->method('servedApworlds')->willReturn($served);
@@ -212,6 +247,7 @@ final class ReconcileApworldIncidentsTest extends TestCase
             $this->incidents,
             new RecordApworldIncident($this->incidents, $this->clock),
             $this->clock,
+            new InMemoryExclusivePassLock(held: $lockHeld),
         );
 
         return $reconcile->reconcile();
@@ -220,12 +256,12 @@ final class ReconcileApworldIncidentsTest extends TestCase
     /**
      * @return array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}
      */
-    private function verdict(string $status, string $error = '', bool $overridden = false): array
+    private function verdict(string $status, string $error = '', bool $overridden = false, string $checkedAt = '2026-09-24T09:55:00Z'): array
     {
         return [
             'status' => $status,
             'error' => $error,
-            'checkedAt' => '2026-09-24T09:55:00Z',
+            'checkedAt' => $checkedAt,
             'overridden' => $overridden,
             'blocks' => 'failed' === $status && !$overridden,
         ];

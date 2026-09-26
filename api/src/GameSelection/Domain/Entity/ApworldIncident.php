@@ -43,6 +43,13 @@ final class ApworldIncident
     #[ORM\Column(name: 'closed_by', type: 'string', length: 32, nullable: true)]
     private ?string $closedBy = null;
 
+    /**
+     * What identifies the last observation of the problem, when the source has one: the checkedAt of
+     * the test verdict. The same verdict read again is not a new failure (story 38.1 review).
+     */
+    #[ORM\Column(name: 'last_observation', type: 'string', length: 64, nullable: true)]
+    private ?string $lastObservation = null;
+
     private function __construct(
         #[ORM\Id]
         #[ORM\Column(type: 'string', length: 32)]
@@ -73,20 +80,37 @@ final class ApworldIncident
         ApworldIncidentType $type,
         string $error,
         \DateTimeImmutable $now,
+        ?string $observation = null,
     ): self {
-        return new self($id, $gameId, $apworldHash, $type, ApworldIncidentStatus::Open, $error, $now, $now, 1);
+        $incident = new self($id, $gameId, $apworldHash, $type, ApworldIncidentStatus::Open, $error, $now, $now, 1);
+        $incident->lastObservation = $observation;
+
+        return $incident;
     }
 
     /**
-     * The same problem seen again: one incident, a growing count, never a second alert.
+     * The same problem seen again: one incident, a growing count, never a second alert. An observation
+     * already counted (the same verdict read again) changes nothing: false.
      */
-    public function recordRecurrence(string $error, \DateTimeImmutable $now): void
+    public function recordRecurrence(string $error, \DateTimeImmutable $now, ?string $observation = null): bool
     {
         $this->assertActive('recorded again');
+        if ($this->isObservation($observation)) {
+            return false;
+        }
 
         $this->error = $error;
         $this->lastSeenAt = $now;
+        $this->lastObservation = $observation;
         ++$this->occurrences;
+
+        return true;
+    }
+
+    /** Whether this observation is the one the incident last saw. Null never is: each report counts. */
+    public function isObservation(?string $observation): bool
+    {
+        return null !== $observation && $observation === $this->lastObservation;
     }
 
     /**

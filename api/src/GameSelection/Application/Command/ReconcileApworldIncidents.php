@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
+use App\GameSelection\Application\Port\ExclusivePassLockInterface;
 use App\GameSelection\Application\Query\ServedApworldsQueryInterface;
 use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\GameSelection\Domain\Repository\ApworldIncidentRepositoryInterface;
@@ -20,9 +21,15 @@ use Psr\Clock\ClockInterface;
  * Only a completed verdict concludes anything. `pending`, `skipped`, an unchecked apworld or a
  * missing verdict leave the incidents as they are, and an unreachable runner changes nothing at
  * all: a runner outage must never "heal" a broken apworld.
+ *
+ * A verdict is computed once, then read every pass: only a new verdict (another `checkedAt`) is a
+ * new failure, so reading the same one again neither counts a recurrence nor reopens an incident an
+ * admin closed on it. One pass at a time: a second one, from the console for instance, skips.
  */
 final readonly class ReconcileApworldIncidents
 {
+    public const string PASS = 'apworld_incidents_reconcile';
+
     private const string VERDICT_PASSED = 'passed';
     private const string VERDICT_FAILED = 'failed';
 
@@ -32,12 +39,32 @@ final readonly class ReconcileApworldIncidents
         private ApworldIncidentRepositoryInterface $incidents,
         private RecordApworldIncident $recordIncident,
         private ClockInterface $clock,
+        private ExclusivePassLockInterface $lock,
     ) {
     }
 
-    public function reconcile(): ReconcileApworldIncidentsResult
+    /**
+     * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}>|null $verdicts
+     *                                                                                                                              the verdicts when the caller already read them for this pass; null reads them here
+     */
+    public function reconcile(?array $verdicts = null): ReconcileApworldIncidentsResult
     {
-        $verdicts = $this->runnerGateway->fetchApworldPreflights();
+        if (!$this->lock->tryAcquire(self::PASS)) {
+            return new ReconcileApworldIncidentsResult(true, alreadyRunning: true);
+        }
+
+        try {
+            return $this->reconcileWith($verdicts ?? $this->runnerGateway->fetchApworldPreflights());
+        } finally {
+            $this->lock->release(self::PASS);
+        }
+    }
+
+    /**
+     * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}> $verdicts
+     */
+    private function reconcileWith(array $verdicts): ReconcileApworldIncidentsResult
+    {
         if ([] === $verdicts) {
             return new ReconcileApworldIncidentsResult(false);
         }
@@ -46,6 +73,12 @@ final readonly class ReconcileApworldIncidents
         $opened = [];
         $resolved = [];
         $ignored = [];
+
+        // Every active incident at once, instead of one query per served game.
+        $activeByKey = [];
+        foreach ($this->incidents->findAllActive() as $incident) {
+            $activeByKey[self::key($incident->getGameId(), $incident->getApworldHash(), $incident->getType())] = $incident;
+        }
 
         $servedHashByGame = [];
         foreach ($this->servedApworlds->servedApworlds() as $served) {
@@ -56,7 +89,7 @@ final readonly class ReconcileApworldIncidents
                 continue;
             }
 
-            $active = $this->incidents->findActive($served->gameId, $served->apworldHash, ApworldIncidentType::PreflightFailed);
+            $active = $activeByKey[self::key($served->gameId, $served->apworldHash, ApworldIncidentType::PreflightFailed)] ?? null;
 
             if (self::VERDICT_PASSED === $verdict['status']) {
                 if (null !== $active) {
@@ -79,11 +112,17 @@ final readonly class ReconcileApworldIncidents
                 continue;
             }
 
+            $observation = '' !== $verdict['checkedAt'] ? $verdict['checkedAt'] : null;
+            if (null !== $active && $active->isObservation($observation)) {
+                continue;
+            }
+
             $recording = $this->recordIncident->record(
                 $served->gameId,
                 $served->apworldHash,
                 ApworldIncidentType::PreflightFailed,
                 $verdict['error'],
+                $observation,
             );
             if (ApworldIncidentRecordOutcome::Opened === $recording->outcome && null !== $recording->incidentId) {
                 $opened[] = $recording->incidentId;
@@ -93,8 +132,8 @@ final readonly class ReconcileApworldIncidents
         // An incident about a hash the game no longer serves is over: a new apworld replaced it,
         // or the game lost its apworld. The new hash gets its own verdict and, if needed, its own
         // incident.
-        foreach ($this->incidents->findAllActive() as $incident) {
-            if (!$incident->getType()->followsServedApworld()) {
+        foreach ($activeByKey as $incident) {
+            if (!$incident->isActive() || !$incident->getType()->followsServedApworld()) {
                 continue;
             }
             if (($servedHashByGame[$incident->getGameId()] ?? null) === $incident->getApworldHash()) {
@@ -107,5 +146,10 @@ final readonly class ReconcileApworldIncidents
         $this->incidents->flush();
 
         return new ReconcileApworldIncidentsResult(true, $opened, $resolved, $ignored);
+    }
+
+    private static function key(string $gameId, string $apworldHash, ApworldIncidentType $type): string
+    {
+        return $gameId."\0".$apworldHash."\0".$type->value;
     }
 }

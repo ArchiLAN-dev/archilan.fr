@@ -22,6 +22,11 @@ final readonly class ReconcileApworldIncidentsHandler
     {
         $result = $this->reconcile->reconcile();
 
+        // Another pass holds the lock (a console run, or a slow pass): it does the work.
+        if ($result->alreadyRunning) {
+            return;
+        }
+
         if (!$result->runnerAvailable) {
             $this->logger->warning('apworld_incidents.reconcile_skipped_runner_unavailable');
 

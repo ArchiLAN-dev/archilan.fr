@@ -20,6 +20,7 @@ final readonly class ReconcileApworldIncidentsResult
         public array $openedIncidentIds = [],
         public array $resolvedIncidentIds = [],
         public array $ignoredIncidentIds = [],
+        public bool $alreadyRunning = false,
     ) {
     }
 }

@@ -23,6 +23,12 @@ final class ReconcileApworldIncidentsCommand extends Command
     {
         $result = $this->reconcile->reconcile();
 
+        if ($result->alreadyRunning) {
+            $output->writeln('A reconciliation is already running: skipped.');
+
+            return Command::SUCCESS;
+        }
+
         if (!$result->runnerAvailable) {
             $output->writeln('Runner unavailable: nothing changed.');
 
