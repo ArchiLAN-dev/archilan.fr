@@ -89,15 +89,9 @@ final readonly class ApworldVersionChecker
 
         $game->recordApworldCheck($normalizedTag, $publishedAt, $releaseUrl);
 
-        $deployedVersion = $game->getApworldDeployedVersion();
-        if (null === $deployedVersion) {
-            $updateStatus = Game::UPDATE_STATUS_UNKNOWN;
-        } else {
-            $normalizedDeployed = ltrim($deployedVersion, 'vV');
-            $updateStatus = $normalizedTag === $normalizedDeployed
-                ? Game::UPDATE_STATUS_UP_TO_DATE
-                : Game::UPDATE_STATUS_UPDATE_AVAILABLE;
-        }
+        // One rule for the status (story 38.5): the one the catalogue reads, ordered like semver. This
+        // used to be a second, string-equality copy that called an older release an update.
+        $updateStatus = $game->computeApworldUpdateStatus();
 
         $info = new ApworldVersionInfo(
             latestTag: $normalizedTag,
@@ -109,9 +103,8 @@ final readonly class ApworldVersionChecker
             isNewer: Game::UPDATE_STATUS_UPDATE_AVAILABLE === $updateStatus,
         );
 
-        // Rate limit check after persisting the version - mirrors the old behaviour where
-        // the game state was recorded before the exception was raised.
-        $this->checkRateLimit($remaining);
+        // Rate limit check after persisting the version: the exception carries this completed check.
+        $this->checkRateLimit($remaining, $info);
 
         return $info;
     }
@@ -413,7 +406,9 @@ final readonly class ApworldVersionChecker
             }
 
             foreach ($releases as $release) {
-                if (true === ($release['draft'] ?? false)) {
+                // Neither a draft nor a pre-release is "the latest version": the daily update (story
+                // 38.6) would otherwise ship a beta to every player.
+                if (true === ($release['draft'] ?? false) || true === ($release['prerelease'] ?? false)) {
                     continue;
                 }
 
@@ -453,13 +448,13 @@ final readonly class ApworldVersionChecker
         return ['release' => null, 'remaining' => $remaining];
     }
 
-    private function checkRateLimit(?int $remaining): void
+    private function checkRateLimit(?int $remaining, ?ApworldVersionInfo $completedCheck = null): void
     {
         if (null === $remaining || $remaining > 10) {
             return;
         }
 
         $this->logger->warning('github.rate_limit_low', ['remaining' => $remaining]);
-        throw new GithubRateLimitException(sprintf('GitHub API rate limit low: %d requests remaining', $remaining));
+        throw new GithubRateLimitException(sprintf('GitHub API rate limit low: %d requests remaining', $remaining), $completedCheck);
     }
 }

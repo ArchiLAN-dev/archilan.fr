@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
@@ -67,6 +68,9 @@ final readonly class Schedule implements ScheduleProviderInterface
                 RecurringMessage::every('2 minutes', new ReconcileStuckRunsMessage()),
             )
             ->add(
+                // Story 38.5: the apworld version tracker only ever ran by hand. Nightly, before the
+                // players are up; the automatic update of story 38.6 hangs off its report.
+                RecurringMessage::cron('0 4 * * *', new CheckApworldUpdatesMessage(), new \DateTimeZone('Europe/Paris')),
                 // Derive apworld incidents from the orchestrator's test verdicts (story 38.1). A pull,
                 // not a webhook: orchestrator webhooks have no retry, a lost one would be a lost alert.
                 RecurringMessage::every('5 minutes', new ReconcileApworldIncidentsMessage()),
