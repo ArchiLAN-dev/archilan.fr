@@ -221,7 +221,9 @@ export function messageFor(item: NotificationItem): string {
             ? "Mise à jour à arbitrer"
             : incidentType === "default_yaml_failure"
               ? "Échec avec le YAML par défaut"
-              : "Apworld en échec";
+              : incidentType === "image_regression"
+                ? "Régression d'image"
+                : "Apworld en échec";
       return hasStringProp(item.data, "gameName") && item.data.gameName !== ""
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";

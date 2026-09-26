@@ -47,6 +47,8 @@ framework:
             # so the two-minute stuck-run reconciliation is never held up behind it.
             'App\CatalogSync\Application\Message\CheckApworldUpdatesMessage': async
             'App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage': async
+            # Story 38.9: the nightly sweep queues its tests from the async worker, not the scheduler.
+            'App\GameSelection\Application\Message\SweepApworldCatalogMessage': async
             'App\Identity\Application\Message\SyncDiscordRoleMessage': async
             'App\Identity\Application\Message\CleanupRefreshTokensMessage': async
             'App\Identity\Application\Message\CleanupEmailConfirmationTokensMessage': async

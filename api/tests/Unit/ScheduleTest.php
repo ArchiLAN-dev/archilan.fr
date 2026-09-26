@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit;
 
 use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
+use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
 use App\Schedule;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -22,6 +23,17 @@ final class ScheduleTest extends TestCase
 
         self::assertNotNull($next);
         self::assertSame('2026-09-26 04:00', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
+    }
+
+    public function testTheCatalogueSweepRunsEveryNightAtFiveParisTime(): void
+    {
+        // Story 38.9: after the version check of 04:00, so a game about to be updated is not retested.
+        $recurring = $this->recurringMessageFor(SweepApworldCatalogMessage::class);
+
+        $next = $recurring->getTrigger()->getNextRunDate(new \DateTimeImmutable('2026-09-25 12:00:00', new \DateTimeZone('Europe/Paris')));
+
+        self::assertNotNull($next);
+        self::assertSame('2026-09-26 05:00', $next->setTimezone(new \DateTimeZone('Europe/Paris'))->format('Y-m-d H:i'));
     }
 
     /**

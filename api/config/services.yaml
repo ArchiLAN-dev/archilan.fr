@@ -26,6 +26,7 @@ parameters:
     default_cleanup_event_access_log_retention_days: 365
     # Story 38.6: automatic apworld candidates submitted per night at most (Jean, 2026-09-25).
     default_apworld_auto_update_batch_size: 10
+    default_apworld_sweep_batch_size: 25
 
 services:
     # default configuration for services in *this* file
@@ -55,6 +56,7 @@ services:
             int $helloAssoSyncLogRetentionDays: '%env(default:default_cleanup_helloasso_sync_log_retention_days:int:CLEANUP_HELLOASSO_SYNC_LOG_RETENTION_DAYS)%'
             int $eventAccessLogRetentionDays: '%env(default:default_cleanup_event_access_log_retention_days:int:CLEANUP_EVENT_ACCESS_LOG_RETENTION_DAYS)%'
             int $autoUpdateBatchSize: '%env(default:default_apworld_auto_update_batch_size:int:APWORLD_AUTO_UPDATE_BATCH_SIZE)%'
+            int $sweepBatchSize: '%env(default:default_apworld_sweep_batch_size:int:APWORLD_SWEEP_BATCH_SIZE)%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -395,6 +397,7 @@ services:
     App\GameSelection\Application\Query\ServedApworldsQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalServedApworldsQuery'
     App\GameSelection\Application\Query\ApworldIncidentListQueryInterface: '@App\GameSelection\Infrastructure\Dbal\DbalApworldIncidentListQuery'
     App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineApworldCandidateRepository'
+    App\GameSelection\Domain\Repository\ApworldHealthRepositoryInterface: '@App\GameSelection\Infrastructure\Doctrine\DoctrineApworldHealthRepository'
     # Story 38.2: Discord when a staff webhook is configured, nothing otherwise - chosen here, never
     # by a branch in a handler.
     App\GameSelection\Application\Port\StaffAlertChannelInterface:

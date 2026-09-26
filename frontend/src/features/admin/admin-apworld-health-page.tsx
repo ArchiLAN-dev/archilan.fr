@@ -8,12 +8,14 @@ import {
   acknowledgeApworldIncident,
   APWORLD_INCIDENTS_QUERY_KEY,
   fetchApworldIncidents,
+  fetchApworldSweepProgress,
   ignoreApworldIncident,
   resolveApworldIncident,
   type ApworldIncidentActionResult,
   type ApworldIncidentScope,
 } from "./admin-apworld-health-api";
 import { ApworldIncidentList } from "./apworld-incident-list";
+import { ApworldSweepProgress } from "./apworld-sweep-progress";
 
 const STALE_TIME = 15_000;
 
@@ -31,6 +33,12 @@ export function AdminApworldHealthPage() {
   const [scope, setScope] = useState<ApworldIncidentScope>("active");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Story 38.9: how far the rolling test has come on the image in use.
+  const { data: sweepProgress } = useQuery({
+    queryKey: [...APWORLD_INCIDENTS_QUERY_KEY, "sweep-progress"],
+    queryFn: fetchApworldSweepProgress,
+  });
 
   const { data: incidents, isLoading, isError } = useQuery({
     queryKey: [...APWORLD_INCIDENTS_QUERY_KEY, "list", scope],
@@ -62,6 +70,8 @@ export function AdminApworldHealthPage() {
           vert ou quand le jeu change d&apos;apworld.
         </p>
       </header>
+
+      <ApworldSweepProgress progress={sweepProgress ?? null} />
 
       <div className="flex flex-wrap gap-2 border-b border-border" role="tablist">
         {TABS.map((t) => (

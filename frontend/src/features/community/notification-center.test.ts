@@ -43,6 +43,12 @@ describe("apworld incident notification (story 38.2)", () => {
     );
   });
 
+  it("names an image regression for what it is (story 38.9)", () => {
+    expect(messageFor(item("apworld_incident_opened", { gameName: "Crystal Project", incidentType: "image_regression" }))).toBe(
+      "Régression d'image : Crystal Project",
+    );
+  });
+
   it("leads to the health page even without any detail", () => {
     expect(hrefFor(item("apworld_incident_opened", {}))).toBe("/admin/sante-apworlds");
   });

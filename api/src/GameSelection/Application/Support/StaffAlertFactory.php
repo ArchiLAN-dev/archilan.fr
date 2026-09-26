@@ -114,6 +114,7 @@ final readonly class StaffAlertFactory
             ApworldIncidentType::UpdateRejected => 'Mise à jour rejetée : la nouvelle version échoue à son test',
             ApworldIncidentType::UpdateAmbiguous => 'Mise à jour à arbitrer : plusieurs apworlds dans la release',
             ApworldIncidentType::DefaultYamlFailure => 'Échec avec le YAML par défaut : une vraie génération a échoué',
+            ApworldIncidentType::ImageRegression => 'Régression après changement d\'image : l\'apworld passait sur l\'image précédente',
         };
     }
 

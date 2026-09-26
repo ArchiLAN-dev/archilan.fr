@@ -14,6 +14,7 @@ final readonly class ReconcileApworldIncidentsResult
      * @param list<string> $openedIncidentIds
      * @param list<string> $resolvedIncidentIds
      * @param list<string> $ignoredIncidentIds
+     * @param list<string> $retriedApworldHashes apworlds that passed and failed once, retested at once (story 38.9)
      */
     public function __construct(
         public bool $runnerAvailable,
@@ -21,6 +22,7 @@ final readonly class ReconcileApworldIncidentsResult
         public array $resolvedIncidentIds = [],
         public array $ignoredIncidentIds = [],
         public bool $alreadyRunning = false,
+        public array $retriedApworldHashes = [],
     ) {
     }
 }

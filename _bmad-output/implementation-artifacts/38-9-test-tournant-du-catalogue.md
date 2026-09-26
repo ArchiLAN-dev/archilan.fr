@@ -1,6 +1,6 @@
 # Story 38.9: Test tournant du catalogue
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** 38.1 (incidents), 38.8 (image des verdicts, image courante).
@@ -100,12 +100,12 @@ sans pic de charge.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 8) - `CatalogSweepPlanner`, `SweepCandidate`, tests.
-- [ ] **Task 2** (AC 9) - `ApworldHealth`, dépôt, migration.
-- [ ] **Task 3** (AC 4-6, 10) - Confirmation et régression d'image dans la réconciliation.
-- [ ] **Task 4** (AC 1-3, 11-14) - Message, handler, réglage, commande console.
-- [ ] **Task 5** (AC 7) - Avancement du cycle sur la page Santé.
-- [ ] **Task 6** (AC 15) - Gates.
+- [x] **Task 1** (AC 8) - `CatalogSweepPlanner`, `SweepCandidate`, tests.
+- [x] **Task 2** (AC 9) - `ApworldHealth`, dépôt, migration.
+- [x] **Task 3** (AC 4-6, 10) - Confirmation et régression d'image dans la réconciliation.
+- [x] **Task 4** (AC 1-3, 11-14) - Message, handler, réglage, commande console.
+- [x] **Task 5** (AC 7) - Avancement du cycle sur la page Santé.
+- [x] **Task 6** (AC 15) - Gates.
 
 ## Dev Notes
 
@@ -122,3 +122,55 @@ sans pic de charge.
 - [Source: _bmad-output/implementation-artifacts/38-1-incidents-apworld.md]
 - [Source: _bmad-output/implementation-artifacts/38-8-version-image-dans-les-verdicts.md]
 - [Source: orchestrateur/internal/config/config.go] - `PreflightMaxConcurrent`
+
+## Dev Agent Record
+
+### Écarts à la rédaction initiale
+
+- **AC 8 : `plan()` reçoit la référence et l'identifiant de l'image courante**, pas l'identifiant seul : la
+  règle réutilise `ArchipelagoImageFreshness` (38.8), qui a besoin des deux. Un verdict dont la fraîcheur est
+  **inconnue** (même tag sans les deux identifiants, verdict antérieur à la 38.8) passe en priorité 1, comme
+  une autre image. Un apworld servi par deux jeux n'est testé qu'une fois.
+- **AC 3 : exclusions élargies.** En plus des jeux désactivés, des candidats en test et des verdicts forcés :
+  un test déjà en cours (`pending`), un verdict sauté (`skipped`, pas de template, relancer ne changerait
+  rien) et un apworld que l'orchestrateur ne liste pas (il ne pourrait pas tourner). La désactivation vient
+  de `ServedApworld::$disabled`, lu par la même requête DBAL.
+- **AC 9 : `ApworldHealth` stocke le `checkedAt` du verdict comme identifiant**, en chaîne, comme
+  l'observation des incidents (38.1). Une ligne est créée au premier verdict terminé lu.
+- **AC 5 : la régression d'image exige une image connue des deux côtés.** Un succès antérieur à la 38.8 (sans
+  image) ne permet pas d'affirmer que l'image a changé : l'incident est alors « test en échec ».
+- **AC 6 : un succès résout aussi un incident de régression d'image**, pas seulement « test en échec ».
+- **AC 10 : la relance part après le flush**, comme tout effet de bord ; `ReconcileApworldIncidentsResult` la
+  rapporte (`retriedApworldHashes`).
+- **AC 7 : avancement** exposé par `GET /api/v1/admin/apworld-incidents/sweep-progress` (`CatalogSweepProgress`)
+  et affiché en tête de la page Santé : image en service, apworlds déjà testés dessus sur le total (jeux
+  activés, un apworld servi par deux jeux compté une fois). Rien n'est affiché si le runner ne dit pas quelle
+  image tourne.
+- **Libellés** : « Régression après changement d'image » sur Discord (`StaffAlertFactory`, dont le `match`
+  exhaustif aurait sinon levé une `UnhandledMatchError`, attrapé par PHPStan), sur la page Santé et dans la
+  notification.
+
+### Déroulé TDD
+
+| Étape | Rouge | Vert |
+|---|---|---|
+| `CatalogSweepPlanner` | 8 tests, `plan()` vide : 8 échecs | verts |
+| `ApworldHealth` | 4 tests, entité vide : 3 échecs | verts |
+| Réconciliation (confirmation, régression) | 5 tests : 2 échecs (les 3 autres passaient déjà par le comportement 38.1) | 19 verts |
+| Libellé Discord | 1 test : `UnhandledMatchError` | vert |
+| `SweepApworldCatalog` | 6 tests, `sweep()` vide : 4 échecs | verts |
+| Requête DBAL (désactivé) | 1 test fonctionnel : 1 échec | vert |
+| Planification 05:00 | 1 test : message non planifié | vert |
+| Handler et commande console | 3 tests, squelettes : 3 échecs | verts |
+| `CatalogSweepProgress` et route | 2 tests unitaires + 2 fonctionnels : échecs | verts |
+| Front (avancement, libellés) | 2 + 2 tests : échecs | verts |
+
+### Vérifications
+
+- `composer gates` vert (2268 tests), `pnpm gates` vert (543 tests, les 10 warnings de develop).
+- Migration `Version20260926120000` validée sur une copie de la base : le diff Doctrine ne remonte que les
+  faux positifs connus.
+- **E2e local (2026-09-26)**, vrai orchestrateur : `app:apworld-sweep:run --batch=2` a pris en priorité deux
+  verdicts d'image inconnue (Castlevania: Aria of Sorrow, Beat Saber) ; Castlevania passe, Beat Saber échoue et,
+  n'ayant jamais passé, ouvre un incident au premier échec ; `apworld_health` rempli (7 lignes, 2 avec l'image
+  du dernier succès).

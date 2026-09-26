@@ -36,6 +36,9 @@ export type ApworldIncidentScope = "active" | "closed" | "all";
 
 export type ApworldIncidentSummary = { active: number; unacknowledged: number };
 
+// Story 38.9: how far the rolling test has come on the image in use.
+export type ApworldSweepProgressData = { currentImage: string; testedOnCurrentImage: number; total: number };
+
 export type ApworldIncidentActionResult = { ok: true } | { ok: false; message: string };
 
 export const INCIDENT_TYPE_LABELS: Record<string, string> = {
@@ -46,6 +49,8 @@ export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   update_ambiguous: "Mise à jour à arbitrer",
   // Story 38.4: a real generation (a player's config test or a run) failed with the default YAML.
   default_yaml_failure: "Échec avec le YAML par défaut",
+  // Story 38.9: passed on the previous image, fails twice in a row on the current one.
+  image_regression: "Régression après changement d'image",
 };
 
 export const INCIDENT_STATUS_LABELS: Record<string, string> = {
@@ -102,6 +107,29 @@ export async function fetchApworldIncidentSummary(): Promise<ApworldIncidentSumm
       return null;
     }
     return { active: data.active, unacknowledged: data.unacknowledged };
+  } catch {
+    return null;
+  }
+}
+
+/** Story 38.9: null when the runner does not say which image runs, or on any failure. */
+export async function fetchApworldSweepProgress(): Promise<ApworldSweepProgressData | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/apworld-incidents/sweep-progress`);
+    if (!res.ok) return null;
+    const json: unknown = await res.json();
+    if (typeof json !== "object" || json === null || !("data" in json)) return null;
+    const data: unknown = json.data;
+    if (
+      typeof data !== "object" ||
+      data === null ||
+      !hasStringProp(data, "currentImage") ||
+      !hasNumberProp(data, "testedOnCurrentImage") ||
+      !hasNumberProp(data, "total")
+    ) {
+      return null;
+    }
+    return { currentImage: data.currentImage, testedOnCurrentImage: data.testedOnCurrentImage, total: data.total };
   } catch {
     return null;
   }

@@ -33,6 +33,12 @@ enum ApworldIncidentType: string
     case DefaultYamlFailure = 'default_yaml_failure';
 
     /**
+     * A hash that passed on one image fails twice in a row on the next one (story 38.9): our image broke
+     * it, not the apworld. The incident names both images.
+     */
+    case ImageRegression = 'image_regression';
+
+    /**
      * Whether the incident is about the apworld the game serves, and so closes by itself once the
      * game serves another hash. False for a type keyed on an apworld the game never served, such as
      * a rejected update candidate (story 38.6).
@@ -40,7 +46,7 @@ enum ApworldIncidentType: string
     public function followsServedApworld(): bool
     {
         return match ($this) {
-            self::PreflightFailed, self::DefaultYamlFailure => true,
+            self::PreflightFailed, self::DefaultYamlFailure, self::ImageRegression => true,
             self::UpdateRejected, self::UpdateAmbiguous => false,
         };
     }
@@ -52,7 +58,7 @@ enum ApworldIncidentType: string
     public function isSettledByAPromotion(): bool
     {
         return match ($this) {
-            self::PreflightFailed, self::DefaultYamlFailure => false,
+            self::PreflightFailed, self::DefaultYamlFailure, self::ImageRegression => false,
             self::UpdateRejected, self::UpdateAmbiguous => true,
         };
     }
