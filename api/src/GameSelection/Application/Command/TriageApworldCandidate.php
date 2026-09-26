@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
+use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
+use App\GameSelection\Application\Message\StaffAlertEvent;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
 use App\GameSelection\Domain\Repository\ApworldCandidateRepositoryInterface;
@@ -39,17 +41,28 @@ final readonly class TriageApworldCandidate
             return ApworldCandidateTriageOutcome::NoCandidate;
         }
 
+        // Read before the override (story 38.6 review): an introspection that does not answer must not
+        // leave a verdict forced on an apworld that was never switched.
+        $introspection = $this->promote->introspect($candidate);
+        if (null === $introspection) {
+            return ApworldCandidateTriageOutcome::RunnerUnavailable;
+        }
+
         if (null === $this->runnerGateway->overrideApworldPreflight($candidate->getApworldHash(), true)) {
             return ApworldCandidateTriageOutcome::RunnerUnavailable;
         }
 
-        $promotion = $this->promote->promote($candidate, $adminId);
+        $promotion = $this->promote->promote($candidate, $adminId, $introspection);
         if (null === $promotion) {
             return ApworldCandidateTriageOutcome::NoCandidate;
         }
         $this->candidates->flush();
 
         $this->messageBus->dispatch(new PostApworldPromotionToStaffChannelJob($candidate->getId(), $promotion->previousVersion));
+        // The update incidents the promotion settled, announced like on the automatic path.
+        foreach ($promotion->resolvedIncidentIds as $incidentId) {
+            $this->messageBus->dispatch(new PostApworldIncidentToStaffChannelJob($incidentId, StaffAlertEvent::Resolved));
+        }
 
         return ApworldCandidateTriageOutcome::Applied;
     }
@@ -64,7 +77,7 @@ final readonly class TriageApworldCandidate
             return ApworldCandidateTriageOutcome::NoCandidate;
         }
 
-        if (ApworldCandidateStatus::Rejected !== $candidate->getStatus()) {
+        if (!\in_array($candidate->getStatus(), [ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)) {
             return ApworldCandidateTriageOutcome::Forbidden;
         }
 
@@ -83,7 +96,7 @@ final readonly class TriageApworldCandidate
     {
         $candidate = $this->candidates->findLatestForGame($gameId);
 
-        return null !== $candidate && \in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected], true)
+        return null !== $candidate && \in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)
             ? $candidate
             : null;
     }

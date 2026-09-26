@@ -119,17 +119,46 @@ final class DecideApworldCandidatesTest extends TestCase
         self::assertStringContainsString('template', (string) $candidate->getRejectionReason());
     }
 
-    public function testAPendingVerdictWaitsUntilTheDeadlineThenRejects(): void
+    public function testAPendingVerdictWaitsUntilTheDeadlineThenExpires(): void
     {
+        // Story 38.6 review: no verdict in time is an orchestrator problem (a queue, a restart), not a
+        // broken release. The candidate expires; it is not rejected, so the next night tries it again.
         $candidate = $this->candidate('hash-new', 'v2');
 
         $this->decide(['hash-new' => $this->verdict('pending')]);
         self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
 
         $this->clock->sleep(31 * 60);
-        $this->decide(['hash-new' => $this->verdict('pending')]);
-        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+        $result = $this->decide(['hash-new' => $this->verdict('pending')]);
+        self::assertSame(ApworldCandidateStatus::Expired, $candidate->getStatus());
         self::assertStringContainsString('délai', (string) $candidate->getRejectionReason());
+        self::assertFalse($this->candidates->hasRejectedVersion($this->game->getId(), 'v2'), 'the release stays eligible');
+        self::assertCount(1, $result->openedIncidentIds, 'the admins still hear about it');
+    }
+
+    public function testAnIntrospectionThatDidNotAnswerPostponesThePromotion(): void
+    {
+        // Story 38.6 review: the gateway reads an orchestrator failure as an empty list. Promoting on it
+        // would wipe the option types and location names of the game.
+        $candidate = $this->candidate('hash-new', 'v2');
+
+        $postponed = $this->decide(['hash-new' => $this->verdict('passed')], optionTypes: [], locations: []);
+
+        self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
+        self::assertSame('hash-old', $this->game->getApworldHash());
+        self::assertSame([], $postponed->promotions);
+
+        $this->decide(['hash-new' => $this->verdict('passed')]);
+        self::assertSame(ApworldCandidateStatus::Promoted, $candidate->getStatus());
+    }
+
+    public function testAPassAlreadyRunningDecidesNothing(): void
+    {
+        $candidate = $this->candidate('hash-new', 'v2');
+
+        $this->decide(['hash-new' => $this->verdict('passed')], lockHeld: true);
+
+        self::assertSame(ApworldCandidateStatus::Testing, $candidate->getStatus());
     }
 
     public function testAFailedVerdictAnAdminAlreadyOverrodePromotes(): void
@@ -185,16 +214,17 @@ final class DecideApworldCandidatesTest extends TestCase
 
     /**
      * @param array<string, array{status: string, error: string, checkedAt: string, overridden: bool, blocks: bool}> $verdicts
-     * @param array<string, array{type: string}>                                                                     $optionTypes
+     * @param array<string, array<string, mixed>>|null                                                               $optionTypes null for a plain world
+     * @param list<string>|null                                                                                      $locations   null for a plain world
      */
-    private function decide(array $verdicts, array $optionTypes = []): DecideApworldCandidatesResult
+    private function decide(array $verdicts, ?array $optionTypes = null, ?array $locations = null, bool $lockHeld = false): DecideApworldCandidatesResult
     {
         $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturnCallback(fn (string $id): ?Game => $id === $this->game->getId() ? $this->game : null);
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchApworldPreflights')->willReturn($verdicts);
-        $runner->method('fetchOptionTypes')->willReturn($optionTypes);
-        $runner->method('fetchLocationNames')->willReturn([]);
+        $runner->method('fetchOptionTypes')->willReturn($optionTypes ?? ['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
+        $runner->method('fetchLocationNames')->willReturn($locations ?? ['Spawning Meadows Chest']);
 
         $decide = new DecideApworldCandidates(
             $this->candidates,
@@ -202,6 +232,7 @@ final class DecideApworldCandidatesTest extends TestCase
             new PromoteApworldCandidate($games, $this->incidents, $runner, $this->clock),
             new RecordApworldIncident($this->incidents, $this->clock),
             $this->clock,
+            new InMemoryExclusivePassLock(held: $lockHeld),
         );
 
         return $decide->decide();

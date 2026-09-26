@@ -8,6 +8,7 @@ use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
 use App\GameSelection\Application\Support\ApworldIncidentAlertDispatcher;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
@@ -24,6 +25,7 @@ final readonly class ReconcileApworldIncidentsHandler
 {
     public function __construct(
         private DecideApworldCandidates $decideCandidates,
+        private RunnerGatewayInterface $runnerGateway,
         private ReconcileApworldIncidents $reconcile,
         private ApworldIncidentAlertDispatcher $alerts,
         private LoggerInterface $logger,
@@ -32,7 +34,10 @@ final readonly class ReconcileApworldIncidentsHandler
 
     public function __invoke(ReconcileApworldIncidentsMessage $message): void
     {
-        $decisions = $this->decideCandidates->decide();
+        // One read of the verdicts per pass: both steps see the same snapshot (story 38.6 review).
+        $verdicts = $this->runnerGateway->fetchApworldPreflights();
+
+        $decisions = $this->decideCandidates->decide($verdicts);
         $this->alerts->dispatchForDecisions($decisions);
         if ([] !== $decisions->promotions || [] !== $decisions->rejectedCandidateIds) {
             $this->logger->info('apworld_candidates.decided', [
@@ -41,7 +46,7 @@ final readonly class ReconcileApworldIncidentsHandler
             ]);
         }
 
-        $result = $this->reconcile->reconcile();
+        $result = $this->reconcile->reconcile($verdicts);
 
         // Another pass holds the lock (a console run, or a slow pass): it does the work.
         if ($result->alreadyRunning) {

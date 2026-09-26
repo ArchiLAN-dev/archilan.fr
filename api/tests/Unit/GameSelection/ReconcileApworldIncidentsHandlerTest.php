@@ -29,6 +29,7 @@ use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 final class ReconcileApworldIncidentsHandlerTest extends TestCase
 {
+    private int $verdictReads = 0;
     private InMemoryApworldIncidentRepository $incidents;
     private InMemoryApworldCandidateRepository $candidates;
 
@@ -69,6 +70,18 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
             }
         }
         self::assertSame([0, 500, 1000], $delays);
+    }
+
+    public function testOnePassReadsTheVerdictsOnce(): void
+    {
+        // Story 38.6 review: deciding the candidates and reconciling the incidents read the same list, and
+        // must see the same snapshot of it.
+        $game = $this->gameServing('hash-old', 'v1');
+        $this->candidateFor($game, 'hash-new');
+
+        $this->reconcileOnce([new ServedApworld($game->getId(), 'hash-old')], ['hash-new' => $this->verdict('pending')], $game);
+
+        self::assertSame(1, $this->verdictReads);
     }
 
     public function testRecurrenceDispatchesNothing(): void
@@ -170,9 +183,13 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         $servedQuery = self::createStub(ServedApworldsQueryInterface::class);
         $servedQuery->method('servedApworlds')->willReturn($served);
         $runner = self::createStub(RunnerGatewayInterface::class);
-        $runner->method('fetchApworldPreflights')->willReturn($verdicts);
-        $runner->method('fetchOptionTypes')->willReturn([]);
-        $runner->method('fetchLocationNames')->willReturn([]);
+        $runner->method('fetchApworldPreflights')->willReturnCallback(function () use ($verdicts): array {
+            ++$this->verdictReads;
+
+            return $verdicts;
+        });
+        $runner->method('fetchOptionTypes')->willReturn(['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
+        $runner->method('fetchLocationNames')->willReturn(['Spawning Meadows Chest']);
         $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
         $clock = new MockClock('2026-09-24 10:00:00+00:00');
@@ -180,7 +197,8 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         $record = new RecordApworldIncident($this->incidents, $clock);
 
         $handler = new ReconcileApworldIncidentsHandler(
-            new DecideApworldCandidates($this->candidates, $runner, new PromoteApworldCandidate($games, $this->incidents, $runner, $clock), $record, $clock),
+            new DecideApworldCandidates($this->candidates, $runner, new PromoteApworldCandidate($games, $this->incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
+            $runner,
             new ReconcileApworldIncidents($servedQuery, $runner, $this->incidents, $record, $clock, new InMemoryExclusivePassLock()),
             new ApworldIncidentAlertDispatcher($bus),
             new NullLogger(),

@@ -7,11 +7,15 @@ namespace App\Tests\Unit\GameSelection;
 use App\GameSelection\Application\Command\ApworldCandidateTriageOutcome;
 use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\TriageApworldCandidate;
+use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
+use App\GameSelection\Application\Message\StaffAlertEvent;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
+use App\GameSelection\Domain\Entity\ApworldIncident;
 use App\GameSelection\Domain\Entity\Game;
 use App\GameSelection\Domain\Enum\ApworldCandidateOrigin;
 use App\GameSelection\Domain\Enum\ApworldCandidateStatus;
+use App\GameSelection\Domain\Enum\ApworldIncidentType;
 use App\GameSelection\Domain\Repository\GameRepositoryInterface;
 use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
@@ -75,6 +79,35 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertSame([], $bus->dispatched);
     }
 
+    public function testForcingWhenTheIntrospectionDoesNotAnswerChangesNothing(): void
+    {
+        // Story 38.6 review: checked before the verdict is overridden, so nothing is half done.
+        $candidate = $this->candidate(rejected: true);
+        $runner = $this->createMock(RunnerGatewayInterface::class);
+        $runner->expects(self::never())->method('overrideApworldPreflight');
+        $runner->method('fetchOptionTypes')->willReturn([]);
+        $runner->method('fetchLocationNames')->willReturn([]);
+
+        $outcome = $this->triage($runner, new SpyMessageBus($this->incidents))->forcePromote($this->game->getId(), 'admin-1');
+
+        self::assertSame(ApworldCandidateTriageOutcome::RunnerUnavailable, $outcome);
+        self::assertSame(ApworldCandidateStatus::Rejected, $candidate->getStatus());
+        self::assertSame('hash-old', $this->game->getApworldHash());
+    }
+
+    public function testForcingAnnouncesTheUpdateIncidentsItSettles(): void
+    {
+        // Story 38.6 review: the automatic path posted these, the forced one did not.
+        $this->candidate(rejected: true);
+        $rejected = ApworldIncident::open('incident-1', $this->game->getId(), 'hash-new', ApworldIncidentType::UpdateRejected, 'Fill.FillError: boom', new \DateTimeImmutable('2026-09-25 04:20:00+00:00'));
+        $this->incidents->save($rejected);
+        $bus = new SpyMessageBus($this->incidents);
+
+        $this->triage($this->runner(overrideAnswers: true), $bus)->forcePromote($this->game->getId(), 'admin-1');
+
+        self::assertContainsEquals(new PostApworldIncidentToStaffChannelJob('incident-1', StaffAlertEvent::Resolved), $bus->messages());
+    }
+
     public function testForcingWithoutACandidateSaysSo(): void
     {
         $outcome = $this->triage($this->runner(overrideAnswers: true), new SpyMessageBus($this->incidents))->forcePromote($this->game->getId(), 'admin-1');
@@ -135,8 +168,8 @@ final class TriageApworldCandidateTest extends TestCase
         $runner->expects(self::atMost(1))->method('overrideApworldPreflight')
             ->with($expectedOverride ?? self::anything(), true)
             ->willReturn($overrideAnswers ? ['status' => 'failed', 'error' => '', 'checkedAt' => '', 'overridden' => true, 'blocks' => false] : null);
-        $runner->method('fetchOptionTypes')->willReturn([]);
-        $runner->method('fetchLocationNames')->willReturn([]);
+        $runner->method('fetchOptionTypes')->willReturn(['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
+        $runner->method('fetchLocationNames')->willReturn(['Spawning Meadows Chest']);
 
         return $runner;
     }

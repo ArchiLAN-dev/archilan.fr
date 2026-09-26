@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
+use App\GameSelection\Application\Exception\ApworldIntrospectionUnavailableException;
 use App\GameSelection\Application\Support\ApworldIntrospectionNormalizer;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
 use App\GameSelection\Domain\Entity\Game;
@@ -34,14 +35,33 @@ final readonly class PromoteApworldCandidate
     }
 
     /**
-     * Null when the game no longer exists: there is nothing to switch.
+     * Reads the candidate's option types and location names, before anything moves. Null when the
+     * orchestrator gave none: that is an orchestrator that did not answer, not a world without options.
      */
-    public function promote(ApworldCandidate $candidate, ?string $forcedBy): ?ApworldPromotion
+    public function introspect(ApworldCandidate $candidate): ?ApworldIntrospection
+    {
+        // Same validation as the upload used to apply, the story 9.51 dict rule included.
+        $optionTypes = ApworldIntrospectionNormalizer::optionTypes($this->runnerGateway->fetchOptionTypes($candidate->getApworldHash()));
+        $locationNames = ApworldIntrospectionNormalizer::locationNames($this->runnerGateway->fetchLocationNames($candidate->getApworldHash()));
+
+        return [] === $optionTypes || [] === $locationNames ? null : new ApworldIntrospection($optionTypes, $locationNames);
+    }
+
+    /**
+     * Null when the game no longer exists: there is nothing to switch.
+     *
+     * @param ApworldIntrospection|null $introspection when the caller already read it; null reads it here
+     *
+     * @throws ApworldIntrospectionUnavailableException nothing has moved: the caller tries again later
+     */
+    public function promote(ApworldCandidate $candidate, ?string $forcedBy, ?ApworldIntrospection $introspection = null): ?ApworldPromotion
     {
         $game = $this->games->findById($candidate->getGameId());
         if (!$game instanceof Game) {
             return null;
         }
+        $introspection ??= $this->introspect($candidate)
+            ?? throw new ApworldIntrospectionUnavailableException(sprintf('No introspection for apworld %s yet.', $candidate->getApworldHash()));
 
         $now = $this->clock->now();
         $previousHash = $game->getApworldHash();
@@ -56,9 +76,8 @@ final readonly class PromoteApworldCandidate
             $now,
         );
         $game->recordApworldMinioUpload($candidate->getMinioKey());
-        // Same validation as the upload used to apply, the story 9.51 dict rule included.
-        $game->recordOptionTypes(ApworldIntrospectionNormalizer::optionTypes($this->runnerGateway->fetchOptionTypes($candidate->getApworldHash())));
-        $game->recordLocationNames(ApworldIntrospectionNormalizer::locationNames($this->runnerGateway->fetchLocationNames($candidate->getApworldHash())));
+        $game->recordOptionTypes($introspection->optionTypes);
+        $game->recordLocationNames($introspection->locationNames);
         if (null !== $candidate->getVersionTag()) {
             $game->getCatalogSync()?->recordApworldDeployment($candidate->getVersionTag());
         }

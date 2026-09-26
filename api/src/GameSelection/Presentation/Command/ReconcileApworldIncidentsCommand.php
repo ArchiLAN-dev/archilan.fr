@@ -7,6 +7,7 @@ namespace App\GameSelection\Presentation\Command;
 use App\GameSelection\Application\Command\DecideApworldCandidates;
 use App\GameSelection\Application\Command\ReconcileApworldIncidents;
 use App\GameSelection\Application\Support\ApworldIncidentAlertDispatcher;
+use App\Sessions\Application\Port\RunnerGatewayInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,6 +22,7 @@ final class ReconcileApworldIncidentsCommand extends Command
 {
     public function __construct(
         private readonly DecideApworldCandidates $decideCandidates,
+        private readonly RunnerGatewayInterface $runnerGateway,
         private readonly ReconcileApworldIncidents $reconcile,
         private readonly ApworldIncidentAlertDispatcher $alerts,
     ) {
@@ -29,7 +31,8 @@ final class ReconcileApworldIncidentsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $decisions = $this->decideCandidates->decide();
+        $verdicts = $this->runnerGateway->fetchApworldPreflights();
+        $decisions = $this->decideCandidates->decide($verdicts);
         $this->alerts->dispatchForDecisions($decisions);
         $output->writeln(sprintf(
             'Apworld candidates: %d promoted, %d rejected.',
@@ -37,7 +40,7 @@ final class ReconcileApworldIncidentsCommand extends Command
             \count($decisions->rejectedCandidateIds),
         ));
 
-        $result = $this->reconcile->reconcile();
+        $result = $this->reconcile->reconcile($verdicts);
 
         if ($result->alreadyRunning) {
             $output->writeln('A reconciliation is already running: skipped.');

@@ -932,7 +932,7 @@ final readonly class AdminGameLibrary
     private function candidatePayload(Game $game): ?array
     {
         $candidate = $this->candidates->findLatestForGame($game->getId());
-        if (null === $candidate || !\in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected], true)) {
+        if (null === $candidate || !\in_array($candidate->getStatus(), [ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], true)) {
             return null;
         }
 

@@ -86,15 +86,16 @@ final class ReconcileApworldIncidentsCommandTest extends TestCase
         $served->method('servedApworlds')->willReturn([new ServedApworld('game-1', 'hash-1')]);
         $runner = self::createStub(RunnerGatewayInterface::class);
         $runner->method('fetchApworldPreflights')->willReturn($verdicts);
-        $runner->method('fetchOptionTypes')->willReturn([]);
-        $runner->method('fetchLocationNames')->willReturn([]);
+        $runner->method('fetchOptionTypes')->willReturn(['accessibility' => ['type' => 'choice', 'values' => ['full', 'minimal']]]);
+        $runner->method('fetchLocationNames')->willReturn(['Spawning Meadows Chest']);
         $games = self::createStub(GameRepositoryInterface::class);
         $games->method('findById')->willReturn($game);
         $clock = new MockClock('2026-09-24 10:00:00+00:00');
         $record = new RecordApworldIncident($incidents, $clock);
 
         return new ReconcileApworldIncidentsCommand(
-            new DecideApworldCandidates($candidates ?? new InMemoryApworldCandidateRepository(), $runner, new PromoteApworldCandidate($games, $incidents, $runner, $clock), $record, $clock),
+            new DecideApworldCandidates($candidates ?? new InMemoryApworldCandidateRepository(), $runner, new PromoteApworldCandidate($games, $incidents, $runner, $clock), $record, $clock, new InMemoryExclusivePassLock()),
+            $runner,
             new ReconcileApworldIncidents($served, $runner, $incidents, $record, $clock, new InMemoryExclusivePassLock()),
             new ApworldIncidentAlertDispatcher($bus),
         );

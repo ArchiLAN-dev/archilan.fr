@@ -85,7 +85,7 @@ final class ApworldCandidate
      */
     public function promote(\DateTimeImmutable $now, ?string $forcedBy): void
     {
-        $this->assertStatus([ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected], 'promoted');
+        $this->assertStatus([ApworldCandidateStatus::Testing, ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], 'promoted');
 
         $this->status = ApworldCandidateStatus::Promoted;
         $this->decidedAt = $now;
@@ -103,11 +103,23 @@ final class ApworldCandidate
     }
 
     /**
+     * No verdict within the deadline: the test did not conclude, the release is not judged.
+     */
+    public function expire(string $reason, \DateTimeImmutable $now): void
+    {
+        $this->assertStatus([ApworldCandidateStatus::Testing], 'expired');
+
+        $this->status = ApworldCandidateStatus::Expired;
+        $this->decidedAt = $now;
+        $this->rejectionReason = $reason;
+    }
+
+    /**
      * An admin asks for the test again, typically after a transient failure. The deadline restarts.
      */
     public function retry(\DateTimeImmutable $now): void
     {
-        $this->assertStatus([ApworldCandidateStatus::Rejected], 'retried');
+        $this->assertStatus([ApworldCandidateStatus::Rejected, ApworldCandidateStatus::Expired], 'retried');
 
         $this->status = ApworldCandidateStatus::Testing;
         $this->submittedAt = $now;

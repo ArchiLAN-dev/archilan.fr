@@ -251,7 +251,8 @@ export async function overrideApworldPreflight(gameId: string, overridden: boole
 // while it waits for its verdict, or once its test refused it.
 export type ApworldCandidate = {
   id: string;
-  status: "testing" | "rejected";
+  // Story 38.6 review: "expired" = no verdict in time; the release is tried again, not rejected.
+  status: "testing" | "rejected" | "expired";
   apworldHash: string;
   versionTag: string | null;
   origin: "manual" | "auto";
@@ -263,7 +264,7 @@ export type ApworldCandidate = {
 export function isApworldCandidate(v: unknown): v is ApworldCandidate {
   if (typeof v !== "object" || v === null) return false;
   if (!hasStringProp(v, "id") || !hasStringProp(v, "apworldHash") || !hasStringProp(v, "submittedAt")) return false;
-  if (!("status" in v) || (v.status !== "testing" && v.status !== "rejected")) return false;
+  if (!("status" in v) || (v.status !== "testing" && v.status !== "rejected" && v.status !== "expired")) return false;
   if (!("origin" in v) || (v.origin !== "manual" && v.origin !== "auto")) return false;
   return hasNullableStringProp(v, "versionTag") && hasNullableStringProp(v, "decidedAt") && hasNullableStringProp(v, "rejectionReason");
 }

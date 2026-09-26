@@ -53,6 +53,17 @@ describe("ApworldCandidateStatus", () => {
     expect(html).toContain("Forcer quand même");
   });
 
+  test("an expired candidate says its test gave no verdict and will be tried again (story 38.6 review)", () => {
+    const html = render(
+      candidate({ status: "expired", decidedAt: "2026-09-26T04:45:00+02:00", rejectionReason: "Le test de génération n'a pas rendu de verdict dans le délai de 30 minutes : il sera retenté." }),
+    );
+
+    expect(html).toContain("Test sans verdict");
+    expect(html).toContain("retenté");
+    expect(html).toContain("Relancer le test");
+    expect(html).not.toContain("rejetée");
+  });
+
   test("forcing asks for confirmation first", () => {
     expect(render(candidate())).toContain('aria-haspopup="dialog"');
   });

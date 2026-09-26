@@ -216,3 +216,20 @@ Jean a tranché : le circuit s'applique **à tous les jeux** suivis sur GitHub, 
   n'est joignable que par le scheduler de 4 h, et aucune commande ne le déclenche sans ajouter un point
   d'entrée de débogage. Ses étapes sont couvertes par des tests à GitHub simulé ; sa source, la veille,
   a été lancée en réel en 38.5.
+
+## Corrections de revue (2026-09-26)
+
+- **Une introspection muette ne vide plus les tables du jeu.** Le gateway lit une panne de l'orchestrateur
+  comme une liste vide. Tout monde Archipelago ayant au moins les options communes et un lieu, une réponse
+  vide veut dire « pas de réponse » : la promotion est reportée à la passe suivante, sans rien toucher
+  (`ApworldIntrospectionUnavailableException`). Écart au plan de revue : les types ne sont **pas** stockés
+  sur le candidat à l'import, l'introspection n'y étant pas encore finie (voir plus haut).
+- **Le forçage lit l'introspection avant de forcer le verdict** sur l'orchestrateur, pour ne jamais laisser
+  un verdict forcé sur un apworld non basculé. Il annonce aussi au salon staff les incidents de mise à jour
+  qu'il ferme, comme le chemin automatique.
+- **Pas de verdict en 30 minutes = candidat `expired`, pas `rejected`.** Un incident prévient toujours les
+  admins, mais la version reste éligible : la nuit suivante la retente. Relancer et forcer marchent aussi
+  sur un candidat expiré ; le front affiche « Test sans verdict ».
+- **Une lecture des verdicts par passe**, partagée par la décision et la réconciliation (même instantané),
+  et le verrou de passe de la 38.1 couvre aussi la décision.
+- **La réconciliation tourne sur le worker `async`**, plus dans le scheduler.
