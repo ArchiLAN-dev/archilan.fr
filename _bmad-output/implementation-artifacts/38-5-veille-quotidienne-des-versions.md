@@ -153,3 +153,16 @@ La comparaison actuelle ne suffit pas pour décider seule d'une mise à jour :
 - **Pour la 38.6 :** 233 mises à jour en attente, parce que la veille n'avait pas tourné depuis mai. Sans
   plafond, la première nuit de mise à jour automatique enverrait 233 candidats au test d'un coup. Noté dans
   la story 38.6.
+
+## Corrections de revue (2026-09-26)
+
+- **La reprise suit la dernière vérification, pas la date de release.** `apworld_checked_at` contenait la date
+  de publication de la release : trier dessus relançait chaque nuit les mêmes jeux à release ancienne.
+  Nouvelle colonne `apworld_last_checked_at` (`Version20260926100000`), posée par la veille sur chaque jeu
+  tenté, même en échec, pour qu'un dépôt en panne ne bloque pas la tête de file.
+- **Le jeu qui épuise le quota GitHub figure au rapport.** Sa release était déjà enregistrée ;
+  `GithubRateLimitException` porte maintenant ce contrôle (`completedCheck`).
+- **`ApworldVersion`** lit autant de composants que l'auteur en écrit (`0.5.1.3` > `0.5.1.2`). Un suffixe
+  n'est une pré-release que s'il en nomme une (`alpha`, `beta`, `rc`, `pre`, `dev`, `preview`) ; tout autre
+  suffixe (`-fix`, `-1`) est un correctif, classé après la version (décision du 2026-09-26).
+- **La veille tourne sur le worker `async`**, plus dans le scheduler, qu'elle bloquait pendant tout son passage.

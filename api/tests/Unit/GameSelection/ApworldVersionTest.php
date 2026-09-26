@@ -77,6 +77,31 @@ final class ApworldVersionTest extends TestCase
         self::assertTrue($this->version('2.0.0-rc.1')->isNewerThan($this->version('2.0.0-beta.2')));
     }
 
+    public function testAFourthComponentCounts(): void
+    {
+        // Story 38.5 review: 0.5.1.3 used to read as 0.5.1, so the update was never offered.
+        self::assertTrue($this->version('0.5.1.3')->isNewerThan($this->version('0.5.1.2')));
+        self::assertTrue($this->version('0.5.1.1')->isNewerThan($this->version('0.5.1')));
+        self::assertTrue($this->version('0.5.1')->equals($this->version('0.5.1.0')));
+        self::assertTrue($this->version('0.5.2')->isNewerThan($this->version('0.5.1.9')));
+    }
+
+    public function testOnlyAKnownWordMakesAPreRelease(): void
+    {
+        foreach (['alpha', 'beta.2', 'rc1', 'RC.1', 'pre', 'dev', 'preview'] as $suffix) {
+            self::assertTrue($this->version('1.2.3')->isNewerThan($this->version('1.2.3-'.$suffix)), $suffix.' is a pre-release');
+        }
+    }
+
+    public function testAnyOtherSuffixIsAFixAfterTheVersion(): void
+    {
+        // 1.2.3-fix or 1.2.3-1 is a stable fix published under the same number: it comes after 1.2.3.
+        self::assertTrue($this->version('1.2.3-fix')->isNewerThan($this->version('1.2.3')));
+        self::assertTrue($this->version('1.2.3-2')->isNewerThan($this->version('1.2.3-1')));
+        self::assertTrue($this->version('1.2.4')->isNewerThan($this->version('1.2.3-hotfix')));
+        self::assertTrue($this->version('1.2.3-fix')->isNewerThan($this->version('1.2.3-rc.1')));
+    }
+
     private function version(string $tag): ApworldVersion
     {
         $version = ApworldVersion::parse($tag);
