@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GameSelection\Application\Command;
 
+use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
@@ -63,6 +64,7 @@ final readonly class TriageApworldCandidate
         foreach ($promotion->resolvedIncidentIds as $incidentId) {
             $this->messageBus->dispatch(new PostApworldIncidentToStaffChannelJob($incidentId, StaffAlertEvent::Resolved));
         }
+        $this->messageBus->dispatch(ApworldPromoted::of($promotion));
 
         return ApworldCandidateTriageOutcome::Applied;
     }

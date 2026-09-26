@@ -22,6 +22,7 @@ import {
   PLANNED_FILTER,
   RECENT_FILTER,
 } from "@/features/games/game-picker-filters";
+import { parseNeedsReview, SlotNeedsReview } from "@/features/games/slot-needs-review";
 import { fetchMyGameSelection, requestSlotPreflight, type GameSelectionSlot } from "./personal-runs-api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -456,6 +457,7 @@ export function PersonalRunGameSelectionPage({
                   </button>
                 </div>
                 </div>
+                {slot !== null && <SlotNeedsReview reasons={parseNeedsReview(slot)} />}
                 {slot !== null &&
                   slot.preflight?.status === "failed" &&
                   expandedPreflightSlotId === slot.slotId && (

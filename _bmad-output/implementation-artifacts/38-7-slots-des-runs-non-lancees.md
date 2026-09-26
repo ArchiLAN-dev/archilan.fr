@@ -1,6 +1,6 @@
 # Story 38.7: Slots des runs non lancées
 
-**Status:** ready-for-dev
+**Status:** review
 **Epic:** 38 - Santé et mise à jour automatique des apworlds
 **Date:** 2026-09-24
 **Dépend de :** 38.6 (`ApworldPromotedEvent`), 38.4 (`DefaultYamlEquivalence`).
@@ -110,12 +110,12 @@ par la nouvelle version, donne le même résultat que ce qu'il avait réglé, pl
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1** (AC 7, 8, 13) - `SlotYamlCompatibility`, `SlotYamlVerdict`, tests.
-- [ ] **Task 2** (AC 9, 12) - Méthodes de domaine sur `RunParticipant` et sur l'inscription d'event.
-- [ ] **Task 3** (AC 1, 2, 9, 10) - Handler de resynchronisation.
-- [ ] **Task 4** (AC 3, 4, 11) - Notification et relance du test de config.
-- [ ] **Task 5** (AC 3, 12) - Badge et effacement à la sauvegarde, côté API et frontend.
-- [ ] **Task 6** (AC 14) - Gates.
+- [x] **Task 1** (AC 7, 8, 13) - `SlotYamlCompatibility`, `SlotYamlVerdict`, tests.
+- [x] **Task 2** (AC 9, 12) - Méthodes de domaine sur `RunParticipant` et sur l'inscription d'event.
+- [x] **Task 3** (AC 1, 2, 9, 10) - Handler de resynchronisation.
+- [x] **Task 4** (AC 3, 4, 11) - Notification et relance du test de config.
+- [x] **Task 5** (AC 3, 12) - Badge et effacement à la sauvegarde, côté API et frontend.
+- [x] **Task 6** (AC 14) - Gates.
 
 ## Dev Notes
 
@@ -134,3 +134,102 @@ par la nouvelle version, donne le même résultat que ce qu'il avait réglé, pl
 - [Source: api/src/Sessions/Application/Service/SessionOrchestrator.php] - hash courant pour les events, ligne 595
 - [Source: _bmad-output/implementation-artifacts/3-10-apworld-source-of-truth-game-library.md] - AC3
 - [Source: _bmad-output/implementation-artifacts/38-6-mise-a-jour-en-trois-temps.md]
+
+## Dev Agent Record
+
+### Écarts à la rédaction initiale (décidés à l'implémentation)
+
+- **AC 9 : deux handlers, un par contexte**, pas un `ResyncSlotsAfterApworldPromotionHandler` unique dans
+  `GameSelection`. Chaque contexte possède ses agrégats : `UpgradeRunSlotsAfterApworldPromotionHandler`
+  (`PersonalRuns`) et `UpgradeRegistrationSlotsAfterApworldPromotionHandler` (`Registrations`)
+  consomment le même message. Ce qu'ils partagent (quels slots sont concernés, que devient le YAML) vit
+  dans `PromotedSlotYaml` (`GameSelection/Application/Service`), qui rend un `PromotedSlotDecision`.
+- **Le message s'appelle `ApworldPromoted`** (`GameSelection/Application/Message`), construit depuis le
+  record `ApworldPromotion` de la 38.6. Il part après le flush, depuis
+  `ApworldIncidentAlertDispatcher::dispatchForDecisions()` (passe des 5 minutes et commande manuelle) et
+  depuis `TriageApworldCandidate::forcePromote()`. Routé sur `async`.
+- **AC 7 : `classify()` reçoit aussi le YAML par défaut de la nouvelle version.** Une option disparue se
+  juge contre la section du jeu dans ce YAML : les types effectifs ne listent que les options typées, une
+  option absente des types n'est pas forcément supprimée.
+- **`DefaultYamlEquivalence` créé ici**, la 38.4 n'étant pas encore faite : elle le réutilisera. Deux
+  YAML sont équivalents si leurs sections de jeu donnent le même tirage (poids nuls ignorés, une seule
+  valeur possible ramenée à un scalaire), `name` et `description` exclus.
+- **AC 2, périmètre events** : un event `draft` ou `published` **sans aucune session**. Dès qu'une session
+  existe, les slots sont figés. Un slot d'inscription sans YAML reste sans YAML (le défaut est résolu à la
+  génération) et suit seulement la version. Pas de test de config par slot côté events : il n'existe pas.
+- **AC 3, lien de la notification.** Run : `/runs/{runId}/jeux`. Event :
+  `/evenements/{eventId}/inscription/{registrationId}/recap`, parce que c'est le récap qui liste les
+  slots avec leur YAML (la page « jeux » ne montre que la sélection). Le badge « À revoir »
+  (`SlotNeedsReview`) est affiché sur la sélection de run, sur la vue du propriétaire par participant et
+  sur le récap d'inscription.
+- **Un slot sur une troisième version** (ni l'ancien hash, ni le nouveau) n'est pas touché : on ne déplace
+  que la version qui vient d'être remplacée.
+
+### Limite connue
+
+- **Le test de config d'un slot de run ne vérifie que le `yamlSha`**, pas le hash d'apworld : un
+  `RunSlotPreflightJob` lancé juste avant la promotion et terminé juste après peut écrire un verdict
+  obtenu avec l'ancienne version. La fenêtre est de l'ordre de la minute, et le prochain enregistrement
+  du slot relance le test. À traiter si on l'observe.
+
+### Déroulé TDD
+
+| Étape | Rouge | Vert |
+|---|---|---|
+| `DefaultYamlEquivalence` | 8 tests, classe vide | 8 verts |
+| `SlotYamlCompatibility` | 12 tests, classe vide | 12 verts |
+| `RunParticipant::upgradeSlotApworld` | 6 tests, méthode absente | 6 verts |
+| `Registration::upgradeSlotApworld` | **rouge non observé** : tests écrits après la méthode | 3 verts |
+| Handler runs | 7 tests, `__invoke` vide : 5 échecs comportementaux | 7 verts |
+| Handler inscriptions | 6 tests, `__invoke` vide : 3 échecs | 6 verts, puis refactor commun `PromotedSlotYaml` |
+| Émission de `ApworldPromoted` | 3 tests existants mis à jour : 2 échecs (+1 fonctionnel) | verts |
+| Notification front | 3 tests : 3 échecs | verts |
+| `SlotNeedsReview` | 4 tests, composant vide : 3 échecs | verts |
+
+Le test fonctionnel `PersonalRunGameSelectionPayloadTest::testASlotToReviewCarriesItsReasons` est passé
+directement : la sélection fusionnait déjà le slot entier. Il reste comme test de caractérisation, et
+couvre l'aller-retour de `needsReview` dans le JSON en base.
+
+### Vérifications
+
+- `composer gates` : vert (2170 tests). `pnpm gates` : vert (530 tests), les 10 warnings de lint sont
+  ceux de `develop`.
+- `debug:messenger` : `ApworldPromoted` est consommé par les deux handlers ; `lint:container` vert.
+- **Pas d'e2e sur une stack locale** pour cette story : le chemin promotion vers slots est couvert par les
+  tests unitaires des handlers et les tests de l'émission.
+
+### File List
+
+- `api/src/GameSelection/Domain/Service/DefaultYamlEquivalence.php` (nouveau)
+- `api/src/GameSelection/Domain/Service/SlotYamlCompatibility.php` (nouveau)
+- `api/src/GameSelection/Domain/Enum/SlotYamlCase.php`, `SlotYamlProblem.php` (nouveaux)
+- `api/src/GameSelection/Domain/ValueObject/SlotYamlIssue.php`, `SlotYamlVerdict.php` (nouveaux)
+- `api/src/GameSelection/Application/Message/ApworldPromoted.php` (nouveau)
+- `api/src/GameSelection/Application/Service/PromotedSlotYaml.php`, `PromotedSlotDecision.php` (nouveaux)
+- `api/src/GameSelection/Application/Support/ApworldIncidentAlertDispatcher.php`
+- `api/src/GameSelection/Application/Command/TriageApworldCandidate.php`
+- `api/src/PersonalRuns/Domain/Entity/RunParticipant.php`
+- `api/src/PersonalRuns/Application/Handler/UpgradeRunSlotsAfterApworldPromotionHandler.php` (nouveau)
+- `api/src/PersonalRuns/Application/Service/PersonalRunGameSelection.php`
+- `api/src/Registrations/Domain/Entity/Registration.php`
+- `api/src/Registrations/Application/Handler/UpgradeRegistrationSlotsAfterApworldPromotionHandler.php` (nouveau)
+- `api/config/packages/messenger.yaml`
+- tests : `DefaultYamlEquivalenceTest`, `SlotYamlCompatibilityTest`, `RunParticipantUpgradeSlotTest`,
+  `RegistrationUpgradeSlotTest`, `UpgradeRunSlotsAfterApworldPromotionHandlerTest`,
+  `UpgradeRegistrationSlotsAfterApworldPromotionHandlerTest`, `ReconcileApworldIncidentsHandlerTest`,
+  `ReconcileApworldIncidentsCommandTest`, `TriageApworldCandidateTest`,
+  `AdminApworldCandidateControllerTest`, `PersonalRunGameSelectionPayloadTest`
+- `frontend/src/features/games/slot-needs-review.tsx` (+ test, nouveaux)
+- `frontend/src/features/community/notification-center.tsx` (+ test)
+- `frontend/src/features/personal-runs/personal-run-game-selection-page.tsx`,
+  `personal-run-participant-detail-page.tsx`, `personal-runs-api.ts`, `types.ts`
+- `frontend/src/features/events/events-api.ts`, `registration-recap-gate.tsx`
+
+## Corrections de revue (2026-09-26)
+
+- **Une vraie unité de travail par run et par event**, en deux temps : chaque slot est d'abord décidé sans
+  rien toucher, puis tout est appliqué et enregistré d'un coup. Une erreur de classement ne laisse plus
+  de modification à moitié faite en mémoire, qu'un flush suivant écrirait ; et un slot qui change
+  d'apworld sans test ni avis (pas de YAML, pas de défaut) est bien enregistré.
+- **Une seule lecture de YAML** : `Shared\Application\Support\YamlDocumentReader` (BOM, document illisible
+  ou vide, document qui n'est pas un mapping), partagée avec la 38.4.

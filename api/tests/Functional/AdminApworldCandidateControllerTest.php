@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional;
 
+use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Domain\Entity\ApworldCandidate;
 use App\GameSelection\Domain\Entity\Game;
@@ -56,7 +57,11 @@ final class AdminApworldCandidateControllerTest extends FunctionalTestCase
         $transport = self::getContainer()->get('messenger.transport.async');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         self::assertEquals(
-            [new PostApworldPromotionToStaffChannelJob('candidate-1', null)],
+            [
+                new PostApworldPromotionToStaffChannelJob('candidate-1', null),
+                new ApworldPromoted($this->game->getId(), 'hash-old', 'hash-new', 'old
+'),
+            ],
             array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
         );
     }

@@ -222,6 +222,17 @@ export function messageFor(item: NotificationItem): string {
         ? `${problem} : ${item.data.gameName}`
         : "Un apworld est en échec";
     }
+    case "slot_yaml_needs_review": {
+      // Story 38.7: the game switched apworld and the player's own YAML no longer holds.
+      const game = hasStringProp(item.data, "gameName") && item.data.gameName !== "" ? item.data.gameName : "Un jeu";
+      const where =
+        hasStringProp(item.data, "runTitle") && item.data.runTitle !== ""
+          ? ` (« ${item.data.runTitle} »)`
+          : hasStringProp(item.data, "eventTitle") && item.data.eventTitle !== ""
+            ? ` (« ${item.data.eventTitle} »)`
+            : "";
+      return `${game} a changé de version : ton YAML est à revoir${where}`;
+    }
     default:
       return "Nouvelle notification";
   }
@@ -237,6 +248,22 @@ export function hrefFor(item: NotificationItem): string {
   }
   if (item.type === "generation_failed") {
     return hasStringProp(item.data, "runId") && item.data.runId !== "" ? `/runs/${item.data.runId}` : "/compte";
+  }
+  if (item.type === "slot_yaml_needs_review") {
+    // Where the slot is marked "à revoir" (story 38.7): the run game selection, or the registration
+    // recap that lists the event slots with their YAML.
+    if (hasStringProp(item.data, "runId") && item.data.runId !== "") {
+      return `/runs/${item.data.runId}/jeux`;
+    }
+    if (
+      hasStringProp(item.data, "eventId") &&
+      item.data.eventId !== "" &&
+      hasStringProp(item.data, "registrationId") &&
+      item.data.registrationId !== ""
+    ) {
+      return `/evenements/${item.data.eventId}/inscription/${item.data.registrationId}/recap`;
+    }
+    return "/compte";
   }
   if (item.actor !== null && item.type !== "achievement_unlocked") {
     return `/joueurs/${item.actor.slug}`;

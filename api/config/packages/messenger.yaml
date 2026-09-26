@@ -67,6 +67,8 @@ framework:
             'App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob': async
             'App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob': async
             'App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob': async
+            # Story 38.7: runs and registrations bring their not-yet-launched slots along.
+            'App\GameSelection\Application\Message\ApworldPromoted': async
             'App\CatalogSync\Application\Message\SubmitAutoApworldUpdateJob': async
             'App\PersonalRuns\Application\Message\RunSlotPreflightJob': run_server
 

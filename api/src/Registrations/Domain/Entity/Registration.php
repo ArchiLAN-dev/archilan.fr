@@ -32,7 +32,7 @@ final class Registration
          * Ordered list of game slots. Each slot is independent and may reference the same gameId
          * as another slot (e.g. two Hollow Knight instances with different player configs).
          *
-         * @var list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>
+         * @var list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, needsReview?: list<string>}>
          */
         #[ORM\Column(name: 'game_slots', type: Types::JSON)]
         private array $gameSlots = [],
@@ -77,7 +77,7 @@ final class Registration
     }
 
     /**
-     * @return list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}>
+     * @return list<array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, needsReview?: list<string>}>
      */
     public function getGameSlots(): array
     {
@@ -103,6 +103,13 @@ final class Registration
             throw new \DomainException('Cannot modify slots for an inactive registration.');
         }
 
+        $reviewBySlotId = [];
+        foreach ($this->gameSlots as $existing) {
+            if (isset($existing['needsReview'])) {
+                $reviewBySlotId[$existing['slotId']] = $existing['needsReview'];
+            }
+        }
+
         $orderedSlots = [];
         foreach ($slots as $idx => $slot) {
             $entry = [
@@ -115,6 +122,10 @@ final class Registration
             }
             if (array_key_exists('apworldHash', $slot)) {
                 $entry['apworldHash'] = $slot['apworldHash'];
+            }
+            // Reordering the selection is not reviewing the slot (story 38.7).
+            if (isset($reviewBySlotId[$slot['slotId']])) {
+                $entry['needsReview'] = $reviewBySlotId[$slot['slotId']];
             }
 
             $orderedSlots[] = $entry;
@@ -134,6 +145,8 @@ final class Registration
             if ($slot['slotId'] === $slotId) {
                 $slot['playerYaml'] = $playerYaml;
                 $slot['apworldHash'] = $apworldHash;
+                // Saving the slot is reviewing it (story 38.7).
+                unset($slot['needsReview']);
                 $this->updatedAt = $now;
 
                 return;
@@ -144,7 +157,37 @@ final class Registration
     }
 
     /**
-     * @return array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null}|null
+     * The slot follows its game to a new apworld before the event is generated (story 38.7). Same
+     * contract as the personal-run participant: `$playerYaml` replaces the YAML only when the player never
+     * touched it, `$reviewReasons` marks the slot for review until the next save.
+     *
+     * @param list<string> $reviewReasons
+     */
+    public function upgradeSlotApworld(string $slotId, string $apworldHash, ?string $playerYaml, array $reviewReasons, \DateTimeImmutable $now): void
+    {
+        foreach ($this->gameSlots as &$slot) {
+            if ($slot['slotId'] !== $slotId) {
+                continue;
+            }
+            $slot['apworldHash'] = $apworldHash;
+            if (null !== $playerYaml) {
+                $slot['playerYaml'] = $playerYaml;
+            }
+            if ([] === $reviewReasons) {
+                unset($slot['needsReview']);
+            } else {
+                $slot['needsReview'] = $reviewReasons;
+            }
+            $this->updatedAt = $now;
+
+            return;
+        }
+
+        throw new \DomainException(sprintf('Slot "%s" not found in registration.', $slotId));
+    }
+
+    /**
+     * @return array{slotId: string, gameId: string, slotOrder: int, apworldHash?: string|null, playerYaml?: string|null, needsReview?: list<string>}|null
      */
     public function getSlot(string $slotId): ?array
     {

@@ -7,6 +7,7 @@ namespace App\Tests\Unit\GameSelection;
 use App\GameSelection\Application\Command\ApworldCandidateTriageOutcome;
 use App\GameSelection\Application\Command\PromoteApworldCandidate;
 use App\GameSelection\Application\Command\TriageApworldCandidate;
+use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
@@ -51,7 +52,11 @@ final class TriageApworldCandidateTest extends TestCase
         self::assertSame('admin-1', $candidate->getForcedBy());
         self::assertSame('hash-new', $this->game->getApworldHash());
         self::assertSame(1, $this->candidates->flushes);
-        self::assertEquals([new PostApworldPromotionToStaffChannelJob($candidate->getId(), 'v1')], $bus->messages());
+        self::assertEquals([
+            new PostApworldPromotionToStaffChannelJob($candidate->getId(), 'v1'),
+            new ApworldPromoted($this->game->getId(), 'hash-old', 'hash-new', 'old
+'),
+        ], $bus->messages());
     }
 
     public function testACandidateStillInTestCanBeForcedToo(): void

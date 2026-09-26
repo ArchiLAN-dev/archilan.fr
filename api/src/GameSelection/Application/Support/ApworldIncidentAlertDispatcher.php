@@ -6,6 +6,7 @@ namespace App\GameSelection\Application\Support;
 
 use App\GameSelection\Application\Command\DecideApworldCandidatesResult;
 use App\GameSelection\Application\Command\ReconcileApworldIncidentsResult;
+use App\GameSelection\Application\Message\ApworldPromoted;
 use App\GameSelection\Application\Message\NotifyApworldIncidentAdminsJob;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\PostApworldPromotionToStaffChannelJob;
@@ -41,12 +42,14 @@ final readonly class ApworldIncidentAlertDispatcher
     /**
      * Story 38.6: a promotion is announced to the staff; a rejection opened an "update rejected"
      * incident, which alerts like any other; the update incidents a promotion settled are closed.
+     * Story 38.7: a promotion is also published for the contexts holding slots of the game.
      */
     public function dispatchForDecisions(DecideApworldCandidatesResult $result): void
     {
         $staffPosts = 0;
         foreach ($result->promotions as $promotion) {
             $this->postToStaff(new PostApworldPromotionToStaffChannelJob($promotion->candidateId, $promotion->previousVersion), $staffPosts++);
+            $this->messageBus->dispatch(ApworldPromoted::of($promotion));
         }
         $this->dispatchTransitions($result->openedIncidentIds, $result->resolvedIncidentIds, [], $staffPosts);
     }

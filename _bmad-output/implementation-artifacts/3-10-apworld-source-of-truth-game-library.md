@@ -372,4 +372,6 @@ A slot from before this story has `playerYaml = null`, so it falls back to the l
 
 ### AC3: hash snapshot scope
 
+> **Amended by story 38.7 (2026-09-25):** the version is now frozen when the run is **launched** (or, for an event, once a session exists), no longer when the slot is saved. Until then, a slot follows its game when a new apworld is promoted: an untouched YAML takes the new default, a customised one is kept and marked "à revoir" if it no longer holds. See `38-7-slots-des-runs-non-lancees.md`.
+
 The `apworldHash` is stored at slot save time. In this story, if the hash in a slot differs from the current `game.apworldHash` at session generation time, the runner still uses the current `apworldStorageKey` (with a warning log). Full per-hash `.apworld` routing is post-MVP scope. The hash is stored now so future stories can implement it without a schema change.
