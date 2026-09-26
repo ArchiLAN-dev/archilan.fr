@@ -187,3 +187,14 @@ espions nommés (`SpyNotifier`, `SpyStaffAlertChannel`, `SpyMessageBus`, `Warnin
 - Pas de retry Messenger sur Discord : échec journalisé et absorbé (Dev Notes).
 - `ApworldIncidentAlertDispatcher`, ajouté pour que la commande console alerte aussi (AC 14).
 - Le lien des alertes mène à la page admin du jeu : la story 38.3 le fera pointer sur la page Santé.
+
+## Corrections de revue (2026-09-26)
+
+- **Une panne Discord passagère n'efface plus d'alerte.** Le canal distingue l'erreur passagère (429, 5xx,
+  Discord injoignable) du refus définitif. La première est rendue au transport
+  (`StaffAlertTemporarilyUnavailableException`), qui la relance 3 fois avec un délai croissant puis la
+  range dans le transport d'échec. Un refus reste journalisé et abandonné. Pas de
+  `RecoverableExceptionInterface`, qui relancerait sans fin.
+- **Les posts d'une même passe sont espacés** de 500 ms (`DelayStamp`) : la première passe après un
+  déploiement peut ouvrir des dizaines d'incidents d'un coup, et un webhook Discord accepte environ cinq
+  posts par deux secondes.

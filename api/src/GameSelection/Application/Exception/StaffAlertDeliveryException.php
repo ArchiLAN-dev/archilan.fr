@@ -10,4 +10,8 @@ namespace App\GameSelection\Application\Exception;
  */
 final class StaffAlertDeliveryException extends \RuntimeException
 {
+    public function __construct(string $message, ?\Throwable $previous = null, public readonly bool $transient = false)
+    {
+        parent::__construct($message, 0, $previous);
+    }
 }

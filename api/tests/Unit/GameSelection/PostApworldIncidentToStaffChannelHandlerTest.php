@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\GameSelection;
 
+use App\GameSelection\Application\Exception\StaffAlertTemporarilyUnavailableException;
 use App\GameSelection\Application\Handler\PostApworldIncidentToStaffChannelHandler;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
@@ -96,6 +97,14 @@ final class PostApworldIncidentToStaffChannelHandlerTest extends TestCase
 
         self::assertSame([], $channel->posted);
         self::assertCount(1, $this->logger->warnings);
+    }
+
+    public function testAPassingFailureIsHandedBackForARetry(): void
+    {
+        // Story 38.2 review: a Discord rate limit is retried by the transport (3 times), not lost.
+        $this->expectException(StaffAlertTemporarilyUnavailableException::class);
+
+        $this->handler(new SpyStaffAlertChannel(failing: true, transient: true))(new PostApworldIncidentToStaffChannelJob('incident-1', StaffAlertEvent::Opened));
     }
 
     public function testChannelFailureIsLoggedAndSwallowed(): void

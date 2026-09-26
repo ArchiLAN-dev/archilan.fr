@@ -16,14 +16,16 @@ final class SpyStaffAlertChannel implements StaffAlertChannelInterface
     /** @var list<StaffAlert> */
     public array $posted = [];
 
-    public function __construct(private readonly bool $failing = false)
-    {
+    public function __construct(
+        private readonly bool $failing = false,
+        private readonly bool $transient = false,
+    ) {
     }
 
     public function post(StaffAlert $alert): void
     {
         if ($this->failing) {
-            throw new StaffAlertDeliveryException('Discord webhook answered HTTP 500.');
+            throw new StaffAlertDeliveryException($this->transient ? 'Discord webhook answered HTTP 429.' : 'Discord webhook answered HTTP 400.', transient: $this->transient);
         }
         $this->posted[] = $alert;
     }

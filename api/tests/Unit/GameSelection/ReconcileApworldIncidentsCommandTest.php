@@ -64,7 +64,7 @@ final class ReconcileApworldIncidentsCommandTest extends TestCase
         $clock = new MockClock('2026-09-24 10:00:00+00:00');
 
         return new ReconcileApworldIncidentsCommand(
-            new ReconcileApworldIncidents($served, $runner, $incidents, new RecordApworldIncident($incidents, $clock), $clock),
+            new ReconcileApworldIncidents($served, $runner, $incidents, new RecordApworldIncident($incidents, $clock), $clock, new InMemoryExclusivePassLock()),
             new ApworldIncidentAlertDispatcher($bus),
         );
     }

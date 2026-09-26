@@ -6,6 +6,7 @@ namespace App\Tests\Unit\GameSelection;
 
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\StampInterface;
 
 /**
  * Records dispatched messages together with how many times the incident store had flushed at that
@@ -13,7 +14,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final class SpyMessageBus implements MessageBusInterface
 {
-    /** @var list<array{message: object, flushesBefore: int}> */
+    /** @var list<array{message: object, flushesBefore: int, stamps: list<StampInterface>}> */
     public array $dispatched = [];
 
     public function __construct(private readonly InMemoryApworldIncidentRepository $incidents)
@@ -22,7 +23,7 @@ final class SpyMessageBus implements MessageBusInterface
 
     public function dispatch(object $message, array $stamps = []): Envelope
     {
-        $this->dispatched[] = ['message' => $message, 'flushesBefore' => $this->incidents->flushes];
+        $this->dispatched[] = ['message' => $message, 'flushesBefore' => $this->incidents->flushes, 'stamps' => array_values($stamps)];
 
         return new Envelope($message);
     }

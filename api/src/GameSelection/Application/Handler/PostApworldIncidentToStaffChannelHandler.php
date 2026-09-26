@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GameSelection\Application\Handler;
 
 use App\GameSelection\Application\Exception\StaffAlertDeliveryException;
+use App\GameSelection\Application\Exception\StaffAlertTemporarilyUnavailableException;
 use App\GameSelection\Application\Message\PostApworldIncidentToStaffChannelJob;
 use App\GameSelection\Application\Message\StaffAlertEvent;
 use App\GameSelection\Application\Port\StaffAlertChannelInterface;
@@ -29,8 +30,9 @@ final readonly class PostApworldIncidentToStaffChannelHandler
     }
 
     /**
-     * Never throws: the alert is a side effect of a transition already committed, and a Discord
-     * outage must not send the job round the failure transport forever. A lost message is logged.
+     * A passing failure (rate limit, Discord down) is handed back to the transport, which retries it a
+     * few times with a growing delay, then parks it in the failure transport: never lost, never looping.
+     * Any other failure is logged and dropped - the transition it reports is already committed.
      */
     public function __invoke(PostApworldIncidentToStaffChannelJob $job): void
     {
@@ -52,13 +54,23 @@ final readonly class PostApworldIncidentToStaffChannelHandler
                 ),
             };
             $this->channel->post($alert);
-        } catch (StaffAlertDeliveryException|\LogicException $e) {
-            $this->logger->warning('apworld_incidents.staff_alert_not_posted', [
-                'incidentId' => $incident->getId(),
-                'event' => $job->event->value,
-                'error' => $e->getMessage(),
-            ]);
+        } catch (StaffAlertDeliveryException $e) {
+            if ($e->transient) {
+                throw new StaffAlertTemporarilyUnavailableException($e->getMessage(), 0, $e);
+            }
+            $this->logNotPosted($incident->getId(), $job->event, $e);
+        } catch (\LogicException $e) {
+            $this->logNotPosted($incident->getId(), $job->event, $e);
         }
+    }
+
+    private function logNotPosted(string $incidentId, StaffAlertEvent $event, \Throwable $e): void
+    {
+        $this->logger->warning('apworld_incidents.staff_alert_not_posted', [
+            'incidentId' => $incidentId,
+            'event' => $event->value,
+            'error' => $e->getMessage(),
+        ]);
     }
 
     private function adminName(?string $userId): string

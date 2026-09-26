@@ -53,11 +53,12 @@ final readonly class DiscordWebhookStaffAlertChannel implements StaffAlertChanne
             ]);
             $status = $response->getStatusCode();
         } catch (ExceptionInterface $e) {
-            throw new StaffAlertDeliveryException(sprintf('Discord webhook unreachable (%s).', $e::class), 0, null);
+            throw new StaffAlertDeliveryException(sprintf('Discord webhook unreachable (%s).', $e::class), transient: true);
         }
 
         if ($status < 200 || $status >= 300) {
-            throw new StaffAlertDeliveryException(sprintf('Discord webhook answered HTTP %d.', $status));
+            // A rate limit or a server error passes; any other refusal will not change on a retry.
+            throw new StaffAlertDeliveryException(sprintf('Discord webhook answered HTTP %d.', $status), transient: 429 === $status || $status >= 500);
         }
     }
 

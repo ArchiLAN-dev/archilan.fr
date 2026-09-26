@@ -18,6 +18,7 @@ use App\Sessions\Application\Port\RunnerGatewayInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Messenger\Stamp\DelayStamp;
 
 final class ReconcileApworldIncidentsHandlerTest extends TestCase
 {
@@ -40,6 +41,25 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         foreach ($bus->dispatched as $dispatch) {
             self::assertSame(1, $dispatch['flushesBefore'], 'alerts leave only once the transition is committed');
         }
+    }
+
+    public function testTheStaffPostsOfOnePassAreSpacedOut(): void
+    {
+        // Story 38.2 review: the first pass after a deploy may open dozens of incidents at once, and a
+        // Discord webhook takes about five posts per two seconds.
+        $bus = $this->reconcileOnce(
+            [new ServedApworld('game-1', 'hash-1'), new ServedApworld('game-2', 'hash-2'), new ServedApworld('game-3', 'hash-3')],
+            ['hash-1' => $this->verdict('failed'), 'hash-2' => $this->verdict('failed'), 'hash-3' => $this->verdict('failed')],
+        );
+
+        $delays = [];
+        foreach ($bus->dispatched as $dispatch) {
+            if ($dispatch['message'] instanceof PostApworldIncidentToStaffChannelJob) {
+                $stamp = array_values(array_filter($dispatch['stamps'], static fn (object $s): bool => $s instanceof DelayStamp))[0] ?? null;
+                $delays[] = $stamp instanceof DelayStamp ? $stamp->getDelay() : 0;
+            }
+        }
+        self::assertSame([0, 500, 1000], $delays);
     }
 
     public function testRecurrenceDispatchesNothing(): void
@@ -101,7 +121,7 @@ final class ReconcileApworldIncidentsHandlerTest extends TestCase
         $bus = new SpyMessageBus($this->incidents);
 
         $handler = new ReconcileApworldIncidentsHandler(
-            new ReconcileApworldIncidents($servedQuery, $runner, $this->incidents, new RecordApworldIncident($this->incidents, $clock), $clock),
+            new ReconcileApworldIncidents($servedQuery, $runner, $this->incidents, new RecordApworldIncident($this->incidents, $clock), $clock, new InMemoryExclusivePassLock()),
             new ApworldIncidentAlertDispatcher($bus),
             new NullLogger(),
         );

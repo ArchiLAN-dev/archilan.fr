@@ -86,6 +86,30 @@ final class DiscordWebhookStaffAlertChannelTest extends TestCase
         $channel->post($this->alert(StaffAlertLevel::Alert));
     }
 
+    /**
+     * Story 38.2 review: a rate limit, a server error or an unreachable Discord pass; a refusal does not.
+     */
+    public function testOnlyAPassingFailureIsWorthARetry(): void
+    {
+        foreach ([429 => true, 500 => true, 502 => true, 400 => false, 401 => false, 404 => false] as $status => $transient) {
+            $channel = new DiscordWebhookStaffAlertChannel(new MockHttpClient(new MockResponse('', ['http_code' => $status])), self::WEBHOOK);
+            try {
+                $channel->post($this->alert(StaffAlertLevel::Alert));
+                self::fail('Expected a delivery failure.');
+            } catch (StaffAlertDeliveryException $e) {
+                self::assertSame($transient, $e->transient, 'HTTP '.$status);
+            }
+        }
+
+        $unreachable = new DiscordWebhookStaffAlertChannel(new MockHttpClient(new MockResponse('', ['error' => 'Could not resolve host'])), self::WEBHOOK);
+        try {
+            $unreachable->post($this->alert(StaffAlertLevel::Alert));
+            self::fail('Expected a delivery failure.');
+        } catch (StaffAlertDeliveryException $e) {
+            self::assertTrue($e->transient);
+        }
+    }
+
     public function testTheSecretUrlNeverAppearsInTheFailureMessage(): void
     {
         $channel = new DiscordWebhookStaffAlertChannel(
