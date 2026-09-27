@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Community;
 
 use App\Community\Application\Exception\DiscordServerSanctionException;
+use App\Community\Application\Port\DiscordBan;
 use App\Community\Application\Port\DiscordServerSanctionsInterface;
 
 /**
@@ -30,6 +31,14 @@ final class RecordingDiscordServer implements DiscordServerSanctionsInterface
 
     /** @var list<string> members whose timeout fails as Discord being down */
     public array $failingMembers = [];
+
+    /** @var list<DiscordBan> the server's ban list */
+    public array $banList = [];
+
+    public ?DiscordServerSanctionException $failListingWith = null;
+
+    /** @var array<string, string> banned member => who banned them */
+    public array $authors = [];
 
     public ?DiscordServerSanctionException $failWith = null;
 
@@ -74,6 +83,20 @@ final class RecordingDiscordServer implements DiscordServerSanctionsInterface
             throw $this->failWith;
         }
         $this->clearedTimeouts[] = $discordUserId;
+    }
+
+    public function bans(): array
+    {
+        if (null !== $this->failListingWith) {
+            throw $this->failListingWith;
+        }
+
+        return $this->banList;
+    }
+
+    public function banAuthors(): array
+    {
+        return $this->authors;
     }
 
     public function unban(string $discordUserId): void

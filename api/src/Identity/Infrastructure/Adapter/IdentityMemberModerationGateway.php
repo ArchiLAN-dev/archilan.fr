@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Identity\Infrastructure\Adapter;
 
+use App\Community\Application\Port\BannedMember;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Port\MemberModerationState;
 use App\Community\Application\Port\SuspendedMember;
@@ -98,6 +99,26 @@ final readonly class IdentityMemberModerationGateway implements MemberModeration
         }
 
         return $suspended;
+    }
+
+    public function userIdForDiscordId(string $discordId): ?string
+    {
+        $user = $this->users->findByDiscordId($discordId);
+
+        return $user instanceof User && !$user->isDeleted() ? $user->getId() : null;
+    }
+
+    public function currentlyBanned(): array
+    {
+        $banned = [];
+        foreach ($this->users->findBannedWithDiscord() as $user) {
+            $discordId = $user->getDiscordId();
+            if (null !== $discordId && '' !== $discordId) {
+                $banned[] = new BannedMember($user->getId(), $discordId);
+            }
+        }
+
+        return $banned;
     }
 
     private function load(string $userId): ?User

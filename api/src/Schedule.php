@@ -8,6 +8,7 @@ use App\CatalogSync\Application\Message\CheckApworldUpdatesMessage;
 use App\Community\Application\Message\ExtendDiscordTimeoutsMessage;
 use App\Community\Application\Message\PollModerationDirectMessagesMessage;
 use App\Community\Application\Message\RecomputeAllAchievementsMessage;
+use App\Community\Application\Message\SyncDiscordBansMessage;
 use App\Events\Application\Message\CleanupEventPrivateAccessLogMessage;
 use App\GameSelection\Application\Message\ReconcileApworldIncidentsMessage;
 use App\GameSelection\Application\Message\SweepApworldCatalogMessage;
@@ -95,6 +96,11 @@ final readonly class Schedule implements ScheduleProviderInterface
             ->add(
                 // Story 39.6: Discord caps a timeout at 28 days; a nightly pass keeps a longer suspension going.
                 RecurringMessage::cron('30 4 * * *', new ExtendDiscordTimeoutsMessage(), new \DateTimeZone('Europe/Paris')),
+            )
+            ->add(
+                // Story 39.7: bans posed on the Discord server, applied on the site. The bot holds no live
+                // connection: the ban list is read back.
+                RecurringMessage::every('5 minutes', new SyncDiscordBansMessage()),
             )
             ->add(
                 RecurringMessage::cron('0 0 * * 1', new GenerateWeeklyRunsMessage(), new \DateTimeZone('UTC')),

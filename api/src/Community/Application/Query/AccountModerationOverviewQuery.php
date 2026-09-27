@@ -6,6 +6,7 @@ namespace App\Community\Application\Query;
 
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Service\AccountModerationService;
+use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Community\Domain\Repository\ModerationCaseMessageRepositoryInterface;
 use App\Community\Domain\Repository\ModerationCaseRepositoryInterface;
@@ -97,8 +98,9 @@ final readonly class AccountModerationOverviewQuery
         foreach ($history as $row) {
             $out[] = [
                 ...$row,
-                // A since-deleted admin leaves the sanction in place, unnamed rather than hidden.
-                'actorName' => $names[$row['actorId']] ?? null,
+                // A since-deleted admin leaves the sanction in place, unnamed rather than hidden. A ban posed on
+                // Discord (story 39.7) has no site account behind it.
+                'actorName' => ModerationAction::ACTOR_DISCORD === $row['actorId'] ? 'Discord' : ($names[$row['actorId']] ?? null),
             ];
         }
 

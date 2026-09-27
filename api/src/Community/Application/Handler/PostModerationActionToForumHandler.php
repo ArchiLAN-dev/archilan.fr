@@ -102,7 +102,7 @@ final readonly class PostModerationActionToForumHandler
             $action,
             $memberName,
             $discordId,
-            $names[$action->getActorId()] ?? 'Un admin',
+            ModerationAction::ACTOR_DISCORD === $action->getActorId() ? 'Discord' : ($names[$action->getActorId()] ?? 'Un admin'),
             $suspendedUntil,
             $action->getDiscordDmStatus(),
             $action->getDiscordServerStatus(),
@@ -128,6 +128,12 @@ final readonly class PostModerationActionToForumHandler
         }
         if (!$this->server->isConfigured()) {
             return ModerationAction::SERVER_UNAVAILABLE;
+        }
+
+        // Story 39.7: already banned there. Banning again would overwrite the reason with the site's prefix,
+        // and the ban would then pass for one of the site's.
+        if (ModerationAction::ACTION_BAN === $kind && ModerationAction::ACTOR_DISCORD === $action->getActorId()) {
+            return ModerationAction::SERVER_BANNED;
         }
 
         try {

@@ -86,6 +86,62 @@ final class DiscordServerSanctionsTest extends TestCase
         self::assertSame(['communication_disabled_until' => null], $this->requests[1]['body']);
     }
 
+    public function testTheWholeBanListIsReadPageByPage(): void
+    {
+        $server = $this->server([
+            new MockResponse((string) json_encode([
+                ['user' => ['id' => '11', 'username' => 'lone'], 'reason' => 'Raid'],
+                ['user' => ['id' => '12', 'username' => 'spam'], 'reason' => null],
+            ])),
+            new MockResponse((string) json_encode([
+                ['user' => ['id' => '13', 'username' => 'bot'], 'reason' => '[archilan.fr] Triche'],
+            ])),
+        ], banPageSize: 2);
+
+        $bans = $server->bans();
+
+        self::assertSame('https://discord.com/api/v10/guilds/'.self::GUILD.'/bans?limit=2', $this->requests[0]['url']);
+        self::assertSame('https://discord.com/api/v10/guilds/'.self::GUILD.'/bans?limit=2&after=12', $this->requests[1]['url'], 'the next page starts after the last user');
+        self::assertCount(3, $bans);
+        self::assertSame(['11', 'lone', 'Raid'], [$bans[0]->discordUserId, $bans[0]->username, $bans[0]->reason]);
+        self::assertNull($bans[1]->reason);
+        self::assertTrue($bans[2]->postedBySite());
+        self::assertFalse($bans[0]->postedBySite());
+    }
+
+    public function testAFailedPageFailsTheWholeList(): void
+    {
+        $server = $this->server([
+            new MockResponse((string) json_encode([['user' => ['id' => '11', 'username' => 'a'], 'reason' => null], ['user' => ['id' => '12', 'username' => 'b'], 'reason' => null]])),
+            new MockResponse('{}', ['http_code' => 503]),
+        ], banPageSize: 2);
+
+        $this->expectException(DiscordServerSanctionException::class);
+        $server->bans();
+    }
+
+    public function testBanAuthorsComeFromTheAuditLog(): void
+    {
+        $server = $this->server([new MockResponse((string) json_encode([
+            'audit_log_entries' => [
+                ['target_id' => '11', 'user_id' => '900', 'action_type' => 22, 'reason' => 'Raid'],
+                ['target_id' => '12', 'user_id' => '901', 'action_type' => 22],
+                ['target_id' => '11', 'user_id' => '901', 'action_type' => 22],
+            ],
+            'users' => [['id' => '900', 'username' => 'modo'], ['id' => '901', 'username' => 'autre']],
+        ]))]);
+
+        self::assertSame(['11' => 'modo', '12' => 'autre'], $server->banAuthors(), 'the most recent ban of a member wins');
+        self::assertSame('https://discord.com/api/v10/guilds/'.self::GUILD.'/audit-logs?action_type=22&limit=100', $this->requests[0]['url']);
+    }
+
+    public function testWithoutTheAuditLogPermissionTheAuthorsAreUnknown(): void
+    {
+        $server = $this->server([new MockResponse('{"message":"Missing Permissions","code":50013}', ['http_code' => 403])]);
+
+        self::assertSame([], $server->banAuthors());
+    }
+
     public function testItNeedsTheBotAndTheServer(): void
     {
         self::assertTrue($this->server([])->isConfigured());
@@ -96,7 +152,7 @@ final class DiscordServerSanctionsTest extends TestCase
     /**
      * @param list<MockResponse> $responses
      */
-    private function server(array $responses): DiscordServerSanctions
+    private function server(array $responses, int $banPageSize = 1000): DiscordServerSanctions
     {
         $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$responses): MockResponse {
             $audit = null;
@@ -112,6 +168,6 @@ final class DiscordServerSanctionsTest extends TestCase
             return array_shift($responses) ?? new MockResponse('', ['http_code' => 204]);
         });
 
-        return new DiscordServerSanctions($client, 'bot-token', self::GUILD);
+        return new DiscordServerSanctions($client, 'bot-token', self::GUILD, $banPageSize);
     }
 }
