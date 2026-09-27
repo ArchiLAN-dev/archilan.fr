@@ -13,11 +13,12 @@ interface ModerationCaseRepositoryInterface
     public function findByTargetUserId(string $targetUserId): ?ModerationCase;
 
     /**
-     * Open cases whose member has a DM channel with the bot (story 39.4): the ones whose answers are read.
+     * Cases whose member has a DM channel with the bot and whose answers are read (story 39.4): the open ones,
+     * and those closed since the given moment (story 39.9: the staff may still answer after a lift).
      *
      * @return list<ModerationCase>
      */
-    public function openWithDirectMessageChannel(): array;
+    public function withDirectMessagesToRead(\DateTimeImmutable $closedSince): array;
 
     /** Tracks a new case; written by the next flush. */
     public function save(ModerationCase $case): void;

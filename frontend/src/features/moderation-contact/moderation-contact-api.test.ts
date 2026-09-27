@@ -63,7 +63,7 @@ describe("moderation-contact-api", () => {
       }),
       http.post(`${BASE}/account/moderation-contact`, () =>
         HttpResponse.json(
-          { error: { code: "too_many_messages", message: "Trop de messages en une heure, réessayez plus tard.", details: {} } },
+          { error: { code: "too_many_messages", message: "Trop de messages en une heure, réessaie plus tard.", details: {} } },
           { status: 429 },
         ),
       ),
@@ -73,7 +73,7 @@ describe("moderation-contact-api", () => {
     expect(received).toEqual({ body: "Bonjour" });
     await expect(sendAccountModerationMessage("Encore")).resolves.toEqual({
       ok: false,
-      message: "Trop de messages en une heure, réessayez plus tard.",
+      message: "Trop de messages en une heure, réessaie plus tard.",
     });
   });
 });

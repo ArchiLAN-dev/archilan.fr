@@ -7,8 +7,9 @@ namespace App\Community\Domain\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * A ban of the Discord server the site does not apply (story 39.7) - no linked account, or an admin's - once
- * told to the staff. Removed when the ban goes, so a ban that comes back is told again.
+ * A ban of the Discord server the site does not apply - no linked account, or an admin's (story 39.7), or one
+ * present when the synchronisation was switched on (story 39.9) - once told to the staff. Removed when the ban
+ * goes, so a ban that comes back is treated as a new one.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'moderation_discord_ban_notice')]
@@ -16,6 +17,8 @@ final class DiscordBanNotice
 {
     public const string REASON_UNLINKED = 'unlinked';
     public const string REASON_ADMIN = 'admin';
+    /** Present on the server when the synchronisation was switched on (story 39.9): shown, never applied. */
+    public const string REASON_PREEXISTING = 'preexisting';
 
     public function __construct(
         #[ORM\Id]

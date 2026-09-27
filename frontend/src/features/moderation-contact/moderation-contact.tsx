@@ -35,18 +35,38 @@ function useSend(send: (body: string) => Promise<SendResult>, queryKey: string[]
     },
   });
 
-  return { send: (body: string) => mutation.mutate(body), sending: mutation.isPending, sent, error };
+  return {
+    send: async (body: string) => (await mutation.mutateAsync(body)).ok,
+    sending: mutation.isPending,
+    sent,
+    error,
+  };
 }
 
 /**
  * Story 39.2 : après une connexion refusée (banni ou suspendu), le membre écrit à la modération avec le
- * laissez-passer posé par l'API. Sans laissez-passer valide, rien ne s'affiche.
+ * laissez-passer posé par l'API. Story 39.9 : tant que le fil n'est pas là (chargement, laissez-passer absent),
+ * le message du refus sert de repli ; une fois là, il le remplace, la sanction n'étant dite qu'une fois. Relu à
+ * chaque refus : un nouveau refus porte un nouveau laissez-passer.
  */
-export function BlockedModerationContact() {
-  const { data } = useQuery({ queryKey: BLOCKED_KEY, queryFn: fetchBlockedModerationContact, retry: false });
+export function BlockedModerationContact({ fallback }: { fallback: string | null }) {
+  const { data } = useQuery({
+    queryKey: BLOCKED_KEY,
+    queryFn: fetchBlockedModerationContact,
+    retry: false,
+    // Never the thread of an earlier refusal: dropped as soon as the block goes.
+    staleTime: 0,
+    gcTime: 0,
+  });
   const { send, sending, sent, error } = useSend(sendBlockedModerationMessage, BLOCKED_KEY);
 
-  if (!data) return null;
+  if (!data) {
+    return fallback !== null ? (
+      <p className="rounded border border-border bg-background p-3 text-sm text-muted-foreground" role="alert">
+        {fallback}
+      </p>
+    ) : null;
+  }
 
   return (
     <ModerationContactThread

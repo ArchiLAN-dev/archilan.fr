@@ -34,6 +34,7 @@ final class SyncDiscordBansHandlerTest extends TestCase
     private RecordingDiscordServer $server;
     private RecordingModerationForum $forum;
     private InMemoryDiscordBanNoticeRepository $notices;
+    private InMemoryDiscordBanBaselineRepository $baseline;
     private RecordingLogger $logger;
     /** @var list<ModerationAction> */
     private array $history = [];
@@ -47,6 +48,7 @@ final class SyncDiscordBansHandlerTest extends TestCase
         $this->server = new RecordingDiscordServer();
         $this->forum = new RecordingModerationForum();
         $this->notices = new InMemoryDiscordBanNoticeRepository();
+        $this->baseline = new InMemoryDiscordBanBaselineRepository();
         $this->logger = new RecordingLogger();
     }
 
@@ -148,6 +150,86 @@ final class SyncDiscordBansHandlerTest extends TestCase
         self::assertCount(1, $this->forum->openedThreads);
     }
 
+    public function testTheBansPresentAtActivationAreShownToTheStaffNotApplied(): void
+    {
+        // Story 39.9: switching the synchronisation on never replays the server's history on the site.
+        $this->baseline = new InMemoryDiscordBanBaselineRepository(taken: false);
+        $this->siteBanned = ['user-2'];
+        $this->history = [new ModerationAction('a-0', ModerationAction::ACTOR_DISCORD, 'user-2', ModerationAction::ACTION_BAN, 'Vieux', new \DateTimeImmutable('2026-01-01'))];
+        $this->server->banList = [new DiscordBan('d-11', 'lone', 'Raid 2025'), new DiscordBan('d-50', 'inconnu', null), new DiscordBan('d-12', 'spam', '[archilan.fr] Triche')];
+
+        $this->sync();
+
+        self::assertCount(1, $this->history, 'no ban and no lift while the state is taken');
+        self::assertCount(2, $this->forum->openedThreads, 'the site\'s own ban is not shown');
+        self::assertContains(['name' => 'Sur le site', 'value' => 'ban antérieur à la synchronisation, à décider : rien n\'est appliqué sur le site'], $this->forum->openedThreads[0]['message']->fields);
+        self::assertContains(['name' => 'Fiche', 'value' => 'https://archilan.fr/admin/utilisateurs/user-1'], $this->forum->openedThreads[0]['message']->fields);
+        self::assertTrue($this->baseline->taken);
+
+        // Next passes: those bans are never applied.
+        $this->sync();
+        self::assertCount(1, $this->history);
+        self::assertCount(2, $this->forum->openedThreads);
+    }
+
+    public function testAStateTakenHalfwayIsTakenAgain(): void
+    {
+        $this->baseline = new InMemoryDiscordBanBaselineRepository(taken: false);
+        $this->server->banList = [new DiscordBan('d-11', 'lone', 'Raid 2025')];
+        $this->forum->failWith = new \App\Community\Application\Exception\ModerationForumDeliveryException('Discord 503', transient: true);
+
+        $this->sync();
+        self::assertFalse($this->baseline->taken);
+
+        $this->forum->failWith = null;
+        $this->sync();
+        self::assertSame([], $this->history, 'still the initial state: nothing applied');
+        self::assertTrue($this->baseline->taken);
+    }
+
+    public function testALiftNotYetAppliedOnDiscordIsNeverUndone(): void
+    {
+        // Story 39.9: the staff lifted on the site, Discord refused the unban. The member is not banned again.
+        $lift = new ModerationAction('a-2', 'admin-1', 'user-1', ModerationAction::ACTION_LIFT, 'Appel accepté', new \DateTimeImmutable('2026-09-26'));
+        $lift->recordServerSanction(ModerationAction::SERVER_FAILED);
+        $this->history = [
+            new ModerationAction('a-1', ModerationAction::ACTOR_DISCORD, 'user-1', ModerationAction::ACTION_BAN, 'Raid', new \DateTimeImmutable('2026-09-20')),
+            $lift,
+        ];
+        $this->server->banList = [new DiscordBan('d-11', 'lone', 'Raid')];
+
+        $this->sync();
+
+        self::assertCount(2, $this->history);
+        self::assertContains(['level' => 'warning', 'message' => 'moderation_discord_bans.lift_pending'], $this->logger->logs);
+    }
+
+    public function testABanAfterAnAppliedLiftIsANewBan(): void
+    {
+        $lift = new ModerationAction('a-2', 'admin-1', 'user-1', ModerationAction::ACTION_LIFT, 'Appel accepté', new \DateTimeImmutable('2026-09-26'));
+        $lift->recordServerSanction(ModerationAction::SERVER_LIFTED);
+        $this->history = [new ModerationAction('a-1', ModerationAction::ACTOR_DISCORD, 'user-1', ModerationAction::ACTION_BAN, 'Raid', new \DateTimeImmutable('2026-09-20')), $lift];
+        $this->server->banList = [new DiscordBan('d-11', 'lone', 'Récidive')];
+
+        $this->sync();
+
+        self::assertCount(3, $this->history);
+        self::assertSame(ModerationAction::ACTION_BAN, $this->history[2]->getAction());
+    }
+
+    public function testADiscordUnbanStillLiftsAfterAWarning(): void
+    {
+        $this->siteBanned = ['user-1'];
+        $this->history = [
+            new ModerationAction('a-1', ModerationAction::ACTOR_DISCORD, 'user-1', ModerationAction::ACTION_BAN, 'Raid', new \DateTimeImmutable('2026-09-20')),
+            new ModerationAction('a-2', 'admin-1', 'user-1', ModerationAction::ACTION_WARN, 'Rappel', new \DateTimeImmutable('2026-09-21')),
+        ];
+
+        $this->sync();
+
+        self::assertSame(ModerationAction::ACTION_LIFT, ($this->history[2] ?? null)?->getAction());
+    }
+
     public function testNoBotNothingToRead(): void
     {
         $this->server = new RecordingDiscordServer(configured: false);
@@ -209,6 +291,7 @@ final class SyncDiscordBansHandlerTest extends TestCase
             $actions,
             $moderation,
             $this->notices,
+            $this->baseline,
             $this->forum,
             new ModerationForumMessageFactory('https://archilan.fr'),
             new MockClock('2026-09-27 12:00:00'),

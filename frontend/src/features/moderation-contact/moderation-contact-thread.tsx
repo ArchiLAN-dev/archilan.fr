@@ -32,7 +32,8 @@ export function ModerationContactThread({
 }: {
   intro: string | null;
   messages: ModerationContactMessage[];
-  onSend: (body: string) => void;
+  /** Resolves to true once the message is accepted: only then is the draft cleared. */
+  onSend: (body: string) => Promise<boolean>;
   sending: boolean;
   sent: boolean;
   error: string | null;
@@ -40,12 +41,11 @@ export function ModerationContactThread({
   const fieldId = useId();
   const [body, setBody] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = body.trim();
     if (trimmed === "") return;
-    onSend(trimmed);
-    setBody("");
+    if (await onSend(trimmed)) setBody("");
   }
 
   return (

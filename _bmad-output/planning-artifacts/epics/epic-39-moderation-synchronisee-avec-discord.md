@@ -1,6 +1,6 @@
 # Epic 39: Modération synchronisée avec Discord
 
-**Statut :** validé le 2026-09-27 ; 39.1 à 39.6 livrées, 39.7 en revue
+**Statut :** validé le 2026-09-27 ; 39.1 à 39.7 livrées, 39.9 (durcissement) en revue
 **Date :** 2026-09-27
 **Origine :** demande de Jean le 2026-09-27 - suivre chaque sanction dans un forum staff sur Discord, échanger
 avec le membre sanctionné (« OK pour le ban, mais j'aimerais être remboursé »), et appliquer les sanctions des
@@ -90,6 +90,12 @@ Qu'une sanction soit **la même partout**, **suivie dans un dossier**, et que le
   son dossier. Un débannissement sur Discord lève un ban venu de Discord, jamais un ban posé depuis le site.
 - Compte non lié : rien sur le site, mention dans le forum. Admin du site : jamais sanctionné, signalé.
 - Permissions : **Bannir des membres** (lire les bans), **Voir les logs du serveur** (auteur du ban).
+
+### 39.9 Durcissement avant mise en prod
+
+- Issue de la review globale : interrupteur `DISCORD_MODERATION_SYNC` (désactivé par défaut), bans existants à
+  l'activation montrés une fois au staff et jamais appliqués, levée en attente jamais défaite, sanction dépassée
+  non appliquée, MP non bloquant, relevés en async, plafond des MP relevés, ergonomie.
 
 ### 39.8 (optionnel) Exclusions temporaires posées sur Discord
 

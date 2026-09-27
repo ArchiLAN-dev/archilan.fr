@@ -15,6 +15,7 @@ use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Tests\Unit\CatalogSync\RecordingLogger;
 use App\Tests\Unit\Payments\RecordingMessageBus;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 
 /**
  * Story 39.4: every minute, what members answered the bot in private joins their open case and the staff
@@ -83,14 +84,39 @@ final class PollModerationDirectMessagesHandlerTest extends TestCase
         self::assertSame('1003', $this->case->getDirectMessageCursor(), 'the cursor moves past it anyway');
     }
 
-    public function testOnlyOpenCasesAreRead(): void
+    public function testACaseClosedLongAgoIsNoLongerRead(): void
     {
-        $this->case->close(new \DateTimeImmutable());
+        $this->case->close(new \DateTimeImmutable('2026-08-01'));
         $this->dms->inbox['dm-1'] = [new IncomingDirectMessage('1002', 'discord-user-1', 'Bonjour', '2026-09-27T12:01:00+00:00')];
 
         $this->poll();
 
         self::assertSame([], $this->messages->messages);
+    }
+
+    public function testACaseClosedRecentlyIsStillRead(): void
+    {
+        // Story 39.9: after a lift the staff may still answer the member, who answers the bot back.
+        $this->case->close(new \DateTimeImmutable('2026-09-20'));
+        $this->dms->inbox['dm-1'] = [new IncomingDirectMessage('1002', 'discord-user-1', 'Merci', '2026-09-27T12:01:00+00:00')];
+
+        $this->poll();
+
+        self::assertCount(1, $this->messages->messages);
+    }
+
+    public function testAtMostFiveAnswersAnHourGoToTheForum(): void
+    {
+        // Story 39.9: the others are kept in the case, read on the admin sheet, without flooding the forum.
+        for ($i = 1; $i <= 7; ++$i) {
+            $this->dms->inbox['dm-1'][] = new IncomingDirectMessage((string) (1000 + $i), 'discord-user-1', 'Message '.$i, '2026-09-27T12:0'.$i.':00+00:00');
+        }
+
+        $this->poll();
+
+        self::assertCount(7, $this->messages->messages);
+        self::assertCount(5, $this->bus->messages);
+        self::assertContains(['level' => 'info', 'message' => 'moderation_dm.forward_capped'], $this->logger->logs);
     }
 
     public function testACaseInErrorDoesNotStopTheOthers(): void
@@ -130,6 +156,6 @@ final class PollModerationDirectMessagesHandlerTest extends TestCase
         $gateway = self::createStub(MemberModerationGatewayInterface::class);
         $gateway->method('discordIdOf')->willReturnCallback(static fn (string $userId): string => 'discord-'.$userId);
 
-        new PollModerationDirectMessagesHandler($this->cases, $this->messages, $gateway, $this->dms, $this->bus, $this->logger)(new PollModerationDirectMessagesMessage());
+        new PollModerationDirectMessagesHandler($this->cases, $this->messages, $gateway, $this->dms, $this->bus, new MockClock('2026-09-27 12:10:00'), $this->logger)(new PollModerationDirectMessagesMessage());
     }
 }

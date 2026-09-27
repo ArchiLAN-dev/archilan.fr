@@ -27,11 +27,11 @@ final class ModerationAction
 
     /** Outcomes of the sanction applied on the Discord server (stories 39.5 and 39.6). */
     public const string SERVER_BANNED = 'banned';
-    /** A lift recorded by story 39.5, before a lift also ended the timeout. */
-    public const string SERVER_UNBANNED = 'unbanned';
     public const string SERVER_LIFTED = 'lifted';
     public const string SERVER_TIMED_OUT = 'timed_out';
     public const string SERVER_NOT_MEMBER = 'not_member';
+    /** Already lifted or over on the site when its job ran (story 39.9): nothing applied. */
+    public const string SERVER_SUPERSEDED = 'superseded';
     public const string SERVER_NOT_LINKED = 'not_linked';
     public const string SERVER_UNAVAILABLE = 'unavailable';
     public const string SERVER_FAILED = 'failed';

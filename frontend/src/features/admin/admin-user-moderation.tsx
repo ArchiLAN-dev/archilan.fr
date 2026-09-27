@@ -8,6 +8,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   applyModerationAction,
   fetchAdminUserModeration,
+  hasPendingDiscordOutcome,
   replyToMember,
   type AdminModerationAction,
   type AdminModerationCaseMessage,
@@ -41,6 +42,8 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
     queryKey,
     queryFn: () => fetchAdminUserModeration(userId),
     staleTime: DEFAULT_STALE_TIME,
+    // Story 39.9: the Discord outcome of a fresh sanction or reply arrives with the async job.
+    refetchInterval: (query) => (query.state.data && hasPendingDiscordOutcome(query.state.data, Date.now()) ? 5000 : false),
   });
 
   if (isPending) {
@@ -166,7 +169,8 @@ const DM_LABELS: Record<string, string> = {
   sent: "MP Discord envoyé",
   failed: "MP Discord impossible (MP fermés ou serveur quitté)",
   not_linked: "compte Discord non lié, pas de MP",
-  unavailable: "bot non configuré, pas de MP",
+  unavailable: "synchronisation Discord désactivée, pas de MP",
+  superseded: "MP non envoyé : sanction déjà levée",
 };
 
 /** Story 39.2 : l'échange du dossier dans l'ordre ; story 39.3 : avec les réponses du staff et l'issue de leur MP. */
@@ -338,12 +342,12 @@ function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<
 
 const SERVER_LABELS: Record<string, string> = {
   banned: "banni du serveur Discord",
-  unbanned: "débanni du serveur Discord",
   lifted: "sanction levée sur le serveur Discord",
   timed_out: "exclu temporairement du serveur Discord",
   not_member: "pas sur le serveur Discord",
   not_linked: "compte Discord non lié",
-  unavailable: "bot ou serveur Discord non configuré",
+  unavailable: "synchronisation Discord désactivée",
+  superseded: "non appliquée sur Discord : sanction déjà levée",
   failed: "échec sur le serveur Discord (permission ou rôle du bot)",
 };
 

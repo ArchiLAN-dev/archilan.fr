@@ -9,6 +9,7 @@ use App\Community\Application\Command\ContactModerationOutcome;
 use App\Community\Application\Message\PostModerationMessageToForumJob;
 use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Entity\ModerationCase;
+use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Community\Domain\Repository\ModerationActionRepositoryInterface;
 use App\Tests\Unit\Payments\RecordingMessageBus;
 use PHPUnit\Framework\TestCase;
@@ -92,6 +93,19 @@ final class ContactModerationTest extends TestCase
 
         $this->clock->modify('+61 minutes');
         self::assertSame(ContactModerationOutcome::Sent, $this->command()->write('user-1', 'Une heure plus tard'));
+    }
+
+    public function testAnswersToTheBotDoNotCountAgainstTheSite(): void
+    {
+        // Story 39.9: the site's limit is the site's; what the member told the bot is capped apart.
+        $this->sanctioned();
+        $case = ModerationCase::open('user-1', $this->clock->now());
+        $this->cases->save($case);
+        for ($i = 0; $i < 5; ++$i) {
+            $this->messages->save(ModerationCaseMessage::fromMemberDirectMessage($case->getId(), 'user-1', 'MP '.$i, $this->clock->now(), (string) (2000 + $i)));
+        }
+
+        self::assertSame(ContactModerationOutcome::Sent, $this->command()->write('user-1', 'Depuis le site'));
     }
 
     public function testABusThatCannotTakeTheJobKeepsTheMessage(): void

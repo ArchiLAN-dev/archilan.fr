@@ -51,12 +51,13 @@ final class InMemoryModerationCaseMessageRepository implements ModerationCaseMes
         return array_slice($found, -$limit);
     }
 
-    public function countFromMemberSince(string $caseId, \DateTimeImmutable $since): int
+    public function countFromMemberSince(string $caseId, \DateTimeImmutable $since, string $source): int
     {
         return \count(array_filter(
             $this->messages,
             static fn (ModerationCaseMessage $m): bool => $m->getCaseId() === $caseId
                 && ModerationCaseMessage::AUTHOR_MEMBER === $m->getAuthorRole()
+                && $m->getSource() === $source
                 && $m->getCreatedAt() >= $since,
         ));
     }

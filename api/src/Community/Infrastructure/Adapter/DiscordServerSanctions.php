@@ -26,14 +26,17 @@ final readonly class DiscordServerSanctions implements DiscordServerSanctionsInt
         string $botToken,
         #[Autowire('%env(default::DISCORD_GUILD_ID)%')]
         private string $guildId,
+        #[Autowire('%env(bool:default::DISCORD_MODERATION_SYNC)%')]
+        private bool $syncEnabled,
         private int $banPageSize = 1000,
     ) {
         $this->rest = new DiscordBotRest($httpClient, $botToken);
     }
 
+    /** Story 39.9: the bot's token and server serve the roles too; acting on sanctions is switched on apart. */
     public function isConfigured(): bool
     {
-        return $this->rest->hasToken() && '' !== $this->guildId;
+        return $this->syncEnabled && $this->rest->hasToken() && '' !== $this->guildId;
     }
 
     public function ban(string $discordUserId, string $reason): void

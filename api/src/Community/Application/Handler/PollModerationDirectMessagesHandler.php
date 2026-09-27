@@ -12,6 +12,7 @@ use App\Community\Domain\Entity\ModerationCase;
 use App\Community\Domain\Entity\ModerationCaseMessage;
 use App\Community\Domain\Repository\ModerationCaseMessageRepositoryInterface;
 use App\Community\Domain\Repository\ModerationCaseRepositoryInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -21,18 +22,25 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * connection to Discord, so its DM channels are read back, for the open cases only. Each answer joins the case
  * and goes to the staff forum; the bot's own messages move the cursor and nothing else.
  *
- * Runs on the scheduler, which never retries: a case that fails (Discord down, rate limit) is logged and left
- * for the next minute, from the same cursor, and never stops the others.
+ * A case that fails (Discord down, rate limit) is logged and left for the next minute, from the same cursor,
+ * and never stops the others.
+ *
+ * Story 39.9: cases closed within the last 30 days are still read, the staff may answer after a lift; and at
+ * most five answers an hour per case go to the forum, the others staying in the case for the admin sheet.
  */
 #[AsMessageHandler]
 final readonly class PollModerationDirectMessagesHandler
 {
+    public const int FORWARDED_PER_HOUR = 5;
+    private const string CLOSED_CASES_READ_FOR = 'P30D';
+
     public function __construct(
         private ModerationCaseRepositoryInterface $cases,
         private ModerationCaseMessageRepositoryInterface $messages,
         private MemberModerationGatewayInterface $members,
         private MemberDirectMessageInterface $directMessages,
         private MessageBusInterface $bus,
+        private ClockInterface $clock,
         private LoggerInterface $logger,
     ) {
     }
@@ -43,7 +51,8 @@ final readonly class PollModerationDirectMessagesHandler
             return;
         }
 
-        foreach ($this->cases->openWithDirectMessageChannel() as $case) {
+        $closedSince = $this->clock->now()->sub(new \DateInterval(self::CLOSED_CASES_READ_FOR));
+        foreach ($this->cases->withDirectMessagesToRead($closedSince) as $case) {
             try {
                 $this->read($case);
             } catch (\Throwable $e) {
@@ -65,6 +74,11 @@ final readonly class PollModerationDirectMessagesHandler
             return;
         }
 
+        $forwardable = max(0, self::FORWARDED_PER_HOUR - $this->messages->countFromMemberSince(
+            $case->getId(),
+            $this->clock->now()->sub(new \DateInterval('PT1H')),
+            ModerationCaseMessage::SOURCE_DISCORD_DM,
+        ));
         $imported = [];
         foreach ($this->directMessages->messagesAfter($channelId, $cursor) as $incoming) {
             $case->advanceDirectMessageCursor($incoming->id);
@@ -79,8 +93,11 @@ final readonly class PollModerationDirectMessagesHandler
         }
         $this->messages->flush();
 
-        foreach ($imported as $messageId) {
+        foreach (array_slice($imported, 0, $forwardable) as $messageId) {
             $this->bus->dispatch(new PostModerationMessageToForumJob($messageId));
+        }
+        if (\count($imported) > $forwardable) {
+            $this->logger->info('moderation_dm.forward_capped', ['caseId' => $case->getId(), 'kept' => \count($imported) - $forwardable]);
         }
     }
 }

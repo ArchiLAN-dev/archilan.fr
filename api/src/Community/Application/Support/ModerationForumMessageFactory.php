@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Community\Application\Support;
 
 use App\Community\Application\Port\DiscordBan;
+use App\Community\Domain\Entity\DiscordBanNotice;
 use App\Community\Domain\Entity\ModerationAction;
 use App\Community\Domain\Entity\ModerationCaseMessage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -30,17 +31,18 @@ final readonly class ModerationForumMessageFactory
         ModerationCaseMessage::DM_SENT => 'envoyé',
         ModerationCaseMessage::DM_FAILED => 'impossible (MP fermés ou serveur quitté)',
         ModerationCaseMessage::DM_NOT_LINKED => 'compte Discord non lié',
-        ModerationCaseMessage::DM_UNAVAILABLE => 'bot non configuré',
+        ModerationCaseMessage::DM_UNAVAILABLE => 'synchronisation Discord désactivée',
+        ModerationCaseMessage::DM_SUPERSEDED => 'non envoyé : sanction déjà levée',
     ];
 
     private const array SERVER_OUTCOMES = [
         ModerationAction::SERVER_BANNED => 'banni',
-        ModerationAction::SERVER_UNBANNED => 'débanni',
         ModerationAction::SERVER_LIFTED => 'sanction levée sur le serveur',
         ModerationAction::SERVER_TIMED_OUT => 'exclu temporairement',
         ModerationAction::SERVER_NOT_MEMBER => 'pas sur le serveur',
         ModerationAction::SERVER_NOT_LINKED => 'compte Discord non lié',
-        ModerationAction::SERVER_UNAVAILABLE => 'bot ou serveur non configuré',
+        ModerationAction::SERVER_UNAVAILABLE => 'synchronisation Discord désactivée',
+        ModerationAction::SERVER_SUPERSEDED => 'non appliquée : sanction déjà levée',
         ModerationAction::SERVER_FAILED => 'échec (permission ou rôle du bot)',
     ];
 
@@ -143,16 +145,31 @@ final readonly class ModerationForumMessageFactory
         return new ModerationForumMessage($label.' sur ArchiLAN', $action->getReason(), self::COLORS[$action->getAction()] ?? 0x95A5A6, $fields, null);
     }
 
+    private const array UNAPPLIED_BANS = [
+        DiscordBanNotice::REASON_UNLINKED => 'aucun compte lié : rien n\'est appliqué',
+        DiscordBanNotice::REASON_ADMIN => 'compte d\'un admin du site : jamais sanctionné',
+        DiscordBanNotice::REASON_PREEXISTING => 'ban antérieur à la synchronisation, à décider : rien n\'est appliqué sur le site',
+    ];
+
     /**
-     * A ban of the Discord server the site does not apply (story 39.7): no linked account, or an admin's.
+     * A ban of the Discord server the site does not apply: no linked account, or an admin's (story 39.7), or one
+     * present when the synchronisation was switched on (story 39.9), left to the staff's decision.
+     *
+     * @param string      $reason     one of the {@see DiscordBanNotice} REASON_ values
+     * @param string|null $siteUserId the linked site account, if any
      */
-    public function forUnappliedDiscordBan(DiscordBan $ban, ?string $author, bool $admin): ModerationForumMessage
+    public function forUnappliedDiscordBan(DiscordBan $ban, ?string $author, string $reason, ?string $siteUserId): ModerationForumMessage
     {
-        return new ModerationForumMessage('Ban posé sur Discord', $ban->reason ?? 'Sans raison', self::COLORS[ModerationAction::ACTION_BAN], [
+        $fields = [
             ['name' => 'Compte Discord', 'value' => sprintf('%s (<@%s>)', $ban->username, $ban->discordUserId)],
             ['name' => 'Posé par', 'value' => $author ?? 'inconnu (journal d\'audit illisible)'],
-            ['name' => 'Sur le site', 'value' => $admin ? 'compte d\'un admin du site : jamais sanctionné' : 'aucun compte lié : rien n\'est appliqué'],
-        ], self::LABELS[ModerationAction::ACTION_BAN]);
+            ['name' => 'Sur le site', 'value' => self::UNAPPLIED_BANS[$reason] ?? $reason],
+        ];
+        if (null !== $siteUserId) {
+            $fields[] = ['name' => 'Fiche', 'value' => rtrim($this->siteUrl, '/').'/admin/utilisateurs/'.$siteUserId];
+        }
+
+        return new ModerationForumMessage('Ban posé sur Discord', $ban->reason ?? 'Sans raison', self::COLORS[ModerationAction::ACTION_BAN], $fields, self::LABELS[ModerationAction::ACTION_BAN]);
     }
 
     private static function parisTime(string $atom): string

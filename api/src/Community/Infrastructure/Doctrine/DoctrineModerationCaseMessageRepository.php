@@ -46,7 +46,7 @@ final readonly class DoctrineModerationCaseMessageRepository implements Moderati
         return array_reverse($latest);
     }
 
-    public function countFromMemberSince(string $caseId, \DateTimeImmutable $since): int
+    public function countFromMemberSince(string $caseId, \DateTimeImmutable $since, string $source): int
     {
         $count = $this->entityManager->createQueryBuilder()
             ->select('COUNT(m.id)')
@@ -54,6 +54,8 @@ final readonly class DoctrineModerationCaseMessageRepository implements Moderati
             ->where('m.caseId = :caseId')
             ->andWhere('m.authorRole = :member')
             ->andWhere('m.createdAt >= :since')
+            ->andWhere('m.source = :source')
+            ->setParameter('source', $source)
             ->setParameter('caseId', $caseId)
             ->setParameter('member', ModerationCaseMessage::AUTHOR_MEMBER)
             ->setParameter('since', $since)
