@@ -37,4 +37,30 @@ final class ModerationCaseMessageTest extends TestCase
         $longest = ModerationCaseMessage::fromMember('case-1', 'user-1', str_repeat('é', ModerationCaseMessage::MAX_LENGTH), new \DateTimeImmutable());
         self::assertSame(ModerationCaseMessage::MAX_LENGTH, mb_strlen($longest->getBody()), 'counted in characters, not bytes');
     }
+
+    public function testAStaffReplyIsSignedByTheModeratorAndAwaitsItsDirectMessage(): void
+    {
+        $reply = ModerationCaseMessage::fromStaff('case-1', 'admin-1', ' Le remboursement est en cours. ', new \DateTimeImmutable('2026-09-27 11:00:00'));
+
+        self::assertSame(ModerationCaseMessage::AUTHOR_STAFF, $reply->getAuthorRole());
+        self::assertSame('admin-1', $reply->getAuthorUserId());
+        self::assertSame('Le remboursement est en cours.', $reply->getBody());
+        self::assertNull($reply->getDiscordDmStatus(), 'not delivered yet');
+    }
+
+    public function testTheDirectMessageOutcomeIsRecordedOnce(): void
+    {
+        $reply = ModerationCaseMessage::fromStaff('case-1', 'admin-1', 'Bonjour', new \DateTimeImmutable());
+
+        $reply->recordDirectMessage(ModerationCaseMessage::DM_SENT);
+        $reply->recordDirectMessage(ModerationCaseMessage::DM_FAILED);
+
+        self::assertSame(ModerationCaseMessage::DM_SENT, $reply->getDiscordDmStatus());
+    }
+
+    public function testAStaffReplyFollowsTheSameLengthRule(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        ModerationCaseMessage::fromStaff('case-1', 'admin-1', '  ', new \DateTimeImmutable());
+    }
 }

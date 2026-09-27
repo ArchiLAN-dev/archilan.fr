@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Community\Presentation\Controller;
 
+use App\Community\Application\Command\ReplyToMember;
+use App\Community\Application\Command\ReplyToMemberOutcome;
 use App\Community\Application\Query\AccountModerationOverviewQuery;
 use App\Community\Application\Service\AccountModerationService;
 use App\Shared\Infrastructure\Http\ApiAccessGuard;
@@ -24,6 +26,7 @@ final readonly class AccountModerationController
         private ApiAccessGuard $apiAccessGuard,
         private AccountModerationService $moderation,
         private AccountModerationOverviewQuery $moderationOverview,
+        private ReplyToMember $replyToMember,
     ) {
     }
 
@@ -110,6 +113,27 @@ final readonly class AccountModerationController
         }
 
         return new JsonResponse(['data' => $overview]);
+    }
+
+    /**
+     * Story 39.3: the staff answers the member from the site; the reply reaches them on the site and by the
+     * bot's direct message, and the staff forum records it.
+     */
+    #[Route('/api/v1/admin/community/accounts/{userId}/moderation/replies', name: 'api_admin_community_account_moderation_reply', methods: ['POST'])]
+    public function reply(Request $request, string $userId): JsonResponse
+    {
+        $admin = $this->requireAuthenticatedAdmin($request);
+        if ($admin instanceof JsonResponse) {
+            return $admin;
+        }
+
+        $body = $this->jsonPayload($request)['body'] ?? null;
+
+        return match ($this->replyToMember->reply($admin->getId(), $userId, is_string($body) ? $body : '')) {
+            ReplyToMemberOutcome::Sent => new JsonResponse(['data' => ['sent' => true]], 201),
+            ReplyToMemberOutcome::Invalid => $this->apiAccessGuard->errorResponse('invalid_message', 'La réponse doit faire entre 1 et 2000 caractères.', 422),
+            ReplyToMemberOutcome::NotSanctioned => $this->apiAccessGuard->errorResponse('not_sanctioned', 'Aucune sanction sur ce compte : pas de dossier où répondre.', 403),
+        };
     }
 
     private function respond(string $result): JsonResponse

@@ -1,9 +1,10 @@
 import { apiFetch } from "@/lib/apiFetch";
 import { env } from "@/lib/env";
 
-/** Story 39.2 : un message du membre à la modération. */
+/** Story 39.2 : un message du membre à la modération ; story 39.3 : ou une réponse de la modération. */
 export type ModerationContactMessage = {
   id: string;
+  author: "member" | "staff";
   body: string;
   createdAt: string;
 };
@@ -34,7 +35,7 @@ function parseMessages(value: unknown): ModerationContactMessage[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item: unknown) =>
     isRecord(item) && typeof item.id === "string" && typeof item.body === "string" && typeof item.createdAt === "string"
-      ? [{ id: item.id, body: item.body, createdAt: item.createdAt }]
+      ? [{ id: item.id, author: item.author === "staff" ? ("staff" as const) : ("member" as const), body: item.body, createdAt: item.createdAt }]
       : [],
   );
 }

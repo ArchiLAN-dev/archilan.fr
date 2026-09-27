@@ -9,8 +9,9 @@ use App\Community\Domain\Entity\ModerationCaseMessage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * What the staff forum shows for a sanction of the site (story 39.1) and for a member's message to the
- * moderation (story 39.2). The tag names are the ones the staff gives the forum's tags.
+ * What the staff forum shows for a sanction of the site (story 39.1), a member's message to the moderation
+ * (story 39.2) and a staff reply (story 39.3), and what the member receives of that reply in a direct
+ * message. The tag names are the ones the staff gives the forum's tags.
  */
 final readonly class ModerationForumMessageFactory
 {
@@ -22,6 +23,14 @@ final readonly class ModerationForumMessageFactory
     ];
 
     private const int MEMBER_MESSAGE_COLOR = 0x3498DB;
+    private const int STAFF_REPLY_COLOR = 0x9B59B6;
+
+    private const array DM_OUTCOMES = [
+        ModerationCaseMessage::DM_SENT => 'envoyé',
+        ModerationCaseMessage::DM_FAILED => 'impossible (MP fermés ou serveur quitté)',
+        ModerationCaseMessage::DM_NOT_LINKED => 'compte Discord non lié',
+        ModerationCaseMessage::DM_UNAVAILABLE => 'bot non configuré',
+    ];
 
     private const array COLORS = [
         ModerationAction::ACTION_WARN => 0xF1C40F,
@@ -69,6 +78,26 @@ final readonly class ModerationForumMessageFactory
             ['name' => 'Membre', 'value' => $this->member($memberName, $discordId)],
             ['name' => 'Écrit depuis', 'value' => 'le site'],
             ['name' => 'Fiche', 'value' => rtrim($this->siteUrl, '/').'/admin/utilisateurs/'.$message->getAuthorUserId()],
+        ], null);
+    }
+
+    /**
+     * The staff's reply, as the staff forum records it: who answered, and whether the member got it in private.
+     */
+    public function forStaffReply(ModerationCaseMessage $reply, string $memberName, ?string $discordId, string $staffName, ?string $dmStatus): ModerationForumMessage
+    {
+        return new ModerationForumMessage('Réponse envoyée au membre', $reply->getBody(), self::STAFF_REPLY_COLOR, [
+            ['name' => 'Membre', 'value' => $this->member($memberName, $discordId)],
+            ['name' => 'Modérateur', 'value' => $staffName],
+            ['name' => 'Message privé Discord', 'value' => self::DM_OUTCOMES[$dmStatus ?? ''] ?? 'non envoyé'],
+        ], null);
+    }
+
+    /** The staff's reply, as the member receives it from the bot. The moderator stays unnamed: it is the team speaking. */
+    public function forMemberDirectMessage(ModerationCaseMessage $reply): ModerationForumMessage
+    {
+        return new ModerationForumMessage('Réponse de la modération ArchiLAN', $reply->getBody(), self::STAFF_REPLY_COLOR, [
+            ['name' => 'Pour répondre', 'value' => sprintf('Depuis ton espace compte (%s/compte), ou depuis la page de connexion si ton compte est suspendu ou banni.', rtrim($this->siteUrl, '/'))],
         ], null);
     }
 

@@ -90,3 +90,12 @@ describe("slot to review notification (story 38.7)", () => {
     expect(hrefFor(bare)).toBe("/compte");
   });
 });
+
+describe("moderation reply notification (story 39.3)", () => {
+  it("tells the member the moderation answered, and leads to their account", () => {
+    const reply = item("moderation_reply", {});
+
+    expect(messageFor(reply)).toBe("La modération t'a répondu");
+    expect(hrefFor(reply)).toBe("/compte");
+  });
+});

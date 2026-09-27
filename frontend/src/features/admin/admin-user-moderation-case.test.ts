@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { server } from "../../tests/setup";
 import { TEST_API_BASE_URL } from "../../tests/constants";
-import { fetchAdminUserModeration } from "./admin-users-api";
+import { fetchAdminUserModeration, replyToMember } from "./admin-users-api";
 
 const BASE = TEST_API_BASE_URL;
 
@@ -42,6 +42,7 @@ describe("fetchAdminUserModeration - dossier de modération", () => {
       body: "J'aimerais être remboursé",
       source: "site",
       createdAt: "2026-09-27T10:00:00+00:00",
+      discordDm: null,
     };
     server.use(
       http.get(`${BASE}/admin/community/accounts/u1/moderation`, () =>
@@ -61,5 +62,25 @@ describe("fetchAdminUserModeration - dossier de modération", () => {
 
     expect(moderation).not.toBeNull();
     expect(moderation?.moderationCase).toBeNull();
+  });
+
+  it("répond au membre et remonte le refus de l'API (story 39.3)", async () => {
+    let received: unknown = null;
+    server.use(
+      http.post(`${BASE}/admin/community/accounts/u1/moderation/replies`, async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json({ data: { sent: true } }, { status: 201 });
+      }),
+      http.post(`${BASE}/admin/community/accounts/u2/moderation/replies`, () =>
+        HttpResponse.json(
+          { error: { code: "not_sanctioned", message: "Aucune sanction sur ce compte : pas de dossier où répondre.", details: {} } },
+          { status: 403 },
+        ),
+      ),
+    );
+
+    await expect(replyToMember("u1", "C'est en cours")).resolves.toBeNull();
+    expect(received).toEqual({ body: "C'est en cours" });
+    await expect(replyToMember("u2", "Bonjour")).resolves.toBe("Aucune sanction sur ce compte : pas de dossier où répondre.");
   });
 });

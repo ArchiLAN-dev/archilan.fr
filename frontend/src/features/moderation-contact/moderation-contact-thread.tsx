@@ -63,8 +63,13 @@ export function ModerationContactThread({
       {messages.length > 0 ? (
         <ul className="grid gap-2">
           {messages.map((message) => (
-            <li className="grid gap-1 rounded border border-border bg-background p-3" key={message.id}>
-              <span className="text-xs text-muted-foreground">Envoyé le {MOMENT.format(new Date(message.createdAt))}</span>
+            <li
+              className={`grid gap-1 rounded border p-3 ${message.author === "staff" ? "border-accent/40 bg-accent/5" : "border-border bg-background"}`}
+              key={message.id}
+            >
+              <span className="text-xs text-muted-foreground">
+                {message.author === "staff" ? "Réponse de la modération" : "Envoyé"} le {MOMENT.format(new Date(message.createdAt))}
+              </span>
               <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>
             </li>
           ))}

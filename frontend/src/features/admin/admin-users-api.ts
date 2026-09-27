@@ -216,7 +216,10 @@ export type AdminUserModeration = {
   moderationCase: AdminModerationCase | null;
 };
 
-/** Story 39.2 : un message du dossier (celui du membre pour l'instant, les réponses du staff viendront). */
+/**
+ * Story 39.2 : un message du dossier, du membre ou (story 39.3) du staff. `discordDm` : issue du message privé
+ * portant une réponse du staff (`sent`, `failed`, `not_linked`, `unavailable`), null tant qu'il part.
+ */
 export type AdminModerationCaseMessage = {
   id: string;
   author: string;
@@ -224,6 +227,7 @@ export type AdminModerationCaseMessage = {
   body: string;
   source: string;
   createdAt: string;
+  discordDm: string | null;
 };
 
 export type AdminModerationCase = {
@@ -232,7 +236,7 @@ export type AdminModerationCase = {
   messages: AdminModerationCaseMessage[];
 };
 
-function isModerationCaseMessage(v: unknown): v is AdminModerationCaseMessage {
+function isModerationCaseMessage(v: unknown): v is Omit<AdminModerationCaseMessage, "discordDm"> {
   if (typeof v !== "object" || v === null) return false;
   return (
     hasStringProp(v, "id") &&
@@ -244,11 +248,17 @@ function isModerationCaseMessage(v: unknown): v is AdminModerationCaseMessage {
   );
 }
 
+function parseCaseMessage(v: unknown): AdminModerationCaseMessage[] {
+  if (!isModerationCaseMessage(v)) return [];
+  const discordDm = "discordDm" in v && typeof v.discordDm === "string" ? v.discordDm : null;
+  return [{ id: v.id, author: v.author, authorName: v.authorName, body: v.body, source: v.source, createdAt: v.createdAt, discordDm }];
+}
+
 function parseModerationCase(v: unknown): AdminModerationCase | null {
   if (typeof v !== "object" || v === null) return null;
   if (!("status" in v) || (v.status !== "open" && v.status !== "closed")) return null;
   if (!hasNullableStringProp(v, "forumThreadUrl")) return null;
-  const messages = "messages" in v && Array.isArray(v.messages) ? v.messages.filter(isModerationCaseMessage) : [];
+  const messages = "messages" in v && Array.isArray(v.messages) ? v.messages.flatMap(parseCaseMessage) : [];
   return { status: v.status, forumThreadUrl: v.forumThreadUrl, messages };
 }
 
@@ -324,6 +334,26 @@ export async function applyModerationAction(
     if (res.status === 403) return "Ce compte ne peut pas être modéré (administrateur, ou toi-même).";
     if (res.status === 422) return "Action refusée : motif requis, et une suspension doit finir dans le futur.";
     return "L'action de modération a échoué.";
+  } catch {
+    return "Impossible de contacter l'API de modération.";
+  }
+}
+
+/** Story 39.3 : réponse du staff au membre. Null en cas de succès, sinon le message à afficher. */
+export async function replyToMember(userId: string, body: string): Promise<string | null> {
+  try {
+    const res = await apiFetch(`${env.apiBaseUrl}/admin/community/accounts/${userId}/moderation/replies`, {
+      body: JSON.stringify({ body }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    if (res.ok) return null;
+    const payload: unknown = await res.json().catch(() => null);
+    if (typeof payload === "object" && payload !== null && "error" in payload) {
+      const { error } = payload;
+      if (typeof error === "object" && error !== null && hasStringProp(error, "message")) return error.message;
+    }
+    return "La réponse n'a pas pu être envoyée.";
   } catch {
     return "Impossible de contacter l'API de modération.";
   }

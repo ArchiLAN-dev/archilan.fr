@@ -12,8 +12,9 @@ use App\Community\Domain\Repository\ModerationCaseRepositoryInterface;
 use Psr\Clock\ClockInterface;
 
 /**
- * What a sanctioned member sees of their exchange with the moderation (story 39.2): from their account when
- * they can still log in, or with the contact pass when they are banned or suspended.
+ * What a sanctioned member sees of their exchange with the moderation (story 39.2): their messages and the
+ * staff's replies (story 39.3), from their account when they can still log in, or with the contact pass when
+ * they are banned or suspended. The replies come from "la modération", never from a named moderator.
  */
 final readonly class MemberModerationContactQuery
 {
@@ -29,9 +30,9 @@ final readonly class MemberModerationContactQuery
     }
 
     /**
-     * A logged-in member: whether they have a sanction to talk about, and what they already wrote.
+     * A logged-in member: whether they have a sanction to talk about, and the exchange so far.
      *
-     * @return array{available: bool, messages: list<array{id: string, body: string, createdAt: string}>}
+     * @return array{available: bool, messages: list<array{id: string, author: string, body: string, createdAt: string}>}
      */
     public function forMember(string $userId): array
     {
@@ -39,7 +40,7 @@ final readonly class MemberModerationContactQuery
 
         return [
             'available' => null !== $case || [] !== $this->actions->forTarget($userId, 1),
-            'messages' => null !== $case ? $this->ownMessages($case->getId()) : [],
+            'messages' => null !== $case ? $this->thread($case->getId()) : [],
         ];
     }
 
@@ -47,7 +48,7 @@ final readonly class MemberModerationContactQuery
      * A blocked member, named by their contact pass. Null once they are no longer blocked: the pass then
      * opens nothing, and the member logs in again to write from their account.
      *
-     * @return array{status: 'banned'|'suspended', reason: string|null, suspendedUntil: string|null, messages: list<array{id: string, body: string, createdAt: string}>}|null
+     * @return array{status: 'banned'|'suspended', reason: string|null, suspendedUntil: string|null, messages: list<array{id: string, author: string, body: string, createdAt: string}>}|null
      */
     public function forBlockedMember(string $userId): ?array
     {
@@ -70,19 +71,15 @@ final readonly class MemberModerationContactQuery
     }
 
     /**
-     * @return list<array{id: string, body: string, createdAt: string}>
+     * @return list<array{id: string, author: string, body: string, createdAt: string}>
      */
-    private function ownMessages(string $caseId): array
+    private function thread(string $caseId): array
     {
-        $own = array_filter(
-            $this->messages->forCase($caseId, self::MESSAGES_LIMIT),
-            static fn (ModerationCaseMessage $m): bool => ModerationCaseMessage::AUTHOR_MEMBER === $m->getAuthorRole(),
-        );
-
-        return array_values(array_map(static fn (ModerationCaseMessage $m): array => [
+        return array_map(static fn (ModerationCaseMessage $m): array => [
             'id' => $m->getId(),
+            'author' => $m->getAuthorRole(),
             'body' => $m->getBody(),
             'createdAt' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
-        ], $own));
+        ], $this->messages->forCase($caseId, self::MESSAGES_LIMIT));
     }
 }

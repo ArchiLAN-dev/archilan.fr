@@ -8,6 +8,7 @@ import { DEFAULT_STALE_TIME } from "@/lib/query-client";
 import {
   applyModerationAction,
   fetchAdminUserModeration,
+  replyToMember,
   type AdminModerationAction,
   type AdminModerationCaseMessage,
   type AdminUserModeration,
@@ -83,6 +84,15 @@ export function AdminUserModeration({ userId, isAdmin, isSelf }: Props) {
         <CaseMessages messages={data.moderationCase.messages} />
       ) : null}
 
+      {!isAdmin && !isSelf && (data.moderationCase !== null || data.actions.length > 0) ? (
+        <ReplyForm
+          onDone={async () => {
+            await queryClient.invalidateQueries({ queryKey });
+          }}
+          userId={userId}
+        />
+      ) : null}
+
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold text-foreground">Historique</h3>
         {data.actions.length === 0 ? (
@@ -152,7 +162,14 @@ function StateBanner({ moderation }: { moderation: AdminUserModeration }) {
   );
 }
 
-/** Story 39.2 : ce que le membre a écrit à la modération, dans l'ordre. */
+const DM_LABELS: Record<string, string> = {
+  sent: "MP Discord envoyé",
+  failed: "MP Discord impossible (MP fermés ou serveur quitté)",
+  not_linked: "compte Discord non lié, pas de MP",
+  unavailable: "bot non configuré, pas de MP",
+};
+
+/** Story 39.2 : l'échange du dossier dans l'ordre ; story 39.3 : avec les réponses du staff et l'issue de leur MP. */
 function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) {
   return (
     <div className="grid gap-2">
@@ -163,12 +180,68 @@ function CaseMessages({ messages }: { messages: AdminModerationCaseMessage[] }) 
             <p className="text-xs text-muted-foreground">
               {message.author === "member" ? "Membre" : "Staff"}
               {message.authorName !== null ? ` · ${message.authorName}` : ""} · {formatDate(message.createdAt)}
+              {message.author === "staff" ? ` · ${message.discordDm !== null ? (DM_LABELS[message.discordDm] ?? message.discordDm) : "MP Discord en cours"}` : ""}
             </p>
             <p className="whitespace-pre-line text-sm text-foreground">{message.body}</p>
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Story 39.3 : la réponse part du site, vers le membre (notification, fil, MP du bot si son compte est lié) et
+ * dans le forum staff. Ce qui s'écrit dans le post du forum, lui, reste entre membres du staff.
+ */
+function ReplyForm({ userId, onDone }: { userId: string; onDone: () => Promise<void> }) {
+  const [body, setBody] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setPending(true);
+    setError(null);
+    const failure = await replyToMember(userId, body);
+    setPending(false);
+    if (failure !== null) {
+      setError(failure);
+      return;
+    }
+    setBody("");
+    await onDone();
+  }
+
+  return (
+    <form className="grid gap-2 rounded-lg border border-border bg-surface px-4 py-3" onSubmit={submit}>
+      <label className="text-sm font-semibold text-foreground" htmlFor={`reply-${userId}`}>
+        Répondre au membre
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Envoyé au membre sur le site et en MP Discord si son compte est lié, et posté dans le forum staff.
+      </p>
+      <textarea
+        className="min-h-24 rounded border border-border bg-background p-3 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+        id={`reply-${userId}`}
+        maxLength={2000}
+        onChange={(event) => setBody(event.target.value)}
+        required
+        value={body}
+      />
+      {error !== null ? (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button
+        className="inline-flex min-h-10 items-center justify-center justify-self-start rounded bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={pending || body.trim() === ""}
+        type="submit"
+      >
+        {pending ? "Envoi..." : "Envoyer la réponse"}
+      </button>
+    </form>
   );
 }
 
