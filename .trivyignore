@@ -22,14 +22,16 @@
 # Both live in Go modules linked into /usr/local/bin/frankenphp. We do not build that binary,
 # so the only real fix is an upstream release, and 1.12.7 (2026-08-07) is the latest one.
 # Tracked in #518; revisit when FrankenPHP ships a build with the bumped modules.
+# Expiry pushed from 2026-10-01 to 2026-10-10 on 2026-09-27: still no FrankenPHP release after
+# 1.12.7, and aligned with the three #585 entries so all seven are reviewed on the same day.
 #
 # kin-openapi: fail-open auth bypass in ValidationHandler.Load(). That handler is FrankenPHP's
 # optional OpenAPI request validation - we do not enable it, Symfony does our routing and auth.
-GHSA-r277-6w6q-xmqw exp:2026-10-01  # api-web: getkin/kin-openapi v0.140.0, ValidationHandler unused - #518
+GHSA-r277-6w6q-xmqw exp:2026-10-10  # api-web: getkin/kin-openapi v0.140.0, ValidationHandler unused - #518
 #
 # grpc: xDS RBAC and HTTP/2 issues. We run FrankenPHP standalone behind Traefik, with no xDS
 # control plane and no gRPC listener.
-GHSA-hrxh-6v49-42gf exp:2026-10-01  # api-web: google.golang.org/grpc v1.81.1, no xDS/gRPC in use - #518
+GHSA-hrxh-6v49-42gf exp:2026-10-10  # api-web: google.golang.org/grpc v1.81.1, no xDS/gRPC in use - #518
 #
 # Deux advisories de plus sur le même module, apparues le 2026-08-24 et bloquant la publication de
 # la v0.16.4. Toutes deux sont dans `openapi3filter`, le validateur de requêtes OpenAPI de
@@ -39,8 +41,8 @@ GHSA-hrxh-6v49-42gf exp:2026-10-01  # api-web: google.golang.org/grpc v1.81.1, n
 # Caddyfile : l'image tourne sur celui livré par FrankenPHP, qui n'active pas cette validation, et
 # c'est Symfony qui route et valide. FrankenPHP 1.12.7 (2026-08-07) reste sa dernière version, donc
 # aucun correctif amont n'existe à ce jour.
-CVE-2026-76905 exp:2026-10-01  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
-CVE-2026-77354 exp:2026-10-01  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
+CVE-2026-76905 exp:2026-10-10  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
+CVE-2026-77354 exp:2026-10-10  # api-web: kin-openapi openapi3filter, validation OpenAPI non activée - #518
 
 # --- api-web: dependances Go compilees dans le binaire FrankenPHP, non atteignables ---
 # `golang.org/x/crypto/ssh` : la faille porte sur les restrictions de `authorized_keys` cote serveur
