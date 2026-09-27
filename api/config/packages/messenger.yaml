@@ -3,6 +3,12 @@ framework:
         transports:
             scheduler_default:
                 dsn: 'schedule://default'
+                # Never retry a scheduled message: a retry sends it back to its transport, and the
+                # scheduler transport cannot receive messages - the exception took the whole worker
+                # down, async consumption included. A failed task goes to async_failed and runs
+                # again at its next slot.
+                retry_strategy:
+                    max_retries: 0
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
