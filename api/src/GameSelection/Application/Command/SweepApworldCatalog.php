@@ -69,7 +69,10 @@ final readonly class SweepApworldCatalog
                 null === $verdict
                     || $served->disabled
                     || isset($inTest[$served->gameId])
-                    || true === $verdict['overridden']
+                    // A forced failure is left alone: the admin has seen it and decided. A forced version
+                    // that passed has nothing forced any more, and is retested like any other (story
+                    // 38.10) - which is also what clears a leftover override on the orchestrator.
+                    || (true === $verdict['overridden'] && 'failed' === $status)
                     || \in_array($status, ['pending', 'skipped'], true),
             );
         }
