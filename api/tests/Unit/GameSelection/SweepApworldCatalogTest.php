@@ -109,6 +109,21 @@ final class SweepApworldCatalogTest extends TestCase
         self::assertSame(['h-ok'], $this->launched);
     }
 
+    public function testAForcedVersionThatPassesIsRetestedLikeAnyOther(): void
+    {
+        // Story 38.10: the override is a force-allow for a failed verdict. Forced while its test was still
+        // running, a version that then passed kept it - and was skipped by the rolling test for good. The
+        // orchestrator now clears it on a pass; the ones already stuck in production are retested, which
+        // is what clears them.
+        $this->sweep(
+            [new ServedApworld('g-1', 'h-forced-but-passing')],
+            ['h-forced-but-passing' => $this->verdict('passed', '2026-01-01T00:00:00Z', null, null, overridden: true)],
+            25,
+        );
+
+        self::assertSame(['h-forced-but-passing'], $this->launched);
+    }
+
     public function testAnApworldNeverTestedIsPlanned(): void
     {
         // Uploaded before verdicts existed: listed with an empty status.

@@ -35,6 +35,7 @@ import {DEFAULT_STALE_TIME} from "@/lib/query-client";
 import {APWORLD_INCIDENTS_QUERY_KEY, fetchApworldIncidents} from "./admin-apworld-health-api";
 import {ApworldCandidateStatus} from "./apworld-candidate-status";
 import {ApworldPreflightImage} from "./apworld-preflight-image";
+import {overrideIsActive} from "./apworld-preflight-override";
 import {ApworldIncidentBanner} from "./apworld-incident-banner";
 import {updateStatusLabel, updateStatusTone, type ApworldUpdateStatusTone} from "./apworld-update-status";
 
@@ -1685,7 +1686,7 @@ function ApworldPreflightStatus({ game }: { game: AdminGame }) {
                 inutilisable en l&apos;état, une réussite ne garantit pas toutes les combinaisons d&apos;options.
             </p>
 
-            {preflight?.overridden ? (
+            {overrideIsActive(preflight) ? (
                 <p className="text-xs text-warning">
                     Dérogation active : le jeu reste sélectionnable malgré le verdict.
                 </p>
