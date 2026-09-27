@@ -9,7 +9,8 @@ import {
 } from "./moderation-contact-api";
 
 const BASE = TEST_API_BASE_URL;
-const MESSAGE = { id: "m1", body: "J'aimerais être remboursé", createdAt: "2026-09-27T10:00:00+00:00" };
+const MESSAGE = { id: "m1", author: "member", body: "J'aimerais être remboursé", createdAt: "2026-09-27T10:00:00+00:00" };
+const REPLY = { id: "m2", author: "staff", body: "C'est en cours", createdAt: "2026-09-27T11:00:00+00:00" };
 
 /**
  * Story 39.2 : le membre sanctionné écrit à la modération, depuis son compte ou avec le laissez-passer
@@ -46,11 +47,11 @@ describe("moderation-contact-api", () => {
   it("lit le fil du membre connecté", async () => {
     server.use(
       http.get(`${BASE}/account/moderation-contact`, () =>
-        HttpResponse.json({ data: { available: true, messages: [MESSAGE] } }),
+        HttpResponse.json({ data: { available: true, messages: [MESSAGE, REPLY] } }),
       ),
     );
 
-    await expect(fetchAccountModerationContact()).resolves.toEqual({ available: true, messages: [MESSAGE] });
+    await expect(fetchAccountModerationContact()).resolves.toEqual({ available: true, messages: [MESSAGE, REPLY] });
   });
 
   it("envoie un message et remonte le refus de l'API", async () => {

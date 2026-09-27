@@ -332,6 +332,7 @@ services:
     App\Community\Domain\Repository\ModerationCaseRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseRepository'
     App\Community\Domain\Repository\ModerationCaseMessageRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineModerationCaseMessageRepository'
     App\Community\Application\Port\ModerationForumInterface: '@App\Community\Infrastructure\Adapter\DiscordModerationForum'
+    App\Community\Application\Port\MemberDirectMessageInterface: '@App\Community\Infrastructure\Adapter\DiscordMemberDirectMessages'
     App\Community\Domain\Repository\KudosRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineKudosRepository'
     App\Community\Domain\Repository\NotificationRepositoryInterface: '@App\Community\Infrastructure\Doctrine\DoctrineNotificationRepository'
     App\Community\Application\Support\Notifier: '@App\Community\Application\Service\NotificationService'

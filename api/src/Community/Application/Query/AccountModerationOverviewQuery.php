@@ -46,7 +46,7 @@ final readonly class AccountModerationOverviewQuery
      *     unresolvedReportCount: int,
      *     severityScore: int,
      *     actions: list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, actorName: string|null, relatedReportId: string|null}>,
-     *     case: array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string}>}|null
+     *     case: array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string, discordDm: string|null}>}|null
      * }|null
      */
     public function forUser(string $userId): ?array
@@ -107,9 +107,9 @@ final readonly class AccountModerationOverviewQuery
 
     /**
      * Story 39.1: the member's moderation case and the link to its post in the staff forum on Discord; story
-     * 39.2: its messages, oldest first.
+     * 39.2: its messages, oldest first, staff replies included (story 39.3).
      *
-     * @return array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string}>}|null
+     * @return array{status: string, forumThreadUrl: string|null, messages: list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string, discordDm: string|null}>}|null
      */
     private function moderationCase(string $userId): ?array
     {
@@ -130,7 +130,7 @@ final readonly class AccountModerationOverviewQuery
     }
 
     /**
-     * @return list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string}>
+     * @return list<array{id: string, author: string, authorName: string|null, body: string, source: string, createdAt: string, discordDm: string|null}>
      */
     private function messages(string $caseId): array
     {
@@ -147,6 +147,8 @@ final readonly class AccountModerationOverviewQuery
             'body' => $m->getBody(),
             'source' => $m->getSource(),
             'createdAt' => $m->getCreatedAt()->format(\DateTimeInterface::ATOM),
+            // Story 39.3: how a staff reply reached the member on Discord; null while on its way.
+            'discordDm' => $m->getDiscordDmStatus(),
         ], $messages);
     }
 }
