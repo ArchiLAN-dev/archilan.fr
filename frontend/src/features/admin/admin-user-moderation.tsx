@@ -339,6 +339,9 @@ function ActionForm({ userId, onDone }: { userId: string; onDone: () => Promise<
 const SERVER_LABELS: Record<string, string> = {
   banned: "banni du serveur Discord",
   unbanned: "débanni du serveur Discord",
+  lifted: "sanction levée sur le serveur Discord",
+  timed_out: "exclu temporairement du serveur Discord",
+  not_member: "pas sur le serveur Discord",
   not_linked: "compte Discord non lié",
   unavailable: "bot ou serveur Discord non configuré",
   failed: "échec sur le serveur Discord (permission ou rôle du bot)",

@@ -37,6 +37,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
     private RecordingMemberDirectMessages $dms;
     private RecordingDiscordServer $server;
     private ?string $discordId = '123456789';
+    private ?string $suspendedUntil = null;
     private RecordingLogger $logger;
 
     protected function setUp(): void
@@ -119,14 +120,50 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         self::assertContains(['name' => 'Serveur Discord', 'value' => 'banni'], $this->forum->openedThreads[0]['message']->fields);
     }
 
-    public function testALiftUnbans(): void
+    public function testALiftUnbansAndEndsTheTimeout(): void
     {
         $action = $this->action('a-1', ModerationAction::ACTION_LIFT, 'Appel accepté');
 
         $this->handle($action);
 
         self::assertSame(['123456789'], $this->server->unbans);
-        self::assertSame(ModerationAction::SERVER_UNBANNED, $action->getDiscordServerStatus());
+        self::assertSame(['123456789'], $this->server->clearedTimeouts, 'story 39.6: a lift ends a suspension too');
+        self::assertSame(ModerationAction::SERVER_LIFTED, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Serveur Discord', 'value' => 'sanction levée sur le serveur'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
+    public function testASuspensionTimesTheMemberOutUntilItEnds(): void
+    {
+        $this->suspendedUntil = '2026-10-04T10:00:00+00:00';
+        $action = $this->action('a-1', ModerationAction::ACTION_SUSPEND, 'Comportement');
+
+        $this->handle($action);
+
+        self::assertSame([['discordUserId' => '123456789', 'until' => '2026-10-04T10:00:00+00:00', 'reason' => 'Comportement']], $this->server->timeouts);
+        self::assertSame(ModerationAction::SERVER_TIMED_OUT, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Serveur Discord', 'value' => 'exclu temporairement'], $this->forum->openedThreads[0]['message']->fields);
+        self::assertSame([], $this->server->bans, 'no ban for a suspension');
+    }
+
+    public function testALongSuspensionIsCutToDiscordsTwentyEightDays(): void
+    {
+        $this->suspendedUntil = '2027-01-01T00:00:00+00:00';
+
+        $this->handle($this->action('a-1', ModerationAction::ACTION_SUSPEND, 'Récidive'));
+
+        self::assertSame('2026-10-25T09:59:05+00:00', $this->server->timeouts[0]['until'], '28 days minus a minute from now; the daily job extends it');
+    }
+
+    public function testAMemberOffTheServerIsNoError(): void
+    {
+        $this->suspendedUntil = '2026-10-04T10:00:00+00:00';
+        $this->server->absent = ['123456789'];
+        $action = $this->action('a-1', ModerationAction::ACTION_SUSPEND, 'Comportement');
+
+        $this->handle($action);
+
+        self::assertSame(ModerationAction::SERVER_NOT_MEMBER, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Serveur Discord', 'value' => 'pas sur le serveur'], $this->forum->openedThreads[0]['message']->fields);
     }
 
     public function testAWarningLeavesTheServerAlone(): void
@@ -268,7 +305,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
 
         $gateway = self::createStub(MemberModerationGatewayInterface::class);
         $gateway->method('discordIdOf')->willReturn($this->discordId);
-        $gateway->method('currentState')->willReturn(new MemberModerationState(null, null, null));
+        $gateway->method('currentState')->willReturnCallback(fn (): MemberModerationState => new MemberModerationState($this->suspendedUntil, null, null));
 
         $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
         $directory->method('namesFor')->willReturn(['user-1' => 'Lone', 'admin-1' => 'Jean']);

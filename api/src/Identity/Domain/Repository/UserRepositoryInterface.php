@@ -37,6 +37,13 @@ interface UserRepositoryInterface
      */
     public function findAllNotDeleted(): array;
 
+    /**
+     * Accounts suspended past the given moment and not banned (story 39.6).
+     *
+     * @return list<User>
+     */
+    public function findSuspendedAt(\DateTimeImmutable $now): array;
+
     public function save(User $user): void;
 
     public function flush(): void;

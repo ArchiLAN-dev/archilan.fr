@@ -10,6 +10,7 @@ use App\Community\Application\Message\PostModerationActionToForumJob;
 use App\Community\Application\Port\DiscordServerSanctionsInterface;
 use App\Community\Application\Port\MemberModerationGatewayInterface;
 use App\Community\Application\Query\CommunityUserDirectoryQueryInterface;
+use App\Community\Application\Support\DiscordTimeoutWindow;
 use App\Community\Application\Support\MemberDirectMessenger;
 use App\Community\Application\Support\ModerationForumDelivery;
 use App\Community\Application\Support\ModerationForumMessageFactory;
@@ -30,7 +31,8 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
  * case is kept up to date even without a forum, since it carries the DM channel the answers are read from.
  *
  * Story 39.5: a ban is then applied on the Discord server, a lift unbans - after the direct message, while the
- * bot still shares a server with the member. Each outcome is committed as soon as it is known, so a retry
+ * bot still shares a server with the member. Story 39.6: a suspension times the member out, a lift also ends
+ * the timeout. Each outcome is committed as soon as it is known, so a retry
  * (Discord down) never sends the message nor bans twice; the forum is posted once both are settled.
  */
 #[AsMessageHandler]
@@ -83,7 +85,7 @@ final readonly class PostModerationActionToForumHandler
         $this->cases->flush();
 
         if (null === $action->getDiscordServerStatus()) {
-            $serverStatus = $this->applyOnServer($action, $discordId);
+            $serverStatus = $this->applyOnServer($action, $discordId, $suspendedUntil);
             if (null !== $serverStatus) {
                 $action->recordServerSanction($serverStatus);
                 $this->cases->flush();
@@ -110,15 +112,15 @@ final readonly class PostModerationActionToForumHandler
     }
 
     /**
-     * Story 39.5: a ban bans, a lift unbans; the other sanctions leave the server alone (null). A suspension is
-     * story 39.6's.
+     * A ban bans (story 39.5), a suspension times out (story 39.6), a lift unbans and ends the timeout; a
+     * warning leaves the server alone (null).
      *
      * @return string|null one of the {@see ModerationAction} SERVER_ outcomes
      */
-    private function applyOnServer(ModerationAction $action, ?string $discordId): ?string
+    private function applyOnServer(ModerationAction $action, ?string $discordId, ?string $suspendedUntil): ?string
     {
-        $ban = ModerationAction::ACTION_BAN === $action->getAction();
-        if (!$ban && ModerationAction::ACTION_LIFT !== $action->getAction()) {
+        $kind = $action->getAction();
+        if (ModerationAction::ACTION_WARN === $kind || (ModerationAction::ACTION_SUSPEND === $kind && null === $suspendedUntil)) {
             return null;
         }
         if (null === $discordId) {
@@ -129,10 +131,20 @@ final readonly class PostModerationActionToForumHandler
         }
 
         try {
-            if ($ban) {
-                $this->server->ban($discordId, $action->getReason());
-            } else {
-                $this->server->unban($discordId);
+            switch ($kind) {
+                case ModerationAction::ACTION_BAN:
+                    $this->server->ban($discordId, $action->getReason());
+
+                    return ModerationAction::SERVER_BANNED;
+                case ModerationAction::ACTION_SUSPEND:
+                    return $this->server->timeout($discordId, DiscordTimeoutWindow::until($suspendedUntil, $this->clock->now()), $action->getReason())
+                        ? ModerationAction::SERVER_TIMED_OUT
+                        : ModerationAction::SERVER_NOT_MEMBER;
+                default:
+                    $this->server->unban($discordId);
+                    $this->server->clearTimeout($discordId);
+
+                    return ModerationAction::SERVER_LIFTED;
             }
         } catch (DiscordServerSanctionException $e) {
             if ($e->transient) {
@@ -146,7 +158,5 @@ final readonly class PostModerationActionToForumHandler
 
             return ModerationAction::SERVER_FAILED;
         }
-
-        return $ban ? ModerationAction::SERVER_BANNED : ModerationAction::SERVER_UNBANNED;
     }
 }
