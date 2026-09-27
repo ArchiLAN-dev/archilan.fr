@@ -37,7 +37,9 @@ services:
             retries: 10
 
     minio:
-        image: minio/minio:latest
+        # MinIO ne publie plus d'image communautaire (minio/minio a disparu de Docker Hub) : build
+        # communautaire du meme code, epingle pour ne pas subir un nouveau retrait de `latest`.
+        image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
         container_name: archilan-minio
         restart: always
         command: server /data --console-address ":9001"
@@ -71,7 +73,8 @@ services:
             - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
 
     createbuckets:
-        image: minio/mc:latest
+        # Meme raison que le service minio ; pgsty/mc ne publie que `latest`.
+        image: pgsty/mc:latest
         env_file: envs/minio.env
         depends_on:
             minio:
