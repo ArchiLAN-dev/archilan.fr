@@ -5,6 +5,26 @@ Toutes les versions notables d'archilan.fr sont documentées dans ce fichier.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le
 projet adopte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [0.21.1] - 2026-09-27
+
+Correctif : une version d'apworld forcée pendant son test gardait sa dérogation après l'avoir réussi.
+
+### Corrigé
+
+- **Une dérogation se lève quand le test passe.** « Autoriser malgré l'échec » rend un jeu
+  sélectionnable malgré un test de génération échoué. Posée sur une version encore en test, par
+  exemple en forçant une mise à jour, elle restait après un test réussi : la page affichait
+  « Dérogation active » sous « Test de génération réussi », le test tournant du catalogue ne
+  retestait plus cette version, et un échec futur aurait été ignoré sans alerte. Le test tournant
+  reteste désormais une version dérogée qui a réussi, et le message ne s'affiche plus que sur un test
+  échoué.
+
+### Notes de déploiement
+
+- **Orchestrateur `v0.18.2`** : c'est lui qui lève la dérogation quand le test passe. Avec l'API
+  seule, les versions dérogées sont retestées mais leur dérogation reste.
+- Aucune migration.
+
 ## [0.21.0] - 2026-09-27
 
 Les apworlds se surveillent et se mettent à jour tout seuls, sans jamais remplacer une version qui
