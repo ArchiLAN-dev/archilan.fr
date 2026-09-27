@@ -23,4 +23,15 @@ final class ModerationActionDirectMessageTest extends TestCase
 
         self::assertSame(ModerationCaseMessage::DM_SENT, $action->getDiscordDmStatus());
     }
+
+    public function testTheServerOutcomeIsRecordedOnceToo(): void
+    {
+        $action = ModerationAction::create('admin-1', 'user-1', ModerationAction::ACTION_BAN, 'Triche', new \DateTimeImmutable());
+        self::assertNull($action->getDiscordServerStatus());
+
+        $action->recordServerSanction(ModerationAction::SERVER_BANNED);
+        $action->recordServerSanction(ModerationAction::SERVER_FAILED);
+
+        self::assertSame(ModerationAction::SERVER_BANNED, $action->getDiscordServerStatus());
+    }
 }

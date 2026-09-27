@@ -142,7 +142,7 @@ final readonly class AccountModerationService
     /**
      * Action history for one account, most recent first.
      *
-     * @return list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, relatedReportId: string|null}>
+     * @return list<array{id: string, action: string, reason: string, createdAt: string, actorId: string, relatedReportId: string|null, discordDm: string|null, discordServer: string|null}>
      */
     public function history(string $targetUserId, int $limit = 50): array
     {
@@ -155,6 +155,9 @@ final readonly class AccountModerationService
                 'createdAt' => $action->getCreatedAt()->format(\DateTimeInterface::ATOM),
                 'actorId' => $action->getActorId(),
                 'relatedReportId' => $action->getRelatedReportId(),
+                // Stories 39.4 and 39.5: how Discord took it, null until the async job has run.
+                'discordDm' => $action->getDiscordDmStatus(),
+                'discordServer' => $action->getDiscordServerStatus(),
             ];
         }
 

@@ -10,8 +10,12 @@ namespace App\Community\Infrastructure\Adapter;
  */
 final class DiscordRestFailure extends \RuntimeException
 {
-    public function __construct(string $message, ?\Throwable $previous = null, public readonly bool $transient = false)
-    {
+    public function __construct(
+        string $message,
+        ?\Throwable $previous = null,
+        public readonly bool $transient = false,
+        public readonly int $status = 0,
+    ) {
         parent::__construct($message, 0, $previous);
     }
 }

@@ -32,6 +32,14 @@ final readonly class ModerationForumMessageFactory
         ModerationCaseMessage::DM_UNAVAILABLE => 'bot non configuré',
     ];
 
+    private const array SERVER_OUTCOMES = [
+        ModerationAction::SERVER_BANNED => 'banni',
+        ModerationAction::SERVER_UNBANNED => 'débanni',
+        ModerationAction::SERVER_NOT_LINKED => 'compte Discord non lié',
+        ModerationAction::SERVER_UNAVAILABLE => 'bot ou serveur non configuré',
+        ModerationAction::SERVER_FAILED => 'échec (permission ou rôle du bot)',
+    ];
+
     private const array COLORS = [
         ModerationAction::ACTION_WARN => 0xF1C40F,
         ModerationAction::ACTION_SUSPEND => 0xE67E22,
@@ -48,8 +56,9 @@ final readonly class ModerationForumMessageFactory
     /**
      * @param string|null $suspendedUntil the end of the suspension (ATOM), for a suspension
      * @param string|null $dmStatus       how the bot's direct message told the member (story 39.4)
+     * @param string|null $serverStatus   how the sanction was applied on the server (story 39.5)
      */
-    public function forAction(ModerationAction $action, string $memberName, ?string $discordId, string $actorName, ?string $suspendedUntil, ?string $dmStatus = null): ModerationForumMessage
+    public function forAction(ModerationAction $action, string $memberName, ?string $discordId, string $actorName, ?string $suspendedUntil, ?string $dmStatus = null, ?string $serverStatus = null): ModerationForumMessage
     {
         $label = self::LABELS[$action->getAction()] ?? $action->getAction();
         $site = rtrim($this->siteUrl, '/');
@@ -63,6 +72,9 @@ final readonly class ModerationForumMessageFactory
         }
         if (null !== $dmStatus) {
             $fields[] = ['name' => 'Message privé Discord', 'value' => self::DM_OUTCOMES[$dmStatus] ?? $dmStatus];
+        }
+        if (null !== $serverStatus) {
+            $fields[] = ['name' => 'Serveur Discord', 'value' => self::SERVER_OUTCOMES[$serverStatus] ?? $serverStatus];
         }
         $fields[] = ['name' => 'Fiche', 'value' => $site.'/admin/utilisateurs/'.$action->getTargetUserId()];
         if (null !== $action->getRelatedReportId()) {

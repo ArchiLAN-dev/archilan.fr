@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Community;
 
+use App\Community\Application\Exception\DiscordServerSanctionException;
+use App\Community\Application\Exception\DiscordServerTemporarilyUnavailableException;
 use App\Community\Application\Exception\MemberDirectMessageException;
 use App\Community\Application\Exception\ModerationForumDeliveryException;
 use App\Community\Application\Exception\ModerationForumTemporarilyUnavailableException;
@@ -33,6 +35,8 @@ final class PostModerationActionToForumHandlerTest extends TestCase
     private InMemoryModerationCaseRepository $cases;
     private RecordingModerationForum $forum;
     private RecordingMemberDirectMessages $dms;
+    private RecordingDiscordServer $server;
+    private ?string $discordId = '123456789';
     private RecordingLogger $logger;
 
     protected function setUp(): void
@@ -40,6 +44,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         $this->cases = new InMemoryModerationCaseRepository();
         $this->forum = new RecordingModerationForum();
         $this->dms = new RecordingMemberDirectMessages();
+        $this->server = new RecordingDiscordServer($this->dms);
         $this->logger = new RecordingLogger();
     }
 
@@ -101,6 +106,84 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         self::assertSame(ModerationCaseMessage::DM_SENT, $action->getDiscordDmStatus());
         self::assertSame('dm-123456789', $this->cases->findByTargetUserId('user-1')?->getDirectMessageChannelId());
         self::assertContains(['name' => 'Message privé Discord', 'value' => 'envoyé'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
+    public function testASiteBanBansOnTheServerAfterTheDirectMessage(): void
+    {
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+
+        $this->handle($action);
+
+        self::assertSame([['discordUserId' => '123456789', 'reason' => 'Triche', 'directMessagesBefore' => 1]], $this->server->bans, 'banned once told, while the bot still shares the server');
+        self::assertSame(ModerationAction::SERVER_BANNED, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Serveur Discord', 'value' => 'banni'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
+    public function testALiftUnbans(): void
+    {
+        $action = $this->action('a-1', ModerationAction::ACTION_LIFT, 'Appel accepté');
+
+        $this->handle($action);
+
+        self::assertSame(['123456789'], $this->server->unbans);
+        self::assertSame(ModerationAction::SERVER_UNBANNED, $action->getDiscordServerStatus());
+    }
+
+    public function testAWarningLeavesTheServerAlone(): void
+    {
+        $action = $this->action('a-1', ModerationAction::ACTION_WARN, 'Spam');
+
+        $this->handle($action);
+
+        self::assertSame([], $this->server->bans);
+        self::assertNull($action->getDiscordServerStatus());
+        foreach ($this->forum->openedThreads[0]['message']->fields as $field) {
+            self::assertNotSame('Serveur Discord', $field['name']);
+        }
+    }
+
+    public function testAnUnlinkedAccountIsNotBannedOnDiscord(): void
+    {
+        $this->discordId = null;
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+
+        $this->handle($action);
+
+        self::assertSame([], $this->server->bans);
+        self::assertSame(ModerationAction::SERVER_NOT_LINKED, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Serveur Discord', 'value' => 'compte Discord non lié'], $this->forum->openedThreads[0]['message']->fields);
+    }
+
+    public function testAMissingPermissionIsReportedNotRetried(): void
+    {
+        $this->server->failWith = new DiscordServerSanctionException('Discord 403: Missing Permissions');
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+
+        $this->handle($action);
+
+        self::assertSame(ModerationAction::SERVER_FAILED, $action->getDiscordServerStatus());
+        self::assertContains(['name' => 'Serveur Discord', 'value' => 'échec (permission ou rôle du bot)'], $this->forum->openedThreads[0]['message']->fields);
+        self::assertContains(['level' => 'warning', 'message' => 'moderation_server.not_applied'], $this->logger->logs);
+    }
+
+    public function testAPassingServerFailureIsRetriedWithoutASecondDirectMessage(): void
+    {
+        $this->server->failWith = new DiscordServerSanctionException('Discord 503', transient: true);
+        $action = $this->action('a-1', ModerationAction::ACTION_BAN, 'Triche');
+        try {
+            $this->handle($action);
+            self::fail('retried');
+        } catch (DiscordServerTemporarilyUnavailableException) {
+        }
+        self::assertNull($action->getDiscordServerStatus());
+        self::assertSame([], $this->forum->openedThreads, 'the forum waits for the whole picture');
+
+        $this->server->failWith = null;
+        $this->handle($action);
+
+        self::assertCount(1, $this->dms->sent);
+        self::assertCount(1, $this->server->bans);
+        self::assertSame(ModerationAction::SERVER_BANNED, $action->getDiscordServerStatus());
     }
 
     public function testClosedPrivateMessagesAreReported(): void
@@ -184,7 +267,7 @@ final class PostModerationActionToForumHandlerTest extends TestCase
         $actions->method('findById')->willReturnCallback(fn (string $id): ?ModerationAction => $this->actions[$id] ?? null);
 
         $gateway = self::createStub(MemberModerationGatewayInterface::class);
-        $gateway->method('discordIdOf')->willReturn('123456789');
+        $gateway->method('discordIdOf')->willReturn($this->discordId);
         $gateway->method('currentState')->willReturn(new MemberModerationState(null, null, null));
 
         $directory = self::createStub(CommunityUserDirectoryQueryInterface::class);
@@ -197,8 +280,10 @@ final class PostModerationActionToForumHandlerTest extends TestCase
             $directory,
             new ModerationForumMessageFactory('https://archilan.fr'),
             new MemberDirectMessenger($this->dms, $this->logger),
+            $this->server,
             new ModerationForumDelivery($this->forum, $this->cases, $this->logger),
             new MockClock('2026-09-27 10:00:05'),
+            $this->logger,
         );
     }
 }
